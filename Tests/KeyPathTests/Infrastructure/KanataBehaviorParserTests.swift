@@ -123,7 +123,9 @@ struct KanataBehaviorParserTests {
     func twoStepTapDance() {
         let result = KanataBehaviorParser.parse("(tap-dance 200 (esc caps))")
 
-        guard case let .tapDance(td) = result else {
+        guard case let .tapOrTapDance(tapBehavior) = result,
+              case let .tapDance(td) = tapBehavior
+        else {
             Issue.record("Expected tapDance")
             return
         }
@@ -140,7 +142,9 @@ struct KanataBehaviorParserTests {
     func tapDanceCustomWindow() {
         let result = KanataBehaviorParser.parse("(tap-dance 150 (spc ret tab))")
 
-        guard case let .tapDance(td) = result else {
+        guard case let .tapOrTapDance(tapBehavior) = result,
+              case let .tapDance(td) = tapBehavior
+        else {
             Issue.record("Expected tapDance")
             return
         }
@@ -149,6 +153,18 @@ struct KanataBehaviorParserTests {
         #expect(td.steps.count == 3)
         #expect(td.steps[2].action == "tab")
         #expect(td.steps[2].label == "Triple Tap")
+    }
+
+    @Test("Macro parses correctly")
+    func macroParse() {
+        let result = KanataBehaviorParser.parse("(macro a b c)")
+
+        guard case let .macro(macro) = result else {
+            Issue.record("Expected macro")
+            return
+        }
+
+        #expect(macro.outputs == ["a", "b", "c"])
     }
 
     // MARK: - Round-Trip Tests
@@ -179,11 +195,13 @@ struct KanataBehaviorParserTests {
     @Test("Tap-dance round-trips through render and parse")
     func tapDanceRoundTrip() {
         let original = TapDanceBehavior.twoStep(singleTap: "esc", doubleTap: "caps", windowMs: 180)
-        let mapping = KeyMapping(input: "caps", output: "esc", behavior: .tapDance(original))
+        let mapping = KeyMapping(input: "caps", output: "esc", behavior: .tapOrTapDance(.tapDance(original)))
         let rendered = KanataBehaviorRenderer.render(mapping)
         let parsed = KanataBehaviorParser.parse(rendered)
 
-        guard case let .tapDance(td) = parsed else {
+        guard case let .tapOrTapDance(tapBehavior) = parsed,
+              case let .tapDance(td) = tapBehavior
+        else {
             Issue.record("Expected tapDance after round-trip")
             return
         }
@@ -226,7 +244,9 @@ struct KanataBehaviorParserTests {
     func tapDanceWithMulti() {
         let result = KanataBehaviorParser.parse("(tap-dance 200 (esc (multi lctl lmet lalt lsft)))")
 
-        guard case let .tapDance(td) = result else {
+        guard case let .tapOrTapDance(tapBehavior) = result,
+              case let .tapDance(td) = tapBehavior
+        else {
             Issue.record("Expected tapDance")
             return
         }

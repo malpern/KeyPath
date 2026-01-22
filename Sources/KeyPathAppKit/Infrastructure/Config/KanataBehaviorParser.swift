@@ -17,6 +17,9 @@ import Foundation
 /// **Tap-Dance:**
 /// - `(tap-dance windowMs (action1 action2 ...))`
 ///
+/// **Macro:**
+/// - `(macro key1 key2 ...)`
+///
 /// ## Limitations
 ///
 /// - Does not parse nested behaviors (e.g., tap-hold inside tap-dance)
@@ -44,7 +47,12 @@ public enum KanataBehaviorParser {
 
         // Try tap-dance
         if let tapDance = parseTapDance(trimmed) {
-            return .tapDance(tapDance)
+            return .tapOrTapDance(.tapDance(tapDance))
+        }
+
+        // Try macro
+        if let macro = parseMacro(trimmed) {
+            return .macro(macro)
         }
 
         return nil
@@ -187,6 +195,25 @@ public enum KanataBehaviorParser {
         }
 
         return TapDanceBehavior(windowMs: windowMs, steps: steps)
+    }
+
+    // MARK: - Macro Parsing
+
+    /// Parse macro syntax.
+    /// Format: (macro key1 key2 ...)
+    private static func parseMacro(_ action: String) -> MacroBehavior? {
+        let prefix = "(macro "
+        guard action.hasPrefix(prefix), action.hasSuffix(")") else { return nil }
+
+        let start = action.index(action.startIndex, offsetBy: prefix.count)
+        let end = action.index(before: action.endIndex)
+        guard start < end else { return nil }
+
+        let body = String(action[start ..< end]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let tokens = tokenize(body)
+        guard !tokens.isEmpty else { return nil }
+
+        return MacroBehavior(outputs: tokens, source: .keys)
     }
 
     // MARK: - Tokenizer

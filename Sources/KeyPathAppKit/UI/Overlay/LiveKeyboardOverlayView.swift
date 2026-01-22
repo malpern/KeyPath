@@ -2140,10 +2140,12 @@ struct OverlayInspectorPanel: View {
                 tapHoldKeyCode = keyCode
             }
             // Extract selected slot
-            if let slotRaw = notification.userInfo?["slot"] as? String,
-               let slot = BehaviorSlot(rawValue: slotRaw)
+            if let slotRaw = notification.userInfo?["slot"] as? String
             {
+                let normalizedSlot = slotRaw == "doubleTap" ? "macro" : slotRaw
+                if let slot = BehaviorSlot(rawValue: normalizedSlot) {
                 tapHoldInitialSlot = slot
+                }
             }
             // Open the Tap & Hold panel
             withAnimation(.easeInOut(duration: 0.25)) {
@@ -2421,7 +2423,7 @@ struct OverlayInspectorPanel: View {
     /// Hold behavior action
     @State private var tapHoldHoldAction: BehaviorAction = .none
     /// Double tap behavior action
-    @State private var tapHoldDoubleTapAction: BehaviorAction = .none
+    @State private var tapHoldMacroAction: BehaviorAction = .none
     /// Tap + Hold behavior action
     @State private var tapHoldComboAction: BehaviorAction = .none
     /// Responsiveness level (maps to timing thresholds)
@@ -2468,7 +2470,7 @@ struct OverlayInspectorPanel: View {
             initialSlot: tapHoldInitialSlot,
             tapAction: $tapHoldTapAction,
             holdAction: $tapHoldHoldAction,
-            doubleTapAction: $tapHoldDoubleTapAction,
+            macroAction: $tapHoldMacroAction,
             comboAction: $tapHoldComboAction,
             responsiveness: $tapHoldResponsiveness,
             useTapImmediately: $tapHoldUseTapImmediately

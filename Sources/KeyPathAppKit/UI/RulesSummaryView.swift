@@ -1509,21 +1509,26 @@ private struct MappingRowView: View {
             case let .dualRole(dr):
                 behaviorItem(icon: "hand.point.up.left", label: "Hold", key: dr.holdAction)
 
-            case let .tapDance(td):
-                let behaviorItems = extractBehaviorItemsInEditOrder(from: td)
+            case let .tapOrTapDance(tapBehavior):
+                if case let .tapDance(td) = tapBehavior {
+                    let behaviorItems = extractBehaviorItemsInEditOrder(from: td)
 
-                if behaviorItems.isEmpty {
-                    EmptyView()
-                } else {
-                    ForEach(Array(behaviorItems.enumerated()), id: \.offset) { itemIndex, item in
-                        if itemIndex > 0 {
-                            Text("•")
-                                .font(.caption)
-                                .foregroundColor(.secondary.opacity(0.5))
+                    if behaviorItems.isEmpty {
+                        EmptyView()
+                    } else {
+                        ForEach(Array(behaviorItems.enumerated()), id: \.offset) { itemIndex, item in
+                            if itemIndex > 0 {
+                                Text("•")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary.opacity(0.5))
+                            }
+                            behaviorItem(icon: item.0, label: item.1, key: item.2)
                         }
-                        behaviorItem(icon: item.0, label: item.1, key: item.2)
                     }
                 }
+
+            case let .macro(macro):
+                behaviorItem(icon: "arrow.right", label: "Macro", key: macro.displayString)
 
             case let .chord(ch):
                 behaviorItem(

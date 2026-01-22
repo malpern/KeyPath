@@ -9,7 +9,7 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
     public var isEnabled: Bool
     public var notes: String?
     public var createdAt: Date
-    /// Advanced behavior (tap-hold, tap-dance). Nil means simple remap.
+    /// Advanced behavior (tap-hold, tap-dance, macro). Nil means simple remap.
     public var behavior: MappingBehavior?
     /// Target layer for this rule (defaults to base)
     public var targetLayer: RuleCollectionLayer

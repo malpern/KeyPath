@@ -206,6 +206,11 @@ class MapperViewModel: ObservableObject {
         set { advancedBehavior.doubleTapAction = newValue }
     }
 
+    var macroBehavior: MacroBehavior? {
+        get { advancedBehavior.macroBehavior }
+        set { advancedBehavior.macroBehavior = newValue }
+    }
+
     var tappingTerm: Int {
         get { advancedBehavior.tappingTerm }
         set { advancedBehavior.tappingTerm = newValue }
@@ -224,6 +229,11 @@ class MapperViewModel: ObservableObject {
     var isRecordingComboOutput: Bool {
         get { advancedBehavior.isRecordingComboOutput }
         set { advancedBehavior.isRecordingComboOutput = newValue }
+    }
+
+    var isRecordingMacro: Bool {
+        get { advancedBehavior.isRecordingMacro }
+        set { advancedBehavior.isRecordingMacro = newValue }
     }
 
     var comboOutput: String {
@@ -315,6 +325,7 @@ class MapperViewModel: ObservableObject {
     private var savedOutputSequence: KeySequence?
     private var savedSelectedApp: AppLaunchInfo?
     private var savedSelectedSystemAction: SystemActionInfo?
+    private var savedMacroBehavior: MacroBehavior?
 
     /// Delay before finalizing a sequence capture (allows for multi-key sequences)
     private let sequenceFinalizeDelay: TimeInterval = 0.8
@@ -401,6 +412,7 @@ class MapperViewModel: ObservableObject {
         // Clear previous behavior (will be loaded separately via loadBehaviorFromExistingRule)
         advancedBehavior.holdAction = ""
         advancedBehavior.doubleTapAction = ""
+        advancedBehavior.macroBehavior = nil
         advancedBehavior.comboKeys = []
         advancedBehavior.comboOutput = ""
         advancedBehavior.holdBehavior = .basic
@@ -443,23 +455,32 @@ class MapperViewModel: ObservableObject {
 
             AppLogger.shared.log("📖 [MapperViewModel] Loaded dualRole behavior for '\(inputKey)': hold='\(dualRole.holdAction)'")
 
-        case let .tapDance(tapDance):
-            // Load timing
-            advancedBehavior.tapTimeout = tapDance.windowMs
+        case let .tapOrTapDance(tapBehavior):
+            switch tapBehavior {
+            case .tap:
+                AppLogger.shared.log("📖 [MapperViewModel] Loaded tap behavior for '\(inputKey)'")
+            case let .tapDance(tapDance):
+                // Load timing
+                advancedBehavior.tapTimeout = tapDance.windowMs
 
-            // Load tap-dance steps
-            // First step (index 0) is single tap - already loaded in outputLabel
-            if tapDance.steps.count > 1 {
-                advancedBehavior.doubleTapAction = tapDance.steps[1].action
-            }
-            // Load additional steps into tapDanceSteps array (triple tap, quad tap, etc.)
-            if tapDance.steps.count > 2 {
-                advancedBehavior.tapDanceSteps = tapDance.steps.dropFirst(2).map { step in
-                    (label: step.label, action: step.action, isRecording: false)
+                // Load tap-dance steps
+                // First step (index 0) is single tap - already loaded in outputLabel
+                if tapDance.steps.count > 1 {
+                    advancedBehavior.doubleTapAction = tapDance.steps[1].action
                 }
+                // Load additional steps into tapDanceSteps array (triple tap, quad tap, etc.)
+                if tapDance.steps.count > 2 {
+                    advancedBehavior.tapDanceSteps = tapDance.steps.dropFirst(2).map { step in
+                        (label: step.label, action: step.action, isRecording: false)
+                    }
+                }
+
+                AppLogger.shared.log("📖 [MapperViewModel] Loaded tapDance behavior for '\(inputKey)': \(tapDance.steps.count) steps, windowMs=\(tapDance.windowMs)")
             }
 
-            AppLogger.shared.log("📖 [MapperViewModel] Loaded tapDance behavior for '\(inputKey)': \(tapDance.steps.count) steps, windowMs=\(tapDance.windowMs)")
+        case let .macro(macro):
+            advancedBehavior.macroBehavior = macro
+            AppLogger.shared.log("📖 [MapperViewModel] Loaded macro behavior for '\(inputKey)'")
 
         case let .chord(chord):
             // Load chord: remove the input key from the keys list (it's implicit)
@@ -623,8 +644,13 @@ class MapperViewModel: ObservableObject {
     }
 
     func toggleDoubleTapRecording() {
+        // Clear macro if needed
+        if macroBehavior?.isValid == true {
+            macroBehavior = nil
+        }
+
         // Check for conflict: if hold is set, show conflict dialog
-        if !holdAction.isEmpty {
+        if advancedBehavior.checkTapDanceConflict() {
             pendingConflictType = .holdVsTapDance
             pendingConflictField = "doubleTap"
             showConflictDialog = true
@@ -658,6 +684,80 @@ class MapperViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Macro Recording
+
+    func toggleMacroRecording() {
+        if isRecordingMacro {
+            stopMacroRecording()
+            return
+        }
+
+        // Clear hold/tap-dance when starting macro
+        if checkHoldConflict() {
+            clearHoldAndTapDanceForMacro()
+        }
+
+        startMacroRecording()
+    }
+
+    func clearMacro() {
+        macroBehavior = nil
+    }
+
+    private func startMacroRecording() {
+        stopRecording()
+        isRecordingMacro = true
+        savedMacroBehavior = macroBehavior
+
+        if keyboardCapture == nil {
+            keyboardCapture = KeyboardCapture()
+        }
+
+        guard let capture = keyboardCapture else {
+            isRecordingMacro = false
+            return
+        }
+
+        capture.startSequenceCapture(mode: .sequence) { [weak self] sequence in
+            guard let self else { return }
+
+            Task { @MainActor in
+                let outputs = sequence.keys.map { Self.keyOutputFromPress($0) }
+                macroBehavior = MacroBehavior(outputs: outputs, source: .keys)
+
+                self.finalizeTimer?.invalidate()
+                self.finalizeTimer = Timer.scheduledTimer(
+                    withTimeInterval: self.sequenceFinalizeDelay,
+                    repeats: false
+                ) { [weak self] _ in
+                    Task { @MainActor in
+                        self?.stopMacroRecording()
+                    }
+                }
+            }
+        }
+    }
+
+    private func stopMacroRecording() {
+        finalizeTimer?.invalidate()
+        finalizeTimer = nil
+        keyboardCapture?.stopCapture()
+        isRecordingMacro = false
+
+        if macroBehavior == nil || macroBehavior?.effectiveOutputs.isEmpty == true {
+            macroBehavior = savedMacroBehavior
+        }
+        savedMacroBehavior = nil
+    }
+
+    private func clearHoldAndTapDanceForMacro() {
+        holdAction = ""
+        holdBehavior = .basic
+        customTapKeysText = ""
+        doubleTapAction = ""
+        tapDanceSteps.removeAll()
+    }
+
     // MARK: - Tap-Dance Steps (Triple, Quad, etc.)
 
     /// Add next tap-dance step (Triple Tap, Quad Tap, etc.)
@@ -674,8 +774,13 @@ class MapperViewModel: ObservableObject {
     func toggleTapDanceRecording(at index: Int) {
         guard index >= 0, index < tapDanceSteps.count else { return }
 
+        // Clear macro if needed
+        if macroBehavior?.isValid == true {
+            macroBehavior = nil
+        }
+
         // Check for conflict: if hold is set, show conflict dialog
-        if !holdAction.isEmpty {
+        if advancedBehavior.checkTapDanceConflict() {
             pendingConflictType = .holdVsTapDance
             pendingConflictField = "tapDance-\(index)"
             showConflictDialog = true
@@ -694,6 +799,92 @@ class MapperViewModel: ObservableObject {
                 tapDanceSteps[index].isRecording = false
             }
         }
+    }
+
+    // MARK: - Multi-Tap Helpers
+
+    func multiTapAction(for count: Int) -> String? {
+        guard count >= 2 else { return nil }
+        if count == 2 {
+            return doubleTapAction.isEmpty ? nil : doubleTapAction
+        }
+
+        let index = count - 3
+        guard index >= 0, index < tapDanceSteps.count else { return nil }
+        let action = tapDanceSteps[index].action
+        return action.isEmpty ? nil : action
+    }
+
+    func setMultiTapAction(_ action: String?, for count: Int) {
+        guard count >= 2 else { return }
+
+        if count == 2 {
+            doubleTapAction = action ?? ""
+            return
+        }
+
+        let index = count - 3
+        ensureTapDanceStepIndex(index)
+        tapDanceSteps[index].action = action ?? ""
+        trimTrailingEmptyTapDanceSteps()
+    }
+
+    func isRecordingMultiTap(for count: Int) -> Bool {
+        guard count >= 2 else { return false }
+        if count == 2 {
+            return isRecordingDoubleTap
+        }
+        let index = count - 3
+        guard index >= 0, index < tapDanceSteps.count else { return false }
+        return tapDanceSteps[index].isRecording
+    }
+
+    func toggleMultiTapRecording(for count: Int) {
+        guard count >= 2 else { return }
+        if count == 2 {
+            toggleDoubleTapRecording()
+        } else {
+            let index = count - 3
+            ensureTapDanceStepIndex(index)
+            toggleTapDanceRecording(at: index)
+        }
+    }
+
+    func clearMultiTapAction(for count: Int) {
+        guard count >= 2 else { return }
+        if count == 2 {
+            doubleTapAction = ""
+        } else {
+            let index = count - 3
+            guard index >= 0, index < tapDanceSteps.count else { return }
+            tapDanceSteps[index].action = ""
+            trimTrailingEmptyTapDanceSteps()
+        }
+    }
+
+    private func ensureTapDanceStepIndex(_ index: Int) {
+        guard index >= 0 else { return }
+        while tapDanceSteps.count <= index {
+            let nextIndex = tapDanceSteps.count
+            guard nextIndex < Self.tapDanceLabels.count else { return }
+            let label = Self.tapDanceLabels[nextIndex]
+            tapDanceSteps.append((label: label, action: "", isRecording: false))
+        }
+    }
+
+    private func trimTrailingEmptyTapDanceSteps() {
+        while let last = tapDanceSteps.last, last.action.isEmpty {
+            tapDanceSteps.removeLast()
+        }
+    }
+
+    private static func keyOutputFromPress(_ press: KeyPress) -> String {
+        var prefix = ""
+        if press.modifiers.contains(.command) { prefix += "M-" }
+        if press.modifiers.contains(.control) { prefix += "C-" }
+        if press.modifiers.contains(.option) { prefix += "A-" }
+        if press.modifiers.contains(.shift) { prefix += "S-" }
+        return prefix + press.baseKey
     }
 
     /// Clear tap-dance step action at index
@@ -1078,8 +1269,10 @@ class MapperViewModel: ObservableObject {
         keyboardCapture?.stopCapture()
 
         let wasRecordingOutput = isRecordingOutput
+        let wasRecordingMacro = isRecordingMacro
         isRecordingInput = false
         isRecordingOutput = false
+        isRecordingMacro = false
 
         // If we stopped without capturing anything, restore previous state
         if inputSequence == nil {
@@ -1107,6 +1300,13 @@ class MapperViewModel: ObservableObject {
         savedSelectedApp = nil
         savedSelectedSystemAction = nil
 
+        if wasRecordingMacro {
+            if macroBehavior == nil || macroBehavior?.effectiveOutputs.isEmpty == true {
+                macroBehavior = savedMacroBehavior
+            }
+            savedMacroBehavior = nil
+        }
+
         statusMessage = nil
     }
 
@@ -1130,7 +1330,13 @@ class MapperViewModel: ObservableObject {
         // Also skip if user hasn't changed anything from defaults
         let inputKey = convertSequenceToKanataFormat(inputSeq).lowercased()
         let outputKey = convertSequenceToKanataFormat(outputSeq).lowercased()
-        if inputKey == outputKey, selectedApp == nil, selectedSystemAction == nil, selectedURL == nil {
+        let hasAdvancedBehavior = advancedBehavior.hasAdvancedConfig
+        if inputKey == outputKey,
+           selectedApp == nil,
+           selectedSystemAction == nil,
+           selectedURL == nil,
+           !hasAdvancedBehavior
+        {
             statusMessage = "Nothing to save - input and output are the same"
             statusIsError = true
             return
@@ -1189,9 +1395,12 @@ class MapperViewModel: ObservableObject {
             customRule.targetLayer = targetLayer
 
             // Add behavior based on configured actions
-            // Priority: holdAction → dualRole, doubleTapAction → tapDance, combo → chord
+            // Priority: macro → dualRole → tap-dance → chord
             // (UI should prevent conflicting behaviors from being set simultaneously)
-            if !holdAction.isEmpty {
+            if let macroBehavior, macroBehavior.isValid {
+                customRule.behavior = .macro(macroBehavior)
+                AppLogger.shared.log("💾 [MapperViewModel] Adding macro behavior")
+            } else if !holdAction.isEmpty {
                 let dualRole = DualRoleBehavior(
                     tapAction: outputKanata,
                     holdAction: holdAction,
@@ -1203,7 +1412,7 @@ class MapperViewModel: ObservableObject {
                 )
                 customRule.behavior = .dualRole(dualRole)
                 AppLogger.shared.log("💾 [MapperViewModel] Adding dualRole behavior: tap='\(outputKanata)', hold='\(holdAction)'")
-            } else if !doubleTapAction.isEmpty {
+            } else if !doubleTapAction.isEmpty || tapDanceSteps.contains(where: { !$0.action.isEmpty }) {
                 // Build tap-dance steps: single tap + double tap + any additional steps
                 var steps = [
                     TapDanceStep(label: "Single tap", action: outputKanata),
@@ -1214,7 +1423,7 @@ class MapperViewModel: ObservableObject {
                     steps.append(TapDanceStep(label: step.label, action: step.action))
                 }
                 let tapDance = TapDanceBehavior(windowMs: tapTimeout, steps: steps)
-                customRule.behavior = .tapDance(tapDance)
+                customRule.behavior = .tapOrTapDance(.tapDance(tapDance))
                 AppLogger.shared.log("💾 [MapperViewModel] Adding tapDance behavior: \(steps.count) steps")
             } else if advancedBehavior.hasValidCombo {
                 // Build chord from input key + combo keys

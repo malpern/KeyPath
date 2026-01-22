@@ -5,12 +5,12 @@ import SwiftUI
 /// Place images in Resources/BehaviorIcons/ named:
 ///   - behavior-tap.png, behavior-tap-selected.png
 ///   - behavior-hold.png, behavior-hold-selected.png
-///   - behavior-doubletap.png, behavior-doubletap-selected.png
+///   - behavior-macro.png, behavior-macro-selected.png
 ///   - behavior-combo.png, behavior-combo-selected.png
 struct BehaviorStatePicker: View {
     @Binding var selectedState: BehaviorSlot
 
-    /// Whether each state has a configured action (for hold, doubleTap, tapHold)
+    /// Whether each state has a configured action (for hold, macro, combo)
     var configuredStates: Set<BehaviorSlot> = []
 
     /// Whether the tap behavior is non-identity (A→B, not A→A)
@@ -40,7 +40,7 @@ struct BehaviorStatePicker: View {
         case .tap:
             // Only show dot if tap is a non-identity mapping (A→B, not A→A)
             tapIsNonIdentity
-        case .hold, .doubleTap, .combo:
+        case .hold, .macro, .combo:
             // Show dot if the slot has a configured action
             configuredStates.contains(slot)
         }
@@ -132,8 +132,8 @@ private struct BehaviorKeycapIcon: View {
                 tapIcon
             case .hold:
                 holdIcon
-            case .doubleTap:
-                doubleTapIcon
+            case .macro:
+                macroIcon
             case .combo:
                 comboIcon
             }
@@ -180,34 +180,26 @@ private struct BehaviorKeycapIcon: View {
         }
     }
 
-    /// Double Tap: Two offset keycaps
-    private var doubleTapIcon: some View {
+    /// Macro: Keycap with multiple output arrows
+    private var macroIcon: some View {
         ZStack {
-            // Back keycap (shadow/ghost of first tap)
-            RoundedRectangle(cornerRadius: 3)
-                .fill(fillColor.opacity(0.5))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 3)
-                        .strokeBorder(strokeColor.opacity(0.4), lineWidth: 1)
-                )
-                .frame(width: 14, height: 12)
-                .offset(x: -3, y: -3)
-
-            // Front keycap (second tap)
+            // Keycap base
             RoundedRectangle(cornerRadius: 3)
                 .fill(fillColor)
                 .overlay(
                     RoundedRectangle(cornerRadius: 3)
                         .strokeBorder(strokeColor, lineWidth: 1.5)
                 )
-                .frame(width: 14, height: 12)
-                .offset(x: 3, y: 3)
+                .frame(width: 16, height: 14)
 
-            // "2" indicator
-            Text("2")
-                .font(.system(size: 7, weight: .bold, design: .rounded))
-                .foregroundStyle(strokeColor)
-                .offset(x: 3, y: 2)
+            // Multiple output arrows
+            HStack(spacing: 1) {
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 6, weight: .bold))
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 6, weight: .bold))
+            }
+            .foregroundStyle(strokeColor)
         }
     }
 
@@ -257,7 +249,7 @@ extension BehaviorSlot {
         switch self {
         case .tap: "behavior-tap"
         case .hold: "behavior-hold"
-        case .doubleTap: "behavior-doubletap"
+        case .macro: "behavior-macro"
         case .combo: "behavior-combo"
         }
     }
@@ -266,7 +258,7 @@ extension BehaviorSlot {
         switch self {
         case .tap: "behavior-tap-selected"
         case .hold: "behavior-hold-selected"
-        case .doubleTap: "behavior-doubletap-selected"
+        case .macro: "behavior-macro-selected"
         case .combo: "behavior-combo-selected"
         }
     }
@@ -275,7 +267,7 @@ extension BehaviorSlot {
         switch self {
         case .tap: "rectangle.portrait.arrowtriangle.2.inward"
         case .hold: "rectangle.portrait.bottomhalf.filled"
-        case .doubleTap: "square.on.square"
+        case .macro: "arrow.right"
         case .combo: "rectangle.portrait.on.rectangle.portrait"
         }
     }

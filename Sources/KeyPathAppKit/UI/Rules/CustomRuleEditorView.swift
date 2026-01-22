@@ -25,6 +25,7 @@ struct CustomRuleEditorView: View {
     // Advanced action states
     @State private var holdAction: String = ""
     @State private var tapDanceSteps: [(label: String, action: String)] = []
+    @State private var macroBehavior: MacroBehavior?
     @State private var tappingTerm: Int = 200
     @State private var isRecordingHold: Bool = false
     @State private var recordingTapDanceIndex: Int?
@@ -64,6 +65,15 @@ struct CustomRuleEditorView: View {
 
     @State private var holdBehavior: HoldBehaviorType = .basic
     @State private var customTapKeysText: String = "" // Comma or space separated keys
+
+    enum AdvancedBehaviorMode: String, CaseIterable, Identifiable {
+        case holdMultiTap = "Hold / Multi-tap"
+        case macro = "Macro"
+
+        var id: String { rawValue }
+    }
+
+    @State private var advancedMode: AdvancedBehaviorMode = .holdMultiTap
 
     // Progressive disclosure: advanced timing options
     @State private var showTimingAdvanced: Bool = false
@@ -108,6 +118,11 @@ struct CustomRuleEditorView: View {
             _isEnabled = State(initialValue: rule.isEnabled)
             _behavior = State(initialValue: rule.behavior)
             _showAdvanced = State(initialValue: rule.behavior != nil)
+            if case .macro = rule.behavior {
+                _advancedMode = State(initialValue: .macro)
+            } else {
+                _advancedMode = State(initialValue: .holdMultiTap)
+            }
             _description = State(initialValue: rule.notes ?? "")
             mode = .edit
         } else {
@@ -513,7 +528,7 @@ struct CustomRuleEditorView: View {
                     .accessibilityIdentifier("custom-rule-editor-advanced-toggle")
                     .accessibilityLabel("Show advanced options")
 
-                Text("Hold, Double Tap, etc.")
+                Text("Hold, Multi-tap, Macro")
                     .font(.body)
                     .foregroundColor(.primary)
                     .onTapGesture {
@@ -525,13 +540,14 @@ struct CustomRuleEditorView: View {
             .onChange(of: showAdvanced) { _, isExpanded in
                 if isExpanded {
                     // Initialize with Double Tap by default (always shown)
-                    if tapDanceSteps.isEmpty {
+                    if advancedMode == .holdMultiTap, tapDanceSteps.isEmpty {
                         tapDanceSteps = defaultTapDanceSteps
                     }
                 } else {
                     behavior = nil
                     holdAction = ""
                     tapDanceSteps = []
+                    macroBehavior = nil
                     tappingTerm = 200
                     recordingTapDanceIndex = nil
                     holdBehavior = .basic
@@ -539,13 +555,33 @@ struct CustomRuleEditorView: View {
                     showTimingAdvanced = false
                     tapTimeout = 200
                     holdTimeout = 200
+                    advancedMode = .holdMultiTap
                 }
             }
 
             if showAdvanced {
                 VStack(alignment: .leading, spacing: spacing) {
+                    Picker("Advanced Behavior", selection: $advancedMode) {
+                        ForEach(AdvancedBehaviorMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("custom-rule-editor-advanced-mode-picker")
+                    .onChange(of: advancedMode) { _, _ in
+                        if advancedMode == .macro {
+                            holdAction = ""
+                            tapDanceSteps = []
+                            showTimingAdvanced = false
+                        } else {
+                            macroBehavior = nil
+                        }
+                        syncBehavior()
+                    }
+
                     // Hold action with progressive disclosure
-                    VStack(alignment: .leading, spacing: 8) {
+                    if advancedMode == .holdMultiTap {
+                        VStack(alignment: .leading, spacing: 8) {
                         actionField(
                             label: "On Hold",
                             key: $holdAction,
@@ -634,205 +670,218 @@ struct CustomRuleEditorView: View {
                             .transition(.opacity.combined(with: .move(edge: .top)))
                             .animation(.easeInOut(duration: 0.2), value: holdAction.isEmpty)
                         }
+                        }
+                    } else {
+                        MacroEditorView(
+                            macro: $macroBehavior,
+                            isRecordingKeys: .constant(false),
+                            onRecordKeys: {},
+                            showsRecordButton: false
+                        )
+                        .onChange(of: macroBehavior) { _, _ in
+                            syncBehavior()
+                        }
                     }
 
-                    // Tap Dance steps (dynamic list)
-                    VStack(alignment: .leading, spacing: spacing) {
-                        ForEach(Array(tapDanceSteps.indices), id: \.self) { index in
-                            HStack(spacing: 8) {
-                                actionField(
-                                    label: tapDanceSteps[index].label,
-                                    key: Binding(
-                                        get: { tapDanceSteps[index].action },
-                                        set: { newValue in
-                                            tapDanceSteps[index].action = newValue
-                                            syncBehavior()
-                                        }
-                                    ),
-                                    isRecording: Binding(
-                                        get: { recordingTapDanceIndex == index },
-                                        set: { isRecording in
-                                            if isRecording {
-                                                recordingTapDanceIndex = index
-                                            } else {
-                                                recordingTapDanceIndex = nil
+                    if advancedMode == .holdMultiTap {
+                        // Tap Dance steps (dynamic list)
+                        VStack(alignment: .leading, spacing: spacing) {
+                            ForEach(Array(tapDanceSteps.indices), id: \.self) { index in
+                                HStack(spacing: 8) {
+                                    actionField(
+                                        label: tapDanceSteps[index].label,
+                                        key: Binding(
+                                            get: { tapDanceSteps[index].action },
+                                            set: { newValue in
+                                                tapDanceSteps[index].action = newValue
+                                                syncBehavior()
                                             }
+                                        ),
+                                        isRecording: Binding(
+                                            get: { recordingTapDanceIndex == index },
+                                            set: { isRecording in
+                                                if isRecording {
+                                                    recordingTapDanceIndex = index
+                                                } else {
+                                                    recordingTapDanceIndex = nil
+                                                }
+                                            }
+                                        ),
+                                        onAttemptRecord: {
+                                            // Check for conflict before recording
+                                            if !holdAction.isEmpty {
+                                                pendingConflict = BehaviorConflict(
+                                                    attemptedField: .tapDance(index: index),
+                                                    existingHoldAction: holdAction,
+                                                    existingTapDanceActions: tapDanceSteps.map(\.action).filter { !$0.isEmpty }
+                                                )
+                                                showConflictDialog = true
+                                                return false // Don't start recording
+                                            }
+                                            return true // OK to record
                                         }
-                                    ),
-                                    onAttemptRecord: {
-                                        // Check for conflict before recording
-                                        if !holdAction.isEmpty {
-                                            pendingConflict = BehaviorConflict(
-                                                attemptedField: .tapDance(index: index),
-                                                existingHoldAction: holdAction,
-                                                existingTapDanceActions: tapDanceSteps.map(\.action).filter { !$0.isEmpty }
-                                            )
-                                            showConflictDialog = true
-                                            return false // Don't start recording
-                                        }
-                                        return true // OK to record
-                                    }
-                                )
-                                .onChange(of: tapDanceSteps[index].action) { _, _ in
-                                    syncBehavior()
-                                }
-
-                                // Remove step button (only for Triple Tap and above, index > 0)
-                                if index == 0 {
-                                    // No remove for Double Tap (index 0)
-                                    EmptyView()
-                                } else {
-                                    Button {
-                                        tapDanceSteps.remove(at: index)
+                                    )
+                                    .onChange(of: tapDanceSteps[index].action) { _, _ in
                                         syncBehavior()
-                                    } label: {
-                                        Image(systemName: "minus.circle.fill")
-                                            .font(.title3)
-                                            .foregroundColor(.secondary)
                                     }
-                                    .buttonStyle(.plain)
-                                    .focusable(false)
-                                }
-                            }
-                        }
 
-                        // Add step button (Triple Tap, Quad Tap, etc.)
-                        Button {
-                            let nextIndex = tapDanceSteps.count
-                            let label = nextIndex < tapDanceStepLabels.count
-                                ? tapDanceStepLabels[nextIndex]
-                                : "\(nextIndex + 2) Taps"
-                            tapDanceSteps.append((label: label, action: ""))
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "plus.circle")
-                                    .foregroundColor(.accentColor)
-                                Text("Add Triple Tap, etc.")
-                                    .foregroundColor(.primary)
-                            }
-                            .font(.body)
-                        }
-                        .buttonStyle(.plain)
-                        .focusable(false)
-                        .padding(.leading, 112) // Align with input fields
-                    }
-
-                    // Timing with progressive disclosure
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 12) {
-                            Text("Timing (ms)")
-                                .font(.body)
-                                .foregroundColor(.primary)
-                                .frame(width: 100, alignment: .leading)
-
-                            Group {
-                                if showTimingAdvanced {
-                                    // Separate tap and hold timeouts
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text("Separate timeouts:")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            HStack(spacing: 12) {
-                                                VStack(alignment: .leading, spacing: 4) {
-                                                    Text("Tap window")
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                    TextField("200", value: $tapTimeout, format: .number)
-                                                        .textFieldStyle(.roundedBorder)
-                                                        .frame(width: 80)
-                                                        .focusable(false)
-                                                        .onChange(of: tapTimeout) { _, _ in syncBehavior() }
-                                                        .onHover { hovering in
-                                                            if hovering {
-                                                                NSCursor.iBeam.push()
-                                                            } else {
-                                                                NSCursor.pop()
-                                                            }
-                                                        }
-                                                }
-
-                                                VStack(alignment: .leading, spacing: 4) {
-                                                    Text("Hold delay")
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                    TextField("200", value: $holdTimeout, format: .number)
-                                                        .textFieldStyle(.roundedBorder)
-                                                        .frame(width: 80)
-                                                        .focusable(false)
-                                                        .onChange(of: holdTimeout) { _, _ in syncBehavior() }
-                                                        .onHover { hovering in
-                                                            if hovering {
-                                                                NSCursor.iBeam.push()
-                                                            } else {
-                                                                NSCursor.pop()
-                                                            }
-                                                        }
-                                                }
-                                            }
-
-                                            Text("Tap window: time before tap becomes hold. Hold delay: time before hold activates.")
-                                                .font(.caption2)
-                                                .foregroundColor(.secondary.opacity(0.7))
-                                                .fixedSize(horizontal: false, vertical: true)
-                                        }
-                                    }
-                                } else {
-                                    // Single timing value (default)
-                                    TextField("200", value: $tappingTerm, format: .number)
-                                        .textFieldStyle(.roundedBorder)
-                                        .frame(width: 80)
-                                        .focusable(false)
-                                        .onChange(of: tappingTerm) { _, _ in
-                                            // Sync both timeouts when single value changes
-                                            tapTimeout = tappingTerm
-                                            holdTimeout = tappingTerm
+                                    // Remove step button (only for Triple Tap and above, index > 0)
+                                    if index == 0 {
+                                        // No remove for Double Tap (index 0)
+                                        EmptyView()
+                                    } else {
+                                        Button {
+                                            tapDanceSteps.remove(at: index)
                                             syncBehavior()
+                                        } label: {
+                                            Image(systemName: "minus.circle.fill")
+                                                .font(.title3)
+                                                .foregroundColor(.secondary)
                                         }
-                                        .onHover { hovering in
-                                            if hovering {
-                                                NSCursor.iBeam.push()
-                                            } else {
-                                                NSCursor.pop()
-                                            }
-                                        }
+                                        .buttonStyle(.plain)
+                                        .focusable(false)
+                                    }
                                 }
                             }
-                            .animation(.easeInOut(duration: 0.2), value: showTimingAdvanced)
 
-                            // Gear icon for advanced timing options
+                            // Add step button (Triple Tap, Quad Tap, etc.)
                             Button {
-                                showTimingAdvanced.toggle()
-                                if showTimingAdvanced {
-                                    // Initialize separate values from single value
-                                    tapTimeout = tappingTerm
-                                    holdTimeout = tappingTerm
-                                } else {
-                                    // Sync single value from tapTimeout (or average?)
-                                    tappingTerm = tapTimeout
-                                }
-                                syncBehavior()
+                                let nextIndex = tapDanceSteps.count
+                                let label = nextIndex < tapDanceStepLabels.count
+                                    ? tapDanceStepLabels[nextIndex]
+                                    : "\(nextIndex + 2) Taps"
+                                tapDanceSteps.append((label: label, action: ""))
                             } label: {
-                                Image(systemName: "gearshape")
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
-                                    .frame(width: 24, height: 24)
+                                HStack(spacing: 4) {
+                                    Image(systemName: "plus.circle")
+                                        .foregroundColor(.accentColor)
+                                    Text("Add Triple Tap, etc.")
+                                        .foregroundColor(.primary)
+                                }
+                                .font(.body)
                             }
                             .buttonStyle(.plain)
                             .focusable(false)
-                            .help("Advanced timing options")
+                            .padding(.leading, 112) // Align with input fields
+                        }
 
-                            Spacer()
+                        // Timing with progressive disclosure
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 12) {
+                                Text("Timing (ms)")
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+                                    .frame(width: 100, alignment: .leading)
 
-                            // Reset button
-                            Button("Reset") {
-                                resetAdvanced()
+                                Group {
+                                    if showTimingAdvanced {
+                                        // Separate tap and hold timeouts
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text("Separate timeouts:")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+
+                                            VStack(alignment: .leading, spacing: 6) {
+                                                HStack(spacing: 12) {
+                                                    VStack(alignment: .leading, spacing: 4) {
+                                                        Text("Tap window")
+                                                            .font(.caption)
+                                                            .foregroundColor(.secondary)
+                                                        TextField("200", value: $tapTimeout, format: .number)
+                                                            .textFieldStyle(.roundedBorder)
+                                                            .frame(width: 80)
+                                                            .focusable(false)
+                                                            .onChange(of: tapTimeout) { _, _ in syncBehavior() }
+                                                            .onHover { hovering in
+                                                                if hovering {
+                                                                    NSCursor.iBeam.push()
+                                                                } else {
+                                                                    NSCursor.pop()
+                                                                }
+                                                            }
+                                                    }
+
+                                                    VStack(alignment: .leading, spacing: 4) {
+                                                        Text("Hold delay")
+                                                            .font(.caption)
+                                                            .foregroundColor(.secondary)
+                                                        TextField("200", value: $holdTimeout, format: .number)
+                                                            .textFieldStyle(.roundedBorder)
+                                                            .frame(width: 80)
+                                                            .focusable(false)
+                                                            .onChange(of: holdTimeout) { _, _ in syncBehavior() }
+                                                            .onHover { hovering in
+                                                                if hovering {
+                                                                    NSCursor.iBeam.push()
+                                                                } else {
+                                                                    NSCursor.pop()
+                                                                }
+                                                            }
+                                                    }
+                                                }
+
+                                                Text("Tap window: time before tap becomes hold. Hold delay: time before hold activates.")
+                                                    .font(.caption2)
+                                                    .foregroundColor(.secondary.opacity(0.7))
+                                                    .fixedSize(horizontal: false, vertical: true)
+                                            }
+                                        }
+                                    } else {
+                                        // Single timing value (default)
+                                        TextField("200", value: $tappingTerm, format: .number)
+                                            .textFieldStyle(.roundedBorder)
+                                            .frame(width: 80)
+                                            .focusable(false)
+                                            .onChange(of: tappingTerm) { _, _ in
+                                                // Sync both timeouts when single value changes
+                                                tapTimeout = tappingTerm
+                                                holdTimeout = tappingTerm
+                                                syncBehavior()
+                                            }
+                                            .onHover { hovering in
+                                                if hovering {
+                                                    NSCursor.iBeam.push()
+                                                } else {
+                                                    NSCursor.pop()
+                                                }
+                                            }
+                                    }
+                                }
+                                .animation(.easeInOut(duration: 0.2), value: showTimingAdvanced)
+
+                                // Gear icon for advanced timing options
+                                Button {
+                                    showTimingAdvanced.toggle()
+                                    if showTimingAdvanced {
+                                        // Initialize separate values from single value
+                                        tapTimeout = tappingTerm
+                                        holdTimeout = tappingTerm
+                                    } else {
+                                        // Sync single value from tapTimeout (or average?)
+                                        tappingTerm = tapTimeout
+                                    }
+                                    syncBehavior()
+                                } label: {
+                                    Image(systemName: "gearshape")
+                                        .font(.body)
+                                        .foregroundColor(.secondary)
+                                        .frame(width: 24, height: 24)
+                                }
+                                .buttonStyle(.plain)
+                                .focusable(false)
+                                .help("Advanced timing options")
+
+                                Spacer()
+
+                                // Reset button
+                                Button("Reset") {
+                                    resetAdvanced()
+                                }
+                                .buttonStyle(.bordered)
+                                .focusable(false)
+                                .accessibilityIdentifier("custom-rule-editor-reset-button")
+                                .accessibilityLabel("Reset advanced options")
                             }
-                            .buttonStyle(.bordered)
-                            .focusable(false)
-                            .accessibilityIdentifier("custom-rule-editor-reset-button")
-                            .accessibilityLabel("Reset advanced options")
                         }
                     }
                 }
@@ -942,6 +991,8 @@ struct CustomRuleEditorView: View {
         recordingTapDanceIndex = nil
         holdBehavior = .basic
         customTapKeysText = ""
+        macroBehavior = nil
+        advancedMode = .holdMultiTap
         showTimingAdvanced = false
         tapTimeout = 200
         holdTimeout = 200
@@ -1141,34 +1192,47 @@ struct CustomRuleEditorView: View {
                 showTimingAdvanced = true
             }
 
+            advancedMode = .holdMultiTap
+
             // Ensure Double Tap entry is available (empty) even for dualRole
             if tapDanceSteps.isEmpty {
                 tapDanceSteps = defaultTapDanceSteps
             }
 
-        case let .tapDance(td):
-            tappingTerm = td.windowMs
-            tapTimeout = td.windowMs
-            holdTimeout = td.windowMs
-            // Skip index 0 (single tap = output), load the rest as tap-dance steps
-            tapDanceSteps = []
-            for (index, step) in td.steps.enumerated() {
-                if index == 0 {
-                    continue // Single tap = output (handled by Finish field)
+        case let .tapOrTapDance(tapBehavior):
+            switch tapBehavior {
+            case .tap:
+                advancedMode = .holdMultiTap
+            case let .tapDance(td):
+                advancedMode = .holdMultiTap
+                tappingTerm = td.windowMs
+                tapTimeout = td.windowMs
+                holdTimeout = td.windowMs
+                // Skip index 0 (single tap = output), load the rest as tap-dance steps
+                tapDanceSteps = []
+                for (index, step) in td.steps.enumerated() {
+                    if index == 0 {
+                        continue // Single tap = output (handled by Finish field)
+                    }
+                    let label = index <= tapDanceStepLabels.count
+                        ? tapDanceStepLabels[index - 1]
+                        : "\(index + 1) Taps"
+                    tapDanceSteps.append((label: label, action: step.action))
                 }
-                let label = index <= tapDanceStepLabels.count
-                    ? tapDanceStepLabels[index - 1]
-                    : "\(index + 1) Taps"
-                tapDanceSteps.append((label: label, action: step.action))
+                // Ensure at least Double Tap exists
+                if tapDanceSteps.isEmpty {
+                    tapDanceSteps = defaultTapDanceSteps
+                }
             }
-            // Ensure at least Double Tap exists
-            if tapDanceSteps.isEmpty {
-                tapDanceSteps = defaultTapDanceSteps
-            }
+
+        case let .macro(macro):
+            advancedMode = .macro
+            macroBehavior = macro
 
         case .chord:
             // Chord behavior is not yet supported in this editor
             // Reset to defaults for now
+            advancedMode = .holdMultiTap
             if tapDanceSteps.isEmpty {
                 tapDanceSteps = defaultTapDanceSteps
             }
@@ -1178,6 +1242,15 @@ struct CustomRuleEditorView: View {
     private func syncBehavior() {
         guard showAdvanced else {
             behavior = nil
+            return
+        }
+
+        if advancedMode == .macro {
+            guard let macroBehavior, macroBehavior.isValid else {
+                behavior = nil
+                return
+            }
+            behavior = .macro(macroBehavior)
             return
         }
 
@@ -1237,10 +1310,10 @@ struct CustomRuleEditorView: View {
             }
 
             if !steps.isEmpty {
-                behavior = .tapDance(TapDanceBehavior(
+                behavior = .tapOrTapDance(.tapDance(TapDanceBehavior(
                     windowMs: tappingTerm,
                     steps: steps
-                ))
+                )))
             } else {
                 behavior = nil
             }

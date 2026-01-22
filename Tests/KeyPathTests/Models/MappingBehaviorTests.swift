@@ -79,6 +79,28 @@ struct MappingBehaviorTests {
         #expect(td.steps[1].action == "b")
     }
 
+    // MARK: - MacroBehavior
+
+    @Test("MacroBehavior text expansion outputs")
+    func macroTextOutputs() {
+        let macro = MacroBehavior(text: "hi")
+        #expect(macro.effectiveOutputs == ["h", "i"])
+        #expect(macro.isValid == true)
+    }
+
+    @Test("MacroBehavior key sequence outputs")
+    func macroKeyOutputs() {
+        let macro = MacroBehavior(outputs: ["M-c", "v"], source: .keys)
+        #expect(macro.effectiveOutputs == ["M-c", "v"])
+        #expect(macro.isValid == true)
+    }
+
+    @Test("MacroBehavior invalid when empty")
+    func macroInvalidEmpty() {
+        let macro = MacroBehavior(outputs: [], text: "")
+        #expect(macro.isValid == false)
+    }
+
     // MARK: - MappingBehavior enum
 
     @Test("MappingBehavior dualRole case round-trips")
@@ -100,17 +122,59 @@ struct MappingBehaviorTests {
 
     @Test("MappingBehavior tapDance case round-trips")
     func mappingBehaviorTapDance() throws {
-        let behavior = MappingBehavior.tapDance(
+        let behavior = MappingBehavior.tapOrTapDance(.tapDance(
             TapDanceBehavior.twoStep(singleTap: "x", doubleTap: "y")
-        )
+        ))
 
         let data = try JSONEncoder().encode(behavior)
         let decoded = try JSONDecoder().decode(MappingBehavior.self, from: data)
 
-        if case let .tapDance(td) = decoded {
+        if case let .tapOrTapDance(tapBehavior) = decoded,
+           case let .tapDance(td) = tapBehavior
+        {
             #expect(td.steps.count == 2)
         } else {
             Issue.record("Expected tapDance case")
+        }
+    }
+
+    @Test("MappingBehavior macro case round-trips")
+    func mappingBehaviorMacro() throws {
+        let behavior = MappingBehavior.macro(MacroBehavior(text: "hi"))
+
+        let data = try JSONEncoder().encode(behavior)
+        let decoded = try JSONDecoder().decode(MappingBehavior.self, from: data)
+
+        if case let .macro(macro) = decoded {
+            #expect(macro.text == "hi")
+        } else {
+            Issue.record("Expected macro case")
+        }
+    }
+
+    @Test("MappingBehavior decodes legacy tapDance key")
+    func mappingBehaviorLegacyTapDanceDecode() throws {
+        let legacyJSON = """
+        {
+            "tapDance": {
+                "windowMs": 180,
+                "steps": [
+                    { "label": "Single tap", "action": "esc" },
+                    { "label": "Double tap", "action": "caps" }
+                ]
+            }
+        }
+        """
+
+        let data = legacyJSON.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(MappingBehavior.self, from: data)
+
+        if case let .tapOrTapDance(tapBehavior) = decoded,
+           case let .tapDance(td) = tapBehavior
+        {
+            #expect(td.steps.count == 2)
+        } else {
+            Issue.record("Expected tapDance case from legacy decode")
         }
     }
 

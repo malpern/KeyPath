@@ -59,6 +59,14 @@ public final class AdvancedBehaviorManager: ObservableObject {
     /// Labels for tap-dance steps
     public static let tapDanceLabels = ["Triple Tap", "Quad Tap", "Quint Tap", "Sext Tap", "Sept Tap"]
 
+    // MARK: - Macro
+
+    /// Macro behavior for one-input → many-outputs
+    @Published public var macroBehavior: MacroBehavior?
+
+    /// Whether currently recording macro outputs
+    @Published public var isRecordingMacro = false
+
     // MARK: - Timing
 
     /// Whether timing section is expanded
@@ -145,12 +153,19 @@ public final class AdvancedBehaviorManager: ObservableObject {
 
     /// Check if setting hold would conflict with existing tap-dance
     public func checkHoldConflict() -> Bool {
-        !doubleTapAction.isEmpty || tapDanceSteps.contains { !$0.action.isEmpty }
+        !doubleTapAction.isEmpty ||
+            tapDanceSteps.contains { !$0.action.isEmpty } ||
+            (macroBehavior?.isValid == true)
     }
 
     /// Check if setting tap-dance would conflict with existing hold
     public func checkTapDanceConflict() -> Bool {
-        !holdAction.isEmpty
+        !holdAction.isEmpty || (macroBehavior?.isValid == true)
+    }
+
+    /// Check if setting macro would conflict with existing advanced behaviors
+    public func checkMacroConflict() -> Bool {
+        !holdAction.isEmpty || !doubleTapAction.isEmpty || tapDanceSteps.contains { !$0.action.isEmpty }
     }
 
     // MARK: - Conflict Resolution
@@ -161,6 +176,7 @@ public final class AdvancedBehaviorManager: ObservableObject {
         for i in tapDanceSteps.indices {
             tapDanceSteps[i].action = ""
         }
+        macroBehavior = nil
         showConflictDialog = false
         pendingConflictType = nil
         pendingConflictField = ""
@@ -171,6 +187,7 @@ public final class AdvancedBehaviorManager: ObservableObject {
         holdAction = ""
         holdBehavior = .basic
         customTapKeysText = ""
+        macroBehavior = nil
         showConflictDialog = false
         pendingConflictType = nil
         pendingConflictField = ""
@@ -183,6 +200,7 @@ public final class AdvancedBehaviorManager: ObservableObject {
         isRecordingHold = false
         isRecordingDoubleTap = false
         isRecordingComboOutput = false
+        isRecordingMacro = false
         for i in tapDanceSteps.indices {
             tapDanceSteps[i].isRecording = false
         }
@@ -201,6 +219,7 @@ public final class AdvancedBehaviorManager: ObservableObject {
         holdAction = ""
         customTapKeysText = ""
         doubleTapAction = ""
+        macroBehavior = nil
         comboKeys = []
         comboOutput = ""
         comboTimeout = 200
@@ -221,6 +240,7 @@ public final class AdvancedBehaviorManager: ObservableObject {
     public var hasAdvancedConfig: Bool {
         !holdAction.isEmpty ||
             !doubleTapAction.isEmpty ||
+            (macroBehavior?.isValid == true) ||
             !comboOutput.isEmpty ||
             tapDanceSteps.contains { !$0.action.isEmpty } ||
             holdBehavior != .basic

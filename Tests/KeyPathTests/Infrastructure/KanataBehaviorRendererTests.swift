@@ -150,10 +150,10 @@ struct KanataBehaviorRendererTests {
         let mapping = KeyMapping(
             input: "caps",
             output: "esc",
-            behavior: .tapDance(TapDanceBehavior.twoStep(
+            behavior: .tapOrTapDance(.tapDance(TapDanceBehavior.twoStep(
                 singleTap: "esc",
                 doubleTap: "caps"
-            ))
+            )))
         )
         let result = KanataBehaviorRenderer.render(mapping)
         #expect(result == "(tap-dance 200 (esc caps))")
@@ -164,14 +164,14 @@ struct KanataBehaviorRendererTests {
         let mapping = KeyMapping(
             input: "spc",
             output: "spc",
-            behavior: .tapDance(TapDanceBehavior(
+            behavior: .tapOrTapDance(.tapDance(TapDanceBehavior(
                 windowMs: 150,
                 steps: [
                     TapDanceStep(label: "Single", action: "spc"),
                     TapDanceStep(label: "Double", action: "ret"),
                     TapDanceStep(label: "Triple", action: "tab")
                 ]
-            ))
+            )))
         )
         let result = KanataBehaviorRenderer.render(mapping)
         #expect(result == "(tap-dance 150 (spc ret tab))")
@@ -182,10 +182,34 @@ struct KanataBehaviorRendererTests {
         let mapping = KeyMapping(
             input: "x",
             output: "x",
-            behavior: .tapDance(TapDanceBehavior(windowMs: 200, steps: []))
+            behavior: .tapOrTapDance(.tapDance(TapDanceBehavior(windowMs: 200, steps: [])))
         )
         let result = KanataBehaviorRenderer.render(mapping)
         #expect(result == "_")
+    }
+
+    // MARK: - Macro
+
+    @Test("Macro text renders correctly")
+    func macroTextRendering() {
+        let mapping = KeyMapping(
+            input: "m",
+            output: "m",
+            behavior: .macro(MacroBehavior(text: "hi!"))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result == "(macro h i S-1)")
+    }
+
+    @Test("Macro key sequence renders correctly")
+    func macroKeySequenceRendering() {
+        let mapping = KeyMapping(
+            input: "m",
+            output: "m",
+            behavior: .macro(MacroBehavior(outputs: ["M-right", "a"], source: .keys))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result == "(macro M-right a)")
     }
 
     // MARK: - Key Conversion Integration
@@ -228,7 +252,7 @@ struct KanataBehaviorRendererTests {
             title: "Caps Escape/CapsLock",
             input: "caps",
             output: "esc",
-            behavior: .tapDance(TapDanceBehavior.twoStep(singleTap: "esc", doubleTap: "caps"))
+            behavior: .tapOrTapDance(.tapDance(TapDanceBehavior.twoStep(singleTap: "esc", doubleTap: "caps")))
         )
 
         let mapping = rule.asKeyMapping()
@@ -315,13 +339,13 @@ struct KanataBehaviorRendererTests {
         let mapping = KeyMapping(
             input: "x",
             output: "x",
-            behavior: .tapDance(TapDanceBehavior(
+            behavior: .tapOrTapDance(.tapDance(TapDanceBehavior(
                 windowMs: 200,
                 steps: [
                     TapDanceStep(label: "Single", action: "a"),
                     TapDanceStep(label: "Double", action: "lctl a")
                 ]
-            ))
+            )))
         )
         let result = KanataBehaviorRenderer.render(mapping)
         #expect(result == "(tap-dance 200 (a (multi lctl a)))")
@@ -332,13 +356,13 @@ struct KanataBehaviorRendererTests {
         let mapping = KeyMapping(
             input: "caps",
             output: "caps",
-            behavior: .tapDance(TapDanceBehavior(
+            behavior: .tapOrTapDance(.tapDance(TapDanceBehavior(
                 windowMs: 200,
                 steps: [
                     TapDanceStep(label: "Single", action: "esc"),
                     TapDanceStep(label: "Double", action: "hyper")
                 ]
-            ))
+            )))
         )
         let result = KanataBehaviorRenderer.render(mapping)
         #expect(result == "(tap-dance 200 (esc (multi lctl lmet lalt lsft)))")

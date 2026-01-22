@@ -28,6 +28,7 @@ struct OverlayMapperSection: View {
     @State private var showingNewLayerDialog = false
     @State private var newLayerName = ""
     @State private var isHoldVariantPopoverOpen = false
+    @State private var showMultiTapSlideOver = false
 
     /// Current behavior slot being edited (tap is default)
     @State private var selectedBehaviorSlot: BehaviorSlot = .tap
@@ -53,9 +54,8 @@ struct OverlayMapperSection: View {
         case .hold:
             let action = viewModel.holdAction
             return action.isEmpty ? "" : KeyDisplayFormatter.format(action)
-        case .doubleTap:
-            let action = viewModel.doubleTapAction
-            return action.isEmpty ? "" : KeyDisplayFormatter.format(action)
+        case .macro:
+            return viewModel.macroBehavior?.displayString ?? ""
         case .combo:
             let action = viewModel.comboOutput
             return action.isEmpty ? "" : KeyDisplayFormatter.format(action)
@@ -71,8 +71,8 @@ struct OverlayMapperSection: View {
             true
         case .hold:
             !viewModel.holdAction.isEmpty
-        case .doubleTap:
-            !viewModel.doubleTapAction.isEmpty
+        case .macro:
+            viewModel.macroBehavior?.isValid == true
         case .combo:
             viewModel.advancedBehavior.hasValidCombo
         }
@@ -85,8 +85,8 @@ struct OverlayMapperSection: View {
             viewModel.isRecordingOutput
         case .hold:
             viewModel.isRecordingHold
-        case .doubleTap:
-            viewModel.isRecordingDoubleTap
+        case .macro:
+            viewModel.isRecordingMacro
         case .combo:
             viewModel.isRecordingComboOutput
         }
@@ -98,7 +98,8 @@ struct OverlayMapperSection: View {
             viewModel.isRecordingOutput ||
             viewModel.isRecordingHold ||
             viewModel.isRecordingDoubleTap ||
-            viewModel.isRecordingComboOutput
+            viewModel.isRecordingComboOutput ||
+            viewModel.isRecordingMacro
     }
 
     /// Cancel all active recording modes
@@ -107,6 +108,7 @@ struct OverlayMapperSection: View {
         viewModel.isRecordingHold = false
         viewModel.isRecordingDoubleTap = false
         viewModel.isRecordingComboOutput = false
+        viewModel.isRecordingMacro = false
     }
 
     var body: some View {
@@ -284,6 +286,12 @@ struct OverlayMapperSection: View {
         .onChange(of: viewModel.doubleTapAction) { _, _ in
             updateConfiguredBehaviorSlots()
         }
+        .onChange(of: viewModel.tapDanceSteps.map(\.action)) { _, _ in
+            updateConfiguredBehaviorSlots()
+        }
+        .onChange(of: viewModel.macroBehavior) { _, _ in
+            updateConfiguredBehaviorSlots()
+        }
         .onChange(of: viewModel.selectedApp?.name) { _, _ in
             updateConfiguredBehaviorSlots()
         }
@@ -340,11 +348,11 @@ struct OverlayMapperSection: View {
             viewModel.selectedURL != nil ||
             viewModel.selectedAppCondition != nil
 
-        // Hold/DoubleTap modified
+        // Hold/Macro modified
         let holdModified = !viewModel.holdAction.isEmpty
-        let doubleTapModified = !viewModel.doubleTapAction.isEmpty
+        let macroModified = viewModel.macroBehavior?.isValid == true
 
-        return tapModified || holdModified || doubleTapModified
+        return tapModified || holdModified || macroModified
     }
 
     /// Whether tap has a non-identity mapping (A→B, not A→A)
@@ -358,11 +366,19 @@ struct OverlayMapperSection: View {
             viewModel.selectedSystemAction != nil ||
             viewModel.selectedURL != nil
 
-        return hasKeyRemapping || hasAction
+        return hasKeyRemapping || hasAction || hasMultiTapConfigured
+    }
+
+    private var hasMultiTapConfigured: Bool {
+        !viewModel.doubleTapAction.isEmpty || viewModel.tapDanceSteps.contains { !$0.action.isEmpty }
     }
 
     private var mapperContent: some View {
-        VStack(spacing: 0) {
+        SlideOverContainer(
+            isPresented: $showMultiTapSlideOver,
+            panelTitle: "Multi-tap Actions",
+            mainContent: {
+                VStack(spacing: 0) {
             // Custom keycap layout with labels on top
             GeometryReader { proxy in
                 let availableWidth = max(1, proxy.size.width)
@@ -461,6 +477,37 @@ struct OverlayMapperSection: View {
                         if selectedBehaviorSlot == .hold, !viewModel.holdAction.isEmpty {
                             holdVariantButton
                         }
+
+                        if selectedBehaviorSlot == .tap {
+                            Button {
+                                showMultiTapSlideOver = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text("Multi-tap actions")
+                                        .font(.caption)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption2)
+                                }
+                                .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("overlay-mapper-multitap-link")
+                        }
+
+                        if selectedBehaviorSlot == .macro {
+                            MacroEditorView(
+                                macro: Binding(
+                                    get: { viewModel.macroBehavior },
+                                    set: { viewModel.macroBehavior = $0 }
+                                ),
+                                isRecordingKeys: Binding(
+                                    get: { viewModel.isRecordingMacro },
+                                    set: { viewModel.isRecordingMacro = $0 }
+                                ),
+                                onRecordKeys: { viewModel.toggleMacroRecording() }
+                            )
+                            .padding(.top, 4)
+                        }
                     }
                     .frame(width: keycapWidth)
                 }
@@ -505,7 +552,12 @@ struct OverlayMapperSection: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            },
+            panelContent: {
+                MultiTapSlideOverView(viewModel: viewModel, sourceKey: viewModel.inputLabel)
+            }
+        )
     }
 
     /// App condition dropdown - subtle when not set, shows app icon when set
@@ -797,12 +849,12 @@ struct OverlayMapperSection: View {
         .focusable(false)
     }
 
-    /// Clear all behavior slots for the current key (tap, hold, doubleTap, tapHold)
+    /// Clear all behavior slots for the current key (tap, hold, macro, combo)
     private func clearAllBehaviorsForCurrentKey() {
         // Clear tap
         viewModel.clear()
 
-        // Clear all advanced behaviors (hold, doubleTap, tapHold, timing, etc.)
+        // Clear all advanced behaviors (hold, multi-tap, macro, timing, etc.)
         viewModel.advancedBehavior.reset()
 
         // Update UI state
@@ -873,8 +925,8 @@ struct OverlayMapperSection: View {
             viewModel.toggleOutputRecording()
         case .hold:
             viewModel.toggleHoldRecording()
-        case .doubleTap:
-            viewModel.toggleDoubleTapRecording()
+        case .macro:
+            viewModel.toggleMacroRecording()
         case .combo:
             viewModel.toggleComboOutputRecording()
         }
@@ -887,8 +939,8 @@ struct OverlayMapperSection: View {
             viewModel.revertToKeystroke()
         case .hold:
             viewModel.advancedBehavior.holdAction = ""
-        case .doubleTap:
-            viewModel.advancedBehavior.doubleTapAction = ""
+        case .macro:
+            viewModel.clearMacro()
         case .combo:
             viewModel.advancedBehavior.comboKeys = []
             viewModel.advancedBehavior.comboOutput = ""
@@ -905,7 +957,8 @@ struct OverlayMapperSection: View {
         let tapHasAction = viewModel.selectedApp != nil ||
             viewModel.selectedSystemAction != nil ||
             viewModel.selectedURL != nil ||
-            viewModel.outputLabel.lowercased() != viewModel.inputLabel.lowercased()
+            viewModel.outputLabel.lowercased() != viewModel.inputLabel.lowercased() ||
+            hasMultiTapConfigured
         if tapHasAction {
             slots.insert(.tap)
         }
@@ -915,9 +968,9 @@ struct OverlayMapperSection: View {
             slots.insert(.hold)
         }
 
-        // Check double tap slot
-        if !viewModel.doubleTapAction.isEmpty {
-            slots.insert(.doubleTap)
+        // Check macro slot
+        if viewModel.macroBehavior?.isValid == true {
+            slots.insert(.macro)
         }
 
         // Check combo slot
@@ -974,8 +1027,8 @@ struct OverlayMapperSection: View {
                     outputKeycapScale = 1.0
                 }
 
-            case .doubleTap:
-                // Choreography: label first, then keycap animation
+            case .macro:
+                // Choreography: label first, then a quick multi-press pulse
                 withAnimation(.easeOut(duration: 0.12)) {
                     showBehaviorLabel = true
                 }
@@ -988,17 +1041,17 @@ struct OverlayMapperSection: View {
                 withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
                     outputKeycapBounce = false
                 }
-                // Then double-tap animation
+                // Quick pulse sequence
                 try? await Task.sleep(for: .milliseconds(100))
-                for _ in 0 ..< 2 {
-                    withAnimation(.easeIn(duration: 0.08)) {
-                        outputKeycapScale = 0.88
+                for _ in 0 ..< 3 {
+                    withAnimation(.easeIn(duration: 0.07)) {
+                        outputKeycapScale = 0.9
                     }
-                    try? await Task.sleep(for: .milliseconds(80))
-                    withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
+                    try? await Task.sleep(for: .milliseconds(70))
+                    withAnimation(.spring(response: 0.12, dampingFraction: 0.6)) {
                         outputKeycapScale = 1.0
                     }
-                    try? await Task.sleep(for: .milliseconds(120))
+                    try? await Task.sleep(for: .milliseconds(90))
                 }
 
             case .combo:

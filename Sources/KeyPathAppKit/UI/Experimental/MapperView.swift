@@ -887,6 +887,30 @@ struct AdvancedBehaviorContent: View {
                 }
             }
 
+            // Macro section
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 16) {
+                    Text("Macro")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .frame(width: 70, alignment: .trailing)
+                    Spacer()
+                }
+
+                MacroEditorView(
+                    macro: Binding(
+                        get: { viewModel.macroBehavior },
+                        set: { viewModel.macroBehavior = $0 }
+                    ),
+                    isRecordingKeys: Binding(
+                        get: { viewModel.isRecordingMacro },
+                        set: { viewModel.isRecordingMacro = $0 }
+                    ),
+                    onRecordKeys: { viewModel.toggleMacroRecording() }
+                )
+                .padding(.leading, 86)
+            }
+
             // Timing row
             HStack(spacing: 16) {
                 Text("Timing")

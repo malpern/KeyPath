@@ -19,7 +19,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     /// If true, a visual separator row should appear before this mapping in table display
     public let sectionBreak: Bool
 
-    /// Advanced behavior (dual-role, tap-dance). Nil means simple remap using `output`.
+    /// Advanced behavior (dual-role, tap-dance, macro). Nil means simple remap using `output`.
     public let behavior: MappingBehavior?
 
     public init(

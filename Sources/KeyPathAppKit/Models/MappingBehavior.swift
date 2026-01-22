@@ -3,16 +3,87 @@ import Foundation
 // MARK: - Mapping Behavior
 
 /// Describes advanced key behavior beyond a simple remap.
-/// When present on a KeyMapping, the generator emits tap-hold, tap-dance, or chord syntax.
+/// When present on a KeyMapping, the generator emits tap-hold, tap-dance, macro, or chord syntax.
 public enum MappingBehavior: Codable, Equatable, Sendable {
     /// Dual-role key: tap produces one action, hold produces another.
     case dualRole(DualRoleBehavior)
 
-    /// Tap-dance: different actions for single tap, double tap, etc.
-    case tapDance(TapDanceBehavior)
+    /// Tap behavior with optional multi-tap (tap-dance) behavior.
+    case tapOrTapDance(TapOrTapDanceBehavior)
+
+    /// Macro: one trigger key → multiple output keys or text string.
+    case macro(MacroBehavior)
 
     /// Chord: multiple keys pressed together produce a single output.
     case chord(ChordBehavior)
+
+    private enum CodingKeys: String, CodingKey {
+        case dualRole
+        case tapDance // legacy
+        case tapOrTapDance
+        case macro
+        case chord
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        if let dualRole = try container.decodeIfPresent(DualRoleBehavior.self, forKey: .dualRole) {
+            self = .dualRole(dualRole)
+            return
+        }
+
+        if let tapOrTapDance = try container.decodeIfPresent(TapOrTapDanceBehavior.self, forKey: .tapOrTapDance) {
+            self = .tapOrTapDance(tapOrTapDance)
+            return
+        }
+
+        if let tapDance = try container.decodeIfPresent(TapDanceBehavior.self, forKey: .tapDance) {
+            self = .tapOrTapDance(.tapDance(tapDance))
+            return
+        }
+
+        if let macro = try container.decodeIfPresent(MacroBehavior.self, forKey: .macro) {
+            self = .macro(macro)
+            return
+        }
+
+        if let chord = try container.decodeIfPresent(ChordBehavior.self, forKey: .chord) {
+            self = .chord(chord)
+            return
+        }
+
+        throw DecodingError.dataCorruptedError(
+            forKey: .dualRole,
+            in: container,
+            debugDescription: "Unknown MappingBehavior case"
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .dualRole(dualRole):
+            try container.encode(dualRole, forKey: .dualRole)
+        case let .tapOrTapDance(tapOrTapDance):
+            try container.encode(tapOrTapDance, forKey: .tapOrTapDance)
+        case let .macro(macro):
+            try container.encode(macro, forKey: .macro)
+        case let .chord(chord):
+            try container.encode(chord, forKey: .chord)
+        }
+    }
+}
+
+// MARK: - Tap or Tap-Dance
+
+/// Tap behavior with optional multi-tap (tap-dance) behavior.
+public enum TapOrTapDanceBehavior: Codable, Equatable, Sendable {
+    /// A single tap (no multi-tap configured).
+    case tap
+
+    /// Tap-dance: different actions for single tap, double tap, etc.
+    case tapDance(TapDanceBehavior)
 }
 
 // MARK: - Dual Role
@@ -109,6 +180,93 @@ public struct TapDanceStep: Codable, Equatable, Sendable {
     public init(label: String, action: String) {
         self.label = label
         self.action = action
+    }
+}
+
+// MARK: - Macro Behavior
+
+/// A macro: one trigger key → multiple output keys or text string.
+public struct MacroBehavior: Codable, Equatable, Sendable {
+    public enum Source: String, Codable, Sendable {
+        case text
+        case keys
+    }
+
+    /// Keys to output in sequence (e.g., ["M-c", "v"])
+    public var outputs: [String]
+
+    /// Optional text string (alternative to outputs array).
+    /// When set, expands to individual character keys.
+    public var text: String?
+
+    /// User-facing description for the macro.
+    public var description: String?
+
+    /// Which editor source is active.
+    public var source: Source
+
+    public init(
+        outputs: [String] = [],
+        text: String? = nil,
+        description: String? = nil,
+        source: Source? = nil
+    ) {
+        self.outputs = outputs
+        self.text = text
+        self.description = description
+        if let source {
+            self.source = source
+        } else {
+            self.source = (text?.isEmpty == false) ? .text : .keys
+        }
+    }
+
+    /// Returns true if the configuration is valid for rendering.
+    public var isValid: Bool {
+        validationErrors.isEmpty
+    }
+
+    /// Returns the effective output keys (from text or outputs array).
+    public var effectiveOutputs: [String] {
+        switch source {
+        case .text:
+            if let text, !text.isEmpty {
+                return text.map { String($0) }
+            }
+            return []
+        case .keys:
+            return outputs
+        }
+    }
+
+    public var displayString: String {
+        switch source {
+        case .text:
+            if let text, !text.isEmpty {
+                return "\"\(text)\""
+            }
+            return "Not configured"
+        case .keys:
+            let keys = outputs.prefix(3).joined(separator: " ")
+            return outputs.count > 3 ? "\(keys)..." : (keys.isEmpty ? "Not configured" : keys)
+        }
+    }
+
+    public var validationErrors: [String] {
+        var errors: [String] = []
+
+        let outputs = effectiveOutputs
+        if outputs.isEmpty {
+            errors.append("Macro must include at least one output")
+        }
+
+        if source == .text, let text, !text.isEmpty {
+            if let unsupported = TextToKanataKeyMapper.firstUnsupportedCharacter(in: text) {
+                errors.append("Unsupported character: \(unsupported)")
+            }
+        }
+
+        return errors
     }
 }
 

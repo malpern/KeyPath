@@ -42,8 +42,10 @@ public enum KanataBehaviorRenderer {
         switch behavior {
         case let .dualRole(dr):
             return renderDualRole(dr, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
-        case let .tapDance(td):
-            return renderTapDance(td, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
+        case let .tapOrTapDance(tapOrTap):
+            return renderTapOrTapDance(tapOrTap, mapping: mapping, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
+        case let .macro(macro):
+            return renderMacro(macro)
         case let .chord(ch):
             return renderChord(ch, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
         }
@@ -126,6 +128,40 @@ public enum KanataBehaviorRenderer {
 
         // Kanata tap-dance syntax: (tap-dance timeout (action1 action2 ...))
         return "(tap-dance \(td.windowMs) (\(actions.joined(separator: " "))))"
+    }
+
+    // MARK: - Tap or Tap-Dance
+
+    private static func renderTapOrTapDance(
+        _ behavior: TapOrTapDanceBehavior,
+        mapping: KeyMapping,
+        hyperLinkedLayerInfos: [HyperLinkedLayerInfo]
+    ) -> String {
+        switch behavior {
+        case .tap:
+            return KanataKeyConverter.convertToKanataSequence(mapping.output)
+        case let .tapDance(tapDance):
+            return renderTapDance(tapDance, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
+        }
+    }
+
+    // MARK: - Macro
+
+    private static func renderMacro(_ macro: MacroBehavior) -> String {
+        let outputs = macro.effectiveOutputs
+        guard !outputs.isEmpty else { return "_" }
+
+        if macro.source == .text, let text = macro.text, !text.isEmpty {
+            switch TextToKanataKeyMapper.map(text: text) {
+            case let .success(keys):
+                return "(macro \(keys.joined(separator: " ")))"
+            case .failure:
+                return "_"
+            }
+        }
+
+        let keys = outputs.map { KanataKeyConverter.convertToKanataKeyForMacro($0) }
+        return "(macro \(keys.joined(separator: " ")))"
     }
 
     // MARK: - Action Conversion
