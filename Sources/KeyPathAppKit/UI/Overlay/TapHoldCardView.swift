@@ -194,7 +194,10 @@ struct TapHoldCardView: View {
     }
 
     private func quickActionButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        let labelIdentifier = label
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+        return Button(action: action) {
             VStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.system(size: 16))
@@ -210,6 +213,7 @@ struct TapHoldCardView: View {
             RoundedRectangle(cornerRadius: 6)
                 .fill(Color.primary.opacity(0.03))
         )
+        .accessibilityIdentifier("taphold-quick-\(labelIdentifier)")
     }
 
     // MARK: - Responsiveness Control

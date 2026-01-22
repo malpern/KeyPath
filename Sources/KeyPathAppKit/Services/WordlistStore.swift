@@ -23,17 +23,20 @@ public enum WordlistStore {
 
     public static func loadWordlist(
         id: String = defaultWordlistId,
-        appSupportURL: URL = defaultAppSupportURL(),
-        bundle: Bundle = .module
+        appSupportURL: URL? = nil,
+        bundle: Bundle? = nil
     ) -> [String] {
-        if let userURL = userWordlistURL(id: id, appSupportURL: appSupportURL),
-           let contents = try? String(contentsOf: userURL)
+        let resolvedSupportURL = appSupportURL ?? defaultAppSupportURL()
+        let resolvedBundle = bundle ?? .module
+
+        if let userURL = userWordlistURL(id: id, appSupportURL: resolvedSupportURL),
+           let contents = try? String(contentsOf: userURL, encoding: .utf8)
         {
             return parse(contents: contents)
         }
 
-        if let bundleURL = bundle.url(forResource: id, withExtension: "txt", subdirectory: "Wordlists"),
-           let contents = try? String(contentsOf: bundleURL)
+        if let bundleURL = resolvedBundle.url(forResource: id, withExtension: "txt", subdirectory: "Wordlists"),
+           let contents = try? String(contentsOf: bundleURL, encoding: .utf8)
         {
             return parse(contents: contents)
         }

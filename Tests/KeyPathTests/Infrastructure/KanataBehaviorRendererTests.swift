@@ -212,6 +212,17 @@ struct KanataBehaviorRendererTests {
         #expect(result == "(macro M-right a)")
     }
 
+    @Test("Macro text with unsupported characters renders passthrough")
+    func macroTextUnsupportedCharacters() {
+        let mapping = KeyMapping(
+            input: "m",
+            output: "m",
+            behavior: .macro(MacroBehavior(text: "hi\u{00E9}"))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result == "_")
+    }
+
     // MARK: - Key Conversion Integration
 
     @Test("Tap-hold with special key names")

@@ -101,6 +101,13 @@ struct MappingBehaviorTests {
         #expect(macro.isValid == false)
     }
 
+    @Test("MacroBehavior invalid when text contains unsupported characters")
+    func macroInvalidUnsupportedText() {
+        let macro = MacroBehavior(text: "hi\u{00E9}")
+        #expect(macro.isValid == false)
+        #expect(macro.validationErrors.first?.contains("Unsupported character") == true)
+    }
+
     // MARK: - MappingBehavior enum
 
     @Test("MappingBehavior dualRole case round-trips")

@@ -122,6 +122,7 @@ struct BehaviorSlotKeycap: View {
                         }
                         .buttonStyle(.plain)
                         .padding(6)
+                        .accessibilityIdentifier("behavior-slot-clear-\(slotIdentifier)")
                     }
                     Spacer()
                 }
@@ -154,6 +155,12 @@ struct BehaviorSlotKeycap: View {
         } else {
             Color.white.opacity(0.15)
         }
+    }
+
+    private var slotIdentifier: String {
+        slotName
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "-")
     }
 }
 

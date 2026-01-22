@@ -112,7 +112,11 @@ struct OverlayMapperSection: View {
     }
 
     var body: some View {
-        VStack(spacing: 8) {
+        bodyView
+    }
+
+    private var bodyView: some View {
+        let base = VStack(spacing: 8) {
             if shouldShowHealthGate {
                 healthGateContent
             } else {
@@ -121,7 +125,8 @@ struct OverlayMapperSection: View {
                     .opacity(Double(1 - fadeAmount * 0.5)) // Fade with keyboard
             }
         }
-        .onAppear {
+
+        let withAppear = base.onAppear {
             guard !shouldShowHealthGate, let kanataViewModel else { return }
             viewModel.configure(kanataManager: kanataViewModel.underlyingManager)
             viewModel.setLayer(kanataViewModel.currentLayerName)
@@ -151,27 +156,35 @@ struct OverlayMapperSection: View {
             // Initialize configured behavior slots
             updateConfiguredBehaviorSlots()
         }
-        .onDisappear {
+
+        let withDisappear = withAppear.onDisappear {
             viewModel.stopKeyCapture()
         }
-        // ESC key cancels any active recording
-        .onExitCommand {
+
+        let withExit = withDisappear.onExitCommand {
             if isAnyRecordingActive {
                 cancelAllRecording()
             }
         }
-        .onChange(of: viewModel.inputKeyCode) { _, newKeyCode in
+
+        let withInputChange = withExit.onChange(of: viewModel.inputKeyCode) { _, newKeyCode in
             onKeySelected?(newKeyCode)
             // Reset to tap slot when selecting a new key
             selectedBehaviorSlot = .tap
             updateConfiguredBehaviorSlots()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .kanataLayerChanged)) { notification in
+
+        let withLayerChange = withInputChange.onReceive(
+            NotificationCenter.default.publisher(for: .kanataLayerChanged)
+        ) { notification in
             if let layerName = notification.userInfo?["layerName"] as? String {
                 viewModel.setLayer(layerName)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .mapperDrawerKeySelected)) { notification in
+
+        let withDrawerSelection = withLayerChange.onReceive(
+            NotificationCenter.default.publisher(for: .mapperDrawerKeySelected)
+        ) { notification in
             guard !shouldShowHealthGate else { return }
             guard let keyCode = notification.userInfo?["keyCode"] as? UInt16,
                   let inputKey = notification.userInfo?["inputKey"] as? String,
@@ -220,7 +233,10 @@ struct OverlayMapperSection: View {
                 )
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .openMapperAppConditionPicker)) { _ in
+
+        let withOpenAppConditionPicker = withDrawerSelection.onReceive(
+            NotificationCenter.default.publisher(for: .openMapperAppConditionPicker)
+        ) { _ in
             // Open the app condition picker when requested (e.g., from "New Rule" button in App Rules tab)
             guard !shouldShowHealthGate else { return }
             refreshRunningApps()
@@ -229,7 +245,10 @@ struct OverlayMapperSection: View {
                 isAppConditionPickerOpen = true
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .mapperSetAppCondition)) { notification in
+
+        let withSetAppCondition = withOpenAppConditionPicker.onReceive(
+            NotificationCenter.default.publisher(for: .mapperSetAppCondition)
+        ) { notification in
             // Set app condition directly (from "+" button on app card in App Rules tab)
             guard !shouldShowHealthGate else { return }
             guard let bundleId = notification.userInfo?["bundleId"] as? String,
@@ -254,8 +273,8 @@ struct OverlayMapperSection: View {
             // Reset input/output for new rule
             viewModel.resetForNewMapping()
         }
-        // Auto-save when output recording finishes and there's a valid mapping
-        .onChange(of: viewModel.isRecordingOutput) { wasRecording, isRecording in
+
+        let withAutoSave = withSetAppCondition.onChange(of: viewModel.isRecordingOutput) { wasRecording, isRecording in
             // Only trigger when recording just stopped
             guard wasRecording, !isRecording else { return }
             guard !shouldShowHealthGate else { return }
@@ -276,32 +295,40 @@ struct OverlayMapperSection: View {
                 updateConfiguredBehaviorSlots()
             }
         }
-        // Track changes to update configured behavior slots indicator dots
-        .onChange(of: viewModel.outputLabel) { _, _ in
+
+        let withOutputChange = withAutoSave.onChange(of: viewModel.outputLabel) { _, _ in
             updateConfiguredBehaviorSlots()
         }
-        .onChange(of: viewModel.holdAction) { _, _ in
+
+        let withHoldChange = withOutputChange.onChange(of: viewModel.holdAction) { _, _ in
             updateConfiguredBehaviorSlots()
         }
-        .onChange(of: viewModel.doubleTapAction) { _, _ in
+
+        let withDoubleTapChange = withHoldChange.onChange(of: viewModel.doubleTapAction) { _, _ in
             updateConfiguredBehaviorSlots()
         }
-        .onChange(of: viewModel.tapDanceSteps.map(\.action)) { _, _ in
+
+        let withTapDanceChange = withDoubleTapChange.onChange(of: viewModel.tapDanceSteps.map(\.action)) { _, _ in
             updateConfiguredBehaviorSlots()
         }
-        .onChange(of: viewModel.macroBehavior) { _, _ in
+
+        let withMacroChange = withTapDanceChange.onChange(of: viewModel.macroBehavior) { _, _ in
             updateConfiguredBehaviorSlots()
         }
-        .onChange(of: viewModel.selectedApp?.name) { _, _ in
+
+        let withAppChange = withMacroChange.onChange(of: viewModel.selectedApp?.name) { _, _ in
             updateConfiguredBehaviorSlots()
         }
-        .onChange(of: viewModel.selectedSystemAction?.id) { _, _ in
+
+        let withSystemChange = withAppChange.onChange(of: viewModel.selectedSystemAction?.id) { _, _ in
             updateConfiguredBehaviorSlots()
         }
-        .onChange(of: selectedBehaviorSlot) { _, newSlot in
+
+        let withSlotChange = withSystemChange.onChange(of: selectedBehaviorSlot) { _, newSlot in
             playBehaviorAnimation(for: newSlot)
         }
-        .confirmationDialog(
+
+        let withResetDialog = withSlotChange.confirmationDialog(
             "Clear Mapping",
             isPresented: $showingResetDialog,
             titleVisibility: .visible
@@ -335,6 +362,8 @@ struct OverlayMapperSection: View {
                 Text("Choose what to clear for \"\(viewModel.inputLabel.uppercased())\"")
             }
         }
+
+        return withResetDialog
     }
 
     private let showDebugBorders = false
@@ -377,8 +406,13 @@ struct OverlayMapperSection: View {
         SlideOverContainer(
             isPresented: $showMultiTapSlideOver,
             panelTitle: "Multi-tap Actions",
-            mainContent: {
-                VStack(spacing: 0) {
+            mainContent: { mapperMainContent },
+            panelContent: { multiTapPanelContent }
+        )
+    }
+
+    private var mapperMainContent: some View {
+        VStack(spacing: 0) {
             // Custom keycap layout with labels on top
             GeometryReader { proxy in
                 let availableWidth = max(1, proxy.size.width)
@@ -447,7 +481,7 @@ struct OverlayMapperSection: View {
                                 )
                                 .scaleEffect(outputKeycapScale)
                             } else {
-                                // Hold/DoubleTap/TapHold use BehaviorSlotKeycap
+                                // Hold/Macro/Combo use BehaviorSlotKeycap
                                 BehaviorSlotKeycap(
                                     label: currentSlotOutputLabel,
                                     isConfigured: currentSlotIsConfigured,
@@ -552,12 +586,11 @@ struct OverlayMapperSection: View {
                 }
             }
         }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            },
-            panelContent: {
-                MultiTapSlideOverView(viewModel: viewModel, sourceKey: viewModel.inputLabel)
-            }
-        )
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var multiTapPanelContent: some View {
+        MultiTapSlideOverView(viewModel: viewModel, sourceKey: viewModel.inputLabel)
     }
 
     /// App condition dropdown - subtle when not set, shows app icon when set
@@ -1603,7 +1636,7 @@ struct OverlayMapperSection: View {
                 .padding(.vertical, 8)
             } else {
                 ForEach(knownApps, id: \.name) { app in
-                    knownAppButton(app)
+                    knownAppRow(app)
                 }
             }
 
@@ -1630,8 +1663,11 @@ struct OverlayMapperSection: View {
     }
 
     /// Button for a known app in the list
-    private func knownAppButton(_ app: AppLaunchInfo) -> some View {
+    private func knownAppRow(_ app: AppLaunchInfo) -> some View {
         let isSelected = viewModel.selectedApp?.bundleIdentifier == app.bundleIdentifier
+        let appIdentifier = (app.bundleIdentifier ?? app.name)
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "-")
         return Button {
             viewModel.selectedApp = app
             viewModel.selectedSystemAction = nil
@@ -1668,6 +1704,7 @@ struct OverlayMapperSection: View {
         }
         .buttonStyle(LayerPickerItemButtonStyle())
         .focusable(false)
+        .accessibilityIdentifier("overlay-known-app-\(appIdentifier)")
     }
 
     /// Load known apps from existing mappings
@@ -1732,7 +1769,7 @@ struct OverlayMapperSection: View {
 
             // List of available layers
             ForEach(viewModel.availableLayers, id: \.self) { layer in
-                layerButton(layer)
+                layerRow(layer)
             }
 
             // "Create New Layer..." option
@@ -1759,9 +1796,12 @@ struct OverlayMapperSection: View {
     }
 
     /// Button for a layer in the list
-    private func layerButton(_ layer: String) -> some View {
+    private func layerRow(_ layer: String) -> some View {
         let isSelected = selectedLayerOutput == layer
         let isSystemLayer = viewModel.isSystemLayer(layer)
+        let layerIdentifier = layer
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "-")
 
         return Button {
             selectLayerOutput(layer)
@@ -1787,6 +1827,7 @@ struct OverlayMapperSection: View {
         }
         .buttonStyle(LayerPickerItemButtonStyle())
         .focusable(false)
+        .accessibilityIdentifier("overlay-layer-\(layerIdentifier)")
     }
 
     /// Select a layer as the output action
@@ -1836,12 +1877,14 @@ struct OverlayMapperSection: View {
             TextField("Layer name", text: $newLayerName)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 200)
+                .accessibilityIdentifier("overlay-layer-dialog-name")
 
             HStack(spacing: 12) {
                 Button("Cancel") {
                     showingNewLayerDialog = false
                 }
                 .keyboardShortcut(.escape)
+                .accessibilityIdentifier("overlay-layer-dialog-cancel")
 
                 Button("Create") {
                     if !newLayerName.isEmpty {
@@ -1856,6 +1899,7 @@ struct OverlayMapperSection: View {
                 }
                 .keyboardShortcut(.return)
                 .disabled(newLayerName.isEmpty)
+                .accessibilityIdentifier("overlay-layer-dialog-create")
             }
         }
         .padding(20)

@@ -1373,7 +1373,7 @@ private struct OverlayDragHeader: View {
             if shouldShowLayerName {
                 // Expanded: pill style with name, using glass effect
                 Button {
-                    toggleLayerPicker()
+                    toggleLayerMenu()
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: iconName)
@@ -1394,10 +1394,11 @@ private struct OverlayDragHeader: View {
                     ))
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("overlay-layer-picker-toggle")
             } else {
                 // Collapsed: icon-only, matches other header buttons exactly
                 Button {
-                    toggleLayerPicker()
+                    toggleLayerMenu()
                 } label: {
                     Image(systemName: iconName)
                         .font(.system(size: buttonSize * 0.6, weight: .semibold))
@@ -1405,6 +1406,7 @@ private struct OverlayDragHeader: View {
                         .frame(width: buttonSize, height: buttonSize)
                 }
                 .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+                .accessibilityIdentifier("overlay-layer-picker-toggle")
             }
         }
         .animation(layerPillSpring, value: shouldShowLayerName)
@@ -1513,7 +1515,7 @@ private struct OverlayDragHeader: View {
     }
 
     /// Toggle layer picker with smart positioning (opens up by default, down near screen top)
-    private func toggleLayerPicker() {
+    private func toggleLayerMenu() {
         if isLayerPickerOpen {
             // Closing - just toggle
             isLayerPickerOpen = false

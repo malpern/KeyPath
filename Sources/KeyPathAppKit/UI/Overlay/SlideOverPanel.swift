@@ -132,6 +132,7 @@ struct SlideOverContainer<MainContent: View, PanelContent: View>: View {
                             Button("Show Panel") {
                                 showPanel = true
                             }
+                            .accessibilityIdentifier("slideover-preview-show-panel")
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(Color.gray.opacity(0.2))
