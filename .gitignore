@@ -59,6 +59,7 @@ peekaboo/
 # Temporary test files
 *.tmp
 temp_*
+test_output.safe.txt
 
 # Local-only test security setup (DO NOT COMMIT)
 Scripts/setup-test-sudoers.sh
