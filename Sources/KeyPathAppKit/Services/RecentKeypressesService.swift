@@ -62,14 +62,16 @@ final class RecentKeypressesService: ObservableObject {
     private var lastKeyAction: String?
 
     private let observers = NotificationObserverManager()
+    private let notificationCenter: NotificationCenter
 
-    private init() {
+    private init(notificationCenter: NotificationCenter = .default) {
+        self.notificationCenter = notificationCenter
         setupObservers()
     }
 
     private func setupObservers() {
         // Listen for key input events
-        observers.observe(.kanataKeyInput) { [weak self] notification in
+        observers.observe(.kanataKeyInput, center: notificationCenter) { [weak self] notification in
             guard let self else { return }
             let userInfo = notification.userInfo
             let key = userInfo?["key"] as? String
@@ -81,7 +83,7 @@ final class RecentKeypressesService: ObservableObject {
         }
 
         // Listen for layer changes
-        observers.observe(.kanataLayerChanged) { [weak self] notification in
+        observers.observe(.kanataLayerChanged, center: notificationCenter) { [weak self] notification in
             guard let self else { return }
             let userInfo = notification.userInfo
             let layerName = userInfo?["layerName"] as? String
@@ -91,6 +93,12 @@ final class RecentKeypressesService: ObservableObject {
             }
         }
     }
+
+#if DEBUG
+    static func makeTestInstance(notificationCenter: NotificationCenter = NotificationCenter()) -> RecentKeypressesService {
+        RecentKeypressesService(notificationCenter: notificationCenter)
+    }
+#endif
 
     private func addEvent(key: String, action: String) {
         let event = KeypressEvent(

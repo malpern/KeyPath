@@ -201,6 +201,12 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
     func testEmphasizedKeyCodesOnNavLayer() async {
         let viewModel = KeyboardVisualizationViewModel()
         viewModel.currentLayerName = "nav"
+        viewModel.layerKeyMap = [
+            4: .mapped(displayLabel: "←", outputKey: "left", outputKeyCode: 123),
+            38: .mapped(displayLabel: "↓", outputKey: "down", outputKeyCode: 125),
+            40: .mapped(displayLabel: "↑", outputKey: "up", outputKeyCode: 126),
+            37: .mapped(displayLabel: "→", outputKey: "right", outputKeyCode: 124),
+        ]
 
         let emphasized = viewModel.emphasizedKeyCodes
 

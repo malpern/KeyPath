@@ -24,7 +24,7 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
 
         assertContains(config, "layer_nav_spc")
         assertContains(config, "(one-shot-press 65000 (layer-while-held nav))")
-        assertContains(config, "(multi left (push-msg \"layer:base\"))")
+        assertContains(config, "(multi (release-layer nav) left (push-msg \"layer:base\"))")
         assertContains(config, "@layer_nav_spc")
     }
 
@@ -58,7 +58,7 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
         assertContains(config, "layer_window_w")
         assertContains(config, "(one-shot-press 65000 (layer-while-held window))")
         assertContains(config, "act_window_h (push-msg \"window:left\")")
-        assertContains(config, "(multi @act_window_h (push-msg \"layer:base\"))")
+        assertContains(config, "(multi (release-layer window) @act_window_h (push-msg \"layer:base\"))")
     }
 
     func testLauncherTapModeWrapsOutputAndAddsCancel() {

@@ -652,6 +652,10 @@ class KeyboardVisualizationViewModel: ObservableObject {
         // Skip in test environment
         if TestEnvironment.isRunningTests {
             AppLogger.shared.debug("🧪 [KeyboardViz] Skipping layer mapping in test environment")
+            currentLayerName = targetLayerName
+            layerKeyMap = [:]
+            remapOutputMap = [:]
+            isLoadingLayerMap = false
             return
         }
 
