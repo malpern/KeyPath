@@ -4,11 +4,21 @@ import SwiftUI
 
 struct CustomRulesView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
-    @State private var isPresentingNewRule = false
-    @State private var editingRule: CustomRule?
     @State private var pendingDeleteRule: CustomRule?
     @State private var appKeymaps: [AppKeymap] = []
     @State private var pendingDeleteAppRule: (keymap: AppKeymap, override: AppKeyOverride)?
+    @State private var newInputKey: String = ""
+    @State private var newOutputKey: String = ""
+    @State private var newTitle: String = ""
+    @State private var newNotes: String = ""
+    @State private var inlineError: String?
+
+    private static let inlineKeyOptions: [String] = {
+        let letters = "abcdefghijklmnopqrstuvwxyz".map { String($0) }
+        let numbers = "0123456789".map { String($0) }
+        let base = CustomRuleValidator.commonKeys + letters + numbers
+        return Array(Set(base)).sorted()
+    }()
 
     private var sortedRules: [CustomRule] {
         let rules = kanataManager.customRules
@@ -41,17 +51,15 @@ struct CustomRulesView: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                Button {
-                    isPresentingNewRule = true
-                } label: {
-                    Label("Add Rule", systemImage: "plus.circle.fill")
-                        .labelStyle(.titleAndIcon)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
+
+            Divider()
+
+            inlineEditor
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
 
             Divider()
 
@@ -73,15 +81,6 @@ struct CustomRulesView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
-
-                    Button {
-                        isPresentingNewRule = true
-                    } label: {
-                        Label("Create Your First Rule", systemImage: "plus.circle.fill")
-                            .font(.body.weight(.medium))
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(40)
@@ -104,8 +103,8 @@ struct CustomRulesView: View {
                                     onToggle: { isOn in
                                         _ = Task { await kanataManager.toggleCustomRule(rule.id, enabled: isOn) }
                                     },
-                                    onEdit: {
-                                        editingRule = rule
+                                    onEditInDrawer: {
+                                        openRuleInDrawer(rule)
                                     },
                                     onDelete: {
                                         pendingDeleteRule = rule
@@ -143,27 +142,6 @@ struct CustomRulesView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .appKeymapsDidChange)) { _ in
             loadAppKeymaps()
-        }
-        .sheet(isPresented: $isPresentingNewRule) {
-            CustomRuleEditorView(
-                rule: nil,
-                existingRules: kanataManager.customRules
-            ) { newRule in
-                _ = Task { await kanataManager.saveCustomRule(newRule) }
-            }
-        }
-        .sheet(item: $editingRule) { rule in
-            CustomRuleEditorView(
-                rule: rule,
-                existingRules: kanataManager.customRules,
-                onSave: { updatedRule in
-                    _ = Task { await kanataManager.saveCustomRule(updatedRule) }
-                },
-                onDelete: { ruleToDelete in
-                    AppLogger.shared.log("🗑️ [CustomRulesView] Delete from editor for rule: \(ruleToDelete.id)")
-                    Task { await kanataManager.removeCustomRule(ruleToDelete.id) }
-                }
-            )
         }
         .alert(
             "Delete \"\(pendingDeleteRule?.displayTitle ?? "")\"?",
@@ -213,6 +191,142 @@ struct CustomRulesView: View {
 
     // MARK: - Helper Methods
 
+    private var inlineEditor: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Quick Add")
+                .font(.subheadline.weight(.medium))
+
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                InlineKeyField(
+                    title: "Input",
+                    text: $newInputKey,
+                    options: Self.inlineKeyOptions,
+                    fieldWidth: 200,
+                    textFieldIdentifier: "custom-rules-inline-input",
+                    menuIdentifier: "custom-rules-inline-input-menu"
+                )
+
+                Text("→")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 18)
+
+                InlineKeyField(
+                    title: "Output",
+                    text: $newOutputKey,
+                    options: Self.inlineKeyOptions,
+                    fieldWidth: 240,
+                    textFieldIdentifier: "custom-rules-inline-output",
+                    menuIdentifier: "custom-rules-inline-output-menu"
+                )
+
+                Button {
+                    addInlineRule()
+                } label: {
+                    Label("Add Rule", systemImage: "plus.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("custom-rules-inline-add-button")
+                .accessibilityLabel("Add custom rule")
+                .padding(.top, 18)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Name (optional)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    TextField("", text: $newTitle)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 240)
+                        .accessibilityIdentifier("custom-rules-inline-title")
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Notes (optional)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    TextField("", text: $newNotes, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 320)
+                        .lineLimit(1 ... 3)
+                        .accessibilityIdentifier("custom-rules-inline-notes")
+                }
+            }
+
+            Text("Tip: type modifiers like C-a or M-k, or space-separated sequences.")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+
+            if let inlineError {
+                Text(inlineError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier("custom-rules-inline-error")
+            }
+        }
+    }
+
+    private func addInlineRule() {
+        inlineError = nil
+        let rule = Self.makeInlineRule(
+            input: newInputKey,
+            output: newOutputKey,
+            title: newTitle,
+            notes: newNotes
+        )
+
+        let errors = CustomRuleValidator.validate(rule, existingRules: kanataManager.customRules)
+        if let first = errors.first {
+            inlineError = first.errorDescription
+            return
+        }
+
+        Task {
+            let saved = await kanataManager.underlyingManager.saveCustomRule(rule)
+            await MainActor.run {
+                if saved {
+                    newInputKey = ""
+                    newOutputKey = ""
+                    newTitle = ""
+                    newNotes = ""
+                } else {
+                    inlineError = "Rule save failed"
+                }
+            }
+        }
+    }
+
+    static func makeInlineRule(
+        input: String,
+        output: String,
+        title: String,
+        notes: String
+    ) -> CustomRule {
+        let trimmedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return CustomRule(
+            title: trimmedTitle,
+            input: trimmedInput,
+            output: trimmedOutput,
+            isEnabled: true,
+            notes: trimmedNotes.isEmpty ? nil : trimmedNotes
+        )
+    }
+
+    private func openRuleInDrawer(_ rule: CustomRule) {
+        NotificationCenter.default.post(
+            name: .openOverlayWithMapperPreset,
+            object: nil,
+            userInfo: ["inputKey": rule.input, "outputKey": rule.output]
+        )
+    }
+
     private func loadAppKeymaps() {
         Task {
             let keymaps = await AppKeymapStore.shared.loadKeymaps()
@@ -248,7 +362,7 @@ struct CustomRulesView: View {
 private struct CustomRuleRow: View {
     let rule: CustomRule
     let onToggle: (Bool) -> Void
-    let onEdit: () -> Void
+    let onEditInDrawer: () -> Void
     let onDelete: () -> Void
 
     /// Extract app identifier from push-msg launch output
@@ -328,9 +442,9 @@ private struct CustomRuleRow: View {
                 .accessibilityLabel("Toggle \(rule.displayTitle)")
 
                 Menu {
-                    Button("Edit") { onEdit() }
-                        .accessibilityIdentifier("custom-rules-menu-edit-button-\(rule.id)")
-                        .accessibilityLabel("Edit rule")
+                    Button("Edit in Drawer") { onEditInDrawer() }
+                        .accessibilityIdentifier("custom-rules-menu-edit-drawer-button-\(rule.id)")
+                        .accessibilityLabel("Edit rule in drawer")
                     Button("Delete", role: .destructive) { onDelete() }
                         .accessibilityIdentifier("custom-rules-menu-delete-button-\(rule.id)")
                         .accessibilityLabel("Delete rule")
@@ -470,6 +584,43 @@ private struct CustomRuleRow: View {
         }
 
         return prefix + result.capitalized
+    }
+}
+
+private struct InlineKeyField: View {
+    let title: String
+    @Binding var text: String
+    let options: [String]
+    let fieldWidth: CGFloat
+    let textFieldIdentifier: String
+    let menuIdentifier: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            HStack(spacing: 6) {
+                TextField("", text: $text)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: fieldWidth)
+                    .accessibilityIdentifier(textFieldIdentifier)
+
+                Menu {
+                    ForEach(options, id: \.self) { key in
+                        Button(key) {
+                            text = key
+                        }
+                    }
+                } label: {
+                    Image(systemName: "chevron.down.circle")
+                        .foregroundColor(.secondary)
+                }
+                .menuStyle(.borderlessButton)
+                .accessibilityIdentifier(menuIdentifier)
+            }
+        }
     }
 }
 

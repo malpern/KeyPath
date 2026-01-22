@@ -179,15 +179,13 @@ let behavior = KanataBehaviorParser.parse("(tap-hold-press 200 200 a lctl)")
 
 ## UI Components
 
-### CustomRuleEditorView
+### Custom Rules Inline Editor
 
-The main editor for custom rules with advanced behavior support:
-- **Hold, Double Tap, etc.** toggle to reveal advanced options
-- **On Hold** field for tap-hold behavior (with hold behavior radio buttons)
-- **Double Tap / Triple Tap** fields for tap-dance behavior
-- **Conflict resolution dialog** when switching between Hold and Tap-Dance
-- **Timing controls** with optional separate tap/hold timeouts
-- **Description** field (hover over header to reveal)
+The settings panel now provides a lightweight inline editor for quick key-to-key rules:
+- **Input/Output** fields with type-or-select behavior
+- **Name/Notes (optional)** for labeling rules
+
+Advanced behavior editing (tap-hold, tap-dance, timing, etc.) should be done in the overlay drawer.
 
 ### ConflictResolutionDialog
 

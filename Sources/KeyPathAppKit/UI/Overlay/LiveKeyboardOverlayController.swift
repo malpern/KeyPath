@@ -189,10 +189,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
 
         // Center the window on screen
-        resetWindowFrame()
-
-        // Show the overlay
-        showWindow()
+        showResetCentered()
 
         // Open inspector with mapper tab
         openInspector(animated: true)
@@ -217,10 +214,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
 
         // Center the window on screen
-        resetWindowFrame()
-
-        // Show the overlay
-        showWindow()
+        showResetCentered()
 
         // Open inspector with mapper tab
         openInspector(animated: true)
@@ -782,7 +776,17 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         viewModel.noteInteraction() // Reset fade state when showing
         // Restore saved frame to prevent shrinking on hide/show cycle
         if let savedFrame = restoreWindowFrame(), let window {
-            window.setFrame(savedFrame, display: false)
+            var targetFrame = savedFrame
+            if uiState.isInspectorOpen || uiState.inspectorReveal > 0 {
+                let maxVisibleX = window.screen?.visibleFrame.maxX
+                targetFrame = InspectorPanelLayout.expandedFrame(
+                    baseFrame: savedFrame,
+                    inspectorWidth: inspectorTotalWidth,
+                    maxVisibleX: maxVisibleX
+                )
+                collapsedFrameBeforeInspector = savedFrame
+            }
+            window.setFrame(targetFrame, display: false)
         }
 
         // Animate in: start scaled down and transparent, then expand
