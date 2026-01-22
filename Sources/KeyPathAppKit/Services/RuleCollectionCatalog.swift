@@ -193,7 +193,11 @@ struct RuleCollectionCatalog {
             icon: "resource:vim-icon",
             tags: ["vim", "navigation", "editing", "selection"],
             targetLayer: .navigation,
-            activationHint: "Hold Leader key for Vim navigation",
+            momentaryActivator: MomentaryActivator(
+                input: "space",
+                targetLayer: .navigation
+            ),
+            activationHint: "Hold Leader key to enter Navigation layer",
             configuration: .table
         )
     }
