@@ -63,18 +63,18 @@ private struct BehaviorStateCell: View {
                 behaviorImage
                     .frame(height: 35)
 
-                // Label with configured dot on the left
-                HStack(spacing: 3) {
-                    // Configured indicator dot (on far left of label)
-                    Circle()
-                        .fill(isConfigured ? Color.accentColor : Color.clear)
-                        .frame(width: 5, height: 5)
-
-                    Text(slot.shortLabel)
-                        .font(.system(size: 9, weight: isSelected ? .medium : .regular))
-                        .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-                        .lineLimit(1)
-                }
+                // Label centered, with configured dot as overlay
+                Text(slot.shortLabel)
+                    .font(.system(size: 9, weight: isSelected ? .medium : .regular))
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                    .lineLimit(1)
+                    .overlay(alignment: .leading) {
+                        // Configured indicator dot (positioned to the left of label)
+                        Circle()
+                            .fill(isConfigured ? Color.accentColor : Color.clear)
+                            .frame(width: 5, height: 5)
+                            .offset(x: -8)
+                    }
             }
             .contentShape(Rectangle())
         }
