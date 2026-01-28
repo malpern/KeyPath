@@ -94,11 +94,11 @@ final class RecentKeypressesService: ObservableObject {
         }
     }
 
-#if DEBUG
-    static func makeTestInstance(notificationCenter: NotificationCenter = NotificationCenter()) -> RecentKeypressesService {
-        RecentKeypressesService(notificationCenter: notificationCenter)
-    }
-#endif
+    #if DEBUG
+        static func makeTestInstance(notificationCenter: NotificationCenter = NotificationCenter()) -> RecentKeypressesService {
+            RecentKeypressesService(notificationCenter: notificationCenter)
+        }
+    #endif
 
     private func addEvent(key: String, action: String) {
         let event = KeypressEvent(

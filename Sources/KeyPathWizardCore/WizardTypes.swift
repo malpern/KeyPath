@@ -84,6 +84,7 @@ public enum InstallationStatus {
     case completed
     case warning // Partial success or degraded state (e.g., installed but unhealthy)
     case failed
+    case unverified // Cannot verify status (e.g., no FDA to read TCC database)
 }
 
 /// Launch failure status for Kanata service failures

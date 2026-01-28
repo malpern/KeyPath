@@ -1022,6 +1022,7 @@ private struct DragHandleTexture: View {
                 y += dotSpacing
             }
         }
+        .allowsHitTesting(false) // Ensure drag texture doesn't block header drag gestures
     }
 }
 
@@ -2142,12 +2143,10 @@ struct OverlayInspectorPanel: View {
                 tapHoldKeyCode = keyCode
             }
             // Extract selected slot
-            if let slotRaw = notification.userInfo?["slot"] as? String
+            if let slotRaw = notification.userInfo?["slot"] as? String,
+               let slot = BehaviorSlot(rawValue: slotRaw)
             {
-                let normalizedSlot = slotRaw == "doubleTap" ? "macro" : slotRaw
-                if let slot = BehaviorSlot(rawValue: normalizedSlot) {
                 tapHoldInitialSlot = slot
-                }
             }
             // Open the Tap & Hold panel
             withAnimation(.easeInOut(duration: 0.25)) {
@@ -2425,7 +2424,6 @@ struct OverlayInspectorPanel: View {
     /// Hold behavior action
     @State private var tapHoldHoldAction: BehaviorAction = .none
     /// Double tap behavior action
-    @State private var tapHoldMacroAction: BehaviorAction = .none
     /// Tap + Hold behavior action
     @State private var tapHoldComboAction: BehaviorAction = .none
     /// Responsiveness level (maps to timing thresholds)
@@ -2472,7 +2470,6 @@ struct OverlayInspectorPanel: View {
             initialSlot: tapHoldInitialSlot,
             tapAction: $tapHoldTapAction,
             holdAction: $tapHoldHoldAction,
-            macroAction: $tapHoldMacroAction,
             comboAction: $tapHoldComboAction,
             responsiveness: $tapHoldResponsiveness,
             useTapImmediately: $tapHoldUseTapImmediately

@@ -58,6 +58,11 @@ public class KeyboardCapture: ObservableObject {
 
     // Fast process probe to reduce race with manager.isRunning updates
     private func fastProbeKanataRunning(timeout: TimeInterval = 0.25) -> Bool {
+        // ADR-022: Never call real pgrep in tests - it can cause deadlocks
+        if TestEnvironment.isRunningTests {
+            return false
+        }
+
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
         task.arguments = ["-x", "kanata"]

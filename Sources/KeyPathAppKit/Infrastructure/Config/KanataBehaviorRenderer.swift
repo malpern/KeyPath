@@ -139,9 +139,9 @@ public enum KanataBehaviorRenderer {
     ) -> String {
         switch behavior {
         case .tap:
-            return KanataKeyConverter.convertToKanataSequence(mapping.output)
+            KanataKeyConverter.convertToKanataSequence(mapping.output)
         case let .tapDance(tapDance):
-            return renderTapDance(tapDance, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
+            renderTapDance(tapDance, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
         }
     }
 

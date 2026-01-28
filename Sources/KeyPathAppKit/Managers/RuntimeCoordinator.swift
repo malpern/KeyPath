@@ -829,7 +829,9 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     // MARK: - Rule Collections (delegates to RuleCollectionsCoordinator)
 
     func toggleRuleCollection(id: UUID, isEnabled: Bool) async {
+        AppLogger.shared.log("🎚️ [RuntimeCoordinator] toggleRuleCollection: id=\(id), isEnabled=\(isEnabled)")
         await ruleCollectionsCoordinator.toggleRuleCollection(id: id, isEnabled: isEnabled)
+        AppLogger.shared.log("🎚️ [RuntimeCoordinator] toggleRuleCollection completed")
     }
 
     func addRuleCollection(_ collection: RuleCollection) async {

@@ -490,8 +490,8 @@ private struct CustomRuleRow: View {
                     }
                 }
 
-            case let .macro(macro):
-                behaviorItem(icon: "arrow.right", label: "Macro", key: macro.displayString)
+            case .macro:
+                EmptyView()
 
             case let .chord(ch):
                 behaviorItem(

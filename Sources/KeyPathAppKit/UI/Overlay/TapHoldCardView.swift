@@ -10,10 +10,9 @@ struct TapHoldCardView: View {
     /// Initial slot to show when panel opens
     let initialSlot: BehaviorSlot
 
-    /// Bindings for the four behavior intents
+    /// Bindings for the behavior intents
     @Binding var tapAction: BehaviorAction
     @Binding var holdAction: BehaviorAction
-    @Binding var macroAction: BehaviorAction
     @Binding var comboAction: BehaviorAction
 
     /// Responsiveness preset (maps to timing thresholds)
@@ -52,7 +51,6 @@ struct TapHoldCardView: View {
         var states: Set<BehaviorSlot> = []
         if tapAction != .none { states.insert(.tap) }
         if holdAction != .none { states.insert(.hold) }
-        if macroAction != .none { states.insert(.macro) }
         if comboAction != .none { states.insert(.combo) }
         return states
     }
@@ -264,7 +262,6 @@ struct TapHoldCardView: View {
         switch slot {
         case .tap: $tapAction
         case .hold: $holdAction
-        case .macro: $macroAction
         case .combo: $comboAction
         }
     }
@@ -276,7 +273,6 @@ struct TapHoldCardView: View {
 enum BehaviorSlot: String, Identifiable, CaseIterable {
     case tap
     case hold
-    case macro
     case combo
 
     var id: String { rawValue }
@@ -285,7 +281,6 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
         switch self {
         case .tap: "Tap"
         case .hold: "Hold"
-        case .macro: "Macro"
         case .combo: "Combo"
         }
     }
@@ -295,7 +290,6 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
         switch self {
         case .tap: "Tap"
         case .hold: "Hold"
-        case .macro: "Macro"
         case .combo: "Combo"
         }
     }
@@ -304,7 +298,6 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
         switch self {
         case .tap: "tap"
         case .hold: "hold"
-        case .macro: "trigger"
         case .combo: "press together with"
         }
     }
@@ -313,7 +306,6 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
         switch self {
         case .tap: "hand.tap"
         case .hold: "hand.point.down.fill"
-        case .macro: "arrow.right"
         case .combo: "rectangle.on.rectangle"
         }
     }
@@ -413,7 +405,6 @@ enum LiveFeedbackState: Equatable {
         struct PreviewWrapper: View {
             @State var tap: BehaviorAction = .key("a")
             @State var hold: BehaviorAction = .modifier("⌘")
-            @State var macro: BehaviorAction = .none
             @State var combo: BehaviorAction = .layer("Nav")
             @State var responsiveness: ResponsivenessLevel = .balanced
             @State var useTapImmediately = true
@@ -425,7 +416,6 @@ enum LiveFeedbackState: Equatable {
                     initialSlot: .tap,
                     tapAction: $tap,
                     holdAction: $hold,
-                    macroAction: $macro,
                     comboAction: $combo,
                     responsiveness: $responsiveness,
                     useTapImmediately: $useTapImmediately

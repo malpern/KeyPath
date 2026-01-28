@@ -201,7 +201,9 @@ class KanataViewModel: ObservableObject {
     // Note: Removed manual syncFromManager() calls - AsyncStream automatically updates UI
 
     func toggleRuleCollection(_ id: UUID, enabled: Bool) async {
+        AppLogger.shared.log("🎚️ [KanataViewModel] toggleRuleCollection called: id=\(id), enabled=\(enabled)")
         await manager.toggleRuleCollection(id: id, isEnabled: enabled)
+        AppLogger.shared.log("🎚️ [KanataViewModel] toggleRuleCollection completed")
         let collection = ruleCollections.first { $0.id == id }
         let collectionName = collection?.name ?? "Collection"
 

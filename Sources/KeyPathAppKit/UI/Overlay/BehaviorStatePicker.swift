@@ -1,16 +1,15 @@
 import SwiftUI
 
-/// A horizontal picker showing the four behavior states using image assets.
+/// A horizontal picker showing the behavior states using image assets.
 /// Flat controls with click feedback and configuration indicators.
 /// Place images in Resources/BehaviorIcons/ named:
 ///   - behavior-tap.png, behavior-tap-selected.png
 ///   - behavior-hold.png, behavior-hold-selected.png
-///   - behavior-macro.png, behavior-macro-selected.png
 ///   - behavior-combo.png, behavior-combo-selected.png
 struct BehaviorStatePicker: View {
     @Binding var selectedState: BehaviorSlot
 
-    /// Whether each state has a configured action (for hold, macro, combo)
+    /// Whether each state has a configured action (for hold, combo)
     var configuredStates: Set<BehaviorSlot> = []
 
     /// Whether the tap behavior is non-identity (A→B, not A→A)
@@ -40,7 +39,7 @@ struct BehaviorStatePicker: View {
         case .tap:
             // Only show dot if tap is a non-identity mapping (A→B, not A→A)
             tapIsNonIdentity
-        case .hold, .macro, .combo:
+        case .hold, .combo:
             // Show dot if the slot has a configured action
             configuredStates.contains(slot)
         }
@@ -132,8 +131,6 @@ private struct BehaviorKeycapIcon: View {
                 tapIcon
             case .hold:
                 holdIcon
-            case .macro:
-                macroIcon
             case .combo:
                 comboIcon
             }
@@ -177,29 +174,6 @@ private struct BehaviorKeycapIcon: View {
             RoundedRectangle(cornerRadius: 1)
                 .fill(strokeColor)
                 .frame(width: 14, height: 3)
-        }
-    }
-
-    /// Macro: Keycap with multiple output arrows
-    private var macroIcon: some View {
-        ZStack {
-            // Keycap base
-            RoundedRectangle(cornerRadius: 3)
-                .fill(fillColor)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 3)
-                        .strokeBorder(strokeColor, lineWidth: 1.5)
-                )
-                .frame(width: 16, height: 14)
-
-            // Multiple output arrows
-            HStack(spacing: 1) {
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 6, weight: .bold))
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 6, weight: .bold))
-            }
-            .foregroundStyle(strokeColor)
         }
     }
 
@@ -249,7 +223,6 @@ extension BehaviorSlot {
         switch self {
         case .tap: "behavior-tap"
         case .hold: "behavior-hold"
-        case .macro: "behavior-macro"
         case .combo: "behavior-combo"
         }
     }
@@ -258,7 +231,6 @@ extension BehaviorSlot {
         switch self {
         case .tap: "behavior-tap-selected"
         case .hold: "behavior-hold-selected"
-        case .macro: "behavior-macro-selected"
         case .combo: "behavior-combo-selected"
         }
     }
@@ -267,7 +239,6 @@ extension BehaviorSlot {
         switch self {
         case .tap: "rectangle.portrait.arrowtriangle.2.inward"
         case .hold: "rectangle.portrait.bottomhalf.filled"
-        case .macro: "arrow.right"
         case .combo: "rectangle.portrait.on.rectangle.portrait"
         }
     }

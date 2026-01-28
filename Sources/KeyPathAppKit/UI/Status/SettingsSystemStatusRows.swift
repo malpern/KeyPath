@@ -244,7 +244,7 @@ struct SettingsSystemStatusRow: View {
             .orange
         case .failed:
             .red
-        case .inProgress, .notStarted:
+        case .inProgress, .notStarted, .unverified:
             .secondary
         }
     }
@@ -261,6 +261,8 @@ struct SettingsSystemStatusRow: View {
             "clock"
         case .notStarted:
             "circle"
+        case .unverified:
+            "questionmark.circle"
         }
     }
 }

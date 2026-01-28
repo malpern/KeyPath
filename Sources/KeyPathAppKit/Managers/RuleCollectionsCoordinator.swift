@@ -43,6 +43,7 @@ final class RuleCollectionsCoordinator {
 
     /// Toggle a rule collection's enabled state
     func toggleRuleCollection(id: UUID, isEnabled: Bool) async {
+        AppLogger.shared.log("🎚️ [RuleCollectionsCoordinator] toggleRuleCollection: id=\(id), isEnabled=\(isEnabled)")
         await ruleCollectionsManager.toggleCollection(id: id, isEnabled: isEnabled)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()

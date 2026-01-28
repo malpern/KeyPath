@@ -573,6 +573,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
                 // Trigger validation once after auto-launch attempt
                 NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
+
+                // Auto-launch wizard if helper is not functional (covers fresh install AND reinstall after uninstall)
+                // Use XPC functionality test, not just SMAppService status, since status can be stale after uninstall
+                let helperFunctional = await HelperManager.shared.testHelperFunctionality()
+                AppLogger.shared.info("🆕 [AppDelegate] Helper functional check: \(helperFunctional)")
+                if !helperFunctional {
+                    AppLogger.shared.info("🆕 [AppDelegate] Helper not functional - auto-launching wizard")
+                    // Small delay to ensure overlay is visible first and orphan cleanup dialog can show first
+                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1s
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
+                }
             }
         } else {
             AppLogger.shared.debug("🤖 [AppDelegate] Headless mode - skipping window management")

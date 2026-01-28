@@ -840,17 +840,18 @@ private extension ConfigurationService {
     }
 
     func loadPreservedSequences() -> [KanataDefseqParser.ParsedSequence] {
+        let sequences: [KanataDefseqParser.ParsedSequence]
         if let current = withLockedCurrentConfig(), !current.sequences.isEmpty {
-            return current.sequences
-        }
-
-        guard FileManager.default.fileExists(atPath: configurationPath),
-              let content = try? String(contentsOfFile: configurationPath, encoding: .utf8)
-        else {
+            sequences = current.sequences
+        } else if FileManager.default.fileExists(atPath: configurationPath),
+                  let content = try? String(contentsOfFile: configurationPath, encoding: .utf8)
+        {
+            sequences = KanataDefseqParser.parseSequences(from: content)
+        } else {
             return []
         }
 
-        return KanataDefseqParser.parseSequences(from: content)
+        return sequences
     }
 
     func setCurrentConfiguration(_ config: KanataConfiguration) {

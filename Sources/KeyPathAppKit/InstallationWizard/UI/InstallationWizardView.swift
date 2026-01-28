@@ -471,8 +471,8 @@ struct InstallationWizardView: View {
             }
         )
 
-        // Show summary page immediately with validation state
         // Determine initial page based on cached system snapshot (if available)
+        // Skip summary on initial run - go directly to helper page to start the wizard flow
         let preferredPage = await cachedPreferredPage()
         if let preferredPage, initialPage == nil {
             AppLogger.shared.log("🔍 [Wizard] Preferring cached page: \(preferredPage)")
@@ -481,7 +481,10 @@ struct InstallationWizardView: View {
             AppLogger.shared.log("🔍 [Wizard] Navigating to initial page override: \(initialPage)")
             stateMachine.navigateToPage(initialPage)
         } else {
-            stateMachine.navigateToPage(.summary)
+            // Start at helper page, not summary - avoids showing unverified permission status
+            // before user has had a chance to decide on enhanced diagnostics (FDA)
+            AppLogger.shared.log("🔍 [Wizard] Starting at helper page (skipping initial summary)")
+            stateMachine.navigateToPage(.helper)
         }
 
         Task {

@@ -54,18 +54,22 @@ struct WizardHelperPage: View {
     }
 
     private var hasHelperIssues: Bool {
-        hasNotInstalledIssue || hasUnhealthyIssue
+        hasNotInstalledIssue || hasUnhealthyIssue || !helperVerifiedInstalled
     }
 
-    // Helper is ready if there are NO issues
+    // Helper is ready if verified installed AND no issues
     private var isReady: Bool {
-        !hasHelperIssues
+        helperVerifiedInstalled && !hasNotInstalledIssue && !hasUnhealthyIssue
     }
 
-    // Helper is installed if it's either ready OR has an unhealthy issue (but not missing)
+    // Helper is installed if verified OR has unhealthy issue (installed but broken)
     private var isInstalled: Bool {
-        !hasNotInstalledIssue
+        helperVerifiedInstalled || hasUnhealthyIssue
     }
+
+    // Direct verification of helper functionality (not relying on stale issues or launchd status)
+    @State private var helperVerifiedInstalled = false
+    @State private var isLoadingHelperStatus = true
 
     private var nextStepButtonTitle: String {
         issues.isEmpty ? "Return to Summary" : "Next Issue"
@@ -95,7 +99,10 @@ struct WizardHelperPage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if isReady {
+            if isLoadingHelperStatus {
+                // Show loading state while checking helper functionality
+                loadingView
+            } else if isReady {
                 successView
             } else {
                 setupView
@@ -106,11 +113,17 @@ struct WizardHelperPage: View {
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
         .task {
-            // Check helper version on appear
-            helperVersion = await HelperManager.shared.getHelperVersion()
+            // Use functional test (XPC ping), not just launchd status, to avoid stale state
+            helperVerifiedInstalled = await HelperManager.shared.testHelperFunctionality()
+            // Check helper version on appear (only if functional)
+            if helperVerifiedInstalled {
+                helperVersion = await HelperManager.shared.getHelperVersion()
+            }
             bundledVersion = getBundledHelperVersion()
             // Check if Login Items approval is needed
             needsLoginItemsApproval = checkLoginItemsApprovalNeeded()
+            // Done loading
+            isLoadingHelperStatus = false
         }
         .onAppear {
             duplicateCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
@@ -119,6 +132,25 @@ struct WizardHelperPage: View {
         .onDisappear {
             stopApprovalPolling()
         }
+    }
+
+    // MARK: - Loading View
+
+    private var loadingView: some View {
+        VStack(spacing: WizardDesign.Spacing.sectionGap) {
+            ProgressView()
+                .scaleEffect(1.5)
+                .frame(height: 80)
+
+            Text("Checking Helper Status")
+                .font(.system(size: 20, weight: .semibold, design: .default))
+                .foregroundColor(.primary)
+
+            Text("Verifying privileged helper is responding...")
+                .font(.system(size: 14, weight: .regular))
+                .foregroundColor(.secondary)
+        }
+        .heroSectionContainer()
     }
 
     // MARK: - Success View (Hero Style)
@@ -399,10 +431,24 @@ struct WizardHelperPage: View {
             }
         }
 
-        // Refresh version asynchronously
+        // After successful install, verify helper is now functional and update state
         if ok {
+            // Give helper a moment to start responding
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+
+            let functional = await HelperManager.shared.testHelperFunctionality()
             let version = await HelperManager.shared.getHelperVersion()
-            await MainActor.run { helperVersion = version }
+
+            await MainActor.run {
+                helperVerifiedInstalled = functional
+                helperVersion = version
+
+                if functional {
+                    AppLogger.shared.log("✅ [WizardHelperPage] Helper installed and verified functional")
+                } else {
+                    AppLogger.shared.log("⚠️ [WizardHelperPage] Helper installed but not responding yet")
+                }
+            }
         }
 
         onRefresh()

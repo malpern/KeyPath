@@ -54,8 +54,6 @@ struct OverlayMapperSection: View {
         case .hold:
             let action = viewModel.holdAction
             return action.isEmpty ? "" : KeyDisplayFormatter.format(action)
-        case .macro:
-            return viewModel.macroBehavior?.displayString ?? ""
         case .combo:
             let action = viewModel.comboOutput
             return action.isEmpty ? "" : KeyDisplayFormatter.format(action)
@@ -63,7 +61,7 @@ struct OverlayMapperSection: View {
     }
 
     /// Whether the current slot has an action configured
-    /// Hold/DoubleTap/Combo are optional behaviors that must be explicitly added
+    /// Hold/Combo are optional behaviors that must be explicitly added
     private var currentSlotIsConfigured: Bool {
         switch selectedBehaviorSlot {
         case .tap:
@@ -71,8 +69,6 @@ struct OverlayMapperSection: View {
             true
         case .hold:
             !viewModel.holdAction.isEmpty
-        case .macro:
-            viewModel.macroBehavior?.isValid == true
         case .combo:
             viewModel.advancedBehavior.hasValidCombo
         }
@@ -85,8 +81,6 @@ struct OverlayMapperSection: View {
             viewModel.isRecordingOutput
         case .hold:
             viewModel.isRecordingHold
-        case .macro:
-            viewModel.isRecordingMacro
         case .combo:
             viewModel.isRecordingComboOutput
         }
@@ -98,8 +92,7 @@ struct OverlayMapperSection: View {
             viewModel.isRecordingOutput ||
             viewModel.isRecordingHold ||
             viewModel.isRecordingDoubleTap ||
-            viewModel.isRecordingComboOutput ||
-            viewModel.isRecordingMacro
+            viewModel.isRecordingComboOutput
     }
 
     /// Cancel all active recording modes
@@ -108,7 +101,6 @@ struct OverlayMapperSection: View {
         viewModel.isRecordingHold = false
         viewModel.isRecordingDoubleTap = false
         viewModel.isRecordingComboOutput = false
-        viewModel.isRecordingMacro = false
     }
 
     var body: some View {
@@ -312,11 +304,7 @@ struct OverlayMapperSection: View {
             updateConfiguredBehaviorSlots()
         }
 
-        let withMacroChange = withTapDanceChange.onChange(of: viewModel.macroBehavior) { _, _ in
-            updateConfiguredBehaviorSlots()
-        }
-
-        let withAppChange = withMacroChange.onChange(of: viewModel.selectedApp?.name) { _, _ in
+        let withAppChange = withTapDanceChange.onChange(of: viewModel.selectedApp?.name) { _, _ in
             updateConfiguredBehaviorSlots()
         }
 
@@ -377,11 +365,10 @@ struct OverlayMapperSection: View {
             viewModel.selectedURL != nil ||
             viewModel.selectedAppCondition != nil
 
-        // Hold/Macro modified
+        // Hold modified
         let holdModified = !viewModel.holdAction.isEmpty
-        let macroModified = viewModel.macroBehavior?.isValid == true
 
-        return tapModified || holdModified || macroModified
+        return tapModified || holdModified
     }
 
     /// Whether tap has a non-identity mapping (A→B, not A→A)
@@ -481,7 +468,7 @@ struct OverlayMapperSection: View {
                                 )
                                 .scaleEffect(outputKeycapScale)
                             } else {
-                                // Hold/Macro/Combo use BehaviorSlotKeycap
+                                // Hold/Combo use BehaviorSlotKeycap
                                 BehaviorSlotKeycap(
                                     label: currentSlotOutputLabel,
                                     isConfigured: currentSlotIsConfigured,
@@ -526,21 +513,6 @@ struct OverlayMapperSection: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityIdentifier("overlay-mapper-multitap-link")
-                        }
-
-                        if selectedBehaviorSlot == .macro {
-                            MacroEditorView(
-                                macro: Binding(
-                                    get: { viewModel.macroBehavior },
-                                    set: { viewModel.macroBehavior = $0 }
-                                ),
-                                isRecordingKeys: Binding(
-                                    get: { viewModel.isRecordingMacro },
-                                    set: { viewModel.isRecordingMacro = $0 }
-                                ),
-                                onRecordKeys: { viewModel.toggleMacroRecording() }
-                            )
-                            .padding(.top, 4)
                         }
                     }
                     .frame(width: keycapWidth)
@@ -882,12 +854,12 @@ struct OverlayMapperSection: View {
         .focusable(false)
     }
 
-    /// Clear all behavior slots for the current key (tap, hold, macro, combo)
+    /// Clear all behavior slots for the current key (tap, hold, combo)
     private func clearAllBehaviorsForCurrentKey() {
         // Clear tap
         viewModel.clear()
 
-        // Clear all advanced behaviors (hold, multi-tap, macro, timing, etc.)
+        // Clear all advanced behaviors (hold, multi-tap, timing, etc.)
         viewModel.advancedBehavior.reset()
 
         // Update UI state
@@ -958,8 +930,6 @@ struct OverlayMapperSection: View {
             viewModel.toggleOutputRecording()
         case .hold:
             viewModel.toggleHoldRecording()
-        case .macro:
-            viewModel.toggleMacroRecording()
         case .combo:
             viewModel.toggleComboOutputRecording()
         }
@@ -972,8 +942,6 @@ struct OverlayMapperSection: View {
             viewModel.revertToKeystroke()
         case .hold:
             viewModel.advancedBehavior.holdAction = ""
-        case .macro:
-            viewModel.clearMacro()
         case .combo:
             viewModel.advancedBehavior.comboKeys = []
             viewModel.advancedBehavior.comboOutput = ""
@@ -999,11 +967,6 @@ struct OverlayMapperSection: View {
         // Check hold slot
         if !viewModel.holdAction.isEmpty {
             slots.insert(.hold)
-        }
-
-        // Check macro slot
-        if viewModel.macroBehavior?.isValid == true {
-            slots.insert(.macro)
         }
 
         // Check combo slot
@@ -1058,33 +1021,6 @@ struct OverlayMapperSection: View {
                 try? await Task.sleep(for: .milliseconds(500))
                 withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
                     outputKeycapScale = 1.0
-                }
-
-            case .macro:
-                // Choreography: label first, then a quick multi-press pulse
-                withAnimation(.easeOut(duration: 0.12)) {
-                    showBehaviorLabel = true
-                }
-                try? await Task.sleep(for: .milliseconds(80))
-                // Bounce the keycap
-                withAnimation(.spring(response: 0.15, dampingFraction: 0.5)) {
-                    outputKeycapBounce = true
-                }
-                try? await Task.sleep(for: .milliseconds(120))
-                withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
-                    outputKeycapBounce = false
-                }
-                // Quick pulse sequence
-                try? await Task.sleep(for: .milliseconds(100))
-                for _ in 0 ..< 3 {
-                    withAnimation(.easeIn(duration: 0.07)) {
-                        outputKeycapScale = 0.9
-                    }
-                    try? await Task.sleep(for: .milliseconds(70))
-                    withAnimation(.spring(response: 0.12, dampingFraction: 0.6)) {
-                        outputKeycapScale = 1.0
-                    }
-                    try? await Task.sleep(for: .milliseconds(90))
                 }
 
             case .combo:

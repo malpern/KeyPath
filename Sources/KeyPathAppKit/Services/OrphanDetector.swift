@@ -209,48 +209,40 @@ final class OrphanDetector {
         daemonsCleaned: Bool,
         daemonsError: String?
     ) {
-        let resultAlert = NSAlert()
-
         let hasUserFileFailures = !userFilesFailed.isEmpty
         let hasDaemonFailure = daemonsError != nil
         let allSuccess = !hasUserFileFailures && !hasDaemonFailure
 
-        if allSuccess {
-            resultAlert.messageText = "Cleanup Complete"
-            var details: [String] = []
-            if userFilesCleaned > 0 {
-                details.append("Removed \(userFilesCleaned) user file(s)")
-            }
-            if daemonsCleaned {
-                details.append("Removed system keyboard services")
-            }
-            resultAlert.informativeText = details.joined(separator: "\n")
-            resultAlert.alertStyle = .informational
-        } else {
-            resultAlert.messageText = "Cleanup Partially Complete"
-            var details: [String] = []
-
-            if userFilesCleaned > 0 {
-                details.append("✅ Removed \(userFilesCleaned) user file(s)")
-            }
-            if !userFilesFailed.isEmpty {
-                details.append("❌ Failed to remove:")
-                details.append(contentsOf: userFilesFailed.map { "  • \($0)" })
-            }
-            if daemonsCleaned {
-                details.append("✅ Removed system keyboard services")
-            }
-            if let error = daemonsError {
-                details.append("❌ Failed to remove system services:")
-                details.append("  \(error)")
-            }
-
-            details.append("")
-            details.append("You may need to remove failed items manually.")
-
-            resultAlert.informativeText = details.joined(separator: "\n")
-            resultAlert.alertStyle = .warning
+        // Only show dialog if there were failures - success is silent
+        guard !allSuccess else {
+            AppLogger.shared.info("🧹 [OrphanDetector] Cleanup complete: \(userFilesCleaned) user files, daemons: \(daemonsCleaned)")
+            return
         }
+
+        let resultAlert = NSAlert()
+        resultAlert.messageText = "Cleanup Partially Complete"
+        var details: [String] = []
+
+        if userFilesCleaned > 0 {
+            details.append("✅ Removed \(userFilesCleaned) user file(s)")
+        }
+        if !userFilesFailed.isEmpty {
+            details.append("❌ Failed to remove:")
+            details.append(contentsOf: userFilesFailed.map { "  • \($0)" })
+        }
+        if daemonsCleaned {
+            details.append("✅ Removed system keyboard services")
+        }
+        if let error = daemonsError {
+            details.append("❌ Failed to remove system services:")
+            details.append("  \(error)")
+        }
+
+        details.append("")
+        details.append("You may need to remove failed items manually.")
+
+        resultAlert.informativeText = details.joined(separator: "\n")
+        resultAlert.alertStyle = .warning
         resultAlert.runModal()
     }
 }

@@ -8,6 +8,7 @@ struct ExperimentalSettingsSection: View {
     @State private var useSMAppServiceForDaemon = FeatureFlags.useSMAppServiceForDaemon
     @State private var simulatorAndVirtualKeysEnabled = FeatureFlags.simulatorAndVirtualKeysEnabled
     @State private var uninstallForTesting = FeatureFlags.uninstallForTesting
+    @State private var learningTipsMode = FeatureFlags.learningTipsMode
     @State private var qmkSearchEnabled = UserDefaults.standard.bool(forKey: LayoutPreferences.qmkSearchEnabledKey)
 
     var body: some View {
@@ -148,6 +149,9 @@ struct ExperimentalSettingsSection: View {
                 identifier: "feature-flag-uninstall-testing"
             )
             .accessibilityIdentifier("feature-flag-uninstall-testing-row")
+
+            learningTipsModePicker
+                .accessibilityIdentifier("feature-flag-learning-tips-row")
         }
     }
 
@@ -183,6 +187,39 @@ struct ExperimentalSettingsSection: View {
             .controlSize(.small)
             .accessibilityIdentifier(identifier)
             .accessibilityLabel(title)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var learningTipsModePicker: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Learning Tips")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text("Control when contextual tips are shown")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            Picker("", selection: Binding(
+                get: { learningTipsMode },
+                set: { newValue in
+                    learningTipsMode = newValue
+                    FeatureFlags.setLearningTipsMode(newValue)
+                }
+            )) {
+                ForEach(LearningTipsMode.allCases, id: \.self) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .controlSize(.small)
+            .accessibilityIdentifier("feature-flag-learning-tips")
+            .accessibilityLabel("Learning tips mode")
         }
         .padding(.vertical, 4)
     }

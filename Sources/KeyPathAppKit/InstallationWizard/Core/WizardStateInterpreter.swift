@@ -233,6 +233,8 @@ struct WizardStateInterpreter {
             .green
         case .failed:
             .red
+        case .unverified:
+            .secondary
         }
     }
 
@@ -249,6 +251,8 @@ struct WizardStateInterpreter {
             "checkmark.circle.fill"
         case .failed:
             "xmark.circle.fill"
+        case .unverified:
+            "questionmark.circle"
         }
     }
 

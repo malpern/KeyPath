@@ -30,6 +30,8 @@ struct WizardInputMonitoringPage: View {
             ("questionmark.circle.fill", .orange)
         case .failed:
             ("xmark.circle.fill", .red)
+        case .unverified:
+            ("questionmark.circle", .secondary)
         case .notStarted, .inProgress:
             ("ellipsis.circle", .secondary)
         }
@@ -39,7 +41,7 @@ struct WizardInputMonitoringPage: View {
         switch status {
         case .completed:
             " - Remapping engine processes keyboard events"
-        case .warning:
+        case .warning, .unverified:
             " - Permission not verified"
         case .failed, .notStarted, .inProgress:
             " - Remapping engine needs permission"

@@ -140,7 +140,7 @@ extension FeatureFlags {
         {
             return mode
         }
-        return .untilLearned // default
+        return .off // default
     }
 
     static func setLearningTipsMode(_ mode: LearningTipsMode) {

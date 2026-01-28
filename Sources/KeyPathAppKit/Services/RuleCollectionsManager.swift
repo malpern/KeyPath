@@ -329,7 +329,9 @@ final class RuleCollectionsManager {
 
     /// Toggle a rule collection on/off
     func toggleCollection(id: UUID, isEnabled: Bool) async {
+        AppLogger.shared.log("🔀 [RuleCollections] toggleCollection called: id=\(id), isEnabled=\(isEnabled)")
         let catalogMatch = RuleCollectionCatalog().defaultCollections().first { $0.id == id }
+        AppLogger.shared.log("🔀 [RuleCollections] catalogMatch=\(catalogMatch?.name ?? "nil")")
         let candidate = ruleCollections.first(where: { $0.id == id }) ?? catalogMatch
 
         if var candidate, isEnabled {
@@ -388,6 +390,8 @@ final class RuleCollectionsManager {
 
         dedupeRuleCollectionsInPlace()
 
+        AppLogger.shared.log("🔀 [RuleCollections] After toggle - collections: \(ruleCollections.map { "\($0.name) (enabled: \($0.isEnabled))" }.joined(separator: ", "))")
+
         // Special handling: If Leader Key collection is toggled off, reset all momentary activators to default (space)
         if id == RuleCollectionIdentifier.leaderKey, !isEnabled {
             await updateLeaderKey("space")
@@ -395,6 +399,7 @@ final class RuleCollectionsManager {
         }
 
         refreshLayerIndicatorState()
+        AppLogger.shared.log("🔀 [RuleCollections] Calling regenerateConfigFromCollections...")
         await regenerateConfigFromCollections()
 
         // Pre-cache icons for collections with app launches (e.g., Vim nav layer)

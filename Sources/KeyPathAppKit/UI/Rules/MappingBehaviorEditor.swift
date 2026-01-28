@@ -30,17 +30,12 @@ struct MappingBehaviorEditor: View {
     @State private var tapDanceWindow: Int = 200
     @State private var tapDanceSteps: [TapDanceStep] = []
 
-    // Macro state
-    @State private var macroBehavior: MacroBehavior?
-    @State private var isRecordingMacro = false
-
     // Which behavior type is selected in advanced mode
     @State private var behaviorType: BehaviorType = .dualRole
 
     enum BehaviorType: String, CaseIterable {
         case dualRole = "Tap / Hold"
         case tapDance = "Tap Dance"
-        case macro = "Macro"
     }
 
     var body: some View {
@@ -117,8 +112,6 @@ struct MappingBehaviorEditor: View {
                 dualRoleEditor
             case .tapDance:
                 tapDanceEditor
-            case .macro:
-                macroEditor
             }
         }
     }
@@ -295,20 +288,6 @@ struct MappingBehaviorEditor: View {
         }
     }
 
-    // MARK: - Macro Editor
-
-    private var macroEditor: some View {
-        MacroEditorView(
-            macro: $macroBehavior,
-            isRecordingKeys: $isRecordingMacro,
-            onRecordKeys: {},
-            showsRecordButton: false
-        )
-        .onChange(of: macroBehavior) { _, _ in
-            syncBehaviorFromState()
-        }
-    }
-
     // MARK: - Kanata Preview
 
     private var kanataPreview: some View {
@@ -365,9 +344,9 @@ struct MappingBehaviorEditor: View {
                 tapDanceSteps = td.steps
             }
 
-        case let .macro(macro):
-            behaviorType = .macro
-            macroBehavior = macro
+        case .macro:
+            // Macro editing removed; fall back to simple view.
+            mode = .simple
 
         case .chord:
             // Chord behavior is not yet editable in this view
@@ -407,13 +386,6 @@ struct MappingBehaviorEditor: View {
                 windowMs: tapDanceWindow,
                 steps: validSteps
             )))
-
-        case .macro:
-            guard let macroBehavior, macroBehavior.isValid else {
-                behavior = nil
-                return
-            }
-            behavior = .macro(macroBehavior)
         }
     }
 }

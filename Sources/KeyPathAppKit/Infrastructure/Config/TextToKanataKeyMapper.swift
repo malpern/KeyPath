@@ -1,6 +1,10 @@
 import Foundation
 
-/// Maps text characters to Kanata key names using a US keyboard layout.
+/// Maps text characters to Kanata key names using a US ANSI keyboard layout.
+///
+/// **Important**: This mapper assumes US ANSI layout for shifted characters.
+/// Users with ISO layouts (UK, German, etc.) may see incorrect mappings for
+/// symbols like `@`, `#`, `"` which are in different positions on those keyboards.
 public enum TextToKanataKeyMapper {
     public struct MappingError: Error, Equatable, Sendable {
         public let character: Character

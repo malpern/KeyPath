@@ -295,6 +295,9 @@ struct WizardSummaryPage: View {
     private var failedIssueCount: Int {
         var count = 0
 
+        // Check FDA status - without it, we can't verify Kanata permissions
+        let hasFDA = FullDiskAccessChecker.shared.hasFullDiskAccess()
+
         // 1. Privileged Helper issues (installed? unhealthy?) => count as issue
         let hasHelperProblems = issues.contains { issue in
             if case let .component(req) = issue.identifier {
@@ -308,23 +311,40 @@ struct WizardSummaryPage: View {
         let hasConflicts = issues.contains { $0.category == .conflicts }
         if hasConflicts { count += 1 }
 
-        // 3. Input Monitoring (any missing => red)
-        let hasInputMonitoringIssues = issues.contains { issue in
+        // 3. Input Monitoring - only count if we can verify (FDA available) or it's KeyPath's own permission
+        let hasKeyPathInputMonitoringIssues = issues.contains { issue in
             if case let .permission(p) = issue.identifier {
-                return p == .keyPathInputMonitoring || p == .kanataInputMonitoring
+                return p == .keyPathInputMonitoring
             }
             return false
         }
-        if hasInputMonitoringIssues { count += 1 }
+        let hasKanataInputMonitoringIssues = issues.contains { issue in
+            if case let .permission(p) = issue.identifier {
+                return p == .kanataInputMonitoring
+            }
+            return false
+        }
+        // Count KeyPath issues always, Kanata issues only if we can verify (have FDA)
+        if hasKeyPathInputMonitoringIssues || (hasFDA && hasKanataInputMonitoringIssues) {
+            count += 1
+        }
 
-        // 4. Accessibility (any missing => red)
-        let hasAccessibilityIssues = issues.contains { issue in
+        // 4. Accessibility - same logic: only count verifiable issues
+        let hasKeyPathAccessibilityIssues = issues.contains { issue in
             if case let .permission(p) = issue.identifier {
-                return p == .keyPathAccessibility || p == .kanataAccessibility
+                return p == .keyPathAccessibility
             }
             return false
         }
-        if hasAccessibilityIssues { count += 1 }
+        let hasKanataAccessibilityIssues = issues.contains { issue in
+            if case let .permission(p) = issue.identifier {
+                return p == .kanataAccessibility
+            }
+            return false
+        }
+        if hasKeyPathAccessibilityIssues || (hasFDA && hasKanataAccessibilityIssues) {
+            count += 1
+        }
 
         // 5. Karabiner Driver status (failed => red)
         let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(

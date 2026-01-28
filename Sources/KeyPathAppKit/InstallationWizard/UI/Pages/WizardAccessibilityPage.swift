@@ -26,6 +26,8 @@ struct WizardAccessibilityPage: View {
             ("questionmark.circle.fill", .orange)
         case .failed:
             ("xmark.circle.fill", .red)
+        case .unverified:
+            ("questionmark.circle", .secondary)
         case .notStarted, .inProgress:
             ("ellipsis.circle", .secondary)
         }
@@ -35,7 +37,7 @@ struct WizardAccessibilityPage: View {
         switch status {
         case .completed:
             " - Keyboard monitoring engine"
-        case .warning:
+        case .warning, .unverified:
             " - Permission not verified"
         case .failed, .notStarted, .inProgress:
             " - Keyboard monitoring engine"

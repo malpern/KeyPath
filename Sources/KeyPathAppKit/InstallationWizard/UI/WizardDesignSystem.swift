@@ -336,6 +336,7 @@ enum WizardDesign {
                 case .warning: WizardDesign.Colors.warning
                 case .completed: WizardDesign.Colors.success
                 case .failed: WizardDesign.Colors.error
+                case .unverified: WizardDesign.Colors.secondaryText
                 }
             }
         }
@@ -1040,6 +1041,7 @@ struct WizardStatusItem: View {
         case .warning: "Warning"
         case .completed: "Completed"
         case .failed: "Failed"
+        case .unverified: "Unable to verify"
         }
     }
 }
@@ -1140,6 +1142,17 @@ struct AnimatedStatusIcon: View {
                             .font(.system(size: 16))
                     }
                     .modifier(AvailabilitySymbolBounce())
+
+                case .unverified:
+                    // Gray question mark - cannot verify without FDA
+                    ZStack {
+                        Circle()
+                            .fill(Color(NSColor.controlBackgroundColor))
+                            .frame(width: 16, height: 16)
+                        Image(systemName: "questionmark.circle")
+                            .foregroundColor(WizardDesign.Colors.secondaryText)
+                            .font(.system(size: 16))
+                    }
                 }
             }
         }
@@ -1149,6 +1162,7 @@ struct AnimatedStatusIcon: View {
         switch status {
         case .completed: "checkmark.circle.fill"
         case .failed: "xmark.circle.fill"
+        case .unverified: "questionmark.circle"
         default: "circle"
         }
     }
@@ -1157,6 +1171,7 @@ struct AnimatedStatusIcon: View {
         switch status {
         case .completed: WizardDesign.Colors.success
         case .failed: WizardDesign.Colors.error
+        case .unverified: WizardDesign.Colors.secondaryText
         default: WizardDesign.Colors.secondaryText
         }
     }

@@ -87,6 +87,11 @@ struct PermissionCard: View {
                     .font(.system(size: 16, weight: .semibold))
                     .accessibilityHidden(true)
             }
+        case .unverified:
+            Image(systemName: "questionmark.circle")
+                .foregroundColor(.secondary)
+                .font(.system(size: 16, weight: .semibold))
+                .accessibilityLabel("Unable to verify")
         }
     }
 

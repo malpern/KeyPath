@@ -45,7 +45,7 @@ struct SummaryItemView: View {
         case .inProgress: WizardDesign.Colors.inProgress
         case .warning: WizardDesign.Colors.warning
         case .failed: WizardDesign.Colors.error
-        case .notStarted: WizardDesign.Colors.secondaryText
+        case .notStarted, .unverified: WizardDesign.Colors.secondaryText
         }
     }
 
@@ -70,6 +70,10 @@ struct SummaryItemView: View {
         case .notStarted:
             Image(systemName: "circle")
                 .foregroundColor(WizardDesign.Colors.secondaryText.opacity(0.5))
+                .font(WizardDesign.Typography.subsectionTitle)
+        case .unverified:
+            Image(systemName: "questionmark.circle")
+                .foregroundColor(WizardDesign.Colors.secondaryText)
                 .font(WizardDesign.Typography.subsectionTitle)
         }
     }
@@ -136,6 +140,10 @@ struct InstallationItemView: View {
         case .notStarted:
             Image(systemName: "circle.dashed")
                 .foregroundColor(WizardDesign.Colors.secondaryText.opacity(0.5))
+                .font(WizardDesign.Typography.sectionTitle)
+        case .unverified:
+            Image(systemName: "questionmark.circle")
+                .foregroundColor(WizardDesign.Colors.secondaryText)
                 .font(WizardDesign.Typography.sectionTitle)
         }
     }

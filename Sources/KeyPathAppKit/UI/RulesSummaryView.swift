@@ -190,6 +190,7 @@ struct RulesTabView: View {
                 ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id, nil)
             },
             onToggle: { isOn in
+                AppLogger.shared.log("🎚️ [RulesSummary] onToggle called: collection=\(collection.name), id=\(collection.id), isOn=\(isOn)")
                 pendingToggles[collection.id] = isOn
                 if !isOn {
                     pendingSelections.removeValue(forKey: collection.id)
@@ -1527,8 +1528,8 @@ private struct MappingRowView: View {
                     }
                 }
 
-            case let .macro(macro):
-                behaviorItem(icon: "arrow.right", label: "Macro", key: macro.displayString)
+            case .macro:
+                EmptyView()
 
             case let .chord(ch):
                 behaviorItem(

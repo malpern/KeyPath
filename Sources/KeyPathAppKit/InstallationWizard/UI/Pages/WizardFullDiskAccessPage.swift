@@ -47,78 +47,72 @@ struct WizardFullDiskAccessPage: View {
             VStack(spacing: WizardDesign.Spacing.sectionGap) {
                 // Basic folder icon with appropriate overlay
                 ZStack {
-                    Image(systemName: "folder")
-                        .font(.system(size: 115, weight: .light))
+                    Image(systemName: hasFullDiskAccess ? "checkmark.shield.fill" : "shield.lefthalf.filled")
+                        .font(.system(size: 80, weight: .light))
                         .foregroundColor(
                             hasFullDiskAccess ? WizardDesign.Colors.success : WizardDesign.Colors.info
                         )
                         .symbolRenderingMode(.hierarchical)
                         .modifier(AvailabilitySymbolBounce())
-
-                    // Overlay hanging off right side based on FDA status
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Image(systemName: hasFullDiskAccess ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 40, weight: .medium))
-                                .foregroundColor(
-                                    hasFullDiskAccess
-                                        ? WizardDesign.Colors.success : WizardDesign.Colors.secondaryText
-                                )
-                                .background(WizardDesign.Colors.wizardBackground)
-                                .clipShape(Circle())
-                                .offset(x: 25, y: -5) // Hang further off the right side
-                                .contentTransition(.symbolEffect(.replace))
-                        }
-                        Spacer()
-                    }
-                    .frame(width: 115, height: 115)
                 }
 
-                // Larger headline (19pt + 20% = 23pt)
-                Text(hasFullDiskAccess ? "Full Disk Access" : "Enable Full Disk Access (optional)")
+                // Larger headline
+                Text(hasFullDiskAccess ? "Enhanced Diagnostics Enabled" : "Enhanced Diagnostics")
                     .font(.system(size: 23, weight: .semibold, design: .default))
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
 
-                // Supporting copy - more descriptive since no content card
-                Text(
-                    hasFullDiskAccess
-                        ? "Enhanced diagnostics and automatic issue resolution"
-                        : "Optional: Enhanced diagnostics and automatic issue resolution"
-                )
-                .font(.system(size: 17, weight: .regular))
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+                // Concise value proposition
+                if hasFullDiskAccess {
+                    Text("KeyPath can now verify all permissions")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                } else {
+                    VStack(spacing: 12) {
+                        Text("Helps KeyPath verify Kanata's permissions and diagnose issues.")
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
 
-                // Help link below subheader (only when FDA not granted)
-                if !hasFullDiskAccess {
-                    Button("Why is this safe?") {
+                        Text("Without this, some permission checks will show as \"unverified.\"")
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundColor(.secondary.opacity(0.8))
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: 420)
+
+                    // Help link
+                    Button("Learn more") {
                         showingDetails = true
                     }
                     .buttonStyle(.link)
                     .font(WizardDesign.Typography.caption)
-                    .padding(.top, WizardDesign.Spacing.elementGap)
+                    .padding(.top, 4)
                 }
+
+                // Centered action buttons
+                VStack(spacing: 12) {
+                    Button(hasFullDiskAccess ? nextStepButtonTitle : "Enable") {
+                        handlePrimaryButton()
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!hasFullDiskAccess && isChecking)
+
+                    if !hasFullDiskAccess {
+                        Button("Skip") {
+                            skipFullDiskAccessPrompt()
+                        }
+                        .buttonStyle(.link)
+                        .font(.system(size: 14))
+                    }
+                }
+                .padding(.top, WizardDesign.Spacing.sectionGap)
             }
             .heroSectionContainer()
             .frame(maxWidth: .infinity)
-
-            WizardButtonBar(
-                secondary: hasFullDiskAccess
-                    ? nil
-                    : WizardButtonBar.SecondaryButton(
-                        title: "Skip for Now",
-                        action: skipFullDiskAccessPrompt
-                    ),
-                primary: WizardButtonBar.PrimaryButton(
-                    title: hasFullDiskAccess ? nextStepButtonTitle : "Open System Settings",
-                    action: handlePrimaryButton,
-                    isEnabled: hasFullDiskAccess || !isChecking,
-                    isLoading: !hasFullDiskAccess && isChecking
-                )
-            )
         }
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)
@@ -216,17 +210,18 @@ struct WizardFullDiskAccessPage: View {
     }
 
     private func navigateToNextStep() {
-        if issues.isEmpty {
-            stateMachine.navigateToPage(.summary)
-            return
-        }
+        // Mark FDA page as shown so navigation engine moves to next step
+        stateMachine.navigationEngine.markFDAPageShown()
 
         Task {
+            // Get the next page based on current state
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
-               nextPage != stateMachine.currentPage
+               nextPage != stateMachine.currentPage,
+               nextPage != .fullDiskAccess // Don't loop back to FDA
             {
                 stateMachine.navigateToPage(nextPage)
             } else {
+                // If no specific next page, go to summary
                 stateMachine.navigateToPage(.summary)
             }
         }
@@ -419,7 +414,7 @@ private struct FullDiskAccessDetailsSheet: View {
     var body: some View {
         VStack(spacing: 20) {
             HStack {
-                Text("About Full Disk Access")
+                Text("About Enhanced Diagnostics")
                     .font(.title2)
                     .fontWeight(.semibold)
 
@@ -431,53 +426,52 @@ private struct FullDiskAccessDetailsSheet: View {
                 .buttonStyle(WizardDesign.Component.SecondaryButton())
             }
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("What is Full Disk Access?")
-                            .font(.headline)
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("What it does", systemImage: "info.circle")
+                        .font(.headline)
 
-                        Text(
-                            "A macOS security feature that allows KeyPath to read system permission databases for better diagnostics."
-                        )
+                    Text("Lets KeyPath read macOS permission databases to verify Kanata has the access it needs.")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    }
-                    .padding()
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(8)
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Benefits")
-                            .font(.headline)
-
-                        Text(
-                            "• More accurate issue detection\n• Better automatic fixes\n• Clearer error messages"
-                        )
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    }
-                    .padding()
-                    .background(Color.green.opacity(0.08))
-                    .cornerRadius(8)
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Completely Optional")
-                            .font(.headline)
-
-                        Text(
-                            "KeyPath works fine without this permission. You can skip this step and grant it later if needed."
-                        )
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    }
-                    .padding()
-                    .background(Color.blue.opacity(0.08))
-                    .cornerRadius(8)
                 }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(8)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("With it enabled", systemImage: "checkmark.circle")
+                        .font(.headline)
+                        .foregroundColor(.green)
+
+                    Text("• Verify all permissions accurately\n• Better error messages when things break\n• Proactive issue detection")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.green.opacity(0.08))
+                .cornerRadius(8)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Without it", systemImage: "questionmark.circle")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    Text("• KeyPath still works normally\n• Some permissions show as \"unverified\"\n• May need to check System Settings manually if issues occur")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(8)
+
+                Spacer()
             }
         }
         .padding()
-        .frame(width: 500, height: 600)
+        .frame(width: 420, height: 400)
     }
 }

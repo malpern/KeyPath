@@ -224,6 +224,9 @@ struct WizardSystemStatusOverview: View {
     var statusItems: [StatusItemModel] {
         var items: [StatusItemModel] = []
 
+        // Check FDA status early - used for multiple items
+        let hasFDA = checkFullDiskAccess()
+
         // 1. Privileged Helper (required for system operations)
         let helperIssues = issues.filter { issue in
             if case let .component(req) = issue.identifier {
@@ -250,25 +253,25 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: helperIssues
             ))
 
-        // 3. Full Disk Access (Optional but recommended)
-        let hasFullDiskAccess = checkFullDiskAccess()
+        // 2. Enhanced Diagnostics (FDA - Optional but recommended)
         let fullDiskAccessStatus: InstallationStatus = {
             if systemState == .initializing {
                 return .notStarted
             }
-            return hasFullDiskAccess ? .completed : .notStarted
+            return hasFDA ? .completed : .notStarted
         }()
         items.append(
             StatusItemModel(
                 id: "full-disk-access",
-                icon: "folder",
-                title: "Full Disk Access (Optional)",
+                icon: hasFDA ? "checkmark.shield" : "shield.lefthalf.filled",
+                title: "Enhanced Diagnostics",
+                subtitle: hasFDA ? nil : "Optional",
                 status: fullDiskAccessStatus,
                 isNavigable: true,
                 targetPage: .fullDiskAccess
             ))
 
-        // 4. System Conflicts
+        // 3. System Conflicts
         let conflictIssues = issues.filter { $0.category == .conflicts }
         let conflictStatus: InstallationStatus = {
             if systemState == .initializing {
@@ -287,19 +290,23 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: conflictIssues
             ))
 
-        // 5. Input Monitoring Permission
-        let inputMonitoringStatus = getInputMonitoringStatus()
+        // 4. Input Monitoring Permission
+        let inputMonitoringStatus = getInputMonitoringStatus(hasFDA: hasFDA)
         let inputMonitoringIssues = issues.filter { issue in
             if case let .permission(req) = issue.identifier {
                 return req == .keyPathInputMonitoring || req == .kanataInputMonitoring
             }
             return false
         }
+        // When FDA is not available, show "Unable to verify" subtitle
+        let inputMonitoringSubtitle: String? = (!hasFDA && inputMonitoringStatus == .unverified)
+            ? "Unable to verify" : nil
         items.append(
             StatusItemModel(
                 id: "input-monitoring",
                 icon: "eye",
-                title: "Input Monitoring Permission",
+                title: "Input Monitoring",
+                subtitle: inputMonitoringSubtitle,
                 status: inputMonitoringStatus,
                 isNavigable: true,
                 targetPage: .inputMonitoring,
@@ -307,18 +314,21 @@ struct WizardSystemStatusOverview: View {
             ))
 
         // 6. Accessibility Permission
-        let accessibilityStatus = getAccessibilityStatus()
+        let accessibilityStatus = getAccessibilityStatus(hasFDA: hasFDA)
         let accessibilityIssues = issues.filter { issue in
             if case let .permission(req) = issue.identifier {
                 return req == .keyPathAccessibility || req == .kanataAccessibility
             }
             return false
         }
+        let accessibilitySubtitle: String? = (!hasFDA && accessibilityStatus == .unverified)
+            ? "Unable to verify" : nil
         items.append(
             StatusItemModel(
                 id: "accessibility",
                 icon: "accessibility",
                 title: "Accessibility",
+                subtitle: accessibilitySubtitle,
                 status: accessibilityStatus,
                 isNavigable: true,
                 targetPage: .accessibility,
@@ -423,7 +433,8 @@ struct WizardSystemStatusOverview: View {
             }
         }
         navSequence = ordered
-        visibleIssueCount = displayItems.filter { $0.status != .completed }.count
+        // Don't count unverified items as issues - we can't verify them anyway
+        visibleIssueCount = displayItems.filter { $0.status != .completed && $0.status != .unverified }.count
         AppLogger.shared.log(
             "🔍 [NavSeq] ✅ navSequence updated: \(ordered.count) pages: \(ordered.map(\.displayName))")
     }
@@ -517,8 +528,9 @@ struct WizardSystemStatusOverview: View {
         -> [StatusItemModel]
     {
         if showAllItems { return items }
-        // Show all incomplete items, even if their prerequisites are still pending; ordering is preserved.
-        return items.filter { $0.status != .completed }
+        // Show incomplete items. Treat .unverified as "complete enough" - we can't verify it,
+        // so don't alarm the user with it in the issues list.
+        return items.filter { $0.status != .completed && $0.status != .unverified }
     }
 
     // MARK: - Status Item Model
@@ -574,32 +586,94 @@ struct WizardSystemStatusOverview: View {
         return granted
     }
 
-    private func getInputMonitoringStatus() -> InstallationStatus {
+    private func getInputMonitoringStatus(hasFDA: Bool) -> InstallationStatus {
         if systemState == .initializing {
             return .notStarted
         }
 
-        let hasInputMonitoringIssues = issues.filter { issue in
+        let inputMonitoringIssues = issues.filter { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
             }
             return false
         }
-        return issueStatus(for: hasInputMonitoringIssues)
+
+        // If no FDA, we can only verify KeyPath's own permission (via Apple API)
+        // Kanata's permission requires TCC.db access
+        let kanataIssues = inputMonitoringIssues.filter { issue in
+            if case let .permission(p) = issue.identifier {
+                return p == .kanataInputMonitoring
+            }
+            return false
+        }
+        let keyPathIssues = inputMonitoringIssues.filter { issue in
+            if case let .permission(p) = issue.identifier {
+                return p == .keyPathInputMonitoring
+            }
+            return false
+        }
+
+        // If KeyPath has issues, show failed (we can verify this via Apple API)
+        if !keyPathIssues.isEmpty {
+            return .failed
+        }
+
+        // If no FDA and Kanata has issues, show unverified (can't trust the result)
+        if !hasFDA, !kanataIssues.isEmpty {
+            return .unverified
+        }
+
+        // If FDA available and issues exist, show failed
+        if !inputMonitoringIssues.isEmpty {
+            return issueStatus(for: inputMonitoringIssues)
+        }
+
+        return .completed
     }
 
-    private func getAccessibilityStatus() -> InstallationStatus {
+    private func getAccessibilityStatus(hasFDA: Bool) -> InstallationStatus {
         if systemState == .initializing {
             return .notStarted
         }
 
-        let hasAccessibilityIssues = issues.filter { issue in
+        let accessibilityIssues = issues.filter { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathAccessibility || permissionType == .kanataAccessibility
             }
             return false
         }
-        return issueStatus(for: hasAccessibilityIssues)
+
+        // If no FDA, we can only verify KeyPath's own permission (via Apple API)
+        // Kanata's permission requires TCC.db access
+        let kanataIssues = accessibilityIssues.filter { issue in
+            if case let .permission(p) = issue.identifier {
+                return p == .kanataAccessibility
+            }
+            return false
+        }
+        let keyPathIssues = accessibilityIssues.filter { issue in
+            if case let .permission(p) = issue.identifier {
+                return p == .keyPathAccessibility
+            }
+            return false
+        }
+
+        // If KeyPath has issues, show failed (we can verify this via Apple API)
+        if !keyPathIssues.isEmpty {
+            return .failed
+        }
+
+        // If no FDA and Kanata has issues, show unverified (can't trust the result)
+        if !hasFDA, !kanataIssues.isEmpty {
+            return .unverified
+        }
+
+        // If FDA available and issues exist, show failed
+        if !accessibilityIssues.isEmpty {
+            return issueStatus(for: accessibilityIssues)
+        }
+
+        return .completed
     }
 
     private func getKarabinerComponentsStatus() -> InstallationStatus {

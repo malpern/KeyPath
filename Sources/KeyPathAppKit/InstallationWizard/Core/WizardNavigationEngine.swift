@@ -6,9 +6,8 @@ import OSLog
 /// Handles wizard navigation logic based on system state
 @MainActor
 final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
-    // Track if we've shown the FDA page
+    // Track single-show pages
     private var hasShownFullDiskAccessPage = false
-    // Track if we've shown the Kanata migration page
     private var hasShownKanataMigrationPage = false
 
     /// Reset navigation state for a fresh wizard run
@@ -17,21 +16,63 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
         hasShownKanataMigrationPage = false
     }
 
+    /// Mark FDA page as shown (called when user completes or skips FDA)
+    func markFDAPageShown() {
+        hasShownFullDiskAccessPage = true
+    }
+
+    /// Check if FDA page has been shown
+    var hasFDABeenShown: Bool {
+        hasShownFullDiskAccessPage
+    }
+
     // MARK: - Main Navigation Logic
 
     /// Primary navigation method - determines the current page based on system state and issues
     /// This is the preferred method as it uses structured issue identifiers for type-safe navigation
 
     func determineCurrentPage(for state: WizardSystemState, issues: [WizardIssue]) async -> WizardPage {
-        AppLogger.shared.log("🔍 [NavigationEngine] Determining page for \(issues.count) issues:")
-        for issue in issues {
-            AppLogger.shared.log("🔍 [NavigationEngine]   - \(issue.category): \(issue.title)")
-        }
+        AppLogger.shared.log("🔍 [NavigationEngine] Determining page for \(issues.count) issues, state: \(state)")
 
         // Helper status (async) gathered once, then passed into pure router.
         let helperNeedsApproval = HelperManager.shared.helperNeedsLoginItemsApproval()
         let helperInstalled = await HelperManager.shared.isHelperInstalled()
 
+        AppLogger.shared.log("🔍 [NavigationEngine] helperInstalled: \(helperInstalled), needsApproval: \(helperNeedsApproval)")
+
+        // Check for helper issues first - helper is always the first priority
+        let hasHelperIssues = issues.contains { issue in
+            if case let .component(req) = issue.identifier {
+                return req == .privilegedHelper || req == .privilegedHelperUnhealthy
+            }
+            return false
+        }
+
+        // 1. HELPER: If helper not installed or has issues, go to helper page
+        if !helperInstalled || hasHelperIssues || helperNeedsApproval {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .helper (helper needs attention)")
+            return .helper
+        }
+
+        // 2. MIGRATION: Check for Kanata migration opportunity (one-time)
+        if !hasShownKanataMigrationPage,
+           !WizardSystemPaths.userConfigExists,
+           !WizardSystemPaths.detectExistingKanataConfigs().isEmpty
+        {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .kanataMigration (existing configs detected)")
+            hasShownKanataMigrationPage = true
+            return .kanataMigration
+        }
+
+        // 3. FDA: Show Enhanced Diagnostics decision (one-time, after helper is ready)
+        // This MUST come before permissions so user can decide on FDA first
+        if !hasShownFullDiskAccessPage {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .fullDiskAccess (offering enhanced diagnostics)")
+            // Don't mark as shown here - let the FDA page mark it when user makes a choice
+            return .fullDiskAccess
+        }
+
+        // 4. Use the router for remaining navigation (permissions, components, service)
         let corePage = WizardRouter.route(
             state: state,
             issues: issues,
@@ -39,30 +80,7 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
             helperNeedsApproval: helperNeedsApproval
         )
 
-        // Check for Kanata migration opportunity early (before FDA)
-        // Show migration page if:
-        // 1. We haven't shown it yet
-        // 2. Existing Kanata configs are detected
-        // 3. KeyPath config doesn't exist yet (user hasn't migrated)
-        if !hasShownKanataMigrationPage,
-           !WizardSystemPaths.userConfigExists,
-           !WizardSystemPaths.detectExistingKanataConfigs().isEmpty
-        {
-            AppLogger.shared.log(
-                "🔍 [NavigationEngine] → .kanataMigration (existing Kanata configs detected)")
-            hasShownKanataMigrationPage = true
-            return .kanataMigration
-        }
-
-        // Preserve single-show Full Disk Access behavior here.
-        if corePage == .summary, !hasShownFullDiskAccessPage, state != .active {
-            AppLogger.shared.log(
-                "🔍 [NavigationEngine] → .fullDiskAccess (no blocking issues - checking optional FDA)")
-            hasShownFullDiskAccessPage = true
-            return .fullDiskAccess
-        }
-
-        AppLogger.shared.log("🔍 [NavigationEngine] → \(corePage) (routed by WizardRouter)")
+        AppLogger.shared.log("🔍 [NavigationEngine] → \(corePage) (from router)")
         return corePage
     }
 
