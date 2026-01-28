@@ -89,11 +89,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func configureButton() {
         guard let button = statusItem.button else { return }
 
-        // Try to load custom template icon from bundle, fall back to SF Symbol
-        if let image = Bundle.main.image(forResource: "menubar-icon") {
-            image.isTemplate = true
-            button.image = image
-        } else if let image = NSImage(
+        // Use SF Symbol keyboard icon
+        if let image = NSImage(
             systemSymbolName: "keyboard",
             accessibilityDescription: "KeyPath"
         ) {
