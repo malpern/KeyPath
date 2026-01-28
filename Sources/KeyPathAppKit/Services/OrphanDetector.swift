@@ -146,32 +146,40 @@ final class OrphanDetector {
 
     private func performCleanup(cleanFiles: Bool, cleanDaemons: Bool) async {
         var userFilesCleaned = 0
-        var userFilesFailed: [String] = []
+        var userFilesFailed: [(name: String, reason: String)] = []
         var daemonsCleaned = false
         var daemonsError: String?
 
         // Clean user files (no privileges needed)
+        // Note: Application Support is skipped because the running app uses it.
+        // Only clean logs and preferences which are safe to remove while running.
         if cleanFiles {
-            let pathsToClean = [
-                FileManager.default.homeDirectoryForCurrentUser
-                    .appendingPathComponent("Library/Application Support/KeyPath"),
-                FileManager.default.homeDirectoryForCurrentUser
-                    .appendingPathComponent("Library/Logs/KeyPath"),
-                FileManager.default.homeDirectoryForCurrentUser
+            let pathsToClean: [(url: URL, canCleanWhileRunning: Bool)] = [
+                (FileManager.default.homeDirectoryForCurrentUser
+                    .appendingPathComponent("Library/Application Support/KeyPath"), false),
+                (FileManager.default.homeDirectoryForCurrentUser
+                    .appendingPathComponent("Library/Logs/KeyPath"), true),
+                (FileManager.default.homeDirectoryForCurrentUser
                     .appendingPathComponent("Library/Preferences")
-                    .appendingPathComponent("com.keypath.KeyPath.plist")
+                    .appendingPathComponent("com.keypath.KeyPath.plist"), true),
             ]
 
-            for path in pathsToClean {
+            for (path, canCleanWhileRunning) in pathsToClean {
+                guard FileManager.default.fileExists(atPath: path.path) else { continue }
+
+                if !canCleanWhileRunning {
+                    AppLogger.shared.log("⏭️ [OrphanDetector] Skipping \(path.lastPathComponent) - in use by running app")
+                    userFilesFailed.append((path.lastPathComponent, "in use by running app"))
+                    continue
+                }
+
                 do {
-                    if FileManager.default.fileExists(atPath: path.path) {
-                        try FileManager.default.removeItem(at: path)
-                        userFilesCleaned += 1
-                        AppLogger.shared.log("🧹 [OrphanDetector] Removed: \(path.path)")
-                    }
+                    try FileManager.default.removeItem(at: path)
+                    userFilesCleaned += 1
+                    AppLogger.shared.log("🧹 [OrphanDetector] Removed: \(path.path)")
                 } catch {
                     AppLogger.shared.log("❌ [OrphanDetector] Failed to remove \(path.path): \(error)")
-                    userFilesFailed.append(path.lastPathComponent)
+                    userFilesFailed.append((path.lastPathComponent, error.localizedDescription))
                 }
             }
         }
@@ -205,7 +213,7 @@ final class OrphanDetector {
 
     private func showCleanupResult(
         userFilesCleaned: Int,
-        userFilesFailed: [String],
+        userFilesFailed: [(name: String, reason: String)],
         daemonsCleaned: Bool,
         daemonsError: String?
     ) {
@@ -227,8 +235,8 @@ final class OrphanDetector {
             details.append("✅ Removed \(userFilesCleaned) user file(s)")
         }
         if !userFilesFailed.isEmpty {
-            details.append("❌ Failed to remove:")
-            details.append(contentsOf: userFilesFailed.map { "  • \($0)" })
+            details.append("❌ Could not remove:")
+            details.append(contentsOf: userFilesFailed.map { "  • \($0.name) (\($0.reason))" })
         }
         if daemonsCleaned {
             details.append("✅ Removed system keyboard services")
@@ -238,8 +246,15 @@ final class OrphanDetector {
             details.append("  \(error)")
         }
 
-        details.append("")
-        details.append("You may need to remove failed items manually.")
+        // Add helpful hint if files are in use
+        let hasInUseFiles = userFilesFailed.contains { $0.reason == "in use by running app" }
+        if hasInUseFiles {
+            details.append("")
+            details.append("Tip: Quit KeyPath and delete ~/Library/Application Support/KeyPath manually, or these files will be cleaned on next uninstall.")
+        } else if !userFilesFailed.isEmpty {
+            details.append("")
+            details.append("You may need to remove failed items manually.")
+        }
 
         resultAlert.informativeText = details.joined(separator: "\n")
         resultAlert.alertStyle = .warning
