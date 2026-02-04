@@ -170,9 +170,9 @@ actor BrowserHistoryScanner {
     private func scanBrowser(_ browser: Browser) async throws -> [VisitedSite] {
         switch browser {
         case .safari:
-            try scanSafari()
+            return try scanSafari()
         case .firefox:
-            try scanFirefox()
+            return try scanFirefox()
         default:
             // Chromium-based browsers
             guard let basePath = browser.chromiumBasePath else {

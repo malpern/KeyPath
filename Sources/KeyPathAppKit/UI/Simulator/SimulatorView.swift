@@ -5,6 +5,11 @@ import SwiftUI
 struct SimulatorView: View {
     @StateObject private var viewModel = SimulatorViewModel()
     @FocusState private var isKeyboardFocused: Bool
+    @AppStorage(LayoutPreferences.layoutIdKey) private var selectedLayoutId: String = LayoutPreferences.defaultLayoutId
+
+    private var activeLayout: PhysicalLayout {
+        PhysicalLayout.find(id: selectedLayoutId) ?? .macBookUS
+    }
 
     var body: some View {
         if !FeatureFlags.simulatorAndVirtualKeysEnabled {
@@ -87,7 +92,7 @@ struct SimulatorView: View {
 
             // Keyboard
             SimulatorKeyboardView(
-                layout: .macBookUS,
+                layout: activeLayout,
                 pressedKeyCodes: viewModel.pressedKeyCodes,
                 onKeyTap: { key in
                     viewModel.tapKey(key)

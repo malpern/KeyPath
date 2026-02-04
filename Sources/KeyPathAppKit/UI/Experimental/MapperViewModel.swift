@@ -167,6 +167,7 @@ class MapperViewModel: ObservableObject {
             }
         }
     }
+
     /// Favicon for the selected URL
     @Published var selectedURLFavicon: NSImage?
     /// Whether the URL input dialog is visible

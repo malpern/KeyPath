@@ -69,6 +69,11 @@ if context.permissions.inputMonitoring != .granted { ... }
 - ✅ Use `KeyPathTestCase` base class (sets up `VHIDDeviceManager.testPIDProvider`)
 - ✅ Keep tests fast (<5s total) - use backdated timestamps, not real sleeps
 
+## ⌨️ Keyboard Visualization Principle
+- **Geometry follows selected `PhysicalLayout`** (user-selected layout ID).
+- **Labels follow selected `LogicalKeymap`** (user-selected keymap).
+- Do **not** expose a UI toggle for this; treat it as a single consistent rule.
+
 ## 📜 Architecture Decision Records
 
 Full records in [`docs/adr/`](docs/adr/README.md). Key decisions:

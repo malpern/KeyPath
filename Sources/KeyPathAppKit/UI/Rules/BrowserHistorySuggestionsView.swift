@@ -530,11 +530,11 @@ private struct SiteRow: View {
 
             // Favicon
             Group {
-            if let favicon {
-                Image(nsImage: favicon)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 20, height: 20)
+                if let favicon {
+                    Image(nsImage: favicon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 20, height: 20)
                 } else {
                     Image(systemName: "globe")
                         .frame(width: 20, height: 20)

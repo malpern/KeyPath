@@ -11,7 +11,8 @@ struct LauncherKeyboardView: View {
     var onKeyClicked: (String) -> Void
 
     /// Physical keyboard layout to use
-    private var layout: PhysicalLayout { .macBookUS }
+    @AppStorage(LayoutPreferences.layoutIdKey) private var selectedLayoutId: String = LayoutPreferences.defaultLayoutId
+    private var layout: PhysicalLayout { PhysicalLayout.find(id: selectedLayoutId) ?? .macBookUS }
 
     /// Build mapping lookup from key label to LauncherMapping
     private var mappingsByKey: [String: LauncherMapping] {

@@ -23,6 +23,7 @@ final class FaviconFetcher {
         try? FileManager.default.createDirectory(at: faviconDir, withIntermediateDirectories: true)
         return faviconDir
     }()
+
     private let cacheVersion = 2
 
     /// In-memory cache for instant access
@@ -216,7 +217,8 @@ final class FaviconFetcher {
         regex.enumerateMatches(in: html, range: range) { match, _, _ in
             guard let match else { return }
             guard let relRange = Range(match.range(at: 1), in: html),
-                  let hrefRange = Range(match.range(at: 2), in: html) else {
+                  let hrefRange = Range(match.range(at: 2), in: html)
+            else {
                 return
             }
 

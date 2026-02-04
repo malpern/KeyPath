@@ -31,6 +31,11 @@ Rationale: older CLI/tooling may still expose `tools.web_search`, which prints a
 - Never call `IOHIDCheckAccess` directly.
 - Never check TCC database directly.
 
+### Keyboard Visualization
+- **Geometry follows selected `PhysicalLayout`** (user-selected layout ID).
+- **Labels follow selected `LogicalKeymap`** (user-selected keymap).
+- Do **not** add a UI toggle for this; treat it as a single consistent rule.
+
 ### Testing
 - **Mock Time**: Do not use `Thread.sleep`. Use `Date` overrides or mock clocks.
 - **Environment**: Use `KEYPATH_USE_INSTALLER_ENGINE=1` (default now) for tests.
