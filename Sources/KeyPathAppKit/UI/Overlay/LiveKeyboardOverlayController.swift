@@ -971,13 +971,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private static func launcherActionMessage(for target: LauncherTarget) -> String? {
         switch target {
         case let .app(name, bundleId):
-            "launch:\(bundleId ?? name)"
+            return "launch:\(bundleId ?? name)"
         case let .url(urlString):
-            "open:\(urlString)"
+            let encoded = URLMappingFormatter.encodeForPushMessage(urlString)
+            return "open:\(encoded)"
         case let .folder(path, _):
-            "folder:\(path)"
+            return "folder:\(path)"
         case let .script(path, _):
-            "script:\(path)"
+            return "script:\(path)"
         }
     }
 

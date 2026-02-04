@@ -153,7 +153,7 @@ struct LayerKeyInfo: Equatable, Sendable {
     /// - Parameter url: The full URL
     /// - Returns: Just the domain portion (e.g., "github.com" from "https://github.com/user/repo")
     private static func extractDomain(from url: String) -> String {
-        let cleaned = url
+        let cleaned = URLMappingFormatter.decodeFromPushMessage(url)
             .replacingOccurrences(of: "https://", with: "")
             .replacingOccurrences(of: "http://", with: "")
         return cleaned.components(separatedBy: "/").first ?? url
@@ -1022,19 +1022,21 @@ actor LayerKeyMapper {
         for output in outputs {
             for candidate in pushMsgCandidates(from: output) {
                 // Direct match: "open:github.com" (from push-msg in simulator output)
-                if candidate.hasPrefix("open:") {
+                if candidate.lowercased().hasPrefix("open:") {
                     let url = String(candidate.dropFirst(5)) // Remove "open:"
-                    return url.isEmpty ? nil : url
+                    let decoded = URLMappingFormatter.decodeFromPushMessage(url)
+                    return decoded.isEmpty ? nil : decoded
                 }
 
                 // Also check for full push-msg format (in case simulator returns it verbatim)
                 // Pattern: (push-msg "open:...")
                 let pattern = #"push-msg\s+"open:([^"]+)""#
-                if let regex = try? NSRegularExpression(pattern: pattern),
+                if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
                    let match = regex.firstMatch(in: candidate, range: NSRange(candidate.startIndex..., in: candidate)),
                    let urlRange = Range(match.range(at: 1), in: candidate)
                 {
-                    return String(candidate[urlRange])
+                    let url = String(candidate[urlRange])
+                    return URLMappingFormatter.decodeFromPushMessage(url)
                 }
             }
         }

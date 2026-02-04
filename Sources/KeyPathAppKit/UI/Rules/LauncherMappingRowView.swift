@@ -90,7 +90,7 @@ struct LauncherMappingRowView: View {
         case .app, .folder, .script:
             icon = AppIconResolver.icon(for: mapping.target)
         case let .url(urlString):
-            icon = await FaviconLoader.shared.favicon(for: urlString)
+            icon = await FaviconFetcher.shared.fetchFavicon(for: urlString)
         }
     }
 

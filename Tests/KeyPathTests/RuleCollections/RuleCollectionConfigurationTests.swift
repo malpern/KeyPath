@@ -299,6 +299,11 @@ final class RuleCollectionConfigurationTests: XCTestCase {
         XCTAssertFalse(target.isScript)
     }
 
+    func testLauncherTargetURLDisplayNameStripsScheme() {
+        let target = LauncherTarget.url("https://github.com/openai")
+        XCTAssertEqual(target.displayName, "github.com")
+    }
+
     func testLauncherTargetFolderDisplayName() {
         // With custom name
         let targetWithName = LauncherTarget.folder(path: "~/Downloads", name: "Downloads")
@@ -328,8 +333,8 @@ final class RuleCollectionConfigurationTests: XCTestCase {
     }
 
     func testLauncherTargetKanataOutputForApp() {
-        let target = LauncherTarget.app(name: "Safari", bundleId: nil)
-        XCTAssertEqual(target.kanataOutput, "(push-msg \"launch:safari\")")
+        let target = LauncherTarget.app(name: "Safari", bundleId: "com.apple.Safari")
+        XCTAssertEqual(target.kanataOutput, "(push-msg \"launch:com.apple.Safari\")")
     }
 
     func testLauncherTargetKanataOutputForURL() {

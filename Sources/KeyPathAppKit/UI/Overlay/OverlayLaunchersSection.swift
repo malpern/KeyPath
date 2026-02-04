@@ -78,7 +78,7 @@ struct OverlayLaunchersSection: View {
         }
         .sheet(isPresented: $showAddSheet) {
             AddLauncherSheet(
-                existingKeys: Set(store.mappings.map(\.key)),
+                existingKeys: Set(store.mappings.map { LauncherGridConfig.normalizeKey($0.key) }),
                 onSave: { mapping in
                     withAnimation(.easeOut(duration: 0.25)) {
                         store.addMapping(mapping)
@@ -90,7 +90,7 @@ struct OverlayLaunchersSection: View {
         .sheet(item: $editingMapping) { mapping in
             EditLauncherSheet(
                 mapping: mapping,
-                existingKeys: Set(store.mappings.filter { $0.id != mapping.id }.map(\.key)),
+                existingKeys: Set(store.mappings.filter { $0.id != mapping.id }.map { LauncherGridConfig.normalizeKey($0.key) }),
                 onSave: { updated in
                     store.updateMapping(updated)
                     editingMapping = nil
@@ -185,6 +185,7 @@ struct QuickLaunchMapping: Identifiable, Codable, Equatable {
     var key: String
     var targetType: TargetType
     var targetName: String // App name or URL
+    var bundleId: String?
     var isEnabled: Bool
 
     enum TargetType: String, Codable {
@@ -196,20 +197,32 @@ struct QuickLaunchMapping: Identifiable, Codable, Equatable {
 
     var displayName: String {
         if targetType == .website {
-            return targetName
-                .replacingOccurrences(of: "https://", with: "")
-                .replacingOccurrences(of: "http://", with: "")
-                .components(separatedBy: "/").first ?? targetName
+            return URLMappingFormatter.displayDomain(for: targetName)
         }
         return targetName
     }
 
-    init(id: UUID = UUID(), key: String, targetType: TargetType, targetName: String, isEnabled: Bool = true) {
+    init(id: UUID = UUID(), key: String, targetType: TargetType, targetName: String, bundleId: String? = nil, isEnabled: Bool = true) {
         self.id = id
         self.key = key
         self.targetType = targetType
         self.targetName = targetName
+        self.bundleId = bundleId
         self.isEnabled = isEnabled
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, key, targetType, targetName, bundleId, isEnabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        key = try container.decode(String.self, forKey: .key)
+        targetType = try container.decode(TargetType.self, forKey: .targetType)
+        targetName = try container.decode(String.self, forKey: .targetName)
+        bundleId = try container.decodeIfPresent(String.self, forKey: .bundleId)
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
     }
 }
 
@@ -218,6 +231,7 @@ struct QuickLaunchMapping: Identifiable, Codable, Equatable {
 @MainActor
 final class LauncherStore: ObservableObject {
     @Published var mappings: [QuickLaunchMapping] = []
+    private var knownMappingIds: Set<UUID> = []
 
     init() {
         loadFromRuleCollections()
@@ -250,6 +264,7 @@ final class LauncherStore: ObservableObject {
                         key: mapping.key,
                         targetType: .app,
                         targetName: name,
+                        bundleId: bundleId,
                         isEnabled: mapping.isEnabled
                     )
                 case let .url(urlString):
@@ -258,6 +273,7 @@ final class LauncherStore: ObservableObject {
                         key: mapping.key,
                         targetType: .website,
                         targetName: urlString,
+                        bundleId: nil,
                         isEnabled: mapping.isEnabled
                     )
                 case .folder, .script:
@@ -267,6 +283,7 @@ final class LauncherStore: ObservableObject {
             }
 
             mappings = convertedMappings
+            knownMappingIds = Set(convertedMappings.map(\.id))
             AppLogger.shared.info("🚀 [LauncherStore] Loaded \(mappings.count) launcher mappings")
         }
     }
@@ -329,16 +346,19 @@ final class LauncherStore: ObservableObject {
 
     func addMapping(_ mapping: QuickLaunchMapping) {
         mappings.append(mapping)
+        persistMappings()
     }
 
     func updateMapping(_ mapping: QuickLaunchMapping) {
         if let index = mappings.firstIndex(where: { $0.id == mapping.id }) {
             mappings[index] = mapping
         }
+        persistMappings()
     }
 
     func deleteMapping(_ id: UUID) {
         mappings.removeAll { $0.id == id }
+        persistMappings()
     }
 
     private static var defaultMappings: [QuickLaunchMapping] {
@@ -351,26 +371,55 @@ final class LauncherStore: ObservableObject {
     }
 
     /// Get icon for an app - checks multiple locations
-    static func appIcon(for appName: String) -> NSImage? {
-        let paths = [
-            "/Applications/\(appName).app",
-            "/System/Applications/\(appName).app",
-            "/System/Applications/Utilities/\(appName).app",
-            "/Applications/Utilities/\(appName).app"
-        ]
+    static func appIcon(name: String, bundleId: String?) -> NSImage? {
+        AppIconResolver.icon(for: .app(name: name, bundleId: bundleId))
+    }
 
-        for path in paths {
-            if FileManager.default.fileExists(atPath: path) {
-                return NSWorkspace.shared.icon(forFile: path)
+    private func persistMappings() {
+        let currentMappings = mappings
+        let removedIds = knownMappingIds.subtracting(currentMappings.map(\.id))
+
+        Task { @MainActor in
+            var collections = await RuleCollectionStore.shared.loadCollections()
+            guard let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) else {
+                return
             }
-        }
+            var collection = collections[index]
+            guard var config = collection.configuration.launcherGridConfig else { return }
 
-        // Try to find by bundle ID using Launch Services
-        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.\(appName.lowercased())") {
-            return NSWorkspace.shared.icon(forFile: url.path)
-        }
+            var updatedMappings = config.mappings
+            updatedMappings.removeAll { removedIds.contains($0.id) }
 
-        return nil
+            for quick in currentMappings {
+                let target: LauncherTarget = switch quick.targetType {
+                case .app:
+                    .app(name: quick.targetName, bundleId: quick.bundleId)
+                case .website:
+                    .url(quick.targetName)
+                }
+
+                if let existingIndex = updatedMappings.firstIndex(where: { $0.id == quick.id }) {
+                    updatedMappings[existingIndex].key = quick.key
+                    updatedMappings[existingIndex].target = target
+                    updatedMappings[existingIndex].isEnabled = quick.isEnabled
+                } else {
+                    updatedMappings.append(LauncherMapping(
+                        id: quick.id,
+                        key: quick.key,
+                        target: target,
+                        isEnabled: quick.isEnabled
+                    ))
+                }
+            }
+
+            config.mappings = updatedMappings
+            collection.configuration = .launcherGrid(config)
+            collections[index] = collection
+            try? await RuleCollectionStore.shared.saveCollections(collections)
+            NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
+
+            knownMappingIds = Set(currentMappings.map(\.id))
+        }
     }
 }
 
@@ -507,9 +556,9 @@ private struct LauncherMappingRow: View {
 
     private func loadIcon() async {
         if mapping.isApp {
-            icon = LauncherStore.appIcon(for: mapping.targetName)
+            icon = LauncherStore.appIcon(name: mapping.targetName, bundleId: mapping.bundleId)
         } else {
-            icon = await FaviconLoader.shared.favicon(for: mapping.targetName)
+            icon = await FaviconFetcher.shared.fetchFavicon(for: mapping.targetName)
         }
     }
 }
@@ -524,6 +573,7 @@ private struct AddLauncherSheet: View {
     @State private var key = ""
     @State private var targetType: QuickLaunchMapping.TargetType = .app
     @State private var targetName = ""
+    @State private var bundleId = ""
 
     var body: some View {
         VStack(spacing: 16) {
@@ -534,8 +584,9 @@ private struct AddLauncherSheet: View {
                 TextField("Key", text: $key)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 50)
+                    .accessibilityIdentifier("overlay-launcher-add-key")
                     .onChange(of: key) { _, new in
-                        key = String(new.prefix(1)).lowercased()
+                        key = LauncherGridConfig.normalizeKey(new)
                     }
 
                 Picker("Type", selection: $targetType) {
@@ -546,11 +597,23 @@ private struct AddLauncherSheet: View {
                 .accessibilityIdentifier("overlay-launcher-add-type-picker")
 
                 if targetType == .app {
-                    TextField("App Name", text: $targetName)
+                    HStack {
+                        TextField("App Name", text: $targetName)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("overlay-launcher-add-app-name")
+                        Button("Browse...") {
+                            browseForApp()
+                        }
+                        .accessibilityIdentifier("overlay-launcher-add-app-browse")
+                    }
+                    TextField("Bundle ID (optional)", text: $bundleId)
                         .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 11, design: .monospaced))
+                        .accessibilityIdentifier("overlay-launcher-add-bundle-id")
                 } else {
                     TextField("URL (e.g. github.com)", text: $targetName)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("overlay-launcher-add-url")
                 }
 
                 if let error = validationError {
@@ -576,19 +639,40 @@ private struct AddLauncherSheet: View {
     }
 
     private var validationError: String? {
-        if key.isEmpty { return "Enter a key" }
-        if existingKeys.contains(key) { return "Key '\(key.uppercased())' already used" }
+        if normalizedKey.isEmpty { return "Enter a key" }
+        if !LauncherGridConfig.isValidKey(normalizedKey) { return "Use a single letter or number" }
+        if existingKeys.contains(normalizedKey) { return "Key '\(normalizedKey.uppercased())' already used" }
         if targetName.isEmpty { return targetType == .app ? "Enter app name" : "Enter URL" }
         return nil
     }
 
     private func save() {
         let mapping = QuickLaunchMapping(
-            key: key,
+            key: normalizedKey,
             targetType: targetType,
-            targetName: targetName
+            targetName: targetName,
+            bundleId: targetType == .app ? (bundleId.isEmpty ? nil : bundleId) : nil
         )
         onSave(mapping)
+    }
+
+    private func browseForApp() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Select an app to launch"
+        panel.prompt = "Select"
+        panel.allowedContentTypes = [.application]
+
+        if panel.runModal() == .OK, let url = panel.url {
+            targetName = url.deletingPathExtension().lastPathComponent
+            bundleId = Bundle(url: url)?.bundleIdentifier ?? ""
+        }
+    }
+
+    private var normalizedKey: String {
+        LauncherGridConfig.normalizeKey(key)
     }
 }
 
@@ -604,6 +688,7 @@ private struct EditLauncherSheet: View {
     @State private var key: String
     @State private var targetType: QuickLaunchMapping.TargetType
     @State private var targetName: String
+    @State private var bundleId: String
 
     init(
         mapping: QuickLaunchMapping,
@@ -618,6 +703,7 @@ private struct EditLauncherSheet: View {
         _key = State(initialValue: mapping.key)
         _targetType = State(initialValue: mapping.targetType)
         _targetName = State(initialValue: mapping.targetName)
+        _bundleId = State(initialValue: mapping.bundleId ?? "")
     }
 
     var body: some View {
@@ -629,8 +715,9 @@ private struct EditLauncherSheet: View {
                 TextField("Key", text: $key)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 50)
+                    .accessibilityIdentifier("overlay-launcher-edit-key")
                     .onChange(of: key) { _, new in
-                        key = String(new.prefix(1)).lowercased()
+                        key = LauncherGridConfig.normalizeKey(new)
                     }
 
                 Picker("Type", selection: $targetType) {
@@ -641,11 +728,23 @@ private struct EditLauncherSheet: View {
                 .accessibilityIdentifier("overlay-launcher-edit-type-picker")
 
                 if targetType == .app {
-                    TextField("App Name", text: $targetName)
+                    HStack {
+                        TextField("App Name", text: $targetName)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("overlay-launcher-edit-app-name")
+                        Button("Browse...") {
+                            browseForApp()
+                        }
+                        .accessibilityIdentifier("overlay-launcher-edit-app-browse")
+                    }
+                    TextField("Bundle ID (optional)", text: $bundleId)
                         .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 11, design: .monospaced))
+                        .accessibilityIdentifier("overlay-launcher-edit-bundle-id")
                 } else {
                     TextField("URL (e.g. github.com)", text: $targetName)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("overlay-launcher-edit-url")
                 }
 
                 if let error = validationError {
@@ -673,9 +772,10 @@ private struct EditLauncherSheet: View {
     }
 
     private var validationError: String? {
-        if key.isEmpty { return "Enter a key" }
-        if key != mapping.key, existingKeys.contains(key) {
-            return "Key '\(key.uppercased())' already used"
+        if normalizedKey.isEmpty { return "Enter a key" }
+        if !LauncherGridConfig.isValidKey(normalizedKey) { return "Use a single letter or number" }
+        if normalizedKey != LauncherGridConfig.normalizeKey(mapping.key), existingKeys.contains(normalizedKey) {
+            return "Key '\(normalizedKey.uppercased())' already used"
         }
         if targetName.isEmpty {
             return targetType == .app ? "Enter app name" : "Enter URL"
@@ -685,10 +785,30 @@ private struct EditLauncherSheet: View {
 
     private func save() {
         var updated = mapping
-        updated.key = key
+        updated.key = normalizedKey
         updated.targetType = targetType
         updated.targetName = targetName
+        updated.bundleId = targetType == .app ? (bundleId.isEmpty ? nil : bundleId) : nil
         onSave(updated)
+    }
+
+    private func browseForApp() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Select an app to launch"
+        panel.prompt = "Select"
+        panel.allowedContentTypes = [.application]
+
+        if panel.runModal() == .OK, let url = panel.url {
+            targetName = url.deletingPathExtension().lastPathComponent
+            bundleId = Bundle(url: url)?.bundleIdentifier ?? ""
+        }
+    }
+
+    private var normalizedKey: String {
+        LauncherGridConfig.normalizeKey(key)
     }
 }
 

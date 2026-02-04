@@ -95,20 +95,9 @@ final class TypingSoundsManager: ObservableObject {
         }
     }
 
-    /// Whether the Typing Sounds collection is enabled
-    @Published var isCollectionEnabled: Bool = false
-
-    /// Whether sounds are enabled (collection must be enabled and profile not "off")
+    /// Whether sounds are enabled (profile not "off")
     var isEnabled: Bool {
-        isCollectionEnabled && selectedProfile.id != SoundProfile.off.id
-    }
-
-    /// Load the collection enabled state from RuleCollectionStore
-    func loadCollectionState() {
-        Task { @MainActor in
-            let collections = await RuleCollectionStore.shared.loadCollections()
-            isCollectionEnabled = collections.first { $0.id == RuleCollectionIdentifier.typingSounds }?.isEnabled ?? false
-        }
+        selectedProfile.id != SoundProfile.off.id
     }
 
     /// Audio players for keydown sounds
@@ -121,8 +110,8 @@ final class TypingSoundsManager: ObservableObject {
     /// Number of concurrent players per sound type
     private let playerPoolSize = 8
 
-    /// Observer for rule collection changes
-    private var ruleCollectionsObserver: Any?
+    /// Observer for TCP key input events
+    private var keyInputObserver: Any?
 
     private init() {
         // Restore saved preferences
@@ -135,33 +124,35 @@ final class TypingSoundsManager: ObservableObject {
             }
         }
         volume = UserDefaults.standard.object(forKey: "typingSoundVolume") as? Float ?? 0.7
-        loadCollectionState()
-        setupRuleCollectionsObserver()
+        setupKeyInputObserver()
     }
 
-    /// Set up observer for rule collections changed notification (for real-time enable/disable)
-    private func setupRuleCollectionsObserver() {
-        ruleCollectionsObserver = NotificationCenter.default.addObserver(
-            forName: .ruleCollectionsChanged,
+    private func setupKeyInputObserver() {
+        keyInputObserver = NotificationCenter.default.addObserver(
+            forName: .kanataKeyInput,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] notification in
             guard let self else { return }
-            Task { @MainActor in
-                self.loadCollectionState()
-                AppLogger.shared.debug("🔊 [TypingSounds] Reloaded collection state after change")
+            guard let action = notification.userInfo?["action"] as? String else { return }
+
+            switch action {
+            case "press", "repeat":
+                playKeydown()
+            case "release":
+                playKeyup()
+            default:
+                break
             }
         }
+        AppLogger.shared.debug("🔊 [TypingSounds] TCP key input observer registered")
     }
 
     // MARK: - Sound Playback
 
     /// Play keydown sound
     func playKeydown() {
-        guard isEnabled, !keydownPlayers.isEmpty else { return }
-
-        let player = keydownPlayers[keydownIndex]
-        keydownIndex = (keydownIndex + 1) % keydownPlayers.count
+        guard isEnabled, let player = nextAvailablePlayer(from: keydownPlayers, index: &keydownIndex) else { return }
 
         player.volume = volume
         player.currentTime = 0
@@ -170,10 +161,7 @@ final class TypingSoundsManager: ObservableObject {
 
     /// Play keyup sound
     func playKeyup() {
-        guard isEnabled, !keyupPlayers.isEmpty else { return }
-
-        let player = keyupPlayers[keyupIndex]
-        keyupIndex = (keyupIndex + 1) % keyupPlayers.count
+        guard isEnabled, let player = nextAvailablePlayer(from: keyupPlayers, index: &keyupIndex) else { return }
 
         player.volume = volume * 0.7 // Keyup slightly quieter
         player.currentTime = 0
@@ -234,6 +222,17 @@ final class TypingSoundsManager: ObservableObject {
         keyupIndex = 0
 
         AppLogger.shared.debug("Preloaded \(keydownPlayers.count) keydown and \(keyupPlayers.count) keyup sounds for \(profile.name)")
+    }
+
+    private func nextAvailablePlayer(from players: [AVAudioPlayer], index: inout Int) -> AVAudioPlayer? {
+        guard !players.isEmpty else { return nil }
+        if let availableIndex = players.firstIndex(where: { !$0.isPlaying }) {
+            index = (availableIndex + 1) % players.count
+            return players[availableIndex]
+        }
+        let player = players[index]
+        index = (index + 1) % players.count
+        return player
     }
 
     private func soundURL(for profile: SoundProfile, isKeydown: Bool) -> URL? {

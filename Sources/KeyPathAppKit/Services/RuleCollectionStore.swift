@@ -38,7 +38,9 @@ actor RuleCollectionStore {
         do {
             let data = try Data(contentsOf: fileURL)
             let collections = try decoder.decode([RuleCollection].self, from: data)
-            var upgraded = collections.map { catalog.upgradedCollection(from: $0) }
+            var upgraded = collections
+                .filter { $0.id != RuleCollectionIdentifier.typingSounds }
+                .map { catalog.upgradedCollection(from: $0) }
 
             // Ensure any newly added catalog defaults are present even if the persisted
             // file was written before they existed (or after a reset that wrote a subset).

@@ -431,7 +431,7 @@ public enum LauncherTarget: Codable, Equatable, Sendable {
         case let .app(name, _):
             name
         case let .url(urlString):
-            urlString
+            URLMappingFormatter.displayDomain(for: urlString)
         case let .folder(path, name):
             name ?? URL(fileURLWithPath: path).lastPathComponent
         case let .script(path, name):
@@ -466,14 +466,16 @@ public enum LauncherTarget: Codable, Equatable, Sendable {
     /// Generate the Kanata output string for this target
     public var kanataOutput: String {
         switch self {
-        case let .app(name, _):
-            "(push-msg \"launch:\(name.lowercased())\")"
+        case let .app(name, bundleId):
+            let identifier = bundleId?.isEmpty == false ? bundleId! : name
+            return "(push-msg \"launch:\(identifier)\")"
         case let .url(urlString):
-            "(push-msg \"open:\(urlString)\")"
+            let encoded = URLMappingFormatter.encodeForPushMessage(urlString)
+            return "(push-msg \"open:\(encoded)\")"
         case let .folder(path, _):
-            "(push-msg \"folder:\(path)\")"
+            return "(push-msg \"folder:\(path)\")"
         case let .script(path, _):
-            "(push-msg \"script:\(path)\")"
+            return "(push-msg \"script:\(path)\")"
         }
     }
 }
@@ -537,8 +539,21 @@ public struct LauncherGridConfig: Codable, Equatable, Sendable {
         case activationMode, hyperTriggerMode, mappings, hasSeenWelcome
     }
 
-    /// Available number keys for website shortcuts (used when adding from browser history)
-    public static let availableNumberKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
+    /// Suggested key order for auto-adding launcher mappings (home row first, then numbers).
+    public static let suggestionKeyOrder: [String] = Array("asdfghjklqwertyuiopzxcvbnm1234567890").map { String($0) }
+
+    /// Normalize a key for launcher mappings (lowercased, single character).
+    public static func normalizeKey(_ key: String) -> String {
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return String(trimmed.prefix(1))
+    }
+
+    /// Validate that a launcher key is a single alphanumeric character.
+    public static func isValidKey(_ key: String) -> Bool {
+        guard key.count == 1 else { return false }
+        guard let scalar = key.unicodeScalars.first else { return false }
+        return CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789").contains(scalar)
+    }
 
     /// Default app and website mappings
     /// Home row prioritized for most-used apps and sites

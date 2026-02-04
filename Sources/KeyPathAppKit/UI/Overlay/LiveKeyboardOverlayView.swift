@@ -2670,13 +2670,11 @@ struct OverlayInspectorPanel: View {
                 var collection = collections[index]
                 if var config = collection.configuration.launcherGridConfig {
                     // Get existing keys
-                    var existingKeys = Set(config.mappings.map { $0.key.lowercased() })
+                    var existingKeys = Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) })
 
                     // Add new mappings for each suggested site
                     for site in sites {
-                        // Find next available letter
-                        let alphabet = "asdfghjklqwertyuiopzxcvbnm"
-                        guard let key = alphabet.first(where: { !existingKeys.contains(String($0)) }).map({ String($0) }) else {
+                        guard let key = LauncherGridConfig.suggestionKeyOrder.first(where: { !existingKeys.contains($0) }) else {
                             continue
                         }
 
@@ -2684,7 +2682,7 @@ struct OverlayInspectorPanel: View {
 
                         let mapping = LauncherMapping(
                             key: key,
-                            target: .url("https://\(site.domain)")
+                            target: .url(site.domain)
                         )
                         config.mappings.append(mapping)
                     }

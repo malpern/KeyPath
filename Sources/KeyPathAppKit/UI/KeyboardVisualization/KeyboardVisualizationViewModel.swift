@@ -885,21 +885,21 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Pattern: (push-msg "type:value")
     private nonisolated static let pushMsgTypeValueRegex = try! NSRegularExpression(
         pattern: #"\(push-msg\s+\"([^:\"]+):([^\"]+)\"\)"#,
-        options: []
+        options: [.caseInsensitive]
     )
 
     /// Cached regex for extracting app launch identifiers
     /// Pattern: (push-msg "launch:AppName")
     private nonisolated static let pushMsgLaunchRegex = try! NSRegularExpression(
         pattern: #"\(push-msg\s+\"launch:([^\"]+)\"\)"#,
-        options: []
+        options: [.caseInsensitive]
     )
 
     /// Cached regex for extracting URL identifiers
     /// Pattern: (push-msg "open:domain.com")
     private nonisolated static let pushMsgOpenRegex = try! NSRegularExpression(
         pattern: #"\(push-msg\s+\"open:([^\"]+)\"\)"#,
-        options: []
+        options: [.caseInsensitive]
     )
 
     /// Extract LayerKeyInfo from a push-msg output string
@@ -912,7 +912,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
             return nil
         }
 
-        let msgType = String(output[typeRange])
+        let msgType = String(output[typeRange]).lowercased()
         let msgValue = String(output[valueRange])
 
         switch msgType {
@@ -922,6 +922,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
             // Use description if available, otherwise format the system action
             let displayLabel = description ?? Self.systemActionDisplayLabel(msgValue)
             return .systemAction(action: msgValue, description: displayLabel)
+        case "open":
+            return .webURL(url: URLMappingFormatter.decodeFromPushMessage(msgValue))
         default:
             // Generic push-msg - use description or message value
             return .pushMsg(message: description ?? msgValue)
@@ -978,7 +980,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
         else {
             return nil
         }
-        return String(output[range])
+        let value = String(output[range])
+        return URLMappingFormatter.decodeFromPushMessage(value)
     }
 
     /// Extract URL from a push-msg open output string
@@ -993,7 +996,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
         else {
             return nil
         }
-        return String(output[range])
+        let value = String(output[range])
+        return URLMappingFormatter.decodeFromPushMessage(value)
     }
 
     /// Invalidate cached mappings (call when config changes)

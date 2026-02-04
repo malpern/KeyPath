@@ -49,6 +49,10 @@ public struct KeyPathApp: App {
         // causing the health indicator to get stuck in "checking" state.
         MainAppStateController.shared.configure(with: manager)
 
+        // Ensure typing sounds manager is initialized so it can listen for key events
+        // even before the overlay/settings UI is opened.
+        _ = TypingSoundsManager.shared
+
         // Set activation policy based on mode
         if isHeadlessMode {
             // Hide from dock in headless mode

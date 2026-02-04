@@ -50,10 +50,31 @@ actor BrowserHistoryScanner {
             }
         }
 
+        var chromiumBasePath: String? {
+            let home = NSHomeDirectory()
+            switch self {
+            case .chrome:
+                return "\(home)/Library/Application Support/Google/Chrome"
+            case .arc:
+                return "\(home)/Library/Application Support/Arc/User Data"
+            case .brave:
+                return "\(home)/Library/Application Support/BraveSoftware/Brave-Browser"
+            case .edge:
+                return "\(home)/Library/Application Support/Microsoft Edge"
+            case .dia:
+                return "\(home)/Library/Application Support/Dia"
+            case .safari, .firefox:
+                return nil
+            }
+        }
+
         var isInstalled: Bool {
             if self == .firefox {
                 // Firefox profile directory check
                 return FileManager.default.fileExists(atPath: historyPath)
+            }
+            if isChromiumBased, let basePath = chromiumBasePath {
+                return FileManager.default.fileExists(atPath: basePath)
             }
             return FileManager.default.fileExists(atPath: historyPath)
         }
@@ -108,12 +129,15 @@ actor BrowserHistoryScanner {
         let browsersToScan = browsers ?? installedBrowsers()
 
         var allDomains: [String: (count: Int, lastVisit: Date?)] = [:]
+        var didScan = false
+        var encounteredError: Error?
 
         for browser in browsersToScan {
             guard browser.isInstalled else { continue }
 
             do {
                 let sites = try await scanBrowser(browser)
+                didScan = true
                 for site in sites {
                     let existing = allDomains[site.domain]
                     let newCount = (existing?.count ?? 0) + site.visitCount
@@ -122,8 +146,15 @@ actor BrowserHistoryScanner {
                 }
             } catch {
                 // Continue with other browsers if one fails
+                if encounteredError == nil {
+                    encounteredError = error
+                }
                 continue
             }
+        }
+
+        if !didScan, let encounteredError {
+            throw encounteredError
         }
 
         // Convert to array and sort by visit count
@@ -144,7 +175,10 @@ actor BrowserHistoryScanner {
             try scanFirefox()
         default:
             // Chromium-based browsers
-            try scanChromium(path: browser.historyPath)
+            guard let basePath = browser.chromiumBasePath else {
+                return []
+            }
+            return try scanChromiumProfiles(basePath: basePath, fallbackHistoryPath: browser.historyPath)
         }
     }
 
@@ -166,15 +200,21 @@ actor BrowserHistoryScanner {
 
         let query = """
         SELECT
-            SUBSTR(url, INSTR(url, '://') + 3,
-                   CASE WHEN INSTR(SUBSTR(url, INSTR(url, '://') + 3), '/') > 0
-                        THEN INSTR(SUBSTR(url, INSTR(url, '://') + 3), '/') - 1
-                        ELSE LENGTH(SUBSTR(url, INSTR(url, '://') + 3))
-                   END) as domain,
+            domain,
             COUNT(*) as visit_count,
             MAX(visit_time) as last_visit
-        FROM history_visits
-        JOIN history_items ON history_visits.history_item = history_items.id
+        FROM (
+            SELECT
+                SUBSTR(url, INSTR(url, '://') + 3,
+                       CASE WHEN INSTR(SUBSTR(url, INSTR(url, '://') + 3), '/') > 0
+                            THEN INSTR(SUBSTR(url, INSTR(url, '://') + 3), '/') - 1
+                            ELSE LENGTH(SUBSTR(url, INSTR(url, '://') + 3))
+                       END) as domain,
+                visit_time
+            FROM history_visits
+            JOIN history_items ON history_visits.history_item = history_items.id
+            WHERE history_items.url LIKE 'http%'
+        )
         WHERE domain IS NOT NULL AND domain != ''
         GROUP BY domain
         ORDER BY visit_count DESC
@@ -204,6 +244,29 @@ actor BrowserHistoryScanner {
 
     // MARK: - Chromium (Chrome, Arc, Brave, Edge, Dia)
 
+    private func scanChromiumProfiles(basePath: String, fallbackHistoryPath: String) throws -> [VisitedSite] {
+        let historyPaths = chromiumHistoryPaths(basePath: basePath, fallbackHistoryPath: fallbackHistoryPath)
+        guard !historyPaths.isEmpty else {
+            throw ScanError.profileNotFound
+        }
+
+        var allDomains: [String: (count: Int, lastVisit: Date?)] = [:]
+        for path in historyPaths {
+            let sites = try scanChromium(path: path)
+            for site in sites {
+                let existing = allDomains[site.domain]
+                let newCount = (existing?.count ?? 0) + site.visitCount
+                let newLastVisit = max(existing?.lastVisit, site.lastVisited)
+                allDomains[site.domain] = (count: newCount, lastVisit: newLastVisit)
+            }
+        }
+
+        return allDomains.map { domain, data in
+            VisitedSite(domain: domain, visitCount: data.count, lastVisited: data.lastVisit)
+        }
+        .sorted { $0.visitCount > $1.visitCount }
+    }
+
     private func scanChromium(path: String) throws -> [VisitedSite] {
         // Chromium also keeps database locked
         let tempPath = NSTemporaryDirectory() + "chromium_history_\(UUID().uuidString).db"
@@ -218,14 +281,21 @@ actor BrowserHistoryScanner {
 
         let query = """
         SELECT
-            SUBSTR(url, INSTR(url, '://') + 3,
-                   CASE WHEN INSTR(SUBSTR(url, INSTR(url, '://') + 3), '/') > 0
-                        THEN INSTR(SUBSTR(url, INSTR(url, '://') + 3), '/') - 1
-                        ELSE LENGTH(SUBSTR(url, INSTR(url, '://') + 3))
-                   END) as domain,
+            domain,
             SUM(visit_count) as total_visits,
             MAX(last_visit_time) as last_visit
-        FROM urls
+        FROM (
+            SELECT
+                SUBSTR(url, INSTR(url, '://') + 3,
+                       CASE WHEN INSTR(SUBSTR(url, INSTR(url, '://') + 3), '/') > 0
+                            THEN INSTR(SUBSTR(url, INSTR(url, '://') + 3), '/') - 1
+                            ELSE LENGTH(SUBSTR(url, INSTR(url, '://') + 3))
+                       END) as domain,
+                visit_count,
+                last_visit_time
+            FROM urls
+            WHERE url LIKE 'http%'
+        )
         WHERE domain IS NOT NULL AND domain != ''
         GROUP BY domain
         ORDER BY total_visits DESC
@@ -256,12 +326,30 @@ actor BrowserHistoryScanner {
     // MARK: - Firefox
 
     private func scanFirefox() throws -> [VisitedSite] {
-        // Find Firefox profile directory
         let profilesPath = Browser.firefox.historyPath
-        guard let profileDir = findFirefoxProfile(at: profilesPath) else {
+        let profileDirs = firefoxProfilePaths(at: profilesPath)
+        guard !profileDirs.isEmpty else {
             throw ScanError.profileNotFound
         }
 
+        var allDomains: [String: (count: Int, lastVisit: Date?)] = [:]
+        for profileDir in profileDirs {
+            let sites = try scanFirefoxProfile(at: profileDir)
+            for site in sites {
+                let existing = allDomains[site.domain]
+                let newCount = (existing?.count ?? 0) + site.visitCount
+                let newLastVisit = max(existing?.lastVisit, site.lastVisited)
+                allDomains[site.domain] = (count: newCount, lastVisit: newLastVisit)
+            }
+        }
+
+        return allDomains.map { domain, data in
+            VisitedSite(domain: domain, visitCount: data.count, lastVisited: data.lastVisit)
+        }
+        .sorted { $0.visitCount > $1.visitCount }
+    }
+
+    private func scanFirefoxProfile(at profileDir: String) throws -> [VisitedSite] {
         let dbPath = "\(profileDir)/places.sqlite"
         let tempPath = NSTemporaryDirectory() + "firefox_history_\(UUID().uuidString).db"
         try FileManager.default.copyItem(atPath: dbPath, toPath: tempPath)
@@ -281,6 +369,7 @@ actor BrowserHistoryScanner {
             MAX(last_visit_date) as last_visit
         FROM moz_places
         WHERE rev_host IS NOT NULL AND rev_host != ''
+          AND url LIKE 'http%'
         GROUP BY rev_host
         ORDER BY total_visits DESC
         LIMIT 100
@@ -308,24 +397,107 @@ actor BrowserHistoryScanner {
         return results
     }
 
-    /// Find the default Firefox profile directory
-    private func findFirefoxProfile(at profilesPath: String) -> String? {
+    /// Find Firefox profile directories (supports multiple profiles).
+    private func firefoxProfilePaths(at profilesPath: String) -> [String] {
+        let iniPath = "\(profilesPath)/profiles.ini"
+        if let contents = try? String(contentsOfFile: iniPath, encoding: .utf8) {
+            let lines = contents.split(whereSeparator: \.isNewline)
+            var profiles: [String] = []
+            var currentPath: String?
+            var isRelative = true
+
+            func commitProfile() {
+                guard let currentPath else { return }
+                let fullPath = isRelative ? "\(profilesPath)/\(currentPath)" : currentPath
+                if FileManager.default.fileExists(atPath: "\(fullPath)/places.sqlite") {
+                    profiles.append(fullPath)
+                }
+            }
+
+            for line in lines {
+                if line.hasPrefix("[Profile") {
+                    commitProfile()
+                    currentPath = nil
+                    isRelative = true
+                    continue
+                }
+
+                if line.hasPrefix("Path=") {
+                    currentPath = line.replacingOccurrences(of: "Path=", with: "")
+                    continue
+                }
+
+                if line.hasPrefix("IsRelative=") {
+                    let value = line.replacingOccurrences(of: "IsRelative=", with: "")
+                    isRelative = value == "1"
+                }
+            }
+
+            commitProfile()
+
+            if !profiles.isEmpty {
+                return profiles
+            }
+        }
+
+        return fallbackFirefoxProfilePaths(at: profilesPath)
+    }
+
+    /// Fallback: scan for .default and .default-release profiles.
+    private func fallbackFirefoxProfilePaths(at profilesPath: String) -> [String] {
         let fm = FileManager.default
         guard let contents = try? fm.contentsOfDirectory(atPath: profilesPath) else {
-            return nil
+            return []
         }
 
         // Look for directories ending in .default or .default-release
+        var results: [String] = []
         for dir in contents {
             if dir.hasSuffix(".default-release") || dir.hasSuffix(".default") {
                 let fullPath = "\(profilesPath)/\(dir)"
                 if fm.fileExists(atPath: "\(fullPath)/places.sqlite") {
-                    return fullPath
+                    results.append(fullPath)
                 }
             }
         }
 
-        return nil
+        return results
+    }
+
+    private func chromiumHistoryPaths(basePath: String, fallbackHistoryPath: String) -> [String] {
+        var historyPaths: [String] = []
+        let localStatePath = "\(basePath)/Local State"
+
+        if let data = try? Data(contentsOf: URL(fileURLWithPath: localStatePath)),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let profile = json["profile"] as? [String: Any],
+           let infoCache = profile["info_cache"] as? [String: Any]
+        {
+            for profileDir in infoCache.keys.sorted() {
+                let path = "\(basePath)/\(profileDir)/History"
+                if FileManager.default.fileExists(atPath: path) {
+                    historyPaths.append(path)
+                }
+            }
+        }
+
+        if historyPaths.isEmpty {
+            if let contents = try? FileManager.default.contentsOfDirectory(atPath: basePath) {
+                let candidateDirs = contents.filter { $0 == "Default" || $0.hasPrefix("Profile ") }
+                for dir in candidateDirs {
+                    let path = "\(basePath)/\(dir)/History"
+                    if FileManager.default.fileExists(atPath: path) {
+                        historyPaths.append(path)
+                    }
+                }
+            }
+        }
+
+        if historyPaths.isEmpty, FileManager.default.fileExists(atPath: fallbackHistoryPath) {
+            historyPaths.append(fallbackHistoryPath)
+        }
+
+        return historyPaths
     }
 
     /// Reverse a Firefox reversed hostname (e.g., "moc.elgoog." -> "google.com")

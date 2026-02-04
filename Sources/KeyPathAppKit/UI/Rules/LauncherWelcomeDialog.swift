@@ -294,8 +294,8 @@ struct LauncherWelcomeDialog: View {
     private var browserHistoryStep: some View {
         BrowserHistorySuggestionsView { selectedSites in
             // Add selected sites to config
-            let usedKeys = Set(config.mappings.map(\.key))
-            let availableKeys = LauncherGridConfig.availableNumberKeys
+            let usedKeys = Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) })
+            let availableKeys = LauncherGridConfig.suggestionKeyOrder
                 .filter { !usedKeys.contains($0) }
 
             for (site, key) in zip(selectedSites, availableKeys) {

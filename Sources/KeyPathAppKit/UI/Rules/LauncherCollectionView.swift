@@ -77,7 +77,7 @@ struct LauncherCollectionView: View {
         .sheet(item: $editingMapping) { mapping in
             LauncherMappingEditor(
                 mapping: mapping,
-                existingKeys: Set(config.mappings.map(\.key)),
+                existingKeys: Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) }),
                 onSave: { updated in
                     updateMapping(updated)
                     editingMapping = nil
@@ -92,7 +92,7 @@ struct LauncherCollectionView: View {
                 mapping: preselectedKey.map { key in
                     LauncherMapping(key: key, target: .app(name: "", bundleId: nil))
                 },
-                existingKeys: Set(config.mappings.map(\.key)),
+                existingKeys: Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) }),
                 onSave: { newMapping in
                     addMapping(newMapping)
                     showAddMapping = false
@@ -216,9 +216,8 @@ struct LauncherCollectionView: View {
     }
 
     private func addSuggestedSites(_ sites: [BrowserHistoryScanner.VisitedSite]) {
-        // Find available number keys
-        let usedKeys = Set(config.mappings.map(\.key))
-        let availableKeys = LauncherGridConfig.availableNumberKeys.filter { !usedKeys.contains($0) }
+        let usedKeys = Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) })
+        let availableKeys = LauncherGridConfig.suggestionKeyOrder.filter { !usedKeys.contains($0) }
 
         for (site, key) in zip(sites, availableKeys) {
             let mapping = LauncherMapping(
@@ -341,10 +340,8 @@ private struct LauncherMappingEditor: View {
                     .frame(width: 60)
                     .accessibilityIdentifier("launcher-editor-key-field")
                     .onChange(of: key) { _, newValue in
-                        // Limit to single character
-                        if newValue.count > 1 {
-                            key = String(newValue.prefix(1))
-                        }
+                        let normalized = LauncherGridConfig.normalizeKey(newValue)
+                        key = LauncherGridConfig.isValidKey(normalized) ? normalized : ""
                     }
 
                 // Target type
@@ -386,9 +383,15 @@ private struct LauncherMappingEditor: View {
 
                 switch targetType {
                 case .app:
-                    TextField("App Name", text: $appName)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("launcher-editor-app-name-field")
+                    HStack {
+                        TextField("App Name", text: $appName)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("launcher-editor-app-name-field")
+                        Button("Browse...") {
+                            browseForApp()
+                        }
+                        .accessibilityIdentifier("launcher-editor-app-browse-button")
+                    }
                     TextField("Bundle ID (optional)", text: $bundleId)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 11, design: .monospaced))
@@ -502,14 +505,17 @@ private struct LauncherMappingEditor: View {
     }
 
     private var validationError: String? {
-        if key.isEmpty {
+        if normalizedKey.isEmpty {
             return "Key is required"
         }
+        if !LauncherGridConfig.isValidKey(normalizedKey) {
+            return "Use a single letter or number"
+        }
         // Allow same key when editing
-        if let mapping, mapping.key == key {
+        if let mapping, LauncherGridConfig.normalizeKey(mapping.key) == normalizedKey {
             // OK - same key
-        } else if existingKeys.contains(key) {
-            return "Key '\(key.uppercased())' is already in use"
+        } else if existingKeys.contains(normalizedKey) {
+            return "Key '\(normalizedKey.uppercased())' is already in use"
         }
 
         switch targetType {
@@ -591,7 +597,7 @@ private struct LauncherMappingEditor: View {
 
         let result = LauncherMapping(
             id: mapping?.id ?? UUID(),
-            key: key,
+            key: normalizedKey,
             target: target,
             isEnabled: isEnabled
         )
@@ -688,6 +694,29 @@ private struct LauncherMappingEditor: View {
                 scriptName = url.deletingPathExtension().lastPathComponent
             }
         }
+    }
+
+    private func browseForApp() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Select an app to launch"
+        panel.prompt = "Select"
+        panel.allowedContentTypes = [.application]
+
+        if panel.runModal() == .OK, let url = panel.url {
+            let displayName = url.deletingPathExtension().lastPathComponent
+            let bundle = Bundle(url: url)
+            let selectedBundleId = bundle?.bundleIdentifier ?? ""
+
+            appName = displayName
+            bundleId = selectedBundleId
+        }
+    }
+
+    private var normalizedKey: String {
+        LauncherGridConfig.normalizeKey(key)
     }
 }
 

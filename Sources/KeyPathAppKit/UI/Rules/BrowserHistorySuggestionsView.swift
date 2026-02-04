@@ -530,11 +530,11 @@ private struct SiteRow: View {
 
             // Favicon
             Group {
-                if let favicon {
-                    Image(nsImage: favicon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 20, height: 20)
+            if let favicon {
+                Image(nsImage: favicon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 20, height: 20)
                 } else {
                     Image(systemName: "globe")
                         .frame(width: 20, height: 20)
@@ -564,7 +564,7 @@ private struct SiteRow: View {
             onSelect()
         }
         .task {
-            favicon = await FaviconLoader.shared.favicon(for: site.domain)
+            favicon = await FaviconFetcher.shared.fetchFavicon(for: site.domain)
         }
     }
 }

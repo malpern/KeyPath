@@ -23,6 +23,7 @@ final class FaviconFetcher {
         try? FileManager.default.createDirectory(at: faviconDir, withIntermediateDirectories: true)
         return faviconDir
     }()
+    private let cacheVersion = 2
 
     /// In-memory cache for instant access
     private var memoryCache: [String: NSImage] = [:]
@@ -91,7 +92,7 @@ final class FaviconFetcher {
 
     /// Extract domain from URL (e.g., "github.com" from "https://github.com/user/repo")
     private func extractDomain(from url: String) -> String {
-        let cleaned = url
+        let cleaned = URLMappingFormatter.decodeFromPushMessage(url)
             .replacingOccurrences(of: "https://", with: "")
             .replacingOccurrences(of: "http://", with: "")
         return cleaned.components(separatedBy: "/").first ?? url
@@ -102,15 +103,18 @@ final class FaviconFetcher {
         AppLogger.shared.debug("🌐 [FaviconFetcher] Fetching favicon for \(domain)")
 
         // Try strategy 1: /favicon.ico (most common)
-        if let image = await fetchFaviconDirect(domain: domain) {
-            cacheImage(image, forDomain: domain)
-            return image
+        let directImage = await fetchFaviconDirect(domain: domain)
+        if let directImage, isAcceptableFavicon(directImage) {
+            return finalizeAndCache(directImage, forDomain: domain)
         }
 
         // Try strategy 2: Parse HTML for <link rel="icon"> (fallback)
-        if let image = await fetchFaviconFromHTML(url: fullURL) {
-            cacheImage(image, forDomain: domain)
-            return image
+        if let htmlImage = await fetchFaviconFromHTML(url: fullURL) {
+            return finalizeAndCache(htmlImage, forDomain: domain)
+        }
+
+        if let directImage {
+            return finalizeAndCache(directImage, forDomain: domain)
         }
 
         // Failed to fetch - cache the failure to avoid repeated attempts
@@ -150,35 +154,99 @@ final class FaviconFetcher {
                 return nil
             }
 
-            // Parse for favicon link (very basic regex parsing)
-            // Pattern: <link rel="icon" href="..." or <link rel="shortcut icon" href="..."
-            let pattern = #"<link[^>]*rel=["\'](?:shortcut )?icon["\'][^>]*href=["\']([^"\']+)["\']"#
-            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-               let match = regex.firstMatch(in: html, range: NSRange(html.startIndex..., in: html)),
-               let hrefRange = Range(match.range(at: 1), in: html)
-            {
-                let iconPath = String(html[hrefRange])
-
-                // Resolve relative URLs
-                let iconURL: URL? = if iconPath.hasPrefix("http://") || iconPath.hasPrefix("https://") {
-                    URL(string: iconPath)
-                } else if iconPath.hasPrefix("/") {
-                    // Absolute path
-                    htmlURL.deletingLastPathComponent().appendingPathComponent(iconPath)
-                } else {
-                    // Relative path
-                    htmlURL.deletingLastPathComponent().appendingPathComponent(iconPath)
+            let candidateLinks = parseFaviconLinks(from: html)
+            let resolvedCandidates = candidateLinks.compactMap { link -> URL? in
+                let href = link.href
+                if href.hasPrefix("http://") || href.hasPrefix("https://") {
+                    return URL(string: href)
                 }
-
-                if let iconURL {
-                    return await fetchImage(from: iconURL)
+                if href.hasPrefix("/") {
+                    return htmlURL.deletingLastPathComponent().appendingPathComponent(href)
                 }
+                return htmlURL.deletingLastPathComponent().appendingPathComponent(href)
+            }
+
+            let sortedCandidates = resolvedCandidates.uniqued().prefix(5)
+            var bestImage: NSImage?
+            var bestScore: CGFloat = 0
+
+            for iconURL in sortedCandidates {
+                if let image = await fetchImage(from: iconURL) {
+                    let score = faviconScore(image)
+                    if score > bestScore {
+                        bestScore = score
+                        bestImage = image
+                    }
+                }
+            }
+
+            if let bestImage {
+                return bestImage
             }
         } catch {
             AppLogger.shared.debug("🌐 [FaviconFetcher] HTML fetch failed: \(error.localizedDescription)")
         }
 
         return nil
+    }
+
+    private func isAcceptableFavicon(_ image: NSImage) -> Bool {
+        let size = faviconPixelSize(for: image)
+        let minSide = min(size.width, size.height)
+        return minSide >= 48
+    }
+
+    private func faviconScore(_ image: NSImage) -> CGFloat {
+        let size = faviconPixelSize(for: image)
+        let minSide = min(size.width, size.height)
+        let aspectRatio = size.width / max(size.height, 1)
+        let aspectPenalty = abs(aspectRatio - 1.0) * 10.0
+        return minSide - aspectPenalty
+    }
+
+    private func parseFaviconLinks(from html: String) -> [(href: String, size: CGFloat?)] {
+        let pattern = #"<link[^>]*rel=["\']([^"\']*)["\'][^>]*href=["\']([^"\']+)["\'][^>]*>"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
+            return []
+        }
+
+        let range = NSRange(html.startIndex..., in: html)
+        var results: [(href: String, size: CGFloat?)] = []
+
+        regex.enumerateMatches(in: html, range: range) { match, _, _ in
+            guard let match else { return }
+            guard let relRange = Range(match.range(at: 1), in: html),
+                  let hrefRange = Range(match.range(at: 2), in: html) else {
+                return
+            }
+
+            let rel = html[relRange].lowercased()
+            guard rel.contains("icon") else { return }
+
+            let href = String(html[hrefRange])
+            let size = parseIconSize(from: match.range, in: html)
+            results.append((href: href, size: size))
+        }
+
+        results.sort { ($0.size ?? 0) > ($1.size ?? 0) }
+        return results
+    }
+
+    private func parseIconSize(from linkRange: NSRange, in html: String) -> CGFloat? {
+        guard let range = Range(linkRange, in: html) else { return nil }
+        let linkTag = String(html[range])
+        let sizePattern = #"sizes=["\'](\d+)x(\d+)["\']"#
+        guard let regex = try? NSRegularExpression(pattern: sizePattern, options: .caseInsensitive),
+              let match = regex.firstMatch(in: linkTag, range: NSRange(linkTag.startIndex..., in: linkTag)),
+              let wRange = Range(match.range(at: 1), in: linkTag),
+              let hRange = Range(match.range(at: 2), in: linkTag)
+        else {
+            return nil
+        }
+
+        let w = CGFloat(Double(linkTag[wRange]) ?? 0)
+        let h = CGFloat(Double(linkTag[hRange]) ?? 0)
+        return min(w, h)
     }
 
     /// Fetch image from URL with timeout
@@ -199,8 +267,6 @@ final class FaviconFetcher {
 
             // Try to create image
             if let image = NSImage(data: data) {
-                // Resize to standard size (32x32)
-                image.size = NSSize(width: 32, height: 32)
                 return image
             }
         } catch {
@@ -221,9 +287,15 @@ final class FaviconFetcher {
         AppLogger.shared.debug("💾 [FaviconFetcher] Cached favicon for \(domain)")
     }
 
+    private func finalizeAndCache(_ image: NSImage, forDomain domain: String) -> NSImage {
+        let normalized = normalizedFaviconImage(image)
+        cacheImage(normalized, forDomain: domain)
+        return normalized
+    }
+
     /// Save image to disk cache as PNG
     private func saveToDiskCache(image: NSImage, domain: String) {
-        let fileURL = cacheDirectory.appendingPathComponent("\(domain).png")
+        let fileURL = cacheDirectory.appendingPathComponent("\(domain)-v\(cacheVersion).png")
 
         guard let tiffData = image.tiffRepresentation,
               let bitmapImage = NSBitmapImageRep(data: tiffData),
@@ -242,13 +314,82 @@ final class FaviconFetcher {
 
     /// Load image from disk cache
     private func loadFromDiskCache(domain: String) -> NSImage? {
-        let fileURL = cacheDirectory.appendingPathComponent("\(domain).png")
+        let fileURL = cacheDirectory.appendingPathComponent("\(domain)-v\(cacheVersion).png")
 
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             return nil
         }
 
-        return NSImage(contentsOf: fileURL)
+        guard let image = NSImage(contentsOf: fileURL) else {
+            return nil
+        }
+        return normalizedFaviconImage(image)
+    }
+
+    /// Normalize favicon into a square bitmap to avoid odd rendering artifacts.
+    private func normalizedFaviconImage(_ image: NSImage, size: CGFloat = 64) -> NSImage {
+        let targetSize = NSSize(width: size, height: size)
+        let normalized = NSImage(size: targetSize)
+        normalized.lockFocus()
+
+        if let context = NSGraphicsContext.current {
+            context.imageInterpolation = .high
+        }
+
+        let rep = bestFaviconRepresentation(for: image)
+        let sourceSize: NSSize
+        if let rep, rep.pixelsWide > 0, rep.pixelsHigh > 0 {
+            sourceSize = NSSize(width: rep.pixelsWide, height: rep.pixelsHigh)
+        } else {
+            sourceSize = image.size
+        }
+        let scale = min(targetSize.width / max(1, sourceSize.width), targetSize.height / max(1, sourceSize.height))
+        let drawSize = NSSize(width: sourceSize.width * scale, height: sourceSize.height * scale)
+        let drawOrigin = CGPoint(
+            x: (targetSize.width - drawSize.width) / 2,
+            y: (targetSize.height - drawSize.height) / 2
+        )
+        let drawRect = NSRect(origin: drawOrigin, size: drawSize)
+        if let rep {
+            rep.draw(in: drawRect)
+        } else {
+            image.draw(
+                in: drawRect,
+                from: NSRect(origin: .zero, size: sourceSize),
+                operation: .copy,
+                fraction: 1.0
+            )
+        }
+        normalized.unlockFocus()
+        return normalized
+    }
+
+    private func bestFaviconRepresentation(for image: NSImage) -> NSImageRep? {
+        let bitmapReps = image.representations.compactMap { $0 as? NSBitmapImageRep }
+        let squareish = bitmapReps.filter { rep in
+            let width = CGFloat(max(1, rep.pixelsWide))
+            let height = CGFloat(max(1, rep.pixelsHigh))
+            let ratio = max(width, height) / max(1, min(width, height))
+            return ratio <= 1.3
+        }
+        let candidateReps = squareish.isEmpty ? bitmapReps : squareish
+        if let bestBitmap = candidateReps.max(by: { lhs, rhs in
+            let lhsScore = max(1, lhs.pixelsWide) * max(1, lhs.pixelsHigh) * max(1, lhs.bitsPerPixel)
+            let rhsScore = max(1, rhs.pixelsWide) * max(1, rhs.pixelsHigh) * max(1, rhs.bitsPerPixel)
+            return lhsScore < rhsScore
+        }) {
+            return bestBitmap
+        }
+
+        let proposedRect = NSRect(origin: .zero, size: image.size)
+        return image.bestRepresentation(for: proposedRect, context: nil, hints: nil)
+    }
+
+    private func faviconPixelSize(for image: NSImage) -> CGSize {
+        if let rep = bestFaviconRepresentation(for: image) {
+            return CGSize(width: max(1, rep.pixelsWide), height: max(1, rep.pixelsHigh))
+        }
+        return CGSize(width: max(1, image.size.width), height: max(1, image.size.height))
     }
 
     // MARK: - Init
@@ -257,5 +398,12 @@ final class FaviconFetcher {
         // Create cache directory if needed
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         AppLogger.shared.log("🖼️ [FaviconFetcher] Initialized with cache at \(cacheDirectory.path)")
+    }
+}
+
+private extension Array where Element == URL {
+    func uniqued() -> [URL] {
+        var seen: Set<URL> = []
+        return filter { seen.insert($0).inserted }
     }
 }

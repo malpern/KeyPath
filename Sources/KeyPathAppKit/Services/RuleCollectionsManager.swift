@@ -295,6 +295,14 @@ final class RuleCollectionsManager {
     private func handleUnknownMessage(_ message: String) {
         AppLogger.shared.log("📨 [RuleCollectionsManager] Push message: \(message)")
 
+        if let urlPayload = extractOpenURLPayload(from: message) {
+            let decoded = URLMappingFormatter.decodeFromPushMessage(urlPayload)
+            let encoded = URLMappingFormatter.encodeForPushMessage(decoded)
+            if let actionURI = KeyPathActionURI(string: "open:\(encoded)") {
+                _ = ActionDispatcher.shared.dispatch(actionURI)
+            }
+        }
+
         // Post notification for keyboard visualization (icon/emphasis handling)
         NotificationCenter.default.post(
             name: .kanataMessagePush,
@@ -304,6 +312,13 @@ final class RuleCollectionsManager {
 
         // Also notify external observers
         onUnknownMessage?(message)
+    }
+
+    private func extractOpenURLPayload(from message: String) -> String? {
+        guard message.lowercased().hasPrefix("open:") else { return nil }
+        let payloadStart = message.index(message.startIndex, offsetBy: 5)
+        let payload = String(message[payloadStart...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return payload.isEmpty ? nil : payload
     }
 
     /// Deprecated: Use startEventMonitoring instead

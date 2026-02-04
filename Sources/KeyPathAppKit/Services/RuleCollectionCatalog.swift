@@ -63,8 +63,7 @@ struct RuleCollectionCatalog {
             sequences,
             numpadLayer,
             symbolLayer,
-            launcher,
-            typingSounds
+            launcher
         ]
     }
 
@@ -831,20 +830,5 @@ struct RuleCollectionCatalog {
         )
     }
 
-    // MARK: - Typing Sounds
-
-    private var typingSounds: RuleCollection {
-        RuleCollection(
-            id: RuleCollectionIdentifier.typingSounds,
-            name: "Typing Sounds",
-            summary: "Play satisfying mechanical keyboard sounds as you type.",
-            category: .system,
-            mappings: [],
-            isEnabled: false,
-            isSystemDefault: false,
-            icon: "speaker.wave.2",
-            tags: ["sounds", "audio", "typing", "mechanical"],
-            configuration: .list
-        )
-    }
+    // (Typing Sounds is configured in Settings; no collection entry.)
 }

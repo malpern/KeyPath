@@ -383,6 +383,11 @@ private struct CustomRuleRow: View {
         return String(rule.output[actionRange])
     }
 
+    /// Extract URL from push-msg open output
+    private var urlIdentifier: String? {
+        KeyboardVisualizationViewModel.extractUrlIdentifier(from: rule.output)
+    }
+
     /// Extract layer name from layer-switch output
     private var layerSwitchIdentifier: String? {
         LayerInfo.extractLayerName(from: rule.output)
@@ -406,6 +411,8 @@ private struct CustomRuleRow: View {
                             AppLaunchChip(appIdentifier: appId)
                         } else if let actionId = systemActionIdentifier {
                             SystemActionChip(actionIdentifier: actionId)
+                        } else if let urlId = urlIdentifier {
+                            URLChip(urlString: urlId)
                         } else if let layerName = layerSwitchIdentifier {
                             LayerSwitchChip(layerName: layerName)
                         } else {
@@ -714,6 +721,54 @@ private struct AppLaunchChip: View {
         } else {
             // Use filename without extension
             appName = url.deletingPathExtension().lastPathComponent
+        }
+    }
+}
+
+// MARK: - URL Chip
+
+/// Displays a favicon and domain in a chip style for URL actions
+private struct URLChip: View {
+    let urlString: String
+
+    @State private var favicon: NSImage?
+
+    private var domain: String {
+        KeyMappingFormatter.extractDomain(from: urlString)
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let favicon {
+                Image(nsImage: favicon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+            } else {
+                Image(systemName: "link")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .frame(width: 16, height: 16)
+            }
+
+            Text(domain)
+                .font(.caption)
+                .fontWeight(.medium)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.accentColor.opacity(0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(Color.accentColor.opacity(0.25), lineWidth: 0.5)
+        )
+        .onAppear {
+            Task { @MainActor in
+                favicon = await FaviconFetcher.shared.fetchFavicon(for: urlString)
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import KeyPathCore
 import SwiftUI
 
@@ -159,7 +160,13 @@ class MapperViewModel: ObservableObject {
     /// Selected system action (nil = normal key output)
     @Published var selectedSystemAction: SystemActionInfo?
     /// Selected URL for web URL mapping (nil = normal key output)
-    @Published var selectedURL: String?
+    @Published var selectedURL: String? {
+        didSet {
+            if selectedURL != oldValue {
+                selectedURLFavicon = nil
+            }
+        }
+    }
     /// Favicon for the selected URL
     @Published var selectedURLFavicon: NSImage?
     /// Whether the URL input dialog is visible
@@ -188,6 +195,12 @@ class MapperViewModel: ObservableObject {
     /// Manager for advanced key behaviors (hold, tap-dance, timing)
     /// Views should access advanced behavior properties through this manager.
     @Published var advancedBehavior = AdvancedBehaviorManager()
+
+    init() {
+        advancedBehaviorCancellable = advancedBehavior.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
+    }
 
     // Legacy accessors for backward compatibility during migration
     // These delegate to advancedBehavior and will be removed once views are updated
@@ -306,6 +319,14 @@ class MapperViewModel: ObservableObject {
     private var inputSequence: KeySequence? = MapperViewModel.defaultAKeySequence
     private var outputSequence: KeySequence? = MapperViewModel.defaultAKeySequence
     private var keyboardCapture: KeyboardCapture?
+    private var simpleKeyCaptureMonitor: Any?
+    private var simpleKeyCaptureToken: UUID?
+    private var multiTapFinalizeTimer: Timer?
+    private var multiTapPendingSequence: KeySequence?
+    private var multiTapUpdateHandler: ((String) -> Void)?
+    private var multiTapFinalizeHandler: ((String) -> Void)?
+    private var multiTapStopHandler: (() -> Void)?
+    private var advancedBehaviorCancellable: AnyCancellable?
     private var kanataManager: RuntimeCoordinator?
     private var rulesManager: RuleCollectionsManager? { kanataManager?.rulesManager }
     private var finalizeTimer: Timer?
@@ -632,6 +653,7 @@ class MapperViewModel: ObservableObject {
 
         if isRecordingHold {
             isRecordingHold = false
+            stopSimpleKeyCapture()
         } else {
             // Stop any other recording
             stopRecording()
@@ -659,20 +681,30 @@ class MapperViewModel: ObservableObject {
 
         if isRecordingDoubleTap {
             isRecordingDoubleTap = false
+            stopMultiTapSequenceCapture(finalize: true)
         } else {
             // Stop any other recording
             stopRecording()
+            stopAllRecording()
             isRecordingDoubleTap = true
-            startSimpleKeyCapture { [weak self] keyName in
-                self?.doubleTapAction = keyName
-                self?.isRecordingDoubleTap = false
-            }
+            startMultiTapSequenceCapture(
+                onUpdate: { [weak self] action in
+                    self?.doubleTapAction = action
+                },
+                onFinalize: { [weak self] action in
+                    self?.doubleTapAction = action
+                },
+                onStop: { [weak self] in
+                    self?.isRecordingDoubleTap = false
+                }
+            )
         }
     }
 
     func toggleComboOutputRecording() {
         if isRecordingComboOutput {
             isRecordingComboOutput = false
+            stopSimpleKeyCapture()
         } else {
             // Stop any other recording
             stopRecording()
@@ -789,15 +821,26 @@ class MapperViewModel: ObservableObject {
 
         if tapDanceSteps[index].isRecording {
             tapDanceSteps[index].isRecording = false
+            stopMultiTapSequenceCapture(finalize: true)
         } else {
             // Stop any other recording
             stopRecording()
+            stopAllRecording()
             tapDanceSteps[index].isRecording = true
-            startSimpleKeyCapture { [weak self] keyName in
-                guard let self, index < tapDanceSteps.count else { return }
-                tapDanceSteps[index].action = keyName
-                tapDanceSteps[index].isRecording = false
-            }
+            startMultiTapSequenceCapture(
+                onUpdate: { [weak self] action in
+                    guard let self, index < tapDanceSteps.count else { return }
+                    tapDanceSteps[index].action = action
+                },
+                onFinalize: { [weak self] action in
+                    guard let self, index < tapDanceSteps.count else { return }
+                    tapDanceSteps[index].action = action
+                },
+                onStop: { [weak self] in
+                    guard let self, index < tapDanceSteps.count else { return }
+                    tapDanceSteps[index].isRecording = false
+                }
+            )
         }
     }
 
@@ -935,35 +978,125 @@ class MapperViewModel: ObservableObject {
 
     /// Simple single-key capture for hold/double-tap/tap-dance actions
     private func startSimpleKeyCapture(onCapture: @escaping (String) -> Void) {
-        var monitor: Any?
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        stopSimpleKeyCapture()
+        let token = UUID()
+        simpleKeyCaptureToken = token
+        simpleKeyCaptureMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             // Escape cancels recording
             if event.keyCode == 53 {
                 self?.stopAllRecording()
-                if let m = monitor { NSEvent.removeMonitor(m) }
                 return nil
             }
 
             let keyName = Self.keyNameFromEvent(event)
             onCapture(keyName)
-            if let m = monitor { NSEvent.removeMonitor(m) }
+            self?.stopSimpleKeyCapture()
             return nil
         }
 
         // Timeout after 10 seconds
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
             guard let self else { return }
+            guard self.simpleKeyCaptureToken == token else { return }
             let isAnyRecording = isRecordingHold || isRecordingDoubleTap || tapDanceSteps.contains { $0.isRecording }
             if isAnyRecording {
                 stopAllRecording()
-                if let m = monitor { NSEvent.removeMonitor(m) }
             }
         }
     }
 
+    private func startMultiTapSequenceCapture(
+        onUpdate: @escaping (String) -> Void,
+        onFinalize: @escaping (String) -> Void,
+        onStop: @escaping () -> Void
+    ) {
+        stopMultiTapSequenceCapture(finalize: false)
+        multiTapUpdateHandler = onUpdate
+        multiTapFinalizeHandler = onFinalize
+        multiTapStopHandler = onStop
+        multiTapPendingSequence = nil
+
+        if keyboardCapture == nil {
+            keyboardCapture = KeyboardCapture()
+        }
+
+        guard let capture = keyboardCapture else {
+            AppLogger.shared.error("❌ [MapperViewModel] Failed to create KeyboardCapture for multi-tap")
+            stopMultiTapSequenceCapture(finalize: false)
+            return
+        }
+
+        capture.startSequenceCapture(mode: .sequence) { [weak self] sequence in
+            guard let self else { return }
+
+            Task { @MainActor in
+                self.multiTapPendingSequence = sequence
+                let action = self.convertSequenceToKanataFormat(sequence)
+                self.multiTapUpdateHandler?(action)
+                self.multiTapFinalizeTimer?.invalidate()
+                self.multiTapFinalizeTimer = Timer.scheduledTimer(
+                    withTimeInterval: self.sequenceFinalizeDelay,
+                    repeats: false
+                ) { [weak self] _ in
+                    Task { @MainActor in
+                        self?.finalizeMultiTapSequence()
+                    }
+                }
+            }
+        }
+    }
+
+    private func finalizeMultiTapSequence() {
+        multiTapFinalizeTimer?.invalidate()
+        multiTapFinalizeTimer = nil
+        keyboardCapture?.stopCapture()
+
+        defer {
+            multiTapUpdateHandler = nil
+            multiTapFinalizeHandler = nil
+            multiTapStopHandler = nil
+            multiTapPendingSequence = nil
+        }
+
+        guard let sequence = multiTapPendingSequence else {
+            multiTapStopHandler?()
+            return
+        }
+
+        let action = convertSequenceToKanataFormat(sequence)
+        multiTapFinalizeHandler?(action)
+        multiTapStopHandler?()
+    }
+
+    private func stopMultiTapSequenceCapture(finalize: Bool) {
+        if finalize {
+            finalizeMultiTapSequence()
+            return
+        }
+
+        multiTapFinalizeTimer?.invalidate()
+        multiTapFinalizeTimer = nil
+        keyboardCapture?.stopCapture()
+        multiTapStopHandler?()
+        multiTapUpdateHandler = nil
+        multiTapFinalizeHandler = nil
+        multiTapStopHandler = nil
+        multiTapPendingSequence = nil
+    }
+
     /// Stop all recording states
-    private func stopAllRecording() {
+    func stopAllRecording() {
+        stopSimpleKeyCapture()
+        stopMultiTapSequenceCapture(finalize: false)
         advancedBehavior.stopAllRecording()
+    }
+
+    private func stopSimpleKeyCapture() {
+        if let monitor = simpleKeyCaptureMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        simpleKeyCaptureMonitor = nil
+        simpleKeyCaptureToken = nil
     }
 
     /// Convert key event to kanata key name
@@ -2026,7 +2159,8 @@ class MapperViewModel: ObservableObject {
         statusMessage = nil
 
         let inputKanata = convertSequenceToKanataFormat(inputSeq)
-        let outputKanata = "(push-msg \"open:\(url)\")"
+        let encodedURL = URLMappingFormatter.encodeForPushMessage(url)
+        let outputKanata = "(push-msg \"open:\(encodedURL)\")"
         let targetLayer = layerFromString(currentLayer)
 
         AppLogger.shared.log("🌐 [MapperViewModel] Creating rule: input='\(inputKanata)' output='\(outputKanata)' layer=\(targetLayer)")

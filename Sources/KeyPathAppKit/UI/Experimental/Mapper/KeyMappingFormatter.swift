@@ -70,7 +70,7 @@ public enum KeyMappingFormatter {
     /// - Parameter url: The full URL string
     /// - Returns: Just the domain portion (e.g., "example.com" from "https://example.com/path")
     public static func extractDomain(from url: String) -> String {
-        let cleaned = url
+        let cleaned = URLMappingFormatter.decodeFromPushMessage(url)
             .replacingOccurrences(of: "https://", with: "")
             .replacingOccurrences(of: "http://", with: "")
         return cleaned.components(separatedBy: "/").first ?? url

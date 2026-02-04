@@ -98,9 +98,7 @@ struct OverlayMapperSection: View {
     /// Cancel all active recording modes
     private func cancelAllRecording() {
         viewModel.stopRecording()
-        viewModel.isRecordingHold = false
-        viewModel.isRecordingDoubleTap = false
-        viewModel.isRecordingComboOutput = false
+        viewModel.stopAllRecording()
     }
 
     var body: some View {
@@ -351,7 +349,15 @@ struct OverlayMapperSection: View {
             }
         }
 
-        return withResetDialog
+        let withURLDialog = withResetDialog.sheet(isPresented: $viewModel.showingURLDialog) {
+            URLInputDialog(
+                urlText: $viewModel.urlInputText,
+                onSubmit: { viewModel.submitURL() },
+                onCancel: { viewModel.showingURLDialog = false }
+            )
+        }
+
+        return withURLDialog
     }
 
     private let showDebugBorders = false
@@ -856,8 +862,8 @@ struct OverlayMapperSection: View {
 
     /// Clear all behavior slots for the current key (tap, hold, combo)
     private func clearAllBehaviorsForCurrentKey() {
-        // Clear tap
-        viewModel.clear()
+        // Clear tap (remove any app/system/URL mapping)
+        viewModel.revertToKeystroke()
 
         // Clear all advanced behaviors (hold, multi-tap, timing, etc.)
         viewModel.advancedBehavior.reset()
@@ -1315,7 +1321,7 @@ struct OverlayMapperSection: View {
 
     /// Dynamic max height for the popover based on expansion state
     private var expandedMaxHeight: CGFloat {
-        let baseHeight: CGFloat = 220 // Height for collapsed state (4 rows + dividers)
+        let baseHeight: CGFloat = 270 // Height for collapsed state (5 rows + dividers)
         let systemActionsHeight: CGFloat = 480 // System actions grid when expanded
         let appsHeight: CGFloat = 300 // Apps list when expanded
         let layersHeight: CGFloat = 250 // Layers list when expanded
@@ -1328,12 +1334,20 @@ struct OverlayMapperSection: View {
         return min(height, 750) // Cap at reasonable screen height
     }
 
+    private var popoverMaxHeight: CGFloat {
+        if isSystemActionsExpanded {
+            return min(expandedMaxHeight * 2, 1000)
+        }
+        return expandedMaxHeight
+    }
+
     /// Popover content for output type picker with collapsible sections
     private var systemActionPopover: some View {
         let isKeystrokeSelected = viewModel.selectedSystemAction == nil && viewModel.selectedApp == nil && selectedLayerOutput == nil
         let isSystemActionSelected = viewModel.selectedSystemAction != nil
         let isAppSelected = viewModel.selectedApp != nil
         let isLayerSelected = selectedLayerOutput != nil
+        let isURLSelected = viewModel.selectedURL != nil
 
         return ScrollView {
             VStack(spacing: 0) {
@@ -1369,6 +1383,10 @@ struct OverlayMapperSection: View {
                 // "System Action" option - clickable to expand/collapse
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
+                        if !isSystemActionsExpanded {
+                            isLaunchAppsExpanded = false
+                            isLayersExpanded = false
+                        }
                         isSystemActionsExpanded.toggle()
                     }
                 } label: {
@@ -1415,6 +1433,10 @@ struct OverlayMapperSection: View {
                 // "Launch App" option - clickable to expand/collapse
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
+                        if !isLaunchAppsExpanded {
+                            isSystemActionsExpanded = false
+                            isLayersExpanded = false
+                        }
                         isLaunchAppsExpanded.toggle()
                         if isLaunchAppsExpanded {
                             loadKnownApps()
@@ -1463,9 +1485,47 @@ struct OverlayMapperSection: View {
 
                 Divider().opacity(0.2).padding(.horizontal, 8)
 
+                // "Open URL" option
+                Button {
+                    collapseAllSections()
+                    isSystemActionPickerOpen = false
+                    viewModel.showURLInputDialog()
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: isURLSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(isURLSelected ? Color.accentColor : .secondary)
+                            .frame(width: 24)
+                        Image(systemName: "link")
+                            .font(.body)
+                            .frame(width: 20)
+                        Text("Open URL")
+                            .font(.body)
+                        Spacer()
+                        if let url = viewModel.selectedURL {
+                            Text(KeyMappingFormatter.extractDomain(from: url))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(LayerPickerItemButtonStyle())
+                .focusable(false)
+                .accessibilityIdentifier("overlay-mapper-output-url")
+
+                Divider().opacity(0.2).padding(.horizontal, 8)
+
                 // "Go to Layer" option - clickable to expand/collapse
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
+                        if !isLayersExpanded {
+                            isSystemActionsExpanded = false
+                            isLaunchAppsExpanded = false
+                        }
                         isLayersExpanded.toggle()
                         if isLayersExpanded {
                             Task { await viewModel.refreshAvailableLayers() }
@@ -1510,7 +1570,7 @@ struct OverlayMapperSection: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .frame(width: 320)
-        .frame(maxHeight: expandedMaxHeight)
+        .frame(maxHeight: popoverMaxHeight)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
@@ -1576,7 +1636,7 @@ struct OverlayMapperSection: View {
                 }
             }
 
-            // "Choose Another App..." option
+            // "Add App..." option
             Button {
                 pickAppForOutput()
             } label: {
@@ -1584,7 +1644,7 @@ struct OverlayMapperSection: View {
                     Image(systemName: "folder")
                         .font(.body)
                         .frame(width: 20)
-                    Text("Choose Another App...")
+                    Text("Add App...")
                         .font(.body)
                     Spacer()
                 }
@@ -1595,6 +1655,7 @@ struct OverlayMapperSection: View {
             }
             .buttonStyle(LayerPickerItemButtonStyle())
             .focusable(false)
+            .accessibilityIdentifier("overlay-add-app-button")
         }
     }
 
@@ -1649,6 +1710,7 @@ struct OverlayMapperSection: View {
             // Get apps from app-specific keymaps
             let keymaps = await AppKeymapStore.shared.loadKeymaps()
             var apps: [AppLaunchInfo] = []
+            var seenAppKeys: Set<String> = []
 
             for keymap in keymaps {
                 let bundleId = keymap.mapping.bundleIdentifier
@@ -1663,21 +1725,22 @@ struct OverlayMapperSection: View {
                     icon = NSImage(systemSymbolName: "app.fill", accessibilityDescription: name) ?? NSImage()
                 }
 
-                apps.append(AppLaunchInfo(name: name, bundleIdentifier: bundleId, icon: icon))
+                let appKey = bundleId.isEmpty ? name : bundleId
+                if seenAppKeys.insert(appKey).inserted {
+                    apps.append(AppLaunchInfo(name: name, bundleIdentifier: bundleId, icon: icon))
+                }
             }
 
-            // Also add common apps from /Applications
-            let commonApps = ["Safari", "Mail", "Messages", "Notes", "Calendar", "Music", "Finder"]
-            for appName in commonApps {
-                let appPath = "/Applications/\(appName).app"
-                if FileManager.default.fileExists(atPath: appPath),
-                   !apps.contains(where: { $0.name == appName })
-                {
-                    let url = URL(fileURLWithPath: appPath)
-                    let icon = NSWorkspace.shared.icon(forFile: appPath)
-                    icon.size = NSSize(width: 32, height: 32)
-                    let bundleId = Bundle(url: url)?.bundleIdentifier
-                    apps.append(AppLaunchInfo(name: appName, bundleIdentifier: bundleId, icon: icon))
+            // Add running apps
+            let runningApps = NSWorkspace.shared.runningApplications
+                .filter { $0.activationPolicy == .regular || $0.activationPolicy == .accessory }
+            for app in runningApps {
+                guard let url = app.bundleURL else { continue }
+                guard isUserFacingAppURL(url) else { continue }
+                let appInfo = appLaunchInfo(for: url)
+                let appKey = appInfo.bundleIdentifier ?? url.path
+                if seenAppKeys.insert(appKey).inserted {
+                    apps.append(appInfo)
                 }
             }
 
@@ -1685,6 +1748,21 @@ struct OverlayMapperSection: View {
                 knownApps = apps.sorted { $0.name < $1.name }
             }
         }
+    }
+
+    private func appLaunchInfo(for url: URL) -> AppLaunchInfo {
+        let displayName = url.deletingPathExtension().lastPathComponent
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        icon.size = NSSize(width: 32, height: 32)
+        let bundleId = Bundle(url: url)?.bundleIdentifier
+        return AppLaunchInfo(name: displayName, bundleIdentifier: bundleId, icon: icon)
+    }
+
+    private func isUserFacingAppURL(_ url: URL) -> Bool {
+        let path = url.standardizedFileURL.path
+        return path.hasPrefix("/Applications/") ||
+            path.hasPrefix("/System/Applications/") ||
+            path.hasPrefix(FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications").path)
     }
 
     // MARK: - Layers Expanded Content
