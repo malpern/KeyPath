@@ -67,3 +67,4 @@ Scripts/cleanup-test-sudoers.sh
 run-tests-automated.sh
 .build-ci/
 .nano-banana-config.json
+.home/

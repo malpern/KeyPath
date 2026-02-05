@@ -1,6 +1,7 @@
 # Scripts
 
 ## Supported commands (recommended)
+- `./Scripts/quick-deploy.sh` — Incremental local dev (fast, deploys to /Applications; run `./build.sh` once first).
 - `./build.sh` — Canonical build & sign entry (root). Use `SKIP_CODESIGN=1` to bypass signing for local dev.
 - `./test.sh` — Run the full test suite (root)
 

@@ -129,14 +129,14 @@ peekaboo type "search query"
 ## Build Commands
 
 ```bash
-swift build                    # Development
-./Scripts/build.sh             # Production (local, SKIP_NOTARIZE=1 for quick)
-./Scripts/build-and-sign.sh    # Release (signed + notarized)
+./Scripts/quick-deploy.sh      # Incremental local dev (fast, deploys to /Applications)
+./build.sh                     # Canonical build (sign + notarize; SKIP_NOTARIZE=1 for faster local)
+./Scripts/build-and-sign.sh    # Release (signed + notarized, legacy entry)
 ```
 
 ### Quick Deploy Shortcut
 When the user says **"dd"**, immediately:
-1. Run `SKIP_NOTARIZE=1 ./Scripts/build.sh` to build, sign, and deploy to `/Applications`
+1. Run `SKIP_NOTARIZE=1 ./build.sh` to build, sign, and deploy to `/Applications`
 2. Respond with **"Eye eye Captain!"**
 
 ## Linear Workspace Management

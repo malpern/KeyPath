@@ -46,7 +46,7 @@ We will move from a purely sequential chain to a dependency-based execution mode
         *   Uses a muted color (e.g., secondary label color) to keep it clean and non-intrusive.
 3.  **Error Handling:**
     *   Intercept "Signature Mismatch" or "Helper Connection" errors.
-    *   If in Dev Mode, append a "Developer Hint" to the error message: *"Dev Mode: Run `./Scripts/build.sh` to sign helper."*
+    *   If in Dev Mode, append a "Developer Hint" to the error message: *"Dev Mode: Run `./build.sh` to sign helper."*
     *   Prevent the "Catastrophic Failure" modal for known signature issues in Dev Mode.
 
 ## 3. Resilient XPC Connection Strategy
@@ -100,5 +100,4 @@ Currently, the UI observes multiple published properties: `kanataRunning`, `help
 1.  **Permission Denials (Deep Links):** Add "Open Settings" button directly on error cards.
 2.  **Driver Mismatch (Direct Download):** Show "Update Driver" button instead of generic "Fix".
 3.  **Helper Not Running (Restart Service):** Scope "Fix" to just restarting the helper if that's the only issue.
-
 

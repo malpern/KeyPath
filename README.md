@@ -109,6 +109,7 @@ cd KeyPath
 ```
 
 **Troubleshooting builds locally**
+- For incremental local iteration (fast): `./Scripts/quick-deploy.sh` (run `./build.sh` once first)
 - To skip notarization during local iteration: `SKIP_NOTARIZE=1 ./build.sh`
 - To dry-run signing/notary invocations without touching Apple services: set `KP_SIGN_DRY_RUN=1` (used in CI smoke tests too)
 
@@ -387,6 +388,9 @@ swift test
 mkdir -p ~/Applications && cp -R dist/KeyPath.app ~/Applications/
 osascript -e 'tell application "KeyPath" to quit' || true
 open ~/Applications/KeyPath.app
+
+# Incremental local iteration (after first build)
+./Scripts/quick-deploy.sh
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines, architecture overview, and contribution patterns.

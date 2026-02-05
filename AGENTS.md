@@ -63,7 +63,7 @@ Watches source files, auto-builds, deploys to /Applications, and restarts. Insta
 | `poltergeist stop` | Stop watching |
 | `poltergeist wait keypath` | Block until build completes |
 
-**Workflow tip:** Run `poltergeist start` at session start. After any Swift file edit, the app automatically rebuilds, deploys to /Applications, and restarts. No manual steps needed.
+**Workflow tip:** Run `poltergeist start` at session start. After any Swift file edit, the app automatically runs `./Scripts/quick-deploy.sh`, deploys to /Applications, and restarts. No manual steps needed.
 
 ### Peekaboo (UI Automation)
 macOS screenshots and GUI automation. Install: `brew install steipete/tap/peekaboo`
@@ -100,7 +100,7 @@ peekaboo hotkey "cmd+s"              # Save
 ```
 
 **Recommended agent workflow:**
-1. `poltergeist start` at session start (keeps builds fresh)
+1. `poltergeist start` at session start (runs `./Scripts/quick-deploy.sh` for incremental builds)
 2. Make code edits
 3. `poltergeist wait keypath` before testing
 4. Use Peekaboo for UI verification

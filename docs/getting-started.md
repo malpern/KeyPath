@@ -32,6 +32,11 @@ cd KeyPath
 
 The build script automatically compiles, signs, notarizes, and installs to `~/Applications/`.
 
+For incremental local iteration after the first build, use:
+```bash
+./Scripts/quick-deploy.sh
+```
+
 ## First Launch
 
 When you first launch KeyPath, the **Installation Wizard** will:

@@ -117,7 +117,8 @@ cd KeyPath
 
 The build script builds, signs, notarizes, deploys to `~/Applications`, and restarts the app.
 
-**For local iteration:** `SKIP_NOTARIZE=1 ./build.sh`
+**For incremental local iteration (fast):** `./Scripts/quick-deploy.sh` (run `./build.sh` once first)
+**For local iteration with full signing but no notarization:** `SKIP_NOTARIZE=1 ./build.sh`
 
 ### How do I run tests?
 

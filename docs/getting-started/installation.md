@@ -37,7 +37,8 @@ The build script:
 - Installs to `~/Applications/`
 - Restarts the app
 
-**Note:** For local iteration, skip notarization with `SKIP_NOTARIZE=1 ./build.sh`
+**Note:** For incremental local iteration, use `./Scripts/quick-deploy.sh` (run `./build.sh` once first).
+**Note:** For local iteration with signing but no notarization, use `SKIP_NOTARIZE=1 ./build.sh`.
 
 ## First Launch Setup
 

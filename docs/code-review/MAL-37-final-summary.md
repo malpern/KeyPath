@@ -513,7 +513,7 @@ do {
 
 ✅ **Production Build**
 ```bash
-SKIP_NOTARIZE=1 ./Scripts/build.sh  # ✅ Success
+SKIP_NOTARIZE=1 ./build.sh  # ✅ Success
 # Deployed to /Applications/KeyPath.app
 ```
 
@@ -566,7 +566,7 @@ SKIP_NOTARIZE=1 ./Scripts/build.sh  # ✅ Success
 ### Build
 ```bash
 swift build                     # ✅ Success
-./Scripts/build.sh              # ✅ Production build succeeds
+./build.sh              # ✅ Production build succeeds
 ```
 
 ### Tests

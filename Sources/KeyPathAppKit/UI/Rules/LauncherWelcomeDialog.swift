@@ -292,13 +292,23 @@ struct LauncherWelcomeDialog: View {
     // MARK: - Browser History Step
 
     private var browserHistoryStep: some View {
-        BrowserHistorySuggestionsView { selectedSites in
+        let existingDomains = Set(config.mappings.compactMap { mapping in
+            if case let .url(domain) = mapping.target {
+                return normalizeDomain(domain)
+            }
+            return nil
+        })
+
+        return BrowserHistorySuggestionsView(existingDomains: existingDomains) { selectedSites in
             // Add selected sites to config
             let usedKeys = Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) })
             let availableKeys = LauncherGridConfig.suggestionKeyOrder
                 .filter { !usedKeys.contains($0) }
 
             for (site, key) in zip(selectedSites, availableKeys) {
+                if existingDomains.contains(normalizeDomain(site.domain)) {
+                    continue
+                }
                 let mapping = LauncherMapping(
                     key: key,
                     target: .url(site.domain),
@@ -316,5 +326,13 @@ struct LauncherWelcomeDialog: View {
     private func complete(action: WelcomeAction) {
         onComplete(config, action)
         dismiss()
+    }
+
+    private func normalizeDomain(_ domain: String) -> String {
+        let lower = domain.lowercased()
+        if lower.hasPrefix("www.") {
+            return String(lower.dropFirst(4))
+        }
+        return lower
     }
 }

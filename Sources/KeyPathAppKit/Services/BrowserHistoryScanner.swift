@@ -46,7 +46,7 @@ actor BrowserHistoryScanner {
             case .edge:
                 return "\(home)/Library/Application Support/Microsoft Edge/Default/History"
             case .dia:
-                return "\(home)/Library/Application Support/Dia/Default/History"
+                return "\(home)/Library/Application Support/Dia/User Data/Default/History"
             }
         }
 
@@ -62,7 +62,7 @@ actor BrowserHistoryScanner {
             case .edge:
                 return "\(home)/Library/Application Support/Microsoft Edge"
             case .dia:
-                return "\(home)/Library/Application Support/Dia"
+                return "\(home)/Library/Application Support/Dia/User Data"
             case .safari, .firefox:
                 return nil
             }

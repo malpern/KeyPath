@@ -333,7 +333,7 @@ swift test --filter ChordGroupsValidationTests   # ✅ 31/31 pass
 ### Production Build
 
 ```bash
-SKIP_NOTARIZE=1 ./Scripts/build.sh  # ✅ Success
+SKIP_NOTARIZE=1 ./build.sh  # ✅ Success
 # Deployed to /Applications/KeyPath.app
 ```
 

@@ -6,6 +6,7 @@ import SwiftUI
 /// **Privacy**: Data is processed locally and never transmitted.
 /// Requires Full Disk Access permission to read browser history databases.
 struct BrowserHistorySuggestionsView: View {
+    private let existingDomains: Set<String>
     let onComplete: ([BrowserHistoryScanner.VisitedSite]) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -23,6 +24,14 @@ struct BrowserHistorySuggestionsView: View {
         case browserSelection
         case scanning
         case results
+    }
+
+    init(
+        existingDomains: Set<String> = [],
+        onComplete: @escaping ([BrowserHistoryScanner.VisitedSite]) -> Void
+    ) {
+        self.existingDomains = Set(existingDomains.map { normalizeDomain($0) })
+        self.onComplete = onComplete
     }
 
     var body: some View {
@@ -79,15 +88,6 @@ struct BrowserHistorySuggestionsView: View {
             }
 
             Spacer()
-
-            Button(action: { dismiss() }) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("browser-history-close-button")
-            .accessibilityLabel("Close")
         }
         .padding()
     }
@@ -362,18 +362,26 @@ struct BrowserHistorySuggestionsView: View {
                         Text("Your Top Sites")
                             .font(.headline)
                         Spacer()
-                        Text("\(selectedSites.count) selected")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        HStack(spacing: 8) {
+                            Text("\(selectedSites.count) selected")
+                            if alreadyAddedCount > 0 {
+                                Text("\(alreadyAddedCount) already added")
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                     }
 
                     ScrollView {
                         LazyVStack(spacing: 8) {
                             ForEach(scannedSites) { site in
+                                let isAlreadyAdded = isExistingDomain(site.domain)
                                 SiteRow(
                                     site: site,
                                     isSelected: selectedSites.contains(site.id),
+                                    isAlreadyAdded: isAlreadyAdded,
                                     onSelect: {
+                                        guard !isAlreadyAdded else { return }
                                         if selectedSites.contains(site.id) {
                                             selectedSites.remove(site.id)
                                         } else {
@@ -481,7 +489,8 @@ struct BrowserHistorySuggestionsView: View {
                 await MainActor.run {
                     scannedSites = sites
                     // Pre-select top 5
-                    selectedSites = Set(sites.prefix(5).map(\.id))
+                    let selectableSites = sites.filter { !isExistingDomain($0.domain) }
+                    selectedSites = Set(selectableSites.prefix(5).map(\.id))
                     currentStep = .results
                     isScanning = false
                 }
@@ -496,7 +505,9 @@ struct BrowserHistorySuggestionsView: View {
     }
 
     private func complete() {
-        let selected = scannedSites.filter { selectedSites.contains($0.id) }
+        let selected = scannedSites.filter {
+            selectedSites.contains($0.id) && !isExistingDomain($0.domain)
+        }
         onComplete(selected)
         dismiss()
     }
@@ -506,6 +517,22 @@ struct BrowserHistorySuggestionsView: View {
             NSWorkspace.shared.open(url)
         }
     }
+
+    private var alreadyAddedCount: Int {
+        scannedSites.filter { isExistingDomain($0.domain) }.count
+    }
+
+    private func isExistingDomain(_ domain: String) -> Bool {
+        existingDomains.contains(Self.normalizeDomain(domain))
+    }
+
+    private static func normalizeDomain(_ domain: String) -> String {
+        let lower = domain.lowercased()
+        if lower.hasPrefix("www.") {
+            return String(lower.dropFirst(4))
+        }
+        return lower
+    }
 }
 
 // MARK: - Site Row
@@ -513,6 +540,7 @@ struct BrowserHistorySuggestionsView: View {
 private struct SiteRow: View {
     let site: BrowserHistoryScanner.VisitedSite
     let isSelected: Bool
+    let isAlreadyAdded: Bool
     let onSelect: () -> Void
 
     @State private var favicon: NSImage?
@@ -526,6 +554,7 @@ private struct SiteRow: View {
             ))
             .toggleStyle(.checkbox)
             .labelsHidden()
+            .disabled(isAlreadyAdded)
             .accessibilityIdentifier("browser-history-toggle-\(site.domain)")
 
             // Favicon
@@ -552,6 +581,18 @@ private struct SiteRow: View {
             Text("\(site.visitCount) visits")
                 .font(.caption)
                 .foregroundColor(.secondary)
+
+            if isAlreadyAdded {
+                Text("Added")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.secondary.opacity(0.12))
+                    )
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -561,8 +602,10 @@ private struct SiteRow: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
+            guard !isAlreadyAdded else { return }
             onSelect()
         }
+        .opacity(isAlreadyAdded ? 0.65 : 1.0)
         .task {
             favicon = await FaviconFetcher.shared.fetchFavicon(for: site.domain)
         }

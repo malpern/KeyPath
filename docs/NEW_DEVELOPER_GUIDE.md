@@ -33,7 +33,10 @@ swift build
 ./run-tests.sh
 
 # Build the app bundle for testing
-./Scripts/build.sh
+./build.sh
+
+# Incremental local iteration (after first build)
+./Scripts/quick-deploy.sh
 
 # Optional: exercise the new InstallerEngine façade (recommended)
 KEYPATH_USE_INSTALLER_ENGINE=1 swift test --filter InstallerEngine

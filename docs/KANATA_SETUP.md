@@ -23,6 +23,9 @@ brew install kanata
 
 # Build KeyPath
 ./build.sh
+
+# Incremental local iteration (after first build)
+./Scripts/quick-deploy.sh
 ```
 
 ### System Installation

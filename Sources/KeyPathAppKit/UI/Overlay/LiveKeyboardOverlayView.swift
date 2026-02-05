@@ -2458,6 +2458,8 @@ struct OverlayInspectorPanel: View {
     @State private var launcherHyperTriggerMode: HyperTriggerMode = .hold
     /// Whether browser history sheet is showing
     @State private var showLauncherHistorySuggestions = false
+    /// Existing launcher domains (for history import)
+    @State private var launcherExistingDomains: Set<String> = []
 
     /// Labels for tap-dance steps beyond double tap
     private static let tapDanceLabels = ["Triple Tap", "Quad Tap", "Quint Tap"]
@@ -2540,9 +2542,12 @@ struct OverlayInspectorPanel: View {
 
     /// Content for the launcher customize slide-over panel
     private var launcherCustomizePanelContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Activation Mode section
-            VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 20) {
+            // Activation section
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Activation")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Picker("Activation Mode", selection: $launcherActivationMode) {
                     Text(LauncherActivationMode.holdHyper.displayName)
                         .tag(LauncherActivationMode.holdHyper)
@@ -2574,36 +2579,73 @@ struct OverlayInspectorPanel: View {
 
                 // Description text
                 Text(launcherActivationDescription)
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
-            Divider()
+            // Suggestions & Setup section
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Suggestions")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-            // Suggest from History button
+                VStack(spacing: 0) {
             Button {
-                showLauncherHistorySuggestions = true
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.body)
-                    Text("Suggest from Browser History")
-                        .font(.subheadline)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                Task {
+                    await refreshLauncherExistingDomains()
+                    showLauncherHistorySuggestions = true
                 }
-                .foregroundStyle(.primary)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
+            } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                            Text("Suggest from Browser History")
+                                .font(.subheadline)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("launcher-customize-suggest-history")
+
+                    Divider()
+
+                    Button {
+                        showLauncherWelcomeFromSettings()
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "sparkles")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                            Text("Open Launcher Setup")
+                                .font(.subheadline)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                        .contentShape(Rectangle())
+                    }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("launcher-customize-open-setup")
+                }
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.05))
+                        .fill(Color.primary.opacity(0.04))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
                 )
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("launcher-customize-suggest-history")
 
             Spacer()
         }
@@ -2612,8 +2654,49 @@ struct OverlayInspectorPanel: View {
             loadLauncherConfig()
         }
         .sheet(isPresented: $showLauncherHistorySuggestions) {
-            BrowserHistorySuggestionsView { selectedSites in
+            BrowserHistorySuggestionsView(existingDomains: launcherExistingDomains) { selectedSites in
                 addSuggestedSitesToLauncher(selectedSites)
+            }
+        }
+    }
+
+    /// Re-open the launcher welcome dialog from settings.
+    private func showLauncherWelcomeFromSettings() {
+        Task {
+            let collections = await RuleCollectionStore.shared.loadCollections()
+            if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
+               let config = launcherCollection.configuration.launcherGridConfig
+            {
+                await MainActor.run {
+                    var mutableConfig = config
+                    LauncherWelcomeWindowController.show(
+                        config: Binding(
+                            get: { mutableConfig },
+                            set: { mutableConfig = $0 }
+                        ),
+                        onComplete: { finalConfig, _ in
+                            saveLauncherWelcomeConfig(finalConfig)
+                        },
+                        onDismiss: {}
+                    )
+                }
+            }
+        }
+    }
+
+    private func saveLauncherWelcomeConfig(_ finalConfig: LauncherGridConfig) {
+        var updatedConfig = finalConfig
+        updatedConfig.hasSeenWelcome = true
+
+        Task {
+            let collections = await RuleCollectionStore.shared.loadCollections()
+            if var launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }) {
+                launcherCollection.configuration = .launcherGrid(updatedConfig)
+                var allCollections = collections
+                if let index = allCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
+                    allCollections[index] = launcherCollection
+                    try? await RuleCollectionStore.shared.saveCollections(allCollections)
+                }
             }
         }
     }
@@ -2640,6 +2723,25 @@ struct OverlayInspectorPanel: View {
                     launcherHyperTriggerMode = config.hyperTriggerMode
                 }
             }
+        }
+    }
+
+    private func refreshLauncherExistingDomains() async {
+        let collections = await RuleCollectionStore.shared.loadCollections()
+        let domains = collections
+            .first(where: { $0.id == RuleCollectionIdentifier.launcher })?
+            .configuration
+            .launcherGridConfig?
+            .mappings
+            .compactMap { mapping -> String? in
+                if case let .url(domain) = mapping.target {
+                    return normalizeDomain(domain)
+                }
+                return nil
+            } ?? []
+
+        await MainActor.run {
+            launcherExistingDomains = Set(domains)
         }
     }
 
@@ -2671,9 +2773,18 @@ struct OverlayInspectorPanel: View {
                 if var config = collection.configuration.launcherGridConfig {
                     // Get existing keys
                     var existingKeys = Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) })
+                    let existingDomains = Set(config.mappings.compactMap { mapping in
+                        if case let .url(domain) = mapping.target {
+                            return normalizeDomain(domain)
+                        }
+                        return nil
+                    })
 
                     // Add new mappings for each suggested site
                     for site in sites {
+                        if existingDomains.contains(normalizeDomain(site.domain)) {
+                            continue
+                        }
                         guard let key = LauncherGridConfig.suggestionKeyOrder.first(where: { !existingKeys.contains($0) }) else {
                             continue
                         }
@@ -2694,6 +2805,14 @@ struct OverlayInspectorPanel: View {
                 }
             }
         }
+    }
+
+    private func normalizeDomain(_ domain: String) -> String {
+        let lower = domain.lowercased()
+        if lower.hasPrefix("www.") {
+            return String(lower.dropFirst(4))
+        }
+        return lower
     }
 
     /// Start recording for a specific field

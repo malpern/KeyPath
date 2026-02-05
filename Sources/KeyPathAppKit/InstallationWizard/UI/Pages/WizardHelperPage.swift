@@ -71,6 +71,10 @@ struct WizardHelperPage: View {
     @State private var helperVerifiedInstalled = false
     @State private var isLoadingHelperStatus = true
 
+    private var isRunningAdHoc: Bool {
+        SignatureHealthCheck.isRunningAdHoc()
+    }
+
     private var nextStepButtonTitle: String {
         issues.isEmpty ? "Return to Summary" : "Next Issue"
     }
@@ -290,6 +294,20 @@ struct WizardHelperPage: View {
             if actionStatus.isActive, let message = actionStatus.message {
                 InlineStatusView(status: actionStatus, message: message)
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+
+            if isInstalled && isRunningAdHoc {
+                VStack(spacing: 8) {
+                    Text("Unsigned build detected")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+
+                    Text("This build is ad-hoc signed, so the privileged helper will reject it. Use a signed build (e.g. `./build.sh`) or open the signed app in /Applications.")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 24)
             }
 
             // Show Login Items approval button if needed
