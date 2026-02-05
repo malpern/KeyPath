@@ -440,6 +440,15 @@ private struct LauncherMappingRow: View {
     @State private var icon: NSImage?
     @State private var isHovering = false
     @State private var deleteButtonFrame: CGRect = .zero
+    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
+    @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
+
+    private var keyTranslator: LauncherKeymapTranslator {
+        LauncherKeymapTranslator(keymapId: selectedKeymapId, includePunctuationStore: includePunctuationStore)
+    }
+    private var displayKey: String {
+        keyTranslator.displayLabel(for: mapping.key)
+    }
 
     private var rowOpacity: Double {
         let baseOpacity = isEnabled ? 1.0 : 0.5
@@ -525,7 +534,7 @@ private struct LauncherMappingRow: View {
             }
 
             // Key badge (far right) - dimmed when disabled
-            Text(mapping.key.uppercased())
+            Text(displayKey.uppercased())
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .foregroundStyle(.white)
                 .frame(width: 18, height: 18)
@@ -574,6 +583,12 @@ private struct AddLauncherSheet: View {
     @State private var targetType: QuickLaunchMapping.TargetType = .app
     @State private var targetName = ""
     @State private var bundleId = ""
+    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
+    @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
+
+    private var keyTranslator: LauncherKeymapTranslator {
+        LauncherKeymapTranslator(keymapId: selectedKeymapId, includePunctuationStore: includePunctuationStore)
+    }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -581,13 +596,13 @@ private struct AddLauncherSheet: View {
                 .font(.headline)
 
             Form {
-                TextField("Key", text: $key)
+                TextField("Key", text: Binding(
+                    get: { displayKey },
+                    set: { updateKey(from: $0) }
+                ))
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 50)
                     .accessibilityIdentifier("overlay-launcher-add-key")
-                    .onChange(of: key) { _, new in
-                        key = LauncherGridConfig.normalizeKey(new)
-                    }
 
                 Picker("Type", selection: $targetType) {
                     Text("App").tag(QuickLaunchMapping.TargetType.app)
@@ -641,7 +656,7 @@ private struct AddLauncherSheet: View {
     private var validationError: String? {
         if normalizedKey.isEmpty { return "Enter a key" }
         if !LauncherGridConfig.isValidKey(normalizedKey) { return "Use a single letter or number" }
-        if existingKeys.contains(normalizedKey) { return "Key '\(normalizedKey.uppercased())' already used" }
+        if existingKeys.contains(normalizedKey) { return "Key '\(displayKey.uppercased())' already used" }
         if targetName.isEmpty { return targetType == .app ? "Enter app name" : "Enter URL" }
         return nil
     }
@@ -674,6 +689,26 @@ private struct AddLauncherSheet: View {
     private var normalizedKey: String {
         LauncherGridConfig.normalizeKey(key)
     }
+
+    private var displayKey: String {
+        keyTranslator.displayLabel(for: normalizedKey)
+    }
+
+    private func updateKey(from displayValue: String) {
+        let trimmed = displayValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let first = String(trimmed.prefix(1))
+        guard !first.isEmpty else {
+            key = ""
+            return
+        }
+        if let canonical = keyTranslator.canonicalKey(for: first) {
+            key = canonical
+        } else if LauncherGridConfig.isValidKey(first) {
+            key = first
+        } else {
+            key = ""
+        }
+    }
 }
 
 // MARK: - Edit Sheet
@@ -689,6 +724,12 @@ private struct EditLauncherSheet: View {
     @State private var targetType: QuickLaunchMapping.TargetType
     @State private var targetName: String
     @State private var bundleId: String
+    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
+    @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
+
+    private var keyTranslator: LauncherKeymapTranslator {
+        LauncherKeymapTranslator(keymapId: selectedKeymapId, includePunctuationStore: includePunctuationStore)
+    }
 
     init(
         mapping: QuickLaunchMapping,
@@ -712,13 +753,13 @@ private struct EditLauncherSheet: View {
                 .font(.headline)
 
             Form {
-                TextField("Key", text: $key)
+                TextField("Key", text: Binding(
+                    get: { displayKey },
+                    set: { updateKey(from: $0) }
+                ))
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 50)
                     .accessibilityIdentifier("overlay-launcher-edit-key")
-                    .onChange(of: key) { _, new in
-                        key = LauncherGridConfig.normalizeKey(new)
-                    }
 
                 Picker("Type", selection: $targetType) {
                     Text("App").tag(QuickLaunchMapping.TargetType.app)
@@ -775,7 +816,7 @@ private struct EditLauncherSheet: View {
         if normalizedKey.isEmpty { return "Enter a key" }
         if !LauncherGridConfig.isValidKey(normalizedKey) { return "Use a single letter or number" }
         if normalizedKey != LauncherGridConfig.normalizeKey(mapping.key), existingKeys.contains(normalizedKey) {
-            return "Key '\(normalizedKey.uppercased())' already used"
+            return "Key '\(displayKey.uppercased())' already used"
         }
         if targetName.isEmpty {
             return targetType == .app ? "Enter app name" : "Enter URL"
@@ -809,6 +850,26 @@ private struct EditLauncherSheet: View {
 
     private var normalizedKey: String {
         LauncherGridConfig.normalizeKey(key)
+    }
+
+    private var displayKey: String {
+        keyTranslator.displayLabel(for: normalizedKey)
+    }
+
+    private func updateKey(from displayValue: String) {
+        let trimmed = displayValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let first = String(trimmed.prefix(1))
+        guard !first.isEmpty else {
+            key = ""
+            return
+        }
+        if let canonical = keyTranslator.canonicalKey(for: first) {
+            key = canonical
+        } else if LauncherGridConfig.isValidKey(first) {
+            key = first
+        } else {
+            key = ""
+        }
     }
 }
 

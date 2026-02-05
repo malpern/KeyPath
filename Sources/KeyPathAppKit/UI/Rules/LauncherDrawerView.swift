@@ -203,6 +203,15 @@ private struct DrawerMappingRow: View {
 
     @State private var icon: NSImage?
     @State private var isHovering = false
+    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
+    @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
+
+    private var keyTranslator: LauncherKeymapTranslator {
+        LauncherKeymapTranslator(keymapId: selectedKeymapId, includePunctuationStore: includePunctuationStore)
+    }
+    private var displayKey: String {
+        keyTranslator.displayLabel(for: mapping.key)
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -222,7 +231,7 @@ private struct DrawerMappingRow: View {
             }
 
             // Key badge
-            Text(mapping.key.uppercased())
+            Text(displayKey.uppercased())
                 .font(.system(size: 12, weight: .bold, design: .monospaced))
                 .foregroundColor(.white)
                 .padding(.horizontal, 6)
@@ -270,7 +279,7 @@ private struct DrawerMappingRow: View {
             Button("Delete", role: .destructive) { onDelete() }
         }
         .accessibilityIdentifier("launcher-drawer-row-\(mapping.key)")
-        .accessibilityLabel("\(mapping.target.displayName), key \(mapping.key)")
+        .accessibilityLabel("\(mapping.target.displayName), key \(displayKey)")
         .task {
             await loadIcon()
         }

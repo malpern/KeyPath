@@ -12,6 +12,15 @@ struct LauncherMappingRowView: View {
     var onDelete: (() -> Void)?
 
     @State private var icon: NSImage?
+    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
+    @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
+
+    private var keyTranslator: LauncherKeymapTranslator {
+        LauncherKeymapTranslator(keymapId: selectedKeymapId, includePunctuationStore: includePunctuationStore)
+    }
+    private var displayKey: String {
+        keyTranslator.displayLabel(for: mapping.key)
+    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -30,7 +39,7 @@ struct LauncherMappingRowView: View {
             }
 
             // Key badge
-            Text(mapping.key.uppercased())
+            Text(displayKey.uppercased())
                 .font(.system(size: 11, weight: showToggle ? .semibold : .bold, design: .monospaced))
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
@@ -79,7 +88,7 @@ struct LauncherMappingRowView: View {
             }
         }
         .accessibilityIdentifier("launcher-mapping-row-\(mapping.key)")
-        .accessibilityLabel("\(mapping.target.displayName), key \(mapping.key)")
+        .accessibilityLabel("\(mapping.target.displayName), key \(displayKey)")
         .task {
             await loadIcon()
         }

@@ -7,6 +7,8 @@ import SwiftUI
 /// Unmapped keys appear dimmed. Caps lock key shows the Hyper star indicator.
 struct LauncherKeycapView: View {
     let key: PhysicalKey
+    let displayLabel: String
+    let accessibilityKey: String
     let mapping: LauncherMapping? // nil = unmapped
     let isSelected: Bool
     var onTap: () -> Void
@@ -59,7 +61,7 @@ struct LauncherKeycapView: View {
                 await loadIcon()
             }
         }
-        .accessibilityIdentifier("launcher-keycap-\(key.label.lowercased())")
+        .accessibilityIdentifier("launcher-keycap-\(accessibilityKey)")
         .accessibilityLabel(accessibilityLabel)
     }
 
@@ -110,7 +112,7 @@ struct LauncherKeycapView: View {
             }
 
             // Letter label in top-left
-            Text(key.label.uppercased())
+            Text(displayLabel.uppercased())
                 .font(.system(size: labelSize, weight: .medium, design: .rounded))
                 .foregroundColor(.white.opacity(0.7))
                 .padding(4)
@@ -136,7 +138,7 @@ struct LauncherKeycapView: View {
     @ViewBuilder
     private func unmappedKeyContent(labelSize: CGFloat) -> some View {
         // Just the letter, centered, dimmed
-        Text(key.label.uppercased())
+        Text(displayLabel.uppercased())
             .font(.system(size: labelSize * 1.2, weight: .medium))
             .foregroundColor(.secondary.opacity(0.4))
     }
@@ -170,9 +172,9 @@ struct LauncherKeycapView: View {
         if isCapsLockKey {
             "Hyper key (Caps Lock)"
         } else if let mapping {
-            "\(mapping.key.uppercased()): \(mapping.target.displayName)"
+            "\(displayLabel.uppercased()): \(mapping.target.displayName)"
         } else {
-            "\(key.label.uppercased()): Unmapped"
+            "\(displayLabel.uppercased()): Unmapped"
         }
     }
 
@@ -211,6 +213,8 @@ struct LauncherKeycapView: View {
         // Caps lock (Hyper)
         LauncherKeycapView(
             key: PhysicalKey(keyCode: 57, label: "⇪", x: 0, y: 0, width: 1.8),
+            displayLabel: "⇪",
+            accessibilityKey: "caps",
             mapping: nil,
             isSelected: false,
             onTap: {}
@@ -220,6 +224,8 @@ struct LauncherKeycapView: View {
         // Mapped app key
         LauncherKeycapView(
             key: PhysicalKey(keyCode: 1, label: "s", x: 0, y: 0),
+            displayLabel: "S",
+            accessibilityKey: "s",
             mapping: LauncherMapping(
                 key: "s",
                 target: .app(name: "Safari", bundleId: "com.apple.Safari")
@@ -232,6 +238,8 @@ struct LauncherKeycapView: View {
         // Selected key
         LauncherKeycapView(
             key: PhysicalKey(keyCode: 17, label: "t", x: 0, y: 0),
+            displayLabel: "T",
+            accessibilityKey: "t",
             mapping: LauncherMapping(
                 key: "t",
                 target: .app(name: "Terminal", bundleId: "com.apple.Terminal")
@@ -244,6 +252,8 @@ struct LauncherKeycapView: View {
         // Website key
         LauncherKeycapView(
             key: PhysicalKey(keyCode: 18, label: "1", x: 0, y: 0),
+            displayLabel: "1",
+            accessibilityKey: "1",
             mapping: LauncherMapping(
                 key: "1",
                 target: .url("github.com")
@@ -256,6 +266,8 @@ struct LauncherKeycapView: View {
         // Unmapped key
         LauncherKeycapView(
             key: PhysicalKey(keyCode: 4, label: "h", x: 0, y: 0),
+            displayLabel: "H",
+            accessibilityKey: "h",
             mapping: nil,
             isSelected: false,
             onTap: {}

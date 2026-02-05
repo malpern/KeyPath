@@ -539,20 +539,65 @@ public struct LauncherGridConfig: Codable, Equatable, Sendable {
         case activationMode, hyperTriggerMode, mappings, hasSeenWelcome
     }
 
-    /// Suggested key order for auto-adding launcher mappings (home row first, then numbers).
-    public static let suggestionKeyOrder: [String] = Array("asdfghjklqwertyuiopzxcvbnm1234567890").map { String($0) }
+    /// Suggested key order for auto-adding launcher mappings (home row first, then numbers, then punctuation).
+    public static let suggestionKeyOrder: [String] = {
+        let lettersAndNumbers = Array("asdfghjklqwertyuiopzxcvbnm1234567890").map { String($0) }
+        return lettersAndNumbers + punctuationKeyOrder
+    }()
 
-    /// Normalize a key for launcher mappings (lowercased, single character).
+    /// Full set of supported launcher keys in canonical (Kanata) form.
+    public static let allowedKeyOrder: [String] = suggestionKeyOrder
+
+    private static let allowedKeySet = Set(allowedKeyOrder)
+
+    private static let punctuationKeyOrder: [String] = [
+        "semicolon",
+        "apostrophe",
+        "comma",
+        "dot",
+        "slash",
+        "minus",
+        "equal",
+        "grave",
+        "leftbrace",
+        "rightbrace",
+        "backslash"
+    ]
+
+    private static let punctuationAliases: [String: String] = [
+        ";": "semicolon",
+        "'": "apostrophe",
+        ",": "comma",
+        ".": "dot",
+        "/": "slash",
+        "-": "minus",
+        "=": "equal",
+        "`": "grave",
+        "[": "leftbrace",
+        "]": "rightbrace",
+        "\\": "backslash"
+    ]
+
+    /// Normalize a key for launcher mappings (lowercased, canonical).
     public static func normalizeKey(_ key: String) -> String {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if trimmed.isEmpty { return "" }
+        if let canonical = punctuationAliases[trimmed] {
+            return canonical
+        }
+        if allowedKeySet.contains(trimmed) {
+            return trimmed
+        }
         return String(trimmed.prefix(1))
     }
 
-    /// Validate that a launcher key is a single alphanumeric character.
+    /// Validate that a launcher key is supported (canonical or punctuation alias).
     public static func isValidKey(_ key: String) -> Bool {
-        guard key.count == 1 else { return false }
-        guard let scalar = key.unicodeScalars.first else { return false }
-        return CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789").contains(scalar)
+        let normalized = key.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if let canonical = punctuationAliases[normalized] {
+            return allowedKeySet.contains(canonical)
+        }
+        return allowedKeySet.contains(normalized)
     }
 
     /// Default app and website mappings

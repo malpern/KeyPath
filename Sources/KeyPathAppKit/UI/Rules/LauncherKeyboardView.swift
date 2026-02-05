@@ -14,6 +14,17 @@ struct LauncherKeyboardView: View {
     @AppStorage(LayoutPreferences.layoutIdKey) private var selectedLayoutId: String = LayoutPreferences.defaultLayoutId
     private var layout: PhysicalLayout { PhysicalLayout.find(id: selectedLayoutId) ?? .macBookUS }
 
+    /// Logical keymap for labels
+    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
+    @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
+    private var activeKeymap: LogicalKeymap { LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS }
+    private var includeKeymapPunctuation: Bool {
+        KeymapPreferences.includePunctuation(for: selectedKeymapId, store: includePunctuationStore)
+    }
+    private var keyTranslator: LauncherKeymapTranslator {
+        LauncherKeymapTranslator(keymap: activeKeymap, includePunctuation: includeKeymapPunctuation)
+    }
+
     /// Build mapping lookup from key label to LauncherMapping
     private var mappingsByKey: [String: LauncherMapping] {
         var result: [String: LauncherMapping] = [:]
@@ -71,16 +82,21 @@ struct LauncherKeyboardView: View {
 
     @ViewBuilder
     private func keyView(for key: PhysicalKey, scale: CGFloat) -> some View {
-        let keyLabel = key.label.lowercased()
-        let mapping = mappingsByKey[keyLabel]
-        let isSelected = selectedKey?.lowercased() == keyLabel
+        let canonicalKey = canonicalLauncherKey(for: key)
+        let displayLabel = displayLabel(for: key, canonicalKey: canonicalKey)
+        let mapping = canonicalKey.flatMap { mappingsByKey[$0.lowercased()] }
+        let isSelected = canonicalKey != nil && selectedKey?.lowercased() == canonicalKey?.lowercased()
 
         LauncherKeycapView(
             key: key,
+            displayLabel: displayLabel,
+            accessibilityKey: canonicalKey ?? key.label.lowercased(),
             mapping: mapping,
             isSelected: isSelected,
             onTap: {
-                onKeyClicked(keyLabel)
+                if let canonicalKey {
+                    onKeyClicked(canonicalKey)
+                }
             }
         )
         .frame(
@@ -91,6 +107,18 @@ struct LauncherKeyboardView: View {
             x: keyPositionX(for: key, scale: scale),
             y: keyPositionY(for: key, scale: scale)
         )
+    }
+
+    private func canonicalLauncherKey(for key: PhysicalKey) -> String? {
+        let canonicalKey = OverlayKeyboardView.keyCodeToKanataName(key.keyCode).lowercased()
+        return LauncherGridConfig.isValidKey(canonicalKey) ? canonicalKey : nil
+    }
+
+    private func displayLabel(for key: PhysicalKey, canonicalKey: String?) -> String {
+        if let canonicalKey {
+            return keyTranslator.displayLabel(for: canonicalKey)
+        }
+        return activeKeymap.displayLabel(for: key, includeExtraKeys: includeKeymapPunctuation)
     }
 
     // MARK: - Layout Calculations

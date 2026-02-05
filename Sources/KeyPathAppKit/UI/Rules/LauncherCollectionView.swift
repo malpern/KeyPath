@@ -20,6 +20,15 @@ struct LauncherCollectionView: View {
     // Local state for immediate UI response
     @State private var localHyperTriggerMode: HyperTriggerMode = .hold
 
+    private var existingDomains: Set<String> {
+        Set(config.mappings.compactMap { mapping in
+            if case let .url(domain) = mapping.target {
+                return normalizeDomain(domain)
+            }
+            return nil
+        })
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Activation mode picker
@@ -70,7 +79,7 @@ struct LauncherCollectionView: View {
             }
         }
         .sheet(isPresented: $showBrowserHistory) {
-            BrowserHistorySuggestionsView { selectedSites in
+            BrowserHistorySuggestionsView(existingDomains: existingDomains) { selectedSites in
                 addSuggestedSites(selectedSites)
             }
         }
@@ -218,8 +227,12 @@ struct LauncherCollectionView: View {
     private func addSuggestedSites(_ sites: [BrowserHistoryScanner.VisitedSite]) {
         let usedKeys = Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) })
         let availableKeys = LauncherGridConfig.suggestionKeyOrder.filter { !usedKeys.contains($0) }
+        let existing = existingDomains
 
         for (site, key) in zip(sites, availableKeys) {
+            if existing.contains(normalizeDomain(site.domain)) {
+                continue
+            }
             let mapping = LauncherMapping(
                 key: key,
                 target: .url(site.domain),
@@ -228,6 +241,14 @@ struct LauncherCollectionView: View {
             config.mappings.append(mapping)
         }
         onConfigChanged(config)
+    }
+
+    private func normalizeDomain(_ domain: String) -> String {
+        let lower = domain.lowercased()
+        if lower.hasPrefix("www.") {
+            return String(lower.dropFirst(4))
+        }
+        return lower
     }
 }
 
@@ -250,6 +271,8 @@ private struct LauncherMappingEditor: View {
     @State private var scriptName: String
     @State private var isEnabled: Bool
     @State private var isScriptExecutionEnabled: Bool = ScriptSecurityService.shared.isScriptExecutionEnabled
+    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
+    @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
 
     enum TargetType: String, CaseIterable {
         case app = "App"
@@ -335,14 +358,13 @@ private struct LauncherMappingEditor: View {
 
             Form {
                 // Key selection
-                TextField("Key", text: $key)
+                TextField("Key", text: Binding(
+                    get: { displayKey },
+                    set: { updateKey(from: $0) }
+                ))
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 60)
                     .accessibilityIdentifier("launcher-editor-key-field")
-                    .onChange(of: key) { _, newValue in
-                        let normalized = LauncherGridConfig.normalizeKey(newValue)
-                        key = LauncherGridConfig.isValidKey(normalized) ? normalized : ""
-                    }
 
                 // Target type
                 Picker("Type", selection: $targetType) {
@@ -515,7 +537,7 @@ private struct LauncherMappingEditor: View {
         if let mapping, LauncherGridConfig.normalizeKey(mapping.key) == normalizedKey {
             // OK - same key
         } else if existingKeys.contains(normalizedKey) {
-            return "Key '\(normalizedKey.uppercased())' is already in use"
+            return "Key '\(displayKey.uppercased())' is already in use"
         }
 
         switch targetType {
@@ -717,6 +739,30 @@ private struct LauncherMappingEditor: View {
 
     private var normalizedKey: String {
         LauncherGridConfig.normalizeKey(key)
+    }
+
+    private var keyTranslator: LauncherKeymapTranslator {
+        LauncherKeymapTranslator(keymapId: selectedKeymapId, includePunctuationStore: includePunctuationStore)
+    }
+
+    private var displayKey: String {
+        keyTranslator.displayLabel(for: normalizedKey)
+    }
+
+    private func updateKey(from displayValue: String) {
+        let trimmed = displayValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let first = String(trimmed.prefix(1))
+        guard !first.isEmpty else {
+            key = ""
+            return
+        }
+        if let canonical = keyTranslator.canonicalKey(for: first) {
+            key = canonical
+        } else if LauncherGridConfig.isValidKey(first) {
+            key = first
+        } else {
+            key = ""
+        }
     }
 }
 
