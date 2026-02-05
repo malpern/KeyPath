@@ -4,15 +4,7 @@ import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
 
-// MARK: - Health Indicator State
 
-/// State for the system health indicator shown in the overlay header
-enum HealthIndicatorState: Equatable {
-    case checking
-    case healthy
-    case unhealthy(issueCount: Int)
-    case dismissed
-}
 
 /// Controls the floating live keyboard overlay window.
 /// Creates an always-on-top borderless window that shows the live keyboard state.
@@ -20,26 +12,27 @@ enum HealthIndicatorState: Equatable {
 
 @MainActor
 final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
-    private var window: NSWindow?
-    private let viewModel = KeyboardVisualizationViewModel()
-    private let uiState = LiveKeyboardOverlayUIState()
+    var window: NSWindow?
+    let viewModel = KeyboardVisualizationViewModel()
+    let uiState = LiveKeyboardOverlayUIState()
     private var hasAutoHiddenForCurrentSettingsSession = false
     private var wasVisibleBeforeAutoHide = false
-    private var collapsedFrameBeforeInspector: NSRect?
-    private var lastWindowFrame: NSRect?
-    private var isAdjustingHeight = false
-    private var isAdjustingWidth = false
-    private var isUserResizing = false
-    private var inspectorAnimationToken = UUID()
-    private var resizeAnchor: OverlayResizeAnchor = .none
-    private var resizeStartMouse: NSPoint = .zero
-    private var resizeStartFrame: NSRect = .zero
-    private var inspectorDebugLastLog: CFTimeInterval = 0
-    private var cancellables = Set<AnyCancellable>()
+    var collapsedFrameBeforeInspector: NSRect?
+    var lastWindowFrame: NSRect?
+    var isAdjustingHeight = false
+    var isAdjustingWidth = false
+    var isUserResizing = false
+    var inspectorAnimationToken = UUID()
+    var resizeAnchor: OverlayResizeAnchor = .none
+    var resizeStartMouse: NSPoint = .zero
+    var resizeStartFrame: NSRect = .zero
+    var inspectorDebugLastLog: CFTimeInterval = 0
+    var cancellables = Set<AnyCancellable>()
     private var healthObserver: OverlayHealthIndicatorObserver?
     private weak var hostingView: NSHostingView<AnyView>?
     private let frameStore = OverlayWindowFrameStore()
-    private var hintWindowController: HideHintWindowController?
+    var hintWindowController: HideHintWindowController?
+    var hintBubbleObserver: AnyCancellable?
 
     /// Reference to KanataViewModel for opening Mapper window
     private weak var kanataViewModel: KanataViewModel?
@@ -61,9 +54,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         set { UserDefaults.standard.set(newValue, forKey: DefaultsKey.userExplicitlyHidden) }
     }
 
-    private let inspectorPanelWidth: CGFloat = 240
-    private let inspectorAnimationDuration: TimeInterval = 0.35
-    private let minKeyboardHeight: CGFloat = 180
+    let inspectorPanelWidth: CGFloat = 240
+    let inspectorAnimationDuration: TimeInterval = 0.35
+    let minKeyboardHeight: CGFloat = 180
 
     /// Get the currently selected physical keyboard layout from UserDefaults
     private var activeLayout: PhysicalLayout {
@@ -77,16 +70,16 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     private let minInspectorKeyboardHeight: CGFloat = 220
-    private var inspectorTotalWidth: CGFloat {
+    var inspectorTotalWidth: CGFloat {
         inspectorPanelWidth + OverlayLayoutMetrics.inspectorSeamWidth
     }
 
-    private var inspectorDebugEnabled: Bool {
+    var inspectorDebugEnabled: Bool {
         UserDefaults.standard.bool(forKey: "OverlayInspectorDebug")
     }
 
     /// Timer for smooth inspector reveal animation (windowDidResize doesn't fire continuously)
-    private var inspectorAnimationTimer: Timer?
+    var inspectorAnimationTimer: Timer?
 
     private var minWindowHeight: CGFloat {
         OverlayLayoutMetrics.verticalChrome + minKeyboardHeight
@@ -982,7 +975,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
     }
 
-    private func saveWindowFrame() {
+    func saveWindowFrame() {
         guard let window else { return }
         let frame = if uiState.isInspectorOpen {
             collapsedFrameBeforeInspector ?? InspectorPanelLayout.collapsedFrame(
@@ -1165,561 +1158,4 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         hostingView.rootView = buildRootView()
     }
 
-    // MARK: - Inspector Panel
-
-    private func openInspector(animated: Bool) {
-        guard let window else { return }
-        let token = UUID()
-        inspectorAnimationToken = token
-        let shouldAnimate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-
-        let baseFrame = window.frame
-        collapsedFrameBeforeInspector = baseFrame
-
-        let maxVisibleX = window.screen?.visibleFrame.maxX
-        let expandedFrame = InspectorPanelLayout.expandedFrame(
-            baseFrame: baseFrame,
-            inspectorWidth: inspectorTotalWidth,
-            maxVisibleX: maxVisibleX
-        )
-
-        if inspectorDebugEnabled {
-            AppLogger.shared.log(
-                "📤 [OverlayInspector] open start frame=\(baseFrame.debugDescription) " +
-                    "expanded=\(expandedFrame.debugDescription) totalW=\(inspectorTotalWidth.rounded())"
-            )
-        }
-
-        uiState.isInspectorClosing = false
-        uiState.isInspectorAnimating = shouldAnimate
-
-        if shouldAnimate {
-            animateInspectorReveal(to: 1)
-            setWindowFrame(expandedFrame, animated: true, duration: inspectorAnimationDuration)
-            DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
-                guard let self, inspectorAnimationToken == token else { return }
-                finalizeInspectorAnimation()
-                uiState.isInspectorOpen = true
-                uiState.inspectorReveal = 1
-                lastWindowFrame = expandedFrame
-                if inspectorDebugEnabled {
-                    AppLogger.shared.log(
-                        "📤 [OverlayInspector] open end frame=\(expandedFrame.debugDescription) reveal=\(uiState.inspectorReveal)"
-                    )
-                }
-            }
-        } else {
-            uiState.inspectorReveal = 1
-            setWindowFrame(expandedFrame, animated: false)
-            uiState.isInspectorOpen = true
-            uiState.isInspectorAnimating = false
-            lastWindowFrame = expandedFrame
-            if inspectorDebugEnabled {
-                AppLogger.shared.log(
-                    "📤 [OverlayInspector] open instant frame=\(expandedFrame.debugDescription) reveal=\(uiState.inspectorReveal)"
-                )
-            }
-        }
-    }
-
-    private func closeInspector(animated: Bool) {
-        guard let window else { return }
-        guard uiState.isInspectorOpen || uiState.inspectorReveal > 0 || uiState.isInspectorAnimating else {
-            uiState.isInspectorClosing = false
-            return
-        }
-        let targetFrame = collapsedFrameBeforeInspector ?? InspectorPanelLayout.collapsedFrame(
-            expandedFrame: window.frame,
-            inspectorWidth: inspectorTotalWidth
-        )
-        let token = UUID()
-        inspectorAnimationToken = token
-        let shouldAnimate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-
-        if inspectorDebugEnabled {
-            AppLogger.shared.log(
-                "📥 [OverlayInspector] close start frame=\(window.frame.debugDescription) " +
-                    "target=\(targetFrame.debugDescription) reveal=\(uiState.inspectorReveal)"
-            )
-        }
-
-        uiState.isInspectorAnimating = shouldAnimate
-        uiState.isInspectorClosing = shouldAnimate
-
-        if shouldAnimate {
-            animateInspectorReveal(to: 0)
-            setWindowFrame(targetFrame, animated: true, duration: inspectorAnimationDuration)
-            DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
-                guard let self, inspectorAnimationToken == token else { return }
-                finalizeInspectorAnimation()
-                uiState.inspectorReveal = 0
-                uiState.isInspectorOpen = false
-                uiState.isInspectorClosing = false
-                collapsedFrameBeforeInspector = nil
-                lastWindowFrame = targetFrame
-                if inspectorDebugEnabled {
-                    AppLogger.shared.log(
-                        "📥 [OverlayInspector] close end frame=\(targetFrame.debugDescription) reveal=\(uiState.inspectorReveal)"
-                    )
-                }
-            }
-        } else {
-            setWindowFrame(targetFrame, animated: false)
-            uiState.inspectorReveal = 0
-            uiState.isInspectorOpen = false
-            uiState.isInspectorAnimating = false
-            uiState.isInspectorClosing = false
-            collapsedFrameBeforeInspector = nil
-            lastWindowFrame = targetFrame
-            if inspectorDebugEnabled {
-                AppLogger.shared.log(
-                    "📥 [OverlayInspector] close instant frame=\(targetFrame.debugDescription) reveal=\(uiState.inspectorReveal)"
-                )
-            }
-        }
-    }
-
-    /// Animate inspector reveal from current value to target (0 or 1)
-    private func animateInspectorReveal(to targetReveal: CGFloat) {
-        let startTime = CACurrentMediaTime()
-        let startReveal = uiState.inspectorReveal
-        inspectorAnimationTimer?.invalidate()
-        inspectorAnimationTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
-            guard let self else {
-                return
-            }
-            Task { @MainActor in
-                let elapsed = CACurrentMediaTime() - startTime
-                let progress = min(1.0, elapsed / inspectorAnimationDuration)
-                uiState.inspectorReveal = OverlayInspectorMath.revealValue(
-                    start: startReveal,
-                    target: targetReveal,
-                    elapsed: elapsed,
-                    duration: inspectorAnimationDuration
-                )
-
-                if progress >= 1.0 {
-                    inspectorAnimationTimer?.invalidate()
-                    inspectorAnimationTimer = nil
-                }
-            }
-        }
-    }
-
-    /// Clean up animation state after completion
-    private func finalizeInspectorAnimation() {
-        inspectorAnimationTimer?.invalidate()
-        inspectorAnimationTimer = nil
-        uiState.isInspectorAnimating = false
-    }
-
-    private func handleWindowFrameChange() {
-        guard let window else { return }
-        if uiState.isInspectorOpen, !uiState.isInspectorClosing {
-            updateCollapsedFrame(forExpandedFrame: window.frame)
-        }
-        if uiState.isInspectorAnimating {
-            updateInspectorRevealFromWindow()
-            if inspectorDebugEnabled {
-                let now = CFAbsoluteTimeGetCurrent()
-                if now - inspectorDebugLastLog > 0.2 {
-                    inspectorDebugLastLog = now
-                    let revealStr = String(format: "%.3f", uiState.inspectorReveal)
-                    AppLogger.shared.log(
-                        "🪟 [OverlayInspector] frame=\(window.frame.debugDescription) " +
-                            "reveal=\(revealStr) " +
-                            "animating=\(uiState.isInspectorAnimating) closing=\(uiState.isInspectorClosing)"
-                    )
-                }
-            }
-            return
-        }
-        saveWindowFrame()
-        lastWindowFrame = window.frame
-    }
-
-    private func updateInspectorRevealFromWindow() {
-        guard let window else { return }
-        let collapsedWidth = collapsedFrameBeforeInspector?.width ?? max(0, window.frame.width - inspectorTotalWidth)
-        uiState.inspectorReveal = OverlayInspectorMath.clampedReveal(
-            expandedWidth: window.frame.width,
-            collapsedWidth: collapsedWidth,
-            inspectorWidth: inspectorTotalWidth
-        )
-    }
-
-    private func updateCollapsedFrame(forExpandedFrame expandedFrame: NSRect) {
-        var baseFrame = collapsedFrameBeforeInspector ?? expandedFrame
-        if let lastFrame = lastWindowFrame {
-            let deltaX = expandedFrame.origin.x - lastFrame.origin.x
-            let deltaY = expandedFrame.origin.y - lastFrame.origin.y
-            baseFrame.origin.x += deltaX
-            baseFrame.origin.y += deltaY
-        } else {
-            baseFrame.origin = expandedFrame.origin
-        }
-        baseFrame.size.width = max(0, expandedFrame.width - inspectorTotalWidth)
-        baseFrame.size.height = expandedFrame.height
-        collapsedFrameBeforeInspector = baseFrame
-    }
-
-    private func setWindowFrame(_ frame: NSRect, animated: Bool, duration: TimeInterval? = nil) {
-        guard let window else { return }
-        if animated {
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = duration ?? inspectorAnimationDuration
-                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                window.animator().setFrame(frame, display: true)
-            }
-        } else {
-            window.setFrame(frame, display: true)
-        }
-    }
-
-    private func observeDesiredContentHeight() {
-        uiState.$desiredContentHeight
-            .removeDuplicates()
-            .sink { [weak self] height in
-                guard let self, !self.isUserResizing else { return }
-                applyDesiredContentHeight(height)
-            }
-            .store(in: &cancellables)
-    }
-
-    private func observeDesiredContentWidth() {
-        uiState.$desiredContentWidth
-            .removeDuplicates()
-            .sink { [weak self] width in
-                guard let self, !self.isUserResizing else { return }
-                applyDesiredContentWidth(width)
-            }
-            .store(in: &cancellables)
-    }
-
-    private var hintBubbleObserver: AnyCancellable?
-
-    /// Show the hide hint bubble after health indicator dismisses
-    /// Waits for health indicator to disappear, then 0.5s delay, then shows bubble
-    private func showHintBubbleAfterHealthIndicator() {
-        // Cancel any existing observer
-        hintBubbleObserver?.cancel()
-
-        // If health indicator is already dismissed, show after short delay
-        if uiState.healthIndicatorState == .dismissed || uiState.healthIndicatorState == .healthy {
-            showHintBubbleWithDelay(seconds: 0.5)
-            return
-        }
-
-        // Otherwise, observe and wait for dismissal
-        hintBubbleObserver = uiState.$healthIndicatorState
-            .filter { $0 == .dismissed || $0 == .healthy }
-            .first()
-            .sink { [weak self] _ in
-                self?.showHintBubbleWithDelay(seconds: 0.5)
-            }
-    }
-
-    private func showHintBubbleWithDelay(seconds: Double) {
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-            guard let window = self.window, window.isVisible else { return }
-
-            // Create controller if needed
-            if hintWindowController == nil {
-                hintWindowController = HideHintWindowController()
-            }
-
-            hintWindowController?.show(above: window)
-        }
-    }
-
-    /// Dismiss the hide hint bubble if visible
-    func dismissHintBubble() {
-        hintBubbleObserver?.cancel()
-        hintBubbleObserver = nil
-        hintWindowController?.dismiss()
-    }
-
-    private func observeKeyboardAspectRatio() {
-        uiState.$keyboardAspectRatio
-            .removeDuplicates()
-            .sink { [weak self] newAspectRatio in
-                guard let self, !self.isUserResizing else { return }
-                resizeWindowForNewAspectRatio(newAspectRatio)
-            }
-            .store(in: &cancellables)
-    }
-
-    private func resizeWindowForNewAspectRatio(_ newAspectRatio: CGFloat) {
-        guard let window else { return }
-        guard !isAdjustingHeight, !isAdjustingWidth else { return }
-
-        let verticalChrome = OverlayLayoutMetrics.verticalChrome
-        let currentFrame = window.frame
-
-        // Calculate new keyboard width based on new aspect ratio
-        // Calculate horizontal chrome (padding + inspector if open)
-        let horizontalChrome = OverlayLayoutMetrics.horizontalChrome(
-            inspectorVisible: uiState.isInspectorOpen,
-            inspectorWidth: inspectorPanelWidth
-        )
-
-        let newWindowWidth = OverlayWindowResizer.widthForAspect(
-            currentHeight: currentFrame.height,
-            aspect: newAspectRatio,
-            verticalChrome: verticalChrome,
-            horizontalChrome: horizontalChrome
-        )
-
-        // Only resize if there's a meaningful difference
-        guard abs(currentFrame.width - newWindowWidth) > 1.0 else { return }
-
-        isAdjustingWidth = true
-        var newFrame = currentFrame
-        newFrame.size.width = newWindowWidth
-
-        // Keep right edge anchored (window moves left as it shrinks, right as it grows)
-        newFrame.origin.x = currentFrame.maxX - newWindowWidth
-
-        let constrained = window.constrainFrameRect(newFrame, to: window.screen)
-        window.setFrame(constrained, display: true, animate: true)
-
-        isAdjustingWidth = false
-    }
-
-    private func applyDesiredContentHeight(_ height: CGFloat) {
-        guard let window else { return }
-        guard height > 0 else { return }
-        guard !isAdjustingHeight else { return }
-
-        let currentFrame = window.frame
-        if abs(currentFrame.height - height) < 0.5 {
-            return
-        }
-
-        isAdjustingHeight = true
-        var newFrame = currentFrame
-        newFrame.size.height = height
-        newFrame.origin.y = currentFrame.maxY - height
-        let constrained = window.constrainFrameRect(newFrame, to: window.screen)
-        window.setFrame(constrained, display: true, animate: false)
-        isAdjustingHeight = false
-    }
-
-    private func applyDesiredContentWidth(_ width: CGFloat) {
-        guard let window else { return }
-        guard width > 0 else { return }
-        guard !isAdjustingWidth else { return }
-        guard uiState.isInspectorOpen else { return } // Only resize when inspector is open
-
-        let currentFrame = window.frame
-        if abs(currentFrame.width - width) < 0.5 {
-            return
-        }
-
-        isAdjustingWidth = true
-        var newFrame = currentFrame
-        newFrame.size.width = width
-        // Keep right edge anchored (inspector stays in place)
-        newFrame.origin.x = currentFrame.maxX - width
-        let constrained = window.constrainFrameRect(newFrame, to: window.screen)
-        window.setFrame(constrained, display: true, animate: true)
-        // Update collapsed frame reference to maintain correct keyboard width
-        updateCollapsedFrame(forExpandedFrame: constrained)
-        isAdjustingWidth = false
-    }
-
-    private func resolveResizeAnchor(widthDelta: CGFloat, heightDelta: CGFloat) -> OverlayResizeAnchor {
-        let threshold: CGFloat = 6
-        let currentMouse = NSEvent.mouseLocation
-        let resolved = OverlayWindowResizer.resolveAnchor(
-            existing: resizeAnchor,
-            startFrame: resizeStartFrame,
-            currentFrame: window?.frame,
-            startMouse: resizeStartMouse,
-            currentMouse: currentMouse,
-            widthDelta: widthDelta,
-            heightDelta: heightDelta,
-            threshold: threshold
-        )
-        resizeAnchor = resolved
-        return resolved
-    }
-}
-
-@MainActor
-final class LiveKeyboardOverlayUIState: ObservableObject {
-    @Published var isInspectorOpen = false
-    @Published var inspectorReveal: CGFloat = 0
-    @Published var isInspectorAnimating = false
-    @Published var isInspectorClosing = false
-    @Published var desiredContentHeight: CGFloat = 0
-    @Published var desiredContentWidth: CGFloat = 0
-    @Published var keyboardAspectRatio: CGFloat = PhysicalLayout.macBookUS.totalWidth / PhysicalLayout.macBookUS.totalHeight
-
-    // Health indicator state for startup validation display
-    @Published var healthIndicatorState: HealthIndicatorState = .dismissed
-
-    /// Brief highlight of the drawer button when toggled via hotkey
-    @Published var drawerButtonHighlighted = false
-
-    /// Whether the hide hint bubble is currently showing (affects window height)
-    @Published var showingHintBubble = false
-
-    /// Height of the hint bubble area when shown
-    static let hintBubbleHeight: CGFloat = 40
-}
-
-enum InspectorPanelLayout {
-    static func expandedFrame(
-        baseFrame: NSRect,
-        inspectorWidth: CGFloat,
-        maxVisibleX: CGFloat?
-    ) -> NSRect {
-        var expanded = baseFrame
-        expanded.size.width += inspectorWidth
-
-        if let maxVisibleX {
-            let overflow = expanded.maxX - maxVisibleX
-            if overflow > 0 {
-                expanded.origin.x -= overflow
-            }
-        }
-
-        return expanded
-    }
-
-    static func collapsedFrame(expandedFrame: NSRect, inspectorWidth: CGFloat) -> NSRect {
-        var collapsed = expandedFrame
-        collapsed.size.width = max(0, expandedFrame.width - inspectorWidth)
-        return collapsed
-    }
-}
-
-// MARK: - Overlay Window (allows partial off-screen positioning)
-
-private final class OverlayWindow: NSWindow {
-    /// Keep at least this many points visible inside the screen's visibleFrame so the window is recoverable.
-    private let minVisible: CGFloat = 30
-
-    /// Prevent the window from becoming key window (so it doesn't steal keyboard focus from other apps)
-    override var canBecomeKey: Bool { false }
-
-    /// Prevent the window from becoming main window
-    override var canBecomeMain: Bool { false }
-
-    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
-        guard let screen else { return frameRect }
-
-        let visible = screen.visibleFrame
-        var rect = frameRect
-
-        // Horizontal: ensure at least `minVisible` points remain on-screen
-        if rect.maxX < visible.minX + minVisible {
-            rect.origin.x = visible.minX + minVisible - rect.width
-        } else if rect.minX > visible.maxX - minVisible {
-            rect.origin.x = visible.maxX - minVisible
-        }
-
-        // Vertical: ensure at least `minVisible` points remain on-screen
-        if rect.maxY < visible.minY + minVisible {
-            rect.origin.y = visible.minY + minVisible - rect.height
-        } else if rect.minY > visible.maxY - minVisible {
-            rect.origin.y = visible.maxY - minVisible
-        }
-
-        return rect
-    }
-}
-
-@MainActor
-final class OneShotLayerOverrideState {
-    private(set) var currentLayer: String?
-    private var overrideTask: Task<Void, Never>?
-    private var overrideToken = UUID()
-    private let timeoutNanoseconds: UInt64
-    private let sleep: @Sendable (UInt64) async -> Void
-
-    init(
-        timeoutNanoseconds: UInt64,
-        sleep: @escaping @Sendable (UInt64) async -> Void = { nanos in
-            try? await Task.sleep(nanoseconds: nanos)
-        }
-    ) {
-        self.timeoutNanoseconds = timeoutNanoseconds
-        self.sleep = sleep
-    }
-
-    func activate(_ layer: String) {
-        currentLayer = layer
-        scheduleTimeout()
-    }
-
-    func clear() {
-        currentLayer = nil
-        cancelTimeout()
-    }
-
-    func clearOnKeyPress(_ key: String, modifierKeys: Set<String>) -> String? {
-        guard let layer = currentLayer,
-              !modifierKeys.contains(key.lowercased())
-        else {
-            return nil
-        }
-        clear()
-        return layer
-    }
-
-    func shouldIgnoreKanataUpdate(normalizedLayer: String) -> Bool {
-        guard let layer = currentLayer else { return false }
-        return normalizedLayer != layer
-    }
-
-    private func scheduleTimeout() {
-        cancelTimeout()
-        let token = UUID()
-        overrideToken = token
-        overrideTask = Task { @MainActor in
-            await sleep(timeoutNanoseconds)
-            guard overrideToken == token else { return }
-            if let layer = currentLayer {
-                AppLogger.shared.debug(
-                    "🧭 [OverlayController] One-shot override '\(layer)' expired"
-                )
-                currentLayer = nil
-            }
-        }
-    }
-
-    private func cancelTimeout() {
-        overrideTask?.cancel()
-        overrideTask = nil
-    }
-}
-
-// MARK: - Notification Integration
-
-extension Notification.Name {
-    /// Posted when the live keyboard overlay should be toggled
-    static let toggleLiveKeyboardOverlay = Notification.Name("KeyPath.ToggleLiveKeyboardOverlay")
-    /// Posted when the Kanata layer changes (userInfo["layerName"] = String)
-    static let kanataLayerChanged = Notification.Name("KeyPath.KanataLayerChanged")
-    /// Posted when the Kanata config changes (rules saved, etc.)
-    static let kanataConfigChanged = Notification.Name("KeyPath.KanataConfigChanged")
-    /// Posted when a TCP message is received from Kanata (heartbeat for connection state)
-    static let kanataTcpHeartbeat = Notification.Name("KeyPath.KanataTcpHeartbeat")
-    /// Posted when a physical key is pressed/released (userInfo["key"] = String, ["action"] = "press"/"release")
-    static let kanataKeyInput = Notification.Name("KeyPath.KanataKeyInput")
-    /// Posted when a tap-hold key transitions to hold state (userInfo["key"] = String, ["action"] = String)
-    static let kanataHoldActivated = Notification.Name("KeyPath.KanataHoldActivated")
-    /// Posted when a tap-hold key triggers its tap action (userInfo["key"] = String, ["action"] = String)
-    static let kanataTapActivated = Notification.Name("KeyPath.KanataTapActivated")
-    /// Posted when a one-shot modifier is activated (userInfo["key"] = String, ["modifiers"] = String)
-    static let kanataOneShotActivated = Notification.Name("KeyPath.KanataOneShotActivated")
-    /// Posted when a chord resolves (userInfo["keys"] = String, ["action"] = String)
-    static let kanataChordResolved = Notification.Name("KeyPath.KanataChordResolved")
-    /// Posted when a tap-dance resolves (userInfo["key"] = String, ["tapCount"] = Int, ["action"] = String)
-    static let kanataTapDanceResolved = Notification.Name("KeyPath.KanataTapDanceResolved")
-    /// Posted when a generic push-msg is received (userInfo["message"] = String) - e.g., "icon:arrow-left", "emphasis:h,j,k,l"
-    static let kanataMessagePush = Notification.Name("KeyPath.KanataMessagePush")
 }
