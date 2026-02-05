@@ -1,0 +1,915 @@
+import AppKit
+import Foundation
+import KeyPathCore
+
+extension MapperViewModel {
+    // MARK: - Conflict Resolution
+
+    /// Resolve conflict by keeping hold (clears all tap-dance actions)
+    func resolveConflictKeepHold() {
+        // If user was trying to record hold, we need to start that recording after clearing
+        let field = pendingConflictField
+
+        advancedBehavior.resolveConflictKeepHold()
+
+        if field == "hold" {
+            // Now safe to record hold
+            stopRecording()
+            isRecordingHold = true
+            startSimpleKeyCapture { [weak self] keyName in
+                self?.holdAction = keyName
+                self?.isRecordingHold = false
+            }
+        }
+    }
+
+    /// Resolve conflict by keeping tap-dance (clears hold action)
+    func resolveConflictKeepTapDance() {
+        advancedBehavior.resolveConflictKeepTapDance()
+
+        // Now start recording in the originally attempted field
+        let field = pendingConflictField
+        pendingConflictType = nil
+        pendingConflictField = ""
+
+        if field == "doubleTap" {
+            toggleDoubleTapRecording()
+        } else if field.hasPrefix("tapDance-"), let index = Int(field.replacingOccurrences(of: "tapDance-", with: "")) {
+            toggleTapDanceRecording(at: index)
+        }
+    }
+
+    /// Check if hold action has conflict with existing tap-dance
+    func checkHoldConflict() -> Bool {
+        advancedBehavior.checkHoldConflict()
+    }
+
+    /// Simple single-key capture for hold/double-tap/tap-dance actions
+    func startSimpleKeyCapture(onCapture: @escaping (String) -> Void) {
+        stopSimpleKeyCapture()
+        let token = UUID()
+        simpleKeyCaptureToken = token
+        simpleKeyCaptureMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            // Escape cancels recording
+            if event.keyCode == 53 {
+                self?.stopAllRecording()
+                return nil
+            }
+
+            let keyName = Self.keyNameFromEvent(event)
+            onCapture(keyName)
+            self?.stopSimpleKeyCapture()
+            return nil
+        }
+
+        // Timeout after 10 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            guard let self else { return }
+            guard self.simpleKeyCaptureToken == token else { return }
+            let isAnyRecording = isRecordingHold || isRecordingDoubleTap || tapDanceSteps.contains { $0.isRecording }
+            if isAnyRecording {
+                stopAllRecording()
+            }
+        }
+    }
+
+    func startMultiTapSequenceCapture(
+        onUpdate: @escaping (String) -> Void,
+        onFinalize: @escaping (String) -> Void,
+        onStop: @escaping () -> Void
+    ) {
+        stopMultiTapSequenceCapture(finalize: false)
+        multiTapUpdateHandler = onUpdate
+        multiTapFinalizeHandler = onFinalize
+        multiTapStopHandler = onStop
+        multiTapPendingSequence = nil
+
+        if keyboardCapture == nil {
+            keyboardCapture = KeyboardCapture()
+        }
+
+        guard let capture = keyboardCapture else {
+            AppLogger.shared.error("❌ [MapperViewModel] Failed to create KeyboardCapture for multi-tap")
+            stopMultiTapSequenceCapture(finalize: false)
+            return
+        }
+
+        capture.startSequenceCapture(mode: .sequence) { [weak self] sequence in
+            guard let self else { return }
+
+            Task { @MainActor in
+                self.multiTapPendingSequence = sequence
+                let action = self.convertSequenceToKanataFormat(sequence)
+                self.multiTapUpdateHandler?(action)
+                self.multiTapFinalizeTimer?.invalidate()
+                self.multiTapFinalizeTimer = Timer.scheduledTimer(
+                    withTimeInterval: self.sequenceFinalizeDelay,
+                    repeats: false
+                ) { [weak self] _ in
+                    Task { @MainActor in
+                        self?.finalizeMultiTapSequence()
+                    }
+                }
+            }
+        }
+    }
+
+    private func finalizeMultiTapSequence() {
+        multiTapFinalizeTimer?.invalidate()
+        multiTapFinalizeTimer = nil
+        keyboardCapture?.stopCapture()
+
+        defer {
+            multiTapUpdateHandler = nil
+            multiTapFinalizeHandler = nil
+            multiTapStopHandler = nil
+            multiTapPendingSequence = nil
+        }
+
+        guard let sequence = multiTapPendingSequence else {
+            multiTapStopHandler?()
+            return
+        }
+
+        let action = convertSequenceToKanataFormat(sequence)
+        multiTapFinalizeHandler?(action)
+        multiTapStopHandler?()
+    }
+
+    func stopMultiTapSequenceCapture(finalize: Bool) {
+        if finalize {
+            finalizeMultiTapSequence()
+            return
+        }
+
+        multiTapFinalizeTimer?.invalidate()
+        multiTapFinalizeTimer = nil
+        keyboardCapture?.stopCapture()
+        multiTapStopHandler?()
+        multiTapUpdateHandler = nil
+        multiTapFinalizeHandler = nil
+        multiTapStopHandler = nil
+        multiTapPendingSequence = nil
+    }
+
+    /// Stop all recording states
+    func stopAllRecording() {
+        stopSimpleKeyCapture()
+        stopMultiTapSequenceCapture(finalize: false)
+        advancedBehavior.stopAllRecording()
+    }
+
+    func stopSimpleKeyCapture() {
+        if let monitor = simpleKeyCaptureMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        simpleKeyCaptureMonitor = nil
+        simpleKeyCaptureToken = nil
+    }
+
+    /// Convert key event to kanata key name
+    private static func keyNameFromEvent(_ event: NSEvent) -> String {
+        let keyCode = event.keyCode
+        let modifiers = event.modifierFlags
+
+        var prefix = ""
+        if modifiers.contains(.command) { prefix += "M-" }
+        if modifiers.contains(.control) { prefix += "C-" }
+        if modifiers.contains(.option) { prefix += "A-" }
+        if modifiers.contains(.shift) { prefix += "S-" }
+
+        let keyName = switch keyCode {
+        case 0: "a"
+        case 1: "s"
+        case 2: "d"
+        case 3: "f"
+        case 4: "h"
+        case 5: "g"
+        case 6: "z"
+        case 7: "x"
+        case 8: "c"
+        case 9: "v"
+        case 11: "b"
+        case 12: "q"
+        case 13: "w"
+        case 14: "e"
+        case 15: "r"
+        case 16: "y"
+        case 17: "t"
+        case 18: "1"
+        case 19: "2"
+        case 20: "3"
+        case 21: "4"
+        case 22: "6"
+        case 23: "5"
+        case 24: "="
+        case 25: "9"
+        case 26: "7"
+        case 27: "-"
+        case 28: "8"
+        case 29: "0"
+        case 30: "]"
+        case 31: "o"
+        case 32: "u"
+        case 33: "["
+        case 34: "i"
+        case 35: "p"
+        case 36: "ret"
+        case 37: "l"
+        case 38: "j"
+        case 39: "'"
+        case 40: "k"
+        case 41: ";"
+        case 42: "\\"
+        case 43: ","
+        case 44: "/"
+        case 45: "n"
+        case 46: "m"
+        case 47: "."
+        case 48: "tab"
+        case 49: "spc"
+        case 50: "`"
+        case 51: "bspc"
+        case 53: "esc"
+        case 55: "lmet"
+        case 56: "lsft"
+        case 57: "caps"
+        case 58: "lalt"
+        case 59: "lctl"
+        case 60: "rsft"
+        case 61: "ralt"
+        case 62: "rctl"
+        case 63: "fn"
+        case 96: "f5"
+        case 97: "f6"
+        case 98: "f7"
+        case 99: "f3"
+        case 100: "f8"
+        case 101: "f9"
+        case 103: "f11"
+        case 105: "f13"
+        case 107: "f14"
+        case 109: "f10"
+        case 111: "f12"
+        case 113: "f15"
+        case 118: "f4"
+        case 119: "end"
+        case 120: "f2"
+        case 121: "pgdn"
+        case 122: "f1"
+        case 123: "left"
+        case 124: "right"
+        case 125: "down"
+        case 126: "up"
+        default: "k\(keyCode)"
+        }
+
+        return prefix + keyName
+    }
+
+    func startInputRecording() {
+        isRecordingInput = true
+        inputSequence = nil
+        inputKeyCode = nil
+        inputLabel = "..."
+        statusMessage = "Press keys (sequence supported)"
+        statusIsError = false
+        startCapture(isInput: true)
+    }
+
+    func startOutputRecording() {
+        // Save current output state before recording (for restore on cancel)
+        savedOutputLabel = outputLabel
+        savedOutputSequence = outputSequence
+        savedSelectedApp = selectedApp
+        savedSelectedSystemAction = selectedSystemAction
+
+        isRecordingOutput = true
+        outputSequence = nil
+        outputLabel = "..."
+        // Clear system action/app so keycap shows recording state
+        selectedSystemAction = nil
+        selectedApp = nil
+        statusMessage = "Press keys (sequence supported)"
+        statusIsError = false
+        startCapture(isInput: false)
+    }
+
+    private func startCapture(isInput: Bool) {
+        // Create keyboard capture if needed
+        if keyboardCapture == nil {
+            keyboardCapture = KeyboardCapture()
+        }
+
+        guard let capture = keyboardCapture else {
+            AppLogger.shared.error("❌ [MapperViewModel] Failed to create KeyboardCapture")
+            stopRecording()
+            return
+        }
+
+        // Use sequence mode for multi-key support
+        capture.startSequenceCapture(mode: .sequence) { [weak self] sequence in
+            guard let self else { return }
+
+            Task { @MainActor in
+                // Update the captured sequence (streaming updates)
+                if isInput {
+                    self.inputSequence = sequence
+                    self.inputLabel = sequence.displayString
+                    // Store first key's keyCode for overlay-style rendering
+                    // Guard against negative keyCodes (e.g., -1 for modifier-only keys or unknown keys)
+                    if let firstKey = sequence.keys.first,
+                       firstKey.keyCode >= 0,
+                       firstKey.keyCode <= Int64(UInt16.max)
+                    {
+                        let keyCode = UInt16(firstKey.keyCode)
+                        self.inputKeyCode = keyCode
+
+                        // Look up current mapping for this key and update output
+                        self.lookupAndSetOutput(forKeyCode: keyCode)
+                    }
+                } else {
+                    self.outputSequence = sequence
+                    self.outputLabel = sequence.displayString
+                }
+
+                // Reset finalize timer - wait for more keys
+                self.finalizeTimer?.invalidate()
+                self.finalizeTimer = Timer.scheduledTimer(
+                    withTimeInterval: self.sequenceFinalizeDelay,
+                    repeats: false
+                ) { [weak self] _ in
+                    Task { @MainActor in
+                        self?.finalizeCapture()
+                    }
+                }
+            }
+        }
+    }
+
+    /// Look up the current output for a key code from the overlay's layer map
+    private func lookupAndSetOutput(forKeyCode keyCode: UInt16) {
+        // Clear any selected app/system action since we're switching keys
+        selectedApp = nil
+        selectedSystemAction = nil
+        selectedURL = nil
+
+        let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
+
+        // Look up the current mapping from the overlay controller
+        if let mapping = LiveKeyboardOverlayController.shared.lookupCurrentMapping(forKeyCode: keyCode) {
+            let info = mapping.info
+
+            if let appIdentifier = info.appLaunchIdentifier,
+               let appInfo = appLaunchInfo(for: appIdentifier)
+            {
+                selectedApp = appInfo
+                outputLabel = appInfo.name
+                outputSequence = nil
+                originalAppIdentifier = appIdentifier
+                originalSystemActionIdentifier = nil
+                originalURL = nil
+                AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is app launch: \(appInfo.name)")
+            } else if let url = info.urlIdentifier {
+                selectedURL = url
+                outputLabel = extractDomain(from: url)
+                outputSequence = nil
+                originalURL = url
+                originalAppIdentifier = nil
+                originalSystemActionIdentifier = nil
+                AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is URL: \(url)")
+            } else if let systemId = info.systemActionIdentifier,
+                      let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel)
+            {
+                selectedSystemAction = systemAction
+                outputLabel = systemAction.name
+                outputSequence = nil
+                originalSystemActionIdentifier = systemId
+                originalAppIdentifier = nil
+                originalURL = nil
+                AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is system action: \(systemAction.name)")
+            } else if let outputKey = info.outputKey {
+                outputLabel = formatKeyForDisplay(outputKey)
+                outputSequence = KeySequence(
+                    keys: [KeyPress(baseKey: outputKey, modifiers: [], keyCode: 0)],
+                    captureMode: .single
+                )
+                originalAppIdentifier = nil
+                originalSystemActionIdentifier = nil
+                originalURL = nil
+            } else {
+                // Fallback: use displayLabel as the output key
+                outputLabel = info.displayLabel
+                let outputKey = info.displayLabel.lowercased()
+                outputSequence = KeySequence(
+                    keys: [KeyPress(baseKey: outputKey, modifiers: [], keyCode: 0)],
+                    captureMode: .single
+                )
+                originalAppIdentifier = nil
+                originalSystemActionIdentifier = nil
+                originalURL = nil
+            }
+
+            // Store original context for reset
+            originalInputKey = inputKey
+            originalOutputKey = info.outputKey ?? info.displayLabel
+            originalLayer = mapping.layer
+            currentLayer = mapping.layer
+
+            AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) maps to: \(outputLabel) in layer \(currentLayer)")
+        } else {
+            // No mapping found - default to key maps to itself
+            outputLabel = formatKeyForDisplay(inputKey)
+            outputSequence = KeySequence(
+                keys: [KeyPress(baseKey: inputKey, modifiers: [], keyCode: 0)],
+                captureMode: .single
+            )
+            originalInputKey = inputKey
+            originalOutputKey = inputKey
+        }
+    }
+
+    private func finalizeCapture() {
+        finalizeTimer?.invalidate()
+        finalizeTimer = nil
+
+        // Stop recording but keep the captured sequence
+        keyboardCapture?.stopCapture()
+        isRecordingInput = false
+        isRecordingOutput = false
+        statusMessage = nil
+
+        AppLogger.shared.log("🎯 [MapperViewModel] finalizeCapture: canSave=\(canSave) selectedApp=\(selectedApp?.name ?? "nil") inputSeq=\(inputSequence?.displayString ?? "nil")")
+
+        // Auto-save when input is captured and we have either output or app/system action/URL
+        if canSave, let manager = kanataManager {
+            Task {
+                if selectedURL != nil {
+                    // URL mapping
+                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveURLMapping")
+                    await saveURLMapping(kanataManager: manager)
+                } else if selectedApp != nil {
+                    // App launch mapping
+                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveAppLaunchMapping")
+                    await saveAppLaunchMapping(kanataManager: manager)
+                } else if selectedSystemAction != nil {
+                    // System action mapping
+                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveSystemActionMapping")
+                    await saveSystemActionMapping(kanataManager: manager)
+                } else {
+                    // Key-to-key mapping
+                    await save(kanataManager: manager)
+                }
+            }
+        }
+    }
+
+    func stopRecording() {
+        finalizeTimer?.invalidate()
+        finalizeTimer = nil
+        keyboardCapture?.stopCapture()
+
+        let wasRecordingOutput = isRecordingOutput
+        let wasRecordingMacro = isRecordingMacro
+        isRecordingInput = false
+        isRecordingOutput = false
+        isRecordingMacro = false
+
+        // If we stopped without capturing anything, restore previous state
+        if inputSequence == nil {
+            inputLabel = "A"
+            inputKeyCode = 0 // Default to A key
+        }
+
+        // For output: restore saved state if nothing was captured during this recording session
+        if wasRecordingOutput, outputSequence == nil {
+            // Restore previous output state
+            if let savedLabel = savedOutputLabel {
+                outputLabel = savedLabel
+                outputSequence = savedOutputSequence
+                selectedApp = savedSelectedApp
+                selectedSystemAction = savedSelectedSystemAction
+            } else {
+                // No saved state, default to "A"
+                outputLabel = "A"
+            }
+        }
+
+        // Clear saved state
+        savedOutputLabel = nil
+        savedOutputSequence = nil
+        savedSelectedApp = nil
+        savedSelectedSystemAction = nil
+
+        if wasRecordingMacro {
+            if macroBehavior == nil || macroBehavior?.effectiveOutputs.isEmpty == true {
+                macroBehavior = savedMacroBehavior
+            }
+            savedMacroBehavior = nil
+        }
+
+        statusMessage = nil
+    }
+
+    func stopKeyCapture() {
+        stopRecording()
+        keyboardCapture = nil
+    }
+
+    func save(kanataManager: RuntimeCoordinator) async {
+        guard let inputSeq = inputSequence,
+              let outputSeq = outputSequence,
+              !inputSeq.isEmpty,
+              !outputSeq.isEmpty
+        else {
+            statusMessage = "Capture both input and output first"
+            statusIsError = true
+            return
+        }
+
+        // Skip identity mappings (A→A) - no point in saving a rule that does nothing
+        // Also skip if user hasn't changed anything from defaults
+        let inputKey = convertSequenceToKanataFormat(inputSeq).lowercased()
+        let outputKey = convertSequenceToKanataFormat(outputSeq).lowercased()
+        let hasAdvancedBehavior = advancedBehavior.hasAdvancedConfig
+        if inputKey == outputKey,
+           selectedApp == nil,
+           selectedSystemAction == nil,
+           selectedURL == nil,
+           !hasAdvancedBehavior
+        {
+            statusMessage = "Nothing to save - input and output are the same"
+            statusIsError = true
+            return
+        }
+
+        isSaving = true
+        statusMessage = nil
+
+        // Check if this is an app-specific mapping
+        if let appCondition = selectedAppCondition {
+            let inputKanata = convertSequenceToKanataFormat(inputSeq)
+            let outputKanata = convertSequenceToKanataFormat(outputSeq)
+
+            let success = await saveAppSpecificMapping(
+                inputKey: inputKanata,
+                outputAction: outputKanata,
+                appCondition: appCondition,
+                kanataManager: kanataManager
+            )
+
+            if success {
+                statusMessage = "✓ Saved"
+                statusIsError = false
+                SoundPlayer.shared.playSuccessSound()
+                AppLogger.shared.log("✅ [MapperViewModel] Saved app-specific mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [only in \(appCondition.displayName)]")
+            } else {
+                statusMessage = "Failed to save app-specific rule"
+                statusIsError = true
+            }
+
+            isSaving = false
+            return
+        }
+
+        // Global mapping (no app condition)
+        do {
+            // Use the existing config generator for complex sequences
+            let configGenerator = KanataConfigGenerator(kanataManager: kanataManager)
+            let generatedConfig = try await configGenerator.generateMapping(
+                input: inputSeq,
+                output: outputSeq
+            )
+            try await kanataManager.saveGeneratedConfiguration(generatedConfig)
+
+            // Also save as custom rule for UI visibility
+            let inputKanata = convertSequenceToKanataFormat(inputSeq)
+            let outputKanata = convertSequenceToKanataFormat(outputSeq)
+
+            // Convert currentLayer string to RuleCollectionLayer
+            let targetLayer = layerFromString(currentLayer)
+
+            // Use makeCustomRule to reuse existing rule ID for the same input key
+            // This prevents duplicate keys in defsrc which causes Kanata validation errors
+            var customRule = kanataManager.makeCustomRule(input: inputKanata, output: outputKanata)
+            customRule.notes = "Created via Mapper [\(currentLayer) layer]"
+            customRule.targetLayer = targetLayer
+
+            // Add behavior based on configured actions
+            // Priority: macro → dualRole → tap-dance → chord
+            // (UI should prevent conflicting behaviors from being set simultaneously)
+            if let macroBehavior, macroBehavior.isValid {
+                customRule.behavior = .macro(macroBehavior)
+                AppLogger.shared.log("💾 [MapperViewModel] Adding macro behavior")
+            } else if !holdAction.isEmpty {
+                let dualRole = DualRoleBehavior(
+                    tapAction: outputKanata,
+                    holdAction: holdAction,
+                    tapTimeout: tapTimeout,
+                    holdTimeout: holdTimeout,
+                    activateHoldOnOtherKey: holdBehavior == .triggerEarly,
+                    quickTap: holdBehavior == .quickTap,
+                    customTapKeys: holdBehavior == .customKeys ? customTapKeysText.split(separator: " ").map(String.init) : []
+                )
+                customRule.behavior = .dualRole(dualRole)
+                AppLogger.shared.log("💾 [MapperViewModel] Adding dualRole behavior: tap='\(outputKanata)', hold='\(holdAction)'")
+            } else if !doubleTapAction.isEmpty || tapDanceSteps.contains(where: { !$0.action.isEmpty }) {
+                // Build tap-dance steps: single tap + double tap + any additional steps
+                var steps = [
+                    TapDanceStep(label: "Single tap", action: outputKanata),
+                    TapDanceStep(label: "Double tap", action: doubleTapAction)
+                ]
+                // Add any additional tap-dance steps (triple tap, etc.)
+                for step in advancedBehavior.tapDanceSteps where !step.action.isEmpty {
+                    steps.append(TapDanceStep(label: step.label, action: step.action))
+                }
+                let tapDance = TapDanceBehavior(windowMs: tapTimeout, steps: steps)
+                customRule.behavior = .tapOrTapDance(.tapDance(tapDance))
+                AppLogger.shared.log("💾 [MapperViewModel] Adding tapDance behavior: \(steps.count) steps")
+            } else if advancedBehavior.hasValidCombo {
+                // Build chord from input key + combo keys
+                var allKeys = [inputKanata]
+                allKeys.append(contentsOf: advancedBehavior.comboKeys)
+                let chord = ChordBehavior(
+                    keys: allKeys,
+                    output: advancedBehavior.comboOutput,
+                    timeout: advancedBehavior.comboTimeout
+                )
+                customRule.behavior = .chord(chord)
+                AppLogger.shared.log("💾 [MapperViewModel] Adding chord behavior: keys=\(allKeys), output='\(chord.output)'")
+            }
+
+            let customRuleSaved = await kanataManager.saveCustomRule(customRule, skipReload: true)
+            AppLogger.shared.log("💾 [MapperViewModel] saveCustomRule returned: \(customRuleSaved)")
+
+            if customRuleSaved {
+                // Track the saved rule ID for potential clearing
+                lastSavedRuleID = customRule.id
+
+                // Notify overlay to rebuild layer mapping (since saveGeneratedConfiguration
+                // doesn't go through onRulesChanged, we post the notification explicitly)
+                AppLogger.shared.info("🔔 [MapperViewModel] Posting kanataConfigChanged notification (input='\(inputKanata)', output='\(outputKanata)', layer='\(targetLayer)')")
+                NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+
+                statusMessage = "✓ Saved"
+                statusIsError = false
+                AppLogger.shared.log("✅ [MapperViewModel] Saved mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [layer: \(currentLayer)] (ruleID: \(customRule.id))")
+            } else {
+                // Custom rule save failed (validation or conflict)
+                statusMessage = "Rule save failed"
+                statusIsError = true
+                AppLogger.shared.error("❌ [MapperViewModel] saveCustomRule returned false for input='\(inputKanata)', output='\(outputKanata)'")
+            }
+        } catch {
+            statusMessage = "Failed: \(error.localizedDescription)"
+            statusIsError = true
+            AppLogger.shared.error("❌ [MapperViewModel] Save failed: \(error)")
+        }
+
+        isSaving = false
+    }
+
+    private func reset() {
+        inputLabel = "A"
+        outputLabel = "A"
+        inputKeyCode = 0 // Default to A key
+        // Reset to default A key sequences so save works without capturing input first
+        inputSequence = Self.defaultAKeySequence
+        outputSequence = Self.defaultAKeySequence
+        selectedApp = nil
+        selectedSystemAction = nil
+        selectedURL = nil
+        selectedAppCondition = nil
+        statusMessage = nil
+        // Reset all advanced behavior settings
+        advancedBehavior.reset()
+    }
+
+    /// Reset for a new mapping but preserve selectedAppCondition
+    /// Used when adding a new rule to a specific app
+    func resetForNewMapping() {
+        inputLabel = "A"
+        outputLabel = "A"
+        inputKeyCode = 0 // Default to A key
+        inputSequence = Self.defaultAKeySequence
+        outputSequence = Self.defaultAKeySequence
+        selectedApp = nil
+        selectedSystemAction = nil
+        selectedURL = nil
+        // Keep selectedAppCondition - don't reset it
+        statusMessage = nil
+    }
+
+    /// Clear all values, delete the saved rule, and reset to original key context (or default)
+    func clear() {
+        stopRecording()
+        selectedApp = nil
+        selectedSystemAction = nil
+        selectedURL = nil
+
+        // Delete the saved rule if we have one, otherwise try to resolve by input
+        if let manager = kanataManager {
+            if let ruleID = lastSavedRuleID {
+                Task {
+                    await manager.removeCustomRule(withID: ruleID)
+                    // Note: .kanataConfigChanged notification is posted by onRulesChanged callback
+                    AppLogger.shared.log("🧹 [MapperViewModel] Deleted rule \(ruleID)")
+                }
+                lastSavedRuleID = nil
+            } else if let inputKanata = currentInputKanataString() {
+                // Use makeCustomRule to reuse existing rule ID for this input (if any)
+                let probeRule = manager.makeCustomRule(input: inputKanata, output: "xx")
+                Task {
+                    await manager.removeCustomRule(withID: probeRule.id)
+                    AppLogger.shared.log("🧹 [MapperViewModel] Deleted rule by input \(inputKanata) (id: \(probeRule.id))")
+                }
+            }
+        }
+
+        // Reset to original key context if opened from overlay, otherwise default
+        if let origInput = originalInputKey, let origOutput = originalOutputKey {
+            // Re-apply the original presets
+            inputLabel = formatKeyForDisplay(origInput)
+            inputSequence = KeySequence(
+                keys: [KeyPress(baseKey: origInput, modifiers: [], keyCode: 0)],
+                captureMode: .single
+            )
+
+            if let appIdentifier = originalAppIdentifier,
+               let appInfo = appLaunchInfo(for: appIdentifier)
+            {
+                selectedApp = appInfo
+                outputLabel = appInfo.name
+                outputSequence = nil
+            } else if let url = originalURL {
+                selectedURL = url
+                outputLabel = extractDomain(from: url)
+                outputSequence = nil
+            } else if let systemActionId = originalSystemActionIdentifier,
+                      let systemAction = SystemActionInfo.find(byOutput: systemActionId)
+            {
+                selectedSystemAction = systemAction
+                outputLabel = systemAction.name
+                outputSequence = nil
+            } else if let systemAction = SystemActionInfo.find(byOutput: origOutput) {
+                selectedSystemAction = systemAction
+                outputLabel = systemAction.name
+                outputSequence = nil
+            } else {
+                outputLabel = formatKeyForDisplay(origOutput)
+                outputSequence = KeySequence(
+                    keys: [KeyPress(baseKey: origOutput, modifiers: [], keyCode: 0)],
+                    captureMode: .single
+                )
+            }
+
+            statusMessage = nil
+            AppLogger.shared.log("🧹 [MapperViewModel] Reset to original key: \(origInput) → \(origOutput)")
+        } else {
+            // No context - reset to default
+            reset()
+            AppLogger.shared.log("🧹 [MapperViewModel] Cleared mapping (no key context)")
+        }
+    }
+
+    /// Revert to keystroke mode - clears any actions and resets output to match input
+    /// Used when switching from system action/app/URL back to plain keystroke
+    func revertToKeystroke() {
+        stopRecording()
+
+        // Clear all actions
+        selectedApp = nil
+        selectedSystemAction = nil
+        selectedURL = nil
+
+        // Reset output to match input (identity mapping: A→A)
+        outputLabel = inputLabel
+        outputSequence = inputSequence
+
+        // Delete the saved rule if we have one
+        if let manager = kanataManager {
+            if let ruleID = lastSavedRuleID {
+                Task {
+                    await manager.removeCustomRule(withID: ruleID)
+                    // Post notification to update keyboard
+                    NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+                    AppLogger.shared.log("🧹 [MapperViewModel] Reverted to keystroke, deleted rule \(ruleID)")
+                }
+                lastSavedRuleID = nil
+            } else if let inputKanata = currentInputKanataString() {
+                // Try to delete by input key
+                let probeRule = manager.makeCustomRule(input: inputKanata, output: "xx")
+                Task {
+                    await manager.removeCustomRule(withID: probeRule.id)
+                    // Post notification to update keyboard
+                    NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+                    AppLogger.shared.log("🧹 [MapperViewModel] Reverted to keystroke, deleted rule by input \(inputKanata)")
+                }
+            }
+        }
+
+        statusMessage = "✓ Reverted to keystroke"
+    }
+
+    /// Reset entire keyboard by clearing all custom rules (preserves rule collections)
+    func resetAllToDefaults(kanataManager: RuntimeCoordinator) async {
+        stopRecording()
+
+        // Clear all custom rules but preserve rule collections
+        await kanataManager.clearAllCustomRules()
+
+        // Reset local state
+        reset()
+        lastSavedRuleID = nil
+        originalInputKey = nil
+        originalOutputKey = nil
+        originalLayer = nil
+        currentLayer = "base"
+
+        // Post notification to update keyboard
+        NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+
+        statusMessage = "✓ Custom rules cleared"
+        statusIsError = false
+        AppLogger.shared.log("🔄 [MapperViewModel] Cleared all custom rules (collections preserved)")
+    }
+
+    /// Open file picker to select an app for launch action
+    func pickAppForOutput() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.message = "Select an application to launch"
+        panel.prompt = "Select"
+
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+
+            Task { @MainActor in
+                self?.handleSelectedApp(at: url)
+            }
+        }
+    }
+
+    func appLaunchInfo(for identifier: String) -> AppLaunchInfo? {
+        let workspace = NSWorkspace.shared
+        if let url = workspace.urlForApplication(withBundleIdentifier: identifier) {
+            return buildAppLaunchInfo(from: url)
+        }
+
+        // Fallback: treat identifier as an app name and look in common locations.
+        let candidates = [
+            URL(fileURLWithPath: "/Applications/\(identifier).app"),
+            URL(fileURLWithPath: "/System/Applications/\(identifier).app")
+        ]
+
+        for url in candidates where FileManager.default.fileExists(atPath: url.path) {
+            return buildAppLaunchInfo(from: url)
+        }
+
+        return nil
+    }
+
+    private func buildAppLaunchInfo(from url: URL) -> AppLaunchInfo {
+        let appName = url.deletingPathExtension().lastPathComponent
+        let bundle = Bundle(url: url)
+        let bundleIdentifier = bundle?.bundleIdentifier
+
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        icon.size = NSSize(width: 64, height: 64) // Reasonable size for display
+
+        return AppLaunchInfo(
+            name: appName,
+            bundleIdentifier: bundleIdentifier,
+            icon: icon
+        )
+    }
+
+    /// Process the selected app and update output
+    private func handleSelectedApp(at url: URL) {
+        let appInfo = buildAppLaunchInfo(from: url)
+
+        selectedApp = appInfo
+        selectedSystemAction = nil // Clear any system action selection
+        selectedURL = nil
+        outputLabel = appInfo.name
+        outputSequence = nil // Clear any key sequence output
+
+        AppLogger.shared.log("📱 [MapperViewModel] Selected app: \(appInfo.name) (\(appInfo.bundleIdentifier ?? "no bundle ID"))")
+        AppLogger.shared.log("📱 [MapperViewModel] kanataOutput will be: \(appInfo.kanataOutput)")
+
+        // Auto-save if input is already set
+        if let manager = kanataManager, inputSequence != nil {
+            AppLogger.shared.log("📱 [MapperViewModel] Input already set, auto-saving...")
+            Task {
+                await saveAppLaunchMapping(kanataManager: manager)
+            }
+        } else {
+            AppLogger.shared.log("📱 [MapperViewModel] Waiting for input to be recorded (inputSequence=\(inputSequence?.displayString ?? "nil"), manager=\(kanataManager != nil ? "set" : "nil"))")
+        }
+    }
+
+}

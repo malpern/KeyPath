@@ -89,7 +89,10 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
 
         let output = KanataConfiguration.generateFromCollections([launcherCollection])
 
-        assertContains(output, "(multi (push-msg \"launch:calculator\") (push-msg \"layer:base\"))")
+        assertContains(
+            output,
+            "(multi (push-msg \"launch:com.apple.calculator\") (push-msg \"layer:base\"))"
+        )
         assertContains(output, "(multi XX (push-msg \"layer:base\"))")
     }
 
