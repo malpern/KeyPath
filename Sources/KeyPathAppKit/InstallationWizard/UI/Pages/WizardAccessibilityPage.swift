@@ -515,6 +515,7 @@ struct WizardAccessibilityPage: View {
 
 // MARK: - Preview
 
+#if DEBUG
 struct WizardAccessibilityPage_Previews: PreviewProvider {
     static var previews: some View {
         let manager = RuntimeCoordinator()
@@ -578,3 +579,4 @@ struct WizardAccessibilityPage_Previews: PreviewProvider {
         .environmentObject(stateMachine)
     }
 }
+#endif

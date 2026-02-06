@@ -596,6 +596,7 @@ struct CleanupStep: View {
 
 // MARK: - Preview
 
+#if DEBUG
 struct WizardInputMonitoringPage_Previews: PreviewProvider {
     static var previews: some View {
         let manager = RuntimeCoordinator()
@@ -663,3 +664,4 @@ struct WizardInputMonitoringPage_Previews: PreviewProvider {
         .environmentObject(stateMachine)
     }
 }
+#endif
