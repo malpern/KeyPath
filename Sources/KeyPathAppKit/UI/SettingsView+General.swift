@@ -248,6 +248,9 @@ struct GeneralSettingsTabView: View {
                             .accessibilityIdentifier("settings-reset-overlay-size-button")
                             .accessibilityLabel("Reset Overlay Size")
                         }
+
+                        // Context HUD Settings
+                        ContextHUDSettingsSection()
                     }
 
                     Spacer()

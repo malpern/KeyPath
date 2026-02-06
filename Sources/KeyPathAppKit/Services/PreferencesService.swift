@@ -16,6 +16,43 @@ enum CommunicationProtocol: String, CaseIterable {
     }
 }
 
+/// Display mode for the Context HUD
+enum ContextHUDDisplayMode: String, CaseIterable {
+    case overlayOnly
+    case hudOnly
+    case both
+
+    var displayName: String {
+        switch self {
+        case .overlayOnly: "Overlay Only"
+        case .hudOnly: "HUD Only"
+        case .both: "Both"
+        }
+    }
+}
+
+/// How the overlay/HUD is triggered when the modifier (Hyper/Meh) is activated
+enum ContextHUDTriggerMode: String, CaseIterable {
+    /// Show while holding modifier, dismiss on release
+    case holdToShow
+    /// Tap modifier to toggle visibility on/off
+    case tapToToggle
+
+    var displayName: String {
+        switch self {
+        case .holdToShow: "Hold to Show"
+        case .tapToToggle: "Tap to Toggle"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .holdToShow: "Appears while holding, dismisses on release"
+        case .tapToToggle: "Tap to show, tap again or press Esc to dismiss"
+        }
+    }
+}
+
 /// Manages KeyPath application preferences and settings
 @Observable
 final class PreferencesService: @unchecked Sendable {
@@ -131,6 +168,37 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    // MARK: - Context HUD Configuration
+
+    /// Display mode for the Context HUD (overlay only, HUD only, or both)
+    var contextHUDDisplayMode: ContextHUDDisplayMode {
+        didSet {
+            UserDefaults.standard.set(contextHUDDisplayMode.rawValue, forKey: Keys.contextHUDDisplayMode)
+            AppLogger.shared.log("🎯 [Preferences] contextHUDDisplayMode = \(contextHUDDisplayMode.rawValue)")
+        }
+    }
+
+    /// How the HUD/overlay is triggered by the modifier key
+    var contextHUDTriggerMode: ContextHUDTriggerMode {
+        didSet {
+            UserDefaults.standard.set(contextHUDTriggerMode.rawValue, forKey: Keys.contextHUDTriggerMode)
+            AppLogger.shared.log("🎯 [Preferences] contextHUDTriggerMode = \(contextHUDTriggerMode.rawValue)")
+        }
+    }
+
+    /// Auto-dismiss timeout for the Context HUD (seconds, 1-10)
+    var contextHUDTimeout: TimeInterval {
+        didSet {
+            let clamped = min(max(contextHUDTimeout, 1), 10)
+            if clamped != contextHUDTimeout {
+                contextHUDTimeout = clamped
+            } else {
+                UserDefaults.standard.set(contextHUDTimeout, forKey: Keys.contextHUDTimeout)
+                AppLogger.shared.log("🎯 [Preferences] contextHUDTimeout = \(contextHUDTimeout)s")
+            }
+        }
+    }
+
     // MARK: - Keys
 
     private enum Keys {
@@ -143,6 +211,9 @@ final class PreferencesService: @unchecked Sendable {
         static let activityLoggingEnabled = "KeyPath.ActivityLogging.Enabled"
         static let activityLoggingConsentDate = "KeyPath.ActivityLogging.ConsentDate"
         static let leaderKeyPreference = "KeyPath.LeaderKey.Preference"
+        static let contextHUDDisplayMode = "KeyPath.ContextHUD.DisplayMode"
+        static let contextHUDTriggerMode = "KeyPath.ContextHUD.TriggerMode"
+        static let contextHUDTimeout = "KeyPath.ContextHUD.Timeout"
     }
 
     // MARK: - Defaults
@@ -155,6 +226,9 @@ final class PreferencesService: @unchecked Sendable {
         static let isSequenceMode = true
         static let verboseKanataLogging = false // Off by default to avoid log spam
         static let activityLoggingEnabled = false // Requires explicit opt-in
+        static let contextHUDDisplayMode = ContextHUDDisplayMode.both
+        static let contextHUDTriggerMode = ContextHUDTriggerMode.holdToShow
+        static let contextHUDTimeout: TimeInterval = 3.0
     }
 
     // MARK: - Initialization
@@ -205,6 +279,20 @@ final class PreferencesService: @unchecked Sendable {
         } else {
             leaderKeyPreference = .default
         }
+
+        // Context HUD preferences
+        let hudModeString = UserDefaults.standard.string(forKey: Keys.contextHUDDisplayMode)
+            ?? Defaults.contextHUDDisplayMode.rawValue
+        contextHUDDisplayMode = ContextHUDDisplayMode(rawValue: hudModeString)
+            ?? Defaults.contextHUDDisplayMode
+
+        let triggerModeString = UserDefaults.standard.string(forKey: Keys.contextHUDTriggerMode)
+            ?? Defaults.contextHUDTriggerMode.rawValue
+        contextHUDTriggerMode = ContextHUDTriggerMode(rawValue: triggerModeString)
+            ?? Defaults.contextHUDTriggerMode
+
+        contextHUDTimeout = UserDefaults.standard.object(forKey: Keys.contextHUDTimeout) as? TimeInterval
+            ?? Defaults.contextHUDTimeout
 
         AppLogger.shared.log(
             "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), TCP port: \(tcpServerPort), Verbose logging: \(verboseKanataLogging), Activity logging: \(activityLoggingEnabled)"

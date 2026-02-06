@@ -546,6 +546,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 ruleCollectionsManager: kanataManager?.rulesManager
             )
 
+            // Initialize Context HUD controller (sets up notification observers)
+            _ = ContextHUDController.shared
+
             // Defer all window fronting until the first applicationDidBecomeActive event
             // to avoid AppKit display-cycle reentrancy during initial layout.
 

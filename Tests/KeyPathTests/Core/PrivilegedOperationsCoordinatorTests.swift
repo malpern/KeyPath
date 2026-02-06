@@ -133,7 +133,10 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 
         let coordinator = PrivilegedOperationsCoordinator.shared
 
-        await XCTAssertThrowsErrorAsync(try coordinator.terminateProcess(pid: 0)) { error in
+        do {
+            try await coordinator.terminateProcess(pid: 0)
+            XCTFail("Expected terminateProcess to throw for invalid PID")
+        } catch {
             guard case let PrivilegedOperationError.operationFailed(message) = error else {
                 XCTFail("Expected operationFailed error, got \(error)")
                 return
