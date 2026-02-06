@@ -41,6 +41,7 @@ final class WizardDeterminismTests: XCTestCase {
 
         let result = SystemContextAdapter.adapt(context)
         let engine = WizardNavigationEngine()
+        engine.markFDAPageShown()
 
         // When determining the page twice for the same inputs
         let first = await engine.determineCurrentPage(for: result.state, issues: result.issues)
@@ -71,6 +72,7 @@ final class WizardDeterminismTests: XCTestCase {
         let readyResult = SystemContextAdapter.adapt(readyContext)
 
         let engine = WizardNavigationEngine()
+        engine.markFDAPageShown()
 
         // When routing each snapshot
         let conflictPage = await engine.determineCurrentPage(

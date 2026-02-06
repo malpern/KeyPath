@@ -33,7 +33,11 @@ class WizardNavigationEngineTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        engine = WizardNavigationEngine()
+        let newEngine = WizardNavigationEngine()
+        engine = newEngine
+        await MainActor.run {
+            newEngine.markFDAPageShown()
+        }
 
         // Save original factory and inject mock that reports helper as enabled
         // This prevents tests from routing to .helper page unexpectedly
