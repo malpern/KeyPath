@@ -150,8 +150,7 @@ struct OutputKeyboardWithAnimatedSymbols: View {
     /// Get the target frame for a symbol - either its mapped key position or the parking area
     private func targetFrameFor(_ symbol: String) -> CGRect {
         if let targetKey = symbolTargets[symbol],
-           let frame = keycapFrames[targetKey]
-        {
+           let frame = keycapFrames[targetKey] {
             return frame
         }
         return parkingFrame

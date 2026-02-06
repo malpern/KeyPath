@@ -114,8 +114,7 @@ extension RuleCollectionsManager {
             // Extract user-friendly error message
             let userMessage = if let keyPathError = error as? KeyPathError,
                                  case let .configuration(configError) = keyPathError,
-                                 case let .validationFailed(errors) = configError
-            {
+                                 case let .validationFailed(errors) = configError {
                 "Configuration validation failed:\n\n" + errors.joined(separator: "\n")
             } else {
                 "Failed to save configuration: \(error.localizedDescription)"

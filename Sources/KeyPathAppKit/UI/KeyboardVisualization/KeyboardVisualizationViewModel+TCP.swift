@@ -495,8 +495,7 @@ extension KeyboardVisualizationViewModel {
             : false
 
         if FeatureFlags.keyboardSuppressionDebugEnabled,
-           let mappedOutput = remapOutputMap.first(where: { $0.value == keyCode })
-        {
+           let mappedOutput = remapOutputMap.first(where: { $0.value == keyCode }) {
             AppLogger.shared.debug(
                 """
                 🔄 [KeyboardViz] KeyInput \(key)(\(keyCode)): isRemapOutput=true, \

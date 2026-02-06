@@ -59,8 +59,7 @@ extension InstallationWizardView {
 
     /// Get detailed error message for specific auto-fix failures
     func getDetailedErrorMessage(for action: AutoFixAction, actionDescription _: String)
-        async -> String
-    {
+        async -> String {
         AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
 
         var message = AutoFixActionDescriptions.errorMessage(for: action)

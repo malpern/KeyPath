@@ -450,8 +450,7 @@ extension LayerKeyMapper {
 
         // Spacebar output should render blank
         if normalizedSet.count == 1, let only = normalizedSet.first,
-           ["space", "spacebar", "spc", "sp"].contains(only)
-        {
+           ["space", "spacebar", "spc", "sp"].contains(only) {
             return ""
         }
 

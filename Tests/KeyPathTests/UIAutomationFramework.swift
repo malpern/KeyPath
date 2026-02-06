@@ -182,8 +182,7 @@ public class UIAutomationFramework {
     }
 
     private func executeInputCapture(_ input: String, uiState _: UIStateSnapshot) async
-        -> CaptureResult
-    {
+        -> CaptureResult {
         log(.inputCapture, "Capturing input key: \(input)")
 
         // Start input recording
@@ -201,8 +200,7 @@ public class UIAutomationFramework {
     }
 
     private func executeOutputCapture(_ output: String, uiState _: UIStateSnapshot) async
-        -> CaptureResult
-    {
+        -> CaptureResult {
         log(.outputCapture, "Capturing output key: \(output)")
 
         // Start output recording

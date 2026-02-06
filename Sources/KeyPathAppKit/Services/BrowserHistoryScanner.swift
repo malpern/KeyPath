@@ -471,8 +471,7 @@ actor BrowserHistoryScanner {
         if let data = try? Data(contentsOf: URL(fileURLWithPath: localStatePath)),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let profile = json["profile"] as? [String: Any],
-           let infoCache = profile["info_cache"] as? [String: Any]
-        {
+           let infoCache = profile["info_cache"] as? [String: Any] {
             for profileDir in infoCache.keys.sorted() {
                 let path = "\(basePath)/\(profileDir)/History"
                 if FileManager.default.fileExists(atPath: path) {

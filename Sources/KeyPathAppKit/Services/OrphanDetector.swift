@@ -162,7 +162,7 @@ final class OrphanDetector {
                     .appendingPathComponent("Library/Logs/KeyPath"), true),
                 (FileManager.default.homeDirectoryForCurrentUser
                     .appendingPathComponent("Library/Preferences")
-                    .appendingPathComponent("com.keypath.KeyPath.plist"), true),
+                    .appendingPathComponent("com.keypath.KeyPath.plist"), true)
             ]
 
             for (path, canCleanWhileRunning) in pathsToClean {

@@ -226,8 +226,7 @@ struct WizardKarabinerComponentsPage: View {
 
         Task {
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
-               nextPage != stateMachine.currentPage
-            {
+               nextPage != stateMachine.currentPage {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)

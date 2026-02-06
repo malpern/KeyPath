@@ -624,8 +624,7 @@ extension OverlayKeycapView {
             // Standard function key layout: SF symbol on top, F-key label below
             let sfSymbol: String? = {
                 if let info = layerKeyInfo,
-                   let outputSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel)
-                {
+                   let outputSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel) {
                     return outputSymbol
                 }
                 // Fall back to physical key code

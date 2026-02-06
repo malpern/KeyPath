@@ -42,8 +42,7 @@ extension InstallationWizardView {
             if showSpinner, await MainActor.run(body: { asyncOperationManager.hasRunningOperations }) {
                 AppLogger.shared.log("🔍 [Wizard] Refresh waiting for in-flight operations")
                 while !Task.isCancelled,
-                      await MainActor.run(body: { asyncOperationManager.hasRunningOperations })
-                {
+                      await MainActor.run(body: { asyncOperationManager.hasRunningOperations }) {
                     _ = await WizardSleep.ms(200)
                 }
             }
@@ -153,8 +152,7 @@ extension InstallationWizardView {
     }
 
     func preferredDetailPage(for state: WizardSystemState, issues: [WizardIssue])
-        async -> WizardPage?
-    {
+        async -> WizardPage? {
         let page = await stateMachine.navigationEngine.determineCurrentPage(
             for: state, issues: issues
         )
@@ -174,8 +172,7 @@ extension InstallationWizardView {
     }
 
     func sanitizedIssues(from issues: [WizardIssue], for state: WizardSystemState)
-        -> [WizardIssue]
-    {
+        -> [WizardIssue] {
         guard shouldSuppressCommunicationIssues(for: state) else {
             return issues
         }
@@ -208,8 +205,7 @@ extension InstallationWizardView {
         } else if shouldAutoNavigate {
             Task {
                 if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
-                   stateMachine.currentPage != preferred
-                {
+                   stateMachine.currentPage != preferred {
                     AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
                     stateMachine.navigateToPage(preferred)
                 }

@@ -129,7 +129,7 @@ final class TapHoldMiniKeycapStateTests: XCTestCase {
 
     func testRecordingStates() {
         // Test that recording state can be tracked per field
-        var recordingField: String? = nil
+        var recordingField: String?
 
         // Initially no recording
         XCTAssertNil(recordingField, "Initially no field should be recording")
@@ -185,7 +185,7 @@ final class TapDanceStepManagementTests: XCTestCase {
     func testRemoveTapDanceStep() {
         var steps: [(label: String, action: String)] = [
             (label: "Triple Tap", action: "a"),
-            (label: "Quad Tap", action: "b"),
+            (label: "Quad Tap", action: "b")
         ]
 
         // Remove first step
@@ -196,7 +196,7 @@ final class TapDanceStepManagementTests: XCTestCase {
 
     func testClearTapDanceStepAction() {
         var steps: [(label: String, action: String)] = [
-            (label: "Triple Tap", action: "lmet"),
+            (label: "Triple Tap", action: "lmet")
         ]
 
         // Clear action
@@ -207,7 +207,7 @@ final class TapDanceStepManagementTests: XCTestCase {
 
     func testSetTapDanceStepAction() {
         var steps: [(label: String, action: String)] = [
-            (label: "Triple Tap", action: ""),
+            (label: "Triple Tap", action: "")
         ]
 
         // Set action

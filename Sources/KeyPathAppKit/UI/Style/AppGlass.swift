@@ -198,8 +198,7 @@ struct AppButtonGlass: ViewModifier {
 
 extension View {
     func appButtonGlass(tint: Color = .accentColor, radius: CGFloat = 8, active: Bool = true)
-        -> some View
-    {
+        -> some View {
         modifier(AppButtonGlass(tint: tint, radius: radius, active: active))
     }
 }

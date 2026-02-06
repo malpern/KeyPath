@@ -72,8 +72,7 @@ public final class AppLogger {
         // Determine minimum log level (environment variable override > parameter > default)
         if let envLevel = ProcessInfo.processInfo.environment["KEYPATH_LOG_LEVEL"],
            let levelInt = Int(envLevel),
-           let level = AppLogLevel(rawValue: levelInt)
-        {
+           let level = AppLogLevel(rawValue: levelInt) {
             self.minimumLevel = level
         } else {
             self.minimumLevel = minimumLevel ?? AppLogLevel.defaultMinimumLevel
@@ -88,12 +87,10 @@ public final class AppLogger {
 
         // Use overrides for tests first, then fall back to standard macOS log directory
         if let explicitOverride = ProcessInfo.processInfo.environment["KEYPATH_LOG_DIR_OVERRIDE"],
-           !explicitOverride.isEmpty
-        {
+           !explicitOverride.isEmpty {
             logDirectory = explicitOverride
         } else if let homeOverride = ProcessInfo.processInfo.environment["KEYPATH_HOME_DIR_OVERRIDE"],
-                  !homeOverride.isEmpty
-        {
+                  !homeOverride.isEmpty {
             logDirectory = homeOverride + "/Library/Logs/KeyPath"
         } else {
             logDirectory = NSHomeDirectory() + "/Library/Logs/KeyPath"

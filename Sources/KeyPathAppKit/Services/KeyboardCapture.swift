@@ -471,8 +471,7 @@ public class KeyboardCapture: ObservableObject {
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {
             if last.baseKey == keyPress.baseKey,
                last.modifiers == keyPress.modifiers,
-               now.timeIntervalSince(lastAt) <= dedupWindow
-            {
+               now.timeIntervalSince(lastAt) <= dedupWindow {
                 AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate keyDown: \(keyName)")
                 return
             }
@@ -530,8 +529,7 @@ public class KeyboardCapture: ObservableObject {
 
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {
             if last.baseKey == keyPress.baseKey,
-               now.timeIntervalSince(lastAt) <= dedupWindow
-            {
+               now.timeIntervalSince(lastAt) <= dedupWindow {
                 AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate flagsChanged: \(keyName)")
                 return
             }
@@ -593,8 +591,7 @@ public class KeyboardCapture: ObservableObject {
         // De-dup identical events
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {
             if last.baseKey == keyPress.baseKey,
-               now.timeIntervalSince(lastAt) <= dedupWindow
-            {
+               now.timeIntervalSince(lastAt) <= dedupWindow {
                 AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate mediaKey: \(keyName!)")
                 return
             }

@@ -299,8 +299,7 @@ final class CustomRuleValidatorTests: XCTestCase {
 
         // Common keys like lmet should appear before less common ones
         if let lmetIndex = suggestions.firstIndex(of: "lmet"),
-           let leftIndex = suggestions.firstIndex(of: "left")
-        {
+           let leftIndex = suggestions.firstIndex(of: "left") {
             // Both should be present
             XCTAssertNotNil(lmetIndex)
             XCTAssertNotNil(leftIndex)

@@ -219,8 +219,7 @@ final class LayerKeyMapperTests: XCTestCase {
         let fileManager = FileManager.default
         if let env = ProcessInfo.processInfo.environment["KEYPATH_SIMULATOR_PATH"],
            !env.isEmpty,
-           fileManager.fileExists(atPath: env)
-        {
+           fileManager.fileExists(atPath: env) {
             return env
         }
 

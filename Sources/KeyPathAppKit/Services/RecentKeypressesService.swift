@@ -157,8 +157,7 @@ final class RecentKeypressesService: ObservableObject {
         if key == lastConsecutiveKey,
            let startTime = consecutiveKeyStartTime,
            let lastTimestamp = consecutivePressTimestamps.last,
-           timestamp.timeIntervalSince(lastTimestamp) < consecutiveWindow
-        {
+           timestamp.timeIntervalSince(lastTimestamp) < consecutiveWindow {
             // Same key pressed again within window
             consecutiveKeyCount += 1
             consecutivePressTimestamps.append(timestamp)

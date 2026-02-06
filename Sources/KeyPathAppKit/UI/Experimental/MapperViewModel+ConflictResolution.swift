@@ -320,8 +320,7 @@ extension MapperViewModel {
                     // Guard against negative keyCodes (e.g., -1 for modifier-only keys or unknown keys)
                     if let firstKey = sequence.keys.first,
                        firstKey.keyCode >= 0,
-                       firstKey.keyCode <= Int64(UInt16.max)
-                    {
+                       firstKey.keyCode <= Int64(UInt16.max) {
                         let keyCode = UInt16(firstKey.keyCode)
                         self.inputKeyCode = keyCode
 
@@ -361,8 +360,7 @@ extension MapperViewModel {
             let info = mapping.info
 
             if let appIdentifier = info.appLaunchIdentifier,
-               let appInfo = appLaunchInfo(for: appIdentifier)
-            {
+               let appInfo = appLaunchInfo(for: appIdentifier) {
                 selectedApp = appInfo
                 outputLabel = appInfo.name
                 outputSequence = nil
@@ -379,8 +377,7 @@ extension MapperViewModel {
                 originalSystemActionIdentifier = nil
                 AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is URL: \(url)")
             } else if let systemId = info.systemActionIdentifier,
-                      let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel)
-            {
+                      let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel) {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil
@@ -536,8 +533,7 @@ extension MapperViewModel {
            selectedApp == nil,
            selectedSystemAction == nil,
            selectedURL == nil,
-           !hasAdvancedBehavior
-        {
+           !hasAdvancedBehavior {
             statusMessage = "Nothing to save - input and output are the same"
             statusIsError = true
             return
@@ -736,8 +732,7 @@ extension MapperViewModel {
             )
 
             if let appIdentifier = originalAppIdentifier,
-               let appInfo = appLaunchInfo(for: appIdentifier)
-            {
+               let appInfo = appLaunchInfo(for: appIdentifier) {
                 selectedApp = appInfo
                 outputLabel = appInfo.name
                 outputSequence = nil
@@ -746,8 +741,7 @@ extension MapperViewModel {
                 outputLabel = extractDomain(from: url)
                 outputSequence = nil
             } else if let systemActionId = originalSystemActionIdentifier,
-                      let systemAction = SystemActionInfo.find(byOutput: systemActionId)
-            {
+                      let systemAction = SystemActionInfo.find(byOutput: systemActionId) {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil

@@ -52,8 +52,7 @@ public actor LaunchDaemonPIDCache {
         // Check if cache is still valid
         if let lastUpdate,
            let cachedPID,
-           Date().timeIntervalSince(lastUpdate) < cacheTimeout
-        {
+           Date().timeIntervalSince(lastUpdate) < cacheTimeout {
             AppLogger.shared.log(
                 "💾 [PIDCache] Using cached PID: \(cachedPID) (age: \(Int(Date().timeIntervalSince(lastUpdate)))s)"
             )

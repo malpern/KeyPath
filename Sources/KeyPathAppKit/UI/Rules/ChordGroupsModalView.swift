@@ -79,8 +79,7 @@ struct ChordGroupsModalView: View {
                     onSave: { updated in
                         if let groupIndex = selectedGroupIndex,
                            let chordIndex = localConfig.groups[groupIndex].chords
-                           .firstIndex(where: { $0.id == editingChord.id })
-                        {
+                           .firstIndex(where: { $0.id == editingChord.id }) {
                             localConfig.groups[groupIndex].chords[chordIndex] = updated
                         }
                         showChordEditor = false

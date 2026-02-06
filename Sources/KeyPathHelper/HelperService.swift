@@ -987,8 +987,7 @@ extension HelperService {
     }
 
     private static func generateKanataPlist(binaryPath: String, cfgPath: String, tcpPort: Int)
-        -> String
-    {
+        -> String {
         let args = kanataArguments(binaryPath: binaryPath, cfgPath: cfgPath, tcpPort: tcpPort)
         let argsXML = args.map { "                <string>\($0)</string>" }.joined(separator: "\n")
         return """

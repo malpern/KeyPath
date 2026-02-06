@@ -253,8 +253,7 @@ extension RuleCollectionsManager {
 
         // Update the mapping based on selected output (skip for Leader Key which has no mappings)
         if let config = ruleCollections[index].configuration.singleKeyPickerConfig,
-           config.inputKey != "leader"
-        {
+           config.inputKey != "leader" {
             let description = config.presetOptions.first { $0.output == output }?.label ?? "Custom"
             ruleCollections[index].mappings = [KeyMapping(input: config.inputKey, output: output, description: description)]
         }
@@ -559,8 +558,7 @@ extension RuleCollectionsManager {
         AppLogger.shared.log("💾 [CustomRules] saveCustomRule called: id=\(rule.id), input='\(rule.input)', output='\(rule.output)'")
 
         if rule.isEnabled,
-           let conflict = conflictInfo(for: rule)
-        {
+           let conflict = conflictInfo(for: rule) {
             // Show conflict resolution dialog
             let context = RuleConflictContext(
                 newRule: .customRule(rule),
@@ -622,8 +620,7 @@ extension RuleCollectionsManager {
         guard let existing = customRules.first(where: { $0.id == id }) else { return }
 
         if isEnabled,
-           let conflict = conflictInfo(for: existing)
-        {
+           let conflict = conflictInfo(for: existing) {
             // Show conflict resolution dialog
             let context = RuleConflictContext(
                 newRule: .customRule(existing),

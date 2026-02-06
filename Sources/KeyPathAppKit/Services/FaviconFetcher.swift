@@ -261,8 +261,7 @@ final class FaviconFetcher {
 
             // Check HTTP response
             if let httpResponse = response as? HTTPURLResponse,
-               httpResponse.statusCode != 200
-            {
+               httpResponse.statusCode != 200 {
                 AppLogger.shared.debug("🌐 [FaviconFetcher] HTTP \(httpResponse.statusCode) for \(url)")
                 return nil
             }

@@ -1311,8 +1311,7 @@ class ConfigurationServiceTests: XCTestCase {
             XCTFail("writeConfigurationContent should throw for empty content")
         } catch let error as KeyPathError {
             if case let .configuration(configError) = error,
-               case let .invalidFormat(reason) = configError
-            {
+               case let .invalidFormat(reason) = configError {
                 XCTAssertTrue(reason.contains("empty"), "Error should mention empty content")
             } else {
                 XCTFail("Unexpected error type: \(error)")
@@ -1337,8 +1336,7 @@ class ConfigurationServiceTests: XCTestCase {
             XCTFail("writeConfigurationContent should throw for invalid structure")
         } catch let error as KeyPathError {
             if case let .configuration(configError) = error,
-               case let .invalidFormat(reason) = configError
-            {
+               case let .invalidFormat(reason) = configError {
                 XCTAssertTrue(reason.contains("defsrc") || reason.contains("deflayer"),
                               "Error should mention missing defsrc/deflayer")
             } else {

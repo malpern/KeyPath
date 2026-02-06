@@ -36,8 +36,7 @@ public class KanataConfigGenerator {
 
         // Try to load from the project directory
         if let projectRoot = getProjectRoot(),
-           let content = try? String(contentsOfFile: "\(projectRoot)/\(configPath)", encoding: .utf8)
-        {
+           let content = try? String(contentsOfFile: "\(projectRoot)/\(configPath)", encoding: .utf8) {
             AppLogger.shared.log("✅ [ConfigGenerator] Loaded Kanata config guide from project")
             return content
         }
@@ -320,8 +319,7 @@ public class KanataConfigGenerator {
         // Extract and log usage for cost tracking
         if let usage = jsonResponse["usage"] as? [String: Any],
            let inputTokens = usage["input_tokens"] as? Int,
-           let outputTokens = usage["output_tokens"] as? Int
-        {
+           let outputTokens = usage["output_tokens"] as? Int {
             await AICostTracker.shared.trackUsage(
                 inputTokens: inputTokens,
                 outputTokens: outputTokens,

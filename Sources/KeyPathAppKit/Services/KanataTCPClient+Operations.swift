@@ -36,8 +36,7 @@ extension KanataTCPClient {
             // Check if first line indicates error
             if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
                let status = json["status"] as? String,
-               status.lowercased() == "error"
-            {
+               status.lowercased() == "error" {
                 let errorMsg = json["msg"] as? String ?? "Hello request failed"
                 throw KeyPathError.communication(.connectionFailed(reason: errorMsg))
             }
@@ -71,8 +70,7 @@ extension KanataTCPClient {
 
                 if let json = try? JSONSerialization.jsonObject(with: nextLine) as? [String: Any],
                    let status = json["status"] as? String,
-                   status.lowercased() == "error"
-                {
+                   status.lowercased() == "error" {
                     let errorMsg = json["msg"] as? String ?? "Hello request failed"
                     throw KeyPathError.communication(.connectionFailed(reason: errorMsg))
                 }
@@ -198,8 +196,7 @@ extension KanataTCPClient {
             // Check if first line indicates error
             if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
                let status = json["status"] as? String,
-               status.lowercased() == "error"
-            {
+               status.lowercased() == "error" {
                 let errorMsg = json["msg"] as? String ?? "Reload failed"
                 AppLogger.shared.log("❌ [TCP] Reload failed: \(errorMsg)")
                 return .failure(error: errorMsg, response: firstLineStr)
@@ -283,8 +280,7 @@ extension KanataTCPClient {
 
             // Parse response
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-               let status = json["status"] as? String
-            {
+               let status = json["status"] as? String {
                 if status.lowercased() == "ok" {
                     AppLogger.shared.log("✅ [TCP] ActOnFakeKey success: \(name)")
                     return .success
@@ -333,8 +329,7 @@ extension KanataTCPClient {
 
             // Parse response
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-               let status = json["status"] as? String
-            {
+               let status = json["status"] as? String {
                 if status.lowercased() == "ok" {
                     AppLogger.shared.log("✅ [TCP] ChangeLayer success: \(layerName)")
                     return .success
