@@ -354,43 +354,52 @@ private struct DrawerLayerChip: View {
 
 // MARK: - Preview
 
-#Preview("App Rule Card") {
-    VStack(spacing: 12) {
-        AppRuleCard(
-            keymap: AppKeymap(
-                mapping: AppKeyMapping(
-                    bundleIdentifier: "com.openai.chat",
-                    displayName: "ChatGPT",
-                    virtualKeyName: "vk_chatgpt"
-                ),
-                overrides: [
-                    AppKeyOverride(inputKey: "a", outputAction: "b"),
-                    AppKeyOverride(inputKey: "j", outputAction: "down"),
-                    AppKeyOverride(inputKey: "k", outputAction: "up")
-                ]
-            ),
-            onEdit: { _ in },
-            onDelete: { _ in },
-            onAddRule: {}
-        )
-
-        AppRuleCard(
-            keymap: AppKeymap(
-                mapping: AppKeyMapping(
-                    bundleIdentifier: "net.shinyfrog.bear",
-                    displayName: "Bear",
-                    virtualKeyName: "vk_bear"
-                ),
-                overrides: [
-                    AppKeyOverride(inputKey: "h", outputAction: "left")
-                ]
-            ),
-            onEdit: { _ in },
-            onDelete: { _ in },
-            onAddRule: {}
-        )
-    }
+#Preview("App Rule Card - Populated") {
+    AppRuleCard(
+        keymap: PreviewFixtures.appKeymapsPopulated[0],
+        onEdit: { _ in },
+        onDelete: { _ in },
+        onAddRule: {}
+    )
     .padding()
-    .frame(width: 240)
+    .frame(width: 260)
+    .background(Color.black.opacity(0.8))
+}
+
+#Preview("App Rule Card - Minimal") {
+    AppRuleCard(
+        keymap: AppKeymap(
+            mapping: AppKeyMapping(
+                bundleIdentifier: "com.apple.TextEdit",
+                displayName: "TextEdit",
+                virtualKeyName: "vk_textedit"
+            ),
+            overrides: [AppKeyOverride(inputKey: "f", outputAction: "home")]
+        ),
+        onEdit: { _ in },
+        onDelete: { _ in },
+        onAddRule: {}
+    )
+    .padding()
+    .frame(width: 260)
+    .background(Color.black.opacity(0.8))
+}
+
+#Preview("App Rule Card - Empty Overrides") {
+    AppRuleCard(
+        keymap: AppKeymap(
+            mapping: AppKeyMapping(
+                bundleIdentifier: "com.apple.finder",
+                displayName: "Finder",
+                virtualKeyName: "vk_finder"
+            ),
+            overrides: []
+        ),
+        onEdit: { _ in },
+        onDelete: { _ in },
+        onAddRule: {}
+    )
+    .padding()
+    .frame(width: 260)
     .background(Color.black.opacity(0.8))
 }

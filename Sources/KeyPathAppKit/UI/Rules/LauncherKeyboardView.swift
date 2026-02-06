@@ -170,3 +170,14 @@ struct LauncherKeyboardView: View {
     .padding()
     .background(Color(white: 0.1))
 }
+
+#Preview("Launcher Keyboard - Unmapped") {
+    LauncherKeyboardView(
+        config: .constant(LauncherGridConfig(activationMode: .holdHyper, mappings: [])),
+        selectedKey: nil,
+        onKeyClicked: { _ in }
+    )
+    .frame(width: 700, height: 250)
+    .padding()
+    .background(Color(white: 0.08))
+}

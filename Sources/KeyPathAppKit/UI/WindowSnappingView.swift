@@ -662,3 +662,13 @@ private struct PermissionStatusBanner: View {
     .frame(width: 400)
     .padding()
 }
+
+#Preview("Window Snapping - Vim") {
+    WindowSnappingView(
+        mappings: [],
+        convention: .vim,
+        onConventionChange: { _ in }
+    )
+    .frame(width: 400)
+    .padding()
+}

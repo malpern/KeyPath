@@ -104,3 +104,30 @@ struct StatusMessageView: View {
         }
     }
 }
+
+#Preview("Status Message - Success") {
+    StatusMessageView(
+        message: "Mapping applied successfully\nKanata restarted with updated config.",
+        isVisible: true
+    )
+    .padding()
+    .frame(width: 620)
+}
+
+#Preview("Status Message - Warning") {
+    StatusMessageView(
+        message: "⚠️ Config repaired\nA backup was saved before applying fixes.",
+        isVisible: true
+    )
+    .padding()
+    .frame(width: 620)
+}
+
+#Preview("Status Message - Error") {
+    StatusMessageView(
+        message: "❌ Failed to save mapping\nPermission denied writing keypath.kbd.",
+        isVisible: true
+    )
+    .padding()
+    .frame(width: 620)
+}

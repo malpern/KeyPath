@@ -436,3 +436,67 @@ struct CustomRuleRow: View {
         return prefix + result.capitalized
     }
 }
+
+#if DEBUG
+    #Preview("Custom Rules - Empty") {
+        CustomRulesListView(
+            rules: [],
+            appKeymaps: [],
+            onToggleRule: { _, _ in },
+            onEditRule: { _ in },
+            onDeleteRule: { _ in },
+            onDeleteAppRule: { _, _ in }
+        )
+        .frame(width: 760, height: 420)
+    }
+
+    #Preview("Custom Rules - Populated") {
+        CustomRulesListView(
+            rules: PreviewFixtures.customRulesPopulated,
+            appKeymaps: PreviewFixtures.appKeymapsPopulated,
+            onToggleRule: { _, _ in },
+            onEditRule: { _ in },
+            onDeleteRule: { _ in },
+            onDeleteAppRule: { _, _ in }
+        )
+        .frame(width: 760, height: 500)
+    }
+
+    #Preview("Custom Rules - Inline Error") {
+        struct InlineErrorPreview: View {
+            @State var inputKey = "caps"
+            @State var outputKey = "esc"
+            @State var title = "Escape"
+            @State var notes = ""
+            @State var inlineError: String? = "Rule already exists."
+
+            var body: some View {
+                CustomRulesInlineEditor(
+                    inputKey: $inputKey,
+                    outputKey: $outputKey,
+                    title: $title,
+                    notes: $notes,
+                    inlineError: $inlineError,
+                    keyOptions: ["a", "j", "k", "caps", "esc"],
+                    onAddRule: {}
+                )
+                .frame(width: 760)
+                .padding()
+            }
+        }
+
+        return InlineErrorPreview()
+    }
+
+    #Preview("Custom Rules - App Rules Only") {
+        CustomRulesListView(
+            rules: [],
+            appKeymaps: PreviewFixtures.appKeymapsPopulated,
+            onToggleRule: { _, _ in },
+            onEditRule: { _ in },
+            onDeleteRule: { _ in },
+            onDeleteAppRule: { _, _ in }
+        )
+        .frame(width: 760, height: 420)
+    }
+#endif

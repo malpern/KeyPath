@@ -765,7 +765,7 @@ private struct FloatingKeymapLabel: View {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Overlay Keyboard - Pressed Keys") {
     OverlayKeyboardView(
         layout: .macBookUS,
         keymap: .qwertyUS,
@@ -775,4 +775,16 @@ private struct FloatingKeymapLabel: View {
     .padding()
     .frame(width: 600, height: 250)
     .background(Color(white: 0.1))
+}
+
+#Preview("Overlay Keyboard - Empty Dark") {
+    OverlayKeyboardView(
+        layout: .macBookUS,
+        keymap: .colemakDH,
+        includeKeymapPunctuation: true,
+        pressedKeyCodes: []
+    )
+    .padding()
+    .frame(width: 600, height: 250)
+    .background(Color.black)
 }

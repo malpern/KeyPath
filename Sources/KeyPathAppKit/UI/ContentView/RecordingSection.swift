@@ -131,3 +131,15 @@ struct RecordingSection: View {
         .accessibilityLabel("Output key recording section")
     }
 }
+
+#Preview("Recording Section - Idle") {
+    let coordinator = RecordingCoordinator()
+    RecordingSection(
+        coordinator: coordinator,
+        onInputRecord: {},
+        onOutputRecord: {},
+        onShowMessage: { _ in }
+    )
+    .frame(width: 640)
+    .padding()
+}

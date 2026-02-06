@@ -69,3 +69,45 @@ struct ContentViewHeader: View {
         // Transparent background - no glass header
     }
 }
+
+#Preview("Content Header - Base") {
+    struct HeaderPreview: View {
+        @State var showingInstallationWizard = false
+        let controller = MainAppStateController()
+
+        var body: some View {
+            ContentViewHeader(
+                validator: controller,
+                showingInstallationWizard: $showingInstallationWizard,
+                onWizardRequest: {},
+                layerIndicatorVisible: false,
+                currentLayerName: "base"
+            )
+            .frame(width: 760)
+            .padding()
+        }
+    }
+
+    return HeaderPreview()
+}
+
+#Preview("Content Header - Layer Active") {
+    struct HeaderLayerPreview: View {
+        @State var showingInstallationWizard = false
+        let controller = MainAppStateController()
+
+        var body: some View {
+            ContentViewHeader(
+                validator: controller,
+                showingInstallationWizard: $showingInstallationWizard,
+                onWizardRequest: {},
+                layerIndicatorVisible: true,
+                currentLayerName: "nav"
+            )
+            .frame(width: 760)
+            .padding()
+        }
+    }
+
+    return HeaderLayerPreview()
+}

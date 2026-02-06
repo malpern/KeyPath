@@ -405,3 +405,48 @@ struct MappingBehaviorEditor: View {
     }
     return PreviewWrapper()
 }
+
+#Preview("Behavior Editor - Dual Role") {
+    struct DualRolePreviewWrapper: View {
+        @State var output = "esc"
+        @State var behavior: MappingBehavior? = .dualRole(
+            DualRoleBehavior(
+                tapAction: "esc",
+                holdAction: "lctl",
+                tapTimeout: 180,
+                holdTimeout: 180
+            )
+        )
+
+        var body: some View {
+            MappingBehaviorEditor(output: $output, behavior: $behavior)
+                .padding()
+                .frame(width: 420)
+        }
+    }
+    return DualRolePreviewWrapper()
+}
+
+#Preview("Behavior Editor - Tap Dance") {
+    struct TapDancePreviewWrapper: View {
+        @State var output = "a"
+        @State var behavior: MappingBehavior? = .tapOrTapDance(
+            .tapDance(
+                TapDanceBehavior(
+                    windowMs: 220,
+                    steps: [
+                        TapDanceStep(label: "Single", action: "a"),
+                        TapDanceStep(label: "Double", action: "esc")
+                    ]
+                )
+            )
+        )
+
+        var body: some View {
+            MappingBehaviorEditor(output: $output, behavior: $behavior)
+                .padding()
+                .frame(width: 420)
+        }
+    }
+    return TapDancePreviewWrapper()
+}

@@ -86,3 +86,63 @@ struct DiagnosticSummaryView: View {
         )
     }
 }
+
+#Preview("Diagnostic Summary - Single Critical") {
+    DiagnosticSummaryView(
+        criticalIssues: [
+            KanataDiagnostic(
+                timestamp: Date(),
+                severity: .critical,
+                category: .permissions,
+                title: "Input Monitoring Missing",
+                description: "KeyPath does not have Input Monitoring permission.",
+                technicalDetails: "IOHID access denied",
+                suggestedAction: "Grant Input Monitoring access",
+                canAutoFix: false
+            )
+        ],
+        onViewDiagnostics: {}
+    )
+    .frame(width: 680)
+    .padding()
+}
+
+#Preview("Diagnostic Summary - Multiple") {
+    DiagnosticSummaryView(
+        criticalIssues: [
+            KanataDiagnostic(
+                timestamp: Date(),
+                severity: .critical,
+                category: .permissions,
+                title: "Input Monitoring Missing",
+                description: "KeyPath does not have Input Monitoring permission.",
+                technicalDetails: "IOHID access denied",
+                suggestedAction: "Grant Input Monitoring access",
+                canAutoFix: false
+            ),
+            KanataDiagnostic(
+                timestamp: Date(),
+                severity: .error,
+                category: .process,
+                title: "Service Not Running",
+                description: "kanata launch daemon is not active.",
+                technicalDetails: "launchctl returned status 3",
+                suggestedAction: "Restart service",
+                canAutoFix: true
+            ),
+            KanataDiagnostic(
+                timestamp: Date(),
+                severity: .warning,
+                category: .configuration,
+                title: "Config Backup Created",
+                description: "A fallback config is active.",
+                technicalDetails: "Previous parse failed",
+                suggestedAction: "Review generated config",
+                canAutoFix: false
+            )
+        ],
+        onViewDiagnostics: {}
+    )
+    .frame(width: 680)
+    .padding()
+}

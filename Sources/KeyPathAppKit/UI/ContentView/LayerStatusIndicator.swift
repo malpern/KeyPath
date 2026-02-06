@@ -27,3 +27,13 @@ struct LayerStatusIndicator: View {
         .accessibilityValue(isBaseLayer ? "Base" : currentLayerName)
     }
 }
+
+#Preview("Layer Indicator - Base") {
+    LayerStatusIndicator(currentLayerName: "base")
+        .padding()
+}
+
+#Preview("Layer Indicator - Nav") {
+    LayerStatusIndicator(currentLayerName: "nav")
+        .padding()
+}

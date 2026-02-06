@@ -329,3 +329,14 @@ private struct DrawerMappingRow: View {
     )
     .frame(width: 280, height: 500)
 }
+
+#Preview("Launcher Drawer - Empty") {
+    LauncherDrawerView(
+        config: .constant(LauncherGridConfig(activationMode: .holdHyper, mappings: [])),
+        selectedKey: .constant(nil),
+        onAddMapping: {},
+        onEditMapping: { _ in },
+        onDeleteMapping: { _ in }
+    )
+    .frame(width: 280, height: 420)
+}

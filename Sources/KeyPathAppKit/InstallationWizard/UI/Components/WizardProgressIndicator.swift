@@ -167,6 +167,11 @@ struct WizardProgressIndicator_Previews: PreviewProvider {
                 progress: 0.6,
                 isIndeterminate: false
             )
+
+            WizardProgressIndicator(
+                title: "Completed",
+                progress: 1.0
+            )
         }
         .padding()
         .frame(width: 500)
