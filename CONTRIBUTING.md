@@ -29,6 +29,32 @@ open .build/debug/KeyPath.app
 
 That's it! You're ready to contribute.
 
+## Security Reporting
+
+For potential vulnerabilities, do **not** open a public issue.
+
+- Preferred: GitHub Security Advisory
+  - https://github.com/malpern/KeyPath/security/advisories/new
+- Fallback: malpern@gmail.com
+
+See `/Users/malpern/local-code/KeyPath/SECURITY.md` for full policy and response expectations.
+
+## Community Build Mode vs Release Build
+
+Community contributors can run most checks without signing credentials:
+
+```bash
+swift build
+KEYPATH_USE_SUDO=0 swift test
+./Scripts/run-tests-safe.sh
+```
+
+Release/distribution validation requires signed/notarized artifacts and Apple credentials:
+
+- `./build.sh` release pipeline
+- notarization + signature checks
+- final privileged install validation on real machines
+
 ## I Want To...
 
 ### Add a keyboard shortcut

@@ -372,6 +372,22 @@ When running outside the repository, the same script is bundled at `KeyPath.app/
 
 We welcome contributions! KeyPath is designed to make keyboard remapping accessible to everyone, and contributions help make it better.
 
+### Community Build Mode (No Apple Credentials Required)
+
+External contributors can build and run most code paths without signing/notarization credentials:
+
+```bash
+swift build
+KEYPATH_USE_SUDO=0 swift test
+./Scripts/run-tests-safe.sh
+```
+
+What still requires Apple credentials / signed artifacts:
+
+- Notarized distribution bundles via `./build.sh`
+- Full privileged install surface validation on non-test machines
+- End-to-end release signing/notary smoke with real certificates
+
 ### Quick Start for Contributors
 
 ```bash
@@ -402,6 +418,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines, architecture ove
 - **[Architecture Overview](ARCHITECTURE.md)** - Deep dive into system design and architecture decisions
 - **[Tap-Hold & Tap-Dance Guide](docs/TAP_HOLD_TAP_DANCE.md)** - Advanced key behaviors (dual-role, tap-dance)
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to KeyPath
+- **[Code of Conduct](CODE_OF_CONDUCT.md)** - Community participation standards
+- **[Security Policy](SECURITY.md)** - Private vulnerability disclosure process
+- **[Changelog](CHANGELOG.md)** - Release-facing change history
 - **[Debugging Guide](docs/DEBUGGING_KANATA.md)** - Advanced troubleshooting and diagnostics
 - **[FAQ](docs/FAQ.md)** - Frequently asked questions
 
@@ -417,6 +436,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - **Unit & integration tests:** `./Scripts/run-tests-safe.sh` – configures an isolated module cache (`.build-ci/ModuleCache.noindex`) so SwiftPM never tries to write to `~/.cache` (which can be blocked on shared machines).
 - **Full developer suite:** `./test.sh` – wraps the safe runner and then executes the higher-level integration scripts.
+- **Coverage baseline (local):**
+  - `swift test --enable-code-coverage --filter KeyPathErrorTests`
+  - `swift test --enable-code-coverage --filter PermissionOracleTests`
+  - `./Scripts/generate-coverage.sh coverage`
 - **CI-full replicator:** `CI_INTEGRATION_TESTS=true ./Scripts/archive/run-core-tests.sh` – runs the Unit, Core, and IntegrationTestSuite buckets defined in `run-core-tests.sh`; by default the CI runs with `CI_INTEGRATION_TESTS=false`, so set this flag manually (or adjust CI) when you need the deeper installer/privileged coverage to execute alongside unit/core tests.
 - **SMAppService sanity check:** `./Scripts/verify-kanata-plist.sh` – use before distributing a build (CI runs it against `Sources/KeyPath/com.keypath.kanata.plist`).
 
