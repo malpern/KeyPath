@@ -35,107 +35,42 @@ struct CustomRulesView: View {
         }
     }
 
-    /// Whether there are any rules to display (either custom rules or app-specific)
-    private var hasAnyRules: Bool {
-        !sortedRules.isEmpty || !appKeymaps.isEmpty
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Custom Rules")
-                        .font(.headline)
-                    Text("These rules stay separate from presets so you can manage them independently.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
+            CustomRulesToolbarView()
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
 
             Divider()
 
-            inlineEditor
+            CustomRulesInlineEditor(
+                inputKey: $newInputKey,
+                outputKey: $newOutputKey,
+                title: $newTitle,
+                notes: $newNotes,
+                inlineError: $inlineError,
+                keyOptions: Self.inlineKeyOptions,
+                onAddRule: addInlineRule
+            )
                 .padding(.horizontal, 18)
                 .padding(.vertical, 12)
 
             Divider()
 
-            if !hasAnyRules {
-                VStack(spacing: 20) {
-                    VStack(spacing: 12) {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 48, weight: .ultraLight))
-                            .foregroundColor(.secondary.opacity(0.3))
-
-                        VStack(spacing: 4) {
-                            Text("No Custom Rules Yet")
-                                .font(.title3)
-                                .fontWeight(.medium)
-                                .foregroundColor(.primary)
-
-                            Text("Create personalized key mappings")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                    }
+            CustomRulesListView(
+                rules: sortedRules,
+                appKeymaps: appKeymaps,
+                onToggleRule: { rule, isOn in
+                    _ = Task { await kanataManager.toggleCustomRule(rule.id, enabled: isOn) }
+                },
+                onEditRule: openRuleInDrawer,
+                onDeleteRule: { rule in
+                    pendingDeleteRule = rule
+                },
+                onDeleteAppRule: { keymap, override in
+                    pendingDeleteAppRule = (keymap, override)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(40)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        // MARK: - Everywhere Section
-
-                        if !sortedRules.isEmpty {
-                            RulesSectionHeader(
-                                title: "Everywhere",
-                                systemImage: "globe",
-                                subtitle: "These rules apply in all apps"
-                            )
-                            .padding(.horizontal, 16)
-
-                            ForEach(sortedRules) { rule in
-                                CustomRuleRow(
-                                    rule: rule,
-                                    onToggle: { isOn in
-                                        _ = Task { await kanataManager.toggleCustomRule(rule.id, enabled: isOn) }
-                                    },
-                                    onEditInDrawer: {
-                                        openRuleInDrawer(rule)
-                                    },
-                                    onDelete: {
-                                        pendingDeleteRule = rule
-                                    }
-                                )
-                                .padding(.horizontal, 16)
-                            }
-                        }
-
-                        // MARK: - App-Specific Sections
-
-                        ForEach(appKeymaps) { keymap in
-                            AppRulesSectionHeader(keymap: keymap)
-                                .padding(.horizontal, 16)
-                                .padding(.top, sortedRules.isEmpty ? 0 : 8)
-
-                            ForEach(keymap.overrides) { override in
-                                AppRuleRow(
-                                    keymap: keymap,
-                                    override: override,
-                                    onDelete: {
-                                        pendingDeleteAppRule = (keymap, override)
-                                    }
-                                )
-                                .padding(.horizontal, 16)
-                            }
-                        }
-                    }
-                    .padding(.vertical, 12)
-                }
-            }
+            )
         }
         .onAppear {
             loadAppKeymaps()
@@ -190,84 +125,6 @@ struct CustomRulesView: View {
     }
 
     // MARK: - Helper Methods
-
-    private var inlineEditor: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Quick Add")
-                .font(.subheadline.weight(.medium))
-
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                InlineKeyField(
-                    title: "Input",
-                    text: $newInputKey,
-                    options: Self.inlineKeyOptions,
-                    fieldWidth: 200,
-                    textFieldIdentifier: "custom-rules-inline-input",
-                    menuIdentifier: "custom-rules-inline-input-menu"
-                )
-
-                Text("→")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .padding(.top, 18)
-
-                InlineKeyField(
-                    title: "Output",
-                    text: $newOutputKey,
-                    options: Self.inlineKeyOptions,
-                    fieldWidth: 240,
-                    textFieldIdentifier: "custom-rules-inline-output",
-                    menuIdentifier: "custom-rules-inline-output-menu"
-                )
-
-                Button {
-                    addInlineRule()
-                } label: {
-                    Label("Add Rule", systemImage: "plus.circle.fill")
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("custom-rules-inline-add-button")
-                .accessibilityLabel("Add custom rule")
-                .padding(.top, 18)
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Name (optional)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                    TextField("", text: $newTitle)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 240)
-                        .accessibilityIdentifier("custom-rules-inline-title")
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Notes (optional)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                    TextField("", text: $newNotes, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 320)
-                        .lineLimit(1 ... 3)
-                        .accessibilityIdentifier("custom-rules-inline-notes")
-                }
-            }
-
-            Text("Tip: type modifiers like C-a or M-k, or space-separated sequences.")
-                .font(.caption2)
-                .foregroundColor(.secondary)
-
-            if let inlineError {
-                Text(inlineError)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .accessibilityIdentifier("custom-rules-inline-error")
-            }
-        }
-    }
 
     private func addInlineRule() {
         inlineError = nil
@@ -354,6 +211,198 @@ struct CustomRulesView: View {
                 _ = await kanataManager.underlyingManager.restartKanata(reason: "App rule deleted from Settings")
             } catch {
                 AppLogger.shared.log("⚠️ [CustomRulesView] Failed to delete app rule: \(error)")
+            }
+        }
+    }
+}
+
+private struct CustomRulesToolbarView: View {
+    var body: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Custom Rules")
+                    .font(.headline)
+                Text("These rules stay separate from presets so you can manage them independently.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+        }
+    }
+}
+
+private struct CustomRulesInlineEditor: View {
+    @Binding var inputKey: String
+    @Binding var outputKey: String
+    @Binding var title: String
+    @Binding var notes: String
+    @Binding var inlineError: String?
+    let keyOptions: [String]
+    let onAddRule: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Quick Add")
+                .font(.subheadline.weight(.medium))
+
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                InlineKeyField(
+                    title: "Input",
+                    text: $inputKey,
+                    options: keyOptions,
+                    fieldWidth: 200,
+                    textFieldIdentifier: "custom-rules-inline-input",
+                    menuIdentifier: "custom-rules-inline-input-menu"
+                )
+
+                Text("→")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 18)
+
+                InlineKeyField(
+                    title: "Output",
+                    text: $outputKey,
+                    options: keyOptions,
+                    fieldWidth: 240,
+                    textFieldIdentifier: "custom-rules-inline-output",
+                    menuIdentifier: "custom-rules-inline-output-menu"
+                )
+
+                Button {
+                    onAddRule()
+                } label: {
+                    Label("Add Rule", systemImage: "plus.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("custom-rules-inline-add-button")
+                .accessibilityLabel("Add custom rule")
+                .padding(.top, 18)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Name (optional)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    TextField("", text: $title)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 240)
+                        .accessibilityIdentifier("custom-rules-inline-title")
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Notes (optional)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    TextField("", text: $notes, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 320)
+                        .lineLimit(1 ... 3)
+                        .accessibilityIdentifier("custom-rules-inline-notes")
+                }
+            }
+
+            Text("Tip: type modifiers like C-a or M-k, or space-separated sequences.")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+
+            if let inlineError {
+                Text(inlineError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier("custom-rules-inline-error")
+            }
+        }
+    }
+}
+
+private struct CustomRulesListView: View {
+    let rules: [CustomRule]
+    let appKeymaps: [AppKeymap]
+    let onToggleRule: (CustomRule, Bool) -> Void
+    let onEditRule: (CustomRule) -> Void
+    let onDeleteRule: (CustomRule) -> Void
+    let onDeleteAppRule: (AppKeymap, AppKeyOverride) -> Void
+
+    private var hasAnyRules: Bool {
+        !rules.isEmpty || !appKeymaps.isEmpty
+    }
+
+    var body: some View {
+        if !hasAnyRules {
+            VStack(spacing: 20) {
+                VStack(spacing: 12) {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 48, weight: .ultraLight))
+                        .foregroundColor(.secondary.opacity(0.3))
+
+                    VStack(spacing: 4) {
+                        Text("No Custom Rules Yet")
+                            .font(.title3)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+
+                        Text("Create personalized key mappings")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(40)
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    // MARK: - Everywhere Section
+
+                    if !rules.isEmpty {
+                        RulesSectionHeader(
+                            title: "Everywhere",
+                            systemImage: "globe",
+                            subtitle: "These rules apply in all apps"
+                        )
+                        .padding(.horizontal, 16)
+
+                        ForEach(rules) { rule in
+                            CustomRuleRow(
+                                rule: rule,
+                                onToggle: { isOn in
+                                    onToggleRule(rule, isOn)
+                                },
+                                onEditInDrawer: {
+                                    onEditRule(rule)
+                                },
+                                onDelete: {
+                                    onDeleteRule(rule)
+                                }
+                            )
+                            .padding(.horizontal, 16)
+                        }
+                    }
+
+                    // MARK: - App-Specific Sections
+
+                    ForEach(appKeymaps) { keymap in
+                        AppRulesSectionHeader(keymap: keymap)
+                            .padding(.horizontal, 16)
+                            .padding(.top, rules.isEmpty ? 0 : 8)
+
+                        ForEach(keymap.overrides) { override in
+                            AppRuleRow(
+                                keymap: keymap,
+                                override: override,
+                                onDelete: {
+                                    onDeleteAppRule(keymap, override)
+                                }
+                            )
+                            .padding(.horizontal, 16)
+                        }
+                    }
+                }
+                .padding(.vertical, 12)
             }
         }
     }
