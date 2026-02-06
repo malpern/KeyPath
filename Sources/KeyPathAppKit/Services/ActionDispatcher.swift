@@ -799,6 +799,7 @@ public final class ActionDispatcher {
             process.arguments = [path]
 
         default:
+            assertionFailure("executeInterpretedScript called with unexpected extension: .\(ext)")
             throw NSError(domain: "InterpretedScript", code: 2, userInfo: [
                 NSLocalizedDescriptionKey: "Unknown script type: .\(ext)"
             ])

@@ -212,6 +212,44 @@ struct ActionDispatcherRoutingTests {
         #expect(result == .success)
     }
 
+    @Test("Dispatch message API parses shorthand and routes")
+    @MainActor
+    func dispatchMessageParsesShorthand() {
+        var receivedLayer: String?
+        ActionDispatcher.shared.onLayerAction = { layer in
+            receivedLayer = layer
+        }
+        defer {
+            ActionDispatcher.shared.onLayerAction = nil
+        }
+
+        let result = ActionDispatcher.shared.dispatch(message: "layer:editing")
+        #expect(result == .success)
+        #expect(receivedLayer == "editing")
+    }
+
+    @Test("Dispatch message API returns unknownAction for invalid URI string")
+    @MainActor
+    func dispatchMessageInvalidString() {
+        var errorMessage: String?
+        ActionDispatcher.shared.onError = { message in
+            errorMessage = message
+        }
+        defer {
+            ActionDispatcher.shared.onError = nil
+        }
+
+        let invalidInput = "not-a-keypath-message"
+        let result = ActionDispatcher.shared.dispatch(message: invalidInput)
+
+        if case let .unknownAction(message) = result {
+            #expect(message == invalidInput)
+            #expect(errorMessage?.contains("Invalid keypath:// URI") == true)
+        } else {
+            Issue.record("Expected unknownAction for invalid input")
+        }
+    }
+
     @Test("Returns unknownAction for invalid action type")
     @MainActor
     func returnsUnknownActionForInvalidType() {
@@ -328,6 +366,23 @@ struct ActionDispatcherRoutingTests {
         }
     }
 
+    @Test("Returns failed for fakekey when feature flag disabled")
+    @MainActor
+    func returnsFailedForFakekeyWhenFeatureDisabled() {
+        let previous = FeatureFlags.simulatorAndVirtualKeysEnabled
+        FeatureFlags.setSimulatorAndVirtualKeysEnabled(false)
+        defer { FeatureFlags.setSimulatorAndVirtualKeysEnabled(previous) }
+
+        let uri = KeyPathActionURI(string: "keypath://fakekey/test/tap")!
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        if case let .failed(action, _) = result {
+            #expect(action == "fakekey")
+        } else {
+            Issue.record("Expected failed result for feature-disabled fakekey action")
+        }
+    }
+
     @Test("Calls onError callback for unknown action")
     @MainActor
     func callsOnErrorForUnknownAction() {
@@ -343,6 +398,61 @@ struct ActionDispatcherRoutingTests {
 
         // Clean up
         ActionDispatcher.shared.onError = nil
+    }
+}
+
+@Suite("ActionDispatcher System And Window Actions")
+struct ActionDispatcherSystemWindowTests {
+    @Test("Returns missingTarget for system without action")
+    @MainActor
+    func returnsMissingTargetForSystemWithoutAction() {
+        let uri = KeyPathActionURI(string: "keypath://system")!
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        if case let .missingTarget(action) = result {
+            #expect(action == "system")
+        } else {
+            Issue.record("Expected missingTarget for system without action")
+        }
+    }
+
+    @Test("Returns unknownAction for unknown system action")
+    @MainActor
+    func returnsUnknownForUnknownSystemAction() {
+        let uri = KeyPathActionURI(string: "keypath://system/not-a-real-action")!
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        if case let .unknownAction(action) = result {
+            #expect(action == "not-a-real-action")
+        } else {
+            Issue.record("Expected unknownAction for unknown system action")
+        }
+    }
+
+    @Test("Returns missingTarget for window without action")
+    @MainActor
+    func returnsMissingTargetForWindowWithoutAction() {
+        let uri = KeyPathActionURI(string: "keypath://window")!
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        if case let .missingTarget(action) = result {
+            #expect(action == "window")
+        } else {
+            Issue.record("Expected missingTarget for window without action")
+        }
+    }
+
+    @Test("Returns unknownAction for unknown window action")
+    @MainActor
+    func returnsUnknownForUnknownWindowAction() {
+        let uri = KeyPathActionURI(string: "keypath://window/not-a-real-window-action")!
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        if case let .unknownAction(action) = result {
+            #expect(action == "not-a-real-window-action")
+        } else {
+            Issue.record("Expected unknownAction for unknown window action")
+        }
     }
 }
 
@@ -404,6 +514,19 @@ struct ActionDispatcherFolderTests {
         let result = ActionDispatcher.shared.dispatch(uri)
 
         #expect(result == .success)
+    }
+
+    @Test("Returns failed when folder target is a file")
+    @MainActor
+    func returnsFailedWhenFolderTargetIsFile() {
+        let uri = KeyPathActionURI(string: "folder:/bin/bash")!
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        if case let .failed(action, _) = result {
+            #expect(action == "folder")
+        } else {
+            Issue.record("Expected failed result when folder target is a file")
+        }
     }
 }
 
@@ -522,6 +645,33 @@ struct ActionDispatcherScriptTests {
         _ = ActionDispatcher.shared.dispatch(uri)
 
         #expect(disabledCallbackCalled == true)
+    }
+
+    @Test("Returns failed when file exists but is not executable script type")
+    @MainActor
+    func returnsFailedForNotExecutableScriptType() throws {
+        ScriptSecurityService.shared.isScriptExecutionEnabled = true
+        ScriptSecurityService.shared.bypassFirstRunDialog = true
+        defer {
+            ScriptSecurityService.shared.isScriptExecutionEnabled = false
+            ScriptSecurityService.shared.bypassFirstRunDialog = false
+        }
+
+        let tempPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent("action-dispatcher-not-executable-\(UUID().uuidString).txt").path
+        FileManager.default.createFile(atPath: tempPath, contents: Data("plain text".utf8))
+        defer {
+            try? FileManager.default.removeItem(atPath: tempPath)
+        }
+
+        let uri = KeyPathActionURI(string: "script:\(tempPath)")!
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        if case let .failed(action, _) = result {
+            #expect(action == "script")
+        } else {
+            Issue.record("Expected failed result for non-executable non-script file")
+        }
     }
 }
 
