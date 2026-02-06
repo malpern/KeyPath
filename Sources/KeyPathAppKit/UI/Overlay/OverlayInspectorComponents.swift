@@ -614,12 +614,10 @@ struct OverlayGlassEffectModifier: ViewModifier {
 
 /// Slide-over panels that can appear in the drawer
 enum DrawerPanel {
-    case tapHold // Tap & Hold configuration (Apple-style 80/20 design)
     case launcherSettings // Launcher activation mode & history suggestions
 
     var title: String {
         switch self {
-        case .tapHold: "Tap & Hold"
         case .launcherSettings: "Launcher Settings"
         }
     }

@@ -53,27 +53,7 @@ struct OverlayInspectorPanel: View {
     /// Which slide-over panel is currently open (nil = none)
     @State var activeDrawerPanel: DrawerPanel?
 
-    // MARK: - Tap & Hold Panel State (Apple-style 80/20 design)
-
-    /// Key label being configured in the Tap & Hold panel
-    @State var tapHoldKeyLabel: String = "A"
-    /// Key code being configured
-    @State var tapHoldKeyCode: UInt16? = 0
-    /// Initially selected behavior slot when panel opens
-    @State var tapHoldInitialSlot: BehaviorSlot = .tap
-    /// Tap behavior action
-    @State var tapHoldTapAction: BehaviorAction = .key("a")
-    /// Hold behavior action
-    @State var tapHoldHoldAction: BehaviorAction = .none
-    /// Double tap behavior action
-    /// Tap + Hold behavior action
-    @State var tapHoldComboAction: BehaviorAction = .none
-    /// Responsiveness level (maps to timing thresholds)
-    @State var tapHoldResponsiveness: ResponsivenessLevel = .balanced
-    /// Use tap immediately when typing starts
-    @State var tapHoldUseTapImmediately: Bool = true
-
-    // MARK: - Legacy Customize Panel State (deprecated - use Tap & Hold panel)
+    // MARK: - Customize Panel State
 
     /// Hold action for tap-hold configuration
     @State var customizeHoldAction: String = ""
@@ -197,8 +177,6 @@ struct OverlayInspectorPanel: View {
             },
             panelContent: {
                 switch activeDrawerPanel {
-                case .tapHold:
-                    tapHoldPanelContent
                 case .launcherSettings:
                     launcherCustomizePanelContent
                 case nil:
@@ -223,25 +201,6 @@ struct OverlayInspectorPanel: View {
                         .frame(width: width, height: proxy.size.height, alignment: .leading)
                 }
                 .allowsHitTesting(false)
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openTapHoldPanel)) { notification in
-            // Extract key info from notification
-            if let keyLabel = notification.userInfo?["keyLabel"] as? String {
-                tapHoldKeyLabel = keyLabel
-            }
-            if let keyCode = notification.userInfo?["keyCode"] as? UInt16 {
-                tapHoldKeyCode = keyCode
-            }
-            // Extract selected slot
-            if let slotRaw = notification.userInfo?["slot"] as? String,
-               let slot = BehaviorSlot(rawValue: slotRaw)
-            {
-                tapHoldInitialSlot = slot
-            }
-            // Open the Tap & Hold panel
-            withAnimation(.easeInOut(duration: 0.25)) {
-                activeDrawerPanel = .tapHold
             }
         }
     }
@@ -299,4 +258,17 @@ struct OverlayInspectorPanel: View {
     .padding(40)
     .frame(width: 700, height: 350)
     .background(Color(white: 0.3))
+}
+
+#Preview("Inspector Wide") {
+    LiveKeyboardOverlayView(
+        viewModel: KeyboardVisualizationViewModel(),
+        uiState: LiveKeyboardOverlayUIState(),
+        inspectorWidth: 320,
+        isMapperAvailable: false,
+        kanataViewModel: nil
+    )
+    .padding(40)
+    .frame(width: 760, height: 360)
+    .background(Color(white: 0.2))
 }

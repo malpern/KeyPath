@@ -1,5 +1,50 @@
 import SwiftUI
 
+// MARK: - BehaviorSlot
+
+/// The behavior intents for a key (tap, hold, combo)
+enum BehaviorSlot: String, Identifiable, CaseIterable {
+    case tap
+    case hold
+    case combo
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .tap: "Tap"
+        case .hold: "Hold"
+        case .combo: "Combo"
+        }
+    }
+
+    var shortLabel: String {
+        switch self {
+        case .tap: "Tap"
+        case .hold: "Hold"
+        case .combo: "Combo"
+        }
+    }
+
+    var verbPhrase: String {
+        switch self {
+        case .tap: "tap"
+        case .hold: "hold"
+        case .combo: "press together with"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .tap: "hand.tap"
+        case .hold: "hand.point.down.fill"
+        case .combo: "rectangle.on.rectangle"
+        }
+    }
+}
+
+// MARK: - BehaviorStatePicker
+
 /// A horizontal picker showing the behavior states using image assets.
 /// Flat controls with click feedback and configuration indicators.
 /// Place images in Resources/BehaviorIcons/ named:
