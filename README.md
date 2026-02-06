@@ -5,8 +5,8 @@
 
   **Remap any key to any other key with a simple, native macOS app**
 
-  [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue.svg)](https://www.apple.com/macos/)
-  [![Swift 6.0](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
+  [![macOS 26+](https://img.shields.io/badge/macOS-26%2B-blue.svg)](https://www.apple.com/macos/)
+  [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-orange.svg)](https://swift.org)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 </div>
 
@@ -75,7 +75,7 @@ Your remapping is active immediately—no restart, no manual service management,
 - **No telemetry** - Works completely offline, no data collection
 
 ### 🎨 Native macOS Experience
-- **Beautiful SwiftUI interface** with Liquid Glass design (macOS 15+)
+- **Beautiful SwiftUI interface** with Liquid Glass design (macOS 26+)
 - **System Settings integration** - Follows macOS design patterns
 - **Proper signing & notarization** - Works with macOS security features
 - **Accessibility support** - Respects macOS accessibility settings
@@ -168,7 +168,7 @@ If you're already using Kanata on macOS, KeyPath can run your existing configura
 | **Instant Apply** | Changes work immediately - no restart needed |
 | **Safety Features** | Emergency stop (`Ctrl+Space+Esc`) prevents getting locked out |
 | **Smart Setup** | Installation wizard handles all technical setup automatically |
-| **Native macOS UI** | Beautiful SwiftUI interface with Liquid Glass design (macOS 15+) |
+| **Native macOS UI** | Beautiful SwiftUI interface with Liquid Glass design (macOS 26+) |
 
 ### For Power Users
 
@@ -247,7 +247,7 @@ KeyPath isn't just a wrapper around Kanata—it's a **complete macOS integration
 
 ### Technical Stack
 
-- **Swift 6.0** - Modern Swift concurrency (async/await, actors)
+- **Swift 6.2** - Modern Swift concurrency (async/await, actors)
 - **SwiftUI** - Native macOS UI with Liquid Glass design
 - **Kanata** - Cross-platform keyboard remapping engine
 - **LaunchDaemon** - System-level service management
@@ -295,7 +295,7 @@ The helper keeps this binary updated from the bundled copy when needed and ensur
 
 ### KeyPath Won't Start?
 
-1. **Check macOS version** - Requires macOS 15.0 (Sequoia) or later
+1. **Check macOS version** - Requires macOS 26.0 or later
 2. **Run setup wizard** - Go to File → Run Setup Wizard
 3. **Check logs** - View system logs: `tail -f /var/log/kanata.log`
 
@@ -330,7 +330,7 @@ Our main test runners (`./test.sh` and `./Scripts/run-tests-safe.sh`) already in
 
 ### System Requirements
 
-- **macOS 15.0 (Sequoia) or later**
+- **macOS 26.0 or later**
 - **Apple Silicon or Intel Mac**
 
 ### Dependencies (Handled Automatically)
@@ -372,6 +372,22 @@ When running outside the repository, the same script is bundled at `KeyPath.app/
 
 We welcome contributions! KeyPath is designed to make keyboard remapping accessible to everyone, and contributions help make it better.
 
+### Community Build Mode (No Apple Credentials Required)
+
+External contributors can build and run most code paths without signing/notarization credentials:
+
+```bash
+swift build
+KEYPATH_USE_SUDO=0 swift test
+./Scripts/run-tests-safe.sh
+```
+
+What still requires Apple credentials / signed artifacts:
+
+- Notarized distribution bundles via `./build.sh`
+- Full privileged install surface validation on non-test machines
+- End-to-end release signing/notary smoke with real certificates
+
 ### Quick Start for Contributors
 
 ```bash
@@ -402,6 +418,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines, architecture ove
 - **[Architecture Overview](ARCHITECTURE.md)** - Deep dive into system design and architecture decisions
 - **[Tap-Hold & Tap-Dance Guide](docs/TAP_HOLD_TAP_DANCE.md)** - Advanced key behaviors (dual-role, tap-dance)
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to KeyPath
+- **[Code of Conduct](CODE_OF_CONDUCT.md)** - Community participation standards
+- **[Security Policy](SECURITY.md)** - Private vulnerability disclosure process
+- **[Changelog](CHANGELOG.md)** - Release-facing change history
 - **[Debugging Guide](docs/DEBUGGING_KANATA.md)** - Advanced troubleshooting and diagnostics
 - **[FAQ](docs/FAQ.md)** - Frequently asked questions
 
@@ -417,6 +436,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - **Unit & integration tests:** `./Scripts/run-tests-safe.sh` – configures an isolated module cache (`.build-ci/ModuleCache.noindex`) so SwiftPM never tries to write to `~/.cache` (which can be blocked on shared machines).
 - **Full developer suite:** `./test.sh` – wraps the safe runner and then executes the higher-level integration scripts.
+- **Coverage baseline (local):**
+  - `swift test --enable-code-coverage --filter KeyPathErrorTests`
+  - `swift test --enable-code-coverage --filter PermissionOracleTests`
+  - `./Scripts/generate-coverage.sh coverage`
 - **CI-full replicator:** `CI_INTEGRATION_TESTS=true ./Scripts/archive/run-core-tests.sh` – runs the Unit, Core, and IntegrationTestSuite buckets defined in `run-core-tests.sh`; by default the CI runs with `CI_INTEGRATION_TESTS=false`, so set this flag manually (or adjust CI) when you need the deeper installer/privileged coverage to execute alongside unit/core tests.
 - **SMAppService sanity check:** `./Scripts/verify-kanata-plist.sh` – use before distributing a build (CI runs it against `Sources/KeyPath/com.keypath.kanata.plist`).
 

@@ -25,7 +25,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     private var currentConfiguration: KanataConfiguration?
     private var fileWatcher: FileWatcher?
-    private var observers: [@Sendable (Config) async -> Void] = []
+    private var observers: [UUID: @Sendable (Config) async -> Void] = [:]
 
     // Perform blocking file I/O off the main actor
     private let ioQueue = DispatchQueue(label: "com.keypath.configservice.io", qos: .utility)
@@ -110,15 +110,14 @@ public final class ConfigurationService: FileConfigurationProviding {
     public func observe(_ onChange: @Sendable @escaping (Config) async -> Void)
         -> ConfigurationObservationToken
     {
-        var index = 0
+        let id = UUID()
         stateLock.lock()
-        observers.append(onChange)
-        index = observers.count - 1
+        observers[id] = onChange
         stateLock.unlock()
 
         return ConfigurationObservationToken {
             self.stateLock.lock()
-            if index < self.observers.count { self.observers.remove(at: index) }
+            self.observers.removeValue(forKey: id)
             self.stateLock.unlock()
         }
     }
@@ -320,206 +319,6 @@ public final class ConfigurationService: FileConfigurationProviding {
         setCurrentConfiguration(newConfig)
     }
 
-    // MARK: - Validation
-
-    /// Validate configuration via file-based check
-    public func validateConfigViaFile() async -> (isValid: Bool, errors: [String]) {
-        if TestEnvironment.isTestMode {
-            AppLogger.shared.log("🧪 [ConfigService] Test mode: Skipping file validation")
-            return (true, [])
-        }
-
-        let binaryPath = WizardSystemPaths.kanataActiveBinary
-        guard FileManager.default.isExecutableFile(atPath: binaryPath) else {
-            let message = "Kanata binary missing at \(binaryPath)"
-            AppLogger.shared.log("❌ [ConfigService] File validation skipped: \(message)")
-            return (false, [message])
-        }
-
-        var errors: [String] = []
-
-        do {
-            let result = try await SubprocessRunner.shared.run(
-                binaryPath,
-                args: buildKanataArguments(checkOnly: true),
-                timeout: 30
-            )
-            let output = result.stdout + result.stderr
-
-            if result.exitCode == 0 {
-                AppLogger.shared.log("✅ [ConfigService] File validation passed")
-                return (true, [])
-            } else {
-                // Parse errors from output
-                let lines = output.components(separatedBy: .newlines)
-                for line in lines where !line.isEmpty && (line.contains("error") || line.contains("Error")) {
-                    errors.append(line.trimmingCharacters(in: .whitespaces))
-                }
-
-                if errors.isEmpty {
-                    errors.append("Configuration validation failed (exit code: \(result.exitCode))")
-                }
-
-                AppLogger.shared.log("❌ [ConfigService] File validation failed: \(errors)")
-                notifyValidationFailure(errors, context: "file")
-                return (false, errors)
-            }
-
-        } catch {
-            AppLogger.shared.log("❌ [ConfigService] File validation error: \(error)")
-            notifyValidationFailure(
-                ["Failed to validate configuration file: \(error.localizedDescription)"],
-                context: "file"
-            )
-            return (false, ["Failed to validate configuration file: \(error.localizedDescription)"])
-        }
-    }
-
-    /// Validate configuration content using CLI (kanata --check)
-    ///
-    /// Note: TCP validation was removed because our Kanata fork doesn't support
-    /// the Validate command over TCP. CLI validation is more thorough anyway.
-    public func validateConfiguration(_ config: String) async -> (isValid: Bool, errors: [String]) {
-        AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION START ==========")
-        AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
-
-        if TestEnvironment.isTestMode {
-            AppLogger.shared.log("🧪 [Validation] Test mode detected – using lightweight validation")
-            let result = validateConfigurationInTestMode(config)
-            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-            return result
-        }
-
-        // Use CLI validation (kanata --check)
-        let cliResult = await validateConfigWithCLI(config)
-        AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-        return cliResult
-    }
-
-    /// Validate configuration via CLI (kanata --check)
-    private func validateConfigWithCLI(_ config: String) async -> (isValid: Bool, errors: [String]) {
-        AppLogger.shared.log("🖥️ [Validation-CLI] Starting CLI validation process...")
-        let keepFailedConfig =
-            ProcessInfo.processInfo.environment["KEYPATH_KEEP_FAILED_CONFIG"] == "1"
-
-        // Write config to a unique temporary file for validation (UUID prevents race conditions)
-        let uniqueID = UUID().uuidString.prefix(8)
-        let tempConfigPath = "\(configDirectory)/temp_validation_\(uniqueID).kbd"
-        AppLogger.shared.log("📝 [Validation-CLI] Creating temp config file: \(tempConfigPath)")
-
-        do {
-            let tempConfigURL = URL(fileURLWithPath: tempConfigPath)
-            let configDir = URL(fileURLWithPath: configDirectory)
-            try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
-            try await writeFileURLAsync(string: config, to: tempConfigURL)
-            AppLogger.shared.log(
-                "📝 [Validation-CLI] Temp config written successfully (\(config.count) characters)")
-
-            // Use kanata --check to validate
-            let kanataBinary = WizardSystemPaths.kanataActiveBinary
-            AppLogger.shared.log("🔧 [Validation-CLI] Using kanata binary: \(kanataBinary)")
-
-            guard FileManager.default.isExecutableFile(atPath: kanataBinary) else {
-                let message = "Kanata binary missing at \(kanataBinary)"
-                AppLogger.shared.log("❌ [Validation-CLI] \(message)")
-                if TestEnvironment.isTestMode {
-                    AppLogger.shared.log("🧪 [Validation-CLI] Skipping CLI validation in tests")
-                    try? FileManager.default.removeItem(at: tempConfigURL)
-                    return (true, [])
-                }
-                try? FileManager.default.removeItem(at: tempConfigURL)
-                return (false, [message])
-            }
-
-            let arguments = ["--cfg", tempConfigPath, "--check"]
-            AppLogger.shared.log(
-                "🔧 [Validation-CLI] Command: \(kanataBinary) \(arguments.joined(separator: " "))")
-
-            let cliStart = Date()
-            let result = try await SubprocessRunner.shared.run(
-                kanataBinary,
-                args: arguments,
-                timeout: 30
-            )
-            let cliDuration = Date().timeIntervalSince(cliStart)
-            AppLogger.shared.log(
-                "⏱️ [Validation-CLI] CLI validation completed in \(String(format: "%.3f", cliDuration)) seconds"
-            )
-
-            let output = result.stdout + result.stderr
-
-            AppLogger.shared.log("📋 [Validation-CLI] Exit code: \(result.exitCode)")
-            if !output.isEmpty {
-                AppLogger.shared.log("📋 [Validation-CLI] Output: \(output.prefix(500))...")
-            }
-
-            if result.exitCode == 0 {
-                AppLogger.shared.log("✅ [Validation-CLI] CLI validation PASSED")
-                try? FileManager.default.removeItem(at: tempConfigURL)
-                return (true, [])
-            } else {
-                let errors = parseKanataErrors(output)
-                notifyValidationFailure(errors, context: "cli")
-                if keepFailedConfig {
-                    AppLogger.shared.log(
-                        "🧪 [Validation-CLI] Keeping temp config for debugging at \(tempConfigPath)"
-                    )
-                } else {
-                    try? FileManager.default.removeItem(at: tempConfigURL)
-                }
-                AppLogger.shared.log(
-                    "❌ [Validation-CLI] CLI validation FAILED with \(errors.count) errors:")
-                for (index, error) in errors.enumerated() {
-                    AppLogger.shared.log("   Error \(index + 1): \(error)")
-                }
-                return (false, errors)
-            }
-        } catch {
-            // Clean up temp file on error
-            if keepFailedConfig {
-                AppLogger.shared.log(
-                    "🧪 [Validation-CLI] Keeping temp config for debugging at \(tempConfigPath)"
-                )
-            } else {
-                try? FileManager.default.removeItem(atPath: tempConfigPath)
-            }
-            AppLogger.shared.log("❌ [Validation-CLI] Validation process failed: \(error)")
-            AppLogger.shared.log("❌ [Validation-CLI] Error type: \(type(of: error))")
-            notifyValidationFailure(
-                ["Validation failed: \(error.localizedDescription)"],
-                context: "cli"
-            )
-            return (false, ["Validation failed: \(error.localizedDescription)"])
-        }
-    }
-
-    private func validateConfigurationInTestMode(_ config: String) -> (
-        isValid: Bool, errors: [String]
-    ) {
-        guard !config.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return (false, ["Configuration content is empty"])
-        }
-
-        do {
-            _ = try parseConfigurationFromString(config)
-            return (true, [])
-        } catch {
-            return (false, ["Mock validation failed: \(error.localizedDescription)"])
-        }
-    }
-
-    private func notifyValidationFailure(_ errors: [String], context: String) {
-        guard !errors.isEmpty, !TestEnvironment.isRunningTests else { return }
-        NotificationCenter.default.post(
-            name: .configValidationFailed,
-            object: nil,
-            userInfo: [
-                "errors": errors,
-                "context": context
-            ]
-        )
-    }
-
     // MARK: - Backup and Recovery
 
     /// Backs up a failed config and applies safe default, returning backup path
@@ -693,132 +492,11 @@ public final class ConfigurationService: FileConfigurationProviding {
         AppLogger.shared.log("🛑 [ConfigService] File monitoring stopped")
     }
 
-    /// Extract key mappings from Kanata configuration content
-    private func extractKeyMappingsFromContent(_ configContent: String) -> [KeyMapping] {
-        var mappings: [KeyMapping] = []
-        let lines = configContent.components(separatedBy: .newlines)
-
-        var inDefsrc = false
-        var inDeflayer = false
-        var srcKeys: [String] = []
-        var layerKeys: [String] = []
-
-        for line in lines {
-            let trimmed = KanataConfigTokenizer.stripInlineComment(line)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-
-            if trimmed.hasPrefix("(defsrc") {
-                inDefsrc = true
-                inDeflayer = false
-                continue
-            } else if trimmed.hasPrefix("(deflayer") {
-                inDefsrc = false
-                inDeflayer = true
-                continue
-            } else if trimmed == ")" {
-                inDefsrc = false
-                inDeflayer = false
-                continue
-            }
-
-            if inDefsrc, !trimmed.isEmpty, !trimmed.hasPrefix(";") {
-                srcKeys.append(contentsOf: KanataConfigTokenizer.tokenize(trimmed))
-            } else if inDeflayer, !trimmed.isEmpty, !trimmed.hasPrefix(";") {
-                layerKeys.append(contentsOf: KanataConfigTokenizer.tokenize(trimmed))
-            }
-        }
-
-        // Match up src and layer keys, filtering out invalid keys
-        var tempMappings: [KeyMapping] = []
-        for (index, srcKey) in srcKeys.enumerated() where index < layerKeys.count {
-            // Skip obviously invalid keys
-            if srcKey != "invalid", !srcKey.isEmpty {
-                tempMappings.append(KeyMapping(input: srcKey, output: layerKeys[index]))
-            }
-        }
-
-        // Deduplicate mappings - keep only the last mapping for each input key
-        var seenInputs: Set<String> = []
-        for mapping in tempMappings.reversed() where !seenInputs.contains(mapping.input) {
-            mappings.insert(mapping, at: 0)
-            seenInputs.insert(mapping.input)
-        }
-
-        AppLogger.shared.log(
-            "🔍 [Parse] Found \(srcKeys.count) src keys, \(layerKeys.count) layer keys, deduplicated to \(mappings.count) unique mappings"
-        )
-        return mappings
-    }
-
-    private func buildKanataArguments(checkOnly: Bool = false) -> [String] {
-        var args = ["--cfg", configurationPath]
-        if checkOnly {
-            args.append("--check")
-        }
-
-        // Add TCP port argument for actual runs (not validation checks)
-        if !checkOnly {
-            let tcpPort = PreferencesService.shared.tcpServerPort
-            args.append(contentsOf: ["--port", "\(tcpPort)"])
-            AppLogger.shared.log("📡 [ConfigService] Added TCP port argument: --port \(tcpPort)")
-        }
-
-        return args
-    }
-
-    /// Parse configuration from string content
-    public func parseConfigurationFromString(_ content: String) throws -> KanataConfiguration {
-        // Use the existing validate method which handles parsing
-        try validate(content: content)
-    }
-
-    /// Parse Kanata error output to extract error messages
-    /// Kanata uses miette for rich error formatting, which outputs:
-    /// - [ERROR] line with brief description
-    /// - Code context with arrows pointing to the error
-    /// - "help:" line with actionable description (e.g., "Unknown key in defsrc: \"hangeul\"")
-    public func parseKanataErrors(_ output: String) -> [String] {
-        var errors: [String] = []
-        let lines = output.components(separatedBy: .newlines)
-
-        // Extract [ERROR] lines
-        for line in lines where line.contains("[ERROR]") {
-            if let errorRange = line.range(of: "[ERROR]") {
-                let errorMessage = String(line[errorRange.upperBound...]).trimmingCharacters(
-                    in: .whitespaces)
-                errors.append(errorMessage)
-            }
-        }
-
-        // Also extract "help:" lines - these contain the most actionable information
-        // e.g., "help: Unknown key in defsrc: \"hangeul\""
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix("help:") {
-                let helpMessage = String(trimmed.dropFirst(5)).trimmingCharacters(in: .whitespaces)
-                if !helpMessage.isEmpty {
-                    errors.append("💡 \(helpMessage)")
-                }
-            }
-        }
-
-        // Don't return empty strings - if no specific errors found and output is empty/whitespace,
-        // return empty array instead of an array with empty string
-        if errors.isEmpty {
-            let trimmedOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedOutput.isEmpty {
-                // If there's non-empty output but no [ERROR] tags, include the full output as error
-                errors.append(trimmedOutput)
-            }
-        }
-
-        return errors
-    }
 }
 
 // MARK: - Private helpers (I/O and state)
 
-private extension ConfigurationService {
+extension ConfigurationService {
     func withLockedCurrentConfig() -> KanataConfiguration? {
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -863,7 +541,7 @@ private extension ConfigurationService {
     func observersSnapshot() -> [@Sendable (Config) async -> Void] {
         stateLock.lock()
         defer { stateLock.unlock() }
-        return observers
+        return Array(observers.values)
     }
 
     func readFileAsync(path: String) async throws -> String {

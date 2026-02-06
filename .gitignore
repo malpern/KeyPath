@@ -48,6 +48,8 @@ Package.resolved
 # Logs
 *.log
 logs/
+.logs/
+.last_build_output.txt
 
 # External source code - don't include full Kanata source (legacy paths)
 kanata-source/
@@ -68,3 +70,7 @@ run-tests-automated.sh
 .build-ci/
 .nano-banana-config.json
 .home/
+.crush/
+.tmp/
+output/
+test-results/

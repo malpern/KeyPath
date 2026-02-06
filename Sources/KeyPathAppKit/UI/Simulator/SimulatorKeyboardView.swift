@@ -90,3 +90,14 @@ struct SimulatorKeyboardView: View {
     .padding()
     .frame(height: 300)
 }
+
+#Preview("Simulator Keyboard - Empty") {
+    SimulatorKeyboardView(
+        layout: .macBookUS,
+        pressedKeyCodes: [],
+        onKeyTap: { _ in },
+        onKeyHold: { _ in }
+    )
+    .padding()
+    .frame(height: 300)
+}

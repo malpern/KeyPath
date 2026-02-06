@@ -266,3 +266,9 @@ private struct SettingsCard<Content: View>: View {
     ExperimentalSettingsSection()
         .frame(width: 600, height: 800)
 }
+
+#Preview("Experimental Settings - Compact") {
+    ExperimentalSettingsSection()
+        .frame(width: 420, height: 640)
+        .padding()
+}

@@ -775,3 +775,11 @@ private struct LauncherMappingEditor: View {
     )
     .frame(width: 900, height: 400)
 }
+
+#Preview("Launcher Collection - Empty") {
+    LauncherCollectionView(
+        config: .constant(LauncherGridConfig(activationMode: .leaderSequence, mappings: [])),
+        onConfigChanged: { _ in }
+    )
+    .frame(width: 900, height: 400)
+}

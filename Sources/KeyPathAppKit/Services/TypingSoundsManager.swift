@@ -133,16 +133,17 @@ final class TypingSoundsManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            guard let self else { return }
             guard let action = notification.userInfo?["action"] as? String else { return }
-
-            switch action {
-            case "press", "repeat":
-                playKeydown()
-            case "release":
-                playKeyup()
-            default:
-                break
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                switch action {
+                case "press", "repeat":
+                    playKeydown()
+                case "release":
+                    playKeyup()
+                default:
+                    break
+                }
             }
         }
         AppLogger.shared.debug("🔊 [TypingSounds] TCP key input observer registered")

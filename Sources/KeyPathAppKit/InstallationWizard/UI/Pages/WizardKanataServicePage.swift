@@ -548,13 +548,31 @@ struct WizardKanataServicePage_Previews: PreviewProvider {
     static var previews: some View {
         let manager = RuntimeCoordinator()
         let viewModel = KanataViewModel(manager: manager)
+        let stateMachine = WizardStateMachine()
 
-        WizardKanataServicePage(
-            systemState: .ready,
-            issues: [],
-            onRefresh: {}
-        )
+        return Group {
+            WizardKanataServicePage(
+                systemState: .serviceNotRunning,
+                issues: [],
+                onRefresh: {}
+            )
+            .previewDisplayName("Kanata Service - Stopped")
+
+            WizardKanataServicePage(
+                systemState: .missingComponents(missing: [.kanataService]),
+                issues: [],
+                onRefresh: {}
+            )
+            .previewDisplayName("Kanata Service - Missing Component")
+
+            WizardKanataServicePage(
+                systemState: .ready,
+                issues: [],
+                onRefresh: {}
+            )
+            .previewDisplayName("Kanata Service - Ready")
+        }
         .environmentObject(viewModel)
-        .environmentObject(WizardStateMachine())
+        .environmentObject(stateMachine)
     }
 }

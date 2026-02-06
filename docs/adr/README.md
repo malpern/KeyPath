@@ -24,6 +24,8 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-024](adr-024-icons-emphasis.md) | Custom Key Icons and Emphasis via push-msg | Partial |
 | [ADR-025](adr-025-config-management.md) | Configuration Management - One-Way Write | Accepted |
 | [ADR-026](adr-026-validation-ordering.md) | System Validation Ordering | Accepted |
+| [ADR-027](adr-027-app-specific-keymaps.md) | App-Specific Keymaps | Accepted |
+| [ADR-028](adr-028-unified-sf-symbols.md) | Unified SF Symbol Resolution via SystemActionInfo | Accepted |
 
 ## Key Decisions Summary
 

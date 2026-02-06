@@ -198,10 +198,20 @@ struct KeyCapView: View {
 
 struct StartConfirmationDialog_Previews: PreviewProvider {
     static var previews: some View {
-        StartConfirmationDialog(
-            isPresented: .constant(true),
-            onConfirm: {},
-            onCancel: {}
-        )
+        Group {
+            StartConfirmationDialog(
+                isPresented: .constant(true),
+                onConfirm: {},
+                onCancel: {}
+            )
+            .previewDisplayName("Dialog - Visible")
+
+            StartConfirmationDialog(
+                isPresented: .constant(false),
+                onConfirm: {},
+                onCancel: {}
+            )
+            .previewDisplayName("Dialog - Hidden")
+        }
     }
 }

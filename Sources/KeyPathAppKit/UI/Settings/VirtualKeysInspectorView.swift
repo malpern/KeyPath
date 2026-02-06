@@ -309,3 +309,9 @@ struct VirtualKeysInspectorView: View {
     VirtualKeysInspectorView()
         .frame(width: 400, height: 300)
 }
+
+#Preview("Virtual Keys Inspector - Large") {
+    VirtualKeysInspectorView()
+        .frame(width: 640, height: 500)
+        .padding()
+}

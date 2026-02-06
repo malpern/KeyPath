@@ -30,7 +30,7 @@ struct BrowserHistorySuggestionsView: View {
         existingDomains: Set<String> = [],
         onComplete: @escaping ([BrowserHistoryScanner.VisitedSite]) -> Void
     ) {
-        self.existingDomains = Set(existingDomains.map { normalizeDomain($0) })
+        self.existingDomains = Set(existingDomains.map { Self.normalizeDomain($0) })
         self.onComplete = onComplete
     }
 

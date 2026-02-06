@@ -277,3 +277,29 @@ struct LauncherKeycapView: View {
     .padding()
     .background(Color(white: 0.15))
 }
+
+#Preview("Launcher Keycaps - Dark Unmapped") {
+    HStack(spacing: 8) {
+        LauncherKeycapView(
+            key: PhysicalKey(keyCode: 4, label: "h", x: 0, y: 0),
+            displayLabel: "H",
+            accessibilityKey: "h",
+            mapping: nil,
+            isSelected: false,
+            onTap: {}
+        )
+        .frame(width: 50, height: 50)
+
+        LauncherKeycapView(
+            key: PhysicalKey(keyCode: 37, label: "l", x: 0, y: 0),
+            displayLabel: "L",
+            accessibilityKey: "l",
+            mapping: nil,
+            isSelected: true,
+            onTap: {}
+        )
+        .frame(width: 50, height: 50)
+    }
+    .padding()
+    .background(Color.black)
+}

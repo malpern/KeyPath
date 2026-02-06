@@ -31,7 +31,7 @@ final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
         let items = overview.statusItems
         let input = items.first(where: { $0.id == "input-monitoring" })
         XCTAssertNotNil(input, "Expected an Input Monitoring status row")
-        XCTAssertEqual(input?.status, .warning, "Not verified permission should display as warning")
+        XCTAssertEqual(input?.status, .unverified, "Not verified permission should display as unverified")
         XCTAssertTrue(
             (input?.relatedIssues.contains { $0.identifier == .permission(.kanataInputMonitoring) } ?? false),
             "Input Monitoring row should include the underlying warning issue"

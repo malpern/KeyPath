@@ -62,70 +62,20 @@ jobs:
         export SKIP_EVENT_TAP_TESTS=1
         export TIMEOUT_SECONDS=180
 
-        # Use the safe test runner which handles compilation errors gracefully
-        # and provides proper exit codes
+        # Release-gating behavior: any non-zero exit should fail CI.
         chmod +x ./Scripts/run-tests-safe.sh
-        if ./Scripts/run-tests-safe.sh; then
-          echo "✅ All tests passed"
-          echo "TEST_STATUS=passed" >> $GITHUB_ENV
-        else
-          EXIT_CODE=$?
-          echo "❌ Tests failed with exit code: $EXIT_CODE"
-          echo "TEST_STATUS=failed" >> $GITHUB_ENV
-          
-          # Check if it's a compilation error (exit code 2)
-          if [ "$EXIT_CODE" -eq 2 ]; then
-            echo "❌ FAILING CI - Compilation errors detected"
-            exit 1
-          fi
-          
-          # Check if it's a timeout (exit code 124)
-          if [ "$EXIT_CODE" -eq 124 ]; then
-            echo "❌ FAILING CI - Tests timed out"
-            exit 1
-          fi
-          
-          # Check for actual test failures, but allow known CI-environment failures
-          if grep -q "Test Case '.*' failed" test_output.safe.txt 2>/dev/null; then
-            # Count total failures
-            FAILURE_COUNT=$(grep -c "Test Case '.*' failed" test_output.safe.txt || echo "0")
-            
-            # Count passed tests to ensure we're not seeing a complete failure
-            PASS_COUNT=$(grep -c "Test Case '.*' passed" test_output.safe.txt || echo "0")
-            
-            # Calculate pass rate
-            TOTAL_TESTS=$((FAILURE_COUNT + PASS_COUNT))
-            if [ "$TOTAL_TESTS" -gt 0 ]; then
-              PASS_RATE=$((PASS_COUNT * 100 / TOTAL_TESTS))
-            else
-              PASS_RATE=0
-            fi
-            
-            echo "📊 Test Results: $PASS_COUNT passed, $FAILURE_COUNT failed (${PASS_RATE}% pass rate)"
-            
-            # If we have a good pass rate (>85%) and failures are within acceptable threshold, treat as pass
-            # This allows for known CI-environment issues while catching real regressions
-            if [ "$PASS_RATE" -ge 85 ] && [ "$FAILURE_COUNT" -le 15 ]; then
-              echo "⚠️ Some tests failed but pass rate is acceptable (${PASS_RATE}%)"
-              echo "✅ Core functionality verified - treating as pass"
-              echo "TEST_STATUS=passed_with_minor_failures" >> $GITHUB_ENV
-            else
-              echo "❌ FAILING CI - Critical test failures detected"
-              echo "Pass rate: ${PASS_RATE}% (threshold: 85%)"
-              echo "Failures: $FAILURE_COUNT (threshold: 15)"
-              echo ""
-              echo "Failed tests:"
-              grep -E "Test Case '.*' failed" test_output.safe.txt | head -10
-              exit 1
-            fi
-          fi
-          
-          # If tests passed but runner crashed (known Swift 6.2 beta issue)
-          if grep -q "Test Suite 'All tests' passed" test_output.safe.txt 2>/dev/null; then
-            echo "✅ Tests passed (ignoring runner crash)"
-            echo "TEST_STATUS=passed_with_runner_crash" >> $GITHUB_ENV
-          fi
-        fi
+        ./Scripts/run-tests-safe.sh
+        echo "✅ All tests passed"
+        echo "TEST_STATUS=passed" >> $GITHUB_ENV
+
+    - name: Generate Coverage Artifacts (informational baseline)
+      run: |
+        echo "📊 Generating coverage baseline artifacts..."
+        # Keep runtime bounded with representative suites for baseline reporting.
+        swift test --enable-code-coverage --filter KeyPathErrorTests
+        swift test --enable-code-coverage --filter PermissionOracleTests
+        chmod +x ./Scripts/generate-coverage.sh
+        ./Scripts/generate-coverage.sh coverage
     
     - name: Upload Test Results
       if: always()  # Upload results even if tests failed
@@ -135,6 +85,7 @@ jobs:
         path: |
           .build/debug/
           test_output.safe.txt
+          coverage/
         if-no-files-found: ignore
         retention-days: 7
     
@@ -151,7 +102,7 @@ jobs:
           echo "❌ **Tests Failed**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Some tests failed. Check the test-results artifact for detailed logs." >> $GITHUB_STEP_SUMMARY
-        elif [ "${TEST_STATUS:-unknown}" = "passed" ] || [ "${TEST_STATUS:-unknown}" = "passed_with_runner_crash" ] || [ "${TEST_STATUS:-unknown}" = "passed_with_minor_failures" ]; then
+        elif [ "${TEST_STATUS:-unknown}" = "passed" ]; then
           echo "✅ **All Tests Passed**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Full test suite executed successfully including:" >> $GITHUB_STEP_SUMMARY
@@ -167,14 +118,18 @@ jobs:
         
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📊 Test Coverage" >> $GITHUB_STEP_SUMMARY
-        echo "- **Test Frameworks:** XCTest + Swift Testing (56 new tests)" >> $GITHUB_STEP_SUMMARY
-        echo "- **New Tests:** KeyPathError, PermissionOracle, UserNotifications, MainAppStateController" >> $GITHUB_STEP_SUMMARY
-        echo "- **Total Tests:** ~106 tests (50 XCTest + 56 Swift Testing)" >> $GITHUB_STEP_SUMMARY
-        echo "- **Runner:** swift test (supports both frameworks)" >> $GITHUB_STEP_SUMMARY
+        if [ -f "coverage/coverage-summary.txt" ]; then
+          echo "- Baseline: \`$(cat coverage/coverage-summary.txt)\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Detailed report attached in test-results artifact (\`coverage/\`)." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- Coverage baseline artifact was not generated in this run." >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "- This workflow enforces build + smoke suites + CI-safe test pass/fail." >> $GITHUB_STEP_SUMMARY
+        echo "- Runner: swift test (XCTest + Swift Testing targets)." >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### ⚠️ Known Issues" >> $GITHUB_STEP_SUMMARY
-        echo "- Some pre-existing tests have Swift 6 concurrency errors" >> $GITHUB_STEP_SUMMARY
-        echo "- Integration tests requiring sudo may be skipped in CI" >> $GITHUB_STEP_SUMMARY
+        echo "- No test-failure pass-through is allowed in this workflow." >> $GITHUB_STEP_SUMMARY
+        echo "- Some privileged integration coverage remains opt-in outside default CI." >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "*Job summary generated at run-time*" >> $GITHUB_STEP_SUMMARY
         

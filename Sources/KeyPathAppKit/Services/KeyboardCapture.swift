@@ -1,8 +1,8 @@
 import AppKit
 import Carbon
+import Combine
 import Foundation
 import KeyPathCore
-import SwiftUI
 
 // Import the event processing infrastructure
 #if canImport(KeyPath)
@@ -11,77 +11,55 @@ import SwiftUI
 
 @MainActor
 public class KeyboardCapture: ObservableObject {
-    private var eventTap: CFMachPort?
-    private var runLoopSource: CFRunLoopSource?
-    private var captureCallback: ((String) -> Void)?
-    private var sequenceCallback: ((KeySequence) -> Void)?
-    private var isCapturing = false
-    private var isContinuous = false
+    var eventTap: CFMachPort?
+    var runLoopSource: CFRunLoopSource?
+    var captureCallback: ((String) -> Void)?
+    var sequenceCallback: ((KeySequence) -> Void)?
+    var isCapturing = false
+    var isContinuous = false
     private(set) var suppressEvents = true // default: suppress during raw capture (exposed for tests)
-    private var pauseTimer: Timer?
-    private let pauseDuration: TimeInterval = 2.0 // 2 seconds pause to auto-stop
-    private var noKeyBreadcrumbTimer: Timer?
-    private var anyEventSeen = false
+    var pauseTimer: Timer?
+    let pauseDuration: TimeInterval = 2.0 // 2 seconds pause to auto-stop
+    var noKeyBreadcrumbTimer: Timer?
+    var anyEventSeen = false
 
     // TCP-based capture for when Kanata is running
-    private var tcpKeyInputObserver: NSObjectProtocol?
-    private var isTcpCaptureMode = false
+    var tcpKeyInputObserver: NSObjectProtocol?
+    var isTcpCaptureMode = false
 
     // Enhanced sequence capture properties
-    private var captureMode: CaptureMode = .single
-    private var capturedKeys: [KeyPress] = []
-    private let chordWindow: TimeInterval = 0.05 // 50ms window for chord detection
-    private let sequenceTimeout: TimeInterval = 2.0 // 2 seconds for sequence completion
-    private var lastKeyTime: Date?
-    private var chordTimer: Timer?
-    private var sequenceTimer: Timer?
-    private var localMonitor: Any?
-    private var mediaKeyMonitor: Any?
-    private var lastCapturedKey: KeyPress?
-    private var lastCaptureAt: Date?
-    private let dedupWindow: TimeInterval = 0.04 // 40ms
-    private var currentTapLocation: CGEventTapLocation = .cgSessionEventTap
-    private var pressedModifierKeyCodes: Set<Int64> = []
+    var captureMode: CaptureMode = .single
+    var capturedKeys: [KeyPress] = []
+    let chordWindow: TimeInterval = 0.05 // 50ms window for chord detection
+    let sequenceTimeout: TimeInterval = 2.0 // 2 seconds for sequence completion
+    var lastKeyTime: Date?
+    var chordTimer: Timer?
+    var sequenceTimer: Timer?
+    var localMonitor: Any?
+    var mediaKeyMonitor: Any?
+    var lastCapturedKey: KeyPress?
+    var lastCaptureAt: Date?
+    let dedupWindow: TimeInterval = 0.04 // 40ms
+    var currentTapLocation: CGEventTapLocation = .cgSessionEventTap
+    var pressedModifierKeyCodes: Set<Int64> = []
 
     /// Event router for processing captured events through the event processing chain
-    private var eventRouter: EventRouter?
+    var eventRouter: EventRouter?
 
     /// Enable/disable event router integration (for backward compatibility)
     /// Default: false to maintain legacy behavior and avoid CGEvent tap conflicts
     public var useEventRouter: Bool = false
 
     /// Reference to RuntimeCoordinator to check if Kanata is running (to avoid tap conflicts)
-    private weak var kanataManager: RuntimeCoordinator?
+    weak var kanataManager: RuntimeCoordinator?
 
     /// Activity observer for logging keyboard shortcuts
-    private weak var activityObserver: KeyboardActivityObserver?
+    weak var activityObserver: KeyboardActivityObserver?
 
-    // Fast process probe to reduce race with manager.isRunning updates
-    private func fastProbeKanataRunning(timeout: TimeInterval = 0.25) -> Bool {
-        // ADR-022: Never call real pgrep in tests - it can cause deadlocks
-        if TestEnvironment.isRunningTests {
-            return false
-        }
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-x", "kanata"]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-        do {
-            try task.run()
-        } catch {
-            return false
-        }
-        // Kill if it takes too long
-        DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
-            if task.isRunning { task.terminate() }
-        }
-        task.waitUntilExit()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let out = String(data: data, encoding: .utf8) ?? ""
-        return !out.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    /// Non-blocking check for whether Kanata is running, using cached service state.
+    /// Replaces the old blocking `pgrep` call that could stall the main actor.
+    func fastProbeKanataRunning(timeout: TimeInterval = 0.25) -> Bool {
+        KanataService.shared.state.isRunning
     }
 
     // MARK: - Event Router Configuration
@@ -118,11 +96,11 @@ public class KeyboardCapture: ObservableObject {
     }
 
     // Emergency stop sequence detection
-    private var emergencyEventTap: CFMachPort?
-    private var emergencyRunLoopSource: CFRunLoopSource?
-    private var emergencyCallback: (() -> Void)?
-    private var isMonitoringEmergency = false
-    private var pressedKeys: Set<Int64> = []
+    var emergencyEventTap: CFMachPort?
+    var emergencyRunLoopSource: CFRunLoopSource?
+    var emergencyCallback: (() -> Void)?
+    var isMonitoringEmergency = false
+    var pressedKeys: Set<Int64> = []
 
     func startCapture(callback: @escaping (String) -> Void) {
         guard !isCapturing else { return }
@@ -444,103 +422,6 @@ public class KeyboardCapture: ObservableObject {
             "✅ [KeyboardCapture] Event tap created (location=\(location), options=\(tapDesc))")
     }
 
-    // MARK: - TCP-Based Capture (when Kanata is running)
-
-    /// Set up TCP-based key capture by subscribing to Kanata KeyInput notifications.
-    /// This avoids CGEvent tap conflicts when Kanata is running.
-    private func setupTcpCapture() {
-        isTcpCaptureMode = true
-
-        tcpKeyInputObserver = NotificationCenter.default.addObserver(
-            forName: .kanataKeyInput,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            guard let self else { return }
-            // Extract values from notification before crossing actor boundary
-            guard let userInfo = notification.userInfo,
-                  let keyName = userInfo["key"] as? String,
-                  let action = userInfo["action"] as? String,
-                  action == "press"
-            else { return }
-            Task { @MainActor in
-                // Check isCapturing on MainActor to avoid concurrency warning
-                guard self.isCapturing else { return }
-                self.handleTcpKeyInputValues(keyName: keyName, action: action)
-            }
-        }
-
-        AppLogger.shared.info("✅ [KeyboardCapture] TCP-based capture started (subscribed to .kanataKeyInput)")
-    }
-
-    /// Handle extracted TCP KeyInput values and convert to a KeyPress
-    private func handleTcpKeyInputValues(keyName: String, action: String) {
-        guard isCapturing else { return }
-
-        anyEventSeen = true
-        noKeyBreadcrumbTimer?.invalidate()
-        noKeyBreadcrumbTimer = nil
-
-        AppLogger.shared.log("🎹 [KeyboardCapture] TCP keyInput: \(keyName) action=\(action)")
-
-        // Convert TCP key name to KeyPress
-        let keyPress = KeyPress(
-            baseKey: keyName,
-            modifiers: [], // TCP events don't include modifier state, but key name includes modifier keys
-            timestamp: Date(),
-            keyCode: tcpKeyNameToKeyCode(keyName)
-        )
-
-        // Notify activity observer
-        activityObserver?.didReceiveKeyEvent(keyPress)
-
-        // De-dup identical events
-        if let last = lastCapturedKey, let lastAt = lastCaptureAt {
-            if last.baseKey == keyPress.baseKey,
-               Date().timeIntervalSince(lastAt) <= dedupWindow
-            {
-                AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate TCP key: \(keyName)")
-                return
-            }
-        }
-        lastCapturedKey = keyPress
-        lastCaptureAt = Date()
-
-        // Handle legacy callback if set
-        if sequenceCallback == nil, let legacyCallback = captureCallback {
-            legacyCallback(keyName)
-            if !isContinuous {
-                stopCapture()
-            } else {
-                resetPauseTimer()
-            }
-            return
-        }
-
-        // Handle sequence capture
-        processKeyPress(keyPress)
-    }
-
-    /// Convert a TCP key name to an approximate macOS key code
-    /// Note: This is best-effort since TCP key names don't map 1:1 to macOS codes
-    private func tcpKeyNameToKeyCode(_ keyName: String) -> Int64 {
-        // Common key name to keycode mapping (same as keyCodeToString but reversed)
-        let keyMap: [String: Int64] = [
-            "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7,
-            "c": 8, "v": 9, "b": 11, "q": 12, "w": 13, "e": 14, "r": 15,
-            "y": 16, "t": 17, "1": 18, "2": 19, "3": 20, "4": 21, "6": 22,
-            "5": 23, "=": 24, "9": 25, "7": 26, "-": 27, "8": 28, "0": 29,
-            "]": 30, "o": 31, "u": 32, "[": 33, "i": 34, "p": 35, "ret": 36,
-            "return": 36, "l": 37, "j": 38, "'": 39, "k": 40, ";": 41, "\\": 42,
-            ",": 43, "/": 44, "n": 45, "m": 46, ".": 47, "tab": 48, "spc": 49,
-            "space": 49, "`": 50, "bspc": 51, "delete": 51, "esc": 53, "escape": 53,
-            "caps": 57, "capslock": 57, "lsft": 56, "rsft": 60, "lctl": 59, "rctl": 62,
-            "lalt": 58, "ralt": 61, "lmet": 55, "rmet": 54, "lopt": 58, "ropt": 61
-        ]
-
-        return keyMap[keyName.lowercased()] ?? -1
-    }
-
     private func handleKeyEvent(_ event: CGEvent, type: CGEventType) {
         if type == .flagsChanged {
             handleModifierEvent(event)
@@ -746,7 +627,7 @@ public class KeyboardCapture: ObservableObject {
         return mediaKeyMap[keyCode]
     }
 
-    private func processKeyPress(_ keyPress: KeyPress) {
+    func processKeyPress(_ keyPress: KeyPress) {
         if !isModifierOnlyKeyPress(keyPress) {
             removeModifierOnlyKeys(matching: keyPress.modifiers)
         }
@@ -857,7 +738,7 @@ public class KeyboardCapture: ObservableObject {
         stopCapture()
     }
 
-    private func resetPauseTimer() {
+    func resetPauseTimer() {
         // Cancel existing timer
         pauseTimer?.invalidate()
 
@@ -925,114 +806,4 @@ public class KeyboardCapture: ObservableObject {
         }
     }
 
-    // MARK: - Emergency Stop Sequence Detection
-
-    func startEmergencyMonitoring(callback: @escaping () -> Void) {
-        guard !isMonitoringEmergency else { return }
-
-        // Avoid event taps in test/CI to prevent hangs
-        if TestEnvironment.isRunningTests {
-            AppLogger.shared.debug(
-                "🧪 [KeyboardCapture] Test environment – skipping emergency monitoring tap")
-            return
-        }
-
-        // Safety check: avoid CGEvent tap conflicts when Kanata is running
-        // Per ADR-006, emergency monitoring should also respect the single tap rule
-        // BUT: Emergency stop is a safety feature, so we allow it even when Kanata is running
-        // The emergency tap uses a different location (CGEventTapLocation.cghidEventTap) which
-        // should not conflict with Kanata's tap
-        // Note: Emergency monitoring is critical for safety, so we prioritize it over ADR-006
-        if fastProbeKanataRunning() {
-            AppLogger.shared.log(
-                "⚠️ [KeyboardCapture] Emergency monitoring enabled even while Kanata is running (safety override)"
-            )
-        }
-
-        emergencyCallback = callback
-        isMonitoringEmergency = true
-
-        // Only start monitoring if we already have permissions
-        // Don't prompt for permissions - let the wizard handle that
-        if !checkAccessibilityPermissionsSilently() {
-            // Silently fail - we'll start monitoring once permissions are granted
-            isMonitoringEmergency = false
-            return
-        }
-
-        setupEmergencyEventTap()
-    }
-
-    func stopEmergencyMonitoring() {
-        guard isMonitoringEmergency else { return }
-
-        isMonitoringEmergency = false
-        pressedKeys.removeAll()
-
-        if let source = emergencyRunLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
-            emergencyRunLoopSource = nil
-        }
-
-        if let tap = emergencyEventTap {
-            CGEvent.tapEnable(tap: tap, enable: false)
-            emergencyEventTap = nil
-        }
-    }
-
-    private func setupEmergencyEventTap() {
-        let eventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
-
-        emergencyEventTap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
-            place: .headInsertEventTap,
-            options: .listenOnly, // ADR-006: Use listen-only for emergency monitoring
-            eventsOfInterest: CGEventMask(eventMask),
-            callback: { _, type, event, refcon -> Unmanaged<CGEvent>? in
-                let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon!).takeUnretainedValue()
-                capture.handleEmergencyEvent(event: event, type: type)
-                return Unmanaged.passUnretained(event)
-            },
-            userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
-        )
-
-        guard let eventTap = emergencyEventTap else {
-            AppLogger.shared.error("❌ [KeyboardCapture] Failed to create emergency event tap")
-            return
-        }
-
-        emergencyRunLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), emergencyRunLoopSource, .commonModes)
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-    }
-
-    private func handleEmergencyEvent(event: CGEvent, type: CGEventType) {
-        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-
-        // Key codes for the emergency sequence: Ctrl (59), Space (49), Esc (53)
-        let leftControlKey: Int64 = 59
-        let spaceKey: Int64 = 49
-        let escapeKey: Int64 = 53
-
-        if type == .keyDown {
-            pressedKeys.insert(keyCode)
-
-            // Check if all three keys are pressed simultaneously
-            if pressedKeys.contains(leftControlKey),
-               pressedKeys.contains(spaceKey),
-               pressedKeys.contains(escapeKey)
-            {
-                AppLogger.shared.log("🚨 [Emergency] Kanata emergency stop sequence detected!")
-
-                DispatchQueue.main.async {
-                    self.emergencyCallback?()
-                }
-
-                // Clear the set to prevent repeated triggers
-                pressedKeys.removeAll()
-            }
-        } else if type == .keyUp {
-            pressedKeys.remove(keyCode)
-        }
-    }
 }

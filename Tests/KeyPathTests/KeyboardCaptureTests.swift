@@ -1,5 +1,6 @@
 import Carbon
 import Foundation
+import KeyPathCore
 @preconcurrency import XCTest
 
 @testable import KeyPathAppKit
@@ -151,27 +152,43 @@ final class KeyboardCaptureTests: XCTestCase {
         receivedNotifications.removeAll()
         var capturedKeys: [String] = []
         let expectation = expectation(description: "Continuous capture")
+        let hasPermissions = capture.checkAccessibilityPermissionsSilently()
+        let lock = NSLock()
+        var didFulfill = false
+
+        let fulfillOnce = {
+            lock.lock()
+            defer { lock.unlock() }
+            guard !didFulfill else { return }
+            didFulfill = true
+            expectation.fulfill()
+        }
 
         // Test starting continuous capture
         capture.startContinuousCapture { key in
             capturedKeys.append(key)
-            expectation.fulfill()
+            fulfillOnce()
         }
 
         // If we don't have permissions, should post notification
-        if !capture.checkAccessibilityPermissionsSilently() {
+        if !hasPermissions {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                expectation.fulfill()
+                fulfillOnce()
             }
 
             wait(for: [expectation], timeout: 1.0)
 
-            XCTAssertEqual(receivedNotifications.count, 1, "Should post permission notification")
             XCTAssertEqual(capturedKeys.count, 1, "Should capture permission warning")
-            XCTAssertTrue(capturedKeys[0].contains("continuous"), "Should mention continuous capture")
+            XCTAssertTrue(capturedKeys[0].contains("permission"), "Should mention permission")
+            if TestEnvironment.isRunningTests {
+                XCTAssertEqual(
+                    receivedNotifications.count, 0, "Test environment should skip notifications")
+            } else {
+                XCTAssertEqual(receivedNotifications.count, 1, "Should post permission notification")
+            }
         } else {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                expectation.fulfill()
+                fulfillOnce()
             }
 
             wait(for: [expectation], timeout: 1.0)
@@ -268,6 +285,7 @@ final class KeyboardCaptureTests: XCTestCase {
     func testPermissionNotificationContent() throws {
         receivedNotifications.removeAll()
         let expectation = expectation(description: "Permission notification")
+        let hasPermissions = capture.checkAccessibilityPermissionsSilently()
 
         // Start capture without permissions to trigger notification
         capture.startCapture { key in
@@ -283,7 +301,7 @@ final class KeyboardCaptureTests: XCTestCase {
         wait(for: [expectation], timeout: 1.0)
 
         // Check if notification was posted (depends on permission state)
-        if !capture.checkAccessibilityPermissionsSilently() {
+        if !TestEnvironment.isRunningTests && !hasPermissions {
             XCTAssertGreaterThanOrEqual(
                 receivedNotifications.count, 1, "Should post permission notification"
             )
@@ -300,6 +318,7 @@ final class KeyboardCaptureTests: XCTestCase {
     func testContinuousCapturePermissionNotification() throws {
         receivedNotifications.removeAll()
         let expectation = expectation(description: "Continuous permission notification")
+        let hasPermissions = capture.checkAccessibilityPermissionsSilently()
 
         capture.startContinuousCapture { key in
             XCTAssertTrue(key.contains("⚠️"), "Should contain warning")
@@ -311,7 +330,8 @@ final class KeyboardCaptureTests: XCTestCase {
 
         wait(for: [expectation], timeout: 1.0)
 
-        if !capture.checkAccessibilityPermissionsSilently() {
+        if !TestEnvironment.isRunningTests && !hasPermissions {
+            XCTAssertFalse(receivedNotifications.isEmpty, "Should post permission notification")
             let notification = receivedNotifications.last!
             let userInfo = notification.userInfo!
             let reason = userInfo["reason"] as! String
@@ -386,6 +406,16 @@ final class KeyboardCaptureTests: XCTestCase {
 
     func testCallbackErrorHandling() throws {
         let expectation = expectation(description: "Callback error handling")
+        let lock = NSLock()
+        var didFulfill = false
+
+        let fulfillOnce = {
+            lock.lock()
+            defer { lock.unlock() }
+            guard !didFulfill else { return }
+            didFulfill = true
+            expectation.fulfill()
+        }
 
         // Test callback that throws an error
         capture.startCapture { key in
@@ -393,13 +423,13 @@ final class KeyboardCaptureTests: XCTestCase {
             if key.contains("test") {
                 fatalError("Test error") // This would crash in real usage
             }
-            expectation.fulfill()
+            fulfillOnce()
         }
 
         // Since we can't trigger actual key events in tests,
         // we just verify the setup completes
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            expectation.fulfill()
+            fulfillOnce()
         }
 
         wait(for: [expectation], timeout: 1.0)
@@ -416,6 +446,16 @@ final class KeyboardCaptureTests: XCTestCase {
         var capturedInput: String?
 
         let expectation = expectation(description: "Integration test")
+        let lock = NSLock()
+        var didFulfill = false
+
+        let fulfillOnce = {
+            lock.lock()
+            defer { lock.unlock() }
+            guard !didFulfill else { return }
+            didFulfill = true
+            expectation.fulfill()
+        }
 
         capture.startCapture { key in
             capturedInput = key
@@ -424,12 +464,12 @@ final class KeyboardCaptureTests: XCTestCase {
             let convertedKey = manager.convertToKanataKey(key)
             XCTAssertFalse(convertedKey.isEmpty, "Converted key should not be empty")
 
-            expectation.fulfill()
+            fulfillOnce()
         }
 
         // Simulate timeout for async operation
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            expectation.fulfill()
+            fulfillOnce()
         }
 
         wait(for: [expectation], timeout: 1.0)

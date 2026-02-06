@@ -165,3 +165,8 @@ struct SimulatorView: View {
 #Preview {
     SimulatorView()
 }
+
+#Preview("Simulator - Narrow") {
+    SimulatorView()
+        .frame(width: 900, height: 560)
+}

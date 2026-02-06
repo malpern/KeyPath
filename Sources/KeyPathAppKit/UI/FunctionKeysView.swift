@@ -337,3 +337,13 @@ private struct FunctionKeyInfo {
         .frame(width: 500)
         .padding()
 }
+
+#Preview("Function Keys - F Row Mode") {
+    FunctionKeysView(
+        mappings: [],
+        currentMode: .function,
+        onModeChange: { _ in }
+    )
+    .frame(width: 500)
+    .padding()
+}

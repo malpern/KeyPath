@@ -27,9 +27,13 @@ Rationale: older CLI/tooling may still expose `tools.web_search`, which prints a
   - `WizardAutoFixer` directly (superseded by Engine).
 
 ### Permissions
-- **Always use `PermissionOracle.shared`**.
-- Never call `IOHIDCheckAccess` directly.
-- Never check TCC database directly.
+- **Always use `PermissionOracle.shared`** for permission checks.
+- Never call `IOHIDCheckAccess` directly **outside of PermissionOracle**.
+- Never check TCC database directly **outside of PermissionOracle**.
+- **Exception**: `PermissionOracle` itself uses `IOHIDCheckAccess` and TCC as its
+  internal implementation (see [ADR-001](docs/adr/adr-001-oracle-pattern.md) and
+  [ADR-016](docs/adr/adr-016-permission-oracle-tcc-fallback.md)). Apple APIs are
+  authoritative; TCC is a fallback for `.unknown` results only.
 
 ### Keyboard Visualization
 - **Geometry follows selected `PhysicalLayout`** (user-selected layout ID).

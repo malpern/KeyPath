@@ -80,3 +80,36 @@ struct DiagnosticSummarySection: View {
         )
     }
 }
+
+#Preview("Diagnostic Section - With Fixes") {
+    let manager = RuntimeCoordinator()
+    let viewModel = KanataViewModel(manager: manager)
+    DiagnosticSummarySection(
+        criticalIssues: [
+            KanataDiagnostic(
+                timestamp: Date(),
+                severity: .critical,
+                category: .permissions,
+                title: "Accessibility Missing",
+                description: "Accessibility permission is required.",
+                technicalDetails: "AX API denied",
+                suggestedAction: "Enable in System Settings",
+                canAutoFix: false
+            ),
+            KanataDiagnostic(
+                timestamp: Date(),
+                severity: .error,
+                category: .process,
+                title: "Service Unhealthy",
+                description: "kanata is repeatedly exiting.",
+                technicalDetails: "exit code 1",
+                suggestedAction: "Restart and inspect logs",
+                canAutoFix: true
+            )
+        ],
+        kanataManager: viewModel,
+        onViewDetails: {}
+    )
+    .frame(width: 720)
+    .padding()
+}

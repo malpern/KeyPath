@@ -204,7 +204,8 @@ final class ConfigHotReloadService {
     // MARK: - Private Helpers
 
     private func scheduleStatusReset() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + statusResetDelay) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(self?.statusResetDelay ?? 2.0))
             self?.callbacks.onReset?()
         }
     }

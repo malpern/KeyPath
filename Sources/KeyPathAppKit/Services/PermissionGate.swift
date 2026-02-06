@@ -1,6 +1,5 @@
 import Foundation
 import KeyPathPermissions
-import SwiftUI
 
 enum PGPermissionType: Hashable {
     case inputMonitoring

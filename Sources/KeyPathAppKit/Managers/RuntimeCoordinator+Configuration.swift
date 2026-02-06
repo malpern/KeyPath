@@ -3,7 +3,6 @@ import Foundation
 import IOKit.hidsystem
 import KeyPathCore
 import KeyPathDaemonLifecycle
-import SwiftUI
 
 // MARK: - RuntimeCoordinator Configuration Extension
 
