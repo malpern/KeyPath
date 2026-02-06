@@ -1,7 +1,7 @@
+import Combine
 import Foundation
 import KeyPathCore
 import ServiceManagement
-import SwiftUI
 
 /// A focused utility for maintaining the privileged helper registration and artifacts.
 ///

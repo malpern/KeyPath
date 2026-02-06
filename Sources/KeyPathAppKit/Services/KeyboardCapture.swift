@@ -1,8 +1,8 @@
 import AppKit
 import Carbon
+import Combine
 import Foundation
 import KeyPathCore
-import SwiftUI
 
 // Import the event processing infrastructure
 #if canImport(KeyPath)
@@ -56,32 +56,10 @@ public class KeyboardCapture: ObservableObject {
     /// Activity observer for logging keyboard shortcuts
     weak var activityObserver: KeyboardActivityObserver?
 
-    // Fast process probe to reduce race with manager.isRunning updates
+    /// Non-blocking check for whether Kanata is running, using cached service state.
+    /// Replaces the old blocking `pgrep` call that could stall the main actor.
     func fastProbeKanataRunning(timeout: TimeInterval = 0.25) -> Bool {
-        // ADR-022: Never call real pgrep in tests - it can cause deadlocks
-        if TestEnvironment.isRunningTests {
-            return false
-        }
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-x", "kanata"]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-        do {
-            try task.run()
-        } catch {
-            return false
-        }
-        // Kill if it takes too long
-        DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
-            if task.isRunning { task.terminate() }
-        }
-        task.waitUntilExit()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let out = String(data: data, encoding: .utf8) ?? ""
-        return !out.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        KanataService.shared.state.isRunning
     }
 
     // MARK: - Event Router Configuration

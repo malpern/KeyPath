@@ -87,7 +87,8 @@ extension HelperManager {
 
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             // Set up timeout
-            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+            Task {
+                try? await Task.sleep(for: .seconds(timeout))
                 guard completionState.tryComplete() else { return } // Already completed by XPC callback
                 AppLogger.shared.log("⏱️ [HelperManager] \(name) timed out after \(Int(timeout))s")
                 continuation.resume(throwing: HelperManagerError.operationFailed("XPC call '\(name)' timed out after \(Int(timeout))s"))

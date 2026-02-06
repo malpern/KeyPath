@@ -25,7 +25,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     private var currentConfiguration: KanataConfiguration?
     private var fileWatcher: FileWatcher?
-    private var observers: [@Sendable (Config) async -> Void] = []
+    private var observers: [UUID: @Sendable (Config) async -> Void] = [:]
 
     // Perform blocking file I/O off the main actor
     private let ioQueue = DispatchQueue(label: "com.keypath.configservice.io", qos: .utility)
@@ -110,15 +110,14 @@ public final class ConfigurationService: FileConfigurationProviding {
     public func observe(_ onChange: @Sendable @escaping (Config) async -> Void)
         -> ConfigurationObservationToken
     {
-        var index = 0
+        let id = UUID()
         stateLock.lock()
-        observers.append(onChange)
-        index = observers.count - 1
+        observers[id] = onChange
         stateLock.unlock()
 
         return ConfigurationObservationToken {
             self.stateLock.lock()
-            if index < self.observers.count { self.observers.remove(at: index) }
+            self.observers.removeValue(forKey: id)
             self.stateLock.unlock()
         }
     }
@@ -542,7 +541,7 @@ extension ConfigurationService {
     func observersSnapshot() -> [@Sendable (Config) async -> Void] {
         stateLock.lock()
         defer { stateLock.unlock() }
-        return observers
+        return Array(observers.values)
     }
 
     func readFileAsync(path: String) async throws -> String {

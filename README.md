@@ -5,8 +5,8 @@
 
   **Remap any key to any other key with a simple, native macOS app**
 
-  [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue.svg)](https://www.apple.com/macos/)
-  [![Swift 6.0](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
+  [![macOS 26+](https://img.shields.io/badge/macOS-26%2B-blue.svg)](https://www.apple.com/macos/)
+  [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-orange.svg)](https://swift.org)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 </div>
 
@@ -75,7 +75,7 @@ Your remapping is active immediately—no restart, no manual service management,
 - **No telemetry** - Works completely offline, no data collection
 
 ### 🎨 Native macOS Experience
-- **Beautiful SwiftUI interface** with Liquid Glass design (macOS 15+)
+- **Beautiful SwiftUI interface** with Liquid Glass design (macOS 26+)
 - **System Settings integration** - Follows macOS design patterns
 - **Proper signing & notarization** - Works with macOS security features
 - **Accessibility support** - Respects macOS accessibility settings
@@ -168,7 +168,7 @@ If you're already using Kanata on macOS, KeyPath can run your existing configura
 | **Instant Apply** | Changes work immediately - no restart needed |
 | **Safety Features** | Emergency stop (`Ctrl+Space+Esc`) prevents getting locked out |
 | **Smart Setup** | Installation wizard handles all technical setup automatically |
-| **Native macOS UI** | Beautiful SwiftUI interface with Liquid Glass design (macOS 15+) |
+| **Native macOS UI** | Beautiful SwiftUI interface with Liquid Glass design (macOS 26+) |
 
 ### For Power Users
 
@@ -247,7 +247,7 @@ KeyPath isn't just a wrapper around Kanata—it's a **complete macOS integration
 
 ### Technical Stack
 
-- **Swift 6.0** - Modern Swift concurrency (async/await, actors)
+- **Swift 6.2** - Modern Swift concurrency (async/await, actors)
 - **SwiftUI** - Native macOS UI with Liquid Glass design
 - **Kanata** - Cross-platform keyboard remapping engine
 - **LaunchDaemon** - System-level service management
@@ -295,7 +295,7 @@ The helper keeps this binary updated from the bundled copy when needed and ensur
 
 ### KeyPath Won't Start?
 
-1. **Check macOS version** - Requires macOS 15.0 (Sequoia) or later
+1. **Check macOS version** - Requires macOS 26.0 or later
 2. **Run setup wizard** - Go to File → Run Setup Wizard
 3. **Check logs** - View system logs: `tail -f /var/log/kanata.log`
 
@@ -330,7 +330,7 @@ Our main test runners (`./test.sh` and `./Scripts/run-tests-safe.sh`) already in
 
 ### System Requirements
 
-- **macOS 15.0 (Sequoia) or later**
+- **macOS 26.0 or later**
 - **Apple Silicon or Intel Mac**
 
 ### Dependencies (Handled Automatically)

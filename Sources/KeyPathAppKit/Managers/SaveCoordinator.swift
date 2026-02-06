@@ -319,7 +319,8 @@ final class SaveCoordinator {
     // MARK: - Private Helpers
 
     private func scheduleStatusReset() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2))
             self?.saveStatus = .idle
         }
     }

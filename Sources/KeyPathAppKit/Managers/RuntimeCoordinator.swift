@@ -6,66 +6,74 @@ import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathWizardCore
 import Network
-import SwiftUI
 
 // KeyMapping is now in Models/KeyMapping.swift
 
 /// Manages the Kanata process lifecycle and configuration directly.
 ///
-/// # Architecture: Main Coordinator + Extension Files (2,820 lines total)
+/// # Architecture: Main Coordinator + Extension Files (~1,800 lines total)
 ///
 /// RuntimeCoordinator is the main orchestrator for Kanata process management and configuration.
 /// It's split across multiple extension files for maintainability:
 ///
 /// ## Extension Files (organized by concern):
 ///
-/// **RuntimeCoordinator.swift** (main file, ~1,200 lines)
-/// - Core initialization and state managemen
+/// **RuntimeCoordinator.swift** (main file, ~960 lines)
+/// - Core initialization and state management
 /// - UI state snapshots and ViewModel interface
 /// - Health monitoring and auto-start logic
 /// - Diagnostics and error handling
 ///
-/// **RuntimeCoordinator+Lifecycle.swift** (~400 lines)
-/// - Process start/stop/restart operations
-/// - LaunchDaemon service managemen
-/// - State machine transitions
-/// - Recovery and health checks
+/// **RuntimeCoordinator+Configuration.swift** (~184 lines)
+/// - Config reload triggering and TCP communication
+/// - Key mapping save operations
 ///
-/// **RuntimeCoordinator+Configuration.swift** (~500 lines)
-/// - Config file I/O and validation
-/// - Key mapping CRUD operations
-/// - Backup and repair logic
-/// - TCP server configuration
+/// **RuntimeCoordinator+RuleCollections.swift** (~112 lines)
+/// - Rule collection CRUD and persistence
 ///
-/// **RuntimeCoordinator+Engine.swift** (~300 lines)
-/// - Kanata engine communication
-/// - TCP protocol handling
-/// - Config reload and layer managemen
+/// **RuntimeCoordinator+ServiceManagement.swift** (~119 lines)
+/// - LaunchDaemon service start/stop/restart
 ///
-/// **RuntimeCoordinator+EventTaps.swift** (~200 lines)
-/// - CGEvent monitoring and key capture
-/// - Keyboard input recording
-/// - Event tap lifecycle
+/// **RuntimeCoordinator+ConfigMaintenance.swift** (~89 lines)
+/// - Config backup, repair, and safe-config fallback
 ///
-/// **RuntimeCoordinator+Output.swift** (~150 lines)
-/// - Log parsing and monitoring
-/// - Output processing from Kanata daemon
+/// **RuntimeCoordinator+Lifecycle.swift** (~77 lines)
+/// - Process lifecycle state transitions
+///
+/// **RuntimeCoordinator+State.swift** (~73 lines)
+/// - UI state snapshot building
+///
+/// **RuntimeCoordinator+ConfigHotReload.swift** (~68 lines)
+/// - File-change-driven hot reload
+///
+/// **RuntimeCoordinator+Diagnostics.swift** (~64 lines)
+/// - System analysis and failure diagnosis
+///
+/// **RuntimeCoordinator+ConflictResolution.swift** (~29 lines)
+/// - Karabiner conflict detection helpers
+///
+/// **RuntimeCoordinator+Engine.swift** (~13 lines)
+/// - Kanata engine communication (stub)
+///
+/// **RuntimeCoordinator+Output.swift** (~13 lines)
+/// - Log parsing and monitoring (stub)
 ///
 /// ## Key Dependencies (used by extensions):
 ///
 /// - **ConfigurationService**: File I/O, parsing, validation (Configuration extension)
 /// - **ProcessLifecycleManager**: PID tracking, daemon registration (Lifecycle extension)
-/// - **ServiceHealthMonitor**: Restart cooldown, recovery (Lifecycle extension)
-/// - **DiagnosticsService**: System analysis, failure diagnosis (main file)
+/// - **ServiceHealthMonitor**: Restart cooldown, recovery (ServiceManagement extension)
+/// - **DiagnosticsService**: System analysis, failure diagnosis (Diagnostics extension)
 /// - **PermissionOracle**: Permission state (main file + Lifecycle)
 ///
 /// ## Navigation Tips:
 ///
-/// - Starting Kanata? → See `+Lifecycle.swift`
-/// - Reading/writing config? → See `+Configuration.swift`
-/// - Talking to Kanata? → See `+Engine.swift`
-/// - Recording keypresses? → See `+EventTaps.swift`
-/// - Parsing logs? → See `+Output.swift`
+/// - Starting/stopping Kanata? → See `+ServiceManagement.swift` or `+Lifecycle.swift`
+/// - Reading/writing config? → See `+Configuration.swift` or `+ConfigMaintenance.swift`
+/// - Hot reload on file change? → See `+ConfigHotReload.swift`
+/// - Rule collections? → See `+RuleCollections.swift`
+/// - UI state snapshots? → See `+State.swift`
+/// - System diagnostics? → See `+Diagnostics.swift`
 ///
 /// ## MVVM Architecture Note:
 ///
@@ -832,7 +840,8 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             }
 
             // Reset to idle after a delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(2))
                 self?.saveStatus = .idle
             }
         }

@@ -4,7 +4,6 @@ import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathWizardCore
-import SwiftUI
 
 /// Main app state controller using SystemValidator
 ///
