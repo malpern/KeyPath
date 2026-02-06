@@ -1,8 +1,7 @@
 import Foundation
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
 @testable import KeyPathCore
+@preconcurrency import XCTest
 
 @MainActor
 final class SimpleModsWriterTests: XCTestCase {
@@ -25,7 +24,7 @@ final class SimpleModsWriterTests: XCTestCase {
     // MARK: - Safety Guard Tests
 
     /// Test that writeBlock refuses to write an empty/invalid config when clearing all mappings
-    func testWriteBlock_RefusesToWriteEmptyConfig() async throws {
+    func testWriteBlock_RefusesToWriteEmptyConfig() throws {
         // Create a config that ONLY has a sentinel block (no other valid content)
         // When we clear all mappings, it would result in an invalid config
         let minimalConfigWithSentinel = """
@@ -65,7 +64,7 @@ final class SimpleModsWriterTests: XCTestCase {
     }
 
     /// Test that writeBlock succeeds when config has valid structure after block removal
-    func testWriteBlock_SucceedsWithValidConfigAfterBlockRemoval() async throws {
+    func testWriteBlock_SucceedsWithValidConfigAfterBlockRemoval() throws {
         // Create a config with valid defsrc/deflayer PLUS a sentinel block
         let validConfigWithSentinel = """
         (defcfg
@@ -101,7 +100,7 @@ final class SimpleModsWriterTests: XCTestCase {
     }
 
     /// Test that writeBlock adds mappings correctly
-    func testWriteBlock_AddsMappingsCorrectly() async throws {
+    func testWriteBlock_AddsMappingsCorrectly() throws {
         // Start with a valid base config
         let baseConfig = """
         (defcfg
@@ -136,7 +135,7 @@ final class SimpleModsWriterTests: XCTestCase {
     }
 
     /// Test that writeBlock deduplicates mappings (keeps last per fromKey)
-    func testWriteBlock_DeduplicatesMappings() async throws {
+    func testWriteBlock_DeduplicatesMappings() throws {
         let baseConfig = """
         (defcfg
           process-unmapped-keys yes
@@ -169,7 +168,7 @@ final class SimpleModsWriterTests: XCTestCase {
     }
 
     /// Test that generateEffectiveConfig filters out disabled lines
-    func testGenerateEffectiveConfig_FiltersDisabledLines() async throws {
+    func testGenerateEffectiveConfig_FiltersDisabledLines() throws {
         // Create config with sentinel block containing both enabled and disabled mappings
         let configWithMixed = """
         (defcfg

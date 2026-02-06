@@ -18,7 +18,7 @@ final class SimulatorServiceTests: XCTestCase {
         }
         """
 
-        let result = try JSONDecoder().decode(SimulationResult.self, from: json.data(using: .utf8)!)
+        let result = try JSONDecoder().decode(SimulationResult.self, from: XCTUnwrap(json.data(using: .utf8)))
 
         XCTAssertEqual(result.events.count, 4)
         XCTAssertEqual(result.finalLayer, "base")
@@ -30,7 +30,7 @@ final class SimulatorServiceTests: XCTestCase {
         {"type": "input", "t": 100, "action": "press", "key": "a"}
         """
 
-        let event = try JSONDecoder().decode(SimEvent.self, from: json.data(using: .utf8)!)
+        let event = try JSONDecoder().decode(SimEvent.self, from: XCTUnwrap(json.data(using: .utf8)))
 
         if case let .input(t, action, key) = event {
             XCTAssertEqual(t, 100)
@@ -46,7 +46,7 @@ final class SimulatorServiceTests: XCTestCase {
         {"type": "output", "t": 50, "action": "release", "key": "lsft"}
         """
 
-        let event = try JSONDecoder().decode(SimEvent.self, from: json.data(using: .utf8)!)
+        let event = try JSONDecoder().decode(SimEvent.self, from: XCTUnwrap(json.data(using: .utf8)))
 
         if case let .output(t, action, key) = event {
             XCTAssertEqual(t, 50)
@@ -62,7 +62,7 @@ final class SimulatorServiceTests: XCTestCase {
         {"type": "layer", "t": 1500, "from": "base", "to": "nav"}
         """
 
-        let event = try JSONDecoder().decode(SimEvent.self, from: json.data(using: .utf8)!)
+        let event = try JSONDecoder().decode(SimEvent.self, from: XCTUnwrap(json.data(using: .utf8)))
 
         if case let .layer(t, from, to) = event {
             XCTAssertEqual(t, 1500)
@@ -78,7 +78,7 @@ final class SimulatorServiceTests: XCTestCase {
         {"type": "unicode", "t": 300, "char": "😀"}
         """
 
-        let event = try JSONDecoder().decode(SimEvent.self, from: json.data(using: .utf8)!)
+        let event = try JSONDecoder().decode(SimEvent.self, from: XCTUnwrap(json.data(using: .utf8)))
 
         if case let .unicode(t, char) = event {
             XCTAssertEqual(t, 300)
@@ -93,7 +93,7 @@ final class SimulatorServiceTests: XCTestCase {
         {"type": "mouse", "t": 400, "action": "click", "data": "left"}
         """
 
-        let event = try JSONDecoder().decode(SimEvent.self, from: json.data(using: .utf8)!)
+        let event = try JSONDecoder().decode(SimEvent.self, from: XCTUnwrap(json.data(using: .utf8)))
 
         if case let .mouse(t, action, data) = event {
             XCTAssertEqual(t, 400)
@@ -113,7 +113,7 @@ final class SimulatorServiceTests: XCTestCase {
         }
         """
 
-        let result = try JSONDecoder().decode(SimulationResult.self, from: json.data(using: .utf8)!)
+        let result = try JSONDecoder().decode(SimulationResult.self, from: XCTUnwrap(json.data(using: .utf8)))
 
         XCTAssertNil(result.finalLayer)
     }

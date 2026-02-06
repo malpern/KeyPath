@@ -198,7 +198,7 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
 
     // MARK: - Key Emphasis Tests
 
-    func testEmphasizedKeyCodesOnNavLayer() async {
+    func testEmphasizedKeyCodesOnNavLayer() {
         let viewModel = KeyboardVisualizationViewModel()
         viewModel.currentLayerName = "nav"
         viewModel.layerKeyMap = [
@@ -217,7 +217,7 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         XCTAssertTrue(emphasized.contains(37), "l (keyCode 37) should be emphasized")
     }
 
-    func testEmphasizedKeyCodesOnBaseLayer() async {
+    func testEmphasizedKeyCodesOnBaseLayer() {
         let viewModel = KeyboardVisualizationViewModel()
         viewModel.currentLayerName = "base"
 

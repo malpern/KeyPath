@@ -1,7 +1,6 @@
+@testable import KeyPathAppKit
 import ServiceManagement
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 @MainActor
 final class KanataDaemonManagerTests: XCTestCase {

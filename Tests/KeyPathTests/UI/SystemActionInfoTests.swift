@@ -1,6 +1,5 @@
-import XCTest
-
 @testable import KeyPathAppKit
+import XCTest
 
 final class SystemActionInfoTests: XCTestCase {
     // MARK: - Lookup by ID

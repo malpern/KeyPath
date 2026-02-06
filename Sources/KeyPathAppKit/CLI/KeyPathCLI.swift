@@ -89,7 +89,8 @@ public struct KeyPathCLI {
               keypath-cli uninstall
               keypath-cli uninstall --delete-config
               keypath-cli inspect
-            """)
+            """
+        )
     }
 
     /// Run status command
@@ -122,7 +123,8 @@ public struct KeyPathCLI {
         // Components
         print("\n--- Components ---")
         print(
-            "Kanata Binary: \(context.components.kanataBinaryInstalled ? "✅ Installed" : "❌ Missing")")
+            "Kanata Binary: \(context.components.kanataBinaryInstalled ? "✅ Installed" : "❌ Missing")"
+        )
         print(
             "Karabiner Driver: \(context.components.karabinerDriverInstalled ? "✅ Installed" : "❌ Missing")"
         )
@@ -275,7 +277,8 @@ public struct KeyPathCLI {
         print("Starting uninstall...")
         print(
             deleteConfig
-                ? "⚠️  User configuration will be deleted" : "💾 User configuration will be preserved")
+                ? "⚠️  User configuration will be deleted" : "💾 User configuration will be preserved"
+        )
         print("")
 
         let broker = privilegeBrokerFactory()
@@ -390,7 +393,8 @@ public struct KeyPathCLI {
                     title: "KeyPath permissions missing",
                     canAutoFix: false,
                     action: "Grant Accessibility & Input Monitoring permissions."
-                ))
+                )
+            )
         }
         if !context.permissions.kanata.hasAllPermissions {
             issues.append(
@@ -398,7 +402,8 @@ public struct KeyPathCLI {
                     title: "Kanata permissions missing",
                     canAutoFix: false,
                     action: "Grant permissions via Installation Wizard."
-                ))
+                )
+            )
         }
         if !context.components.hasAllRequired {
             issues.append(
@@ -406,7 +411,8 @@ public struct KeyPathCLI {
                     title: "Required components missing",
                     canAutoFix: true,
                     action: "Run `keypath-cli install` to reinstall components."
-                ))
+                )
+            )
         }
         if !context.services.isHealthy {
             issues.append(
@@ -414,7 +420,8 @@ public struct KeyPathCLI {
                     title: "Services unhealthy",
                     canAutoFix: true,
                     action: "Run `keypath-cli repair` to restart services."
-                ))
+                )
+            )
         }
         if !context.helper.isReady {
             issues.append(
@@ -422,7 +429,8 @@ public struct KeyPathCLI {
                     title: "Helper not installed",
                     canAutoFix: true,
                     action: "Run `keypath-cli install` to reinstall helper."
-                ))
+                )
+            )
         }
         if context.conflicts.hasConflicts {
             issues.append(
@@ -431,7 +439,8 @@ public struct KeyPathCLI {
                         title: formatConflict(conflict), canAutoFix: true,
                         action: "Terminate or stop the conflicting process."
                     )
-                })
+                }
+            )
         }
 
         return issues

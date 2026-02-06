@@ -1,8 +1,7 @@
 import Foundation
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
 @testable import KeyPathCore
+@preconcurrency import XCTest
 
 @MainActor
 class ConfigurationServiceTests: XCTestCase {
@@ -1035,7 +1034,7 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertTrue(config.contains("(lsft rsft) caps"), "Chord syntax should be correct")
     }
 
-    func testKeyboardGridFormattingKeepsLayoutOrder() {
+    func testKeyboardGridFormattingKeepsLayoutOrder() throws {
         let collection = RuleCollection(
             name: "Grid",
             summary: "layout",
@@ -1056,8 +1055,8 @@ class ConfigurationServiceTests: XCTestCase {
             XCTFail("Expected a row containing q and p in keyboard order")
             return
         }
-        let qPos = rowWithQ.range(of: "q")!.lowerBound
-        let pPos = rowWithQ.range(of: "p")!.lowerBound
+        let qPos = try XCTUnwrap(rowWithQ.range(of: "q")?.lowerBound)
+        let pPos = try XCTUnwrap(rowWithQ.range(of: "p")?.lowerBound)
         XCTAssertLessThan(qPos, pPos, "q should appear before p following physical layout")
 
         let spaceRow = rows.first { $0.contains("spc") }
@@ -1373,8 +1372,13 @@ class ConfigurationServiceTests: XCTestCase {
         let exp = expectation(description: "Observer fired on save")
         actor Flag {
             var value = false
-            func setTrue() { value = true }
-            func get() -> Bool { value }
+            func setTrue() {
+                value = true
+            }
+
+            func get() -> Bool {
+                value
+            }
         }
         let flag = Flag()
 
@@ -1408,8 +1412,13 @@ class ConfigurationServiceTests: XCTestCase {
         let exp = expectation(description: "Observer fired on reload")
         actor Flag {
             var value = false
-            func setTrue() { value = true }
-            func get() -> Bool { value }
+            func setTrue() {
+                value = true
+            }
+
+            func get() -> Bool {
+                value
+            }
         }
         let flag = Flag()
 

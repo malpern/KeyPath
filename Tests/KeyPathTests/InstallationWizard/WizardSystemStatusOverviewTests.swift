@@ -76,7 +76,7 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
     }
 }
 
-// Local stand-in for filteredDisplayItems logic (mirrors production behavior).
+/// Local stand-in for filteredDisplayItems logic (mirrors production behavior).
 private struct LocalStatusItem {
     let id: String
     let icon: String

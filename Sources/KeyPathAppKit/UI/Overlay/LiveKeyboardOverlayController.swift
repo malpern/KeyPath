@@ -4,11 +4,9 @@ import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
 
-
-
-/// Controls the floating live keyboard overlay window.
-/// Creates an always-on-top borderless window that shows the live keyboard state.
-/// Uses CGEvent tap for reliable key detection (same as "See Keymap" feature).
+// Controls the floating live keyboard overlay window.
+// Creates an always-on-top borderless window that shows the live keyboard state.
+// Uses CGEvent tap for reliable key detection (same as "See Keymap" feature).
 
 @MainActor
 final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
@@ -1157,5 +1155,4 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         guard let hostingView else { return }
         hostingView.rootView = buildRootView()
     }
-
 }

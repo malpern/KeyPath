@@ -29,30 +29,31 @@ extension Notification.Name {
     static let openApp = Notification.Name("KeyPath.Action.OpenApp")
     static let resetToSafeConfig = Notification.Name("KeyPath.Action.ResetToSafeConfig")
 
-    // SMAppService
+    /// SMAppService
     static let smAppServiceApprovalRequired = Notification.Name(
-        "KeyPath.SMAppService.ApprovalRequired")
+        "KeyPath.SMAppService.ApprovalRequired"
+    )
 
-    // Kanata service health
+    /// Kanata service health
     static let kanataCrashLoopDetected = Notification.Name("KeyPath.Kanata.CrashLoopDetected")
 
-    // Rule collections
+    /// Rule collections
     static let ruleCollectionsChanged = Notification.Name("KeyPath.RuleCollections.Changed")
 
-    // Config validation
+    /// Config validation
     static let configValidationFailed = Notification.Name("KeyPath.Config.ValidationFailed")
 
-    // Mapper drawer
+    /// Mapper drawer
     /// Posted when a key is clicked and should be selected in the mapper drawer
     /// userInfo: keyCode (UInt16), inputKey (String), outputKey (String), layer (String)
     static let mapperDrawerKeySelected = Notification.Name("KeyPath.Mapper.DrawerKeySelected")
 
-    // Uninstall flow
+    /// Uninstall flow
     static let keyPathUninstallCompleted = Notification.Name("KeyPath.Uninstall.Completed")
 
-    // Diagnostics
+    /// Diagnostics
     static let verboseLoggingChanged = Notification.Name("KeyPath.Diagnostics.VerboseLoggingChanged")
 
-    // Activity Logging
+    /// Activity Logging
     static let activityLoggingChanged = Notification.Name("KeyPath.ActivityLogging.Changed")
 }

@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 @MainActor
 final class UninstallCoordinatorTests: XCTestCase {
@@ -17,7 +16,8 @@ final class UninstallCoordinatorTests: XCTestCase {
 
     func testUninstallRemovesPathsAndLogsSuccess() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(
-            "keypath-uninstall-\(UUID().uuidString)")
+            "keypath-uninstall-\(UUID().uuidString)"
+        )
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let launchDaemons = root.appendingPathComponent("Library/LaunchDaemons", isDirectory: true)
         try FileManager.default.createDirectory(at: launchDaemons, withIntermediateDirectories: true)
@@ -80,11 +80,12 @@ final class UninstallCoordinatorTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: helperTools.path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: app.path))
         XCTAssertTrue(
-            FileManager.default.fileExists(atPath: root.appendingPathComponent("cleanup.txt").path))
+            FileManager.default.fileExists(atPath: root.appendingPathComponent("cleanup.txt").path)
+        )
         XCTAssertTrue(coordinator.logLines.contains { $0.contains("Uninstall completed") })
     }
 
-    func testUninstallFailsWhenScriptMissing() async throws {
+    func testUninstallFailsWhenScriptMissing() async {
         let coordinator = UninstallCoordinator(
             resolveUninstallerURL: { nil },
             runWithAdminPrivileges: { _, _ in
@@ -100,9 +101,10 @@ final class UninstallCoordinatorTests: XCTestCase {
         XCTAssertTrue(coordinator.logLines.contains { $0.contains("Uninstaller script wasn't found") })
     }
 
-    func testUninstallLogsAdminError() async throws {
+    func testUninstallLogsAdminError() async {
         let errorURL = FileManager.default.temporaryDirectory.appendingPathComponent(
-            "uninstall-fail.sh")
+            "uninstall-fail.sh"
+        )
         let coordinator = UninstallCoordinator(
             resolveUninstallerURL: { errorURL },
             runWithAdminPrivileges: { _, _ in
@@ -118,9 +120,10 @@ final class UninstallCoordinatorTests: XCTestCase {
         XCTAssertTrue(coordinator.logLines.contains { $0.contains("Permission denied") })
     }
 
-    func testUninstallLogsExitCodeWhenAdminErrorMissingMessage() async throws {
+    func testUninstallLogsExitCodeWhenAdminErrorMissingMessage() async {
         let errorURL = FileManager.default.temporaryDirectory.appendingPathComponent(
-            "uninstall-fail.sh")
+            "uninstall-fail.sh"
+        )
         let coordinator = UninstallCoordinator(
             resolveUninstallerURL: { errorURL },
             runWithAdminPrivileges: { _, _ in

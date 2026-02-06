@@ -1,8 +1,7 @@
 import Foundation
+@testable import KeyPathAppKit
 import KeyPathCore
 import Testing
-
-@testable import KeyPathAppKit
 
 /// Tests for the consolidated KeyPathError type
 ///

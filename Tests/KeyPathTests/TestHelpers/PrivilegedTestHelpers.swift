@@ -1,7 +1,6 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
 @testable import KeyPathCore
+@preconcurrency import XCTest
 
 @MainActor
 final class FakeAdminCommandExecutor: AdminCommandExecutor {

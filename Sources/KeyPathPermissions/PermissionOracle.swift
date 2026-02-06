@@ -211,7 +211,8 @@ public actor PermissionOracle {
 
         let duration = Date().timeIntervalSince(start)
         AppLogger.shared.log(
-            "🔮 [Oracle] Permission snapshot complete in \(String(format: "%.3f", duration))s")
+            "🔮 [Oracle] Permission snapshot complete in \(String(format: "%.3f", duration))s"
+        )
         AppLogger.shared.log("🔮 [Oracle] System ready: \(snapshot.isSystemReady)")
         if let issue = snapshot.blockingIssue {
             AppLogger.shared.log("🔮 [Oracle] Blocking issue: \(issue)")
@@ -253,7 +254,8 @@ public actor PermissionOracle {
         if FeatureFlags.shared.startupModeActive {
             // During startup, skip the potentially blocking IOHIDCheckAccess call
             AppLogger.shared.log(
-                "🔮 [Oracle] Startup mode - skipping IOHIDCheckAccess to prevent UI freeze")
+                "🔮 [Oracle] Startup mode - skipping IOHIDCheckAccess to prevent UI freeze"
+            )
             inputMonitoring = .unknown
         } else {
             // Normal operation - safe to call IOHIDCheckAccess
@@ -308,12 +310,12 @@ public actor PermissionOracle {
     // - GUI context: Runs in user session, not daemon
     // - UX requirement: Sequential prompts are essential for comprehension
 
-    // NOTE: ADR-016 documents an approved exception to AGENTS.md’s
-    // “never read TCC directly” rule. We must read the TCC DB *read‑only*
-    // to know Kanata’s AX/IM state without launching the root-managed
-    // daemon (which cannot report its own TCC reliably). This keeps the
-    // wizard’s sequential permission flow predictable. Do not remove
-    // without revisiting ADR-016.
+    /// NOTE: ADR-016 documents an approved exception to AGENTS.md’s
+    /// “never read TCC directly” rule. We must read the TCC DB *read‑only*
+    /// to know Kanata’s AX/IM state without launching the root-managed
+    /// daemon (which cannot report its own TCC reliably). This keeps the
+    /// wizard’s sequential permission flow predictable. Do not remove
+    /// without revisiting ADR-016.
     private func checkKanataPermissions() async -> PermissionSet {
         let kanataPath = resolveKanataExecutablePath()
 
@@ -378,12 +380,14 @@ public actor PermissionOracle {
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
                 throw KeyPathError.permission(
-                    .privilegedOperationFailed(operation: "permission check", reason: "Operation timed out"))
+                    .privilegedOperationFailed(operation: "permission check", reason: "Operation timed out")
+                )
             }
 
             guard let result = try await group.next() else {
                 throw KeyPathError.permission(
-                    .privilegedOperationFailed(operation: "permission check", reason: "Operation timed out"))
+                    .privilegedOperationFailed(operation: "permission check", reason: "Operation timed out")
+                )
             }
 
             group.cancelAll()
@@ -393,13 +397,13 @@ public actor PermissionOracle {
 
     // MARK: - Utilities
 
-    // Resolve the canonical Kanata executable path for TCC queries.
-    //
-    // IMPORTANT:
-    // - TCC entries for CLI binaries are keyed by *executable path* (client_type=1).
-    // - If the daemon executes a different path than the wizard instructs users to add,
-    //   we can get false positives/negatives (green UI while remapping fails).
-    // - We intentionally prefer the system-installed canonical path to avoid bundle-path churn.
+    /// Resolve the canonical Kanata executable path for TCC queries.
+    ///
+    /// IMPORTANT:
+    /// - TCC entries for CLI binaries are keyed by *executable path* (client_type=1).
+    /// - If the daemon executes a different path than the wizard instructs users to add,
+    ///   we can get false positives/negatives (green UI while remapping fails).
+    /// - We intentionally prefer the system-installed canonical path to avoid bundle-path churn.
     private func resolveKanataExecutablePath() -> String {
         // Canonical runtime/permission identity (preferred)
         let system = WizardSystemPaths.kanataSystemInstallPath
@@ -417,7 +421,7 @@ public actor PermissionOracle {
         return WizardSystemPaths.kanataActiveBinary
     }
 
-    // Log granular permission transitions for observability
+    /// Log granular permission transitions for observability
     private func logPermissionTransitions(from old: Snapshot, to new: Snapshot) {
         func logChange(subject: String, old: Status, new: Status) {
             guard old != new else { return }
@@ -455,23 +459,24 @@ public actor PermissionOracle {
 
         if old.isSystemReady != new.isSystemReady {
             AppLogger.shared.log(
-                "🔁 [Oracle] System readiness changed: \(old.isSystemReady) → \(new.isSystemReady)")
+                "🔁 [Oracle] System readiness changed: \(old.isSystemReady) → \(new.isSystemReady)"
+            )
         }
     }
 
     // MARK: - TCC Database Fallback (Necessary to break chicken-and-egg problem)
 
-    // TCC service names across macOS versions
+    /// TCC service names across macOS versions
     private enum TCCServiceName: String {
         case accessibility = "kTCCServiceAccessibility"
         case inputMonitoring = "kTCCServiceListenEvent"
     }
 
-    // Attempt to determine TCC status for Kanata by executable path (best-effort).
-    // Returns (.granted/.denied) if determinable, or nil if inconclusive/unreadable.
-    // NOTE: This direct TCC access was previously removed as "bad practice" but is
-    // necessary here to resolve the chicken-and-egg problem between permission verification
-    // and service startup. This is a legitimate fallback when functional verification fails.
+    /// Attempt to determine TCC status for Kanata by executable path (best-effort).
+    /// Returns (.granted/.denied) if determinable, or nil if inconclusive/unreadable.
+    /// NOTE: This direct TCC access was previously removed as "bad practice" but is
+    /// necessary here to resolve the chicken-and-egg problem between permission verification
+    /// and service startup. This is a legitimate fallback when functional verification fails.
     private func checkTCCForKanata(executablePath: String) async -> (ax: Status?, im: Status?) {
         // Normalize path for TCC queries - convert development builds to installed paths
         let normalizedPath = normalizePathForTCC(executablePath)
@@ -497,9 +502,9 @@ public actor PermissionOracle {
         return path
     }
 
-    // Query TCC DB for a specific executable path and service
-    // Note: Requires Full Disk Access to read user's TCC.db; gracefully degrades to nil otherwise.
-    // This is similar to how other system utilities (e.g., tccutil, privacy management tools) work.
+    /// Query TCC DB for a specific executable path and service
+    /// Note: Requires Full Disk Access to read user's TCC.db; gracefully degrades to nil otherwise.
+    /// This is similar to how other system utilities (e.g., tccutil, privacy management tools) work.
     private func tccStatus(forExecutable execPath: String, service: TCCServiceName) async -> Status? {
         let dbPaths = tccDatabaseCandidates()
         for db in dbPaths where FileManager.default.fileExists(atPath: db) {
@@ -521,19 +526,19 @@ public actor PermissionOracle {
         return nil
     }
 
-    // TCC DB locations to try (user first, then system)
-    // Most permission grants are stored in the user's TCC database
+    /// TCC DB locations to try (user first, then system)
+    /// Most permission grants are stored in the user's TCC database
     private func tccDatabaseCandidates() -> [String] {
         let user = "\(NSHomeDirectory())/Library/Application Support/com.apple.TCC/TCC.db"
         let system = "/Library/Application Support/com.apple.TCC/TCC.db"
         return [user, system]
     }
 
-    // Run a minimal sqlite query with a short timeout.
-    // Returns an integer meaning of auth_value/allowed, or nil if not determinable.
-    // Uses sqlite3 CLI tool which is available on all macOS systems.
-    // Approved read-only TCC lookup (see ADR-016). This must remain
-    // best-effort, side-effect free, and resilient to failure (no FDA).
+    /// Run a minimal sqlite query with a short timeout.
+    /// Returns an integer meaning of auth_value/allowed, or nil if not determinable.
+    /// Uses sqlite3 CLI tool which is available on all macOS systems.
+    /// Approved read-only TCC lookup (see ADR-016). This must remain
+    /// best-effort, side-effect free, and resilient to failure (no FDA).
     private func queryTCCDatabase(dbPath: String, service: String, executablePath: String) async
         -> Int?
     {
@@ -569,7 +574,8 @@ public actor PermissionOracle {
 
                 if let val = Int(trimmed) {
                     AppLogger.shared.log(
-                        "🔍 [Oracle] TCC '\(service)' for \(executablePath) via \(dbPath): \(val)")
+                        "🔍 [Oracle] TCC '\(service)' for \(executablePath) via \(dbPath): \(val)"
+                    )
                     return val
                 }
             } else {
@@ -580,13 +586,13 @@ public actor PermissionOracle {
         return nil
     }
 
-    // Escape single quotes in SQL string literals to prevent injection
+    /// Escape single quotes in SQL string literals to prevent injection
     private func escapeSQLiteLiteral(_ s: String) -> String {
         s.replacingOccurrences(of: "'", with: "''")
     }
 
-    // Execute sqlite3 query with timeout protection
-    // This is a minimal, defensive implementation that avoids external dependencies
+    /// Execute sqlite3 query with timeout protection
+    /// This is a minimal, defensive implementation that avoids external dependencies
     private func runSQLiteQuery(dbPath: String, sql: String, timeout: Double) async -> String? {
         await withCheckedContinuation { continuation in
             Task.detached {

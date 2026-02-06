@@ -42,7 +42,8 @@ struct RecordingSection: View {
                 Button(
                     action: {
                         AppLogger.shared.log(
-                            "🖱️ [UI] Input record button tapped (isRecording=\(coordinator.isInputRecording()))")
+                            "🖱️ [UI] Input record button tapped (isRecording=\(coordinator.isInputRecording()))"
+                        )
                         onInputRecord()
                     },
                     label: {
@@ -100,7 +101,8 @@ struct RecordingSection: View {
                 Button(
                     action: {
                         AppLogger.shared.log(
-                            "🖱️ [UI] Output record button tapped (isRecording=\(coordinator.isOutputRecording()))")
+                            "🖱️ [UI] Output record button tapped (isRecording=\(coordinator.isOutputRecording()))"
+                        )
                         onOutputRecord()
                     },
                     label: {

@@ -423,7 +423,7 @@ struct MapperInputKeycap: View {
     @State private var isHovered = false
     @State private var isPressed = false
 
-    // Scale factor (overlay uses 1.0, mapper uses 2.5x)
+    /// Scale factor (overlay uses 1.0, mapper uses 2.5x)
     private let scale: CGFloat = 2.5
 
     // Sizing
@@ -583,7 +583,6 @@ struct MapperInputKeycap: View {
 
     // MARK: - Layout: ESC Key (left-aligned + LED)
 
-    @ViewBuilder
     private var escKeyContent: some View {
         VStack {
             // LED indicator (top-left)
@@ -645,7 +644,6 @@ struct MapperInputKeycap: View {
 
     // MARK: - Layout: Arrow
 
-    @ViewBuilder
     private var arrowContent: some View {
         Text(label)
             .font(.system(size: 42, weight: .regular))

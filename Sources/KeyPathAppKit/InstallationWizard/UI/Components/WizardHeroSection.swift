@@ -89,7 +89,6 @@ struct WizardHeroSection: View {
 
     // MARK: - Icon View
 
-    @ViewBuilder
     private var iconView: some View {
         ZStack {
             // Hover ring - only show if icon is tappable
@@ -124,7 +123,6 @@ struct WizardHeroSection: View {
         }
     }
 
-    @ViewBuilder
     private func overlayIconView(icon: String, color: Color) -> some View {
         VStack {
             HStack {

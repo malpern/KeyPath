@@ -4,7 +4,6 @@ import SwiftUI
 extension OverlayInspectorPanel {
     // MARK: - Physical Layout Content
 
-    @ViewBuilder
     var physicalLayoutContent: some View {
         KeyboardSelectionGridView(
             selectedLayoutId: $selectedLayoutId,
@@ -18,7 +17,6 @@ extension OverlayInspectorPanel {
 
     // MARK: - Keycaps Content
 
-    @ViewBuilder
     var keycapsContent: some View {
         // Colorway cards in 2-column grid
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
@@ -36,14 +34,12 @@ extension OverlayInspectorPanel {
 
     // MARK: - Sounds Content
 
-    @ViewBuilder
     var soundsContent: some View {
         TypingSoundsSection(isDark: isDark)
     }
 
     // MARK: - Launchers Content
 
-    @ViewBuilder
     var launchersContent: some View {
         OverlayLaunchersSection(
             isDark: isDark,

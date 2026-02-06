@@ -311,5 +311,4 @@ extension OverlayMapperSection {
             isLayersExpanded = false
         }
     }
-
 }

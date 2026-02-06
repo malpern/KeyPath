@@ -48,6 +48,13 @@ final class PrivilegedOperationsCoordinator {
         nonisolated(unsafe) static var serviceStateOverride:
             (() -> KanataDaemonManager.ServiceManagementState)?
         nonisolated(unsafe) static var installAllServicesOverride: (() async throws -> Void)?
+
+        static func resetTestingState() {
+            serviceStateOverride = nil
+            installAllServicesOverride = nil
+            lastServiceInstallAttempt = nil
+            lastSMAppApprovalNotice = nil
+        }
     #endif
 
     // MARK: - Singleton
@@ -56,7 +63,8 @@ final class PrivilegedOperationsCoordinator {
 
     private init() {
         AppLogger.shared.log(
-            "🔐 [PrivCoordinator] Initialized with operation mode: \(Self.operationMode)")
+            "🔐 [PrivCoordinator] Initialized with operation mode: \(Self.operationMode)"
+        )
     }
 
     // MARK: - Operation Modes
@@ -116,7 +124,8 @@ final class PrivilegedOperationsCoordinator {
         tcpPort: Int
     ) async throws {
         AppLogger.shared.log(
-            "🔐 [PrivCoordinator] Installing all LaunchDaemon services via SMAppService")
+            "🔐 [PrivCoordinator] Installing all LaunchDaemon services via SMAppService"
+        )
         // Always use SMAppService path for Kanata
         try await sudoInstallAllServices(
             kanataBinaryPath: kanataBinaryPath,
@@ -171,7 +180,8 @@ final class PrivilegedOperationsCoordinator {
         // If the Kanata service is completely uninstalled, install everything first.
         if try await installServicesIfUninstalled(context: "pre-restart") {
             AppLogger.shared.log(
-                "✅ [PrivCoordinator] Installed services before restart request – skipping restart call")
+                "✅ [PrivCoordinator] Installed services before restart request – skipping restart call"
+            )
             return
         }
 
@@ -278,7 +288,8 @@ final class PrivilegedOperationsCoordinator {
     /// Install LaunchDaemon services without loading them (for adopting orphaned processes)
     func installLaunchDaemonServicesWithoutLoading() async throws {
         AppLogger.shared.log(
-            "🔐 [PrivCoordinator] Installing LaunchDaemon services (install-only, no load)")
+            "🔐 [PrivCoordinator] Installing LaunchDaemon services (install-only, no load)"
+        )
 
         switch Self.operationMode {
         case .privilegedHelper:
@@ -338,7 +349,8 @@ final class PrivilegedOperationsCoordinator {
     /// to sudo if helper fails. This handles phantom registrations and XPC issues gracefully.
     func downloadAndInstallCorrectVHIDDriver() async throws {
         AppLogger.shared.log(
-            "🔐 [PrivCoordinator] Downloading and installing correct VHID driver version")
+            "🔐 [PrivCoordinator] Downloading and installing correct VHID driver version"
+        )
 
         switch Self.operationMode {
         case .privilegedHelper:
@@ -361,6 +373,7 @@ final class PrivilegedOperationsCoordinator {
 
     /// Terminate a process by PID
     func terminateProcess(pid: Int32) async throws {
+        try Self.validateProcessID(pid)
         AppLogger.shared.log("🔐 [PrivCoordinator] Terminating process PID=\(pid)")
 
         switch Self.operationMode {
@@ -505,6 +518,7 @@ final class PrivilegedOperationsCoordinator {
 
     /// Terminate a process (helper-first; fallback to sudo with explicit logs)
     func terminateProcess(_ pid: Int32) async throws {
+        try Self.validateProcessID(pid)
         do {
             AppLogger.shared.log("🔐 [PrivCoordinator] Helper-first terminate PID=\(pid)")
             try await helperTerminateProcess(pid: pid)
@@ -536,11 +550,14 @@ final class PrivilegedOperationsCoordinator {
 
         // Snapshot PRE state (using extracted ServiceHealthChecker)
         let preLoaded = await ServiceHealthChecker.shared.isServiceLoaded(
-            serviceID: "com.keypath.karabiner-vhiddaemon")
+            serviceID: "com.keypath.karabiner-vhiddaemon"
+        )
         let preHealth = await ServiceHealthChecker.shared.isServiceHealthy(
-            serviceID: "com.keypath.karabiner-vhiddaemon")
+            serviceID: "com.keypath.karabiner-vhiddaemon"
+        )
         AppLogger.shared.log(
-            "🔎 [PrivCoordinator] PRE: vhiddaemon loaded=\(preLoaded), healthy=\(preHealth)")
+            "🔎 [PrivCoordinator] PRE: vhiddaemon loaded=\(preLoaded), healthy=\(preHealth)"
+        )
 
         // 1) Kill any running VirtualHIDDevice daemons via helper (root)
         do {
@@ -558,7 +575,8 @@ final class PrivilegedOperationsCoordinator {
             AppLogger.shared.log("🔎 [PrivCoordinator] restartUnhealthyServices completed successfully")
         } catch {
             AppLogger.shared.log(
-                "⚠️ [PrivCoordinator] Helper restartUnhealthyServices failed: \(error.localizedDescription)")
+                "⚠️ [PrivCoordinator] Helper restartUnhealthyServices failed: \(error.localizedDescription)"
+            )
         }
 
         // 3) Verification loop - optimized from 3s to 1.5s (Nov 2025)
@@ -574,7 +592,8 @@ final class PrivilegedOperationsCoordinator {
             AppLogger.shared.log("🔎 [PrivCoordinator] detectRunning() returned: \(isRunning)")
             if isRunning {
                 AppLogger.shared.log(
-                    "✅ [PrivCoordinator] Verified: VirtualHIDDevice daemon healthy after helper restart")
+                    "✅ [PrivCoordinator] Verified: VirtualHIDDevice daemon healthy after helper restart"
+                )
                 return true
             }
             try await Task.sleep(nanoseconds: Self.vhidVerifyIntervalNanos)
@@ -584,11 +603,14 @@ final class PrivilegedOperationsCoordinator {
         // 4) Single post-verify check (removed repair cascade - user can retry if needed)
         try await Task.sleep(nanoseconds: Self.vhidSettleDelayNanos)
         let postLoaded = await ServiceHealthChecker.shared.isServiceLoaded(
-            serviceID: "com.keypath.karabiner-vhiddaemon")
+            serviceID: "com.keypath.karabiner-vhiddaemon"
+        )
         let postHealth = await ServiceHealthChecker.shared.isServiceHealthy(
-            serviceID: "com.keypath.karabiner-vhiddaemon")
+            serviceID: "com.keypath.karabiner-vhiddaemon"
+        )
         AppLogger.shared.log(
-            "🔎 [PrivCoordinator] POST: vhiddaemon loaded=\(postLoaded), healthy=\(postHealth)")
+            "🔎 [PrivCoordinator] POST: vhiddaemon loaded=\(postLoaded), healthy=\(postHealth)"
+        )
         if await vhidManager.detectRunning() {
             AppLogger.shared.log("✅ [PrivCoordinator] Verified after settle: daemon healthy")
             return true
@@ -756,6 +778,7 @@ final class PrivilegedOperationsCoordinator {
 
     /// Terminate a process using kill command with admin privileges
     private func sudoTerminateProcess(pid: Int32) async throws {
+        try Self.validateProcessID(pid)
         // Try SIGTERM first
         let termCommand = "/bin/kill -TERM \(pid)"
 
@@ -766,6 +789,15 @@ final class PrivilegedOperationsCoordinator {
             AppLogger.shared.log("⚠️ [PrivCoordinator] SIGTERM failed, trying SIGKILL")
             let killCommand = "/bin/kill -9 \(pid)"
             try await sudoExecuteCommand(killCommand, description: "Force kill process \(pid)")
+        }
+    }
+
+    private static func validateProcessID(_ pid: Int32) throws {
+        guard pid > 0 else {
+            if !TestEnvironment.isTestMode {
+                assertionFailure("[PrivCoordinator] Invalid PID for terminateProcess: \(pid)")
+            }
+            throw PrivilegedOperationError.operationFailed("Invalid process ID: \(pid)")
         }
     }
 
@@ -792,7 +824,8 @@ final class PrivilegedOperationsCoordinator {
         // Log current PIDs before any action (for diagnostics)
         let beforePIDs = await Self.getDaemonPIDs()
         AppLogger.shared.log(
-            "🔎 [PrivCoordinator] VHID PIDs before restart: \(beforePIDs.joined(separator: ", "))")
+            "🔎 [PrivCoordinator] VHID PIDs before restart: \(beforePIDs.joined(separator: ", "))"
+        )
 
         var commands: [String] = []
 
@@ -821,7 +854,8 @@ final class PrivilegedOperationsCoordinator {
             """)
         } else {
             AppLogger.shared.log(
-                "🔐 [PrivCoordinator] LaunchDaemon missing - starting VHID by direct exec")
+                "🔐 [PrivCoordinator] LaunchDaemon missing - starting VHID by direct exec"
+            )
             commands.append("""
             '\(daemonPath)' > /dev/null 2>&1 &
             """)
@@ -843,7 +877,8 @@ final class PrivilegedOperationsCoordinator {
         // Log PIDs after kill, before start (for diagnostics)
         let afterKillPIDs = await Self.getDaemonPIDs()
         AppLogger.shared.log(
-            "🔎 [PrivCoordinator] VHID PIDs after kill: \(afterKillPIDs.joined(separator: ", "))")
+            "🔎 [PrivCoordinator] VHID PIDs after kill: \(afterKillPIDs.joined(separator: ", "))"
+        )
 
         // Verification loop - optimized from 3s to 1.5s (Nov 2025)
         let vhidManager = VHIDDeviceManager()
@@ -851,7 +886,8 @@ final class PrivilegedOperationsCoordinator {
         while Date().timeIntervalSince(startTime) < Self.vhidVerifyTimeoutSeconds {
             if await vhidManager.detectRunning() {
                 AppLogger.shared.log(
-                    "✅ [PrivCoordinator] Restart verified: daemon is healthy (single instance)")
+                    "✅ [PrivCoordinator] Restart verified: daemon is healthy (single instance)"
+                )
                 return true
             }
             try await Task.sleep(nanoseconds: Self.vhidVerifyIntervalNanos)
@@ -860,7 +896,8 @@ final class PrivilegedOperationsCoordinator {
         // Final diagnostics (removed repair cascade - user can retry if needed)
         let pids = await Self.getDaemonPIDs()
         AppLogger.shared.log(
-            "🔎 [PrivCoordinator] VHID PIDs after start: \(pids.joined(separator: ", "))")
+            "🔎 [PrivCoordinator] VHID PIDs after start: \(pids.joined(separator: ", "))"
+        )
         if pids.isEmpty {
             AppLogger.shared.log("❌ [PrivCoordinator] Verification failed: daemon not running")
         } else {
@@ -945,7 +982,8 @@ final class PrivilegedOperationsCoordinator {
         }
         lastSMAppApprovalNotice = now
         AppLogger.shared.log(
-            "⚠️ \(serviceGuardLogPrefix) \(context): SMAppService pending approval - notifying UI")
+            "⚠️ \(serviceGuardLogPrefix) \(context): SMAppService pending approval - notifying UI"
+        )
         NotificationCenter.default.post(name: .smAppServiceApprovalRequired, object: nil)
     }
 }

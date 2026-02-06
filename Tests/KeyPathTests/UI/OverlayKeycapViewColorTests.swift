@@ -1,7 +1,6 @@
+@testable import KeyPathAppKit
 import SwiftUI
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 /// Tests for collection color routing in OverlayKeycapView
 @MainActor

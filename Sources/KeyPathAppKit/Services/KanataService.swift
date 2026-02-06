@@ -90,7 +90,7 @@ public final class KanataService: ObservableObject {
 
     @Published public private(set) var state: ServiceState = .unknown
 
-    // Polling task for status updates
+    /// Polling task for status updates
     private var statusTask: Task<Void, Never>?
 
     // MARK: - Initialization

@@ -9,9 +9,9 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
         assertContains(config, "volu")
     }
 
-    func testNavigationActivatorUsesOneShotAndWrapsMappings() {
-        let navCollection = makeCollection(
-            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+    func testNavigationActivatorUsesOneShotAndWrapsMappings() throws {
+        let navCollection = try makeCollection(
+            id: XCTUnwrap(UUID(uuidString: "11111111-1111-1111-1111-111111111111")),
             name: "Navigation",
             summary: "Nav layer",
             category: .navigation,
@@ -28,9 +28,9 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
         assertContains(config, "@layer_nav_spc")
     }
 
-    func testChainedWindowLayerUsesOneShotExit() {
-        let navCollection = makeCollection(
-            id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+    func testChainedWindowLayerUsesOneShotExit() throws {
+        let navCollection = try makeCollection(
+            id: XCTUnwrap(UUID(uuidString: "22222222-2222-2222-2222-222222222222")),
             name: "Navigation",
             summary: "Nav layer",
             category: .navigation,
@@ -61,13 +61,13 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
         assertContains(config, "(multi (release-layer window) @act_window_h (push-msg \"layer:base\"))")
     }
 
-    func testLauncherTapModeWrapsOutputAndAddsCancel() {
-        let config = LauncherGridConfig(
+    func testLauncherTapModeWrapsOutputAndAddsCancel() throws {
+        let config = try LauncherGridConfig(
             activationMode: .holdHyper,
             hyperTriggerMode: .tap,
             mappings: [
                 LauncherMapping(
-                    id: UUID(uuidString: "33333333-3333-3333-3333-333333333333")!,
+                    id: XCTUnwrap(UUID(uuidString: "33333333-3333-3333-3333-333333333333")),
                     key: "a",
                     target: .app(name: "Calculator", bundleId: "com.apple.calculator"),
                     isEnabled: true

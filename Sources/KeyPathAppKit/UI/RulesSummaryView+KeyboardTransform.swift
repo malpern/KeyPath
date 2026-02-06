@@ -2,7 +2,7 @@ import KeyPathCore
 import SwiftUI
 
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 // MARK: - Animated Keyboard Transform Grid (with magic move)
@@ -15,7 +15,7 @@ struct AnimatedKeyboardTransformGrid: View {
     var namespace: Namespace.ID
     var enableAnimation: Bool = false // Only animate after user interaction
 
-    // Standard QWERTY layout rows (including number row for Mirrored preset)
+    /// Standard QWERTY layout rows (including number row for Mirrored preset)
     private static let keyboardRows: [[String]] = [
         ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
         ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
@@ -23,7 +23,7 @@ struct AnimatedKeyboardTransformGrid: View {
         ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"]
     ]
 
-    // All keys as flat array for position calculation
+    /// All keys as flat array for position calculation
     private static let allKeys: [String] = keyboardRows.flatMap { $0 }
 
     private func outputFor(_ input: String) -> String? {
@@ -116,7 +116,7 @@ struct OutputKeyboardWithAnimatedSymbols: View {
     var namespace: Namespace.ID
     var enableAnimation: Bool = false // Only animate after user interaction
 
-    // Track keycap positions using preference key
+    /// Track keycap positions using preference key
     @State private var keycapFrames: [String: CGRect] = [:]
 
     private func outputFor(_ input: String) -> String? {
@@ -246,7 +246,7 @@ struct FloatingSymbol: View {
     var namespace: Namespace.ID
     var enableAnimation: Bool = false // Only animate after user interaction
 
-    // Randomized animation parameters (seeded by symbol for consistency)
+    /// Randomized animation parameters (seeded by symbol for consistency)
     private var springResponse: Double {
         0.3 + Double(abs(symbol.hashValue) % 100) / 500.0 // 0.30-0.50s
     }
@@ -354,7 +354,7 @@ struct KeycapFramePreference: PreferenceKey {
 struct KeyboardTransformGrid: View {
     let mappings: [KeyMapping]
 
-    // Standard QWERTY layout rows (letters only for cleaner display)
+    /// Standard QWERTY layout rows (letters only for cleaner display)
     private static let keyboardRows: [[String]] = [
         ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
         ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"],
@@ -471,14 +471,14 @@ struct TransformKeycap: View {
 struct NumpadTransformGrid: View {
     let mappings: [KeyMapping]
 
-    // Right hand numpad keys
+    /// Right hand numpad keys
     private static let numpadKeys: [[String]] = [
         ["u", "i", "o"],
         ["j", "k", "l"],
         ["m", ",", "."]
     ]
 
-    // Left hand operator keys
+    /// Left hand operator keys
     private static let operatorKeys: [String] = ["a", "s", "d", "f", "g"]
 
     private func outputFor(_ input: String) -> String? {

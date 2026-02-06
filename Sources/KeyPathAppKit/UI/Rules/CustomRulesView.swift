@@ -52,8 +52,8 @@ struct CustomRulesView: View {
                 keyOptions: Self.inlineKeyOptions,
                 onAddRule: addInlineRule
             )
-                .padding(.horizontal, 18)
-                .padding(.vertical, 12)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 12)
 
             Divider()
 

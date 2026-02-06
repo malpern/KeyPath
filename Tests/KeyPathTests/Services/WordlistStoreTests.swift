@@ -9,7 +9,7 @@ struct WordlistStoreTests {
         let tempRoot = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("keypath-wordlist-tests", isDirectory: true)
         let supportURL = tempRoot.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let wordlistURL = WordlistStore.userWordlistURL(id: "en_US", appSupportURL: supportURL)!
+        let wordlistURL = try #require(WordlistStore.userWordlistURL(id: "en_US", appSupportURL: supportURL))
 
         try FileManager.default.createDirectory(at: wordlistURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try "alpha\nbeta\n".write(to: wordlistURL, atomically: true, encoding: .utf8)

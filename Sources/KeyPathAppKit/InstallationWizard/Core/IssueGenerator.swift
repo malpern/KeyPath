@@ -24,7 +24,8 @@ class IssueGenerator {
                         description: issue,
                         autoFixAction: nil, // No auto-fix for system compatibility issues
                         userAction: result.recommendations.first
-                    ))
+                    )
+                )
             }
         }
 
@@ -170,7 +171,8 @@ class IssueGenerator {
 
     func createPermissionIssues(from result: PermissionCheckResult) -> [WizardIssue] {
         AppLogger.shared.log(
-            "🔍 [IssueGenerator] Creating issues for \(result.missing.count) missing permissions:")
+            "🔍 [IssueGenerator] Creating issues for \(result.missing.count) missing permissions:"
+        )
         for permission in result.missing {
             AppLogger.shared.log("🔍 [IssueGenerator]   - Missing: \(permission)")
         }
@@ -182,7 +184,8 @@ class IssueGenerator {
             let title = permissionTitle(for: permission)
 
             AppLogger.shared.log(
-                "🔍 [IssueGenerator] Creating issue: category=\(category), title='\(title)'")
+                "🔍 [IssueGenerator] Creating issue: category=\(category), title='\(title)'"
+            )
 
             return WizardIssue(
                 identifier: .permission(permission),

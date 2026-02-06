@@ -100,8 +100,14 @@ struct AppGlassCard: ViewModifier {
 }
 
 extension View {
-    func appGlassHeader() -> some View { modifier(AppGlassHeader(radius: 12)) }
-    func appGlassCard() -> some View { modifier(AppGlassCard()) }
+    func appGlassHeader() -> some View {
+        modifier(AppGlassHeader(radius: 12))
+    }
+
+    func appGlassCard() -> some View {
+        modifier(AppGlassCard())
+    }
+
     func appGlassPopover(cornerRadius: CGFloat = 10) -> some View {
         background(AppGlassBackground(style: .popoverBold, cornerRadius: cornerRadius))
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))

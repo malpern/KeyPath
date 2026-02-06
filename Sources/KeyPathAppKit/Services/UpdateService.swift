@@ -2,6 +2,15 @@ import Foundation
 import KeyPathCore
 import Sparkle
 
+public enum UpdateChannel: String, CaseIterable, Identifiable {
+    case stable = "Stable"
+    case beta = "Beta"
+
+    public var id: String {
+        rawValue
+    }
+}
+
 /// Manages application updates via Sparkle framework
 ///
 /// This service handles:
@@ -19,10 +28,13 @@ public final class UpdateService: NSObject, ObservableObject {
     // MARK: - Properties
 
     private var updaterController: SPUStandardUpdaterController?
+    private let channelDefaultsKey = "keypath.update.channel"
 
     @Published public private(set) var canCheckForUpdates = false
     @Published public private(set) var lastUpdateCheckDate: Date?
     @Published public private(set) var automaticallyChecksForUpdates = true
+    @Published public private(set) var updateChannel: UpdateChannel = .stable
+    @Published public private(set) var currentFeedURL: String?
 
     // MARK: - Initialization
 
@@ -52,12 +64,16 @@ public final class UpdateService: NSObject, ObservableObject {
 
         // Bind to updater properties
         if let updater = updaterController?.updater {
+            // Clear legacy feed URL overrides from UserDefaults in case older builds used setFeedURL.
+            updater.clearFeedURLFromUserDefaults()
             canCheckForUpdates = updater.canCheckForUpdates
             lastUpdateCheckDate = updater.lastUpdateCheckDate
             automaticallyChecksForUpdates = updater.automaticallyChecksForUpdates
+            let persistedChannel = loadPersistedChannel()
+            setUpdateChannel(persistedChannel)
 
             AppLogger.shared.log(
-                "✅ [UpdateService] Sparkle initialized - autoCheck: \(automaticallyChecksForUpdates)"
+                "✅ [UpdateService] Sparkle initialized - autoCheck: \(automaticallyChecksForUpdates), channel: \(updateChannel.rawValue)"
             )
         }
     }
@@ -75,15 +91,43 @@ public final class UpdateService: NSObject, ObservableObject {
         AppLogger.shared.log("⚙️ [UpdateService] Automatic checks set to: \(enabled)")
     }
 
+    public func setUpdateChannel(_ channel: UpdateChannel) {
+        updateChannel = channel
+        UserDefaults.standard.set(channel.rawValue, forKey: channelDefaultsKey)
+        currentFeedURL = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String
+        AppLogger.shared.log(
+            "🛰️ [UpdateService] Update channel set to \(channel.rawValue) via Sparkle channels"
+        )
+    }
+
     /// Get the underlying updater for SwiftUI bindings
     public var updater: SPUUpdater? {
         updaterController?.updater
+    }
+
+    // MARK: - Channels
+
+    private func loadPersistedChannel() -> UpdateChannel {
+        let storedValue = UserDefaults.standard.string(forKey: channelDefaultsKey) ?? UpdateChannel.stable.rawValue
+        return UpdateChannel(rawValue: storedValue) ?? .stable
     }
 }
 
 // MARK: - SPUUpdaterDelegate
 
 extension UpdateService: SPUUpdaterDelegate {
+    public nonisolated func feedURLString(for _: SPUUpdater) -> String? {
+        // Keep the feed static via SUFeedURL; channel selection is controlled by allowedChannels(for:).
+        Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String
+    }
+
+    public nonisolated func allowedChannels(for _: SPUUpdater) -> Set<String> {
+        let selected = UserDefaults.standard.string(forKey: channelDefaultsKey) ?? UpdateChannel.stable.rawValue
+        let channel = UpdateChannel(rawValue: selected) ?? .stable
+
+        return channel == .beta ? ["beta"] : []
+    }
+
     /// Called before an update is about to be installed
     /// We use this to stop kanata and helper services before Sparkle replaces the app bundle
     public nonisolated func updater(
@@ -110,7 +154,8 @@ extension UpdateService: SPUUpdaterDelegate {
     public nonisolated func updater(_: SPUUpdater, didAbortWithError error: Error) {
         let nsError = error as NSError
         Task { @MainActor in
-            let feedURL = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "(missing)"
+            let feedURL = updaterController?.updater.feedURL?.absoluteString
+                ?? (Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "(missing)")
             AppLogger.shared.error(
                 "❌ [UpdateService] Sparkle aborted update cycle: \(nsError.domain) \(nsError.code) - \(nsError.localizedDescription) | feed=\(feedURL)"
             )
@@ -124,7 +169,8 @@ extension UpdateService: SPUUpdaterDelegate {
     ) {
         let nsError = (error as NSError?)
         Task { @MainActor in
-            let feedURL = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "(missing)"
+            let feedURL = updaterController?.updater.feedURL?.absoluteString
+                ?? (Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "(missing)")
             if let nsError {
                 AppLogger.shared.error(
                     "⚠️ [UpdateService] Sparkle finished update cycle with error (\(updateCheck.rawValue)): \(nsError.domain) \(nsError.code) - \(nsError.localizedDescription) | feed=\(feedURL)"

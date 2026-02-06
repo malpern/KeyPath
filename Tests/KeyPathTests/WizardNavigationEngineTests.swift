@@ -1,27 +1,35 @@
+@testable import KeyPathAppKit
 import KeyPathCore
 import KeyPathWizardCore
 import ServiceManagement
 @preconcurrency import XCTest
 
-@testable import KeyPathAppKit
-
-// Mock SMAppService that reports helper as installed and enabled
+/// Mock SMAppService that reports helper as installed and enabled
 private struct MockEnabledSMAppService: SMAppServiceProtocol {
-    var status: SMAppService.Status { .enabled }
+    var status: SMAppService.Status {
+        .enabled
+    }
+
     func register() throws {}
     func unregister() async throws {}
 }
 
-// Mock SMAppService that reports helper needs Login Items approval
+/// Mock SMAppService that reports helper needs Login Items approval
 private struct MockRequiresApprovalSMAppService: SMAppServiceProtocol {
-    var status: SMAppService.Status { .requiresApproval }
+    var status: SMAppService.Status {
+        .requiresApproval
+    }
+
     func register() throws {}
     func unregister() async throws {}
 }
 
-// Mock SMAppService that reports helper is not registered
+/// Mock SMAppService that reports helper is not registered
 private struct MockNotRegisteredSMAppService: SMAppServiceProtocol {
-    var status: SMAppService.Status { .notRegistered }
+    var status: SMAppService.Status {
+        .notRegistered
+    }
+
     func register() throws {}
     func unregister() async throws {}
 }

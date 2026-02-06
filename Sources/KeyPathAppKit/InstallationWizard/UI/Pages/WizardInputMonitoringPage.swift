@@ -238,7 +238,7 @@ struct WizardInputMonitoringPage: View {
         stateInterpreter.getPermissionStatus(.kanataInputMonitoring, in: issues)
     }
 
-    // Issue filtering for tooltips
+    /// Issue filtering for tooltips
     private var keyPathInputMonitoringIssues: [WizardIssue] {
         issues.filter { issue in
             if case let .permission(permissionType) = issue.identifier {
@@ -307,7 +307,8 @@ struct WizardInputMonitoringPage: View {
                     staleEntryDetails = detection.details
                     showingStaleEntryCleanup = true
                     AppLogger.shared.log(
-                        "🔐 [WizardInputMonitoringPage] Showing cleanup instructions for stale entries")
+                        "🔐 [WizardInputMonitoringPage] Showing cleanup instructions for stale entries"
+                    )
                 } else {
                     // Always open settings manually - never auto-request
                     openInputMonitoringSettings()
@@ -316,7 +317,7 @@ struct WizardInputMonitoringPage: View {
         }
     }
 
-    // Automatic prompt polling (Phase 1)
+    /// Automatic prompt polling (Phase 1)
     private func startPermissionPolling(for type: CoordinatorPermissionType) {
         permissionPollingTask?.cancel()
         permissionPollingTask = Task { @MainActor [onRefresh] in
@@ -353,11 +354,13 @@ struct WizardInputMonitoringPage: View {
 
     private func openInputMonitoringSettings() {
         AppLogger.shared.log(
-            "🔧 [WizardInputMonitoringPage] Fix button clicked - permission flow starting")
+            "🔧 [WizardInputMonitoringPage] Fix button clicked - permission flow starting"
+        )
 
         // Use automatic prompt via IOHIDRequestAccess()
         let alreadyGranted = PermissionRequestService.shared.requestInputMonitoringPermission(
-            ignoreCooldown: true)
+            ignoreCooldown: true
+        )
         if alreadyGranted {
             Task { await onRefresh() }
             return
@@ -376,7 +379,8 @@ struct WizardInputMonitoringPage: View {
                 if granted { return }
             }
             AppLogger.shared.info(
-                "ℹ️ [WizardInputMonitoringPage] Opening System Settings (fallback) for Input Monitoring")
+                "ℹ️ [WizardInputMonitoringPage] Opening System Settings (fallback) for Input Monitoring"
+            )
             openInputMonitoringPreferencesPanel()
         }
     }
@@ -385,8 +389,8 @@ struct WizardInputMonitoringPage: View {
 @MainActor
 private func openInputMonitoringPreferencesPanel() {
     if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-    {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+    ) {
         let ok = NSWorkspace.shared.open(url)
         if ok {
             WizardWindowManager.shared.markSystemSettingsOpened()

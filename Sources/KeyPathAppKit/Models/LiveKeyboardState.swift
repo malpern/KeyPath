@@ -1,8 +1,8 @@
 import Foundation
 import SwiftUI
 
-// Minimal representations of live key events from Kanata TCP stream.
-// Defined here to avoid depending on the Rust protocol types directly.
+/// Minimal representations of live key events from Kanata TCP stream.
+/// Defined here to avoid depending on the Rust protocol types directly.
 enum LiveKeyAction: String, Codable, Sendable {
     case press
     case release

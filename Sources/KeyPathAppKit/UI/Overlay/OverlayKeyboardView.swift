@@ -62,7 +62,7 @@ struct OverlayKeyboardView: View {
     /// Track caps lock state from system
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
 
-    // Note: keycapFrames removed - we now calculate frames directly from layout
+    /// Note: keycapFrames removed - we now calculate frames directly from layout
     /// Whether initial render is complete (enables animation for subsequent changes)
     /// Set to true asynchronously after onAppear, so the first render positions keys
     /// without animation, but all subsequent keymap changes animate.
@@ -578,7 +578,7 @@ private struct FloatingKeymapLabel: View {
     var fadeAmount: CGFloat = 0 // 0 = fully visible, 1 = fully faded (for glow effect)
     var isDarkMode: Bool = false // Whether dark mode is active (enables glow effect)
 
-    // Randomized animation parameters (seeded by label for consistency)
+    /// Randomized animation parameters (seeded by label for consistency)
     private var springResponse: Double {
         0.3 + Double(abs(label.hashValue) % 100) / 500.0 // 0.30-0.50s
     }
@@ -622,7 +622,9 @@ private struct FloatingKeymapLabel: View {
     }
 
     /// Whether to hide shift symbol at small sizes
-    private var isSmallSize: Bool { scale < 0.8 }
+    private var isSmallSize: Bool {
+        scale < 0.8
+    }
 
     @State private var rotation: Angle = .zero
     @State private var scaleEffect: CGFloat = 1.0
@@ -631,8 +633,13 @@ private struct FloatingKeymapLabel: View {
     @State private var previousNormalizedY: CGFloat?
 
     /// Normalized position (position / scale) - stays constant during resize, changes during layout change
-    private var normalizedX: CGFloat { scale > 0 ? targetFrame.midX / scale : 0 }
-    private var normalizedY: CGFloat { scale > 0 ? targetFrame.midY / scale : 0 }
+    private var normalizedX: CGFloat {
+        scale > 0 ? targetFrame.midX / scale : 0
+    }
+
+    private var normalizedY: CGFloat {
+        scale > 0 ? targetFrame.midY / scale : 0
+    }
 
     /// Detect if this is a layout change (not just resize)
     private func isLayoutChange() -> Bool {

@@ -376,7 +376,6 @@ extension OverlayKeycapView {
     }
 
     /// Navigation word label content (small bottom-left aligned like ESC)
-    @ViewBuilder
     func navigationWordContent(_ label: String) -> some View {
         VStack {
             Spacer(minLength: 0)
@@ -440,7 +439,6 @@ extension OverlayKeycapView {
         return nil
     }
 
-    @ViewBuilder
     func navOverlayContent(arrow: String, letter: String) -> some View {
         VStack(spacing: 6 * scale) {
             Text(arrow)
@@ -456,7 +454,6 @@ extension OverlayKeycapView {
     }
 
     /// Arrow-only version for when floating labels handle the base letter
-    @ViewBuilder
     func navOverlayArrowOnly(arrow: String) -> some View {
         Text(arrow)
             .font(.system(size: 14 * scale, weight: .semibold))
@@ -654,7 +651,6 @@ extension OverlayKeycapView {
 
     // MARK: - Layout: Arrow
 
-    @ViewBuilder
     var arrowContent: some View {
         Text(effectiveLabel)
             .font(.system(size: 8 * scale, weight: .regular))
@@ -685,7 +681,6 @@ extension OverlayKeycapView {
 
     // MARK: - Layout: ESC Key
 
-    @ViewBuilder
     var escKeyContent: some View {
         // Match caps lock style: bottom-left aligned using labelText()
         VStack {
@@ -704,7 +699,6 @@ extension OverlayKeycapView {
 
     // MARK: - Caps Lock Indicator
 
-    @ViewBuilder
     var capsLockIndicator: some View {
         VStack {
             HStack {

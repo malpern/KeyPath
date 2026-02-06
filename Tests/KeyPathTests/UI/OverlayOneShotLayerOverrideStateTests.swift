@@ -16,7 +16,7 @@ final class OverlayOneShotLayerOverrideStateTests: XCTestCase {
         "fn"
     ]
 
-    func testActivateKeepsLayerUntilCleared() async {
+    func testActivateKeepsLayerUntilCleared() {
         let state = OneShotLayerOverrideState(timeoutNanoseconds: 1_000_000_000, sleep: Self.cancelAwareSleep)
 
         state.activate("nav")
@@ -26,7 +26,7 @@ final class OverlayOneShotLayerOverrideStateTests: XCTestCase {
         XCTAssertNil(state.currentLayer)
     }
 
-    func testClearOnKeyPressIgnoresModifierKeys() async {
+    func testClearOnKeyPressIgnoresModifierKeys() {
         let state = OneShotLayerOverrideState(timeoutNanoseconds: 1_000_000_000, sleep: Self.cancelAwareSleep)
 
         state.activate("nav")
@@ -38,7 +38,7 @@ final class OverlayOneShotLayerOverrideStateTests: XCTestCase {
         state.clear()
     }
 
-    func testClearOnKeyPressReturnsLayerForNonModifier() async {
+    func testClearOnKeyPressReturnsLayerForNonModifier() {
         let state = OneShotLayerOverrideState(timeoutNanoseconds: 1_000_000_000, sleep: Self.cancelAwareSleep)
 
         state.activate("nav")

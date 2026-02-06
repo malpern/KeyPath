@@ -12,7 +12,8 @@ extension KeyboardCapture {
         // Avoid event taps in test/CI to prevent hangs
         if TestEnvironment.isRunningTests {
             AppLogger.shared.debug(
-                "🧪 [KeyboardCapture] Test environment – skipping emergency monitoring tap")
+                "🧪 [KeyboardCapture] Test environment – skipping emergency monitoring tap"
+            )
             return
         }
 

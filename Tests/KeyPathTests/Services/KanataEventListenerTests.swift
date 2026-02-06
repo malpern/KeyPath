@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 /// Tests for KanataEventListener event parsing
 final class KanataEventListenerTests: XCTestCase {

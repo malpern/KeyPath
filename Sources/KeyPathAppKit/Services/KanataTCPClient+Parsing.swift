@@ -94,7 +94,8 @@ extension KanataTCPClient {
         }
 
         AppLogger.shared.log(
-            "🔍 [TCP extractMessage] Looking for '\(name)' in response: \(s.prefix(200))")
+            "🔍 [TCP extractMessage] Looking for '\(name)' in response: \(s.prefix(200))"
+        )
 
         // Split by newlines; look for an object where the top-level key is the provided name
         for (index, line) in s.split(separator: "\n").map(String.init).enumerated() {
@@ -108,7 +109,8 @@ extension KanataTCPClient {
             }
 
             AppLogger.shared.log(
-                "🔍 [TCP extractMessage] Line \(index) keys: \(obj.keys.joined(separator: ", "))")
+                "🔍 [TCP extractMessage] Line \(index) keys: \(obj.keys.joined(separator: ", "))"
+            )
 
             guard let payload = obj[name] else {
                 AppLogger.shared.log("🔍 [TCP extractMessage] Line \(index): Missing key '\(name)'")
@@ -124,7 +126,8 @@ extension KanataTCPClient {
             do {
                 let decoded = try JSONDecoder().decode(T.self, from: payloadData)
                 AppLogger.shared.log(
-                    "✅ [TCP extractMessage] Successfully decoded '\(name)' from line \(index)")
+                    "✅ [TCP extractMessage] Successfully decoded '\(name)' from line \(index)"
+                )
                 return decoded
             } catch {
                 AppLogger.shared.log("❌ [TCP extractMessage] Line \(index): Decoding failed: \(error)")

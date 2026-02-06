@@ -1,7 +1,6 @@
 import Foundation
-import XCTest
-
 @testable import KeyPathAppKit
+import XCTest
 
 @MainActor
 final class ScriptSecurityServiceTests: XCTestCase {
@@ -136,7 +135,7 @@ final class ScriptSecurityServiceTests: XCTestCase {
 
     // MARK: - Execution Logging Tests
 
-    func testLogExecutionSuccess() {
+    func testLogExecutionSuccess() throws {
         // Clear previous logs
         service.resetAllSettings()
 
@@ -145,13 +144,13 @@ final class ScriptSecurityServiceTests: XCTestCase {
         let log = service.executionLog
         XCTAssertEqual(log.count, 1)
 
-        let entry = log.first!
+        let entry = try XCTUnwrap(log.first)
         XCTAssertEqual(entry["path"] as? String, "/test/script.sh")
         XCTAssertEqual(entry["success"] as? Bool, true)
         XCTAssertEqual(entry["error"] as? String, "")
     }
 
-    func testLogExecutionFailure() {
+    func testLogExecutionFailure() throws {
         // Clear previous logs
         service.resetAllSettings()
 
@@ -160,13 +159,13 @@ final class ScriptSecurityServiceTests: XCTestCase {
         let log = service.executionLog
         XCTAssertEqual(log.count, 1)
 
-        let entry = log.first!
+        let entry = try XCTUnwrap(log.first)
         XCTAssertEqual(entry["path"] as? String, "/test/script.sh")
         XCTAssertEqual(entry["success"] as? Bool, false)
         XCTAssertEqual(entry["error"] as? String, "Permission denied")
     }
 
-    func testLogLimitedTo100Entries() {
+    func testLogLimitedTo100Entries() throws {
         // Clear previous logs
         service.resetAllSettings()
 
@@ -179,11 +178,11 @@ final class ScriptSecurityServiceTests: XCTestCase {
         XCTAssertEqual(log.count, 100, "Log should be limited to 100 entries")
 
         // First entry should be script10 (oldest kept)
-        let firstEntry = log.first!
+        let firstEntry = try XCTUnwrap(log.first)
         XCTAssertEqual(firstEntry["path"] as? String, "/test/script10.sh")
 
         // Last entry should be script109 (newest)
-        let lastEntry = log.last!
+        let lastEntry = try XCTUnwrap(log.last)
         XCTAssertEqual(lastEntry["path"] as? String, "/test/script109.sh")
     }
 

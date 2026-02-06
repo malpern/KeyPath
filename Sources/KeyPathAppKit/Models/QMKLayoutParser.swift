@@ -17,7 +17,7 @@ enum QMKLayoutParser {
         let maintainer: String?
         let features: QMKFeatures?
 
-        // Custom coding keys to handle missing fields
+        /// Custom coding keys to handle missing fields
         enum CodingKeys: String, CodingKey {
             case id
             case name
@@ -66,7 +66,7 @@ enum QMKLayoutParser {
         let rgblight: Bool?
         let rgb_matrix: Bool?
 
-        // Split keyboard support
+        /// Split keyboard support
         let split: QMKSplit?
 
         /// Extract tags from features

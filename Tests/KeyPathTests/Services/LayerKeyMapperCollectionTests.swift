@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 /// Tests for collection ownership tracking in LayerKeyMapper
 final class LayerKeyMapperCollectionTests: XCTestCase {

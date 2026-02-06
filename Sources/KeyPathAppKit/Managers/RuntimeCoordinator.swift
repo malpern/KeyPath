@@ -9,97 +9,97 @@ import Network
 
 // KeyMapping is now in Models/KeyMapping.swift
 
-/// Manages the Kanata process lifecycle and configuration directly.
-///
-/// # Architecture: Main Coordinator + Extension Files (~1,800 lines total)
-///
-/// RuntimeCoordinator is the main orchestrator for Kanata process management and configuration.
-/// It's split across multiple extension files for maintainability:
-///
-/// ## Extension Files (organized by concern):
-///
-/// **RuntimeCoordinator.swift** (main file, ~960 lines)
-/// - Core initialization and state management
-/// - UI state snapshots and ViewModel interface
-/// - Health monitoring and auto-start logic
-/// - Diagnostics and error handling
-///
-/// **RuntimeCoordinator+Configuration.swift** (~184 lines)
-/// - Config reload triggering and TCP communication
-/// - Key mapping save operations
-///
-/// **RuntimeCoordinator+RuleCollections.swift** (~112 lines)
-/// - Rule collection CRUD and persistence
-///
-/// **RuntimeCoordinator+ServiceManagement.swift** (~119 lines)
-/// - LaunchDaemon service start/stop/restart
-///
-/// **RuntimeCoordinator+ConfigMaintenance.swift** (~89 lines)
-/// - Config backup, repair, and safe-config fallback
-///
-/// **RuntimeCoordinator+Lifecycle.swift** (~77 lines)
-/// - Process lifecycle state transitions
-///
-/// **RuntimeCoordinator+State.swift** (~73 lines)
-/// - UI state snapshot building
-///
-/// **RuntimeCoordinator+ConfigHotReload.swift** (~68 lines)
-/// - File-change-driven hot reload
-///
-/// **RuntimeCoordinator+Diagnostics.swift** (~64 lines)
-/// - System analysis and failure diagnosis
-///
-/// **RuntimeCoordinator+ConflictResolution.swift** (~29 lines)
-/// - Karabiner conflict detection helpers
-///
-/// **RuntimeCoordinator+Engine.swift** (~13 lines)
-/// - Kanata engine communication (stub)
-///
-/// **RuntimeCoordinator+Output.swift** (~13 lines)
-/// - Log parsing and monitoring (stub)
-///
-/// ## Key Dependencies (used by extensions):
-///
-/// - **ConfigurationService**: File I/O, parsing, validation (Configuration extension)
-/// - **ProcessLifecycleManager**: PID tracking, daemon registration (Lifecycle extension)
-/// - **ServiceHealthMonitor**: Restart cooldown, recovery (ServiceManagement extension)
-/// - **DiagnosticsService**: System analysis, failure diagnosis (Diagnostics extension)
-/// - **PermissionOracle**: Permission state (main file + Lifecycle)
-///
-/// ## Navigation Tips:
-///
-/// - Starting/stopping Kanata? → See `+ServiceManagement.swift` or `+Lifecycle.swift`
-/// - Reading/writing config? → See `+Configuration.swift` or `+ConfigMaintenance.swift`
-/// - Hot reload on file change? → See `+ConfigHotReload.swift`
-/// - Rule collections? → See `+RuleCollections.swift`
-/// - UI state snapshots? → See `+State.swift`
-/// - System diagnostics? → See `+Diagnostics.swift`
-///
-/// ## MVVM Architecture Note:
-///
-/// RuntimeCoordinator is **not** an ObservableObject. UI state is handled by `KanataViewModel`,
-/// which reads snapshots via `getCurrentUIState()`. This separation keeps business logic
-/// independent of SwiftUI reactivity.
-///
-/// ## Public API (Views → ViewModel → Manager)
-/// The UI should call ONLY the following methods via `KanataViewModel`:
-/// - Lifecycle
-///   - `startAutoLaunch(presentWizardOnFailure:)`
-///   - `manualStart()` / `manualStop()`
-///   - `startKanata()` / `stopKanata()`
-///   - `forceRefreshStatus()`
-/// - Wizard
-///   - `requestWizardPresentation(initialPage:)`
-///   - `onWizardClosed()`
-/// - UI State
-///   - `getCurrentUIState()` (snapshot for ViewModel sync)
-/// - Configuration (UI-level operations)
-///   - `createDefaultUserConfigIfMissing()`
-///   - `backupFailedConfigAndApplySafe(failedConfig:mappings:)`
-///   - `validateConfigFile()`
-///   - `resetToDefaultConfig()`
-///
-/// All other methods are internal implementation details and may change.
+// Manages the Kanata process lifecycle and configuration directly.
+//
+// # Architecture: Main Coordinator + Extension Files (~1,800 lines total)
+//
+// RuntimeCoordinator is the main orchestrator for Kanata process management and configuration.
+// It's split across multiple extension files for maintainability:
+//
+// ## Extension Files (organized by concern):
+//
+// **RuntimeCoordinator.swift** (main file, ~960 lines)
+// - Core initialization and state management
+// - UI state snapshots and ViewModel interface
+// - Health monitoring and auto-start logic
+// - Diagnostics and error handling
+//
+// **RuntimeCoordinator+Configuration.swift** (~184 lines)
+// - Config reload triggering and TCP communication
+// - Key mapping save operations
+//
+// **RuntimeCoordinator+RuleCollections.swift** (~112 lines)
+// - Rule collection CRUD and persistence
+//
+// **RuntimeCoordinator+ServiceManagement.swift** (~119 lines)
+// - LaunchDaemon service start/stop/restart
+//
+// **RuntimeCoordinator+ConfigMaintenance.swift** (~89 lines)
+// - Config backup, repair, and safe-config fallback
+//
+// **RuntimeCoordinator+Lifecycle.swift** (~77 lines)
+// - Process lifecycle state transitions
+//
+// **RuntimeCoordinator+State.swift** (~73 lines)
+// - UI state snapshot building
+//
+// **RuntimeCoordinator+ConfigHotReload.swift** (~68 lines)
+// - File-change-driven hot reload
+//
+// **RuntimeCoordinator+Diagnostics.swift** (~64 lines)
+// - System analysis and failure diagnosis
+//
+// **RuntimeCoordinator+ConflictResolution.swift** (~29 lines)
+// - Karabiner conflict detection helpers
+//
+// **RuntimeCoordinator+Engine.swift** (~13 lines)
+// - Kanata engine communication (stub)
+//
+// **RuntimeCoordinator+Output.swift** (~13 lines)
+// - Log parsing and monitoring (stub)
+//
+// ## Key Dependencies (used by extensions):
+//
+// - **ConfigurationService**: File I/O, parsing, validation (Configuration extension)
+// - **ProcessLifecycleManager**: PID tracking, daemon registration (Lifecycle extension)
+// - **ServiceHealthMonitor**: Restart cooldown, recovery (ServiceManagement extension)
+// - **DiagnosticsService**: System analysis, failure diagnosis (Diagnostics extension)
+// - **PermissionOracle**: Permission state (main file + Lifecycle)
+//
+// ## Navigation Tips:
+//
+// - Starting/stopping Kanata? → See `+ServiceManagement.swift` or `+Lifecycle.swift`
+// - Reading/writing config? → See `+Configuration.swift` or `+ConfigMaintenance.swift`
+// - Hot reload on file change? → See `+ConfigHotReload.swift`
+// - Rule collections? → See `+RuleCollections.swift`
+// - UI state snapshots? → See `+State.swift`
+// - System diagnostics? → See `+Diagnostics.swift`
+//
+// ## MVVM Architecture Note:
+//
+// RuntimeCoordinator is **not** an ObservableObject. UI state is handled by `KanataViewModel`,
+// which reads snapshots via `getCurrentUIState()`. This separation keeps business logic
+// independent of SwiftUI reactivity.
+//
+// ## Public API (Views → ViewModel → Manager)
+// The UI should call ONLY the following methods via `KanataViewModel`:
+// - Lifecycle
+//   - `startAutoLaunch(presentWizardOnFailure:)`
+//   - `manualStart()` / `manualStop()`
+//   - `startKanata()` / `stopKanata()`
+//   - `forceRefreshStatus()`
+// - Wizard
+//   - `requestWizardPresentation(initialPage:)`
+//   - `onWizardClosed()`
+// - UI State
+//   - `getCurrentUIState()` (snapshot for ViewModel sync)
+// - Configuration (UI-level operations)
+//   - `createDefaultUserConfigIfMissing()`
+//   - `backupFailedConfigAndApplySafe(failedConfig:mappings:)`
+//   - `validateConfigFile()`
+//   - `resetToDefaultConfig()`
+//
+// All other methods are internal implementation details and may change.
 
 // SaveStatus is now in Models/KanataUIState.swift
 
@@ -121,7 +121,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     var pendingRuleConflict: RuleConflictContext?
     var conflictResolutionContinuation: CheckedContinuation<RuleConflictChoice?, Never>?
 
-    // Rule collections are now managed by RuleCollectionsCoordinator
+    /// Rule collections are now managed by RuleCollectionsCoordinator
     var ruleCollections: [RuleCollection] {
         get { ruleCollectionsCoordinator.ruleCollections }
         set { /* Write access via coordinator methods only */ }
@@ -136,10 +136,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     var lastProcessExitCode: Int32?
     var lastConfigUpdate: Date = .init()
 
-    // Validation-specific UI state
+    /// Validation-specific UI state
     var validationError: ConfigValidationError?
 
-    // Save progress feedback
+    /// Save progress feedback
     var saveStatus: SaveStatus = .idle {
         didSet {
             notifyStateChanged()
@@ -164,7 +164,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     let diagnosticsManager: DiagnosticsManaging
     let configRepairService: ConfigRepairService
 
-    // Manager dependencies (exposed for extensions that need direct access)
+    /// Manager dependencies (exposed for extensions that need direct access)
     let engineClient: EngineClient
 
     // Legacy dependencies (kept for backward compatibility during transition)
@@ -184,7 +184,9 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     let systemRequirementsChecker: SystemRequirementsChecker
 
     /// Provides access to the rule collections manager for keymap changes
-    var rulesManager: RuleCollectionsManager { ruleCollectionsManager }
+    var rulesManager: RuleCollectionsManager {
+        ruleCollectionsManager
+    }
 
     // MARK: - Extracted Coordinators (Refactoring: Nov 2025)
 
@@ -227,7 +229,8 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             configurationService = injected
         } else {
             configurationService = ConfigurationService(
-                configDirectory: KeyPathConstants.Config.directory)
+                configDirectory: KeyPathConstants.Config.directory
+            )
         }
 
         // Phase 3: Use shared KanataService for dependencies
@@ -240,7 +243,8 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Initialize configuration backup manager
         let configBackupManager = ConfigBackupManager(
-            configPath: KeyPathConstants.Config.mainConfigPath)
+            configPath: KeyPathConstants.Config.mainConfigPath
+        )
 
         // Initialize manager dependencies
         let karabinerConflictService = KarabinerConflictService()
@@ -321,7 +325,8 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             }
         } else {
             AppLogger.shared.debug(
-                "🧪 [RuntimeCoordinator] Skipping background initialization in test environment")
+                "🧪 [RuntimeCoordinator] Skipping background initialization in test environment"
+            )
         }
 
         if isHeadlessMode {
@@ -354,7 +359,8 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
                     .runSingleAction(.terminateConflictingProcesses, using: privilegeBroker)
                 if !report.success {
                     throw KeyPathError.process(
-                        .terminateFailed(underlyingError: report.failureReason ?? "Unknown error"))
+                        .terminateFailed(underlyingError: report.failureReason ?? "Unknown error")
+                    )
                 }
             },
             restartKarabinerDaemon: { [weak self] in
@@ -413,7 +419,8 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
 
         AppLogger.shared.log(
-            "🏗️ [RuntimeCoordinator] About to call bootstrapRuleCollections and startEventMonitoring")
+            "🏗️ [RuntimeCoordinator] About to call bootstrapRuleCollections and startEventMonitoring"
+        )
         Task { await ruleCollectionsManager.bootstrap() }
         ruleCollectionsManager.startEventMonitoring(port: PreferencesService.shared.tcpServerPort)
         AppLogger.shared.log("🏗️ [RuntimeCoordinator] init() completed")
@@ -547,7 +554,8 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         // LaunchDaemon service management - synchronous cleanup not directly supported
         // The LaunchDaemon service will handle process lifecycle automatically
         AppLogger.shared.log(
-            "ℹ️ [Cleanup] LaunchDaemon service will handle process cleanup automatically")
+            "ℹ️ [Cleanup] LaunchDaemon service will handle process cleanup automatically"
+        )
 
         // Clean up PID file
         try? PIDFileManager.removePID()
@@ -761,7 +769,8 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         // IMPORTANT: Reset should ALWAYS work - it's a recovery mechanism for broken configs
         // Intentionally bypass validation here: force-write a known-good default config (enforced by tests)
         AppLogger.shared.log(
-            "🔄 [Reset] Forcing reset to default config (no validation - recovery mode)")
+            "🔄 [Reset] Forcing reset to default config (no validation - recovery mode)"
+        )
 
         // Create a safety backup of the current config (if valid) before resetting
         let backupCreated = configBackupManager.createPreEditBackup()
@@ -880,7 +889,8 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
                 let shouldTriggerRecovery = await kanataService.recordConnectionFailure()
                 if shouldTriggerRecovery {
                     AppLogger.shared.log(
-                        "🚨 [LogMonitor] Maximum connection failures reached - triggering recovery")
+                        "🚨 [LogMonitor] Maximum connection failures reached - triggering recovery"
+                    )
                     await triggerVirtualHIDRecovery()
                 }
             case .virtualHIDConnected:

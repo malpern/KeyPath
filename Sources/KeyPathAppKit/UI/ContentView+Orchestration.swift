@@ -117,7 +117,8 @@ extension ContentView {
             kanataManager.emergencyStopActivated = true
             showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
             UserNotificationService.shared.notifyLaunchFailure(
-                .serviceFailure("Emergency stop activated"))
+                .serviceFailure("Emergency stop activated")
+            )
             showingEmergencyAlert = true
         } }
     }
@@ -192,7 +193,8 @@ extension ContentView {
 
         if result.shouldRestart, let permissionType = result.permissionType {
             AppLogger.shared.log(
-                "🔧 [ContentView] Detected return from \(permissionType.displayName) permission granting")
+                "🔧 [ContentView] Detected return from \(permissionType.displayName) permission granting"
+            )
 
             // Perform the permission restart using the coordinator
             PermissionGrantCoordinator.shared.performPermissionRestart(

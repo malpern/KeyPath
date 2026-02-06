@@ -206,7 +206,6 @@ struct WindowResizeHandles: ViewModifier {
     }
 
     /// Creates a corner handle view (visual + gestures, no positioning)
-    @ViewBuilder
     private func cornerHandleView(_ corner: ResizeEdge) -> some View {
         Rectangle()
             .fill(debugShowHandles ? Color.blue.opacity(0.3) : Color.clear)

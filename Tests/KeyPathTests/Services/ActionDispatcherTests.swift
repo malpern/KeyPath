@@ -204,8 +204,8 @@ struct KeyPathActionURITests {
 struct ActionDispatcherRoutingTests {
     @Test("Dispatches launch action")
     @MainActor
-    func dispatchesLaunchAction() {
-        let uri = KeyPathActionURI(string: "keypath://launch/Calculator")!
+    func dispatchesLaunchAction() throws {
+        let uri = try #require(KeyPathActionURI(string: "keypath://launch/Calculator"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         // Launch returns success optimistically (async launch)
@@ -252,8 +252,8 @@ struct ActionDispatcherRoutingTests {
 
     @Test("Returns unknownAction for invalid action type")
     @MainActor
-    func returnsUnknownActionForInvalidType() {
-        let uri = KeyPathActionURI(string: "keypath://invalid/something")!
+    func returnsUnknownActionForInvalidType() throws {
+        let uri = try #require(KeyPathActionURI(string: "keypath://invalid/something"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .unknownAction(action) = result {
@@ -265,10 +265,10 @@ struct ActionDispatcherRoutingTests {
 
     @Test("Returns missingTarget for launch without app")
     @MainActor
-    func returnsMissingTargetForLaunchWithoutApp() {
+    func returnsMissingTargetForLaunchWithoutApp() throws {
         // Create a URI that has launch action but no target
         // This requires constructing a URL with empty path
-        let uri = KeyPathActionURI(string: "keypath://launch")!
+        let uri = try #require(KeyPathActionURI(string: "keypath://launch"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .missingTarget(action) = result {
@@ -280,13 +280,13 @@ struct ActionDispatcherRoutingTests {
 
     @Test("Dispatches layer action")
     @MainActor
-    func dispatchesLayerAction() {
+    func dispatchesLayerAction() throws {
         var receivedLayer: String?
         ActionDispatcher.shared.onLayerAction = { layer in
             receivedLayer = layer
         }
 
-        let uri = KeyPathActionURI(string: "keypath://layer/nav")!
+        let uri = try #require(KeyPathActionURI(string: "keypath://layer/nav"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         #expect(result == .success)
@@ -298,7 +298,7 @@ struct ActionDispatcherRoutingTests {
 
     @Test("Dispatches rule action with path")
     @MainActor
-    func dispatchesRuleActionWithPath() {
+    func dispatchesRuleActionWithPath() throws {
         var receivedRule: String?
         var receivedPath: [String]?
         ActionDispatcher.shared.onRuleAction = { rule, path in
@@ -306,7 +306,7 @@ struct ActionDispatcherRoutingTests {
             receivedPath = path
         }
 
-        let uri = KeyPathActionURI(string: "keypath://rule/caps-esc/fired")!
+        let uri = try #require(KeyPathActionURI(string: "keypath://rule/caps-esc/fired"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         #expect(result == .success)
@@ -319,8 +319,8 @@ struct ActionDispatcherRoutingTests {
 
     @Test("Dispatches notify action")
     @MainActor
-    func dispatchesNotifyAction() {
-        let uri = KeyPathActionURI(string: "keypath://notify?title=Test&body=Message")!
+    func dispatchesNotifyAction() throws {
+        let uri = try #require(KeyPathActionURI(string: "keypath://notify?title=Test&body=Message"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         #expect(result == .success)
@@ -328,8 +328,8 @@ struct ActionDispatcherRoutingTests {
 
     @Test("Dispatches open action")
     @MainActor
-    func dispatchesOpenAction() {
-        let uri = KeyPathActionURI(string: "keypath://open/example.com")!
+    func dispatchesOpenAction() throws {
+        let uri = try #require(KeyPathActionURI(string: "keypath://open/example.com"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         #expect(result == .success)
@@ -337,12 +337,12 @@ struct ActionDispatcherRoutingTests {
 
     @Test("Dispatches fakekey action")
     @MainActor
-    func dispatchesFakekeyAction() {
+    func dispatchesFakekeyAction() throws {
         let previous = FeatureFlags.simulatorAndVirtualKeysEnabled
         FeatureFlags.setSimulatorAndVirtualKeysEnabled(true)
         defer { FeatureFlags.setSimulatorAndVirtualKeysEnabled(previous) }
 
-        let uri = KeyPathActionURI(string: "keypath://fakekey/test-key/tap")!
+        let uri = try #require(KeyPathActionURI(string: "keypath://fakekey/test-key/tap"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         // Returns success optimistically (TCP call is async)
@@ -351,12 +351,12 @@ struct ActionDispatcherRoutingTests {
 
     @Test("Returns missingTarget for fakekey without name")
     @MainActor
-    func returnsMissingTargetForFakekeyWithoutName() {
+    func returnsMissingTargetForFakekeyWithoutName() throws {
         let previous = FeatureFlags.simulatorAndVirtualKeysEnabled
         FeatureFlags.setSimulatorAndVirtualKeysEnabled(true)
         defer { FeatureFlags.setSimulatorAndVirtualKeysEnabled(previous) }
 
-        let uri = KeyPathActionURI(string: "keypath://fakekey")!
+        let uri = try #require(KeyPathActionURI(string: "keypath://fakekey"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .missingTarget(action) = result {
@@ -368,12 +368,12 @@ struct ActionDispatcherRoutingTests {
 
     @Test("Returns failed for fakekey when feature flag disabled")
     @MainActor
-    func returnsFailedForFakekeyWhenFeatureDisabled() {
+    func returnsFailedForFakekeyWhenFeatureDisabled() throws {
         let previous = FeatureFlags.simulatorAndVirtualKeysEnabled
         FeatureFlags.setSimulatorAndVirtualKeysEnabled(false)
         defer { FeatureFlags.setSimulatorAndVirtualKeysEnabled(previous) }
 
-        let uri = KeyPathActionURI(string: "keypath://fakekey/test/tap")!
+        let uri = try #require(KeyPathActionURI(string: "keypath://fakekey/test/tap"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .failed(action, _) = result {
@@ -385,13 +385,13 @@ struct ActionDispatcherRoutingTests {
 
     @Test("Calls onError callback for unknown action")
     @MainActor
-    func callsOnErrorForUnknownAction() {
+    func callsOnErrorForUnknownAction() throws {
         var errorMessage: String?
         ActionDispatcher.shared.onError = { message in
             errorMessage = message
         }
 
-        let uri = KeyPathActionURI(string: "keypath://unknown/test")!
+        let uri = try #require(KeyPathActionURI(string: "keypath://unknown/test"))
         _ = ActionDispatcher.shared.dispatch(uri)
 
         #expect(errorMessage?.contains("Unknown action type") == true)
@@ -405,8 +405,8 @@ struct ActionDispatcherRoutingTests {
 struct ActionDispatcherSystemWindowTests {
     @Test("Returns missingTarget for system without action")
     @MainActor
-    func returnsMissingTargetForSystemWithoutAction() {
-        let uri = KeyPathActionURI(string: "keypath://system")!
+    func returnsMissingTargetForSystemWithoutAction() throws {
+        let uri = try #require(KeyPathActionURI(string: "keypath://system"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .missingTarget(action) = result {
@@ -418,8 +418,8 @@ struct ActionDispatcherSystemWindowTests {
 
     @Test("Returns unknownAction for unknown system action")
     @MainActor
-    func returnsUnknownForUnknownSystemAction() {
-        let uri = KeyPathActionURI(string: "keypath://system/not-a-real-action")!
+    func returnsUnknownForUnknownSystemAction() throws {
+        let uri = try #require(KeyPathActionURI(string: "keypath://system/not-a-real-action"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .unknownAction(action) = result {
@@ -431,8 +431,8 @@ struct ActionDispatcherSystemWindowTests {
 
     @Test("Returns missingTarget for window without action")
     @MainActor
-    func returnsMissingTargetForWindowWithoutAction() {
-        let uri = KeyPathActionURI(string: "keypath://window")!
+    func returnsMissingTargetForWindowWithoutAction() throws {
+        let uri = try #require(KeyPathActionURI(string: "keypath://window"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .missingTarget(action) = result {
@@ -444,8 +444,8 @@ struct ActionDispatcherSystemWindowTests {
 
     @Test("Returns unknownAction for unknown window action")
     @MainActor
-    func returnsUnknownForUnknownWindowAction() {
-        let uri = KeyPathActionURI(string: "keypath://window/not-a-real-window-action")!
+    func returnsUnknownForUnknownWindowAction() throws {
+        let uri = try #require(KeyPathActionURI(string: "keypath://window/not-a-real-window-action"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .unknownAction(action) = result {
@@ -480,8 +480,8 @@ struct ActionDispatcherFolderTests {
 
     @Test("Returns missingTarget for folder without path")
     @MainActor
-    func returnsMissingTargetForFolderWithoutPath() {
-        let uri = KeyPathActionURI(string: "keypath://folder")!
+    func returnsMissingTargetForFolderWithoutPath() throws {
+        let uri = try #require(KeyPathActionURI(string: "keypath://folder"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .missingTarget(action) = result {
@@ -493,8 +493,8 @@ struct ActionDispatcherFolderTests {
 
     @Test("Returns failed for nonexistent folder")
     @MainActor
-    func returnsFailedForNonexistentFolder() {
-        let uri = KeyPathActionURI(string: "keypath://folder/nonexistent/path/12345")!
+    func returnsFailedForNonexistentFolder() throws {
+        let uri = try #require(KeyPathActionURI(string: "keypath://folder/nonexistent/path/12345"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .failed(action, _) = result {
@@ -506,11 +506,11 @@ struct ActionDispatcherFolderTests {
 
     @Test("Successfully opens existing folder with absolute path")
     @MainActor
-    func opensExistingFolder() {
+    func opensExistingFolder() throws {
         // Use the home directory which should always exist
         // The path is joined from components, so we need the full path
         let homePath = NSHomeDirectory()
-        let uri = KeyPathActionURI(string: "folder:\(homePath)")!
+        let uri = try #require(KeyPathActionURI(string: "folder:\(homePath)"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         #expect(result == .success)
@@ -518,8 +518,8 @@ struct ActionDispatcherFolderTests {
 
     @Test("Returns failed when folder target is a file")
     @MainActor
-    func returnsFailedWhenFolderTargetIsFile() {
-        let uri = KeyPathActionURI(string: "folder:/bin/bash")!
+    func returnsFailedWhenFolderTargetIsFile() throws {
+        let uri = try #require(KeyPathActionURI(string: "folder:/bin/bash"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .failed(action, _) = result {
@@ -552,8 +552,8 @@ struct ActionDispatcherScriptTests {
 
     @Test("Returns missingTarget for script without path")
     @MainActor
-    func returnsMissingTargetForScriptWithoutPath() {
-        let uri = KeyPathActionURI(string: "keypath://script")!
+    func returnsMissingTargetForScriptWithoutPath() throws {
+        let uri = try #require(KeyPathActionURI(string: "keypath://script"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .missingTarget(action) = result {
@@ -565,11 +565,11 @@ struct ActionDispatcherScriptTests {
 
     @Test("Returns failed when script execution disabled")
     @MainActor
-    func returnsFailedWhenDisabled() async {
+    func returnsFailedWhenDisabled() throws {
         // Ensure script execution is disabled
         ScriptSecurityService.shared.isScriptExecutionEnabled = false
 
-        let uri = KeyPathActionURI(string: "keypath://script/some/script.sh")!
+        let uri = try #require(KeyPathActionURI(string: "keypath://script/some/script.sh"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .failed(action, _) = result {
@@ -581,7 +581,7 @@ struct ActionDispatcherScriptTests {
 
     @Test("Returns failed for nonexistent script")
     @MainActor
-    func returnsFailedForNonexistentScript() async {
+    func returnsFailedForNonexistentScript() throws {
         // Enable script execution
         ScriptSecurityService.shared.isScriptExecutionEnabled = true
         ScriptSecurityService.shared.bypassFirstRunDialog = true
@@ -590,7 +590,7 @@ struct ActionDispatcherScriptTests {
             ScriptSecurityService.shared.bypassFirstRunDialog = false
         }
 
-        let uri = KeyPathActionURI(string: "keypath://script/nonexistent/path/script.sh")!
+        let uri = try #require(KeyPathActionURI(string: "keypath://script/nonexistent/path/script.sh"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .failed(action, _) = result {
@@ -602,7 +602,7 @@ struct ActionDispatcherScriptTests {
 
     @Test("Calls confirmation callback when needed")
     @MainActor
-    func callsConfirmationCallback() async {
+    func callsConfirmationCallback() throws {
         // Enable script execution but require confirmation
         ScriptSecurityService.shared.isScriptExecutionEnabled = true
         ScriptSecurityService.shared.bypassFirstRunDialog = false
@@ -620,7 +620,7 @@ struct ActionDispatcherScriptTests {
         }
 
         // Use /bin/bash which is always an executable that exists
-        let uri = KeyPathActionURI(string: "script:/bin/bash")!
+        let uri = try #require(KeyPathActionURI(string: "script:/bin/bash"))
         _ = ActionDispatcher.shared.dispatch(uri)
 
         #expect(confirmationRequested == true)
@@ -629,7 +629,7 @@ struct ActionDispatcherScriptTests {
 
     @Test("Calls disabled callback when scripts disabled")
     @MainActor
-    func callsDisabledCallback() async {
+    func callsDisabledCallback() throws {
         ScriptSecurityService.shared.isScriptExecutionEnabled = false
         defer {
             ActionDispatcher.shared.onScriptExecutionDisabled = nil
@@ -641,7 +641,7 @@ struct ActionDispatcherScriptTests {
             disabledCallbackCalled = true
         }
 
-        let uri = KeyPathActionURI(string: "keypath://script/some/script.sh")!
+        let uri = try #require(KeyPathActionURI(string: "keypath://script/some/script.sh"))
         _ = ActionDispatcher.shared.dispatch(uri)
 
         #expect(disabledCallbackCalled == true)
@@ -664,7 +664,7 @@ struct ActionDispatcherScriptTests {
             try? FileManager.default.removeItem(atPath: tempPath)
         }
 
-        let uri = KeyPathActionURI(string: "script:\(tempPath)")!
+        let uri = try #require(KeyPathActionURI(string: "script:\(tempPath)"))
         let result = ActionDispatcher.shared.dispatch(uri)
 
         if case let .failed(action, _) = result {

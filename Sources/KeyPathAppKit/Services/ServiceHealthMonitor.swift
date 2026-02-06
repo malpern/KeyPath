@@ -130,7 +130,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
     private var retryAttemptCount = 0
     private var lastHealthCheckResult: ServiceHealthStatus?
 
-    // FIX #2: Shared TCP client for health checks to avoid creating new connections repeatedly
+    /// FIX #2: Shared TCP client for health checks to avoid creating new connections repeatedly
     private var healthCheckClient: KanataTCPClient?
 
     // MARK: - Crash Loop Detection
@@ -169,7 +169,8 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
         }
 
         AppLogger.shared.debug(
-            "[HealthMonitor] Process running with PID: \(processStatus.pid?.description ?? "unknown")")
+            "[HealthMonitor] Process running with PID: \(processStatus.pid?.description ?? "unknown")"
+        )
 
         // Check if we're in TCP grace period
         if let lastStart = lastServiceStart {
@@ -237,7 +238,8 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
 
         for attempt in 1 ... maxTCPHealthCheckRetries {
             AppLogger.shared.debug(
-                "[HealthMonitor] TCP health check attempt \(attempt)/\(maxTCPHealthCheckRetries)")
+                "[HealthMonitor] TCP health check attempt \(attempt)/\(maxTCPHealthCheckRetries)"
+            )
 
             isHealthy = await client.checkServerStatus()
 
@@ -255,7 +257,8 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
             AppLogger.shared.debug("[HealthMonitor] TCP health check passed")
         } else {
             AppLogger.shared.warn(
-                "[HealthMonitor] TCP health check failed after \(maxTCPHealthCheckRetries) attempts")
+                "[HealthMonitor] TCP health check failed after \(maxTCPHealthCheckRetries) attempts"
+            )
         }
 
         return isHealthy
@@ -446,7 +449,8 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
         // Check if connection failures warrant full recovery
         if connectionFailureCount >= maxConnectionFailures {
             AppLogger.shared.warn(
-                "[HealthMonitor] Connection failures detected - recommend full recovery")
+                "[HealthMonitor] Connection failures detected - recommend full recovery"
+            )
             return .fullRecovery
         }
 
@@ -454,7 +458,8 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
         let conflicts = await processLifecycle.detectConflicts()
         if conflicts.hasConflicts {
             AppLogger.shared.warn(
-                "[HealthMonitor] Process conflicts detected - recommend kill and restart")
+                "[HealthMonitor] Process conflicts detected - recommend kill and restart"
+            )
             return .killAndRestart
         }
 

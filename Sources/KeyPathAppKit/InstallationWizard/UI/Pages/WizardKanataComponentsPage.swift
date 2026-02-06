@@ -242,7 +242,8 @@ struct WizardKanataComponentsPage: View {
 
     private func installBundledKanata() {
         AppLogger.shared.log(
-            "🔧 [WizardKanataComponentsPage] User requested bundled kanata installation")
+            "🔧 [WizardKanataComponentsPage] User requested bundled kanata installation"
+        )
         if let kanataIssue = issues.first(where: { $0.autoFixAction == .installBundledKanata }) {
             if isFixing {
                 pendingBundledKanataInstall = kanataIssue.id
@@ -342,7 +343,8 @@ struct WizardKanataComponentsPage: View {
         Task {
             await MainActor.run {
                 PermissionGrantCoordinator.shared.setServiceBounceNeeded(
-                    reason: "Kanata engine fix - \(action)")
+                    reason: "Kanata engine fix - \(action)"
+                )
                 actionStatus = .inProgress(message: "Fixing \(title)…")
             }
 

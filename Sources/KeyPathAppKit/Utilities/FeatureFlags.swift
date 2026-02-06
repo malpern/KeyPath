@@ -46,8 +46,8 @@ final class FeatureFlags {
     }
 }
 
-// FeatureFlags manages its own synchronization.
-// Mark unchecked to silence Swift 6 Sendable warnings for cross-actor access.
+/// FeatureFlags manages its own synchronization.
+/// Mark unchecked to silence Swift 6 Sendable warnings for cross-actor access.
 extension FeatureFlags: @unchecked Sendable {}
 
 // MARK: - Persisted flags (UserDefaults-backed)

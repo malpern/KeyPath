@@ -1,10 +1,9 @@
 import Foundation
+@testable import KeyPathAppKit
 @preconcurrency import XCTest
 
-@testable import KeyPathAppKit
-
 final class SafetyTimeoutServiceTests: XCTestCase {
-    func testTimeoutFiresWhenShouldStopTrue() async throws {
+    func testTimeoutFiresWhenShouldStopTrue() async {
         let service = SafetyTimeoutService()
         let exp = expectation(description: "onTimeout called")
 
@@ -19,7 +18,7 @@ final class SafetyTimeoutServiceTests: XCTestCase {
         await fulfillment(of: [exp], timeout: 1.0)
     }
 
-    func testTimeoutDoesNotFireWhenShouldStopFalse() async throws {
+    func testTimeoutDoesNotFireWhenShouldStopFalse() async {
         let service = SafetyTimeoutService()
         let exp = expectation(description: "onTimeout should not be called")
         exp.isInverted = true

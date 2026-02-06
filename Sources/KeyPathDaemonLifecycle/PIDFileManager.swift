@@ -22,8 +22,13 @@ public enum PIDFileManager {
         public let command: String
         public let bundleIdentifier: String
 
-        public var age: TimeInterval { Date().timeIntervalSince(startTime) }
-        public var isStale: Bool { age > 3600 }
+        public var age: TimeInterval {
+            Date().timeIntervalSince(startTime)
+        }
+
+        public var isStale: Bool {
+            age > 3600
+        }
     }
 
     // MARK: - Public API
@@ -58,7 +63,8 @@ public enum PIDFileManager {
             let decoder = JSONDecoder()
             let record = try decoder.decode(PIDRecord.self, from: data)
             AppLogger.shared.log(
-                "📖 [PIDFile] Read PID \(record.pid) from file (age: \(Int(record.age))s)")
+                "📖 [PIDFile] Read PID \(record.pid) from file (age: \(Int(record.age))s)"
+            )
             return record
         } catch {
             AppLogger.shared.log("❌ [PIDFile] Failed to read PID file: \(error)")
@@ -101,7 +107,8 @@ public enum PIDFileManager {
         // Check if PID is stale (app crash scenario)
         if record.isStale {
             AppLogger.shared.log(
-                "⏰ [PIDFile] PID \(record.pid) is stale (age: \(Int(record.age))s) - considering orphaned")
+                "⏰ [PIDFile] PID \(record.pid) is stale (age: \(Int(record.age))s) - considering orphaned"
+            )
             return (false, record.pid)
         }
 

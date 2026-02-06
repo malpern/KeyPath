@@ -1,7 +1,6 @@
+@testable import KeyPathAppKit
 import KeyPathCore
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 final class ConfigApplyTypesTests: XCTestCase {
     func testFeatureFlagDefaultsOff() {

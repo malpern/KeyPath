@@ -1,9 +1,8 @@
+@testable import KeyPathAppKit
 import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathWizardCore
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 /// Fast unit tests for individual components
 /// No system dependencies, mocked environment
@@ -11,14 +10,14 @@ import KeyPathWizardCore
 final class UnitTestSuite: XCTestCase {
     // MARK: - Key Mapping Tests
 
-    func testKeyMappingInitialization() throws {
+    func testKeyMappingInitialization() {
         let mapping = KeyMapping(input: "caps", output: "escape")
 
         XCTAssertEqual(mapping.input, "caps")
         XCTAssertEqual(mapping.output, "escape")
     }
 
-    func testKeyMappingValidation() throws {
+    func testKeyMappingValidation() {
         // Valid mapping
         let validMapping = KeyMapping(input: "caps", output: "esc")
         XCTAssertTrue(validMapping.isValid)
@@ -30,7 +29,7 @@ final class UnitTestSuite: XCTestCase {
 
     // MARK: - Configuration Generation Tests
 
-    func testBasicConfigGeneration() throws {
+    func testBasicConfigGeneration() {
         let mappings = [
             KeyMapping(input: "caps", output: "esc"),
             KeyMapping(input: "space", output: "space") // passthrough
@@ -49,7 +48,7 @@ final class UnitTestSuite: XCTestCase {
         XCTAssertTrue(config.contains("spc"))
     }
 
-    func testComplexKeyMappingGeneration() throws {
+    func testComplexKeyMappingGeneration() {
         let mapping = KeyMapping(input: "caps", output: "cmd+c")
 
         let config = KanataConfiguration.generateFromMappings([mapping])
@@ -57,12 +56,13 @@ final class UnitTestSuite: XCTestCase {
         // Should generate macro for complex output
         XCTAssertTrue(
             config.contains("C-c") || config.contains("cmd") || config.contains("macro")
-                || config.contains("caps"))
+                || config.contains("caps")
+        )
     }
 
     // MARK: - State Machine Tests
 
-    func testLifecycleStateValues() throws {
+    func testLifecycleStateValues() {
         // Test state enumeration exists and has expected values
         XCTAssertEqual(LifecycleStateMachine.KanataState.uninitialized.rawValue, "uninitialized")
         XCTAssertEqual(LifecycleStateMachine.KanataState.starting.rawValue, "starting")
@@ -72,7 +72,7 @@ final class UnitTestSuite: XCTestCase {
 
     // MARK: - Wizard Types Tests
 
-    func testWizardPageAccessibilityIdentifiers() throws {
+    func testWizardPageAccessibilityIdentifiers() {
         XCTAssertEqual(WizardPage.summary.accessibilityIdentifier, "overview")
         XCTAssertEqual(WizardPage.conflicts.accessibilityIdentifier, "conflicts")
         XCTAssertEqual(WizardPage.inputMonitoring.accessibilityIdentifier, "input-monitoring")
@@ -80,7 +80,7 @@ final class UnitTestSuite: XCTestCase {
 
     // MARK: - Path Utilities Tests
 
-    func testBasicPathGeneration() throws {
+    func testBasicPathGeneration() {
         // Test basic path operations work
         let homePath = FileManager.default.homeDirectoryForCurrentUser.path
         let configPath = homePath + "/Library/Application Support/KeyPath/keypath.kbd"
@@ -104,7 +104,7 @@ final class UnitTestSuite: XCTestCase {
     // MARK: - Preference Service Tests
 
     @MainActor
-    func testPreferenceDefaults() throws {
+    func testPreferenceDefaults() {
         let service = PreferencesService()
 
         // Test that service initializes with defaults (TCP only)
@@ -114,7 +114,7 @@ final class UnitTestSuite: XCTestCase {
 
     // MARK: - Sound Manager Tests
 
-    func testSoundManagerSharedInstance() throws {
+    func testSoundManagerSharedInstance() {
         let soundManager = SoundManager.shared
 
         XCTAssertNotNil(soundManager)
@@ -125,7 +125,7 @@ final class UnitTestSuite: XCTestCase {
 
     // MARK: - Logger Tests
 
-    func testLoggerConfiguration() throws {
+    func testLoggerConfiguration() {
         let logger = AppLogger.shared
 
         XCTAssertNotNil(logger)
@@ -145,7 +145,7 @@ extension KeyMapping {
 
 // SystemStatus extension removed - type no longer exists in codebase
 
-// Mock TCP Message for testing
+/// Mock TCP Message for testing
 struct TCPMessage: Equatable {
     let type: String
     let payload: String

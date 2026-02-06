@@ -7,7 +7,6 @@ extension OverlayMapperSection {
 
     /// Shows small app icons for apps that have mappings for the currently selected key
     /// Uses a fixed height to prevent layout shifting
-    @ViewBuilder
     var appMappingIndicators: some View {
         // Fixed height container to prevent layout shifts
         ZStack(alignment: .topLeading) {
@@ -80,7 +79,6 @@ extension OverlayMapperSection {
         }
     }
 
-    @ViewBuilder
     var everywhereOption: some View {
         Button {
             viewModel.selectedAppCondition = nil
@@ -104,7 +102,6 @@ extension OverlayMapperSection {
         .focusable(false)
     }
 
-    @ViewBuilder
     var onlyInHeader: some View {
         HStack {
             Text("Only in...")
@@ -134,7 +131,6 @@ extension OverlayMapperSection {
         }
     }
 
-    @ViewBuilder
     func runningAppButton(for app: NSRunningApplication) -> some View {
         Button {
             selectRunningApp(app)
@@ -184,7 +180,6 @@ extension OverlayMapperSection {
         isAppConditionPickerOpen = false
     }
 
-    @ViewBuilder
     var chooseAppOption: some View {
         Button {
             isAppConditionPickerOpen = false
@@ -408,5 +403,5 @@ extension OverlayMapperSection {
         }
     }
 
-    /// Output type dropdown - select what happens when the key is triggered
+    // Output type dropdown - select what happens when the key is triggered
 }

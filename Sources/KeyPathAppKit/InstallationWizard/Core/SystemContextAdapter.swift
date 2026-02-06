@@ -48,7 +48,8 @@ struct SystemContextAdapter {
         let missingPerms = getMissingPermissions(context)
         if !missingPerms.isEmpty {
             AppLogger.shared.log(
-                "📊 [SystemContextAdapter] Decision: MISSING PERMISSIONS (\(missingPerms.count) missing)")
+                "📊 [SystemContextAdapter] Decision: MISSING PERMISSIONS (\(missingPerms.count) missing)"
+            )
             return .missingPermissions(missing: missingPerms)
         }
 
@@ -130,12 +131,12 @@ struct SystemContextAdapter {
     private static func adaptIssues(_ context: SystemContext) -> [WizardIssue] {
         var issues: [WizardIssue] = []
 
-        // Permission issues
-        //
-        // IMPORTANT UI SEMANTICS:
-        // - `.denied` is a hard failure (red).
-        // - `.unknown` means "not verified" (often because TCC cannot be read without Full Disk Access).
-        //   We surface this as a warning so we don't mislead users into thinking permission was denied.
+        /// Permission issues
+        ///
+        /// IMPORTANT UI SEMANTICS:
+        /// - `.denied` is a hard failure (red).
+        /// - `.unknown` means "not verified" (often because TCC cannot be read without Full Disk Access).
+        ///   We surface this as a warning so we don't mislead users into thinking permission was denied.
         func appendPermissionIssue(
             _ status: PermissionOracle.Status,
             identifier: IssueIdentifier,
@@ -159,7 +160,7 @@ struct SystemContextAdapter {
                 if status == .unknown {
                     // Standardize language: unknown means "not verified", not denied.
                     // This commonly occurs when KeyPath lacks Full Disk Access and cannot read TCC.db for Kanata.
-                    let suggested = switch identifier {
+                    return switch identifier {
                     case .permission(.kanataInputMonitoring):
                         "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring."
                     case .permission(.kanataAccessibility):
@@ -167,7 +168,6 @@ struct SystemContextAdapter {
                     default:
                         "Not verified (grant Full Disk Access to verify)."
                     }
-                    return suggested
                 }
                 return deniedDescription
             }()
@@ -231,7 +231,8 @@ struct SystemContextAdapter {
                     description: "Kanata binary is not installed",
                     autoFixAction: .installBundledKanata,
                     userAction: nil
-                ))
+                )
+            )
         }
         if !context.components.karabinerDriverInstalled {
             issues.append(
@@ -243,7 +244,8 @@ struct SystemContextAdapter {
                     description: "Karabiner VirtualHID driver is not installed",
                     autoFixAction: .installMissingComponents,
                     userAction: nil
-                ))
+                )
+            )
         }
         if context.components.vhidVersionMismatch {
             issues.append(
@@ -255,7 +257,8 @@ struct SystemContextAdapter {
                     description: "Karabiner VirtualHID driver version mismatch",
                     autoFixAction: .fixDriverVersionMismatch,
                     userAction: nil
-                ))
+                )
+            )
         }
         if !context.components.vhidDeviceHealthy {
             issues.append(
@@ -267,7 +270,8 @@ struct SystemContextAdapter {
                     description: "Karabiner VirtualHID device is not healthy",
                     autoFixAction: .restartVirtualHIDDaemon,
                     userAction: nil
-                ))
+                )
+            )
         }
         // Use vhidServicesHealthy for the issue shown on Karabiner Components page
         // (Kanata service health is handled separately - see kanataService issue below)
@@ -281,7 +285,8 @@ struct SystemContextAdapter {
                     description: "Karabiner VirtualHID services (daemon and manager) are not healthy",
                     autoFixAction: .installLaunchDaemonServices,
                     userAction: nil
-                ))
+                )
+            )
         }
 
         // Conflict issues
@@ -296,7 +301,8 @@ struct SystemContextAdapter {
                         description: "Terminate conflicting process",
                         autoFixAction: context.conflicts.canAutoResolve ? .terminateConflictingProcesses : nil,
                         userAction: "Terminate process"
-                    ))
+                    )
+                )
             }
         }
 
@@ -311,7 +317,8 @@ struct SystemContextAdapter {
                     description: "Karabiner daemon is not running",
                     autoFixAction: .startKarabinerDaemon,
                     userAction: nil
-                ))
+                )
+            )
         }
         // Background services should only depend on Karabiner daemon + VHID, not Kanata runtime
         if !context.services.backgroundServicesHealthy {
@@ -324,7 +331,8 @@ struct SystemContextAdapter {
                     description: "Some services are not healthy",
                     autoFixAction: .restartUnhealthyServices,
                     userAction: nil
-                ))
+                )
+            )
         }
 
         // Kanata service health issue - separate from VHID services (shown on Kanata Components page)
@@ -340,7 +348,8 @@ struct SystemContextAdapter {
                     description: "Kanata keyboard remapping service is not running",
                     autoFixAction: .installLaunchDaemonServices,
                     userAction: nil
-                ))
+                )
+            )
         }
 
         // Helper issues
@@ -348,7 +357,8 @@ struct SystemContextAdapter {
             issues.append(
                 WizardIssue(
                     identifier: .component(
-                        context.helper.isInstalled ? .privilegedHelperUnhealthy : .privilegedHelper),
+                        context.helper.isInstalled ? .privilegedHelperUnhealthy : .privilegedHelper
+                    ),
                     severity: .error,
                     category: .backgroundServices,
                     title: "Privileged Helper Not Ready",
@@ -356,7 +366,8 @@ struct SystemContextAdapter {
                     autoFixAction: context.helper.isInstalled
                         ? .reinstallPrivilegedHelper : .installPrivilegedHelper,
                     userAction: nil
-                ))
+                )
+            )
         }
 
         return issues

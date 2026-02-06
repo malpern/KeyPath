@@ -1,7 +1,6 @@
 import Foundation
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 @MainActor
 final class ErrorHandlingTests: XCTestCase {
@@ -10,7 +9,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     // MARK: - Key Mapping Error Handling Tests
 
-    func testInvalidKeyInputHandling() throws {
+    func testInvalidKeyInputHandling() {
         // Test extreme edge cases for key input
         let invalidInputs = [
             "", // Empty string
@@ -40,7 +39,7 @@ final class ErrorHandlingTests: XCTestCase {
         }
     }
 
-    func testSpecialCharacterKeyMapping() throws {
+    func testSpecialCharacterKeyMapping() {
         // Test keys with special characters that might break parsing
         let specialKeys = [
             "caps()", // Parentheses
@@ -65,7 +64,7 @@ final class ErrorHandlingTests: XCTestCase {
         }
     }
 
-    func testNilAndOptionalHandling() throws {
+    func testNilAndOptionalHandling() {
         // Test that methods handle edge cases that might produce nil internally
         let edgeCaseInputs = [
             "nil",
@@ -87,7 +86,7 @@ final class ErrorHandlingTests: XCTestCase {
         }
     }
 
-    func testExtremeKeyCodeHandling() throws {
+    func testExtremeKeyCodeHandling() {
         // Test extreme key codes that might cause issues
         let extremeKeyCodes: [Int64] = [
             Int64.min,
@@ -111,7 +110,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     // MARK: - Configuration Validation Error Handling
 
-    func testConfigGenerationWithInvalidInputOutput() throws {
+    func testConfigGenerationWithInvalidInputOutput() {
         // Test config generation with problematic input/output combinations
         let problematicCombos: [(String, String)] = [
             ("", ""), // Both empty
@@ -145,7 +144,7 @@ final class ErrorHandlingTests: XCTestCase {
         }
     }
 
-    func testConfigWithSpecialKanataCharacters() throws {
+    func testConfigWithSpecialKanataCharacters() {
         // Test characters that have special meaning in Kanata
         let specialKanataChars = [
             "(",
@@ -176,7 +175,7 @@ final class ErrorHandlingTests: XCTestCase {
         }
     }
 
-    func testConfigWithNonASCIICharacters() throws {
+    func testConfigWithNonASCIICharacters() {
         // Test international characters and symbols
         let internationalChars = [
             "è", "ñ", "ü", "ç", // Accented characters
@@ -253,7 +252,7 @@ final class ErrorHandlingTests: XCTestCase {
         }
     }
 
-    func testConcurrentConfigurationOperations() async throws {
+    func testConcurrentConfigurationOperations() async {
         // Test concurrent operations that might cause race conditions
         let operations = 10
         let expectation = XCTestExpectation(description: "Concurrent operations")
@@ -287,7 +286,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     // MARK: - Memory and Resource Error Handling
 
-    func testMemoryPressureErrorHandling() throws {
+    func testMemoryPressureErrorHandling() {
         // Test behavior under memory pressure by creating many large configs
         for iteration in 0 ..< 100 {
             let largeInput = String(repeating: "caps", count: 100)
@@ -304,7 +303,7 @@ final class ErrorHandlingTests: XCTestCase {
         }
     }
 
-    func testResourceCleanupErrorHandling() throws {
+    func testResourceCleanupErrorHandling() {
         // Test that resources are cleaned up properly even when errors occur
         var captureCallbackCount = 0
 
@@ -327,7 +326,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     // MARK: - File System Error Handling
 
-    func testInvalidPathHandling() throws {
+    func testInvalidPathHandling() {
         // Test config path scenarios
         let configPath = manager.configPath
 
@@ -358,7 +357,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     // MARK: - Service and System Error Handling
 
-    func testServiceInstallationErrorHandling() throws {
+    func testServiceInstallationErrorHandling() {
         // Test service-related error handling
         let isInstalled = manager.isInstalled()
         let isServiceInstalled = manager.isServiceInstalled()
@@ -392,7 +391,7 @@ final class ErrorHandlingTests: XCTestCase {
         )
     }
 
-    func testPermissionErrorHandling() async throws {
+    func testPermissionErrorHandling() async {
         // Test permission-related error scenarios
         let hasInputPermission = await manager.hasInputMonitoringPermission()
         XCTAssertTrue(
@@ -409,7 +408,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     // MARK: - Networking and IPC Error Handling
 
-    func testKanataProcessErrorHandling() async throws {
+    func testKanataProcessErrorHandling() async {
         // Test error handling when Kanata process operations fail
         await manager.updateStatus()
         // Process operations via manager are deprecated/removed.
@@ -427,7 +426,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     // MARK: - Input Validation Edge Cases
 
-    func testSequenceGenerationErrorHandling() throws {
+    func testSequenceGenerationErrorHandling() {
         // Test edge cases in sequence generation
         let problematicInputs = [
             "()", // Parentheses
@@ -457,7 +456,7 @@ final class ErrorHandlingTests: XCTestCase {
         }
     }
 
-    func testCommandKeyMappingErrorHandling() throws {
+    func testCommandKeyMappingErrorHandling() {
         // Test edge cases in command key mapping
         let cmdVariations = [
             "cmd", "command", "lcmd", "rcmd",
@@ -480,7 +479,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     // MARK: - Configuration Consistency Tests
 
-    func testConfigurationRoundTrip() throws {
+    func testConfigurationRoundTrip() {
         // Test that configuration generation is consistent
         let testCases = [
             ("caps", "escape"),
@@ -503,7 +502,7 @@ final class ErrorHandlingTests: XCTestCase {
         }
     }
 
-    func testConfigurationIntegrity() throws {
+    func testConfigurationIntegrity() {
         // Test that all generated configs maintain integrity
         let randomInputs = (0 ..< 50).map { _ in
             let chars = "abcdefghijklmnopqrstuvwxyz"

@@ -92,5 +92,4 @@ extension MapperViewModel {
     func clearTapDanceStep(at index: Int) {
         advancedBehavior.clearTapDanceStep(at: index)
     }
-
 }

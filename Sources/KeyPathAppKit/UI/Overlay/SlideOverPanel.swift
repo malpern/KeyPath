@@ -74,7 +74,6 @@ struct SlideOverPanel<Content: View>: View {
 
     // MARK: - Background
 
-    @ViewBuilder
     private var panelBackground: some View {
         // Use solid background to fully cover content behind the panel
         Color(NSColor.windowBackgroundColor)

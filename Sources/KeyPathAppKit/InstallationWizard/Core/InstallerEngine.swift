@@ -4,7 +4,7 @@ import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathWizardCore
 
-// Protocol for privileged routing used by Services to allow test stubs
+/// Protocol for privileged routing used by Services to allow test stubs
 public protocol InstallerEnginePrivilegedRouting: AnyObject {
     func uninstallVirtualHIDDrivers(using broker: PrivilegeBroker) async throws
     func disableKarabinerGrabber(using broker: PrivilegeBroker) async throws
@@ -97,7 +97,8 @@ public final class InstallerEngine {
         // Phase 3: Check requirements first
         if let blockingRequirement = await checkRequirements(for: intent, context: context) {
             AppLogger.shared.log(
-                "⚠️ [InstallerEngine] Plan blocked by requirement: \(blockingRequirement.name)")
+                "⚠️ [InstallerEngine] Plan blocked by requirement: \(blockingRequirement.name)"
+            )
             return InstallPlan(
                 recipes: [],
                 status: .blocked(requirement: blockingRequirement),
@@ -110,7 +111,8 @@ public final class InstallerEngine {
         // Determine actions needed based on intent and context
         let actions = determineActions(for: intent, context: context)
         AppLogger.shared.log(
-            "📋 [InstallerEngine] Determined \(actions.count) actions for intent: \(intent)")
+            "📋 [InstallerEngine] Determined \(actions.count) actions for intent: \(intent)"
+        )
 
         // Generate recipes from actions
         let recipes = generateRecipes(from: actions, context: context)
@@ -203,7 +205,8 @@ public final class InstallerEngine {
         // Check if plan is blocked
         if case let .blocked(requirement) = plan.status {
             AppLogger.shared.log(
-                "⚠️ [InstallerEngine] Plan is blocked by requirement: \(requirement.name)")
+                "⚠️ [InstallerEngine] Plan is blocked by requirement: \(requirement.name)"
+            )
             return InstallerReport(
                 success: false,
                 failureReason: "Plan blocked by requirement: \(requirement.name)",
@@ -219,7 +222,8 @@ public final class InstallerEngine {
 
         for recipe in plan.recipes {
             AppLogger.shared.log(
-                "⚙️ [InstallerEngine] Executing recipe: \(recipe.id) (type: \(recipe.type))")
+                "⚙️ [InstallerEngine] Executing recipe: \(recipe.id) (type: \(recipe.type))"
+            )
 
             let startTime = Date()
             var recipeError: String?
@@ -258,7 +262,8 @@ public final class InstallerEngine {
                         duration: duration,
                         logs: recipeLogs,
                         commandsRun: commandsRun
-                    ))
+                    )
+                )
                 AppLogger.shared.log("✅ [InstallerEngine] Recipe \(recipe.id) completed successfully")
 
             } catch {
@@ -276,10 +281,12 @@ public final class InstallerEngine {
                         duration: duration,
                         logs: recipeLogs,
                         commandsRun: commandsRun
-                    ))
+                    )
+                )
 
                 AppLogger.shared.log(
-                    "❌ [InstallerEngine] Recipe \(recipe.id) failed: \(recipeError ?? "Unknown error")")
+                    "❌ [InstallerEngine] Recipe \(recipe.id) failed: \(recipeError ?? "Unknown error")"
+                )
 
                 firstFailure = (recipe, error)
                 break // Stop execution on first failure
@@ -368,7 +375,8 @@ public final class InstallerEngine {
         let vhidManager = VHIDDeviceManager()
         if !vhidManager.detectActivation() {
             AppLogger.shared.log(
-                "⚠️ [InstallerEngine] VirtualHID Manager not activated - activating before daemon install")
+                "⚠️ [InstallerEngine] VirtualHID Manager not activated - activating before daemon install"
+            )
             try await broker.activateVirtualHIDManager()
             // Wait for activation to take effect
             _ = await WizardSleep.ms(1000) // 1 second
@@ -376,7 +384,8 @@ public final class InstallerEngine {
             // Verify activation
             if !vhidManager.detectActivation() {
                 AppLogger.shared.log(
-                    "⚠️ [InstallerEngine] Manager activation may need user approval - proceeding anyway")
+                    "⚠️ [InstallerEngine] Manager activation may need user approval - proceeding anyway"
+                )
             } else {
                 AppLogger.shared.log("✅ [InstallerEngine] Manager activated successfully")
             }
@@ -389,7 +398,8 @@ public final class InstallerEngine {
            KanataBinaryDetector.shared.needsInstallation()
         {
             AppLogger.shared.log(
-                "🔧 [InstallerEngine] Kanata system binary missing - installing bundled kanata to system location")
+                "🔧 [InstallerEngine] Kanata system binary missing - installing bundled kanata to system location"
+            )
             try await broker.installBundledKanata()
         }
 
@@ -406,7 +416,8 @@ public final class InstallerEngine {
         let vhidManager = VHIDDeviceManager()
         if !vhidManager.detectActivation() {
             AppLogger.shared.log(
-                "⚠️ [InstallerEngine] VirtualHID Manager not activated - activating before restart")
+                "⚠️ [InstallerEngine] VirtualHID Manager not activated - activating before restart"
+            )
             try await broker.activateVirtualHIDManager()
             _ = await WizardSleep.ms(1000) // 1 second
         }
@@ -538,7 +549,8 @@ public final class InstallerEngine {
 
         if intent == .uninstall {
             AppLogger.shared.log(
-                "🗑️ [InstallerEngine] Delegating uninstall intent to uninstall(deleteConfig:, using:)")
+                "🗑️ [InstallerEngine] Delegating uninstall intent to uninstall(deleteConfig:, using:)"
+            )
             return await uninstall(deleteConfig: false, using: broker)
         }
 

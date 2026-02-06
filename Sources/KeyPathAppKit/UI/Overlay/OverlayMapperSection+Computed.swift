@@ -59,5 +59,4 @@ extension OverlayMapperSection {
         viewModel.stopRecording()
         viewModel.stopAllRecording()
     }
-
 }

@@ -107,7 +107,6 @@ struct AIConfigGenerationSettingsSection: View {
         }
     }
 
-    @ViewBuilder
     private var apiKeyInputView: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {

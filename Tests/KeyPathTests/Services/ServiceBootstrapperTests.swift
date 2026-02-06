@@ -1,7 +1,6 @@
 import Foundation
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 /// Unit tests for ServiceBootstrapper service.
 ///
@@ -173,5 +172,110 @@ final class ServiceBootstrapperTests: XCTestCase {
             let isRecent = ServiceBootstrapper.wasRecentlyRestarted(serviceID)
             XCTAssertTrue(isRecent, "Real service ID \(serviceID) should be tracked")
         }
+    }
+
+    // MARK: - Test Mode Branch Coverage
+
+    func testLoadServiceInTestModeReturnsTrueWhenPlistExists() async {
+        let bootstrapper = ServiceBootstrapper.shared
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ServiceBootstrapperTests-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let original = ProcessInfo.processInfo.environment["KEYPATH_LAUNCH_DAEMONS_DIR"]
+        setenv("KEYPATH_LAUNCH_DAEMONS_DIR", tempDir.path, 1)
+        defer {
+            if let original {
+                setenv("KEYPATH_LAUNCH_DAEMONS_DIR", original, 1)
+            } else {
+                unsetenv("KEYPATH_LAUNCH_DAEMONS_DIR")
+            }
+        }
+
+        let plistPath = tempDir.appendingPathComponent("\(ServiceBootstrapper.kanataServiceID).plist")
+        FileManager.default.createFile(atPath: plistPath.path, contents: Data(), attributes: nil)
+
+        let loaded = await bootstrapper.loadService(serviceID: ServiceBootstrapper.kanataServiceID)
+        XCTAssertTrue(loaded)
+    }
+
+    func testLoadServicesInTestModeReturnsFalseWhenAnyPlistMissing() async {
+        let bootstrapper = ServiceBootstrapper.shared
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ServiceBootstrapperTests-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let original = ProcessInfo.processInfo.environment["KEYPATH_LAUNCH_DAEMONS_DIR"]
+        setenv("KEYPATH_LAUNCH_DAEMONS_DIR", tempDir.path, 1)
+        defer {
+            if let original {
+                setenv("KEYPATH_LAUNCH_DAEMONS_DIR", original, 1)
+            } else {
+                unsetenv("KEYPATH_LAUNCH_DAEMONS_DIR")
+            }
+        }
+
+        let existing = tempDir.appendingPathComponent("\(ServiceBootstrapper.kanataServiceID).plist")
+        FileManager.default.createFile(atPath: existing.path, contents: Data(), attributes: nil)
+
+        let allLoaded = await bootstrapper.loadServices([
+            ServiceBootstrapper.kanataServiceID,
+            "com.keypath.missing-service"
+        ])
+        XCTAssertFalse(allLoaded)
+    }
+
+    func testUnloadAndInstallPathsReturnSuccessInTestMode() async {
+        let bootstrapper = ServiceBootstrapper.shared
+
+        let unloadResult = await bootstrapper.unloadService(serviceID: ServiceBootstrapper.kanataServiceID)
+        XCTAssertTrue(unloadResult)
+
+        let restartResult = await bootstrapper.restartServicesWithAdmin([
+            ServiceBootstrapper.kanataServiceID
+        ])
+        XCTAssertTrue(restartResult)
+
+        let installResult = await bootstrapper.installAllServices()
+        XCTAssertTrue(installResult)
+
+        let installOnlyResult = await bootstrapper.installAllServicesWithoutLoading(
+            binaryPath: "/tmp/fake-kanata"
+        )
+        XCTAssertTrue(installOnlyResult)
+    }
+
+    func testRepairVHIDDaemonServicesInTestModeSetsOutput() async {
+        let bootstrapper = ServiceBootstrapper.shared
+        let result = await bootstrapper.repairVHIDDaemonServices()
+
+        XCTAssertTrue(result)
+        XCTAssertEqual(bootstrapper.lastVHIDRepairOutput, "Skipped in test mode")
+    }
+
+    func testLogRotationServiceInstalledChecksPlistInOverrideDirectory() {
+        let bootstrapper = ServiceBootstrapper.shared
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ServiceBootstrapperTests-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let original = ProcessInfo.processInfo.environment["KEYPATH_LAUNCH_DAEMONS_DIR"]
+        setenv("KEYPATH_LAUNCH_DAEMONS_DIR", tempDir.path, 1)
+        defer {
+            if let original {
+                setenv("KEYPATH_LAUNCH_DAEMONS_DIR", original, 1)
+            } else {
+                unsetenv("KEYPATH_LAUNCH_DAEMONS_DIR")
+            }
+        }
+
+        let expectedPath = tempDir.appendingPathComponent("\(ServiceBootstrapper.logRotationServiceID).plist")
+        XCTAssertFalse(bootstrapper.isLogRotationServiceInstalled())
+
+        FileManager.default.createFile(atPath: expectedPath.path, contents: Data(), attributes: nil)
+        XCTAssertTrue(bootstrapper.isLogRotationServiceInstalled())
     }
 }

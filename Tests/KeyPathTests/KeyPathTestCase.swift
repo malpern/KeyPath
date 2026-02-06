@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 /// Base test case class that provides common test seam setup for KeyPath tests.
 ///

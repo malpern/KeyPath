@@ -60,7 +60,8 @@ struct WizardNavigationControl: View {
                     .fill(
                         isHovering
                             ? Color(NSColor.controlBackgroundColor).opacity(0.9)
-                            : Color(NSColor.controlBackgroundColor))
+                            : Color(NSColor.controlBackgroundColor)
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 5)
@@ -118,7 +119,8 @@ struct CloseButton: View {
                         .fill(
                             isHovering
                                 ? Color(NSColor.tertiaryLabelColor).opacity(0.7)
-                                : Color(NSColor.tertiaryLabelColor).opacity(0.5))
+                                : Color(NSColor.tertiaryLabelColor).opacity(0.5)
+                        )
                 )
         }
         .buttonStyle(.plain)

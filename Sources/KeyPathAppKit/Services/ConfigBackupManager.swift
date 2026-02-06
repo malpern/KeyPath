@@ -96,7 +96,8 @@ public final class ConfigBackupManager {
                             fullPath: fullPath,
                             createdAt: modDate,
                             sizeBytes: size
-                        ))
+                        )
+                    )
                 }
             }
 
@@ -121,7 +122,8 @@ public final class ConfigBackupManager {
         // Validate backup content
         guard isValidConfig(content: content) else {
             throw KeyPathError.configuration(
-                .corruptedFormat(details: "Invalid backup: \(backup.filename)"))
+                .corruptedFormat(details: "Invalid backup: \(backup.filename)")
+            )
         }
 
         // Create a backup of current config (if it exists) before restoring
@@ -147,12 +149,14 @@ public final class ConfigBackupManager {
                 if isValidConfig(content: content) {
                     try restoreFromBackup(backup)
                     AppLogger.shared.log(
-                        "✅ [BackupManager] Auto-restored from latest valid backup: \(backup.filename)")
+                        "✅ [BackupManager] Auto-restored from latest valid backup: \(backup.filename)"
+                    )
                     return true
                 }
             } catch {
                 AppLogger.shared.log(
-                    "⚠️ [BackupManager] Failed to check backup \(backup.filename): \(error)")
+                    "⚠️ [BackupManager] Failed to check backup \(backup.filename): \(error)"
+                )
                 continue
             }
         }
@@ -191,7 +195,8 @@ public final class ConfigBackupManager {
                     AppLogger.shared.log("🗑️ [BackupManager] Deleted old backup: \(backup.filename)")
                 } catch {
                     AppLogger.shared.log(
-                        "⚠️ [BackupManager] Failed to delete old backup \(backup.filename): \(error)")
+                        "⚠️ [BackupManager] Failed to delete old backup \(backup.filename): \(error)"
+                    )
                 }
             }
         }

@@ -1,7 +1,6 @@
+@testable import KeyPathAppKit
 import Network
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 /// Tests for request_id functionality in KanataTCPClient
 /// These tests verify the core business logic of request/response correlation,
@@ -120,11 +119,11 @@ final class TCPClientRequestIDTests: XCTestCase {
         let helloJson = """
         {"HelloOk":{"version":"1.10.0","protocol":1,"capabilities":["reload"],"request_id":42}}
         """
-        let helloData = helloJson.data(using: .utf8)!
+        let helloData = try XCTUnwrap(helloJson.data(using: .utf8))
 
         // Extract the HelloOk payload
-        let json = try JSONSerialization.jsonObject(with: helloData) as! [String: Any]
-        let helloOkPayload = json["HelloOk"] as! [String: Any]
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: helloData) as? [String: Any])
+        let helloOkPayload = try XCTUnwrap(json["HelloOk"] as? [String: Any])
         let payloadData = try JSONSerialization.data(withJSONObject: helloOkPayload)
 
         let hello = try JSONDecoder().decode(KanataTCPClient.TcpHelloOk.self, from: payloadData)
@@ -134,9 +133,9 @@ final class TCPClientRequestIDTests: XCTestCase {
         let statusJson = """
         {"StatusInfo":{"engine_version":"1.10.0","uptime_s":100,"ready":true,"last_reload":{"ok":true,"at":"1234567890"},"request_id":99}}
         """
-        let statusData = statusJson.data(using: .utf8)!
-        let statusJsonObj = try JSONSerialization.jsonObject(with: statusData) as! [String: Any]
-        let statusPayload = statusJsonObj["StatusInfo"] as! [String: Any]
+        let statusData = try XCTUnwrap(statusJson.data(using: .utf8))
+        let statusJsonObj = try XCTUnwrap(try JSONSerialization.jsonObject(with: statusData) as? [String: Any])
+        let statusPayload = try XCTUnwrap(statusJsonObj["StatusInfo"] as? [String: Any])
         let statusPayloadData = try JSONSerialization.data(withJSONObject: statusPayload)
 
         let status = try JSONDecoder().decode(
@@ -152,9 +151,9 @@ final class TCPClientRequestIDTests: XCTestCase {
         let helloJson = """
         {"HelloOk":{"version":"1.10.0","protocol":1,"capabilities":["reload"]}}
         """
-        let helloData = helloJson.data(using: .utf8)!
-        let json = try JSONSerialization.jsonObject(with: helloData) as! [String: Any]
-        let helloOkPayload = json["HelloOk"] as! [String: Any]
+        let helloData = try XCTUnwrap(helloJson.data(using: .utf8))
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: helloData) as? [String: Any])
+        let helloOkPayload = try XCTUnwrap(json["HelloOk"] as? [String: Any])
         let payloadData = try JSONSerialization.data(withJSONObject: helloOkPayload)
 
         let hello = try JSONDecoder().decode(KanataTCPClient.TcpHelloOk.self, from: payloadData)
@@ -165,9 +164,9 @@ final class TCPClientRequestIDTests: XCTestCase {
         let statusJson = """
         {"StatusInfo":{"engine_version":"1.10.0","uptime_s":100,"ready":true,"last_reload":{"ok":true,"at":"1234567890"}}}
         """
-        let statusData = statusJson.data(using: .utf8)!
-        let statusJsonObj = try JSONSerialization.jsonObject(with: statusData) as! [String: Any]
-        let statusPayload = statusJsonObj["StatusInfo"] as! [String: Any]
+        let statusData = try XCTUnwrap(statusJson.data(using: .utf8))
+        let statusJsonObj = try XCTUnwrap(try JSONSerialization.jsonObject(with: statusData) as? [String: Any])
+        let statusPayload = try XCTUnwrap(statusJsonObj["StatusInfo"] as? [String: Any])
         let statusPayloadData = try JSONSerialization.data(withJSONObject: statusPayload)
 
         let status = try JSONDecoder().decode(

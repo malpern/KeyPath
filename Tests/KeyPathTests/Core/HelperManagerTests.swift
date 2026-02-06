@@ -1,7 +1,6 @@
+@testable import KeyPathAppKit
 import ServiceManagement
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 final class HelperManagerTests: XCTestCase {
     private var originalFactory: ((String) -> SMAppServiceProtocol)!
@@ -47,6 +46,9 @@ final class HelperManagerTests: XCTestCase {
 private struct FakeSMAppService: SMAppServiceProtocol, @unchecked Sendable {
     let status: SMAppService.Status
     let registerError: Error
-    func register() throws { throw registerError }
+    func register() throws {
+        throw registerError
+    }
+
     func unregister() async throws {}
 }

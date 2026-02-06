@@ -294,15 +294,13 @@ struct OverlayMapperSection: View {
             }
         }
 
-        let withURLDialog = withResetDialog.sheet(isPresented: $viewModel.showingURLDialog) {
+        return withResetDialog.sheet(isPresented: $viewModel.showingURLDialog) {
             URLInputDialog(
                 urlText: $viewModel.urlInputText,
                 onSubmit: { viewModel.submitURL() },
                 onCancel: { viewModel.showingURLDialog = false }
             )
         }
-
-        return withURLDialog
     }
 
     private let showDebugBorders = false
@@ -600,5 +598,4 @@ struct OverlayMapperSection: View {
         )
         .padding(4)
     }
-
 }

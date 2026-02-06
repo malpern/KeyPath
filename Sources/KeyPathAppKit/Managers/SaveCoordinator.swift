@@ -146,7 +146,9 @@ final class SaveCoordinator {
                         .loadFailed(
                             reason:
                             "TCP server required for validation-on-demand failed: \(errorMessage)"
-                        )))
+                        )
+                    )
+                )
             }
 
         } catch {
@@ -172,7 +174,8 @@ final class SaveCoordinator {
         do {
             // Step 1: Validate generated config before saving
             AppLogger.shared.debug(
-                "🔍 [SaveCoordinator] Validating generated config before save...")
+                "🔍 [SaveCoordinator] Validating generated config before save..."
+            )
             let validation = await configurationService.validateConfiguration(content)
 
             if !validation.isValid {
@@ -180,9 +183,11 @@ final class SaveCoordinator {
                     "❌ [SaveCoordinator] Generated config validation failed: \(validation.errors.joined(separator: ", "))"
                 )
                 saveStatus = .failed(
-                    "Invalid config: \(validation.errors.first ?? "Unknown error")")
+                    "Invalid config: \(validation.errors.first ?? "Unknown error")"
+                )
                 return .failure(
-                    KeyPathError.configuration(.validationFailed(errors: validation.errors)))
+                    KeyPathError.configuration(.validationFailed(errors: validation.errors))
+                )
             }
 
             AppLogger.shared.info("✅ [SaveCoordinator] Generated config validation passed")
@@ -204,7 +209,8 @@ final class SaveCoordinator {
             try content.write(to: configURL, atomically: true, encoding: .utf8)
 
             AppLogger.shared.info(
-                "✅ [SaveCoordinator] Generated configuration saved to \(configPath)")
+                "✅ [SaveCoordinator] Generated configuration saved to \(configPath)"
+            )
 
             // Step 4: Parse saved config to extract mappings
             let parsedMappings = parseConfig(content)
@@ -217,7 +223,8 @@ final class SaveCoordinator {
 
             if reloadResult.success {
                 AppLogger.shared.info(
-                    "✅ [SaveCoordinator] TCP reload successful, config is active")
+                    "✅ [SaveCoordinator] TCP reload successful, config is active"
+                )
                 playSuccessSound()
                 saveStatus = .success
                 scheduleStatusReset()
@@ -233,12 +240,15 @@ final class SaveCoordinator {
                 saveStatus = .failed("Config reload failed: \(errorMessage)")
                 return .failure(
                     KeyPathError.configuration(
-                        .loadFailed(reason: "Hot reload failed: \(errorMessage)")))
+                        .loadFailed(reason: "Hot reload failed: \(errorMessage)")
+                    )
+                )
             }
 
         } catch {
             saveStatus = .failed(
-                "Failed to save generated configuration: \(error.localizedDescription)")
+                "Failed to save generated configuration: \(error.localizedDescription)"
+            )
             return .failure(error)
         }
     }
@@ -296,7 +306,8 @@ final class SaveCoordinator {
 
         guard !sanitizedInput.isEmpty, !sanitizedOutput.isEmpty else {
             throw KeyPathError.configuration(
-                .validationFailed(errors: ["Input and output are required."]))
+                .validationFailed(errors: ["Input and output are required."])
+            )
         }
 
         return (sanitizedInput, sanitizedOutput)

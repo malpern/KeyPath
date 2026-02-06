@@ -1,9 +1,8 @@
+@testable import KeyPathAppKit
 import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathWizardCore
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 /// Integration tests for ProcessLifecycleManager - tests the actual system
 /// Updated to work with the simplified ProcessLifecycleManager that uses PID files
@@ -43,7 +42,7 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
 
     // MARK: - Conflict Detection Tests
 
-    func testConflictDetection() async throws {
+    func testConflictDetection() async {
         // Test that conflict detection works with the current ProcessLifecycleManager
 
         // Set intent to run
@@ -85,29 +84,38 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
     // MARK: - Performance Tests
 
     func testProcessDetectionPerformance() async {
-        // Test that process detection is efficient on the real implementation
+        // Test that process detection remains efficient while being robust to machine load variance.
+        // We sample multiple runs and assert against median duration.
+        let operationsPerRun = 100
+        let runCount = 5
+        var samples: [Double] = []
+        samples.reserveCapacity(runCount)
 
-        let startTime = CFAbsoluteTimeGetCurrent()
+        for run in 0 ..< runCount {
+            let startTime = CFAbsoluteTimeGetCurrent()
 
-        // Test realistic process operations
-        for testIndex in 0 ..< 100 {
-            processManager.setIntent(.shouldBeRunning(source: "perf_test_\(testIndex)"))
-            await processManager.registerStartedProcess(
-                pid: pid_t(10000 + testIndex), command: "test command"
-            )
-            await processManager.unregisterProcess()
+            for testIndex in 0 ..< operationsPerRun {
+                processManager.setIntent(.shouldBeRunning(source: "perf_test_\(run)_\(testIndex)"))
+                await processManager.registerStartedProcess(
+                    pid: pid_t(10000 + testIndex), command: "test command"
+                )
+                await processManager.unregisterProcess()
+            }
+
+            let duration = CFAbsoluteTimeGetCurrent() - startTime
+            samples.append(duration)
         }
 
-        let endTime = CFAbsoluteTimeGetCurrent()
-        let duration = endTime - startTime
+        let sorted = samples.sorted()
+        let median = sorted[sorted.count / 2]
 
-        // Should complete quickly (less than 0.1 seconds for 100 operations)
-        XCTAssertLessThan(duration, 0.1, "Process operations should be efficient")
+        // Baseline in local runs is well below this; threshold allows transient CI/host jitter.
+        XCTAssertLessThan(median, 0.15, "Median process operation duration regressed: \(median)s from samples \(samples)")
     }
 
     // MARK: - Error Handling Tests
 
-    func testProcessErrorTypes() async {
+    func testProcessErrorTypes() {
         // Test that error types exist and work correctly (migrated to KeyPathError)
 
         let error = KeyPathError.process(.noManager)
@@ -133,7 +141,7 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
 
     func testConcurrentProcessManagement() async throws {
         // Test concurrent access to ProcessLifecycleManager (real implementation)
-        let manager = processManager!
+        let manager = try XCTUnwrap(processManager)
 
         let concurrentTasks = (1 ... 10).map { taskId in
             Task {

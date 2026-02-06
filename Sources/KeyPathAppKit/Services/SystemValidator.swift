@@ -84,7 +84,8 @@ class SystemValidator {
         // If validation is already in progress, wait for it
         if let inProgress = inProgressValidation {
             AppLogger.shared.log(
-                "🔍 [SystemValidator] Validation already in progress - waiting for result")
+                "🔍 [SystemValidator] Validation already in progress - waiting for result"
+            )
             return await inProgress.value
         }
 
@@ -134,7 +135,8 @@ class SystemValidator {
                     """
                     ⚠️ [SystemValidator] RAPID VALIDATION: \(String(format: "%.3f", interval))s since last validation
                     This might indicate automatic triggers. Expected: manual user actions only.
-                    """)
+                    """
+                )
             }
         }
         Self.lastValidationStart = Date()
@@ -202,7 +204,8 @@ class SystemValidator {
                 let result = await self.checkHelper()
                 let duration = Date().timeIntervalSince(start)
                 AppLogger.shared.log(
-                    "⏱️ [TIMING] Step 1 (Helper) completed in \(String(format: "%.3f", duration))s")
+                    "⏱️ [TIMING] Step 1 (Helper) completed in \(String(format: "%.3f", duration))s"
+                )
                 updateProgress(1)
                 return .helper(result)
             }
@@ -212,7 +215,8 @@ class SystemValidator {
                 let result = await self.checkPermissions()
                 let duration = Date().timeIntervalSince(start)
                 AppLogger.shared.log(
-                    "⏱️ [TIMING] Step 2 (Permissions) completed in \(String(format: "%.3f", duration))s")
+                    "⏱️ [TIMING] Step 2 (Permissions) completed in \(String(format: "%.3f", duration))s"
+                )
                 updateProgress(2)
                 return .permissions(result)
             }
@@ -222,7 +226,8 @@ class SystemValidator {
                 let result = await self.checkComponents()
                 let duration = Date().timeIntervalSince(start)
                 AppLogger.shared.log(
-                    "⏱️ [TIMING] Step 3 (Components) completed in \(String(format: "%.3f", duration))s")
+                    "⏱️ [TIMING] Step 3 (Components) completed in \(String(format: "%.3f", duration))s"
+                )
                 updateProgress(3)
                 return .components(result)
             }
@@ -232,7 +237,8 @@ class SystemValidator {
                 let result = await self.checkConflicts()
                 let duration = Date().timeIntervalSince(start)
                 AppLogger.shared.log(
-                    "⏱️ [TIMING] Step 4 (Conflicts) completed in \(String(format: "%.3f", duration))s")
+                    "⏱️ [TIMING] Step 4 (Conflicts) completed in \(String(format: "%.3f", duration))s"
+                )
                 updateProgress(4)
                 return .conflicts(result)
             }
@@ -242,7 +248,8 @@ class SystemValidator {
                 let result = await self.checkHealth()
                 let duration = Date().timeIntervalSince(start)
                 AppLogger.shared.log(
-                    "⏱️ [TIMING] Step 5 (Health) completed in \(String(format: "%.3f", duration))s")
+                    "⏱️ [TIMING] Step 5 (Health) completed in \(String(format: "%.3f", duration))s"
+                )
                 updateProgress(5)
                 return .health(result)
             }
@@ -302,7 +309,8 @@ class SystemValidator {
 
         let duration = Date().timeIntervalSince(startTime)
         AppLogger.shared.log(
-            "🔍 [SystemValidator] Validation #\(myID) complete in \(String(format: "%.3f", duration))s")
+            "🔍 [SystemValidator] Validation #\(myID) complete in \(String(format: "%.3f", duration))s"
+        )
         AppLogger.shared.log(
             "🔍 [SystemValidator] Result: ready=\(snapshot.isReady), blocking=\(snapshot.blockingIssues.count), total=\(snapshot.allIssues.count)"
         )
@@ -413,7 +421,8 @@ class SystemValidator {
                 || vhidInstalled || vhidHealthy
         // Use launchctl-based check instead of unreliable pgrep (same as checkHealth)
         let karabinerDaemonRunning = await ServiceHealthChecker.shared.isServiceHealthy(
-            serviceID: "com.keypath.karabiner-vhiddaemon")
+            serviceID: "com.keypath.karabiner-vhiddaemon"
+        )
 
         AppLogger.shared
             .log(
@@ -444,14 +453,16 @@ class SystemValidator {
         allConflicts.append(
             contentsOf: conflictResolution.externalProcesses.map { process in
                 .kanataProcessRunning(pid: Int(process.pid), command: process.command)
-            })
+            }
+        )
 
         // Check for Karabiner-Elements conflicts
         if let manager = kanataManager {
             let karabinerRunning = await manager.isKarabinerElementsRunning()
             if karabinerRunning {
                 AppLogger.shared.log(
-                    "⚠️ [SystemValidator] Karabiner-Elements grabber is running - conflicts with Kanata")
+                    "⚠️ [SystemValidator] Karabiner-Elements grabber is running - conflicts with Kanata"
+                )
                 // Get PID for karabiner_grabber
                 if let pid = getKarabinerGrabberPID() {
                     allConflicts.append(.karabinerGrabberRunning(pid: pid))
@@ -516,10 +527,12 @@ class SystemValidator {
         // Use launchctl-based check instead of unreliable pgrep
         // This aligns with the health check used in ServiceHealthChecker
         AppLogger.shared.log(
-            "🔍 [SystemValidator] checkHealth() - About to check Karabiner daemon health...")
+            "🔍 [SystemValidator] checkHealth() - About to check Karabiner daemon health..."
+        )
         let karabinerStart = Date()
         let karabinerDaemonRunning = await ServiceHealthChecker.shared.isServiceHealthy(
-            serviceID: "com.keypath.karabiner-vhiddaemon")
+            serviceID: "com.keypath.karabiner-vhiddaemon"
+        )
         let karabinerDuration = Date().timeIntervalSince(karabinerStart)
         AppLogger.shared.log(
             "🔍 [SystemValidator] checkHealth() - Karabiner daemon check complete: \(karabinerDaemonRunning) (took \(String(format: "%.3f", karabinerDuration))s)"

@@ -57,12 +57,12 @@ struct WizardHelperPage: View {
         hasNotInstalledIssue || hasUnhealthyIssue || !helperVerifiedInstalled
     }
 
-    // Helper is ready if verified installed AND no issues
+    /// Helper is ready if verified installed AND no issues
     private var isReady: Bool {
         helperVerifiedInstalled && !hasNotInstalledIssue && !hasUnhealthyIssue
     }
 
-    // Helper is installed if verified OR has unhealthy issue (installed but broken)
+    /// Helper is installed if verified OR has unhealthy issue (installed but broken)
     private var isInstalled: Bool {
         helperVerifiedInstalled || hasUnhealthyIssue
     }
@@ -296,7 +296,7 @@ struct WizardHelperPage: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
 
-            if isInstalled && isRunningAdHoc {
+            if isInstalled, isRunningAdHoc {
                 VStack(spacing: 8) {
                     Text("Unsigned build detected")
                         .font(.system(size: 13, weight: .semibold))

@@ -155,7 +155,6 @@ struct ExperimentalSettingsSection: View {
         }
     }
 
-    @ViewBuilder
     private func featureFlagToggle(
         title: String,
         description: String,

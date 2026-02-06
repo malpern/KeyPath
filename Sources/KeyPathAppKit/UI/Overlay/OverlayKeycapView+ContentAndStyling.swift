@@ -3,7 +3,6 @@ import KeyPathCore
 import SwiftUI
 
 extension OverlayKeycapView {
-    @ViewBuilder
     var keycapBody: some View {
         ZStack {
             // Key background with subtle shadow

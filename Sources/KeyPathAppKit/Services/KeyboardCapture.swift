@@ -58,7 +58,7 @@ public class KeyboardCapture: ObservableObject {
 
     /// Non-blocking check for whether Kanata is running, using cached service state.
     /// Replaces the old blocking `pgrep` call that could stall the main actor.
-    func fastProbeKanataRunning(timeout: TimeInterval = 0.25) -> Bool {
+    func fastProbeKanataRunning(timeout _: TimeInterval = 0.25) -> Bool {
         KanataService.shared.state.isRunning
     }
 
@@ -69,7 +69,8 @@ public class KeyboardCapture: ObservableObject {
         eventRouter = router
         self.kanataManager = kanataManager
         AppLogger.shared.log(
-            "📋 [KeyboardCapture] Event router \(router != nil ? "enabled" : "disabled")")
+            "📋 [KeyboardCapture] Event router \(router != nil ? "enabled" : "disabled")"
+        )
     }
 
     /// Enable event router integration with the default router
@@ -92,7 +93,8 @@ public class KeyboardCapture: ObservableObject {
     public func setActivityObserver(_ observer: KeyboardActivityObserver?) {
         activityObserver = observer
         AppLogger.shared.log(
-            "📊 [KeyboardCapture] Activity observer \(observer != nil ? "enabled" : "disabled")")
+            "📊 [KeyboardCapture] Activity observer \(observer != nil ? "enabled" : "disabled")"
+        )
     }
 
     // Emergency stop sequence detection
@@ -143,10 +145,12 @@ public class KeyboardCapture: ObservableObject {
                 )
 
                 AppLogger.shared.log(
-                    "⚠️ [KeyboardCapture] Accessibility permission missing - triggering wizard")
+                    "⚠️ [KeyboardCapture] Accessibility permission missing - triggering wizard"
+                )
             } else {
                 AppLogger.shared.log(
-                    "🧪 [KeyboardCapture] Skipping wizard trigger in test environment")
+                    "🧪 [KeyboardCapture] Skipping wizard trigger in test environment"
+                )
             }
             return
         }
@@ -203,7 +207,8 @@ public class KeyboardCapture: ObservableObject {
                 )
             } else {
                 AppLogger.shared.log(
-                    "🧪 [KeyboardCapture] Skipping wizard trigger (continuous) in test environment")
+                    "🧪 [KeyboardCapture] Skipping wizard trigger (continuous) in test environment"
+                )
             }
             return
         }
@@ -241,7 +246,8 @@ public class KeyboardCapture: ObservableObject {
         // This only affects KeyPath while recording, not other apps.
         if localMonitor == nil {
             AppLogger.shared.log(
-                "🎹 [KeyboardCapture] Installing local keyDown monitor for recording (swallow only)")
+                "🎹 [KeyboardCapture] Installing local keyDown monitor for recording (swallow only)"
+            )
             localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { _ in
                 // Swallow the key to avoid system beep while recording, but do NOT
                 // feed it into the capture pipeline to prevent duplicate events.
@@ -340,7 +346,8 @@ public class KeyboardCapture: ObservableObject {
         // In tests (including CI), avoid creating CGEvent taps to prevent hangs and permission prompts
         if TestEnvironment.isRunningTests {
             AppLogger.shared.debug(
-                "🧪 [KeyboardCapture] Test environment detected – skipping CGEvent tap setup")
+                "🧪 [KeyboardCapture] Test environment detected – skipping CGEvent tap setup"
+            )
             return
         }
         let eventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
@@ -419,7 +426,8 @@ public class KeyboardCapture: ObservableObject {
         CGEvent.tapEnable(tap: eventTap, enable: true)
         let tapDesc = suppressEvents ? "defaultTap/suppress" : "listenOnly"
         AppLogger.shared.info(
-            "✅ [KeyboardCapture] Event tap created (location=\(location), options=\(tapDesc))")
+            "✅ [KeyboardCapture] Event tap created (location=\(location), options=\(tapDesc))"
+        )
     }
 
     private func handleKeyEvent(_ event: CGEvent, type: CGEventType) {
@@ -441,7 +449,8 @@ public class KeyboardCapture: ObservableObject {
         let now = Date()
 
         AppLogger.shared.log(
-            "🎹 [KeyboardCapture] keyDown: \(keyName) code=\(keyCode) suppress=\(suppressEvents)")
+            "🎹 [KeyboardCapture] keyDown: \(keyName) code=\(keyCode) suppress=\(suppressEvents)"
+        )
         anyEventSeen = true
         noKeyBreadcrumbTimer?.invalidate()
         noKeyBreadcrumbTimer = nil
@@ -504,7 +513,8 @@ public class KeyboardCapture: ObservableObject {
         let now = Date()
 
         AppLogger.shared.log(
-            "🎹 [KeyboardCapture] flagsChanged: \(keyName) code=\(keyCode) suppress=\(suppressEvents)")
+            "🎹 [KeyboardCapture] flagsChanged: \(keyName) code=\(keyCode) suppress=\(suppressEvents)"
+        )
         anyEventSeen = true
         noKeyBreadcrumbTimer?.invalidate()
         noKeyBreadcrumbTimer = nil
@@ -791,19 +801,18 @@ public class KeyboardCapture: ObservableObject {
         }
     }
 
-    // Check permissions without prompting - using synchronous method to avoid deadlocks
+    /// Check permissions without prompting - using synchronous method to avoid deadlocks
     func checkAccessibilityPermissionsSilently() -> Bool {
         // Use direct API call instead of async PermissionOracle to avoid semaphore deadlock
         AXIsProcessTrusted()
     }
 
-    // Public method to explicitly request permissions (for use in wizard)
+    /// Public method to explicitly request permissions (for use in wizard)
     func requestPermissionsExplicitly() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-        {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        ) {
             NSWorkspace.shared.open(url)
         }
     }
-
 }

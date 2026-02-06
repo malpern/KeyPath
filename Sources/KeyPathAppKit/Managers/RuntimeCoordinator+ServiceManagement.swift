@@ -104,7 +104,7 @@ extension RuntimeCoordinator {
         return false
     }
 
-    // Check if permission issues should trigger the wizard
+    /// Check if permission issues should trigger the wizard
     func shouldShowWizardForPermissions() async -> Bool {
         let snapshot = await PermissionOracle.shared.currentSnapshot()
         return snapshot.blockingIssue != nil

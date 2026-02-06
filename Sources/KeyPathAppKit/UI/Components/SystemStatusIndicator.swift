@@ -74,7 +74,6 @@ struct SystemStatusIndicator: View {
 
     // MARK: - Icon View
 
-    @ViewBuilder
     private func iconView() -> some View {
         // Fixed frame to prevent layout shifts
         ZStack {
@@ -260,7 +259,8 @@ struct SystemStatusIndicator: View {
             switch state {
             case .checking:
                 AppLogger.shared.log(
-                    "🔍 [SystemStatusIndicator] Opening wizard while validation in progress")
+                    "🔍 [SystemStatusIndicator] Opening wizard while validation in progress"
+                )
             case .success:
                 AppLogger.shared.log("✅ [SystemStatusIndicator] Opening wizard despite healthy system")
             case let .failed(blockingCount, totalCount):

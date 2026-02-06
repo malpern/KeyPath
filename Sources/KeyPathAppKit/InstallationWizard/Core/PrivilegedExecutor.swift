@@ -41,7 +41,8 @@ final class PrivilegedExecutor: @unchecked Sendable {
         // Check if we should skip admin operations entirely (test mode)
         if TestEnvironment.shouldSkipAdminOperations {
             AppLogger.shared.log(
-                "🧪 [PrivilegedExecutor] Skipping admin operation in test mode")
+                "🧪 [PrivilegedExecutor] Skipping admin operation in test mode"
+            )
             return (true, "Skipped in test mode")
         }
 
@@ -63,7 +64,8 @@ final class PrivilegedExecutor: @unchecked Sendable {
     /// - Returns: Tuple of (success, output)
     func executeWithSudo(command: String) -> (success: Bool, output: String) {
         AppLogger.shared.log(
-            "🧪 [PrivilegedExecutor] Using sudo for privileged operation (KEYPATH_USE_SUDO=1)")
+            "🧪 [PrivilegedExecutor] Using sudo for privileged operation (KEYPATH_USE_SUDO=1)"
+        )
 
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
@@ -113,14 +115,16 @@ final class PrivilegedExecutor: @unchecked Sendable {
         // Guard: if running tests with sudo mode, redirect to sudo instead of showing osascript dialog
         if TestEnvironment.useSudoForPrivilegedOps {
             AppLogger.shared.log(
-                "🧪 [PrivilegedExecutor] executeWithOsascript redirecting to sudo (KEYPATH_USE_SUDO=1)")
+                "🧪 [PrivilegedExecutor] executeWithOsascript redirecting to sudo (KEYPATH_USE_SUDO=1)"
+            )
             return executeWithSudo(command: command)
         }
 
         // Guard: if tests should skip admin ops entirely, return mock success
         if TestEnvironment.shouldSkipAdminOperations {
             AppLogger.shared.log(
-                "🧪 [PrivilegedExecutor] Skipping osascript in test mode")
+                "🧪 [PrivilegedExecutor] Skipping osascript in test mode"
+            )
             return (true, "Skipped in test mode")
         }
 
@@ -130,7 +134,8 @@ final class PrivilegedExecutor: @unchecked Sendable {
         """
 
         AppLogger.shared.log(
-            "🔐 [PrivilegedExecutor] Requesting admin privileges via osascript")
+            "🔐 [PrivilegedExecutor] Requesting admin privileges via osascript"
+        )
 
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
@@ -183,7 +188,8 @@ final class PrivilegedExecutor: @unchecked Sendable {
         // Skip test if called during startup to prevent freezes
         if ProcessInfo.processInfo.environment["KEYPATH_SKIP_ADMIN_TEST"] == "1" {
             AppLogger.shared.log(
-                "⚠️ [PrivilegedExecutor] Skipping admin dialog test during startup")
+                "⚠️ [PrivilegedExecutor] Skipping admin dialog test during startup"
+            )
             return true // Assume it works to avoid blocking
         }
 
@@ -195,7 +201,8 @@ final class PrivilegedExecutor: @unchecked Sendable {
         )
 
         AppLogger.shared.log(
-            "🔧 [PrivilegedExecutor] Admin dialog test result: \(result.success)")
+            "🔧 [PrivilegedExecutor] Admin dialog test result: \(result.success)"
+        )
         return result.success
     }
 

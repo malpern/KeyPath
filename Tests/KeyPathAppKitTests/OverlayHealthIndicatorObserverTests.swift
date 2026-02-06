@@ -222,7 +222,7 @@ final class HealthObserverInitializationOrderTests: XCTestCase {
     /// The actual assertion in refresh() will crash if this invariant is violated.
     /// This test verifies the CORRECT usage pattern.
     @MainActor
-    func testRefreshRequiresConfiguredStateController() async {
+    func testRefreshRequiresConfiguredStateController() {
         // Set up a fresh state controller (simulating app startup)
         let controller = MainAppStateController()
 

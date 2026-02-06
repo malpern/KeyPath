@@ -51,7 +51,7 @@ struct MomentaryActivatorCodableTests {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(activator)
-        let json = String(data: data, encoding: .utf8)!
+        let json = try #require(String(data: data, encoding: .utf8))
 
         #expect(json.contains("\"input\""))
         #expect(json.contains("\"targetLayer\""))

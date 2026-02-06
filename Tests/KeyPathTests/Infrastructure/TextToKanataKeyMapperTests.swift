@@ -63,7 +63,7 @@ struct TextToKanataKeyMapperTests {
     }
 }
 
-// Helper extension for cleaner test assertions
+/// Helper extension for cleaner test assertions
 extension Result where Success == [String], Failure == TextToKanataKeyMapper.MappingError {
     var isSuccess: Bool {
         if case .success = self { return true }

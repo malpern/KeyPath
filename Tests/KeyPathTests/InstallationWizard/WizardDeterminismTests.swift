@@ -91,7 +91,10 @@ final class WizardDeterminismTests: XCTestCase {
 // MARK: - Local test doubles
 
 private struct MockEnabledSMAppService: SMAppServiceProtocol {
-    var status: SMAppService.Status { .enabled }
+    var status: SMAppService.Status {
+        .enabled
+    }
+
     func register() throws {}
     func unregister() async throws {}
 }

@@ -76,5 +76,4 @@ extension InstallationWizardView {
         AppLogger.shared.log("🔍 [ErrorMessage] Returning message: \(message)")
         return message
     }
-
 }

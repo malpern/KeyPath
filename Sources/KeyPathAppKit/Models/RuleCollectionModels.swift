@@ -382,7 +382,7 @@ public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {
         }
     }
 
-    // Custom Codable implementation to handle both old and new formats
+    /// Custom Codable implementation to handle both old and new formats
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let rawValue = try container.decode(String.self)
@@ -465,7 +465,10 @@ public enum RuleCollectionDisplayStyle: String, Codable, Sendable {
 
 /// A preset option for single-key picker collections
 public struct SingleKeyPreset: Codable, Equatable, Sendable, Identifiable {
-    public var id: String { output }
+    public var id: String {
+        output
+    }
+
     public let output: String
     public let label: String
     public let description: String

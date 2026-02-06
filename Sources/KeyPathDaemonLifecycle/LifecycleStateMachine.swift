@@ -309,17 +309,27 @@ public final class LifecycleStateMachine: ObservableObject {
 
 public extension LifecycleStateMachine {
     /// Whether Kanata is currently running and operational
-    var isRunning: Bool { currentState.isOperational }
+    var isRunning: Bool {
+        currentState.isOperational
+    }
 
     /// Whether the system is currently in an error state
-    var hasError: Bool { currentState.isError }
+    var hasError: Bool {
+        currentState.isError
+    }
 
     /// Whether the system is currently performing an operation
-    var isBusy: Bool { currentState.isTransitioning }
+    var isBusy: Bool {
+        currentState.isTransitioning
+    }
 
     /// Whether user can perform actions
-    var canPerformActions: Bool { currentState.allowsUserActions }
+    var canPerformActions: Bool {
+        currentState.allowsUserActions
+    }
 
     /// Current state display string for UI
-    var stateDisplay: String { currentState.displayName }
+    var stateDisplay: String {
+        currentState.displayName
+    }
 }

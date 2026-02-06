@@ -4,20 +4,20 @@ import KeyPathCore
 
 // MARK: - CoreGraphics Services (CGS) Private API
 
-/// Private API declarations for macOS Space management.
-/// These are undocumented but stable APIs used by apps like Amethyst, alt-tab-macos, and yabai.
-///
-/// ## References
-/// - https://github.com/lwouis/alt-tab-macos/blob/master/src/logic/Spaces.swift
-/// - https://github.com/ianyh/Amethyst
-/// - https://github.com/NUIKit/CGSInternal/blob/master/CGSSpace.h
-///
-/// ## Stability
-/// These APIs have been stable across macOS versions but are subject to change without notice.
-/// The notarization process does not block private API usage (only App Store review does).
-///
-/// ## Availability Detection
-/// Use `CGSPrivateAPI.isAvailable` to check if the APIs are accessible before use.
+// Private API declarations for macOS Space management.
+// These are undocumented but stable APIs used by apps like Amethyst, alt-tab-macos, and yabai.
+//
+// ## References
+// - https://github.com/lwouis/alt-tab-macos/blob/master/src/logic/Spaces.swift
+// - https://github.com/ianyh/Amethyst
+// - https://github.com/NUIKit/CGSInternal/blob/master/CGSSpace.h
+//
+// ## Stability
+// These APIs have been stable across macOS versions but are subject to change without notice.
+// The notarization process does not block private API usage (only App Store review does).
+//
+// ## Availability Detection
+// Use `CGSPrivateAPI.isAvailable` to check if the APIs are accessible before use.
 
 // MARK: - Type Aliases
 

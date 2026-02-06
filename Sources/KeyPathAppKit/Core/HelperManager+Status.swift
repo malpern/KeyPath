@@ -76,7 +76,8 @@ extension HelperManager {
                 proxy.getVersion { version, error in
                     let threadName = Thread.current.isMainThread ? "main" : "background"
                     AppLogger.shared.log(
-                        "📥 [HelperManager] getVersion callback received on \(threadName) thread")
+                        "📥 [HelperManager] getVersion callback received on \(threadName) thread"
+                    )
                     if let version {
                         AppLogger.shared.log("✅ [HelperManager] getVersion callback: version=\(version)")
                         versionHolder.value = version
@@ -88,12 +89,14 @@ extension HelperManager {
                     sema.signal()
                 }
                 AppLogger.shared.log(
-                    "📤 [HelperManager] proxy.getVersion() call dispatched, waiting for callback")
+                    "📤 [HelperManager] proxy.getVersion() call dispatched, waiting for callback"
+                )
                 DispatchQueue.global(qos: .utility).async {
                     let waited = sema.wait(timeout: .now() + 3)
                     if waited == .timedOut {
                         AppLogger.shared.log(
-                            "⚠️ [HelperManager] getVersion timed out - clearing connection cache")
+                            "⚠️ [HelperManager] getVersion timed out - clearing connection cache"
+                        )
                         // Clear connection on timeout - it's likely stale
                         Task { await HelperManager.shared.clearConnection() }
                         continuation.resume(returning: nil)
@@ -114,7 +117,8 @@ extension HelperManager {
             }
         } catch {
             AppLogger.shared.log(
-                "❌ [HelperManager] Failed to connect to helper for version check: \(error)")
+                "❌ [HelperManager] Failed to connect to helper for version check: \(error)"
+            )
             return nil
         }
     }
@@ -162,7 +166,8 @@ extension HelperManager {
         }
 
         AppLogger.shared.info(
-            "✅ [HelperManager] Functionality test passed: Helper v\(version) responding")
+            "✅ [HelperManager] Functionality test passed: Helper v\(version) responding"
+        )
         return true
     }
 

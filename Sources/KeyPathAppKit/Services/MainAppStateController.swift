@@ -51,7 +51,9 @@ class MainAppStateController: ObservableObject {
 
     /// Returns true if configure() has been called.
     /// Use this to assert initialization order invariants.
-    var isConfigured: Bool { validator != nil }
+    var isConfigured: Bool {
+        validator != nil
+    }
 
     // MARK: - Validation Cooldown (Optimization: Skip redundant validations on rapid restarts)
 
@@ -192,7 +194,8 @@ class MainAppStateController: ObservableObject {
 
         guard plistExists else {
             AppLogger.shared.warn(
-                "⚠️ [MainAppStateController] TCP check failed: Service plist doesn't exist at \(plistPath)")
+                "⚠️ [MainAppStateController] TCP check failed: Service plist doesn't exist at \(plistPath)"
+            )
             return false
         }
 
@@ -210,12 +213,14 @@ class MainAppStateController: ObservableObject {
             let hasTCPPort = args.contains("--port")
             guard hasTCPPort else {
                 AppLogger.shared.warn(
-                    "⚠️ [MainAppStateController] TCP check failed: Service missing --port argument")
+                    "⚠️ [MainAppStateController] TCP check failed: Service missing --port argument"
+                )
                 return false
             }
         } catch {
             AppLogger.shared.warn(
-                "⚠️ [MainAppStateController] Failed to read daemon plist at \(plistPath): \(error.localizedDescription)")
+                "⚠️ [MainAppStateController] Failed to read daemon plist at \(plistPath): \(error.localizedDescription)"
+            )
             return false
         }
 
@@ -327,7 +332,8 @@ class MainAppStateController: ObservableObject {
             )
 
             AppLogger.shared.info(
-                "✅ [MainAppStateController] Service is ready, proceeding with validation")
+                "✅ [MainAppStateController] Service is ready, proceeding with validation"
+            )
 
             // Clear startup mode flag now that services are ready
             // This ensures Oracle runs full permission checks for accurate results
@@ -336,17 +342,20 @@ class MainAppStateController: ObservableObject {
             if FeatureFlags.shared.startupModeActive {
                 FeatureFlags.shared.deactivateStartupMode()
                 AppLogger.shared.log(
-                    "🔍 [MainAppStateController] Cleared startup mode flag for accurate validation")
+                    "🔍 [MainAppStateController] Cleared startup mode flag for accurate validation"
+                )
 
                 // Invalidate Oracle cache so it runs fresh permission checks without startup mode
                 await PermissionOracle.shared.invalidateCache()
                 AppLogger.shared.debug(
-                    "🔍 [MainAppStateController] Invalidated Oracle cache to force fresh permission checks")
+                    "🔍 [MainAppStateController] Invalidated Oracle cache to force fresh permission checks"
+                )
             }
             let cacheDuration = Date().timeIntervalSince(cacheStart)
             if cacheDuration > 0.01 {
                 AppLogger.shared.log(
-                    "⏱️ [TIMING] Cache operations COMPLETE: \(String(format: "%.3f", cacheDuration))s")
+                    "⏱️ [TIMING] Cache operations COMPLETE: \(String(format: "%.3f", cacheDuration))s"
+                )
                 AppLogger.shared.log(
                     "⏱️ [MainAppStateController] Cache operations completed in \(String(format: "%.3f", cacheDuration))s"
                 )
@@ -431,14 +440,16 @@ class MainAppStateController: ObservableObject {
         while !serviceStatus.kanataServiceHealthy, checksPerformed < maxChecks {
             checksPerformed += 1
             AppLogger.shared.debug(
-                "⏳ [MainAppStateController] Waiting for Kanata service... (\(checksPerformed)/\(maxChecks))")
+                "⏳ [MainAppStateController] Waiting for Kanata service... (\(checksPerformed)/\(maxChecks))"
+            )
             try? await Task.sleep(nanoseconds: UInt64(checkInterval * 1_000_000_000))
             serviceStatus = await InstallerEngine().getServiceStatus()
         }
 
         if !serviceStatus.kanataServiceHealthy {
             AppLogger.shared.warn(
-                "⚠️ [MainAppStateController] Kanata service not healthy after \(startupGracePeriod)s - showing error state")
+                "⚠️ [MainAppStateController] Kanata service not healthy after \(startupGracePeriod)s - showing error state"
+            )
             // Set failed state so System indicator shows red X instead of spinning forever
             validationState = .failed(blockingCount: 1, totalCount: 1)
             issues = [WizardIssue(
@@ -494,7 +505,8 @@ class MainAppStateController: ObservableObject {
 
         let validationDuration = Date().timeIntervalSince(validationStart)
         AppLogger.shared.log(
-            "⏱️ [TIMING] Main screen validation COMPLETE: \(String(format: "%.3f", validationDuration))s")
+            "⏱️ [TIMING] Main screen validation COMPLETE: \(String(format: "%.3f", validationDuration))s"
+        )
         AppLogger.shared.log(
             "⏱️ [MainAppStateController] Validation completed in \(String(format: "%.3f", validationDuration))s"
         )
@@ -504,13 +516,17 @@ class MainAppStateController: ObservableObject {
         AppLogger.shared.debug("📊 [MainAppStateController] Timestamp: \(snapshot.timestamp)")
         AppLogger.shared.debug("📊 [MainAppStateController] isReady: \(snapshot.isReady)")
         AppLogger.shared.debug(
-            "📊 [MainAppStateController] Conflicts: \(snapshot.conflicts.hasConflicts)")
+            "📊 [MainAppStateController] Conflicts: \(snapshot.conflicts.hasConflicts)"
+        )
         AppLogger.shared.debug(
-            "📊 [MainAppStateController] Health.kanataRunning: \(snapshot.health.kanataRunning)")
+            "📊 [MainAppStateController] Health.kanataRunning: \(snapshot.health.kanataRunning)"
+        )
         AppLogger.shared.debug(
-            "📊 [MainAppStateController] Health.daemonRunning: \(snapshot.health.karabinerDaemonRunning)")
+            "📊 [MainAppStateController] Health.daemonRunning: \(snapshot.health.karabinerDaemonRunning)"
+        )
         AppLogger.shared.debug(
-            "📊 [MainAppStateController] Health.vhidHealthy: \(snapshot.health.vhidHealthy)")
+            "📊 [MainAppStateController] Health.vhidHealthy: \(snapshot.health.vhidHealthy)"
+        )
         AppLogger.shared.debug(
             "📊 [MainAppStateController] Permissions.keyPath.IM.isReady: \(snapshot.permissions.keyPath.inputMonitoring.isReady)"
         )
@@ -527,12 +543,14 @@ class MainAppStateController: ObservableObject {
             "📊 [MainAppStateController] Components.kanataBinary: \(snapshot.components.kanataBinaryInstalled)"
         )
         AppLogger.shared.debug(
-            "📊 [MainAppStateController] Components.vhidHealthy: \(snapshot.components.vhidDeviceHealthy)")
+            "📊 [MainAppStateController] Components.vhidHealthy: \(snapshot.components.vhidDeviceHealthy)"
+        )
         AppLogger.shared.debug(
             "📊 [MainAppStateController] Components.daemonServicesHealthy: \(snapshot.components.launchDaemonServicesHealthy)"
         )
         AppLogger.shared.debug(
-            "📊 [MainAppStateController] Blocking issues: \(snapshot.blockingIssues.count)")
+            "📊 [MainAppStateController] Blocking issues: \(snapshot.blockingIssues.count)"
+        )
 
         // Adapt to wizard-style issues/state using existing adapter (keeps UI expectations stable)
         let context = SystemContext(
@@ -566,10 +584,12 @@ class MainAppStateController: ObservableObject {
 
         AppLogger.shared.debug("📊 [MainAppStateController] === VALIDATION DECISION ===")
         AppLogger.shared.debug(
-            "📊 [MainAppStateController] Blocking issues after filter: \(blockingIssues.count)")
+            "📊 [MainAppStateController] Blocking issues after filter: \(blockingIssues.count)"
+        )
         for (index, issue) in blockingIssues.enumerated() {
             AppLogger.shared.debug(
-                "📊 [MainAppStateController]   Blocking \(index + 1): [\(issue.category)] \(issue.title)")
+                "📊 [MainAppStateController]   Blocking \(index + 1): [\(issue.category)] \(issue.title)"
+            )
         }
 
         // ⭐ Check blocking issues EVEN when Kanata is running to keep UI honest
@@ -600,7 +620,8 @@ class MainAppStateController: ObservableObject {
                     totalCount: issues.count
                 )
                 AppLogger.shared.error(
-                    "❌ [MainAppStateController] Validation FAILED - \(reasons.joined(separator: ", "))")
+                    "❌ [MainAppStateController] Validation FAILED - \(reasons.joined(separator: ", "))"
+                )
                 for (index, issue) in blockingIssues.enumerated() {
                     AppLogger.shared.log("   Blocking \(index + 1): \(issue.title)")
                 }
@@ -615,7 +636,8 @@ class MainAppStateController: ObservableObject {
             // Clear stale diagnostics when system is healthy
             kanataManager?.clearDiagnostics()
             AppLogger.shared.info(
-                "✅ [MainAppStateController] Validation SUCCESS - adapter state is .ready")
+                "✅ [MainAppStateController] Validation SUCCESS - adapter state is .ready"
+            )
 
         case .initializing, .serviceNotRunning, .daemonNotRunning:
             // Service not running but could be starting
@@ -629,7 +651,8 @@ class MainAppStateController: ObservableObject {
                     blockingCount: blockingIssues.count, totalCount: issues.count
                 )
                 AppLogger.shared.error(
-                    "❌ [MainAppStateController] Validation FAILED - \(blockingIssues.count) blocking issues")
+                    "❌ [MainAppStateController] Validation FAILED - \(blockingIssues.count) blocking issues"
+                )
             }
 
         case .conflictsDetected, .missingPermissions, .missingComponents:
@@ -638,10 +661,12 @@ class MainAppStateController: ObservableObject {
                 blockingCount: blockingIssues.count, totalCount: issues.count
             )
             AppLogger.shared.error(
-                "❌ [MainAppStateController] Validation FAILED - adapter state: \(adapted.state)")
+                "❌ [MainAppStateController] Validation FAILED - adapter state: \(adapted.state)"
+            )
             for issue in blockingIssues {
                 AppLogger.shared.error(
-                    "❌ [MainAppStateController]   - \(issue.title): \(issue.description)")
+                    "❌ [MainAppStateController]   - \(issue.title): \(issue.description)"
+                )
             }
         }
     }

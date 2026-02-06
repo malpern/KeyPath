@@ -52,5 +52,4 @@ extension OverlayMapperSection {
             ("Keystroke", "keyboard", true)
         }
     }
-
 }

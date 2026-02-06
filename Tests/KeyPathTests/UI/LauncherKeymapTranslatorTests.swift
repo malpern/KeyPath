@@ -1,6 +1,5 @@
-import XCTest
-
 @testable import KeyPathAppKit
+import XCTest
 
 final class LauncherKeymapTranslatorTests: XCTestCase {
     func testTranslatorUsesKeymapLabelForPunctuationKey() {

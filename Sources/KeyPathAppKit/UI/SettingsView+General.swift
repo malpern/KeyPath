@@ -8,10 +8,12 @@ private enum GeneralSettingsSection: String, CaseIterable, Identifiable {
     case settings = "Settings"
     case virtualKeys = "Virtual Keys"
     #if DEBUG
-    case experimental = "Experimental"
+        case experimental = "Experimental"
     #endif
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     /// Sections to show based on feature flags and build configuration
     static var visibleSections: [GeneralSettingsSection] {
@@ -20,7 +22,7 @@ private enum GeneralSettingsSection: String, CaseIterable, Identifiable {
             sections.append(.virtualKeys)
         }
         #if DEBUG
-        sections.append(.experimental)
+            sections.append(.experimental)
         #endif
         return sections
     }
@@ -61,8 +63,8 @@ struct GeneralSettingsTabView: View {
                             .padding(.top, 8)
                     }
                 #if DEBUG
-                case .experimental:
-                    ExperimentalSettingsSection()
+                    case .experimental:
+                        ExperimentalSettingsSection()
                 #endif
                 }
             }
@@ -74,7 +76,6 @@ struct GeneralSettingsTabView: View {
 
     // MARK: - General Settings Content
 
-    @ViewBuilder
     private var generalSettingsContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {

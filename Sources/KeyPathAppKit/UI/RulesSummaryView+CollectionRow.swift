@@ -2,7 +2,7 @@ import KeyPathCore
 import SwiftUI
 
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 // MARK: - Expandable Collection Row
@@ -95,7 +95,6 @@ struct ExpandableCollectionRow: View {
         mainContent
     }
 
-    @ViewBuilder
     private var mainContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             scrollAnchorView
@@ -147,7 +146,6 @@ struct ExpandableCollectionRow: View {
         }
     }
 
-    @ViewBuilder
     private var headerButtonView: some View {
         HStack(alignment: .top, spacing: 12) {
             // Left side: Clickable area for expansion

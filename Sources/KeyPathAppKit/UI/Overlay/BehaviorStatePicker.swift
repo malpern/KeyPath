@@ -8,7 +8,9 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
     case hold
     case combo
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var label: String {
         switch self {

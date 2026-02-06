@@ -75,5 +75,4 @@ extension MapperViewModel {
         doubleTapAction = ""
         tapDanceSteps.removeAll()
     }
-
 }

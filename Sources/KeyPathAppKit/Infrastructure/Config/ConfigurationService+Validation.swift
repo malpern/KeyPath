@@ -91,7 +91,8 @@ extension ConfigurationService {
         for line in lines where line.contains("[ERROR]") {
             if let errorRange = line.range(of: "[ERROR]") {
                 let errorMessage = String(line[errorRange.upperBound...]).trimmingCharacters(
-                    in: .whitespaces)
+                    in: .whitespaces
+                )
                 errors.append(errorMessage)
             }
         }
@@ -138,7 +139,8 @@ extension ConfigurationService {
             try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
             try await writeFileURLAsync(string: config, to: tempConfigURL)
             AppLogger.shared.log(
-                "📝 [Validation-CLI] Temp config written successfully (\(config.count) characters)")
+                "📝 [Validation-CLI] Temp config written successfully (\(config.count) characters)"
+            )
 
             // Use kanata --check to validate
             let kanataBinary = WizardSystemPaths.kanataActiveBinary
@@ -158,7 +160,8 @@ extension ConfigurationService {
 
             let arguments = ["--cfg", tempConfigPath, "--check"]
             AppLogger.shared.log(
-                "🔧 [Validation-CLI] Command: \(kanataBinary) \(arguments.joined(separator: " "))")
+                "🔧 [Validation-CLI] Command: \(kanataBinary) \(arguments.joined(separator: " "))"
+            )
 
             let cliStart = Date()
             let result = try await SubprocessRunner.shared.run(
@@ -193,7 +196,8 @@ extension ConfigurationService {
                     try? FileManager.default.removeItem(at: tempConfigURL)
                 }
                 AppLogger.shared.log(
-                    "❌ [Validation-CLI] CLI validation FAILED with \(errors.count) errors:")
+                    "❌ [Validation-CLI] CLI validation FAILED with \(errors.count) errors:"
+                )
                 for (index, error) in errors.enumerated() {
                     AppLogger.shared.log("   Error \(index + 1): \(error)")
                 }

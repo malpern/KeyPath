@@ -3,7 +3,7 @@
 final class SigningPipelineTests: XCTestCase {
     private let signingLibPath = "Scripts/lib/signing.sh"
 
-    // Simple helper to run a bash snippet and capture its exit code.
+    /// Simple helper to run a bash snippet and capture its exit code.
     private func runScript(_ script: String, env: [String: String] = [:]) -> (code: Int32, stdout: String, stderr: String) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
@@ -35,7 +35,7 @@ final class SigningPipelineTests: XCTestCase {
         )
     }
 
-    func testCodesignWrapperRespectsDryRun() throws {
+    func testCodesignWrapperRespectsDryRun() {
         let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         FileManager.default.createFile(atPath: tempFile.path, contents: Data())
 
@@ -48,7 +48,7 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertEqual(result.code, 0, "Dry-run mode should not fail even if command is false. stderr: \(result.stderr)")
     }
 
-    func testCodesignWrapperPropagatesFailures() throws {
+    func testCodesignWrapperPropagatesFailures() {
         let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         FileManager.default.createFile(atPath: tempFile.path, contents: Data())
 
@@ -62,7 +62,7 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertNotEqual(result.code, 0, "codesign wrapper should propagate underlying command failure")
     }
 
-    func testNotaryWrapperPropagatesFailures() throws {
+    func testNotaryWrapperPropagatesFailures() {
         // Explicitly unset KP_SIGN_DRY_RUN to test real failure propagation
         let script = """
         unset KP_SIGN_DRY_RUN

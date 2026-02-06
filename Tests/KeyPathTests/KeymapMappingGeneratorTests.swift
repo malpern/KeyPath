@@ -236,9 +236,9 @@ final class KeymapMappingGeneratorTests: XCTestCase {
 
     // MARK: - Stable Collection ID Test
 
-    func testKeymapLayoutCollectionIdIsStable() {
+    func testKeymapLayoutCollectionIdIsStable() throws {
         // The collection ID should be stable across runs for persistence
-        let expectedId = UUID(uuidString: "AEE1A400-1A10-0000-0000-000000000000")!
+        let expectedId = try XCTUnwrap(UUID(uuidString: "AEE1A400-1A10-0000-0000-000000000000"))
         XCTAssertEqual(RuleCollectionIdentifier.keymapLayout, expectedId)
     }
 }

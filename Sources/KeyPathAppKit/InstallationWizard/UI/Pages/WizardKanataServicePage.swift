@@ -8,7 +8,7 @@ struct WizardKanataServicePage: View {
     let issues: [WizardIssue]
     let onRefresh: () -> Void
 
-    // Access underlying RuntimeCoordinator for business logic
+    /// Access underlying RuntimeCoordinator for business logic
     private var kanataManager: RuntimeCoordinator {
         kanataViewModel.underlyingManager
     }
@@ -19,7 +19,7 @@ struct WizardKanataServicePage: View {
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @State private var refreshTask: Task<Void, Never>?
 
-    // Integration with RuntimeCoordinator for better error context
+    /// Integration with RuntimeCoordinator for better error context
     @EnvironmentObject var stateMachine: WizardStateMachine
 
     enum ServiceStatus: Equatable {

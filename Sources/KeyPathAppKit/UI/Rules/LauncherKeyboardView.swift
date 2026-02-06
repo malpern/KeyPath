@@ -12,15 +12,21 @@ struct LauncherKeyboardView: View {
 
     /// Physical keyboard layout to use
     @AppStorage(LayoutPreferences.layoutIdKey) private var selectedLayoutId: String = LayoutPreferences.defaultLayoutId
-    private var layout: PhysicalLayout { PhysicalLayout.find(id: selectedLayoutId) ?? .macBookUS }
+    private var layout: PhysicalLayout {
+        PhysicalLayout.find(id: selectedLayoutId) ?? .macBookUS
+    }
 
     /// Logical keymap for labels
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
-    private var activeKeymap: LogicalKeymap { LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS }
+    private var activeKeymap: LogicalKeymap {
+        LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
+    }
+
     private var includeKeymapPunctuation: Bool {
         KeymapPreferences.includePunctuation(for: selectedKeymapId, store: includePunctuationStore)
     }
+
     private var keyTranslator: LauncherKeymapTranslator {
         LauncherKeymapTranslator(keymap: activeKeymap, includePunctuation: includeKeymapPunctuation)
     }

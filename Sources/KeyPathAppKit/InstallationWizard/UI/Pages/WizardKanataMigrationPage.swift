@@ -119,7 +119,6 @@ struct WizardKanataMigrationPage: View {
 
     // MARK: - Config Detected View
 
-    @ViewBuilder
     private func configDetectedView(config: DetectedConfig) -> some View {
         ScrollView {
             VStack(spacing: WizardDesign.Spacing.sectionGap) {
@@ -198,7 +197,6 @@ struct WizardKanataMigrationPage: View {
 
     // MARK: - No Config View
 
-    @ViewBuilder
     private func noConfigView() -> some View {
         VStack(spacing: WizardDesign.Spacing.sectionGap) {
             Text("No existing Kanata configuration was found.")

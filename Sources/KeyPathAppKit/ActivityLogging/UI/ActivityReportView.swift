@@ -63,7 +63,6 @@ struct ActivityReportView: View {
         }
     }
 
-    @ViewBuilder
     private func reportContent(_ report: ActivityReport) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {

@@ -24,13 +24,13 @@ final class VHIDDeviceManager: @unchecked Sendable {
         "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/Info.plist"
     private static let vhidDeviceRunningCheck = "Karabiner-VirtualHIDDevice-Daemon"
 
-    // Test seam: allow injecting PID provider during unit tests
+    /// Test seam: allow injecting PID provider during unit tests
     nonisolated(unsafe) static var testPIDProvider: (() -> [String])?
 
-    // Test seam: allow mocking shell command results during unit tests
+    /// Test seam: allow mocking shell command results during unit tests
     nonisolated(unsafe) static var testShellProvider: ((String) -> String)?
 
-    // Test seam: allow injecting installed version during unit tests
+    /// Test seam: allow injecting installed version during unit tests
     nonisolated(unsafe) static var testInstalledVersionProvider: (() -> String?)?
 
     // MARK: - Step Progress Reporting
@@ -48,11 +48,17 @@ final class VHIDDeviceManager: @unchecked Sendable {
         }
     }
 
-    // Version compatibility for kanata - uses bundled driver as single source of truth
-    // NOTE: Kanata v1.10.0+ requires Karabiner-DriverKit-VirtualHIDDevice v6.0.0
-    // Updated Nov 2025 when Kanata v1.10.0 was released
-    private static var requiredDriverVersionMajor: Int { WizardSystemPaths.bundledVHIDDriverMajorVersion }
-    static var requiredDriverVersionString: String { WizardSystemPaths.bundledVHIDDriverVersion }
+    /// Version compatibility for kanata - uses bundled driver as single source of truth
+    /// NOTE: Kanata v1.10.0+ requires Karabiner-DriverKit-VirtualHIDDevice v6.0.0
+    /// Updated Nov 2025 when Kanata v1.10.0 was released
+    private static var requiredDriverVersionMajor: Int {
+        WizardSystemPaths.bundledVHIDDriverMajorVersion
+    }
+
+    static var requiredDriverVersionString: String {
+        WizardSystemPaths.bundledVHIDDriverVersion
+    }
+
     private static let currentKanataVersion = "1.10.0" // Current supported Kanata version
 
     // Driver DriverKit extension identifiers
@@ -67,7 +73,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
         let appExists = fileManager.fileExists(atPath: Self.vhidManagerPath)
 
         AppLogger.shared.log(
-            "🔍 [VHIDManager] Manager app exists at \(Self.vhidManagerPath): \(appExists)")
+            "🔍 [VHIDManager] Manager app exists at \(Self.vhidManagerPath): \(appExists)"
+        )
         return appExists
     }
 
@@ -78,7 +85,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
         let daemonExists = fileManager.fileExists(atPath: Self.vhidDeviceDaemonPath)
 
         AppLogger.shared.log(
-            "🔍 [VHIDManager] Daemon exists at \(Self.vhidDeviceDaemonPath): \(daemonExists)")
+            "🔍 [VHIDManager] Daemon exists at \(Self.vhidDeviceDaemonPath): \(daemonExists)"
+        )
         return daemonExists
     }
 
@@ -193,12 +201,14 @@ final class VHIDDeviceManager: @unchecked Sendable {
         // while still preventing UI freezes from Process() execution
         if FeatureFlags.shared.startupModeActive {
             AppLogger.shared.log(
-                "🔍 [VHIDManager] Startup mode - using fast launchctl check to prevent UI freeze")
+                "🔍 [VHIDManager] Startup mode - using fast launchctl check to prevent UI freeze"
+            )
             // Use launchctl list which is much faster than pgrep and doesn't block UI
             let result = await shellAsync("/bin/launchctl list com.keypath.karabiner-vhiddaemon")
             let isRunning = result.contains("\"PID\"")
             AppLogger.shared.log(
-                "🔍 [VHIDManager] Startup mode fast check: daemon \(isRunning ? "running" : "not running")")
+                "🔍 [VHIDManager] Startup mode fast check: daemon \(isRunning ? "running" : "not running")"
+            )
             return isRunning ? .healthy : .notRunning
         }
 
@@ -224,7 +234,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
                     return .duplicateProcesses
                 }
                 AppLogger.shared.log(
-                    "🔍 [VHIDManager] (test) VHIDDevice daemon health: HEALTHY (single instance)")
+                    "🔍 [VHIDManager] (test) VHIDDevice daemon health: HEALTHY (single instance)"
+                )
                 return .healthy
             }
 
@@ -351,14 +362,16 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
             guard result.exitCode == 0 else {
                 AppLogger.shared.log(
-                    "⚠️ [VHIDManager] launchctl health check exit=\(result.exitCode)")
+                    "⚠️ [VHIDManager] launchctl health check exit=\(result.exitCode)"
+                )
                 return false
             }
 
             // Consider it healthy if a PID line exists
             let healthy = result.stdout.contains("pid =") || result.stdout.contains("\"PID\"")
             AppLogger.shared.log(
-                "🔍 [VHIDManager] launchctl health check healthy=\(healthy)")
+                "🔍 [VHIDManager] launchctl health check healthy=\(healthy)"
+            )
             return healthy
         } catch {
             AppLogger.shared.log("⚠️ [VHIDManager] launchctl health check failed: \(error)")
@@ -408,7 +421,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
         guard FileManager.default.fileExists(atPath: Self.vhidDeviceDaemonInfoPlistPath) else {
             AppLogger.shared.log(
-                "🔍 [VHIDManager] Info.plist not found at \(Self.vhidDeviceDaemonInfoPlistPath)")
+                "🔍 [VHIDManager] Info.plist not found at \(Self.vhidDeviceDaemonInfoPlistPath)"
+            )
             return nil
         }
 
@@ -565,7 +579,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
         do {
             guard try await hasInstalledDriverExtensions() else {
                 AppLogger.shared.log(
-                    "ℹ️ [VHIDManager] No Karabiner driver extensions found - nothing to uninstall")
+                    "ℹ️ [VHIDManager] No Karabiner driver extensions found - nothing to uninstall"
+                )
                 return true
             }
 
@@ -589,7 +604,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
                 return true
             } else {
                 AppLogger.shared.log(
-                    "⚠️ [VHIDManager] Uninstall command completed - may require restart to take full effect")
+                    "⚠️ [VHIDManager] Uninstall command completed - may require restart to take full effect"
+                )
                 return true
             }
         } catch {
@@ -615,7 +631,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
     /// asynchronous with no reliable completion signal. See CLAUDE.md ADR-021.
     func downloadAndInstallCorrectVersion() async -> Bool {
         AppLogger.shared.log(
-            "🔧 [VHIDManager] Installing v\(Self.requiredDriverVersionString)")
+            "🔧 [VHIDManager] Installing v\(Self.requiredDriverVersionString)"
+        )
 
         // Step 1: Detect whether uninstall is needed (non-privileged)
         let shouldUninstall: Bool
@@ -667,7 +684,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
         if installResult {
             AppLogger.shared.log(
-                "✅ [VHIDManager] Successfully installed v\(Self.requiredDriverVersionString)")
+                "✅ [VHIDManager] Successfully installed v\(Self.requiredDriverVersionString)"
+            )
 
             // Wait for installation to complete
             Self.reportStep("Finalizing installation...")

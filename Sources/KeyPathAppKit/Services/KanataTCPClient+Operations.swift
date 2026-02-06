@@ -94,7 +94,8 @@ extension KanataTCPClient {
             throw KeyPathError.communication(.invalidResponse)
         }
         AppLogger.shared.debug(
-            "🌐 [TCP] capability check ok required=\(required.joined(separator: ","))")
+            "🌐 [TCP] capability check ok required=\(required.joined(separator: ","))"
+        )
     }
 
     /// Fetch StatusInfo

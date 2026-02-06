@@ -76,7 +76,8 @@ final class RecoveryCoordinator {
 
         // Step 5: Try restarting Kanata service
         AppLogger.shared.log(
-            "🔧 [Recovery] Step 5: Attempting to restart Kanata with VirtualHID validation...")
+            "🔧 [Recovery] Step 5: Attempting to restart Kanata with VirtualHID validation..."
+        )
         _ = await restartService("Keyboard recovery")
 
         AppLogger.shared.log("🔧 [Recovery] Keyboard recovery process complete")
@@ -241,7 +242,8 @@ final class RecoveryCoordinator {
             // This is the "zombie keyboard capture" bug - automatically attempt recovery
             Task {
                 AppLogger.shared.log(
-                    "🚨 [Recovery] Detected zombie keyboard capture - attempting automatic recovery")
+                    "🚨 [Recovery] Detected zombie keyboard capture - attempting automatic recovery"
+                )
                 await attemptRecovery()
             }
         }

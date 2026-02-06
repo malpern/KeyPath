@@ -33,7 +33,7 @@ class PermissionGrantCoordinator: ObservableObject {
     private let logger = WizardLogger.shared
     private let maxReturnTime: TimeInterval = 600 // 10 minutes
 
-    // Prevent double-dismiss race conditions
+    /// Prevent double-dismiss race conditions
     private var didFireCompletion = false
 
     // Service bounce flag keys
@@ -190,7 +190,8 @@ class PermissionGrantCoordinator: ObservableObject {
 
                 // Show success feedback
                 showUserFeedback(
-                    "Keyboard service restarted - \(permissionType.displayName) permissions active!")
+                    "Keyboard service restarted - \(permissionType.displayName) permissions active!"
+                )
 
                 // Clear the pending flag on successful restart
                 clearPendingFlag(for: permissionType)
@@ -376,7 +377,8 @@ class PermissionGrantCoordinator: ObservableObject {
         }
 
         logger.log(
-            "❌ [ServiceBounce] Bounce failed: \(report.failureReason ?? "Unknown error")")
+            "❌ [ServiceBounce] Bounce failed: \(report.failureReason ?? "Unknown error")"
+        )
         return false
     }
 }

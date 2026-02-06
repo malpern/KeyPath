@@ -1,7 +1,6 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
 @testable import KeyPathWizardCore
+@preconcurrency import XCTest
 
 @MainActor
 final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {

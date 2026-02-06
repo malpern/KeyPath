@@ -37,5 +37,4 @@ extension InstallationWizardView {
         stateMachine.navigateToPage(nextPage)
         AppLogger.shared.log("➡️ [Keyboard] Navigated to next page: \(nextPage.displayName)")
     }
-
 }

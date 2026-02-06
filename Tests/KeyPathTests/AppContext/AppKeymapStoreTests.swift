@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 final class AppKeymapStoreTests: XCTestCase {
     private var tempDirectory: URL!

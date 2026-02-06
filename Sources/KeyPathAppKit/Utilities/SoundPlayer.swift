@@ -19,7 +19,8 @@ class SoundPlayer {
         errorSound = NSSound(named: "Basso")
 
         AppLogger.shared.log(
-            "🔊 [SoundPlayer] Initialized with Glass (success) and Basso (error) sounds")
+            "🔊 [SoundPlayer] Initialized with Glass (success) and Basso (error) sounds"
+        )
     }
 
     /// Play success sound (glass sound for config reload success)

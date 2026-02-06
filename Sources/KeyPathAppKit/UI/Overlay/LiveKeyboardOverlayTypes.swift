@@ -23,7 +23,7 @@ final class LiveKeyboardOverlayUIState: ObservableObject {
     @Published var desiredContentWidth: CGFloat = 0
     @Published var keyboardAspectRatio: CGFloat = PhysicalLayout.macBookUS.totalWidth / PhysicalLayout.macBookUS.totalHeight
 
-    // Health indicator state for startup validation display
+    /// Health indicator state for startup validation display
     @Published var healthIndicatorState: HealthIndicatorState = .dismissed
 
     /// Brief highlight of the drawer button when toggled via hotkey
@@ -69,10 +69,14 @@ final class OverlayWindow: NSWindow {
     private let minVisible: CGFloat = 30
 
     /// Prevent the window from becoming key window (so it doesn't steal keyboard focus from other apps)
-    override var canBecomeKey: Bool { false }
+    override var canBecomeKey: Bool {
+        false
+    }
 
     /// Prevent the window from becoming main window
-    override var canBecomeMain: Bool { false }
+    override var canBecomeMain: Bool {
+        false
+    }
 
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
         guard let screen else { return frameRect }

@@ -17,7 +17,8 @@ extension HelperManager {
                     // NSXPCConnectionInterrupted - often caused by signature mismatch
                     AppLogger.shared.log("⚠️ [HelperManager] XPC connection interrupted - this may indicate:")
                     AppLogger.shared.log(
-                        "   1. Helper signature validation failed (app updated but not restarted)")
+                        "   1. Helper signature validation failed (app updated but not restarted)"
+                    )
                     AppLogger.shared.log("   2. Helper process crashed")
                     AppLogger.shared.log("   3. Helper was killed by the system")
                     AppLogger.shared.log("💡 If you just updated KeyPath, try restarting the app")

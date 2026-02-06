@@ -80,7 +80,9 @@ extension KanataTCPClient {
                             if completionFlag.markCompleted() {
                                 continuation.resume(
                                     throwing: KeyPathError.communication(
-                                        .connectionFailed(reason: error.localizedDescription)))
+                                        .connectionFailed(reason: error.localizedDescription)
+                                    )
+                                )
                             }
                             newConnection.cancel()
 
@@ -88,7 +90,9 @@ extension KanataTCPClient {
                             if completionFlag.markCompleted() {
                                 continuation.resume(
                                     throwing: KeyPathError.communication(
-                                        .connectionFailed(reason: "Connection cancelled")))
+                                        .connectionFailed(reason: "Connection cancelled")
+                                    )
+                                )
                             }
 
                         default:
@@ -147,7 +151,7 @@ extension KanataTCPClient {
         closeConnection()
     }
 
-    // FIX #3: Helper to execute operations with automatic error recovery
+    /// FIX #3: Helper to execute operations with automatic error recovery
     /// Executes an operation and closes connection if it fails with a recoverable error
     func withErrorRecovery<T: Sendable>(_ operation: () async throws -> T) async throws -> T {
         do {

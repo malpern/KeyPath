@@ -30,7 +30,7 @@ struct MappingBehaviorEditor: View {
     @State private var tapDanceWindow: Int = 200
     @State private var tapDanceSteps: [TapDanceStep] = []
 
-    // Which behavior type is selected in advanced mode
+    /// Which behavior type is selected in advanced mode
     @State private var behaviorType: BehaviorType = .dualRole
 
     enum BehaviorType: String, CaseIterable {
@@ -220,7 +220,6 @@ struct MappingBehaviorEditor: View {
 
     // MARK: - Tap Dance Editor
 
-    @ViewBuilder
     private var tapDanceEditor: some View {
         VStack(alignment: .leading, spacing: 12) {
             GroupBox("Pattern Window") {

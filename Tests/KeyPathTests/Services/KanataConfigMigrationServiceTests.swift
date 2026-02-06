@@ -1,8 +1,7 @@
 import Foundation
+@testable import KeyPathAppKit
 import KeyPathCore
 import XCTest
-
-@testable import KeyPathAppKit
 
 final class KanataConfigMigrationServiceTests: XCTestCase {
     var tempDirectory: URL!
@@ -71,7 +70,7 @@ final class KanataConfigMigrationServiceTests: XCTestCase {
 
         // Verify backup was created if destination existed
         if backupPath != nil {
-            XCTAssertTrue(FileManager.default.fileExists(atPath: backupPath!), "Backup should exist")
+            XCTAssertTrue(try FileManager.default.fileExists(atPath: XCTUnwrap(backupPath)), "Backup should exist")
         }
     }
 

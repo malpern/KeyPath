@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 /// Tests for AppContextService - the service that monitors frontmost application
 /// and activates/deactivates virtual keys via TCP to enable per-app keymaps.
@@ -59,7 +58,7 @@ final class AppContextServiceTests: XCTestCase {
     // MARK: - Service State Tests
 
     @MainActor
-    func testAppContextService_InitialState() async {
+    func testAppContextService_InitialState() {
         let service = AppContextService.shared
 
         // Before starting, should not be monitoring
@@ -96,14 +95,14 @@ final class AppContextServiceTests: XCTestCase {
 
     // MARK: - TCP Command Format Tests
 
-    func testTCPCommand_FakeKeyPress() {
+    func testTCPCommand_FakeKeyPress() throws {
         // Verify the expected JSON format for ActOnFakeKey
         let expectedFormat = """
         {"ActOnFakeKey":{"name":"vk_bear","action":"Press"}}
         """
 
         // Parse and verify structure
-        let data = expectedFormat.data(using: .utf8)!
+        let data = try XCTUnwrap(expectedFormat.data(using: .utf8))
         let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
 
         XCTAssertNotNil(json)
@@ -114,12 +113,12 @@ final class AppContextServiceTests: XCTestCase {
         XCTAssertEqual(fakeKey?["action"], "Press")
     }
 
-    func testTCPCommand_FakeKeyRelease() {
+    func testTCPCommand_FakeKeyRelease() throws {
         let expectedFormat = """
         {"ActOnFakeKey":{"name":"vk_bear","action":"Release"}}
         """
 
-        let data = expectedFormat.data(using: .utf8)!
+        let data = try XCTUnwrap(expectedFormat.data(using: .utf8))
         let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
 
         let fakeKey = json?["ActOnFakeKey"] as? [String: String]

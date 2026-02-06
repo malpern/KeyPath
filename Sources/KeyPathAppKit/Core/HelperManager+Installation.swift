@@ -30,7 +30,8 @@ extension HelperManager {
             if let infoDict = NSDictionary(contentsOfFile: infoPlistPath) {
                 let hasSMPrivileged = infoDict["SMPrivilegedExecutables"] != nil
                 AppLogger.shared.log(
-                    "📋 [HelperManager] Info.plist has SMPrivilegedExecutables: \(hasSMPrivileged)")
+                    "📋 [HelperManager] Info.plist has SMPrivilegedExecutables: \(hasSMPrivileged)"
+                )
             } else {
                 AppLogger.shared.log("⚠️ [HelperManager] Could not read Info.plist")
             }
@@ -55,11 +56,13 @@ extension HelperManager {
                     return
                 }
                 throw HelperManagerError.installationFailed(
-                    "SMAppService register (enabled path) failed: \(error.localizedDescription)")
+                    "SMAppService register (enabled path) failed: \(error.localizedDescription)"
+                )
             }
         case .requiresApproval:
             throw HelperManagerError.installationFailed(
-                "Approval required in System Settings → Login Items.")
+                "Approval required in System Settings → Login Items."
+            )
         case .notRegistered:
             do {
                 try svc.register()
@@ -69,15 +72,18 @@ extension HelperManager {
                 // If another thread already registered or approval raced, treat Enabled as success
                 if svc.status == .enabled {
                     AppLogger.shared.info(
-                        "✅ [HelperManager] Helper became Enabled during registration race; treating as success")
+                        "✅ [HelperManager] Helper became Enabled during registration race; treating as success"
+                    )
                     return
                 }
                 if svc.status == .requiresApproval {
                     throw HelperManagerError.installationFailed(
-                        "Approval required in System Settings → Login Items.")
+                        "Approval required in System Settings → Login Items."
+                    )
                 }
                 throw HelperManagerError.installationFailed(
-                    "SMAppService register failed: \(error.localizedDescription)")
+                    "SMAppService register failed: \(error.localizedDescription)"
+                )
             }
         case .notFound:
             // .notFound means the system hasn't seen the helper yet, but registration might still work
@@ -88,14 +94,16 @@ extension HelperManager {
             do {
                 try svc.register()
                 AppLogger.shared.info(
-                    "✅ [HelperManager] Helper registered successfully despite initial .notFound status")
+                    "✅ [HelperManager] Helper registered successfully despite initial .notFound status"
+                )
                 return
             } catch {
                 // Now we have the real error from SMAppService
                 let detail = Self.formatSMError(error)
                 AppLogger.shared.log("❌ [HelperManager] Registration failed with detailed error: \(detail)")
                 throw HelperManagerError.installationFailed(
-                    "SMAppService register failed: \(detail)")
+                    "SMAppService register failed: \(detail)"
+                )
             }
         @unknown default:
             do {
@@ -103,7 +111,8 @@ extension HelperManager {
                 return
             } catch {
                 throw HelperManagerError.installationFailed(
-                    "SMAppService register failed: \(error.localizedDescription)")
+                    "SMAppService register failed: \(error.localizedDescription)"
+                )
             }
         }
     }
@@ -118,7 +127,8 @@ extension HelperManager {
         let svc = Self.smServiceFactory(Self.helperPlistName)
         do { try await svc.unregister() } catch {
             throw HelperManagerError.operationFailed(
-                "SMAppService unregister failed: \(error.localizedDescription)")
+                "SMAppService unregister failed: \(error.localizedDescription)"
+            )
         }
     }
 

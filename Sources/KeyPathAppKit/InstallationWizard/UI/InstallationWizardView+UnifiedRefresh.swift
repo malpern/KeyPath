@@ -142,7 +142,8 @@ extension InstallationWizardView {
         // navSequence represents what's actually displayed, so trust it
         guard navSequence.count == 1, let targetPage = navSequence.first else {
             AppLogger.shared.log(
-                "🔍 [AutoNav] ❌ NOT AUTO-NAVIGATING: navSequence has \(navSequence.count) items")
+                "🔍 [AutoNav] ❌ NOT AUTO-NAVIGATING: navSequence has \(navSequence.count) items"
+            )
             return
         }
 
@@ -275,7 +276,8 @@ extension InstallationWizardView {
                         }
                     } onFailure: { error in
                         AppLogger.shared.log(
-                            "❌ [Wizard] Error starting Kanata service: \(error.localizedDescription)")
+                            "❌ [Wizard] Error starting Kanata service: \(error.localizedDescription)"
+                        )
                         toastManager.showError("Start failed: \(error.localizedDescription)")
                     }
                 } else {
@@ -447,5 +449,4 @@ extension InstallationWizardView {
             }
         }
     }
-
 }

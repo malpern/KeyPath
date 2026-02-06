@@ -9,8 +9,8 @@ final class OverlayWindowFrameStoreTests: XCTestCase {
         super.tearDown()
     }
 
-    func testSaveAndRestoreRoundTrip() {
-        let defaults = UserDefaults(suiteName: suiteName)!
+    func testSaveAndRestoreRoundTrip() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         let store = OverlayWindowFrameStore(defaults: defaults, frameVersion: 1)
         let frame = CGRect(x: 10, y: 20, width: 300, height: 200)
 
@@ -23,8 +23,8 @@ final class OverlayWindowFrameStoreTests: XCTestCase {
         XCTAssertEqual(restored?.size.height, frame.size.height, accuracy: 0.001)
     }
 
-    func testRestoreClearsOnVersionMismatch() {
-        let defaults = UserDefaults(suiteName: suiteName)!
+    func testRestoreClearsOnVersionMismatch() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         let store = OverlayWindowFrameStore(defaults: defaults, frameVersion: 2)
 
         defaults.set(1, forKey: "LiveKeyboardOverlay.frameVersion")
@@ -41,8 +41,8 @@ final class OverlayWindowFrameStoreTests: XCTestCase {
         XCTAssertEqual(defaults.integer(forKey: "LiveKeyboardOverlay.frameVersion"), 2)
     }
 
-    func testRestoreClearsOnMissingHeight() {
-        let defaults = UserDefaults(suiteName: suiteName)!
+    func testRestoreClearsOnMissingHeight() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         let store = OverlayWindowFrameStore(defaults: defaults, frameVersion: 1)
 
         defaults.set(1, forKey: "LiveKeyboardOverlay.frameVersion")

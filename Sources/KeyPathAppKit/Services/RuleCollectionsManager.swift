@@ -22,7 +22,9 @@ struct RuleConflictInfo {
     let source: Source
     let keys: [String]
 
-    var displayName: String { source.name }
+    var displayName: String {
+        source.name
+    }
 }
 
 // MARK: - RuleCollectionsManager

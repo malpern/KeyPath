@@ -98,7 +98,6 @@ struct ChordGroupsModalView: View {
 
     // MARK: - Group List Sidebar
 
-    @ViewBuilder
     private var groupListSidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Sidebar header
@@ -352,7 +351,6 @@ struct ChordGroupsModalView: View {
         .padding()
     }
 
-    @ViewBuilder
     private var emptyState: some View {
         VStack(spacing: 16) {
             Image(systemName: "keyboard.badge.ellipsis")

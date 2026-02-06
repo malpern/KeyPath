@@ -1,8 +1,7 @@
+@testable import KeyPathAppKit
 import KeyPathCore
 import SwiftUI
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 /// Generic UI Automation Framework for KeyPath
 /// Provides reusable components for automating any key mapping scenario
@@ -273,7 +272,7 @@ public class UIAutomationFramework {
 
 // MARK: - Supporting Types
 
-// Extension to add description property for test compatibility
+/// Extension to add description property for test compatibility
 /// Represents a key mapping configuration
 /// Note: KeyMapping is imported from the main KeyPath module via @testable import
 extension KeyMapping {

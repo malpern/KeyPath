@@ -27,9 +27,9 @@ public final class ConfigurationService: FileConfigurationProviding {
     private var fileWatcher: FileWatcher?
     private var observers: [UUID: @Sendable (Config) async -> Void] = [:]
 
-    // Perform blocking file I/O off the main actor
+    /// Perform blocking file I/O off the main actor
     private let ioQueue = DispatchQueue(label: "com.keypath.configservice.io", qos: .utility)
-    // Protect shared state when accessed from multiple threads
+    /// Protect shared state when accessed from multiple threads
     private let stateLock = NSLock()
 
     // MARK: - Initialization
@@ -51,8 +51,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
         // Try to load existing configuration, fallback to empty if not found
         do {
-            let config = try await reload()
-            return config
+            return try await reload()
         } catch {
             AppLogger.shared.log("⚠️ [ConfigService] Failed to load current config, using empty: \(error)")
             let emptyConfig = KanataConfiguration(
@@ -71,13 +70,15 @@ public final class ConfigurationService: FileConfigurationProviding {
 
         if !exists {
             AppLogger.shared.log(
-                "⚠️ [ConfigService] Config missing at \(configurationPath) – creating default before reload")
+                "⚠️ [ConfigService] Config missing at \(configurationPath) – creating default before reload"
+            )
             do {
                 try await createInitialConfigIfNeeded()
                 exists = await fileExistsAsync(path: configurationPath)
             } catch {
                 AppLogger.shared.log(
-                    "❌ [ConfigService] Failed to create default config during reload: \(error)")
+                    "❌ [ConfigService] Failed to create default config during reload: \(error)"
+                )
             }
         }
 
@@ -264,7 +265,8 @@ public final class ConfigurationService: FileConfigurationProviding {
 
         if !validation.isValid {
             AppLogger.shared.log(
-                "❌ [ConfigService] Config validation failed: \(validation.errors.joined(separator: ", "))")
+                "❌ [ConfigService] Config validation failed: \(validation.errors.joined(separator: ", "))"
+            )
             throw KeyPathError.configuration(.validationFailed(errors: validation.errors))
         }
 
@@ -368,7 +370,8 @@ public final class ConfigurationService: FileConfigurationProviding {
                 keyMappings: [KeyMapping(input: "caps", output: "escape")],
                 lastModified: Date(),
                 path: configurationPath
-            ))
+            )
+        )
 
         return backupPath
     }
@@ -470,7 +473,8 @@ public final class ConfigurationService: FileConfigurationProviding {
                 keyMappings: [], // Will be re-parsed on next reload
                 lastModified: Date(),
                 path: configurationPath
-            ))
+            )
+        )
 
         AppLogger.shared.log("✅ [Config] AI-repaired config saved")
     }
@@ -491,7 +495,6 @@ public final class ConfigurationService: FileConfigurationProviding {
         fileWatcher = nil
         AppLogger.shared.log("🛑 [ConfigService] File monitoring stopped")
     }
-
 }
 
 // MARK: - Private helpers (I/O and state)

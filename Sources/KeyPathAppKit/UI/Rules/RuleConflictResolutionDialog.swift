@@ -7,7 +7,9 @@ struct ConflictMapping: Sendable, Equatable, Identifiable {
     let input: String
     let output: String
 
-    var id: String { input }
+    var id: String {
+        input
+    }
 }
 
 /// Snapshot of a rule source for conflict resolution UI (Sendable for state transfer)

@@ -82,5 +82,4 @@ extension KeyboardVisualizationViewModel {
             AppLogger.shared.log("🌐 [KeyboardViz] Kanata TCP disconnected (timeout after \(String(format: "%.1f", elapsed))s)")
         }
     }
-
 }

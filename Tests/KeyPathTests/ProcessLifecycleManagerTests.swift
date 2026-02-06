@@ -1,12 +1,11 @@
+@testable import KeyPathAppKit
 import KeyPathCore
 import KeyPathDaemonLifecycle
 @preconcurrency import XCTest
 
-@testable import KeyPathAppKit
-
 @MainActor
 final class ProcessLifecycleManagerTests: XCTestCase {
-    func testIntentSetting() async {
+    func testIntentSetting() {
         let manager = ProcessLifecycleManager()
 
         // Test setting intent to running
@@ -43,7 +42,7 @@ final class ProcessLifecycleManagerTests: XCTestCase {
         }
     }
 
-    func testProcessIntentEnumValues() async {
+    func testProcessIntentEnumValues() {
         // Test that ProcessIntent enum works correctly
         let runningIntent = ProcessLifecycleManager.ProcessIntent.shouldBeRunning(source: "test")
         let stoppedIntent = ProcessLifecycleManager.ProcessIntent.shouldBeStopped
@@ -64,13 +63,14 @@ final class ProcessLifecycleManagerTests: XCTestCase {
         }
     }
 
-    func testProcessLifecycleErrors() async {
+    func testProcessLifecycleErrors() {
         // Test that error enum cases can be created (migrated to KeyPathError)
         let noManagerError = KeyPathError.process(.noManager)
         let startFailedError = KeyPathError.process(.startFailed(reason: "test"))
         let stopFailedError = KeyPathError.process(.stopFailed(underlyingError: "test error 1"))
         let terminateFailedError = KeyPathError.process(
-            .terminateFailed(underlyingError: "test error 2"))
+            .terminateFailed(underlyingError: "test error 2")
+        )
 
         XCTAssertNotNil(noManagerError)
         XCTAssertNotNil(startFailedError)

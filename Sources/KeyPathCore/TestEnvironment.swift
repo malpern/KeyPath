@@ -234,7 +234,8 @@ public enum TestEnvironment {
                 "CI env detected: \(ciDetected)"
             ]
             AppLogger.shared.log(
-                "🧪 [TestEnvironment] Test indicators: \(testIndicators.joined(separator: ", "))")
+                "🧪 [TestEnvironment] Test indicators: \(testIndicators.joined(separator: ", "))"
+            )
         }
     }
 }

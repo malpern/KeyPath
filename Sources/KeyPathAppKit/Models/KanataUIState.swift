@@ -49,7 +49,7 @@ struct KanataUIState: Sendable {
     let validationError: ConfigValidationError?
     let saveStatus: SaveStatus
 
-    // Rule conflict resolution
+    /// Rule conflict resolution
     let pendingRuleConflict: RuleConflictContext?
 
     /// Empty state for initialization fallback

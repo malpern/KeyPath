@@ -2,7 +2,7 @@ import KeyPathCore
 import SwiftUI
 
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 // MARK: - Vim Command Cards View
@@ -62,7 +62,6 @@ struct VimCommandCardsView: View {
         }
     }
 
-    @ViewBuilder
     private func cardView(for category: VimCategory, index: Int) -> some View {
         VimCategoryCard(
             category: category,
@@ -91,7 +90,9 @@ enum VimCategory: String, CaseIterable, Identifiable {
     case search
     case clipboard
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var title: String {
         switch self {

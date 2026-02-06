@@ -65,7 +65,7 @@ extension MapperViewModel {
         // Timeout after 10 seconds
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
             guard let self else { return }
-            guard self.simpleKeyCaptureToken == token else { return }
+            guard simpleKeyCaptureToken == token else { return }
             let isAnyRecording = isRecordingHold || isRecordingDoubleTap || tapDanceSteps.contains { $0.isRecording }
             if isAnyRecording {
                 stopAllRecording()
@@ -911,5 +911,4 @@ extension MapperViewModel {
             AppLogger.shared.log("📱 [MapperViewModel] Waiting for input to be recorded (inputSequence=\(inputSequence?.displayString ?? "nil"), manager=\(kanataManager != nil ? "set" : "nil"))")
         }
     }
-
 }

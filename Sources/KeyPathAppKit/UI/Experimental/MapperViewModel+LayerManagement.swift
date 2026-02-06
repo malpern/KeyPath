@@ -334,5 +334,4 @@ extension MapperViewModel {
     func extractDomain(from url: String) -> String {
         KeyMappingFormatter.extractDomain(from: url)
     }
-
 }

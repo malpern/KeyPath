@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 final class LayerKeyMapperTests: XCTestCase {
     /// Path to the simulator binary (installed app or local build).

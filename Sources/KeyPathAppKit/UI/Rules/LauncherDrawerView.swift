@@ -107,7 +107,6 @@ struct LauncherDrawerView: View {
 
     // MARK: - Section Header
 
-    @ViewBuilder
     private func sectionHeader(_ title: String, count _: Int) -> some View {
         HStack {
             Text(title)
@@ -119,7 +118,6 @@ struct LauncherDrawerView: View {
 
     // MARK: - Mappings List
 
-    @ViewBuilder
     private func mappingsList(_ mappings: [LauncherMapping]) -> some View {
         VStack(spacing: 6) {
             ForEach(mappings) { mapping in
@@ -142,7 +140,6 @@ struct LauncherDrawerView: View {
 
     // MARK: - Empty State
 
-    @ViewBuilder
     private var emptyState: some View {
         VStack(spacing: 8) {
             Image(systemName: "keyboard")
@@ -162,7 +159,6 @@ struct LauncherDrawerView: View {
 
     // MARK: - Action Buttons
 
-    @ViewBuilder
     private var actionButtons: some View {
         HStack(spacing: 8) {
             Button(action: onAddMapping) {
@@ -209,6 +205,7 @@ private struct DrawerMappingRow: View {
     private var keyTranslator: LauncherKeymapTranslator {
         LauncherKeymapTranslator(keymapId: selectedKeymapId, includePunctuationStore: includePunctuationStore)
     }
+
     private var displayKey: String {
         keyTranslator.displayLabel(for: mapping.key)
     }

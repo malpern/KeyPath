@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 @MainActor
 final class KeyPathTests: XCTestCase {
@@ -14,7 +13,7 @@ final class KeyPathTests: XCTestCase {
 
     // MARK: - KanataManager Tests
 
-    func testKanataManagerInitialization() throws {
+    func testKanataManagerInitialization() {
         let manager = RuntimeCoordinator()
         // Default state should be clean
         if let error = manager.lastError {
@@ -25,7 +24,7 @@ final class KeyPathTests: XCTestCase {
         )
     }
 
-    func testConvertToKanataKey() throws {
+    func testConvertToKanataKey() {
         let manager = RuntimeCoordinator()
 
         // Test known key conversions
@@ -54,7 +53,7 @@ final class KeyPathTests: XCTestCase {
         }
     }
 
-    func testConvertToKanataSequence() throws {
+    func testConvertToKanataSequence() {
         let manager = RuntimeCoordinator()
 
         // Test single character keys
@@ -80,7 +79,7 @@ final class KeyPathTests: XCTestCase {
         XCTAssertEqual(manager.convertToKanataSequence("abc"), "(macro a b c)")
     }
 
-    func testGenerateKanataConfig() throws {
+    func testGenerateKanataConfig() {
         // Test basic config generation
         let mapping = KeyMapping(input: "caps", output: "escape")
         let config = KanataConfiguration.generateFromMappings([mapping])
@@ -102,7 +101,7 @@ final class KeyPathTests: XCTestCase {
         XCTAssertFalse(config.contains("log-level"))
     }
 
-    func testGenerateKanataConfigVariations() throws {
+    func testGenerateKanataConfigVariations() {
         let testCases: [(String, String, String, String)] = [
             ("caps", "a", "caps", "a"),
             ("space", "return", "spc", "ret"),
@@ -121,7 +120,7 @@ final class KeyPathTests: XCTestCase {
         }
     }
 
-    func testConfigValidation() throws {
+    func testConfigValidation() {
         // Generate a config and validate it's well-formed
         let mapping = KeyMapping(input: "caps", output: "escape")
         let config = KanataConfiguration.generateFromMappings([mapping])
@@ -143,7 +142,7 @@ final class KeyPathTests: XCTestCase {
 
     // MARK: - KeyboardCapture Tests
 
-    func testKeyboardCaptureInitialization() throws {
+    func testKeyboardCaptureInitialization() {
         let capture = KeyboardCapture()
 
         // Test initial state
@@ -151,7 +150,7 @@ final class KeyPathTests: XCTestCase {
         // KeyboardCapture should be ready to start capture
     }
 
-    func testKeyCodeToString() throws {
+    func testKeyCodeToString() {
         let capture = KeyboardCapture()
 
         // Test known key codes
@@ -178,7 +177,7 @@ final class KeyPathTests: XCTestCase {
 
     // MARK: - Integration Tests
 
-    func testKanataManagerConfigIntegration() throws {
+    func testKanataManagerConfigIntegration() {
         let manager = RuntimeCoordinator()
 
         // Test that generated config can be used by the manager
@@ -200,7 +199,7 @@ final class KeyPathTests: XCTestCase {
 
     // MARK: - Performance Tests
 
-    func testConfigGenerationPerformance() throws {
+    func testConfigGenerationPerformance() {
         measure {
             for i in 0 ..< 100 {
                 let input = i % 2 == 0 ? "caps" : "space"
@@ -211,7 +210,7 @@ final class KeyPathTests: XCTestCase {
         }
     }
 
-    func testKeyConversionPerformance() throws {
+    func testKeyConversionPerformance() {
         let manager = RuntimeCoordinator()
 
         let testKeys = ["caps", "space", "return", "tab", "escape", "a", "b", "c", "unknown"]
@@ -228,7 +227,7 @@ final class KeyPathTests: XCTestCase {
 
     // MARK: - Error Handling Tests
 
-    func testInvalidInputHandling() throws {
+    func testInvalidInputHandling() {
         // Test empty inputs
         let emptyMapping = KeyMapping(input: "", output: "a")
         let emptyConfig = KanataConfiguration.generateFromMappings([emptyMapping])
@@ -242,7 +241,7 @@ final class KeyPathTests: XCTestCase {
         XCTAssertTrue(specialConfig.contains("!"))
     }
 
-    func testKeyboardCaptureAccessibility() throws {
+    func testKeyboardCaptureAccessibility() {
         let capture = KeyboardCapture()
 
         // Test accessibility permission checking
@@ -254,7 +253,7 @@ final class KeyPathTests: XCTestCase {
 
     // MARK: - Auto-Start Tests
 
-    func testAutoStartInitialization() throws {
+    func testAutoStartInitialization() {
         // Test that KanataManager initializes with auto-start
         let manager = RuntimeCoordinator()
 
@@ -265,7 +264,7 @@ final class KeyPathTests: XCTestCase {
         // // XCTAssertNotNil(manager.isRunning) // Property removed
     }
 
-    func testCleanupFunction() async throws {
+    func testCleanupFunction() async {
         let manager = RuntimeCoordinator()
 
         // The cleanup function should exist and be callable
@@ -287,11 +286,11 @@ final class KeyPathTests: XCTestCase {
 
         // Check that error handling works
         if manager.lastError != nil {
-            XCTAssertFalse(manager.lastError!.isEmpty)
+            XCTAssertFalse(try XCTUnwrap(manager.lastError?.isEmpty))
         }
     }
 
-    func testAutoStartErrorHandling() async throws {
+    func testAutoStartErrorHandling() async {
         let manager = RuntimeCoordinator()
 
         // Test that errors are properly set when Kanata isn't installed
@@ -317,7 +316,7 @@ final class KeyPathTests: XCTestCase {
 
     // MARK: - Seamless Experience Tests
 
-    func testCompleteInstallationCheck() throws {
+    func testCompleteInstallationCheck() {
         let manager = RuntimeCoordinator()
 
         // Test that isCompletelyInstalled checks both binary and daemon
@@ -329,7 +328,7 @@ final class KeyPathTests: XCTestCase {
         XCTAssertEqual(completelyInstalled, binaryExists && serviceExists)
     }
 
-    func testInstallationStatusMessages() throws {
+    func testInstallationStatusMessages() {
         let manager = RuntimeCoordinator()
 
         let status = manager.getInstallationStatus()
@@ -396,7 +395,7 @@ final class KeyPathTests: XCTestCase {
         }
     }
 
-    func testErrorMessagesForNewUsers() async throws {
+    func testErrorMessagesForNewUsers() {
         let manager = RuntimeCoordinator()
 
         // Simulate new user experience by checking error handling
@@ -426,7 +425,7 @@ final class KeyPathTests: XCTestCase {
         }
     }
 
-    func testTransparentKanataManagement() throws {
+    func testTransparentKanataManagement() {
         let manager = RuntimeCoordinator()
 
         // Test that all user-facing functionality hides Kanata implementation details
@@ -449,7 +448,7 @@ final class KeyPathTests: XCTestCase {
 
     // MARK: - Installation Wizard Tests
 
-    func testInstallationWizardFlow() throws {
+    func testInstallationWizardFlow() {
         // Test the installation wizard components exist and function
         let manager = RuntimeCoordinator()
 
@@ -498,7 +497,7 @@ final class KeyPathTests: XCTestCase {
         }
     }
 
-    func testRootPrivilegeVerification() async throws {
+    func testRootPrivilegeVerification() async {
         let manager = RuntimeCoordinator()
 
         // Test that root verification doesn't crash
@@ -529,7 +528,7 @@ final class KeyPathTests: XCTestCase {
         }
     }
 
-    func testAutomatedRootHandling() throws {
+    func testAutomatedRootHandling() {
         let manager = RuntimeCoordinator()
 
         // Test that the system is designed to handle root privileges automatically
@@ -571,7 +570,7 @@ final class KeyPathTests: XCTestCase {
         }
     }
 
-    func testAutoStopContinuousCapture() throws {
+    func testAutoStopContinuousCapture() {
         let capture = KeyboardCapture()
 
         // Test that pause timer functionality exists
@@ -583,7 +582,7 @@ final class KeyPathTests: XCTestCase {
         XCTAssertTrue(true, "Auto-stop timer should be implemented in continuous capture")
     }
 
-    func testInputMonitoringPermissionDetection() async throws {
+    func testInputMonitoringPermissionDetection() async {
         let manager = RuntimeCoordinator()
 
         // Test that permission detection works
@@ -608,7 +607,7 @@ final class KeyPathTests: XCTestCase {
         }
     }
 
-    func testConfigurationManagement() throws {
+    func testConfigurationManagement() {
         let manager = RuntimeCoordinator()
 
         // Test config path is correct
@@ -626,7 +625,7 @@ final class KeyPathTests: XCTestCase {
         XCTAssertTrue(config.contains("SAFETY"), "Config should include safety documentation")
     }
 
-    func testNativeUIElements() throws {
+    func testNativeUIElements() {
         // Test that app components are designed for native macOS experience
 
         // Settings should be available through standard macOS Settings scene
@@ -640,7 +639,7 @@ final class KeyPathTests: XCTestCase {
         XCTAssertTrue(true, "Status should only show when there are errors to fix")
     }
 
-    func testButtonIconStates() throws {
+    func testButtonIconStates() {
         // Test that button icons change based on state
         // This would be tested through ContentView functionality
 
@@ -653,7 +652,7 @@ final class KeyPathTests: XCTestCase {
         XCTAssertTrue(true, "Button height and corner radius should match input fields")
     }
 
-    func testWindowSizing() throws {
+    func testWindowSizing() {
         // Test that window auto-sizes to content
         // Width should be fixed at 500px
         // Height should adjust to content
@@ -663,7 +662,7 @@ final class KeyPathTests: XCTestCase {
         XCTAssertTrue(true, "Window should end after Save button padding")
     }
 
-    func testLeftAlignedHeader() throws {
+    func testLeftAlignedHeader() {
         // Test that header elements are left-aligned
         // App icon, title, and subtitle should align to left
         XCTAssertTrue(true, "Header should be left-aligned with icon and text")
@@ -676,7 +675,7 @@ final class KeyPathTests: XCTestCase {
 // MARK: - Helper Extensions
 
 extension KeyboardCapture {
-    // Expose private methods for testing
+    /// Expose private methods for testing
     func keyCodeToString(_ keyCode: Int64) -> String {
         let keyMap: [Int64: String] = [
             0: "a", 1: "s", 2: "d", 3: "f", 4: "h", 5: "g", 6: "z", 7: "x",

@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 final class SystemRequirementsTests: XCTestCase {
     var systemRequirements: SystemRequirements!

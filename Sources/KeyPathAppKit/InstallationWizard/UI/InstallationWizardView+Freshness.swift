@@ -13,5 +13,4 @@ extension InstallationWizardView {
     func snapshotAge(_ result: SystemStateResult) -> TimeInterval {
         Date().timeIntervalSince(result.detectionTimestamp)
     }
-
 }

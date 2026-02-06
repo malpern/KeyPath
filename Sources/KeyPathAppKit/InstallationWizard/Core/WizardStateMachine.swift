@@ -113,7 +113,8 @@ class WizardStateMachine: ObservableObject {
                     """
                     ⚠️ [WizardStateMachine] RAPID REFRESH: \(String(format: "%.3f", interval))s since last
                     This might indicate automatic triggers - expected: manual user actions only
-                    """)
+                    """
+                )
             }
         }
         lastRefreshStart = Date()
@@ -231,7 +232,8 @@ class WizardStateMachine: ObservableObject {
 
         let next = determineNextPage(from: currentPage, state: snapshot)
         AppLogger.shared.log(
-            "🎯 [WizardStateMachine] Navigate: \(currentPage.rawValue) → \(next.rawValue)")
+            "🎯 [WizardStateMachine] Navigate: \(currentPage.rawValue) → \(next.rawValue)"
+        )
         currentPage = next
     }
 
@@ -239,7 +241,8 @@ class WizardStateMachine: ObservableObject {
     func previousPage() {
         let previous = determinePreviousPage(from: currentPage)
         AppLogger.shared.log(
-            "🎯 [WizardStateMachine] Navigate: \(currentPage.rawValue) ← \(previous.rawValue)")
+            "🎯 [WizardStateMachine] Navigate: \(currentPage.rawValue) ← \(previous.rawValue)"
+        )
         currentPage = previous
     }
 

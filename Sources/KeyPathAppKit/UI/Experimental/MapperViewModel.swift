@@ -67,8 +67,8 @@ class MapperViewModel: ObservableObject {
         }
     }
 
-    // Legacy accessors for backward compatibility during migration
-    // These delegate to advancedBehavior and will be removed once views are updated
+    /// Legacy accessors for backward compatibility during migration
+    /// These delegate to advancedBehavior and will be removed once views are updated
     var showAdvanced: Bool {
         get { advancedBehavior.showAdvanced }
         set { advancedBehavior.showAdvanced = newValue }
@@ -124,7 +124,7 @@ class MapperViewModel: ObservableObject {
         set { advancedBehavior.comboKeys = newValue }
     }
 
-    // Hold behavior type - use AdvancedBehaviorManager's type
+    /// Hold behavior type - use AdvancedBehaviorManager's type
     typealias HoldBehaviorType = AdvancedBehaviorManager.HoldBehaviorType
 
     var holdBehavior: HoldBehaviorType {
@@ -193,7 +193,10 @@ class MapperViewModel: ObservableObject {
     var multiTapStopHandler: (() -> Void)?
     var advancedBehaviorCancellable: AnyCancellable?
     var kanataManager: RuntimeCoordinator?
-    var rulesManager: RuleCollectionsManager? { kanataManager?.rulesManager }
+    var rulesManager: RuleCollectionsManager? {
+        kanataManager?.rulesManager
+    }
+
     var finalizeTimer: Timer?
     /// ID of the last saved custom rule (for clearing/deleting)
     var lastSavedRuleID: UUID?
@@ -580,5 +583,4 @@ class MapperViewModel: ObservableObject {
             }
         }
     }
-
 }

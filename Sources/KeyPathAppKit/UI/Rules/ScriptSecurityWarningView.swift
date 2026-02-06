@@ -93,7 +93,6 @@ struct ScriptSecurityWarningView: View {
         .frame(width: 420)
     }
 
-    @ViewBuilder
     private func warningPoint(icon: String, text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: icon)

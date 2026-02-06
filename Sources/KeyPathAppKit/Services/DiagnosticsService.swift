@@ -82,7 +82,7 @@ protocol DiagnosticsServiceProtocol: Sendable {
 // MARK: - Implementation
 
 final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable {
-    // Dependencies
+    /// Dependencies
     private let processLifecycleManager: ProcessLifecycleManager
 
     init(processLifecycleManager: ProcessLifecycleManager) {
@@ -143,7 +143,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                         technicalDetails: "IOHIDDeviceOpen error: exclusive access denied",
                         suggestedAction: "Use the Installation Wizard to grant required permissions",
                         canAutoFix: false
-                    ))
+                    )
+                )
             } else if output.contains("Error in configuration") {
                 diagnostics.append(
                     KanataDiagnostic(
@@ -155,7 +156,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                         technicalDetails: output,
                         suggestedAction: "Review and fix the configuration file, or reset to default",
                         canAutoFix: true
-                    ))
+                    )
+                )
             } else if output.contains("device already open") {
                 diagnostics.append(
                     KanataDiagnostic(
@@ -168,7 +170,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                         suggestedAction:
                         "Check for conflicting keyboard software (Karabiner-Elements grabber, other keyboard tools)",
                         canAutoFix: false
-                    ))
+                    )
+                )
             }
         case -9:
             diagnostics.append(
@@ -181,7 +184,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: "Exit code: -9",
                     suggestedAction: "This usually happens during shutdown or restart. Try starting again.",
                     canAutoFix: true
-                ))
+                )
+            )
         case -15:
             diagnostics.append(
                 KanataDiagnostic(
@@ -193,7 +197,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: "Exit code: -15",
                     suggestedAction: "This is normal shutdown behavior.",
                     canAutoFix: false
-                ))
+                )
+            )
         case 6:
             // Exit code 6 has different causes - check for VirtualHID connection issues
             if output.contains("connect_failed asio.system:61")
@@ -211,7 +216,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                         suggestedAction:
                         "Restart Karabiner-VirtualHIDDevice daemon or try starting KeyPath again",
                         canAutoFix: true
-                    ))
+                    )
+                )
             } else {
                 // Generic exit code 6 - permission issues
                 diagnostics.append(
@@ -224,7 +230,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                         technicalDetails: "Exit code: 6\nOutput: \(output)",
                         suggestedAction: "Use the Installation Wizard to check and grant required permissions",
                         canAutoFix: false
-                    ))
+                    )
+                )
             }
         default:
             // For unknown exit codes, check if it might be permission-related
@@ -243,7 +250,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                         technicalDetails: "Exit code: \(exitCode)\nOutput: \(output)",
                         suggestedAction: "Use the Installation Wizard to check and grant required permissions",
                         canAutoFix: false
-                    ))
+                    )
+                )
             } else {
                 diagnostics.append(
                     KanataDiagnostic(
@@ -255,7 +263,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                         technicalDetails: "Exit code: \(exitCode)\nOutput: \(output)",
                         suggestedAction: "Check the logs for more details or try restarting Kanata",
                         canAutoFix: false
-                    ))
+                    )
+                )
             }
         }
 
@@ -284,7 +293,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: "Expected path: \(WizardSystemPaths.kanataActiveBinary)",
                     suggestedAction: "Use KeyPath's Installation Wizard to install Kanata automatically",
                     canAutoFix: false
-                ))
+                )
+            )
         }
 
         // NOTE: Permission checks are handled by the Installation Wizard
@@ -302,7 +312,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: "karabiner_grabber process detected",
                     suggestedAction: "Stop Karabiner-Elements or configure it to not interfere",
                     canAutoFix: false
-                ))
+                )
+            )
         }
 
         // Check driver status
@@ -317,7 +328,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: "Driver not found at expected location",
                     suggestedAction: "Install Karabiner-Elements to get the VirtualHID driver",
                     canAutoFix: false
-                ))
+                )
+            )
         } else if await !isKarabinerDaemonRunning() {
             diagnostics.append(
                 KanataDiagnostic(
@@ -329,7 +341,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: "VirtualHIDDevice-Daemon process not found",
                     suggestedAction: "The app will try to start the daemon automatically",
                     canAutoFix: true
-                ))
+                )
+            )
         }
 
         // Check for karabiner_grabber conflict
@@ -344,7 +357,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: "This causes 'exclusive access and device already open' errors",
                     suggestedAction: "Quit Karabiner-Elements or disable its key remapping",
                     canAutoFix: true // We can kill it
-                ))
+                )
+            )
         }
 
         // Check for Kanata process conflicts
@@ -363,7 +377,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: "Driver extension shows as not [activated enabled]",
                     suggestedAction: "Enable in System Settings > Privacy & Security > Driver Extensions",
                     canAutoFix: false
-                ))
+                )
+            )
         }
 
         // Karabiner background services
@@ -380,7 +395,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: "No org.pqrs.karabiner services detected in launchctl",
                     suggestedAction: "No action needed unless you intend to use Karabiner-Elements.",
                     canAutoFix: false
-                ))
+                )
+            )
         }
 
         // TCP engine status (non-blocking informational)
@@ -398,7 +414,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                         technicalDetails: "Reported by TCP StatusInfo",
                         suggestedAction: "",
                         canAutoFix: false
-                    ))
+                    )
+                )
             }
         }
 
@@ -416,7 +433,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: "HelloOk(version, protocol, capabilities)",
                     suggestedAction: "",
                     canAutoFix: false
-                ))
+                )
+            )
 
             // Enforce protocol v2 for full functionality
             if proto < 2 {
@@ -432,7 +450,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                         suggestedAction:
                         "Use Regenerate Services to install the bundled Kanata and reload services.",
                         canAutoFix: true
-                    ))
+                    )
+                )
             }
         }
 
@@ -465,7 +484,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: processDetails,
                     suggestedAction: "",
                     canAutoFix: false
-                ))
+                )
+            )
         }
 
         // Show external conflicts (errors that need attention)
@@ -484,7 +504,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: conflictDetails,
                     suggestedAction: "Terminate conflicting processes or let KeyPath auto-fix them",
                     canAutoFix: true
-                ))
+                )
+            )
         }
 
         return diagnostics
@@ -506,7 +527,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: "Path: \(path)",
                     suggestedAction: "Ensure Kanata has been started at least once",
                     canAutoFix: false
-                ))
+                )
+            )
             return diagnostics
         }
 
@@ -527,7 +549,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                             technicalDetails: line,
                             suggestedAction: "Grant Input Monitoring permission",
                             canAutoFix: false
-                        ))
+                        )
+                    )
                 } else if line.contains("connect_failed") {
                     diagnostics.append(
                         KanataDiagnostic(
@@ -539,7 +562,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                             technicalDetails: line,
                             suggestedAction: "Restart Karabiner-VirtualHIDDevice daemon",
                             canAutoFix: true
-                        ))
+                        )
+                    )
                 } else if line.contains("ERROR") || line.contains("FATAL") {
                     diagnostics.append(
                         KanataDiagnostic(
@@ -551,7 +575,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                             technicalDetails: line,
                             suggestedAction: "Check the full logs for details",
                             canAutoFix: false
-                        ))
+                        )
+                    )
                 }
             }
         } catch {
@@ -565,7 +590,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: error.localizedDescription,
                     suggestedAction: "Check file permissions",
                     canAutoFix: false
-                ))
+                )
+            )
         }
 
         return diagnostics
@@ -597,7 +623,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
 
     private func isKarabinerDriverInstalled() -> Bool {
         FileManager.default.fileExists(
-            atPath: "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice")
+            atPath: "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice"
+        )
     }
 
     private func isKarabinerDaemonRunning() async -> Bool {

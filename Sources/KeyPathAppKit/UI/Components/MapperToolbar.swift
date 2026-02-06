@@ -26,7 +26,6 @@ struct MapperToolbar: View {
             )
     }
 
-    @ViewBuilder
     private var toolbarContent: some View {
         HStack {
             // Layer indicator

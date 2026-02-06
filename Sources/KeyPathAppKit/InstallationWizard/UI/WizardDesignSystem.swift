@@ -958,7 +958,8 @@ struct WizardButton: View {
             .accessibilityHint(
                 isLoading
                     ? "Operation in progress"
-                    : "Tap to \(title.lowercased()). This action may cause data loss.")
+                    : "Tap to \(title.lowercased()). This action may cause data loss."
+            )
         }
     }
 }
@@ -1079,7 +1080,8 @@ struct AnimatedStatusIcon: View {
                         .asymmetric(
                             insertion: .opacity.combined(with: .scale(scale: 0.8)),
                             removal: .opacity
-                        ))
+                        )
+                    )
                 } else {
                     // Initial clock state
                     Image(systemName: "clock.fill")

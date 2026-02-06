@@ -67,7 +67,9 @@ extension KanataTCPClient {
         // Thread-safe accumulator for use in NWConnection callback
         final class Accumulator: @unchecked Sendable {
             var data: Data
-            init(initial: Data) { data = initial }
+            init(initial: Data) {
+                data = initial
+            }
         }
 
         // Start with existing buffer contents
@@ -82,7 +84,9 @@ extension KanataTCPClient {
                     if let error {
                         continuation.resume(
                             throwing: KeyPathError.communication(
-                                .connectionFailed(reason: error.localizedDescription)))
+                                .connectionFailed(reason: error.localizedDescription)
+                            )
+                        )
                         return
                     }
 
@@ -124,7 +128,8 @@ extension KanataTCPClient {
             // If we've accumulated too much without a newline, something is wrong
             if accumulator.data.count >= maxLength {
                 throw KeyPathError.communication(
-                    .connectionFailed(reason: "Response too large or malformed"))
+                    .connectionFailed(reason: "Response too large or malformed")
+                )
             }
         }
     }
@@ -160,7 +165,9 @@ extension KanataTCPClient {
                         if completionFlag.markCompleted() {
                             continuation.resume(
                                 throwing: KeyPathError.communication(
-                                    .connectionFailed(reason: error.localizedDescription)))
+                                    .connectionFailed(reason: error.localizedDescription)
+                                )
+                            )
                         }
                         return
                     }

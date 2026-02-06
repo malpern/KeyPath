@@ -162,5 +162,4 @@ extension OverlayMapperSection {
             path.hasPrefix("/System/Applications/") ||
             path.hasPrefix(FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications").path)
     }
-
 }

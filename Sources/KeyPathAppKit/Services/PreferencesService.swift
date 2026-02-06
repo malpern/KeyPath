@@ -30,7 +30,8 @@ final class PreferencesService: @unchecked Sendable {
         didSet {
             UserDefaults.standard.set(communicationProtocol.rawValue, forKey: Keys.communicationProtocol)
             AppLogger.shared.log(
-                "🔧 [PreferencesService] Communication protocol: \(communicationProtocol.rawValue)")
+                "🔧 [PreferencesService] Communication protocol: \(communicationProtocol.rawValue)"
+            )
         }
     }
 
@@ -42,7 +43,8 @@ final class PreferencesService: @unchecked Sendable {
             // Validate port range and revert if invalid
             if !isValidPort(tcpServerPort) {
                 AppLogger.shared.log(
-                    "❌ [PreferencesService] Invalid TCP port \(tcpServerPort), reverting to \(oldValue)")
+                    "❌ [PreferencesService] Invalid TCP port \(tcpServerPort), reverting to \(oldValue)"
+                )
                 tcpServerPort = oldValue
             } else {
                 UserDefaults.standard.set(tcpServerPort, forKey: Keys.tcpServerPort)
@@ -67,7 +69,8 @@ final class PreferencesService: @unchecked Sendable {
                 applyMappingsDuringRecording, forKey: Keys.applyMappingsDuringRecording
             )
             AppLogger.shared.log(
-                "🎛️ [Preferences] applyMappingsDuringRecording = \(applyMappingsDuringRecording)")
+                "🎛️ [Preferences] applyMappingsDuringRecording = \(applyMappingsDuringRecording)"
+            )
         }
     }
 

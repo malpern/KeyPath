@@ -107,7 +107,8 @@ final class ConfigHotReloadService {
         do {
             configContent = try String(contentsOfFile: configPath, encoding: .utf8)
             AppLogger.shared.log(
-                "📁 [ConfigHotReload] Read \(configContent.count) characters from external file")
+                "📁 [ConfigHotReload] Read \(configContent.count) characters from external file"
+            )
         } catch {
             AppLogger.shared.error("❌ [ConfigHotReload] Failed to read external config: \(error)")
             let result = ReloadResult.failure("Failed to read config: \(error.localizedDescription)")

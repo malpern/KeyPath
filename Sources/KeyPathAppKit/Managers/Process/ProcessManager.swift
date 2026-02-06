@@ -67,11 +67,13 @@ final class ProcessManager: ProcessManaging, @unchecked Sendable {
                 await verifyNoConflicts()
 
                 AppLogger.shared.log(
-                    "✅ [ProcessManager] Successfully started Kanata LaunchDaemon service (PID: \(pid))")
+                    "✅ [ProcessManager] Successfully started Kanata LaunchDaemon service (PID: \(pid))"
+                )
                 return true
             } else {
                 AppLogger.shared.log(
-                    "⚠️ [ProcessManager] Service started but no PID found - may still be initializing")
+                    "⚠️ [ProcessManager] Service started but no PID found - may still be initializing"
+                )
                 return false
             }
         } else {
@@ -120,11 +122,13 @@ final class ProcessManager: ProcessManaging, @unchecked Sendable {
 
         if !allProcesses.isEmpty {
             AppLogger.shared.log(
-                "⚠️ [ProcessManager] Found \(allProcesses.count) existing Kanata processes")
+                "⚠️ [ProcessManager] Found \(allProcesses.count) existing Kanata processes"
+            )
 
             for processInfo in allProcesses {
                 AppLogger.shared.log(
-                    "⚠️ [ProcessManager] Process PID \(processInfo.pid): \(processInfo.command)")
+                    "⚠️ [ProcessManager] Process PID \(processInfo.pid): \(processInfo.command)"
+                )
             }
 
             // Terminate only external processes via lifecycle manager
@@ -153,21 +157,25 @@ final class ProcessManager: ProcessManaging, @unchecked Sendable {
         // Show managed processes (should be our LaunchDaemon)
         for processInfo in managedProcesses {
             AppLogger.shared.log(
-                "✅ [ProcessManager] Managed LaunchDaemon process: PID \(processInfo.pid)")
+                "✅ [ProcessManager] Managed LaunchDaemon process: PID \(processInfo.pid)"
+            )
         }
 
         // Show any conflicting processes (these are the problem)
         for processInfo in conflictProcesses {
             AppLogger.shared.log(
-                "⚠️ [ProcessManager] Conflicting process: PID \(processInfo.pid) - \(processInfo.command)")
+                "⚠️ [ProcessManager] Conflicting process: PID \(processInfo.pid) - \(processInfo.command)"
+            )
         }
 
         if conflictProcesses.isEmpty {
             AppLogger.shared.log(
-                "✅ [ProcessManager] Clean single-process architecture confirmed - no conflicts")
+                "✅ [ProcessManager] Clean single-process architecture confirmed - no conflicts"
+            )
         } else {
             AppLogger.shared.log(
-                "⚠️ [ProcessManager] WARNING: \(conflictProcesses.count) conflicting processes detected!")
+                "⚠️ [ProcessManager] WARNING: \(conflictProcesses.count) conflicting processes detected!"
+            )
         }
     }
 

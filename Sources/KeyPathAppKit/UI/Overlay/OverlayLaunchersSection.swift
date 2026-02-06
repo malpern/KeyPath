@@ -193,7 +193,9 @@ struct QuickLaunchMapping: Identifiable, Codable, Equatable {
         case website
     }
 
-    var isApp: Bool { targetType == .app }
+    var isApp: Bool {
+        targetType == .app
+    }
 
     var displayName: String {
         if targetType == .website {
@@ -446,6 +448,7 @@ private struct LauncherMappingRow: View {
     private var keyTranslator: LauncherKeymapTranslator {
         LauncherKeymapTranslator(keymapId: selectedKeymapId, includePunctuationStore: includePunctuationStore)
     }
+
     private var displayKey: String {
         keyTranslator.displayLabel(for: mapping.key)
     }
@@ -600,9 +603,9 @@ private struct AddLauncherSheet: View {
                     get: { displayKey },
                     set: { updateKey(from: $0) }
                 ))
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 50)
-                    .accessibilityIdentifier("overlay-launcher-add-key")
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 50)
+                .accessibilityIdentifier("overlay-launcher-add-key")
 
                 Picker("Type", selection: $targetType) {
                     Text("App").tag(QuickLaunchMapping.TargetType.app)
@@ -757,9 +760,9 @@ private struct EditLauncherSheet: View {
                     get: { displayKey },
                     set: { updateKey(from: $0) }
                 ))
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 50)
-                    .accessibilityIdentifier("overlay-launcher-edit-key")
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 50)
+                .accessibilityIdentifier("overlay-launcher-edit-key")
 
                 Picker("Type", selection: $targetType) {
                     Text("App").tag(QuickLaunchMapping.TargetType.app)

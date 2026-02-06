@@ -146,7 +146,8 @@ public final class AppLogger {
                 )
             } catch {
                 print(
-                    "Error creating override log directory at \(directory): \(error.localizedDescription)")
+                    "Error creating override log directory at \(directory): \(error.localizedDescription)"
+                )
             }
         }
     }
@@ -400,5 +401,5 @@ public final class AppLogger {
     }
 }
 
-// AppLogger coordinates its own internal synchronization; mark as unchecked Sendable for Swift 6.
+/// AppLogger coordinates its own internal synchronization; mark as unchecked Sendable for Swift 6.
 extension AppLogger: @unchecked Sendable {}

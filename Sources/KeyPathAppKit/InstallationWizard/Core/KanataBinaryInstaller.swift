@@ -28,7 +28,8 @@ final class KanataBinaryInstaller {
         // detecting .bundledMissing status and IssueGenerator creating a .bundledKanataMissing component issue
         guard FileManager.default.fileExists(atPath: bundledPath) else {
             AppLogger.shared.log(
-                "❌ [KanataBinaryInstaller] CRITICAL: Bundled kanata binary not found at: \(bundledPath)")
+                "❌ [KanataBinaryInstaller] CRITICAL: Bundled kanata binary not found at: \(bundledPath)"
+            )
             AppLogger.shared.log(
                 "❌ [KanataBinaryInstaller] This indicates a packaging issue - the app bundle is missing the kanata binary"
             )
@@ -38,7 +39,8 @@ final class KanataBinaryInstaller {
         // Verify the bundled binary is executable
         guard FileManager.default.isExecutableFile(atPath: bundledPath) else {
             AppLogger.shared.log(
-                "❌ [KanataBinaryInstaller] Bundled kanata binary exists but is not executable: \(bundledPath)")
+                "❌ [KanataBinaryInstaller] Bundled kanata binary exists but is not executable: \(bundledPath)"
+            )
             return false
         }
 
@@ -68,7 +70,8 @@ final class KanataBinaryInstaller {
 
         if success {
             AppLogger.shared.log(
-                "✅ [KanataBinaryInstaller] Bundled kanata binary installed successfully to \(systemPath)")
+                "✅ [KanataBinaryInstaller] Bundled kanata binary installed successfully to \(systemPath)"
+            )
 
             // Verify code signing and trust
             await verifyCodeSigning(at: systemPath)
@@ -162,17 +165,20 @@ final class KanataBinaryInstaller {
         // Verify the system path exists, otherwise fall back to bundled
         if FileManager.default.fileExists(atPath: systemPath) {
             AppLogger.shared.log(
-                "✅ [KanataBinaryInstaller] Using system Kanata path (has TCC permissions): \(systemPath)")
+                "✅ [KanataBinaryInstaller] Using system Kanata path (has TCC permissions): \(systemPath)"
+            )
             return systemPath
         } else {
             let bundledPath = WizardSystemPaths.bundledKanataPath
             if FileManager.default.fileExists(atPath: bundledPath) {
                 AppLogger.shared.log(
-                    "⚠️ [KanataBinaryInstaller] System kanata not found, using bundled path: \(bundledPath)")
+                    "⚠️ [KanataBinaryInstaller] System kanata not found, using bundled path: \(bundledPath)"
+                )
             } else {
                 AppLogger.shared.log("❌ [KanataBinaryInstaller] Bundled Kanata binary not found at: \(bundledPath)")
                 AppLogger.shared.log(
-                    "💡 [KanataBinaryInstaller] User may need to reinstall Kanata components before proceeding")
+                    "💡 [KanataBinaryInstaller] User may need to reinstall Kanata components before proceeding"
+                )
             }
             return bundledPath
         }

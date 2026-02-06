@@ -31,7 +31,8 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
         switch intent {
         case let .shouldBeRunning(source):
             AppLogger.shared.log(
-                "🚀 [ProcessLifecycleManager] Ensuring process running (source: \(source))")
+                "🚀 [ProcessLifecycleManager] Ensuring process running (source: \(source))"
+            )
         // Add actual process start logic here
         case .shouldBeStopped:
             AppLogger.shared.log("🛑 [ProcessLifecycleManager] Ensuring process is stopped")
@@ -41,7 +42,8 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
 
     public init() {
         AppLogger.shared.log(
-            "🏗️ [ProcessLifecycleManager] Initialized with simplified PID-based tracking and caching")
+            "🏗️ [ProcessLifecycleManager] Initialized with simplified PID-based tracking and caching"
+        )
     }
 
     // MARK: - Types
@@ -71,8 +73,13 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
             self.canAutoResolve = canAutoResolve
         }
 
-        public var hasConflicts: Bool { !externalProcesses.isEmpty }
-        public var totalProcesses: Int { externalProcesses.count + managedProcesses.count }
+        public var hasConflicts: Bool {
+            !externalProcesses.isEmpty
+        }
+
+        public var totalProcesses: Int {
+            externalProcesses.count + managedProcesses.count
+        }
     }
 
     // MARK: - State
@@ -83,7 +90,9 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
     // MARK: - Dependencies
 
     /// Use shared singleton to ensure all ProcessLifecycleManager instances share the same cache
-    private var pidCache: LaunchDaemonPIDCache { LaunchDaemonPIDCache.shared }
+    private var pidCache: LaunchDaemonPIDCache {
+        LaunchDaemonPIDCache.shared
+    }
 
     // MARK: - Public API
 
@@ -120,7 +129,8 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
         // Skip process detection in test environment
         if TestEnvironment.shouldSkipAdminOperations {
             AppLogger.shared.log(
-                "🧪 [TestEnvironment] Skipping process conflict detection - returning clean state")
+                "🧪 [TestEnvironment] Skipping process conflict detection - returning clean state"
+            )
             return ConflictResolution(
                 externalProcesses: [],
                 managedProcesses: [],
@@ -183,7 +193,8 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
 
         for process in conflicts.externalProcesses {
             AppLogger.shared.log(
-                "💀 [ProcessLifecycleManager] Terminating external process PID: \(process.pid)")
+                "💀 [ProcessLifecycleManager] Terminating external process PID: \(process.pid)"
+            )
 
             // Try graceful termination
             Foundation.kill(process.pid, SIGTERM)
@@ -208,7 +219,8 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
         if let record = PIDFileManager.readPID() {
             if PIDFileManager.isProcessRunning(pid: record.pid) {
                 AppLogger.shared.log(
-                    "⚠️ [ProcessLifecycleManager] Found orphaned process from previous run: PID \(record.pid)")
+                    "⚠️ [ProcessLifecycleManager] Found orphaned process from previous run: PID \(record.pid)"
+                )
 
                 // Kill the orphaned process
                 await PIDFileManager.killOrphanedProcess()
@@ -313,7 +325,8 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
         // First check if the process uses our config path (necessary but not sufficient)
         guard process.command.contains("/.config/keypath/keypath.kbd") else {
             AppLogger.shared.log(
-                "🔍 [ProcessLifecycleManager] PID \(process.pid): Wrong config path, not managed")
+                "🔍 [ProcessLifecycleManager] PID \(process.pid): Wrong config path, not managed"
+            )
             return false
         }
 

@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 @MainActor
 final class HelperMaintenanceTests: XCTestCase {
@@ -64,7 +63,8 @@ final class HelperMaintenanceTests: XCTestCase {
         XCTAssertTrue(
             HelperMaintenance.shared.logLines.contains {
                 $0.contains("Multiple KeyPath.app copies detected:")
-            })
+            }
+        )
     }
 
     func testAdminCleanupFallbackFailureAbortsRun() async {

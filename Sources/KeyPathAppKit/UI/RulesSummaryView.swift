@@ -69,7 +69,7 @@ struct RulesTabView: View {
         return "custom-rules-\(rulesHash)-\(appsHash)"
     }
 
-    // Show all catalog collections, merging with existing state
+    /// Show all catalog collections, merging with existing state
     private var allCollections: [RuleCollection] {
         let catalog = RuleCollectionCatalog()
         return catalog.defaultCollections().map { catalogCollection in
@@ -459,7 +459,8 @@ struct RulesTabView: View {
                 """
                 This will reset your configuration to macOS Function Keys only (all custom rules removed).
                 A safety backup will be stored in ~/.config/keypath/.backups.
-                """)
+                """
+            )
         }
     }
 

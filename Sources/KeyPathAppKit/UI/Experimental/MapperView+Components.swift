@@ -684,7 +684,9 @@ struct LayerSwitcherButton: View {
         currentLayer.lowercased() == "base" ? "Base Layer" : currentLayer.capitalized
     }
 
-    private var isDark: Bool { colorScheme == .dark }
+    private var isDark: Bool {
+        colorScheme == .dark
+    }
 
     var body: some View {
         Menu {

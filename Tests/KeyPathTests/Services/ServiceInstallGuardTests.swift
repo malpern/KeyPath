@@ -1,5 +1,4 @@
 @preconcurrency import XCTest
-
 @testable @_spi(ServiceInstallTesting) import KeyPathAppKit
 
 @MainActor
@@ -20,7 +19,8 @@ final class ServiceInstallGuardTests: XCTestCase {
         }
 
         let didInstall = try await PrivilegedOperationsCoordinator.shared._testEnsureServices(
-            context: "unit-test")
+            context: "unit-test"
+        )
 
         XCTAssertTrue(didInstall)
         XCTAssertEqual(installCount, 1)
@@ -36,9 +36,11 @@ final class ServiceInstallGuardTests: XCTestCase {
         }
 
         let first = try await PrivilegedOperationsCoordinator.shared._testEnsureServices(
-            context: "unit-test")
+            context: "unit-test"
+        )
         let second = try await PrivilegedOperationsCoordinator.shared._testEnsureServices(
-            context: "unit-test")
+            context: "unit-test"
+        )
 
         XCTAssertTrue(first)
         XCTAssertFalse(second, "Second call should be throttled and report no install")
@@ -56,7 +58,8 @@ final class ServiceInstallGuardTests: XCTestCase {
         }
 
         let didInstall = try await PrivilegedOperationsCoordinator.shared._testEnsureServices(
-            context: "legacy-test")
+            context: "legacy-test"
+        )
 
         XCTAssertTrue(didInstall)
         XCTAssertEqual(installCount, 1)
@@ -70,7 +73,8 @@ final class ServiceInstallGuardTests: XCTestCase {
         }
 
         let didInstall = try await PrivilegedOperationsCoordinator.shared._testEnsureServices(
-            context: "pending-test")
+            context: "pending-test"
+        )
 
         XCTAssertFalse(didInstall)
         XCTAssertEqual(installCount, 0)
@@ -87,7 +91,8 @@ final class ServiceInstallGuardTests: XCTestCase {
         }
 
         let didInstall = try await PrivilegedOperationsCoordinator.shared._testEnsureServices(
-            context: "conflict-test")
+            context: "conflict-test"
+        )
 
         XCTAssertTrue(didInstall)
         XCTAssertEqual(installCount, 1)

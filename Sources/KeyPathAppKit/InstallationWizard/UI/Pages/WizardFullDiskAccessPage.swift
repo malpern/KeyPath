@@ -3,7 +3,7 @@ import KeyPathWizardCore
 import os
 import SwiftUI
 
-// Thread-safe counter for detection attempts
+/// Thread-safe counter for detection attempts
 final class DetectionCounter: @unchecked Sendable {
     private let lock = OSAllocatedUnfairLock(initialState: 0)
 
@@ -265,7 +265,8 @@ struct WizardFullDiskAccessPage: View {
         }
 
         AppLogger.shared.log(
-            "🔐 [Wizard] Full Disk Access check: \(hasFullDiskAccess) (was: \(previousValue))")
+            "🔐 [Wizard] Full Disk Access check: \(hasFullDiskAccess) (was: \(previousValue))"
+        )
 
         // Update shared cache so other parts of the app reflect FDA immediately.
         FullDiskAccessChecker.shared.updateCachedValue(hasFullDiskAccess)
@@ -294,7 +295,8 @@ struct WizardFullDiskAccessPage: View {
             ) {
                 if data.count > 0 {
                     AppLogger.shared.log(
-                        "✅ [Wizard] FDA granted - can read system TCC database (\(data.count) bytes)")
+                        "✅ [Wizard] FDA granted - can read system TCC database (\(data.count) bytes)"
+                    )
                     return true
                 }
             }
@@ -310,7 +312,8 @@ struct WizardFullDiskAccessPage: View {
         // Only check once on page load, not continuously
 
         AppLogger.shared.log(
-            "🔐 [WizardFullDiskAccessPage] Auto-detection timer DISABLED to prevent invasive checks")
+            "🔐 [WizardFullDiskAccessPage] Auto-detection timer DISABLED to prevent invasive checks"
+        )
     }
 
     private func stopAutoDetection() {

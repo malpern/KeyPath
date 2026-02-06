@@ -21,7 +21,8 @@ public struct HelperBackedPrivilegedOperations: PrivilegedOperations {
                 return false
             }
             AppLogger.shared.log(
-                "❌ [PrivOps] Helper restartUnhealthyServices failed: \(error.localizedDescription)")
+                "❌ [PrivOps] Helper restartUnhealthyServices failed: \(error.localizedDescription)"
+            )
             return false
         }
     }
@@ -40,7 +41,8 @@ public struct HelperBackedPrivilegedOperations: PrivilegedOperations {
                 return false
             }
             AppLogger.shared.log(
-                "❌ [PrivOps] Helper restartUnhealthyServices failed: \(error.localizedDescription)")
+                "❌ [PrivOps] Helper restartUnhealthyServices failed: \(error.localizedDescription)"
+            )
             return false
         }
     }
@@ -52,7 +54,8 @@ public struct HelperBackedPrivilegedOperations: PrivilegedOperations {
             return true
         } catch {
             AppLogger.shared.log(
-                "❌ [PrivOps] helper killAllKanataProcesses failed: \(error.localizedDescription)")
+                "❌ [PrivOps] helper killAllKanataProcesses failed: \(error.localizedDescription)"
+            )
             return false
         }
     }

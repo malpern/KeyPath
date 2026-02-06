@@ -99,7 +99,8 @@ final class ServiceBootstrapper {
             let plistPath = getPlistPath(for: serviceID)
             let exists = FileManager.default.fileExists(atPath: plistPath)
             AppLogger.shared.log(
-                "🧪 [ServiceBootstrapper] Test mode - service \(serviceID) loaded: \(exists)")
+                "🧪 [ServiceBootstrapper] Test mode - service \(serviceID) loaded: \(exists)"
+            )
             return exists
         }
 
@@ -120,7 +121,8 @@ final class ServiceBootstrapper {
                 return true
             } else {
                 AppLogger.shared.log(
-                    "❌ [ServiceBootstrapper] Failed to load service \(serviceID): \(result.stderr)")
+                    "❌ [ServiceBootstrapper] Failed to load service \(serviceID): \(result.stderr)"
+                )
                 return false
             }
         } catch {
@@ -174,7 +176,8 @@ final class ServiceBootstrapper {
                 return true
             } else {
                 AppLogger.shared.log(
-                    "⚠️ [ServiceBootstrapper] Service \(serviceID) may not have been loaded: \(result.stderr)")
+                    "⚠️ [ServiceBootstrapper] Service \(serviceID) may not have been loaded: \(result.stderr)"
+                )
                 // Not an error if it wasn't loaded
                 return true
             }
@@ -195,7 +198,8 @@ final class ServiceBootstrapper {
     /// - Returns: `true` if all services were restarted successfully
     func restartServicesWithAdmin(_ serviceIDs: [String]) async -> Bool {
         AppLogger.shared.log(
-            "🔧 [ServiceBootstrapper] Restarting services with admin privileges: \(serviceIDs)")
+            "🔧 [ServiceBootstrapper] Restarting services with admin privileges: \(serviceIDs)"
+        )
 
         // Test mode: simulate success
         if TestEnvironment.shouldSkipAdminOperations {
@@ -219,12 +223,14 @@ final class ServiceBootstrapper {
 
         if result.success {
             AppLogger.shared.log(
-                "✅ [ServiceBootstrapper] Successfully restarted services: \(serviceIDs)")
+                "✅ [ServiceBootstrapper] Successfully restarted services: \(serviceIDs)"
+            )
             // Mark warm-up start time for those services
             markRestartTime(for: serviceIDs)
         } else {
             AppLogger.shared.log(
-                "❌ [ServiceBootstrapper] Failed to restart services: \(result.output)")
+                "❌ [ServiceBootstrapper] Failed to restart services: \(result.output)"
+            )
         }
 
         return result.success

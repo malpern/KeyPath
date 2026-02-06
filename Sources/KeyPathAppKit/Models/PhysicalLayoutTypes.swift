@@ -23,9 +23,13 @@ enum LayoutCategory: String, CaseIterable, Identifiable {
     case ergonomic = "Ergonomic / Split"
     case custom = "Custom"
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
-    var displayName: String { rawValue }
+    var displayName: String {
+        rawValue
+    }
 }
 
 /// Represents a single physical key on a keyboard layout

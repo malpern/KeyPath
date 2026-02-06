@@ -81,7 +81,8 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
             }
 
             AppLogger.shared.log(
-                "🔍 [DiagnosticsManager] Starting real-time VirtualHID connection monitoring")
+                "🔍 [DiagnosticsManager] Starting real-time VirtualHID connection monitoring"
+            )
 
             // Scan existing log content first to clear any stale diagnostics
             var lastPosition: UInt64 = 0
@@ -216,7 +217,8 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
             let shouldRecover = await kanataService.recordConnectionFailure()
             if shouldRecover {
                 AppLogger.shared.log(
-                    "🚨 [DiagnosticsManager] Max connection failures reached - recovery recommended")
+                    "🚨 [DiagnosticsManager] Max connection failures reached - recovery recommended"
+                )
             }
         }
     }

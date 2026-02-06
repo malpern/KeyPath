@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 final class AppConfigGeneratorTests: XCTestCase {
     // MARK: - Empty Config
@@ -240,7 +239,7 @@ final class AppConfigGeneratorTests: XCTestCase {
         XCTAssertEqual(lines1, lines2)
     }
 
-    func testGenerate_KeysAreSorted() {
+    func testGenerate_KeysAreSorted() throws {
         let keymap = AppKeymap(
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari",
@@ -263,8 +262,8 @@ final class AppConfigGeneratorTests: XCTestCase {
         XCTAssertNotNil(zPos)
 
         // Should be in alphabetical order
-        XCTAssertTrue(aPos! < mPos!)
-        XCTAssertTrue(mPos! < zPos!)
+        XCTAssertTrue(try XCTUnwrap(aPos) < mPos!)
+        XCTAssertTrue(try XCTUnwrap(mPos) < zPos!)
     }
 
     // MARK: - AppConfigError Tests

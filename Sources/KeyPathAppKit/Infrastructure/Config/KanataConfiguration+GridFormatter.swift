@@ -6,7 +6,7 @@ import Network
 extension KanataConfiguration {
     /// Formats collection blocks into keyboard-shaped, padded rows for readability.
     enum KeyboardGridFormatter {
-        // Simple 60%/MacBook ANSI-ish layout expressed in Kanata key names
+        /// Simple 60%/MacBook ANSI-ish layout expressed in Kanata key names
         private static let layoutRows: [[String]] = [
             ["esc", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12", "del"],
             ["grv", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "min", "eql", "bspc"],

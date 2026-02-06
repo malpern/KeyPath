@@ -2,7 +2,7 @@ import KeyPathCore
 import SwiftUI
 
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 /// Helper view for home row key button - extracted to reduce view body complexity

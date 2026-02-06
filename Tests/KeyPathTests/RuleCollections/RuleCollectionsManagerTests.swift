@@ -14,9 +14,11 @@ final class RuleCollectionsManagerTests: XCTestCase {
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
         let collectionStore = RuleCollectionStore(
-            fileURL: tempDir.appendingPathComponent("RuleCollections.json"))
+            fileURL: tempDir.appendingPathComponent("RuleCollections.json")
+        )
         let customStore = CustomRulesStore(
-            fileURL: tempDir.appendingPathComponent("CustomRules.json"))
+            fileURL: tempDir.appendingPathComponent("CustomRules.json")
+        )
         let configService = ConfigurationService(configDirectory: tempDir.path)
         let manager = RuleCollectionsManager(
             ruleCollectionStore: collectionStore,
@@ -40,9 +42,11 @@ final class RuleCollectionsManagerTests: XCTestCase {
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
         let collectionStore = RuleCollectionStore(
-            fileURL: tempDir.appendingPathComponent("RuleCollections.json"))
+            fileURL: tempDir.appendingPathComponent("RuleCollections.json")
+        )
         let customStore = CustomRulesStore(
-            fileURL: tempDir.appendingPathComponent("CustomRules.json"))
+            fileURL: tempDir.appendingPathComponent("CustomRules.json")
+        )
         let configService = ConfigurationService(configDirectory: tempDir.path)
         let manager = RuleCollectionsManager(
             ruleCollectionStore: collectionStore,
@@ -53,9 +57,9 @@ final class RuleCollectionsManagerTests: XCTestCase {
 
         // Start with only macOS Function Keys (simulate post-reset subset)
         let catalog = RuleCollectionCatalog()
-        let macOnly = catalog.defaultCollections().first {
+        let macOnly = try XCTUnwrap(catalog.defaultCollections().first {
             $0.id == RuleCollectionIdentifier.macFunctionKeys
-        }!
+        })
         await manager.replaceCollections([macOnly])
         XCTAssertFalse(manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.vimNavigation })
 
@@ -69,9 +73,9 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertTrue(persisted.contains { $0.id == RuleCollectionIdentifier.vimNavigation && $0.isEnabled })
     }
 
-    func testGenerateConfigIncludesMomentaryActivatorAlias() {
+    func testGenerateConfigIncludesMomentaryActivatorAlias() throws {
         let catalog = RuleCollectionCatalog()
-        let vim = catalog.defaultCollections().first { $0.id == RuleCollectionIdentifier.vimNavigation }!
+        let vim = try XCTUnwrap(catalog.defaultCollections().first { $0.id == RuleCollectionIdentifier.vimNavigation })
 
         let config = KanataConfiguration.generateFromCollections([vim])
 
@@ -255,8 +259,8 @@ final class RuleCollectionsManagerTests: XCTestCase {
         // Save both (no conflict since both disabled)
         await manager.saveCustomRule(rule1)
         await manager.saveCustomRule(rule2)
-        rule1 = manager.customRules.first { $0.output == "esc" }!
-        rule2 = manager.customRules.first { $0.output == "tab" }!
+        rule1 = try XCTUnwrap(manager.customRules.first { $0.output == "esc" })
+        rule2 = try XCTUnwrap(manager.customRules.first { $0.output == "tab" })
 
         // Enable first - no warning
         await manager.toggleCustomRule(id: rule1.id, isEnabled: true)

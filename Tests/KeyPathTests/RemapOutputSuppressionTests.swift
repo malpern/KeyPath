@@ -1,6 +1,5 @@
-import XCTest
-
 @testable import KeyPathAppKit
+import XCTest
 
 /// Tests for remap output suppression in KeyboardVisualizationViewModel.
 /// Verifies that when a simple remap (A→B) is active, pressing physical A

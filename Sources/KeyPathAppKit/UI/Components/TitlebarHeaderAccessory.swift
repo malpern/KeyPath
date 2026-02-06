@@ -23,11 +23,14 @@ final class TitlebarHeaderAccessory: NSTitlebarAccessoryViewController {
             .background(
                 VisualEffectRepresentable(material: .menu, blending: .withinWindow)
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            ))
+            )
+        )
         self.view = view
         layoutAttribute = .right
     }
 
     @available(*, unavailable)
-    required init?(coder _: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 }

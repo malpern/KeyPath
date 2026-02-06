@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 final class PackageManagerTests: XCTestCase {
     var packageManager: PackageManager!
@@ -42,7 +41,7 @@ final class PackageManagerTests: XCTestCase {
 
     // MARK: - Kanata Detection Tests
 
-    func testDetectKanataInstallation_ReturnsValidInfo() async {
+    func testDetectKanataInstallation_ReturnsValidInfo() async throws {
         let kanataInfo = await packageManager.detectKanataInstallation()
 
         // Verify the structure is valid
@@ -54,7 +53,7 @@ final class PackageManagerTests: XCTestCase {
                 kanataInfo.installationType, .notInstalled,
                 "Installation type should not be notInstalled when installed"
             )
-            XCTAssertFalse(kanataInfo.path!.isEmpty, "Path should not be empty when installed")
+            XCTAssertFalse(try XCTUnwrap(kanataInfo.path?.isEmpty), "Path should not be empty when installed")
         } else {
             XCTAssertNil(kanataInfo.path, "Path should be nil when not installed")
             XCTAssertEqual(
@@ -82,7 +81,8 @@ final class PackageManagerTests: XCTestCase {
         // Verify all properties are accessible
         XCTAssertTrue(info.homebrewAvailable == true || info.homebrewAvailable == false)
         XCTAssertTrue(
-            info.kanataInstallation.isInstalled == true || info.kanataInstallation.isInstalled == false)
+            info.kanataInstallation.isInstalled == true || info.kanataInstallation.isInstalled == false
+        )
         XCTAssertFalse(info.supportedPackageManagers.isEmpty || info.supportedPackageManagers.isEmpty) // Either could be valid
 
         // Verify description is not empty
@@ -282,7 +282,7 @@ final class PackageManagerTests: XCTestCase {
         XCTAssertNotNil(status2)
     }
 
-    func testCodeSigningCache_SizeLimit() {
+    func testCodeSigningCache_SizeLimit() throws {
         // Create multiple temporary files
         let tempDir = FileManager.default.temporaryDirectory
         var testFiles: [URL] = []
@@ -308,7 +308,7 @@ final class PackageManagerTests: XCTestCase {
         // Cache should not exceed maxCacheSize
         // We can't directly check the cache size, but we can verify it doesn't crash
         // and that the last file's status is cached
-        let lastStatus = packageManager.getCodeSigningStatus(at: testFiles.last!.path)
+        let lastStatus = try packageManager.getCodeSigningStatus(at: XCTUnwrap(testFiles.last?.path))
         XCTAssertNotNil(lastStatus)
     }
 }
@@ -323,7 +323,7 @@ class MockPackageManager: PackageManager {
     private let mockKanataPath: String?
     private let mockInstallationType: KanataInstallationType
 
-    // Only use this mock for specific edge cases that can't be reproduced with real system state
+    /// Only use this mock for specific edge cases that can't be reproduced with real system state
     init(
         homebrewAvailable: Bool = true, kanataInstalled: Bool = false, kanataPath: String? = nil,
         installationType: KanataInstallationType = .notInstalled
@@ -360,7 +360,7 @@ class MockPackageManager: PackageManager {
 // MARK: - Mock Integration Tests (Only for Edge Cases)
 
 final class MockPackageManagerTests: XCTestCase {
-    // Test edge case: System with Homebrew but no Kanata (common new user scenario)
+    /// Test edge case: System with Homebrew but no Kanata (common new user scenario)
     func testEdgeCase_HomebrewAvailable_KanataNotInstalled() async {
         // This tests recommendation logic for a common edge case
         let mockManager = MockPackageManager(homebrewAvailable: true, kanataInstalled: false)
@@ -385,7 +385,7 @@ final class MockPackageManagerTests: XCTestCase {
         )
     }
 
-    // Test edge case: No package manager available (constrained system scenario)
+    /// Test edge case: No package manager available (constrained system scenario)
     func testEdgeCase_NoHomebrew_NoKanata() async {
         // This tests fallback recommendation logic for systems without package managers
         let mockManager = MockPackageManager(homebrewAvailable: false, kanataInstalled: false)
@@ -406,8 +406,8 @@ final class MockPackageManagerTests: XCTestCase {
         )
     }
 
-    // Test edge case: Cargo-based installation (developer/power user scenario)
-    func testEdgeCase_CargoInstallation() async {
+    /// Test edge case: Cargo-based installation (developer/power user scenario)
+    func testEdgeCase_CargoInstallation() async throws {
         // This tests detection logic for Cargo-based installations
         let mockManager = MockPackageManager(
             homebrewAvailable: false,
@@ -420,7 +420,7 @@ final class MockPackageManagerTests: XCTestCase {
         XCTAssertTrue(kanataInfo.isInstalled)
         XCTAssertEqual(kanataInfo.installationType, .cargo)
         XCTAssertEqual(kanataInfo.installationType.displayName, "Cargo (Rust)")
-        XCTAssertTrue(kanataInfo.path!.contains("/.cargo/bin/"))
+        XCTAssertTrue(try XCTUnwrap(kanataInfo.path?.contains("/.cargo/bin/")))
 
         // Cargo installation should still trigger Karabiner-Elements recommendation
         let recommendations = await mockManager.getInstallationRecommendations()

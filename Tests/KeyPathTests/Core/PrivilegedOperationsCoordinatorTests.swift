@@ -1,8 +1,7 @@
 import Foundation
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
 @testable import KeyPathCore
+@preconcurrency import XCTest
 
 /// Tests for PrivilegedOperationsCoordinator
 /// These verify the coordinator properly delegates to helper or sudo paths
@@ -20,6 +19,9 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
     override func tearDown() async throws {
         await MainActor.run {
             AdminCommandExecutorHolder.shared = originalExecutor
+            #if DEBUG
+                PrivilegedOperationsCoordinator.resetTestingState()
+            #endif
         }
         try await super.tearDown()
     }
@@ -70,5 +72,76 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 
         XCTAssertTrue(success)
         XCTAssertEqual(fakeExecutor.batches.count, 1)
+    }
+
+    func testInstallServicesIfUninstalledSkipsWhenApprovalPending() async throws {
+        #if DEBUG
+            PrivilegedOperationsCoordinator.resetTestingState()
+            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappservicePending }
+            PrivilegedOperationsCoordinator.installAllServicesOverride = {
+                XCTFail("Install should not run while SMAppService approval is pending")
+            }
+        #endif
+
+        let coordinator = PrivilegedOperationsCoordinator.shared
+        let didInstall = try await coordinator.installServicesIfUninstalled(context: "test-pending")
+        XCTAssertFalse(didInstall)
+    }
+
+    func testInstallServicesIfUninstalledRunsInstallWhenUninstalled() async throws {
+        #if DEBUG
+            PrivilegedOperationsCoordinator.resetTestingState()
+            var installCallCount = 0
+            PrivilegedOperationsCoordinator.serviceStateOverride = { .uninstalled }
+            PrivilegedOperationsCoordinator.installAllServicesOverride = {
+                installCallCount += 1
+            }
+        #endif
+
+        let coordinator = PrivilegedOperationsCoordinator.shared
+        let didInstall = try await coordinator.installServicesIfUninstalled(context: "test-uninstalled")
+        XCTAssertTrue(didInstall)
+        #if DEBUG
+            XCTAssertEqual(installCallCount, 1)
+        #endif
+    }
+
+    func testInstallServicesIfUninstalledThrottlesRepeatedAttempts() async throws {
+        #if DEBUG
+            PrivilegedOperationsCoordinator.resetTestingState()
+            var installCallCount = 0
+            PrivilegedOperationsCoordinator.serviceStateOverride = { .uninstalled }
+            PrivilegedOperationsCoordinator.installAllServicesOverride = {
+                installCallCount += 1
+            }
+        #endif
+
+        let coordinator = PrivilegedOperationsCoordinator.shared
+        let first = try await coordinator.installServicesIfUninstalled(context: "test-throttle-1")
+        let second = try await coordinator.installServicesIfUninstalled(context: "test-throttle-2")
+
+        XCTAssertTrue(first)
+        XCTAssertFalse(second)
+        #if DEBUG
+            XCTAssertEqual(installCallCount, 1)
+        #endif
+    }
+
+    func testTerminateProcessRejectsInvalidPIDWithoutRunningCommands() async throws {
+        let fakeExecutor = FakeAdminCommandExecutor()
+        AdminCommandExecutorHolder.shared = fakeExecutor
+
+        let coordinator = PrivilegedOperationsCoordinator.shared
+
+        await XCTAssertThrowsErrorAsync(try coordinator.terminateProcess(pid: 0)) { error in
+            guard case let PrivilegedOperationError.operationFailed(message) = error else {
+                XCTFail("Expected operationFailed error, got \(error)")
+                return
+            }
+            XCTAssertTrue(message.contains("Invalid process ID"))
+        }
+
+        XCTAssertTrue(fakeExecutor.commands.isEmpty)
+        XCTAssertTrue(fakeExecutor.batches.isEmpty)
     }
 }

@@ -1,8 +1,7 @@
+@testable import KeyPathAppKit
 import KeyPathPermissions
 import KeyPathWizardCore
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 @MainActor
 final class KeyPathCLITests: XCTestCase {

@@ -106,10 +106,10 @@ actor KanataTCPClient {
     // and manually test saving a key mapping (2→3) in the UI.
     var readBuffer = Data()
 
-    // Handshake cache
+    /// Handshake cache
     var cachedHello: TcpHelloOk?
 
-    // Request ID management for reliable response correlation
+    /// Request ID management for reliable response correlation
     var nextRequestId: UInt64 = 1
 
     /// Generate next request ID (monotonically increasing)

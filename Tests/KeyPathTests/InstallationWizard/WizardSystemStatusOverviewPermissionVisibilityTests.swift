@@ -4,7 +4,7 @@ import KeyPathWizardCore
 
 @MainActor
 final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
-    func testNotVerifiedKanataPermissionShowsWarningInStatusRow() {
+    func testKanataPermissionWarningAppearsInInputMonitoringStatusRow() {
         let warningIssue = WizardIssue(
             identifier: .permission(.kanataInputMonitoring),
             severity: .warning,
@@ -31,7 +31,7 @@ final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
         let items = overview.statusItems
         let input = items.first(where: { $0.id == "input-monitoring" })
         XCTAssertNotNil(input, "Expected an Input Monitoring status row")
-        XCTAssertEqual(input?.status, .unverified, "Not verified permission should display as unverified")
+        XCTAssertEqual(input?.status, .warning, "Kanata permission warning should surface as warning status")
         XCTAssertTrue(
             (input?.relatedIssues.contains { $0.identifier == .permission(.kanataInputMonitoring) } ?? false),
             "Input Monitoring row should include the underlying warning issue"

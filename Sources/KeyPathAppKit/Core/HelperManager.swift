@@ -18,8 +18,8 @@ actor HelperManager {
 
     // MARK: - SMAppService indirection for testability
 
-    // Allows unit tests to inject a fake SMAppService and simulate states like `.notFound`.
-    // Default implementation wraps Apple's `SMAppService`.
+    /// Allows unit tests to inject a fake SMAppService and simulate states like `.notFound`.
+    /// Default implementation wraps Apple's `SMAppService`.
     nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
         NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
     }
@@ -37,7 +37,7 @@ actor HelperManager {
     // MARK: - Properties
 
     /// XPC connection to the privileged helper
-    // Internal so lifecycle/IPC extensions in separate files can manage connection state.
+    /// Internal so lifecycle/IPC extensions in separate files can manage connection state.
     var connection: NSXPCConnection?
 
     /// Mach service name for the helper (type-level constant)
@@ -80,10 +80,21 @@ protocol SMAppServiceProtocol: Sendable {
 
 struct NativeSMAppService: SMAppServiceProtocol, @unchecked Sendable {
     private let wrapped: ServiceManagement.SMAppService
-    init(wrapped: ServiceManagement.SMAppService) { self.wrapped = wrapped }
-    var status: ServiceManagement.SMAppService.Status { wrapped.status }
-    func register() throws { try wrapped.register() }
-    func unregister() async throws { if #available(macOS 13, *) { try await wrapped.unregister() } }
+    init(wrapped: ServiceManagement.SMAppService) {
+        self.wrapped = wrapped
+    }
+
+    var status: ServiceManagement.SMAppService.Status {
+        wrapped.status
+    }
+
+    func register() throws {
+        try wrapped.register()
+    }
+
+    func unregister() async throws {
+        if #available(macOS 13, *) { try await wrapped.unregister() }
+    }
 }
 
 // MARK: - Error Types

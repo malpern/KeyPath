@@ -1,7 +1,6 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
 @testable import KeyPathWizardCore
+@preconcurrency import XCTest
 
 /// Real-surface smoke tests for InstallerEngine. These are opt-in and only run on a developer machine
 /// when KEYPATH_E2E_DEVICE=1 is set. No privileged actions are executed unless KEYPATH_ALLOW_PRIV=1.
@@ -12,7 +11,7 @@ final class InstallerDeviceTests: KeyPathAsyncTestCase {
         try await requireDeviceOptIn()
     }
 
-    func testInspectSystemReturnsSnapshot() async throws {
+    func testInspectSystemReturnsSnapshot() async {
         let engine = InstallerEngine()
         let context = await engine.inspectSystem()
 
@@ -20,7 +19,7 @@ final class InstallerDeviceTests: KeyPathAsyncTestCase {
         XCTAssertNotNil(context.permissions.timestamp, "Permissions snapshot should carry a timestamp")
     }
 
-    func testMakePlanForInstallIsReadyOrBlocked() async throws {
+    func testMakePlanForInstallIsReadyOrBlocked() async {
         let engine = InstallerEngine()
         let context = await engine.inspectSystem()
         let plan = await engine.makePlan(for: .install, context: context)
@@ -34,7 +33,7 @@ final class InstallerDeviceTests: KeyPathAsyncTestCase {
         }
     }
 
-    func testExecuteInspectOnlyIsSafe() async throws {
+    func testExecuteInspectOnlyIsSafe() async {
         let engine = InstallerEngine()
         let broker = PrivilegeBroker()
         let emptyInspectPlan = InstallPlan(recipes: [], status: .ready, intent: .inspectOnly)

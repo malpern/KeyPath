@@ -1,7 +1,6 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
 @testable import KeyPathDaemonLifecycle
+@preconcurrency import XCTest
 
 @MainActor
 final class DiagnosticsServiceTests: XCTestCase {

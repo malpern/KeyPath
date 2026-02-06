@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 final class FDADetectionTests: XCTestCase {
     // MARK: - FDA Detection Method Tests
@@ -32,7 +31,7 @@ final class FDADetectionTests: XCTestCase {
         }
     }
 
-    func testFDACaching() async {
+    func testFDACaching() throws {
         // Test that FDA status is cached appropriately
 
         var lastCheckTime: Date?
@@ -44,7 +43,7 @@ final class FDADetectionTests: XCTestCase {
         cachedStatus = true // Assume FDA granted for cache hit scenario
 
         // Immediate second check should use cache
-        let timeSinceLastCheck = Date().timeIntervalSince(lastCheckTime!)
+        let timeSinceLastCheck = try Date().timeIntervalSince(XCTUnwrap(lastCheckTime))
         XCTAssertLessThan(timeSinceLastCheck, cacheValidityDuration)
 
         // Should use cached value
@@ -54,7 +53,7 @@ final class FDADetectionTests: XCTestCase {
 
         // After cache expires, should check again
         lastCheckTime = Date(timeIntervalSinceNow: -11) // 11 seconds ago
-        let expiredTimeSinceCheck = Date().timeIntervalSince(lastCheckTime!)
+        let expiredTimeSinceCheck = try Date().timeIntervalSince(XCTUnwrap(lastCheckTime))
         XCTAssertGreaterThan(expiredTimeSinceCheck, cacheValidityDuration)
     }
 

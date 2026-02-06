@@ -127,7 +127,8 @@ final class MainWindowController: NSWindowController {
         if !window.isVisible {
             window.orderFrontRegardless()
             AppLogger.shared.log(
-                "🪟 [MainWindowController] Primed window for activation (orderFrontRegardless)")
+                "🪟 [MainWindowController] Primed window for activation (orderFrontRegardless)"
+            )
         }
     }
 
@@ -168,7 +169,9 @@ final class GlassContainerViewController<Content: View>: NSViewController {
     }
 
     @available(*, unavailable)
-    required init?(coder _: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     override func loadView() {
         effectView.material = .menu

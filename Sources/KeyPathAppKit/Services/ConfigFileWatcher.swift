@@ -30,10 +30,10 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
     private var suppressUntil: Date?
     private var inFlightProcessing = false
 
-    // Dedicated queue for file system events (avoid main thread contention)
+    /// Dedicated queue for file system events (avoid main thread contention)
     private let queue = DispatchQueue(label: "com.keypath.configwatcher", qos: .utility)
 
-    // Callback for when file changes are detected
+    /// Callback for when file changes are detected
     private var onFileChanged: (() async -> Void)?
 
     init() {
@@ -68,7 +68,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
     func startWatching(path: String, onChange: @escaping () async -> Void) {
         if isWatching || isWatchingDirectory {
             AppLogger.shared.log(
-                "⚠️ [FileWatcher] Already watching - stopping previous watch before starting new one")
+                "⚠️ [FileWatcher] Already watching - stopping previous watch before starting new one"
+            )
             stopWatching()
         }
 
@@ -112,7 +113,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         }
 
         AppLogger.shared.log(
-            "📁 [FileWatcher] Successfully opened file descriptor \(fileDescriptor) for: \(path)")
+            "📁 [FileWatcher] Successfully opened file descriptor \(fileDescriptor) for: \(path)"
+        )
 
         // Create dispatch source for file system monitoring
         // Monitor write, delete, rename, and attribute changes to handle atomic writes
@@ -163,7 +165,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         // Create directory file descriptor
         guard let dirDescriptor = openFileDescriptor(at: directoryPath) else {
             AppLogger.shared.log(
-                "❌ [FileWatcher] Failed to open directory descriptor for: \(directoryPath)")
+                "❌ [FileWatcher] Failed to open directory descriptor for: \(directoryPath)"
+            )
             handleDirectoryMonitoringFailure()
             return
         }
@@ -182,7 +185,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         // Set up event handler for directory changes
         directoryMonitorSource?.setEventHandler {
             AppLogger.shared.log(
-                "📁 [FileWatcher] Directory event received - checking if target file was created")
+                "📁 [FileWatcher] Directory event received - checking if target file was created"
+            )
             Task { [weak self] in
                 await self?.handleDirectoryChangeEvent()
             }
@@ -200,7 +204,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         retryCount = 0
 
         AppLogger.shared.log(
-            "✅ [FileWatcher] Successfully started directory monitoring for: \(directoryPath)")
+            "✅ [FileWatcher] Successfully started directory monitoring for: \(directoryPath)"
+        )
     }
 
     /// Stop watching the current file and directory
@@ -268,7 +273,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         // Handle atomic writes by rebinding file descriptor on rename/delete
         if flags.contains(.rename) || flags.contains(.delete) {
             AppLogger.shared.log(
-                "📁 [FileWatcher] Detected atomic write (rename/delete) - rebinding file descriptor")
+                "📁 [FileWatcher] Detected atomic write (rename/delete) - rebinding file descriptor"
+            )
             pendingAtomicWriteEvent = true
             rebindFileMonitor(to: path)
         }
@@ -333,7 +339,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         // Check if file still exists (handles atomic writes where file is deleted/recreated)
         if !FileManager.default.fileExists(atPath: path) {
             AppLogger.shared.log(
-                "⚠️ [FileWatcher] File no longer exists - may be atomic write in progress")
+                "⚠️ [FileWatcher] File no longer exists - may be atomic write in progress"
+            )
 
             // For atomic writes, the file might be temporarily gone
             // Wait a brief moment and check again
@@ -343,7 +350,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
                 AppLogger.shared.log("📁 [FileWatcher] File reappeared - atomic write completed")
             } else {
                 AppLogger.shared.log(
-                    "❌ [FileWatcher] File permanently deleted - switching to directory monitoring")
+                    "❌ [FileWatcher] File permanently deleted - switching to directory monitoring"
+                )
 
                 // File was deleted, switch to directory monitoring
                 fileMonitorSource?.cancel()
@@ -374,7 +382,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         if retryCount < maxRetries {
             retryCount += 1
             AppLogger.shared.log(
-                "🔄 [FileWatcher] Retrying file monitoring setup (attempt \(retryCount)/\(maxRetries))")
+                "🔄 [FileWatcher] Retrying file monitoring setup (attempt \(retryCount)/\(maxRetries))"
+            )
 
             // Retry after a brief delay
             queue.asyncAfter(deadline: .now() + 1.0) { [weak self] in
@@ -394,7 +403,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         if retryCount < maxRetries {
             retryCount += 1
             AppLogger.shared.log(
-                "🔄 [FileWatcher] Retrying directory monitoring setup (attempt \(retryCount)/\(maxRetries))")
+                "🔄 [FileWatcher] Retrying directory monitoring setup (attempt \(retryCount)/\(maxRetries))"
+            )
 
             // Retry after a brief delay
             queue.asyncAfter(deadline: .now() + 2.0) { [weak self] in
@@ -402,7 +412,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
             }
         } else {
             AppLogger.shared.log(
-                "❌ [FileWatcher] Max retries reached for directory monitoring - file watching disabled")
+                "❌ [FileWatcher] Max retries reached for directory monitoring - file watching disabled"
+            )
         }
     }
 
@@ -416,7 +427,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         } else {
             let error = String(cString: strerror(errno))
             AppLogger.shared.log(
-                "❌ [FileWatcher] Failed to open file descriptor for \(path): \(error) (errno: \(errno))")
+                "❌ [FileWatcher] Failed to open file descriptor for \(path): \(error) (errno: \(errno))"
+            )
             return nil
         }
     }
@@ -432,7 +444,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
             let modDate = attributes[.modificationDate] as? Date
             lastModificationDate = modDate
             AppLogger.shared.log(
-                "📁 [FileWatcher] Updated last modification date: \(modDate?.description ?? "nil")")
+                "📁 [FileWatcher] Updated last modification date: \(modDate?.description ?? "nil")"
+            )
         } catch {
             AppLogger.shared.log("⚠️ [FileWatcher] Failed to get modification date for \(path): \(error)")
             lastModificationDate = nil
@@ -456,7 +469,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
             // If we don't have a previous date, consider it changed
             guard let lastDate = lastModificationDate else {
                 AppLogger.shared.log(
-                    "📁 [FileWatcher] No previous modification date - considering file changed")
+                    "📁 [FileWatcher] No previous modification date - considering file changed"
+                )
                 lastModificationDate = currentModDate
                 return true
             }
@@ -516,7 +530,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
             let attributes = try FileManager.default.attributesOfItem(atPath: path)
             let fileSize = attributes[.size] as? Int64 ?? 0
             AppLogger.shared.log(
-                "📁 [FileWatcher] Triggering file change callback for file (\(fileSize) bytes)")
+                "📁 [FileWatcher] Triggering file change callback for file (\(fileSize) bytes)"
+            )
         } catch {
             AppLogger.shared.log("📁 [FileWatcher] Triggering file change callback (size unknown)")
         }

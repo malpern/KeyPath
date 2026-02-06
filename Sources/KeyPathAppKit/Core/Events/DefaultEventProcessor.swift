@@ -168,7 +168,8 @@ extension DefaultEventProcessor: KeyboardEventProcessing {
         // Example transformation: F1 key could trigger a specific action
         if keyCode == 122 { // F1 key
             AppLogger.shared.log(
-                "🔧 [DefaultEventProcessor] F1 key pressed - could trigger special action")
+                "🔧 [DefaultEventProcessor] F1 key pressed - could trigger special action"
+            )
         }
 
         return originalEvent

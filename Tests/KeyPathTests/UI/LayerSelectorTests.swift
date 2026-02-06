@@ -1,6 +1,5 @@
-import XCTest
-
 @testable import KeyPathAppKit
+import XCTest
 
 /// Tests for layer selector functionality in MapperViewModel
 @MainActor

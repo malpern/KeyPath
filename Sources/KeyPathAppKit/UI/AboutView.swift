@@ -1,145 +1,449 @@
 import AppKit
+import KeyPathCore
 import SwiftUI
 
-/// About window for KeyPath - shows app info, version, attribution, and links
+/// About window for KeyPath - app identity, system health, updates, links, and attribution
 struct AboutView: View {
     @ObservedObject private var updateService = UpdateService.shared
-    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var recentKeypresses = RecentKeypressesService.shared
 
     private let buildInfo = BuildInfo.current()
+    private let currentYear = Calendar.current.component(.year, from: Date())
+
+    @State private var systemContext: SystemContext?
+    @State private var isRefreshingStatus = false
+    @State private var isRepairing = false
+    @State private var statusMessage: String?
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Header section with icon and title
-            VStack(spacing: 12) {
-                // App Icon
-                if let image = NSImage(named: "AppIcon") {
-                    Image(nsImage: image)
-                        .resizable()
-                        .frame(width: 128, height: 128)
-                        .cornerRadius(16)
-                        .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
-                }
+        ScrollView {
+            VStack(spacing: 0) {
+                headerSection
 
-                // App Name
-                Text("KeyPath")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundColor(.primary)
+                sectionDivider
 
-                // Version Info
-                VStack(spacing: 4) {
-                    Text("Version \(buildInfo.version) (Build \(buildInfo.build))")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+                statusSection
 
-                    if let kanataVersion = buildInfo.kanataVersion {
-                        Text("Kanata \(kanataVersion)")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                    }
-                }
+                sectionDivider
+
+                updatesSection
+
+                sectionDivider
+
+                linksSection
+
+                sectionDivider
+
+                attributionSection
+
+                sectionDivider
+
+                footerSection
             }
-            .padding(.top, 32)
-            .padding(.bottom, 24)
-
-            Divider()
-                .padding(.horizontal, 32)
-
-            // Update Button Section
-            VStack(spacing: 12) {
-                Button {
-                    updateService.checkForUpdates()
-                } label: {
-                    Label("Check for Updates", systemImage: "arrow.down.circle")
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 28)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(!updateService.canCheckForUpdates)
-            }
-            .padding(.horizontal, 32)
-            .padding(.vertical, 20)
-
-            Divider()
-                .padding(.horizontal, 32)
-
-            // Links Section
-            VStack(spacing: 12) {
-                Text("Links")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                VStack(spacing: 8) {
-                    LinkButton(
-                        title: "Website",
-                        url: "http://keypath-app.com",
-                        icon: "safari"
-                    )
-
-                    LinkButton(
-                        title: "GitHub",
-                        url: "https://github.com/malpern/KeyPath",
-                        icon: "chevron.left.forwardslash.chevron.right"
-                    )
-
-                    LinkButton(
-                        title: "Twitter / X",
-                        url: "http://x.com/malpern",
-                        icon: "at"
-                    )
-                }
-            }
-            .padding(.horizontal, 32)
-            .padding(.top, 16)
-            .padding(.bottom, 12)
-
-            Divider()
-                .padding(.horizontal, 32)
-
-            // Attribution Section
-            VStack(spacing: 12) {
-                Text("Built With")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                VStack(spacing: 8) {
-                    AttributionRow(
-                        name: "Kanata",
-                        description: "Advanced keyboard remapping engine",
-                        license: "LGPL v3",
-                        url: "https://github.com/jtroo/kanata"
-                    )
-                }
-            }
-            .padding(.horizontal, 32)
-            .padding(.top, 16)
-            .padding(.bottom, 12)
-
-            Divider()
-                .padding(.horizontal, 32)
-
-            // Footer with copyright and author
-            VStack(spacing: 8) {
-                Text("© 2026 Micah Alpern")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-
-                Text("MIT License")
-                    .font(.system(size: 10))
-                    .foregroundColor(Color.secondary.opacity(0.6))
-            }
+            .frame(width: 500)
             .padding(.vertical, 20)
         }
-        .frame(width: 440)
         .background(
-            // Liquid Glass effect for macOS 15+
             Rectangle()
                 .fill(.ultraThinMaterial)
                 .ignoresSafeArea()
         )
+        .task {
+            await refreshSystemStatus()
+        }
+    }
+
+    private var headerSection: some View {
+        VStack(spacing: 12) {
+            if let image = NSImage(named: "AppIcon") {
+                Image(nsImage: image)
+                    .resizable()
+                    .frame(width: 120, height: 120)
+                    .cornerRadius(16)
+                    .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
+            }
+
+            Text("KeyPath")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundColor(.primary)
+
+            VStack(spacing: 4) {
+                Text("Version \(buildInfo.version) (Build \(buildInfo.build))")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondary)
+
+                Text("Built \(formattedBuildDate(buildInfo.date))")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+
+                if let kanataVersion = buildInfo.kanataVersion {
+                    Text("Kanata \(kanataVersion)")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Text("Reliable keyboard remapping with system-level diagnostics.")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 32)
+        .padding(.bottom, 20)
+    }
+
+    private var statusSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("System Status")
+
+            VStack(alignment: .leading, spacing: 10) {
+                statusRow(
+                    label: "Engine",
+                    value: engineStatusText,
+                    color: engineStatusColor
+                )
+
+                statusRow(
+                    label: "Active Layer",
+                    value: recentKeypresses.currentLayer,
+                    color: .secondary
+                )
+
+                statusRow(
+                    label: "Permissions",
+                    value: permissionHealthText,
+                    color: permissionHealthColor
+                )
+
+                if let context = systemContext {
+                    statusRow(
+                        label: "Input Monitoring",
+                        value: context.permissions.keyPath.inputMonitoring.description,
+                        color: context.permissions.keyPath.inputMonitoring.isReady ? .green : .orange
+                    )
+
+                    statusRow(
+                        label: "Accessibility",
+                        value: context.permissions.keyPath.accessibility.description,
+                        color: context.permissions.keyPath.accessibility.isReady ? .green : .orange
+                    )
+                }
+
+                if let statusMessage {
+                    Text(statusMessage)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .padding(.top, 2)
+                }
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.primary.opacity(0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
+            )
+
+            HStack(spacing: 8) {
+                Button {
+                    Task { await runRepair() }
+                } label: {
+                    Label(isRepairing ? "Fixing..." : "Fix Now", systemImage: "wrench.and.screwdriver")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isRepairing)
+                .accessibilityIdentifier("about-fix-now-button")
+
+                Button {
+                    Task { await refreshSystemStatus() }
+                } label: {
+                    Label(isRefreshingStatus ? "Refreshing..." : "Refresh", systemImage: "arrow.clockwise")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isRefreshingStatus)
+                .accessibilityIdentifier("about-refresh-status-button")
+            }
+        }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 16)
+    }
+
+    private var updatesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("Updates")
+
+            Toggle("Check for updates automatically", isOn: Binding(
+                get: { updateService.automaticallyChecksForUpdates },
+                set: { updateService.setAutomaticChecks(enabled: $0) }
+            ))
+            .accessibilityIdentifier("about-auto-update-toggle")
+
+            HStack(alignment: .center, spacing: 12) {
+                Text("Update Channel")
+                    .font(.system(size: 13, weight: .medium))
+                    .frame(width: 110, alignment: .leading)
+
+                Picker("Update Channel", selection: Binding(
+                    get: { updateService.updateChannel },
+                    set: { updateService.setUpdateChannel($0) }
+                )) {
+                    ForEach(UpdateChannel.allCases) { channel in
+                        Text(channel.rawValue).tag(channel)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 140)
+                .accessibilityIdentifier("about-update-channel-picker")
+            }
+
+            Text("Stable releases plus beta previews.")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+
+            Button {
+                updateService.checkForUpdates()
+            } label: {
+                Label("Check for Updates...", systemImage: "arrow.down.circle")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!updateService.canCheckForUpdates)
+            .accessibilityIdentifier("about-check-updates-button")
+        }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 16)
+    }
+
+    private var linksSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionTitle("Links")
+
+            LinkButton(
+                title: "GitHub",
+                url: "https://github.com/malpern/KeyPath",
+                icon: "chevron.left.forwardslash.chevron.right",
+                accessibilityId: "about-link-github"
+            )
+
+            LinkButton(
+                title: "Website",
+                url: "http://keypath-app.com/",
+                icon: "globe",
+                accessibilityId: "about-link-website"
+            )
+
+            LinkButton(
+                title: "Email",
+                url: "mailto:malpern@gmail.com",
+                icon: "envelope",
+                accessibilityId: "about-link-email"
+            )
+
+            HStack(spacing: 8) {
+                Button("Copy Diagnostics") {
+                    copyDiagnosticsToClipboard()
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("about-copy-diagnostics-button")
+
+                Button("Open Logs") {
+                    openLogsDirectory()
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("about-open-logs-button")
+
+                Button("Reveal Config") {
+                    revealConfigFile()
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("about-reveal-config-button")
+            }
+        }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 16)
+    }
+
+    private var attributionSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionTitle("Built With")
+
+            AttributionRow(
+                name: "Kanata",
+                description: "By jtroo. Advanced keyboard remapping engine.",
+                license: "LGPL v3",
+                url: "https://github.com/jtroo/kanata",
+                accessibilityId: "about-attribution-kanata"
+            )
+        }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 16)
+    }
+
+    private var footerSection: some View {
+        VStack(spacing: 8) {
+            Text("Made by Micah Alpern for the macOS and mechanical keyboard communities.")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+
+            Text("© \(currentYear) Micah Alpern. MIT License.")
+                .font(.system(size: 10))
+                .foregroundColor(Color.secondary.opacity(0.75))
+        }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 18)
+    }
+
+    private var sectionDivider: some View {
+        Divider()
+            .padding(.horizontal, 32)
+    }
+
+    private func sectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func statusRow(label: String, value: String, color: Color) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.secondary)
+
+            Spacer()
+
+            Text(value)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(color)
+        }
+    }
+
+    private var engineStatusText: String {
+        guard let context = systemContext else {
+            return "Loading"
+        }
+
+        if context.services.kanataRunning {
+            return "Running"
+        }
+        return "Stopped"
+    }
+
+    private var engineStatusColor: Color {
+        guard let context = systemContext else {
+            return .secondary
+        }
+        return context.services.kanataRunning ? .green : .orange
+    }
+
+    private var permissionHealthText: String {
+        guard let context = systemContext else {
+            return "Loading"
+        }
+        return context.permissions.isSystemReady ? "Healthy" : "Needs Attention"
+    }
+
+    private var permissionHealthColor: Color {
+        guard let context = systemContext else {
+            return .secondary
+        }
+        return context.permissions.isSystemReady ? .green : .orange
+    }
+
+    private func formattedBuildDate(_ buildDate: String) -> String {
+        let iso = ISO8601DateFormatter()
+        if let date = iso.date(from: buildDate) {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            return formatter.string(from: date)
+        }
+        return buildDate
+    }
+
+    @MainActor
+    private func refreshSystemStatus() async {
+        isRefreshingStatus = true
+        defer { isRefreshingStatus = false }
+
+        let context = await InstallerEngine().inspectSystem()
+        systemContext = context
+        statusMessage = "Last checked \(relativeTimeString(from: context.timestamp))."
+    }
+
+    @MainActor
+    private func runRepair() async {
+        isRepairing = true
+        statusMessage = "Running repair..."
+
+        let report = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
+        if report.success {
+            statusMessage = "Repair completed successfully."
+        } else {
+            statusMessage = report.failureReason ?? "Repair completed with issues."
+        }
+
+        isRepairing = false
+        await refreshSystemStatus()
+    }
+
+    private func copyDiagnosticsToClipboard() {
+        var lines: [String] = [
+            "KeyPath Diagnostics",
+            "Version: \(buildInfo.version) (\(buildInfo.build))",
+            "Build Date: \(buildInfo.date)",
+            "Kanata: \(buildInfo.kanataVersion ?? "unknown")",
+            "Active Layer: \(recentKeypresses.currentLayer)"
+        ]
+
+        if let context = systemContext {
+            lines.append("Engine Running: \(context.services.kanataRunning)")
+            lines.append("Permissions Ready: \(context.permissions.isSystemReady)")
+            lines.append("Helper Ready: \(context.helper.isReady)")
+            lines.append("Snapshot: \(context.timestamp)")
+            lines.append("")
+            lines.append(context.permissions.diagnosticSummary)
+        }
+
+        let diagnosticsText = lines.joined(separator: "\n")
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(diagnosticsText, forType: .string)
+        statusMessage = "Diagnostics copied to clipboard."
+    }
+
+    private func openLogsDirectory() {
+        let logsDir = URL(fileURLWithPath: NSHomeDirectory())
+            .appendingPathComponent("Library/Logs/KeyPath")
+
+        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: logsDir.path)
+    }
+
+    private func revealConfigFile() {
+        let configPath = KeyPathConstants.Config.mainConfigPath
+        let exists = FileManager.default.fileExists(atPath: configPath)
+
+        if exists {
+            NSWorkspace.shared.selectFile(configPath, inFileViewerRootedAtPath: "")
+        } else {
+            NSWorkspace.shared.open(URL(fileURLWithPath: KeyPathConstants.Config.directory))
+        }
+    }
+
+    private func relativeTimeString(from date: Date) -> String {
+        let seconds = max(0, Int(Date().timeIntervalSince(date)))
+        if seconds < 2 {
+            return "just now"
+        }
+        if seconds < 60 {
+            return "\(seconds)s ago"
+        }
+        let minutes = seconds / 60
+        return "\(minutes)m ago"
     }
 }
 
@@ -149,11 +453,12 @@ private struct LinkButton: View {
     let title: String
     let url: String
     let icon: String
+    let accessibilityId: String
 
     var body: some View {
         Button {
-            if let url = URL(string: url) {
-                NSWorkspace.shared.open(url)
+            if let resolvedURL = URL(string: url) {
+                NSWorkspace.shared.open(resolvedURL)
             }
         } label: {
             HStack {
@@ -177,6 +482,7 @@ private struct LinkButton: View {
             RoundedRectangle(cornerRadius: 6)
                 .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
         )
+        .accessibilityIdentifier(accessibilityId)
         .onHover { hovering in
             if hovering {
                 NSCursor.pointingHand.push()
@@ -194,11 +500,12 @@ private struct AttributionRow: View {
     let description: String
     let license: String
     let url: String
+    let accessibilityId: String
 
     var body: some View {
         Button {
-            if let url = URL(string: url) {
-                NSWorkspace.shared.open(url)
+            if let resolvedURL = URL(string: url) {
+                NSWorkspace.shared.open(resolvedURL)
             }
         } label: {
             HStack(spacing: 12) {
@@ -241,6 +548,7 @@ private struct AttributionRow: View {
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
         )
+        .accessibilityIdentifier(accessibilityId)
         .onHover { hovering in
             if hovering {
                 NSCursor.pointingHand.push()
@@ -261,20 +569,17 @@ class AboutWindowController {
     private init() {}
 
     func show() {
-        // If window already exists, just bring it to front
         if let existingWindow = window {
             existingWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
 
-        // Create new window
         let contentView = AboutView()
-
         let hostingController = NSHostingController(rootView: contentView)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 440, height: 600),
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 780),
             styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -286,11 +591,8 @@ class AboutWindowController {
         window.contentViewController = hostingController
         window.center()
         window.isReleasedWhenClosed = false
-
-        // Set appearance to match system
         window.appearance = NSAppearance.currentDrawing()
 
-        // Clean up when window closes
         NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: window,
@@ -311,5 +613,5 @@ class AboutWindowController {
 
 #Preview {
     AboutView()
-        .frame(width: 440, height: 600)
+        .frame(width: 500, height: 780)
 }

@@ -148,7 +148,9 @@ private struct ZoneCell: View {
     let convention: WindowKeyConvention
     @Binding var hoveredZone: SnapZone?
 
-    private var isHovered: Bool { hoveredZone == zone }
+    private var isHovered: Bool {
+        hoveredZone == zone
+    }
 
     var body: some View {
         ZStack {
@@ -270,7 +272,9 @@ private struct HalfZoneButton: View {
     let convention: WindowKeyConvention
     @Binding var hoveredZone: SnapZone?
 
-    private var isHovered: Bool { hoveredZone == zone }
+    private var isHovered: Bool {
+        hoveredZone == zone
+    }
 
     var body: some View {
         HStack(spacing: 6) {
@@ -544,11 +548,11 @@ private struct SnapKeyBadge: View {
 // MARK: - Snap Zone Model
 
 private enum SnapZone: String, CaseIterable {
-    // Corners
+    /// Corners
     case topLeft, topRight, bottomLeft, bottomRight
-    // Halves
+    /// Halves
     case left, right
-    // Full
+    /// Full
     case maximize, center
 
     func key(for convention: WindowKeyConvention) -> String {

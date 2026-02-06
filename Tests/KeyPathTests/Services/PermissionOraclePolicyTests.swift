@@ -1,11 +1,18 @@
 import Foundation
+@testable import KeyPathAppKit
 import KeyPathPermissions
 import Testing
 
-@testable import KeyPathAppKit
-
 @Suite("Permission Oracle Policy Tests")
 struct PermissionOraclePolicyTests {
+    @Test("Status.isMissing is false only when granted")
+    func statusIsMissingSemantics() {
+        #expect(PermissionOracle.Status.granted.isMissing == false)
+        #expect(PermissionOracle.Status.unknown.isMissing == true)
+        #expect(PermissionOracle.Status.denied.isMissing == true)
+        #expect(PermissionOracle.Status.error("boom").isMissing == true)
+    }
+
     // MARK: - Blocking message specificity
 
     @Test("Blocking issue names the specific KeyPath permission (AX)")
@@ -98,5 +105,32 @@ struct PermissionOraclePolicyTests {
         #expect(issue.contains("Kanata"))
         #expect(!issue.contains("KeyPath needs Accessibility"))
         #expect(!issue.contains("KeyPath needs Input Monitoring"))
+    }
+
+    @Test("KeyPath error status blocks before Kanata denied status")
+    func keyPathErrorPrecedesKanataDenied() {
+        let now = Date()
+
+        let keyPath = PermissionOracle.PermissionSet(
+            accessibility: .error("AX read failed"),
+            inputMonitoring: .granted,
+            source: "test",
+            confidence: .low,
+            timestamp: now
+        )
+
+        let kanata = PermissionOracle.PermissionSet(
+            accessibility: .denied,
+            inputMonitoring: .denied,
+            source: "test",
+            confidence: .high,
+            timestamp: now
+        )
+
+        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now)
+        let issue = snap.blockingIssue ?? ""
+
+        #expect(issue.contains("KeyPath"))
+        #expect(!issue.contains("Kanata needs permissions"))
     }
 }

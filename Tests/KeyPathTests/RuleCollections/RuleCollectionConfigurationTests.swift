@@ -1,7 +1,6 @@
 import Foundation
-import XCTest
-
 @testable import KeyPathAppKit
+import XCTest
 
 final class RuleCollectionConfigurationTests: XCTestCase {
     // MARK: - Display Style Tests

@@ -233,7 +233,7 @@ final class ChordGroupsValidationTests: XCTestCase {
 
     // MARK: - Cross-Group Conflicts
 
-    func testCrossGroupKeyConflictsSameKeys() {
+    func testCrossGroupKeyConflictsSameKeys() throws {
         // Two groups using the same participating keys
         let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")
         let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "bspc")
@@ -267,8 +267,8 @@ final class ChordGroupsValidationTests: XCTestCase {
         // Check description format
         let sConflict = conflicts.first { $0.key == "s" }
         XCTAssertNotNil(sConflict)
-        XCTAssertTrue(sConflict!.description.contains("Navigation"))
-        XCTAssertTrue(sConflict!.description.contains("Editing"))
+        XCTAssertTrue(try XCTUnwrap(sConflict?.description.contains("Navigation")))
+        XCTAssertTrue(try XCTUnwrap(sConflict?.description.contains("Editing")))
     }
 
     func testCrossGroupPartialKeyOverlap() {

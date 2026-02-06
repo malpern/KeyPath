@@ -485,5 +485,4 @@ extension KeyboardVisualizationViewModel {
             rebuildLayerMapping()
         }
     }
-
 }

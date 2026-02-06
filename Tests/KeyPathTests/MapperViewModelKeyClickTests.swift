@@ -1,6 +1,5 @@
-import XCTest
-
 @testable import KeyPathAppKit
+import XCTest
 
 /// Tests for MapperViewModel.setInputFromKeyClick with action identifier support.
 /// Verifies that:

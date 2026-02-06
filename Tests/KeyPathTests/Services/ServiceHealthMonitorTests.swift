@@ -1,8 +1,7 @@
 import Foundation
+@testable import KeyPathAppKit
 import KeyPathDaemonLifecycle
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 /// Mock UDP client for testing health checks
 actor MockKanataUDPClient {
@@ -246,8 +245,8 @@ class ServiceHealthMonitorTests: XCTestCase {
         }
     }
 
-    // NOTE: Test disabled - requires mocking ProcessLifecycleManager which is now final
-    // To properly test conflict resolution, would need integration test with actual processes
+    /// NOTE: Test disabled - requires mocking ProcessLifecycleManager which is now final
+    /// To properly test conflict resolution, would need integration test with actual processes
     func skip_testDetermineRecoveryAction_ProcessConflicts() async {
         // Set up mock conflicts
         _ = ProcessLifecycleManager.ProcessInfo(pid: 9999, command: "/usr/local/bin/kanata")

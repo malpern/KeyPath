@@ -1,7 +1,6 @@
+@testable import KeyPathAppKit
 import KeyPathPermissions
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 @MainActor
 final class RecordingCoordinatorTests: XCTestCase {
@@ -22,7 +21,7 @@ final class RecordingCoordinatorTests: XCTestCase {
         return c
     }()
 
-    func testInputRecordingFailsWhenAccessibilityDenied() async throws {
+    func testInputRecordingFailsWhenAccessibilityDenied() async {
         statusMessages.removeAll()
         coordinator.stopAllRecording()
         coordinator.clearCapturedSequences()
@@ -39,7 +38,7 @@ final class RecordingCoordinatorTests: XCTestCase {
         XCTAssertTrue(statusMessages.contains { $0.contains("Accessibility") })
     }
 
-    func testInputRecordingCompletesWhenCaptureCallbackFires() async throws {
+    func testInputRecordingCompletesWhenCaptureCallbackFires() async {
         statusMessages.removeAll()
         coordinator.stopAllRecording()
         coordinator.clearCapturedSequences()
@@ -82,7 +81,7 @@ final class RecordingCoordinatorTests: XCTestCase {
         }
     }
 
-    func testOutputRecordingFailsWhenAccessibilityDenied() async throws {
+    func testOutputRecordingFailsWhenAccessibilityDenied() async {
         statusMessages.removeAll()
         coordinator.stopAllRecording()
         coordinator.clearCapturedSequences()

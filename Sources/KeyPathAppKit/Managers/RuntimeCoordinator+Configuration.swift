@@ -14,7 +14,8 @@ extension RuntimeCoordinator {
             try await configurationService.createInitialConfigIfNeeded()
         } catch {
             AppLogger.shared.error(
-                "❌ [Config] Failed to create initial config via ConfigurationService: \(error)")
+                "❌ [Config] Failed to create initial config via ConfigurationService: \(error)"
+            )
         }
     }
 
@@ -47,7 +48,8 @@ extension RuntimeCoordinator {
         let smState = await KanataDaemonManager.shared.refreshManagementState()
         if smState == .smappservicePending {
             AppLogger.shared.warn(
-                "⚠️ [Reload] Skipping TCP reload because SMAppService requires approval")
+                "⚠️ [Reload] Skipping TCP reload because SMAppService requires approval"
+            )
             return ReloadResult(
                 success: false,
                 response: nil,
@@ -102,7 +104,8 @@ extension RuntimeCoordinator {
             )
         } else {
             AppLogger.shared.debug(
-                "📡 [Reload] TCP reload failed: \(tcpResult.errorMessage ?? "Unknown error")")
+                "📡 [Reload] TCP reload failed: \(tcpResult.errorMessage ?? "Unknown error")"
+            )
             // Fall back to service restart
             AppLogger.shared.warn("⚠️ [Reload] Falling back to service restart")
             let restarted = await restartServiceWithFallback(reason: "Config reload fallback")
@@ -129,7 +132,8 @@ extension RuntimeCoordinator {
         // Check reload safety first
         let currentPID = processLifecycleManager.ownedPID
         let safetyCheck = await reloadSafetyMonitor.checkReloadSafety(
-            currentPID: currentPID.map { Int($0) })
+            currentPID: currentPID.map { Int($0) }
+        )
 
         if !safetyCheck.isSafe {
             let reason = safetyCheck.reason ?? "Safety check failed"
@@ -179,5 +183,7 @@ struct ReloadResult {
     let errorMessage: String?
     let `protocol`: CommunicationProtocol?
 
-    var isSuccess: Bool { success }
+    var isSuccess: Bool {
+        success
+    }
 }

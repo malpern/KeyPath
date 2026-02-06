@@ -52,7 +52,8 @@ actor RuleCollectionStore {
             return upgraded
         } catch {
             AppLogger.shared.log(
-                "⚠️ [RuleCollectionStore] Failed to load collections: \(error). Falling back to defaults.")
+                "⚠️ [RuleCollectionStore] Failed to load collections: \(error). Falling back to defaults."
+            )
             return catalog.defaultCollections()
         }
     }

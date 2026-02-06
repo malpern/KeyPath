@@ -28,8 +28,8 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
 
     // MARK: - Main Navigation Logic
 
-    /// Primary navigation method - determines the current page based on system state and issues
-    /// This is the preferred method as it uses structured issue identifiers for type-safe navigation
+    // Primary navigation method - determines the current page based on system state and issues
+    // This is the preferred method as it uses structured issue identifiers for type-safe navigation
 
     func determineCurrentPage(for state: WizardSystemState, issues: [WizardIssue]) async -> WizardPage {
         AppLogger.shared.log("🔍 [NavigationEngine] Determining page for \(issues.count) issues, state: \(state)")

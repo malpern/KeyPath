@@ -105,7 +105,9 @@ struct SimulatorKeycapView: View {
 
     // MARK: - Styling
 
-    private var isDark: Bool { colorScheme == .dark }
+    private var isDark: Bool {
+        colorScheme == .dark
+    }
 
     private var fontSize: CGFloat {
         if key.width > 1.5 {

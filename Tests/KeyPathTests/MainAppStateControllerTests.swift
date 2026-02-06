@@ -1,7 +1,6 @@
 import Foundation
-import Testing
-
 @testable import KeyPathAppKit
+import Testing
 
 /// Tests for MainAppStateController - main app validation coordination
 @Suite("Main App State Controller Tests")
@@ -15,10 +14,12 @@ struct MainAppStateControllerTests {
         #expect(MainAppStateController.ValidationState.checking.isSuccess == false)
         #expect(
             MainAppStateController.ValidationState.failed(blockingCount: 1, totalCount: 1).isSuccess
-                == false)
+                == false
+        )
         #expect(
             MainAppStateController.ValidationState.failed(blockingCount: 0, totalCount: 1).isSuccess
-                == false)
+                == false
+        )
     }
 
     @Test("ValidationState.hasCriticalIssues detects blocking issues")
@@ -27,13 +28,16 @@ struct MainAppStateControllerTests {
         #expect(MainAppStateController.ValidationState.checking.hasCriticalIssues == false)
         #expect(
             MainAppStateController.ValidationState.failed(blockingCount: 1, totalCount: 1)
-                .hasCriticalIssues == true)
+                .hasCriticalIssues == true
+        )
         #expect(
             MainAppStateController.ValidationState.failed(blockingCount: 0, totalCount: 1)
-                .hasCriticalIssues == false)
+                .hasCriticalIssues == false
+        )
         #expect(
             MainAppStateController.ValidationState.failed(blockingCount: 2, totalCount: 3)
-                .hasCriticalIssues == true)
+                .hasCriticalIssues == true
+        )
     }
 
     @Test("ValidationState equality works correctly")
@@ -154,5 +158,67 @@ struct ValidationStateTransitionTests {
         // Has issues but not critical
         #expect(controller.validationState?.isSuccess == false)
         #expect(controller.validationState?.hasCriticalIssues == false)
+    }
+}
+
+/// Behavioral tests for MainAppStateController async validation flows
+@Suite("Main App State Controller Behavior Tests")
+@MainActor
+struct MainAppStateControllerBehaviorTests {
+    @Test("performInitialValidation is a no-op before configure")
+    func performInitialValidationWithoutConfiguration() async {
+        let controller = MainAppStateController()
+
+        await controller.performInitialValidation()
+
+        #expect(controller.validationState == nil)
+        #expect(controller.issues.isEmpty)
+        #expect(controller.lastValidationDate == nil)
+    }
+
+    @Test("refreshValidation on unconfigured controller surfaces failed state")
+    func refreshValidationWithoutConfiguration() async {
+        let controller = MainAppStateController()
+
+        await controller.refreshValidation()
+
+        guard case let .failed(blockingCount, totalCount) = controller.validationState else {
+            Issue.record("Expected failed validation state")
+            return
+        }
+        #expect(blockingCount == 1)
+        #expect(totalCount == 1)
+        #expect(controller.issues.count == 1)
+    }
+
+    @Test("revalidate on unconfigured controller surfaces failed state")
+    func revalidateWithoutConfiguration() async {
+        let controller = MainAppStateController()
+
+        await controller.revalidate()
+
+        guard case let .failed(blockingCount, totalCount) = controller.validationState else {
+            Issue.record("Expected failed validation state")
+            return
+        }
+        #expect(blockingCount == 1)
+        #expect(totalCount == 1)
+        #expect(controller.issues.count == 1)
+    }
+
+    @Test("performInitialValidation after configure surfaces failure when service is unhealthy")
+    func performInitialValidationAfterConfigure() async {
+        let controller = MainAppStateController()
+        controller.configure(with: RuntimeCoordinator())
+
+        await controller.performInitialValidation()
+
+        guard case let .failed(blockingCount, totalCount) = controller.validationState else {
+            Issue.record("Expected failed validation state when test-mode service health is unhealthy")
+            return
+        }
+        #expect(blockingCount == 1)
+        #expect(totalCount == 1)
+        #expect(controller.issues.count == 1)
     }
 }

@@ -73,7 +73,8 @@ enum ActionDeterminer {
         // Reinstall helper if unhealthy (use reinstall for repair)
         if !context.helper.isReady {
             actions.append(
-                context.helper.isInstalled ? .reinstallPrivilegedHelper : .installPrivilegedHelper)
+                context.helper.isInstalled ? .reinstallPrivilegedHelper : .installPrivilegedHelper
+            )
         }
 
         // Restart unhealthy services

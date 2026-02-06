@@ -176,7 +176,8 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
         let afterModTime = afterAttributes[.modificationDate] as? Date
         let fileSize = afterAttributes[.size] as? Int ?? 0
         AppLogger.shared.log(
-            "🔍 [ConfigManager] Modification time after write: \(afterModTime?.description ?? "unknown")")
+            "🔍 [ConfigManager] Modification time after write: \(afterModTime?.description ?? "unknown")"
+        )
         AppLogger.shared.log("🔍 [ConfigManager] File size: \(fileSize) bytes")
 
         // Post-save validation: verify the file was saved correctly
@@ -186,7 +187,8 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
         do {
             let savedContent = try String(contentsOfFile: configPath, encoding: .utf8)
             AppLogger.shared.log(
-                "📖 [Validation-PostSave] Successfully read saved file (\(savedContent.count) characters)")
+                "📖 [Validation-PostSave] Successfully read saved file (\(savedContent.count) characters)"
+            )
 
             let postSaveStart = Date()
             let postSaveValidation = await validateConfiguration(savedContent)
@@ -201,19 +203,22 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
             } else {
                 AppLogger.shared.error("❌ [Validation-PostSave] Post-save validation FAILED")
                 AppLogger.shared.error(
-                    "❌ [Validation-PostSave] Found \(postSaveValidation.errors.count) errors:")
+                    "❌ [Validation-PostSave] Found \(postSaveValidation.errors.count) errors:"
+                )
                 for (index, error) in postSaveValidation.errors.enumerated() {
                     AppLogger.shared.log("   Error \(index + 1): \(error)")
                 }
                 AppLogger.shared.debug(
-                    "🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
+                    "🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END =========="
+                )
                 throw KeyPathError.configuration(.validationFailed(errors: postSaveValidation.errors))
             }
         } catch {
             AppLogger.shared.error("❌ [Validation-PostSave] Failed to read saved config: \(error)")
             AppLogger.shared.error("❌ [Validation-PostSave] Error type: \(type(of: error))")
             AppLogger.shared.debug(
-                "🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
+                "🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END =========="
+            )
             throw error
         }
 
@@ -248,11 +253,13 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
                 AppLogger.shared.log("✅ [ConfigManager] CLI validation PASSED")
                 let config = try await configurationService.reload()
                 AppLogger.shared.log(
-                    "✅ [ConfigManager] Successfully loaded \(config.keyMappings.count) existing mappings")
+                    "✅ [ConfigManager] Successfully loaded \(config.keyMappings.count) existing mappings"
+                )
                 return (config.keyMappings, nil)
             } else {
                 AppLogger.shared.log(
-                    "❌ [ConfigManager] CLI validation FAILED with \(cli.errors.count) errors")
+                    "❌ [ConfigManager] CLI validation FAILED with \(cli.errors.count) errors"
+                )
 
                 // Handle invalid startup config
                 let backupPath = await handleInvalidStartupConfig(configContent: configContent, errors: cli.errors)
@@ -316,7 +323,8 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
         // Delegate to ConfigurationService for saving
         try await configurationService.saveConfiguration(keyMappings: mappings)
         AppLogger.shared.log(
-            "💾 [ConfigManager] Config saved with \(mappings.count) mappings via ConfigurationService")
+            "💾 [ConfigManager] Config saved with \(mappings.count) mappings via ConfigurationService"
+        )
     }
 
     func backupCurrentConfig() async {
@@ -339,7 +347,8 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
             try await configurationService.createInitialConfigIfNeeded()
         } catch {
             AppLogger.shared.log(
-                "❌ [ConfigManager] Failed to create initial config via ConfigurationService: \(error)")
+                "❌ [ConfigManager] Failed to create initial config via ConfigurationService: \(error)"
+            )
             return false
         }
 

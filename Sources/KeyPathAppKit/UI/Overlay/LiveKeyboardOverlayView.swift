@@ -504,7 +504,6 @@ struct LiveKeyboardOverlayView: View {
         return content
     }
 
-    @ViewBuilder
     private func overlayMainContent(
         fadeAmount: CGFloat,
         inspectorVisible: Bool,
@@ -815,7 +814,10 @@ struct LiveKeyboardOverlayView: View {
 // MARK: - LiveKeyboardOverlayView Styling Extension
 
 extension LiveKeyboardOverlayView {
-    var isDark: Bool { colorScheme == .dark }
+    var isDark: Bool {
+        colorScheme == .dark
+    }
+
     var overlayPanelFill: Color {
         Color(white: isDark ? 0.11 : 0.88)
     }

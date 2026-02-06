@@ -194,7 +194,8 @@ public actor LaunchDaemonPIDCache {
             let isRunning = output.contains("state = running")
 
             AppLogger.shared.log(
-                "🔍 [PIDCache] Extracted from launchctl: pid=\(pid ?? -1), running=\(isRunning)")
+                "🔍 [PIDCache] Extracted from launchctl: pid=\(pid ?? -1), running=\(isRunning)"
+            )
 
             // Only return PID if service is actually running
             return isRunning ? pid : nil

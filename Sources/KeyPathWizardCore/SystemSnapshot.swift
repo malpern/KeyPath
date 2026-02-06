@@ -56,7 +56,8 @@ public struct SystemSnapshot: Sendable {
                         app: "KeyPath",
                         permission: "Accessibility",
                         action: "Enable in System Settings > Privacy & Security > Accessibility"
-                    ))
+                    )
+                )
             }
             if !permissions.keyPath.inputMonitoring.isReady {
                 issues.append(
@@ -64,7 +65,8 @@ public struct SystemSnapshot: Sendable {
                         app: "KeyPath",
                         permission: "Input Monitoring",
                         action: "Enable in System Settings > Privacy & Security > Input Monitoring"
-                    ))
+                    )
+                )
             }
         }
 
@@ -75,7 +77,8 @@ public struct SystemSnapshot: Sendable {
                         app: "Kanata",
                         permission: "Accessibility",
                         action: "Grant permission via Installation Wizard"
-                    ))
+                    )
+                )
             }
             if !permissions.kanata.inputMonitoring.isReady {
                 issues.append(
@@ -83,7 +86,8 @@ public struct SystemSnapshot: Sendable {
                         app: "Kanata",
                         permission: "Input Monitoring",
                         action: "Grant permission via Installation Wizard"
-                    ))
+                    )
+                )
             }
         }
 
@@ -142,7 +146,8 @@ public struct SystemSnapshot: Sendable {
 
         if age > 10.0 {
             AppLogger.shared.log(
-                "⚠️ [SystemSnapshot] Snapshot is \(String(format: "%.1f", age))s old - consider refreshing")
+                "⚠️ [SystemSnapshot] Snapshot is \(String(format: "%.1f", age))s old - consider refreshing"
+            )
         }
     }
 }
@@ -212,8 +217,13 @@ public struct ConflictStatus: Sendable {
         self.canAutoResolve = canAutoResolve
     }
 
-    public var hasConflicts: Bool { !conflicts.isEmpty }
-    public var conflictCount: Int { conflicts.count }
+    public var hasConflicts: Bool {
+        !conflicts.isEmpty
+    }
+
+    public var conflictCount: Int {
+        conflicts.count
+    }
 
     /// Convenience factory for empty/fallback state
     public static var empty: ConflictStatus {
@@ -263,8 +273,13 @@ public struct HelperStatus: Sendable {
         self.isWorking = isWorking
     }
 
-    public var isReady: Bool { isInstalled && isWorking }
-    public var displayVersion: String { version ?? "Unknown" }
+    public var isReady: Bool {
+        isInstalled && isWorking
+    }
+
+    public var displayVersion: String {
+        version ?? "Unknown"
+    }
 
     /// Convenience factory for empty/fallback state
     public static var empty: HelperStatus {

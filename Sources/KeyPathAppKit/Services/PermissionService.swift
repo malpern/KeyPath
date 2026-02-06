@@ -29,8 +29,8 @@ class PermissionService {
     /// Legacy method stub - opens Input Monitoring settings
     static func openInputMonitoringSettings() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-        {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+        ) {
             NSWorkspace.shared.open(url)
         }
     }
@@ -38,21 +38,26 @@ class PermissionService {
     /// Legacy method stub - functionality moved to Oracle
     func markInputMonitoringPermissionGranted() {
         AppLogger.shared.log(
-            "🔮 [PermissionService] markInputMonitoringPermissionGranted() - Oracle handles state now")
+            "🔮 [PermissionService] markInputMonitoringPermissionGranted() - Oracle handles state now"
+        )
     }
 
     /// Legacy compatibility for DI protocol
     struct SystemPermissionStatus {
         let keyPath: BinaryPermissionStatus
         let kanata: BinaryPermissionStatus
-        var hasAllRequiredPermissions: Bool { false }
+        var hasAllRequiredPermissions: Bool {
+            false
+        }
     }
 
     struct BinaryPermissionStatus {
         let binaryPath: String
         let hasInputMonitoring: Bool
         let hasAccessibility: Bool
-        var hasAllRequiredPermissions: Bool { false }
+        var hasAllRequiredPermissions: Bool {
+            false
+        }
     }
 
     /// Legacy method stub - use Oracle instead

@@ -50,7 +50,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
                 let plistPath = getPlistPath(for: serviceID)
                 let exists = FileManager.default.fileExists(atPath: plistPath)
                 AppLogger.shared.log(
-                    "🔍 [ServiceHealthChecker] (test) Kanata service loaded via file existence: \(exists)")
+                    "🔍 [ServiceHealthChecker] (test) Kanata service loaded via file existence: \(exists)"
+                )
                 return exists
             }
 
@@ -61,30 +62,35 @@ final class ServiceHealthChecker: @unchecked Sendable {
             case .legacyActive:
                 // Legacy plist exists - check launchctl status
                 AppLogger.shared.log(
-                    "🔍 [ServiceHealthChecker] Legacy plist exists - checking launchctl status")
+                    "🔍 [ServiceHealthChecker] Legacy plist exists - checking launchctl status"
+                )
             // Fall through to launchctl check below
             case .smappserviceActive, .smappservicePending:
                 // SMAppService is managing - consider it loaded
                 AppLogger.shared.log(
-                    "🔍 [ServiceHealthChecker] Kanata service loaded via SMAppService (state: \(state.description))")
+                    "🔍 [ServiceHealthChecker] Kanata service loaded via SMAppService (state: \(state.description))"
+                )
                 return true
             case .conflicted:
                 // Both active - consider it loaded (SMAppService takes precedence)
                 AppLogger.shared.log(
-                    "🔍 [ServiceHealthChecker] Conflicted state - considering loaded (SMAppService active)")
+                    "🔍 [ServiceHealthChecker] Conflicted state - considering loaded (SMAppService active)"
+                )
                 return true
             case .unknown:
                 // Process running but unclear - check process, consider loaded if running
                 if await checkKanataServiceHealth().isRunning {
                     AppLogger.shared.log(
-                        "🔍 [ServiceHealthChecker] Unknown state but process running - considering loaded")
+                        "🔍 [ServiceHealthChecker] Unknown state but process running - considering loaded"
+                    )
                     return true
                 }
                 return false
             case .uninstalled:
                 // Not installed
                 AppLogger.shared.log(
-                    "🔍 [ServiceHealthChecker] Service not installed (state: \(state.description))")
+                    "🔍 [ServiceHealthChecker] Service not installed (state: \(state.description))"
+                )
                 return false
             }
         }
@@ -94,7 +100,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
             let plistPath = getPlistPath(for: serviceID)
             let exists = FileManager.default.fileExists(atPath: plistPath)
             AppLogger.shared.log(
-                "🔍 [ServiceHealthChecker] (test) Service \(serviceID) considered loaded: \(exists)")
+                "🔍 [ServiceHealthChecker] (test) Service \(serviceID) considered loaded: \(exists)"
+            )
             return exists
         }
 
@@ -102,11 +109,13 @@ final class ServiceHealthChecker: @unchecked Sendable {
             let result = try await SubprocessRunner.shared.launchctl("print", ["system/\(serviceID)"])
             let isLoaded = result.exitCode == 0
             AppLogger.shared.log(
-                "🔍 [ServiceHealthChecker] (system) Service \(serviceID) loaded: \(isLoaded)")
+                "🔍 [ServiceHealthChecker] (system) Service \(serviceID) loaded: \(isLoaded)"
+            )
             return isLoaded
         } catch {
             AppLogger.shared.log(
-                "❌ [ServiceHealthChecker] Error checking service \(serviceID): \(error)")
+                "❌ [ServiceHealthChecker] Error checking service \(serviceID): \(error)"
+            )
             return false
         }
     }
@@ -130,7 +139,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
             let plistPath = getPlistPath(for: serviceID)
             let exists = FileManager.default.fileExists(atPath: plistPath)
             AppLogger.shared.log(
-                "🔍 [ServiceHealthChecker] (test) Service \(serviceID) considered healthy: \(exists)")
+                "🔍 [ServiceHealthChecker] (test) Service \(serviceID) considered healthy: \(exists)"
+            )
             return exists
         }
 
@@ -146,7 +156,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
 
             guard result.exitCode == 0 else {
                 AppLogger.shared.log(
-                    "🔍 [ServiceHealthChecker] \(serviceID) not found in system domain")
+                    "🔍 [ServiceHealthChecker] \(serviceID) not found in system domain"
+                )
                 return false
             }
 
@@ -235,7 +246,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
             // For health, just check if process is running (faster than launchctl print)
             kanataHealthy = await checkKanataServiceHealth().isRunning
             AppLogger.shared.log(
-                "🔍 [ServiceHealthChecker] Kanata SMAppService-managed: loaded=true, healthy=\(kanataHealthy)")
+                "🔍 [ServiceHealthChecker] Kanata SMAppService-managed: loaded=true, healthy=\(kanataHealthy)"
+            )
         } else {
             // Legacy or unknown - use full checks
             kanataLoaded = await isServiceLoaded(serviceID: Self.kanataServiceID)
@@ -334,7 +346,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
         let plistPath = getPlistPath(for: Self.vhidDaemonServiceID)
         guard let dict = NSDictionary(contentsOfFile: plistPath) as? [String: Any] else {
             AppLogger.shared.log(
-                "🔍 [ServiceHealthChecker] VHID plist not found or unreadable at: \(plistPath)")
+                "🔍 [ServiceHealthChecker] VHID plist not found or unreadable at: \(plistPath)"
+            )
             return false
         }
 
@@ -349,7 +362,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
             return ok
         }
         AppLogger.shared.log(
-            "🔍 [ServiceHealthChecker] VHID plist ProgramArguments missing or malformed")
+            "🔍 [ServiceHealthChecker] VHID plist ProgramArguments missing or malformed"
+        )
         return false
     }
 

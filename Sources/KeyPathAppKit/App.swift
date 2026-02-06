@@ -20,7 +20,8 @@ public struct KeyPathApp: App {
             args.contains("--headless") || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
 
         AppLogger.shared.info(
-            "🔍 [App] Initializing KeyPath - headless: \(isHeadlessMode), args: \(args)")
+            "🔍 [App] Initializing KeyPath - headless: \(isHeadlessMode), args: \(args)"
+        )
         let info = BuildInfo.current()
         AppLogger.shared.info(
             "🏷️ [Build] Version: \(info.version) | Build: \(info.build) | Git: \(info.git) | Date: \(info.date)"
@@ -33,16 +34,19 @@ public struct KeyPathApp: App {
         // Set startup mode to prevent blocking operations during app launch (in-memory flag)
         FeatureFlags.shared.activateStartupMode(timeoutSeconds: 5.0)
         AppLogger.shared.log(
-            "🔍 [App] Startup mode set (auto-clear in 5s) - IOHIDCheckAccess calls will be skipped")
+            "🔍 [App] Startup mode set (auto-clear in 5s) - IOHIDCheckAccess calls will be skipped"
+        )
 
         // Phase 4: MVVM - Initialize services and RuntimeCoordinator via composition root
         let configurationService = ConfigurationService(
-            configDirectory: "\(NSHomeDirectory())/.config/keypath")
+            configDirectory: "\(NSHomeDirectory())/.config/keypath"
+        )
         let manager = RuntimeCoordinator(injectedConfigurationService: configurationService)
         kanataManager = manager
         _viewModel = StateObject(wrappedValue: KanataViewModel(manager: manager))
         AppLogger.shared.debug(
-            "🎯 [Phase 4] MVVM architecture initialized - ViewModel wrapping RuntimeCoordinator")
+            "🎯 [Phase 4] MVVM architecture initialized - ViewModel wrapping RuntimeCoordinator"
+        )
 
         // Configure MainAppStateController early so it's ready when overlay starts observing.
         // Previously this was called in ContentView.onAppear which happens AFTER showForStartup(),
@@ -398,7 +402,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_: Notification) {
         AppLogger.shared.debug(
-            "🔍 [AppDelegate] applicationDidBecomeActive called (initialShown=\(initialMainWindowShown))")
+            "🔍 [AppDelegate] applicationDidBecomeActive called (initialShown=\(initialMainWindowShown))"
+        )
 
         // One-shot first activation: show overlay (drawer starts closed)
         if !initialMainWindowShown {
@@ -424,7 +429,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             if pendingReopenShow {
                 AppLogger.shared.debug(
-                    "🪟 [AppDelegate] Applying pending reopen show after first activation")
+                    "🪟 [AppDelegate] Applying pending reopen show after first activation"
+                )
                 pendingReopenShow = false
                 // Show main window only when explicitly requested via dock click etc.
                 mainWindowController?.show(focus: true)
@@ -481,7 +487,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if shouldBounce {
                 if let timeSince {
                     AppLogger.shared.info(
-                        "🔄 [AppDelegate] Service bounce requested \(Int(timeSince))s ago - performing bounce")
+                        "🔄 [AppDelegate] Service bounce requested \(Int(timeSince))s ago - performing bounce"
+                    )
                 } else {
                     AppLogger.shared.info("🔄 [AppDelegate] Service bounce requested - performing bounce")
                 }
@@ -527,7 +534,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             mainWindowController = MainWindowController(viewModel: vm)
             AppLogger.shared.debug(
-                "🪟 [AppDelegate] Main window controller created (deferring show until activation)")
+                "🪟 [AppDelegate] Main window controller created (deferring show until activation)"
+            )
 
             // Show overlay with startup sizing (30% larger, centered bottom)
             // This also starts health state observation for the health indicator
@@ -572,7 +580,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                 } else {
                     AppLogger.shared.log(
-                        "⏭️ [AppDelegate] Skipping auto-launch (returning from permission grant)")
+                        "⏭️ [AppDelegate] Skipping auto-launch (returning from permission grant)"
+                    )
                 }
 
                 // Trigger validation once after auto-launch attempt
@@ -730,7 +739,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_: Notification) {
         AppLogger.shared.info(
-            "🚪 [AppDelegate] Application will terminate - performing synchronous cleanup")
+            "🚪 [AppDelegate] Application will terminate - performing synchronous cleanup"
+        )
 
         // Use synchronous cleanup to ensure kanata is stopped before app exits
         // Note: InstallerEngine manages service lifecycle, but for app termination we rely on
@@ -786,7 +796,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         AppLogger.shared.debug(
-            "🔍 [AppDelegate] applicationShouldHandleReopen (hasVisibleWindows=\(flag))")
+            "🔍 [AppDelegate] applicationShouldHandleReopen (hasVisibleWindows=\(flag))"
+        )
 
         // If UI hasn’t been set up yet (e.g., app was started in headless mode by LaunchAgent),
         // escalate to a regular app and create the main window on demand.
@@ -794,7 +805,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if NSApplication.shared.activationPolicy() != .regular {
                 NSApplication.shared.setActivationPolicy(.regular)
                 AppLogger.shared.debug(
-                    "🪟 [AppDelegate] Escalated activation policy to .regular for UI reopen")
+                    "🪟 [AppDelegate] Escalated activation policy to .regular for UI reopen"
+                )
             }
 
             if let vm = viewModel {
@@ -802,7 +814,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.shared.debug("🪟 [AppDelegate] Created main window controller on reopen")
             } else {
                 AppLogger.shared.error(
-                    "❌ [AppDelegate] Cannot create window on reopen: ViewModel is nil")
+                    "❌ [AppDelegate] Cannot create window on reopen: ViewModel is nil"
+                )
             }
         }
 
@@ -810,7 +823,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if !initialMainWindowShown {
             pendingReopenShow = true
             AppLogger.shared.debug(
-                "🪟 [AppDelegate] Reopen received before first activation; deferring show")
+                "🪟 [AppDelegate] Reopen received before first activation; deferring show"
+            )
         } else {
             mainWindowController?.show(focus: true)
             AppLogger.shared.debug("🪟 [AppDelegate] User-initiated reopen - showing main window")
@@ -869,7 +883,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 struct CheckForUpdatesView: View {
     @ObservedObject private var updateService = UpdateService.shared
 
-    // The updater parameter is kept for API compatibility but we use the shared service
+    /// The updater parameter is kept for API compatibility but we use the shared service
     init(updater _: SPUUpdater?) {}
 
     var body: some View {

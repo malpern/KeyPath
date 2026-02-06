@@ -339,11 +339,10 @@ final class FaviconFetcher {
         }
 
         let rep = bestFaviconRepresentation(for: image)
-        let sourceSize: NSSize
-        if let rep, rep.pixelsWide > 0, rep.pixelsHigh > 0 {
-            sourceSize = NSSize(width: rep.pixelsWide, height: rep.pixelsHigh)
+        let sourceSize: NSSize = if let rep, rep.pixelsWide > 0, rep.pixelsHigh > 0 {
+            NSSize(width: rep.pixelsWide, height: rep.pixelsHigh)
         } else {
-            sourceSize = image.size
+            image.size
         }
         let scale = min(targetSize.width / max(1, sourceSize.width), targetSize.height / max(1, sourceSize.height))
         let drawSize = NSSize(width: sourceSize.width * scale, height: sourceSize.height * scale)
@@ -403,7 +402,7 @@ final class FaviconFetcher {
     }
 }
 
-private extension Array where Element == URL {
+private extension [URL] {
     func uniqued() -> [URL] {
         var seen: Set<URL> = []
         return filter { seen.insert($0).inserted }

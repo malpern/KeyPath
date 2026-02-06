@@ -513,7 +513,7 @@ struct SequencesModalView: View {
 private struct KeyPicker: View {
     @Binding var selection: String
 
-    // Common keys for sequences
+    /// Common keys for sequences
     private let commonKeys = [
         "space", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l",
         "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
@@ -538,7 +538,7 @@ private struct KeyPicker: View {
 private struct LayerPicker: View {
     @Binding var selection: RuleCollectionLayer
 
-    // Available layers from catalog
+    /// Available layers from catalog
     private let availableLayers: [RuleCollectionLayer] = [
         .navigation,
         .custom("window"),

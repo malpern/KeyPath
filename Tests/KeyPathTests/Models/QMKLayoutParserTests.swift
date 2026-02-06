@@ -64,11 +64,11 @@ struct QMKLayoutParserTests {
         #expect(layout?.keys.count == 4, "Should have 4 keys")
     }
 
-    @Test func parseKeyPositions() {
-        let layout = QMKLayoutParser.parse(
+    @Test func parseKeyPositions() throws {
+        let layout = try #require(QMKLayoutParser.parse(
             data: Self.minimalJSON,
             keyMapping: Self.simpleKeyMapping
-        )!
+        ))
 
         // Find key at (0, 0)
         let key00 = layout.keys.first { $0.label == "0,0" }
@@ -83,11 +83,11 @@ struct QMKLayoutParserTests {
         #expect(key01?.y == 0)
     }
 
-    @Test func parseKeySizes() {
-        let layout = QMKLayoutParser.parse(
+    @Test func parseKeySizes() throws {
+        let layout = try #require(QMKLayoutParser.parse(
             data: Self.minimalJSON,
             keyMapping: Self.simpleKeyMapping
-        )!
+        ))
 
         // Default size keys
         let normalKey = layout.keys.first { $0.label == "0,0" }
@@ -105,11 +105,11 @@ struct QMKLayoutParserTests {
         #expect(tallKey?.height == 2.0, "Should parse custom height")
     }
 
-    @Test func parseRotation() {
-        let layout = QMKLayoutParser.parse(
+    @Test func parseRotation() throws {
+        let layout = try #require(QMKLayoutParser.parse(
             data: Self.rotatedKeysJSON,
             keyMapping: Self.simpleKeyMapping
-        )!
+        ))
 
         // Non-rotated key
         let normalKey = layout.keys.first { $0.label == "0,0" }
@@ -162,17 +162,17 @@ struct QMKLayoutParserTests {
 
     // MARK: - Key Filtering Tests
 
-    @Test func unmappedKeysAreSkipped() {
-        // Key mapping that only maps row 0
+    @Test func unmappedKeysAreSkipped() throws {
+        /// Key mapping that only maps row 0
         func partialMapping(row: Int, col: Int) -> (keyCode: UInt16, label: String)? {
             guard row == 0 else { return nil }
             return (UInt16(col), "col\(col)")
         }
 
-        let layout = QMKLayoutParser.parse(
+        let layout = try #require(QMKLayoutParser.parse(
             data: Self.minimalJSON,
             keyMapping: partialMapping
-        )!
+        ))
 
         #expect(layout.keys.count == 2, "Should only have 2 keys from row 0")
         #expect(layout.keys.allSatisfy { $0.label.hasPrefix("col") })
@@ -180,11 +180,11 @@ struct QMKLayoutParserTests {
 
     // MARK: - Dimension Computation Tests
 
-    @Test func computedDimensions() {
-        let layout = QMKLayoutParser.parse(
+    @Test func computedDimensions() throws {
+        let layout = try #require(QMKLayoutParser.parse(
             data: Self.minimalJSON,
             keyMapping: Self.simpleKeyMapping
-        )!
+        ))
 
         // Total width should be x + width of rightmost key
         // Key at (1.5, 1) has width 1.0, so totalWidth = 1.5 + 1.0 = 2.5
@@ -262,7 +262,7 @@ struct QMKLayoutParserTests {
         }
         """.data(using: .utf8)!
 
-        // Pass a keyMapping function that returns nil - JSON should provide the mappings
+        /// Pass a keyMapping function that returns nil - JSON should provide the mappings
         func nilMapping(_: Int, _: Int) -> (keyCode: UInt16, label: String)? {
             nil
         }
@@ -306,7 +306,7 @@ struct QMKLayoutParserTests {
         }
         """.data(using: .utf8)!
 
-        // Provide fallback mapping for keys without embedded keyCode/label
+        /// Provide fallback mapping for keys without embedded keyCode/label
         func fallbackMapping(row: Int, col: Int) -> (keyCode: UInt16, label: String)? {
             if row == 0, col == 1 {
                 return (19, "2")

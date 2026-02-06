@@ -29,7 +29,7 @@ struct KeyboardSelectionGridView: View {
         PhysicalLayout.layoutsByCategory()
     }
 
-    // Grid layout: 1 column for single-row keyboard previews
+    /// Grid layout: 1 column for single-row keyboard previews
     private let columns = [
         GridItem(.flexible(), spacing: 12)
     ]
@@ -397,7 +397,7 @@ private struct KeyboardIllustrationCard: View {
     @State private var isHovering = false
     @State private var showDeleteConfirmation = false
 
-    // Image size - fairly big as requested
+    /// Image size - fairly big as requested
     private let imageHeight: CGFloat = 120
 
     init(

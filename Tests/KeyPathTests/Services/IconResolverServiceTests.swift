@@ -1,6 +1,5 @@
-import XCTest
-
 @testable import KeyPathAppKit
+import XCTest
 
 @MainActor
 final class IconResolverServiceTests: XCTestCase {

@@ -173,7 +173,7 @@ struct MappingBehaviorTests {
         }
         """
 
-        let data = legacyJSON.data(using: .utf8)!
+        let data = try #require(legacyJSON.data(using: .utf8))
         let decoded = try JSONDecoder().decode(MappingBehavior.self, from: data)
 
         if case let .tapOrTapDance(tapBehavior) = decoded,
@@ -196,7 +196,7 @@ struct MappingBehaviorTests {
             "output": "esc"
         }
         """
-        let data = legacyJSON.data(using: .utf8)!
+        let data = try #require(legacyJSON.data(using: .utf8))
         let mapping = try JSONDecoder().decode(KeyMapping.self, from: data)
 
         #expect(mapping.input == "caps")
@@ -279,7 +279,7 @@ struct MappingBehaviorTests {
             "createdAt": 0
         }
         """
-        let data = legacyJSON.data(using: .utf8)!
+        let data = try #require(legacyJSON.data(using: .utf8))
         let rule = try JSONDecoder().decode(CustomRule.self, from: data)
 
         #expect(rule.input == "caps")

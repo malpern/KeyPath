@@ -167,7 +167,8 @@ class SystemRequirements {
         // KeyPath requires macOS 14.0+ based on CLAUDE.md
         if version.majorVersion < 14 {
             issues.append(
-                "KeyPath requires macOS 14.0 or later (detected: \(macosVersion.versionString))")
+                "KeyPath requires macOS 14.0 or later (detected: \(macosVersion.versionString))"
+            )
             isCompatible = false
             recommendations.append("Upgrade to macOS 14.0 or later")
         }

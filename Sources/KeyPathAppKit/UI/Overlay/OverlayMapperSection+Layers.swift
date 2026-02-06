@@ -308,4 +308,5 @@ extension OverlayMapperSection {
         case .healthy, .dismissed:
             "Open Setup"
         }
-    }}
+    }
+}

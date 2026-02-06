@@ -4,7 +4,6 @@ import SwiftUI
 extension OverlayInspectorPanel {
     // MARK: - Custom Rules Content
 
-    @ViewBuilder
     var customRulesContent: some View {
         VStack(spacing: 0) {
             // Scrollable list of rule cards (no header - title removed)

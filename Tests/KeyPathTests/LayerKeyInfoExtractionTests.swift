@@ -1,6 +1,5 @@
-import XCTest
-
 @testable import KeyPathAppKit
+import XCTest
 
 /// Tests for LayerKeyInfo data extraction used in OverlayMapperSection.
 /// Verifies that action identifiers are correctly extracted and passed to the mapper.

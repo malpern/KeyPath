@@ -13,12 +13,12 @@ struct WizardCommunicationPage: View {
     @EnvironmentObject var kanataViewModel: KanataViewModel
     @Environment(\.preferencesService) private var preferences: PreferencesService
 
-    // Access underlying RuntimeCoordinator for business logic
+    /// Access underlying RuntimeCoordinator for business logic
     private var kanataManager: RuntimeCoordinator {
         kanataViewModel.underlyingManager
     }
 
-    // Auto-fix integration
+    /// Auto-fix integration
     let onAutoFix: ((AutoFixAction, Bool) async -> Bool)?
 
     init(
@@ -224,7 +224,8 @@ struct WizardCommunicationPage: View {
                         }
                     } else {
                         AppLogger.shared.log(
-                            "🌐 [WizardCommDetail] hello failed port=\(port)")
+                            "🌐 [WizardCommDetail] hello failed port=\(port)"
+                        )
                         await MainActor.run {
                             withAnimation(.easeInOut(duration: 0.3)) {
                                 commStatus = .needsSetup(
@@ -240,7 +241,8 @@ struct WizardCommunicationPage: View {
                     await MainActor.run {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             commStatus = .ready(
-                                "Ready for instant configuration changes and external integrations")
+                                "Ready for instant configuration changes and external integrations"
+                            )
                             actionStatus = .success(message: "Communication ready")
                             scheduleStatusClear()
                         }
@@ -273,7 +275,8 @@ struct WizardCommunicationPage: View {
             await MainActor.run {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     commStatus = .needsSetup(
-                        "Failed to connect to TCP server. Click Fix to regenerate service configuration.")
+                        "Failed to connect to TCP server. Click Fix to regenerate service configuration."
+                    )
                     actionStatus = .idle
                 }
             }
@@ -303,7 +306,8 @@ struct WizardCommunicationPage: View {
                 await client.cancelInflightAndCloseConnection()
                 let delayMs = 200 * attempt
                 AppLogger.shared.log(
-                    "🌐 [WizardCommDetail] hello attempt \(attempt) failed: \(error.localizedDescription). Retrying in \(delayMs)ms")
+                    "🌐 [WizardCommDetail] hello attempt \(attempt) failed: \(error.localizedDescription). Retrying in \(delayMs)ms"
+                )
                 try? await Task.sleep(nanoseconds: UInt64(delayMs) * 1_000_000)
             }
         }

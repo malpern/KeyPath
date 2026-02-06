@@ -1,8 +1,7 @@
 import Foundation
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
 @testable import KeyPathWizardCore
+@preconcurrency import XCTest
 
 /// Tests for WizardStateMachine navigation behavior
 /// These tests verify navigation functionality after migrating from WizardNavigationCoordinator
@@ -164,9 +163,9 @@ final class WizardStateMachineNavigationTests: XCTestCase {
         XCTAssertTrue(stateMachine.canNavigateBack)
     }
 
-    func testCanNavigateForward_whenOnLastPage_returnsFalse() {
+    func testCanNavigateForward_whenOnLastPage_returnsFalse() throws {
         // Given - navigate to last page in default order
-        let lastPage = WizardPage.orderedPages.last!
+        let lastPage = try XCTUnwrap(WizardPage.orderedPages.last)
         stateMachine.navigateToPage(lastPage)
 
         // Then
@@ -199,9 +198,9 @@ final class WizardStateMachineNavigationTests: XCTestCase {
         XCTAssertEqual(stateMachine.previousPageInSequence, .accessibility)
     }
 
-    func testNextPage_whenOnLastPage_returnsNil() {
+    func testNextPage_whenOnLastPage_returnsNil() throws {
         // Given
-        let lastPage = WizardPage.orderedPages.last!
+        let lastPage = try XCTUnwrap(WizardPage.orderedPages.last)
         stateMachine.navigateToPage(lastPage)
 
         // Then

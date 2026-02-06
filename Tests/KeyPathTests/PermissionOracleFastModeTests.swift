@@ -1,8 +1,7 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
 @testable import KeyPathCore
 @testable import KeyPathPermissions
+@preconcurrency import XCTest
 
 @MainActor
 final class PermissionOracleFastModeTests: XCTestCase {

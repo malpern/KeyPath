@@ -8,7 +8,6 @@ extension InstallationWizardView {
 
     // Header removed per design update; pages present their own centered titles.
 
-    @ViewBuilder
     func pageContent() -> some View {
         ZStack {
             switch stateMachine.currentPage {
@@ -181,5 +180,4 @@ extension InstallationWizardView {
             .transition(.opacity.combined(with: .scale(scale: 0.95)))
         }
     }
-
 }

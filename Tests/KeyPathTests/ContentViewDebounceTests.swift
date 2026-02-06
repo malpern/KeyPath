@@ -1,8 +1,7 @@
+@testable import KeyPathAppKit
 import KeyPathCore
 import SwiftUI
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 /// Phase 1 Unit Tests: ContentView Debouncing
 /// Tests the save operation debouncing added in Phase 1.3 to prevent rapid successive saves
@@ -12,7 +11,7 @@ class ContentViewDebounceTests: XCTestCase {
 
     // MARK: - Debounce Logic Tests (Non-UI)
 
-    func testConfigurationSaveDebouncing() async throws {
+    func testConfigurationSaveDebouncing() throws {
         // Test actual debounce behavior by making rapid saves and verifying only the final result persists
         _ = RuntimeCoordinator()
 
@@ -39,7 +38,7 @@ class ContentViewDebounceTests: XCTestCase {
         AppLogger.shared.log("✅ [Test] Configuration debouncing behavior verified")
     }
 
-    func testErrorHandlingPreservesUIState() async {
+    func testErrorHandlingPreservesUIState() {
         // Test that errors during save operations properly reset the UI state
         let manager = RuntimeCoordinator()
 
@@ -56,7 +55,7 @@ class ContentViewDebounceTests: XCTestCase {
 
     // MARK: - Configuration Save Integration Tests
 
-    func testConfigurationSaveFlow() async throws {
+    func testConfigurationSaveFlow() throws {
         // Test the complete save flow without UI dependencies
         _ = RuntimeCoordinator()
 
@@ -82,7 +81,7 @@ class ContentViewDebounceTests: XCTestCase {
         AppLogger.shared.log("✅ [Test] Configuration save flow structure verified")
     }
 
-    func testMultipleConcurrentSaves() async throws {
+    func testMultipleConcurrentSaves() async {
         // Test that multiple concurrent save attempts are handled gracefully
         _ = RuntimeCoordinator()
 
@@ -126,7 +125,7 @@ class ContentViewDebounceTests: XCTestCase {
 
 @MainActor
 class Phase1LoggingTests: XCTestCase {
-    func testLoggingCapturesActualOperations() async {
+    func testLoggingCapturesActualOperations() {
         // Test that logging captures important operational information
         _ = RuntimeCoordinator()
 

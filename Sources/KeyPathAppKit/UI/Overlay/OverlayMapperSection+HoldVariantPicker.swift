@@ -176,5 +176,4 @@ extension OverlayMapperSection {
             }
         }
     }
-
 }

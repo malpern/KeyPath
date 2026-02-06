@@ -135,7 +135,6 @@ struct ConflictResolutionDialog: View {
 
     // MARK: - Current Values Section
 
-    @ViewBuilder
     private var currentValuesSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Hold value
@@ -204,7 +203,6 @@ struct ConflictResolutionDialog: View {
 
     // MARK: - Action Buttons
 
-    @ViewBuilder
     private var actionButtons: some View {
         HStack(spacing: 12) {
             Button("Cancel") {

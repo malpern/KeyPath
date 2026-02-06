@@ -39,7 +39,9 @@ public struct KeyPathActionURI: Sendable, Equatable {
     public let isShorthand: Bool
 
     /// First path component (convenience accessor)
-    public var target: String? { pathComponents.first }
+    public var target: String? {
+        pathComponents.first
+    }
 
     /// First path component converted to Title Case (for display)
     /// e.g., "obsidian" → "Obsidian", "visual studio code" → "Visual Studio Code"

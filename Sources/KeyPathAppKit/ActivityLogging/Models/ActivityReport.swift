@@ -72,7 +72,9 @@ public struct ActivityReport: Sendable {
 
 /// Summary of app usage (launches and switches)
 public struct AppUsageSummary: Identifiable, Sendable {
-    public var id: String { bundleIdentifier }
+    public var id: String {
+        bundleIdentifier
+    }
 
     public let bundleIdentifier: String
     public let appName: String
@@ -99,7 +101,9 @@ public struct AppUsageSummary: Identifiable, Sendable {
 
 /// Summary of keyboard shortcut usage
 public struct ShortcutSummary: Identifiable, Sendable {
-    public var id: String { shortcut }
+    public var id: String {
+        shortcut
+    }
 
     public let shortcut: String // Display string like "⌘S"
     public let count: Int
@@ -112,7 +116,9 @@ public struct ShortcutSummary: Identifiable, Sendable {
 
 /// Summary of KeyPath action usage
 public struct ActionSummary: Identifiable, Sendable {
-    public var id: String { "\(action):\(target ?? "")" }
+    public var id: String {
+        "\(action):\(target ?? "")"
+    }
 
     public let action: String
     public let target: String?

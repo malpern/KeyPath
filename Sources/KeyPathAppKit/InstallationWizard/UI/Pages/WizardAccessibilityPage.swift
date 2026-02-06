@@ -44,7 +44,7 @@ struct WizardAccessibilityPage: View {
         }
     }
 
-    // State interpreter for consistent status computation
+    /// State interpreter for consistent status computation
     private let stateInterpreter = WizardStateInterpreter()
 
     var body: some View {
@@ -160,7 +160,8 @@ struct WizardAccessibilityPage: View {
                                     Button("Turn On") {
                                         // Set service bounce flag before showing permission grant
                                         PermissionGrantCoordinator.shared.setServiceBounceNeeded(
-                                            reason: "Accessibility permission fix for KeyPath.app")
+                                            reason: "Accessibility permission fix for KeyPath.app"
+                                        )
                                         openAccessibilityPermissionGrant()
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
@@ -295,7 +296,7 @@ struct WizardAccessibilityPage: View {
         return status
     }
 
-    // Issue filtering for tooltips
+    /// Issue filtering for tooltips
     private var keyPathAccessibilityIssues: [WizardIssue] {
         issues.filter { issue in
             if case let .permission(permissionType) = issue.identifier {
@@ -320,7 +321,8 @@ struct WizardAccessibilityPage: View {
         AppLogger.shared.log("🔐 [WizardAccessibilityPage] Accessibility permission flow starting")
 
         let alreadyGranted = PermissionRequestService.shared.requestAccessibilityPermission(
-            ignoreCooldown: true)
+            ignoreCooldown: true
+        )
         if alreadyGranted {
             Task { await onRefresh() }
             return
@@ -364,7 +366,8 @@ struct WizardAccessibilityPage: View {
                 snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady
             if !granted {
                 AppLogger.shared.info(
-                    "ℹ️ [WizardAccessibilityPage] Opening System Settings (fallback) for Accessibility")
+                    "ℹ️ [WizardAccessibilityPage] Opening System Settings (fallback) for Accessibility"
+                )
                 openAccessibilitySettings()
             }
         }
@@ -372,12 +375,13 @@ struct WizardAccessibilityPage: View {
 
     private func openAccessibilitySettings() {
         AppLogger.shared.log(
-            "🔐 [WizardAccessibilityPage] Opening Accessibility settings manually")
+            "🔐 [WizardAccessibilityPage] Opening Accessibility settings manually"
+        )
 
         // Fallback: Open System Settings > Privacy & Security > Accessibility
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-        {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        ) {
             let ok = NSWorkspace.shared.open(url)
             if ok {
                 WizardWindowManager.shared.markSystemSettingsOpened()

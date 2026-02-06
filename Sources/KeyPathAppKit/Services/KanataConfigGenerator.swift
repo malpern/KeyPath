@@ -50,7 +50,8 @@ public class KanataConfigGenerator {
 
         // Final fallback - use a minimal config guide
         AppLogger.shared.log(
-            "⚠️ [ConfigGenerator] Could not load full config guide, using basic version")
+            "⚠️ [ConfigGenerator] Could not load full config guide, using basic version"
+        )
         return basicConfigGuide
     }
 

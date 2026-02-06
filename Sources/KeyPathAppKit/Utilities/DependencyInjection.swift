@@ -11,7 +11,7 @@ protocol PermissionSnapshotProviding {
 
 extension PermissionOracle: PermissionSnapshotProviding {}
 
-// Adapter to avoid storing actor singletons directly in nonisolated defaults
+/// Adapter to avoid storing actor singletons directly in nonisolated defaults
 private struct PermissionOracleAdapter: PermissionSnapshotProviding, Sendable {
     func currentSnapshot() async -> PermissionOracle.Snapshot {
         await PermissionOracle.shared.currentSnapshot()
@@ -20,7 +20,9 @@ private struct PermissionOracleAdapter: PermissionSnapshotProviding, Sendable {
 
 /// EnvironmentKey for injecting a permission snapshot provider
 @preconcurrency private struct PermissionSnapshotProviderKey: EnvironmentKey {
-    static var defaultValue: PermissionSnapshotProviding { PermissionOracleAdapter() }
+    static var defaultValue: PermissionSnapshotProviding {
+        PermissionOracleAdapter()
+    }
 }
 
 extension EnvironmentValues {
@@ -34,7 +36,9 @@ extension EnvironmentValues {
 
 /// EnvironmentKey for PreferencesService (DI)
 @preconcurrency private struct PreferencesServiceKey: EnvironmentKey {
-    static var defaultValue: PreferencesService { PreferencesService() }
+    static var defaultValue: PreferencesService {
+        PreferencesService()
+    }
 }
 
 extension EnvironmentValues {
@@ -48,7 +52,9 @@ extension EnvironmentValues {
 
 /// EnvironmentKey for PrivilegedOperations (DI)
 @preconcurrency private struct PrivilegedOperationsKey: EnvironmentKey {
-    static var defaultValue: PrivilegedOperations { HelperBackedPrivilegedOperations() }
+    static var defaultValue: PrivilegedOperations {
+        HelperBackedPrivilegedOperations()
+    }
 }
 
 extension EnvironmentValues {

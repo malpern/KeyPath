@@ -149,7 +149,8 @@ final class SystemRequirementsChecker {
                 NSWorkspace.shared.open(url)
             } else {
                 NSWorkspace.shared.open(
-                    URL(fileURLWithPath: KeyPathConstants.System.securityPrefPane))
+                    URL(fileURLWithPath: KeyPathConstants.System.securityPrefPane)
+                )
             }
         }
     }
@@ -275,9 +276,11 @@ final class SystemRequirementsChecker {
             let serviceHealth = status.serviceHealthy
             if serviceHealth == false {
                 lines.append(
-                    "Reason: Daemon running (PID \(status.pids[0])) but launchctl health check failed.")
+                    "Reason: Daemon running (PID \(status.pids[0])) but launchctl health check failed."
+                )
                 lines.append(
-                    "This often indicates a stale service registration, but the driver may still work.")
+                    "This often indicates a stale service registration, but the driver may still work."
+                )
             } else {
                 lines.append("Daemon running (PID \(status.pids[0])) and launchctl reports healthy.")
                 lines.append("If the wizard still shows red, click Fix to resync status.")

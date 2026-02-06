@@ -14,7 +14,7 @@ extension KanataTCPClient {
             case protocolVersion = "protocol"
             case capabilities
             case request_id
-            // Minimal server compatibility
+            /// Minimal server compatibility
             case server
         }
 

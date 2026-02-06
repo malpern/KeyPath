@@ -2,7 +2,7 @@ import KeyPathCore
 import SwiftUI
 
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 // MARK: - Mapping Row View
@@ -146,7 +146,6 @@ struct MappingRowView: View {
         }
     }
 
-    @ViewBuilder
     private func behaviorSummaryView(behavior: MappingBehavior) -> some View {
         HStack(spacing: 6) {
             switch behavior {
@@ -185,7 +184,7 @@ struct MappingRowView: View {
         .foregroundColor(.secondary)
     }
 
-    // Extract tap dance steps (skip index 0 which is single tap = output)
+    /// Extract tap dance steps (skip index 0 which is single tap = output)
     private func extractBehaviorItemsInEditOrder(from td: TapDanceBehavior) -> [(String, String, String)] {
         var behaviorItems: [(String, String, String)] = []
 
@@ -208,7 +207,6 @@ struct MappingRowView: View {
         return behaviorItems
     }
 
-    @ViewBuilder
     private func behaviorItem(icon: String, label: String, key: String) -> some View {
         HStack(spacing: 4) {
             Image(systemName: icon)

@@ -15,7 +15,7 @@ final class OverlayHoldLabelTests: XCTestCase {
         XCTAssertEqual(label, "✦", "Hyper should resolve to star symbol for capslock hold")
     }
 
-    func testSimulatorEmitsCanonicalNameForCaps() throws {
+    func testSimulatorEmitsCanonicalNameForCaps() {
         // The simulator should emit canonical Kanata names (no glyphs)
         // Using the overlay's mapping to confirm we understand the key code -> name mapping.
         let name = OverlayKeyboardView.keyCodeToKanataName(57)

@@ -21,7 +21,7 @@ public final class SimpleModsService: ObservableObject {
     private var applyDebounceTask: Task<Void, Never>?
     private let debounceDelay: TimeInterval = 0.3
 
-    // Apply pipeline dependencies (will be injected)
+    /// Apply pipeline dependencies (will be injected)
     private var kanataManager: RuntimeCoordinator?
 
     public init(configPath: String) {
@@ -153,7 +153,8 @@ public final class SimpleModsService: ObservableObject {
             let validation = await validateConfig(effectiveContent)
             if !validation.isValid {
                 AppLogger.shared.log(
-                    "❌ [SimpleMods] Pre-write validation failed with \(validation.errors.count) error(s):")
+                    "❌ [SimpleMods] Pre-write validation failed with \(validation.errors.count) error(s):"
+                )
                 for (idx, error) in validation.errors.enumerated() {
                     AppLogger.shared.log("   Error \(idx + 1): \(error)")
                 }
@@ -189,7 +190,8 @@ public final class SimpleModsService: ObservableObject {
             // Write block with only installed mappings
             try writer.writeBlock(mappings: installedMappings)
             AppLogger.shared.log(
-                "✅ [SimpleMods] Wrote \(installedMappings.count) mapping(s) to sentinel block")
+                "✅ [SimpleMods] Wrote \(installedMappings.count) mapping(s) to sentinel block"
+            )
 
             // Post-write CLI validation on the actual file to catch any syntax issues immediately
             if let manager = kanataManager {
@@ -291,7 +293,8 @@ public final class SimpleModsService: ObservableObject {
             lastRollbackReason = nil
             lastRollbackDetails = nil
             AppLogger.shared.log(
-                "✅ [SimpleMods] Apply succeeded - \(installedMappings.count) mapping(s) active")
+                "✅ [SimpleMods] Apply succeeded - \(installedMappings.count) mapping(s) active"
+            )
 
         } catch {
             AppLogger.shared.log("❌ [SimpleMods] Apply error: \(error.localizedDescription)")
@@ -326,7 +329,8 @@ public final class SimpleModsService: ObservableObject {
     private func validateConfig(_ content: String) async -> (isValid: Bool, errors: [String]) {
         // Use ConfigurationService validation
         let configService = ConfigurationService(
-            configDirectory: (configPath as NSString).deletingLastPathComponent)
+            configDirectory: (configPath as NSString).deletingLastPathComponent
+        )
         return await configService.validateConfiguration(content)
     }
 

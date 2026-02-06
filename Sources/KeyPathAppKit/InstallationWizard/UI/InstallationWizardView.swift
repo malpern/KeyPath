@@ -8,7 +8,7 @@ struct InstallationWizardView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var kanataViewModel: KanataViewModel
 
-    // Access underlying RuntimeCoordinator for business logic
+    /// Access underlying RuntimeCoordinator for business logic
     var kanataManager: RuntimeCoordinator {
         kanataViewModel.underlyingManager
     }
@@ -28,7 +28,7 @@ struct InstallationWizardView: View {
         }
     }
 
-    // Optional initial page to navigate to
+    /// Optional initial page to navigate to
     var initialPage: WizardPage?
 
     // New architecture components
@@ -61,7 +61,7 @@ struct InstallationWizardView: View {
     @State var statusBannerMessage: String?
     @State var statusBannerTimestamp: Date?
 
-    // Focus management for reliable ESC key handling
+    /// Focus management for reliable ESC key handling
     @FocusState private var hasKeyboardFocus: Bool
 
     var currentFixDescriptionForUI: String? {
@@ -268,5 +268,4 @@ struct InstallationWizardView: View {
             }
         }
     }
-
 }

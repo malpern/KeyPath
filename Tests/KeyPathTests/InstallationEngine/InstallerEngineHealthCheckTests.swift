@@ -1,7 +1,6 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
 @testable import KeyPathWizardCore
+@preconcurrency import XCTest
 
 /// Tests for InstallerEngine health check façade methods
 @MainActor

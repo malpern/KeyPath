@@ -1,9 +1,8 @@
 import AppKit
 import Foundation
+@testable import KeyPathAppKit
 import KeyPathCore
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 final class UtilitiesTests: XCTestCase {
     private var testDefaults: UserDefaults!
@@ -26,7 +25,7 @@ final class UtilitiesTests: XCTestCase {
 
     // MARK: - AppRestarter Tests
 
-    func testAppRestarterSaveWizardState() throws {
+    func testAppRestarterSaveWizardState() {
         let testPage = "TestWizardPage"
         let beforeTime = Date().timeIntervalSince1970
 
@@ -43,7 +42,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertLessThan(savedTime, Date().timeIntervalSince1970 + 1, "Should save current timestamp")
     }
 
-    func testAppRestarterStateManagement() throws {
+    func testAppRestarterStateManagement() {
         // Test multiple state saves
         let pages = ["Page1", "Page2", "Page3"]
 
@@ -60,7 +59,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertEqual(emptyPage, "", "Should handle empty page")
     }
 
-    func testAppRestarterSpecialCharacters() throws {
+    func testAppRestarterSpecialCharacters() {
         // Test pages with special characters
         let specialPages = [
             "Page with spaces",
@@ -79,7 +78,7 @@ final class UtilitiesTests: XCTestCase {
         }
     }
 
-    func testAppRestarterTimestampAccuracy() throws {
+    func testAppRestarterTimestampAccuracy() {
         let beforeSave = Date().timeIntervalSince1970
         AppRestarter.restartForWizard(at: "TimestampTest")
         let afterSave = Date().timeIntervalSince1970
@@ -99,13 +98,13 @@ final class UtilitiesTests: XCTestCase {
         AppRestarter.restartForWizard(at: "SyncTest")
 
         // Create a new UserDefaults instance to verify persistence
-        let newDefaults = testDefaults!
+        let newDefaults = try XCTUnwrap(testDefaults)
         let savedPage = newDefaults.string(forKey: "KeyPath.WizardRestorePoint")
 
         XCTAssertEqual(savedPage, "SyncTest", "State should be synchronized to disk")
     }
 
-    func testAppRestarterBundlePathHandling() throws {
+    func testAppRestarterBundlePathHandling() {
         // Test that Bundle.main.bundlePath is accessible
         let bundlePath = Bundle.main.bundlePath
         XCTAssertFalse(bundlePath.isEmpty, "Bundle path should not be empty")
@@ -121,14 +120,14 @@ final class UtilitiesTests: XCTestCase {
 
     // MARK: - Logger Tests
 
-    func testLoggerSingleton() throws {
+    func testLoggerSingleton() {
         let logger1 = AppLogger.shared
         let logger2 = AppLogger.shared
 
         XCTAssertTrue(logger1 === logger2, "Logger should be a singleton")
     }
 
-    func testLoggerBasicLogging() throws {
+    func testLoggerBasicLogging() {
         let logger = AppLogger.shared
 
         // Test basic logging doesn't crash
@@ -139,7 +138,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertTrue(true, "Basic logging should not crash")
     }
 
-    func testLoggerLongMessages() throws {
+    func testLoggerLongMessages() {
         let logger = AppLogger.shared
 
         // Test very long message
@@ -153,7 +152,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertTrue(true, "Long messages should be handled gracefully")
     }
 
-    func testLoggerEmptyMessages() throws {
+    func testLoggerEmptyMessages() {
         let logger = AppLogger.shared
 
         // Test edge cases
@@ -165,7 +164,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertTrue(true, "Empty or whitespace messages should not crash")
     }
 
-    func testLoggerFlushBuffer() throws {
+    func testLoggerFlushBuffer() {
         let logger = AppLogger.shared
 
         // Log several messages
@@ -179,7 +178,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertTrue(true, "Buffer flush should complete without error")
     }
 
-    func testLoggerClearAllLogs() throws {
+    func testLoggerClearAllLogs() {
         let logger = AppLogger.shared
 
         // Log some messages
@@ -195,7 +194,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertTrue(true, "Clear logs should complete without error")
     }
 
-    func testLoggerLogSize() throws {
+    func testLoggerLogSize() {
         let logger = AppLogger.shared
 
         // Test log size methods
@@ -206,7 +205,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(totalSize, currentSize, "Total size should be >= current size")
     }
 
-    func testLoggerDirectoryCreation() throws {
+    func testLoggerDirectoryCreation() {
         // Test that logger initializes without crashing even if directory creation fails
         // This is handled in the logger's init method
         let logger = AppLogger.shared
@@ -214,7 +213,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertNotNil(logger, "Logger should initialize even with directory issues")
     }
 
-    func testLoggerFileInformation() throws {
+    func testLoggerFileInformation() {
         let logger = AppLogger.shared
 
         // Test logging with file information
@@ -223,7 +222,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertTrue(true, "Logging with file information should work")
     }
 
-    func testLoggerConcurrentAccess() throws {
+    func testLoggerConcurrentAccess() {
         let logger = AppLogger.shared
         let expectation = expectation(description: "Concurrent logging")
         expectation.expectedFulfillmentCount = 10
@@ -240,7 +239,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertTrue(true, "Concurrent logging should be thread-safe")
     }
 
-    func testLoggerRotationBehavior() throws {
+    func testLoggerRotationBehavior() {
         let logger = AppLogger.shared
 
         // We can't easily test actual rotation without creating large files,
@@ -275,7 +274,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertTrue(true, "Error logging should work correctly")
     }
 
-    func testAppRestarterErrorConditions() throws {
+    func testAppRestarterErrorConditions() {
         // Test AppRestarter with edge case inputs
         let extremeCases = [
             String(repeating: "x", count: 1000), // Very long page name
@@ -292,7 +291,7 @@ final class UtilitiesTests: XCTestCase {
         }
     }
 
-    func testLoggerMemoryPressure() throws {
+    func testLoggerMemoryPressure() {
         let logger = AppLogger.shared
 
         // Test logger behavior under memory pressure
@@ -308,7 +307,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertTrue(true, "Logger should handle memory pressure gracefully")
     }
 
-    func testLoggerPathHandling() throws {
+    func testLoggerPathHandling() {
         let logger = AppLogger.shared
 
         // Test that logger handles path issues gracefully
@@ -326,7 +325,7 @@ final class UtilitiesTests: XCTestCase {
 
     // MARK: - Integration Tests
 
-    func testLoggerWithAppRestarter() throws {
+    func testLoggerWithAppRestarter() {
         let logger = AppLogger.shared
 
         // Test logging during app restart preparation
@@ -341,7 +340,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertEqual(savedPage, "IntegrationTest", "Integration should work correctly")
     }
 
-    func testUtilitiesWithSystemStress() throws {
+    func testUtilitiesWithSystemStress() {
         let logger = AppLogger.shared
         let stressTestCount = 100
 
@@ -368,7 +367,7 @@ final class UtilitiesTests: XCTestCase {
 
     // MARK: - Performance Tests
 
-    func testLoggerPerformance() throws {
+    func testLoggerPerformance() {
         let logger = AppLogger.shared
 
         measure {
@@ -378,7 +377,7 @@ final class UtilitiesTests: XCTestCase {
         }
     }
 
-    func testAppRestarterPerformance() throws {
+    func testAppRestarterPerformance() {
         measure {
             for i in 0 ..< 100 {
                 AppRestarter.restartForWizard(at: "PerformanceTest\(i)")
@@ -386,7 +385,7 @@ final class UtilitiesTests: XCTestCase {
         }
     }
 
-    func testLoggerFlushPerformance() throws {
+    func testLoggerFlushPerformance() {
         let logger = AppLogger.shared
 
         // Fill up buffer
@@ -401,7 +400,7 @@ final class UtilitiesTests: XCTestCase {
 
     // MARK: - Cleanup Tests
 
-    func testLoggerCleanupOnDeinit() throws {
+    func testLoggerCleanupOnDeinit() {
         weak var weakLogger: AppLogger?
 
         // Test that logger cleanup works properly
@@ -417,7 +416,7 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertNotNil(weakLogger, "Singleton should remain in memory")
     }
 
-    func testUserDefaultsCleanup() throws {
+    func testUserDefaultsCleanup() {
         // Test cleanup of UserDefaults
         AppRestarter.restartForWizard(at: "CleanupTest")
 

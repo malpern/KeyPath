@@ -216,7 +216,8 @@ struct WizardToastView: View {
             .asymmetric(
                 insertion: .scale(scale: 0.95).combined(with: .opacity),
                 removal: .scale(scale: 0.95).combined(with: .opacity)
-            ))
+            )
+        )
     }
 }
 

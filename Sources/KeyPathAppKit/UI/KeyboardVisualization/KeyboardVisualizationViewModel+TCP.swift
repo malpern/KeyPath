@@ -606,5 +606,4 @@ extension KeyboardVisualizationViewModel {
             )
         }
     }
-
 }

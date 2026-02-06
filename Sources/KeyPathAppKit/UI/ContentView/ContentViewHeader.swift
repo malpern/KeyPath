@@ -14,7 +14,8 @@ struct ContentViewHeader: View {
                 Button(
                     action: {
                         AppLogger.shared.log(
-                            "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
+                            "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard"
+                        )
                         showingInstallationWizard = true
                     },
                     label: {

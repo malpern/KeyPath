@@ -63,7 +63,6 @@ struct WizardStopKanataPage: View {
 
     // MARK: - Content View
 
-    @ViewBuilder
     private var contentView: some View {
         VStack(spacing: WizardDesign.Spacing.sectionGap) {
             // Explanation

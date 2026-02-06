@@ -1,7 +1,6 @@
 import Foundation
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 /// Mock system environment for autonomous testing
 class MockSystemEnvironment {
@@ -225,7 +224,7 @@ class MockEnvironmentKanataManager: ObservableObject {
         self.mockEnvironment = mockEnvironment
     }
 
-    // Mock system-dependent methods
+    /// Mock system-dependent methods
     func isInstalled() -> Bool {
         mockEnvironment.fileExists(atPath: "/usr/local/bin/kanata-cmd")
     }
@@ -236,7 +235,8 @@ class MockEnvironmentKanataManager: ObservableObject {
 
     func isKarabinerDriverInstalled() -> Bool {
         mockEnvironment.fileExists(
-            atPath: "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice")
+            atPath: "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice"
+        )
     }
 
     func isCompletelyInstalled() -> Bool {
@@ -259,7 +259,7 @@ class MockEnvironmentKanataManager: ObservableObject {
         }
     }
 
-    // Mock async operations for testing
+    /// Mock async operations for testing
     func startKanata() async {
         guard isCompletelyInstalled() else {
             await MainActor.run {

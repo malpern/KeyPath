@@ -63,12 +63,14 @@ actor ReloadSafetyMonitor {
             if timeSinceCrash < crashLoopBackoffSeconds {
                 let remaining = crashLoopBackoffSeconds - timeSinceCrash
                 AppLogger.shared.warn(
-                    "⛔️ [ReloadSafety] In crash loop backoff - \(Int(remaining))s remaining")
+                    "⛔️ [ReloadSafety] In crash loop backoff - \(Int(remaining))s remaining"
+                )
                 return .unsafe(reason: "Crash loop detected - backing off for \(Int(remaining))s")
             } else {
                 // Backoff expired - clear crash loop state
                 AppLogger.shared.log(
-                    "✅ [ReloadSafety] Crash loop backoff expired - resuming normal operation")
+                    "✅ [ReloadSafety] Crash loop backoff expired - resuming normal operation"
+                )
                 crashLoopDetectedAt = nil
             }
         }

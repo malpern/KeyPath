@@ -1,6 +1,5 @@
-import XCTest
-
 @testable import KeyPathAppKit
+import XCTest
 
 final class JapaneseInputModeTests: XCTestCase {
     // MARK: - Mode Detection from Input Source ID

@@ -1,8 +1,7 @@
 import Foundation
+@testable import KeyPathAppKit
 import KeyPathCore
 import XCTest
-
-@testable import KeyPathAppKit
 
 final class QMKImportServiceTests: XCTestCase {
     var service: QMKImportService!
@@ -140,7 +139,7 @@ final class QMKImportServiceTests: XCTestCase {
         }
     }
 
-    func testGetAvailableVariants() async throws {
+    func testGetAvailableVariants() throws {
         let variants = try service.getAvailableVariants(from: sampleQMKJSON)
         XCTAssertEqual(variants.sorted(), ["ansi", "default_transform"])
     }

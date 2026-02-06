@@ -96,7 +96,8 @@ extension InstallationWizardView {
         asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
             let wizardDuration = Date().timeIntervalSince(preflightStart)
             AppLogger.shared.log(
-                "⏱️ [TIMING] Wizard validation COMPLETE: \(String(format: "%.3f", wizardDuration))s")
+                "⏱️ [TIMING] Wizard validation COMPLETE: \(String(format: "%.3f", wizardDuration))s"
+            )
 
             // Freshness guard: drop stale results and retry once
             if !isFresh(result) {
@@ -107,7 +108,8 @@ extension InstallationWizardView {
                     Task { await performInitialStateCheck(retryAllowed: false) }
                 } else {
                     AppLogger.shared.log(
-                        "⚠️ [Wizard] Stale result retry already attempted; keeping existing state.")
+                        "⚠️ [Wizard] Stale result retry already attempted; keeping existing state."
+                    )
                 }
                 return
             }
@@ -133,7 +135,8 @@ extension InstallationWizardView {
                 "🔍 [Wizard] Initial setup - State: \(result.state), Issues: \(filteredIssues.count), Target Page: \(stateMachine.currentPage)"
             )
             AppLogger.shared.log(
-                "🔍 [Wizard] Issue details: \(filteredIssues.map { "\($0.category)-\($0.title)" })")
+                "🔍 [Wizard] Issue details: \(filteredIssues.map { "\($0.category)-\($0.title)" })"
+            )
 
             Task { @MainActor in
                 if shouldNavigateToSummary(
@@ -224,7 +227,8 @@ extension InstallationWizardView {
                         Task { await performSmartStateCheck(retryAllowed: false) }
                     } else {
                         AppLogger.shared.log(
-                            "⚠️ [Wizard] Stale smart-state retry already attempted; leaving state unchanged.")
+                            "⚠️ [Wizard] Stale smart-state retry already attempted; leaving state unchanged."
+                        )
                     }
                     return
                 }
@@ -247,7 +251,8 @@ extension InstallationWizardView {
                         issues: filteredIssues
                     ) {
                         AppLogger.shared.log(
-                            "🟢 [Wizard] Healthy system detected during monitor; routing to summary")
+                            "🟢 [Wizard] Healthy system detected during monitor; routing to summary"
+                        )
                         stateMachine.navigateToPage(.summary)
                     }
                 }
@@ -268,5 +273,4 @@ extension InstallationWizardView {
             break
         }
     }
-
 }

@@ -526,7 +526,7 @@ public struct LauncherGridConfig: Codable, Equatable, Sendable {
         LauncherGridConfig(activationMode: .holdHyper, hyperTriggerMode: .hold, mappings: defaultMappings, hasSeenWelcome: false)
     }
 
-    // Custom decoding to handle missing hyperTriggerMode in existing configs
+    /// Custom decoding to handle missing hyperTriggerMode in existing configs
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         activationMode = try container.decode(LauncherActivationMode.self, forKey: .activationMode)

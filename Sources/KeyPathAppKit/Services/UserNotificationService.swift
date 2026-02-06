@@ -14,10 +14,10 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
     private let authorizationRequestedKey = "KeyPath.NotificationAuthorizationRequested"
     private let lastSentKey = "KeyPath.Notifications.LastSent"
 
-    // Simple in-memory cache to avoid repeated UserDefaults lookups in-session
+    /// Simple in-memory cache to avoid repeated UserDefaults lookups in-session
     private var lastSentCache: [String: Date] = [:]
 
-    // Category identifiers
+    /// Category identifiers
     enum Category: String {
         case serviceFailure = "KP_SERVICE_FAILURE"
         case recovery = "KP_RECOVERY"
@@ -25,7 +25,7 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         case info = "KP_INFO"
     }
 
-    // Action identifiers
+    /// Action identifiers
     enum Action: String {
         case openWizard = "KP_ACTION_OPEN_WIZARD"
         case retryStart = "KP_ACTION_RETRY_START"
@@ -42,7 +42,8 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
             center = nil
             super.init()
             AppLogger.shared.debug(
-                "🧪 [UserNotificationService] Initialized in test mode - notifications disabled")
+                "🧪 [UserNotificationService] Initialized in test mode - notifications disabled"
+            )
             return
         }
 

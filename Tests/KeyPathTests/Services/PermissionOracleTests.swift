@@ -1,8 +1,7 @@
 import Foundation
-import Testing
-
 @testable import KeyPathAppKit
 @testable import KeyPathPermissions
+import Testing
 
 /// Comprehensive tests for PermissionOracle - the single source of truth for permissions
 @Suite("Permission Oracle Tests")

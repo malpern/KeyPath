@@ -2,7 +2,7 @@ import Foundation
 @preconcurrency import XCTest
 
 final class FacadeLintTests: XCTestCase {
-    func testAppKitSourcesDoNotBypassInstallerEngine() throws {
+    func testAppKitSourcesDoNotBypassInstallerEngine() {
         let root = repositoryRoot()
         let appKitRoot = root.appendingPathComponent("Sources/KeyPathAppKit")
         // Allow coordinator and engine internals to reference the coordinator
@@ -21,7 +21,7 @@ final class FacadeLintTests: XCTestCase {
         }
     }
 
-    func testDirectAXChecksAreLimitedToAllowlist() throws {
+    func testDirectAXChecksAreLimitedToAllowlist() {
         let root = repositoryRoot()
         let sourcesDir = root.appendingPathComponent("Sources/KeyPathAppKit")
         let allow = [

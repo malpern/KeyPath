@@ -10,7 +10,7 @@ struct WizardSystemStatusOverview: View {
     let issues: [WizardIssue]
     let stateInterpreter: WizardStateInterpreter
     let onNavigateToPage: ((WizardPage) -> Void)?
-    // Authoritative signal for service status - ensures consistency with detail page
+    /// Authoritative signal for service status - ensures consistency with detail page
     let kanataIsRunning: Bool
     /// When false, show only items that need attention (failed). When true, show all.
     let showAllItems: Bool
@@ -23,7 +23,7 @@ struct WizardSystemStatusOverview: View {
     @State private var contentHeight: CGFloat = 0
     @State private var containerHeight: CGFloat = 0
     @State private var duplicateCopies: [String] = []
-    // Cache heavy probes so SwiftUI re-renders don’t hammer the filesystem/network
+    /// Cache heavy probes so SwiftUI re-renders don’t hammer the filesystem/network
     private static var cache = ProbeCache()
 
     var body: some View {
@@ -220,7 +220,7 @@ struct WizardSystemStatusOverview: View {
 
     // MARK: - Status Items Creation
 
-    // Internal for tests: accessed via @testable without adding a dedicated test-only accessor.
+    /// Internal for tests: accessed via @testable without adding a dedicated test-only accessor.
     var statusItems: [StatusItemModel] {
         var items: [StatusItemModel] = []
 
@@ -251,7 +251,8 @@ struct WizardSystemStatusOverview: View {
                 isNavigable: true,
                 targetPage: .helper,
                 relatedIssues: helperIssues
-            ))
+            )
+        )
 
         // 2. Enhanced Diagnostics (FDA - Optional but recommended)
         let fullDiskAccessStatus: InstallationStatus = {
@@ -269,7 +270,8 @@ struct WizardSystemStatusOverview: View {
                 status: fullDiskAccessStatus,
                 isNavigable: true,
                 targetPage: .fullDiskAccess
-            ))
+            )
+        )
 
         // 3. System Conflicts
         let conflictIssues = issues.filter { $0.category == .conflicts }
@@ -288,7 +290,8 @@ struct WizardSystemStatusOverview: View {
                 isNavigable: true,
                 targetPage: .conflicts,
                 relatedIssues: conflictIssues
-            ))
+            )
+        )
 
         // 4. Input Monitoring Permission
         let inputMonitoringStatus = getInputMonitoringStatus(hasFDA: hasFDA)
@@ -311,7 +314,8 @@ struct WizardSystemStatusOverview: View {
                 isNavigable: true,
                 targetPage: .inputMonitoring,
                 relatedIssues: inputMonitoringIssues
-            ))
+            )
+        )
 
         // 6. Accessibility Permission
         let accessibilityStatus = getAccessibilityStatus(hasFDA: hasFDA)
@@ -333,7 +337,8 @@ struct WizardSystemStatusOverview: View {
                 isNavigable: true,
                 targetPage: .accessibility,
                 relatedIssues: accessibilityIssues
-            ))
+            )
+        )
 
         // 6. Karabiner Driver Setup (led first in list for clear dependency order)
         let karabinerStatus = getKarabinerComponentsStatus()
@@ -350,7 +355,8 @@ struct WizardSystemStatusOverview: View {
                 isNavigable: true,
                 targetPage: .karabinerComponents,
                 relatedIssues: karabinerIssues
-            ))
+            )
+        )
 
         // 7. Kanata Service (depends on helper + driver)
         let serviceStatus = getServiceStatus()
@@ -368,7 +374,8 @@ struct WizardSystemStatusOverview: View {
                 isNavigable: true,
                 targetPage: serviceNavigation.page,
                 relatedIssues: serviceIssues
-            ))
+            )
+        )
 
         // Check dependency requirements for remaining items
         let prerequisitesMet = shouldShowDependentItems()
@@ -392,7 +399,8 @@ struct WizardSystemStatusOverview: View {
                     isNavigable: true,
                     targetPage: .kanataComponents,
                     relatedIssues: kanataComponentsIssues
-                ))
+                )
+            )
         }
 
         // 9. Communication Server (hidden if dependencies not met)
@@ -409,7 +417,8 @@ struct WizardSystemStatusOverview: View {
                     status: commServerStatus,
                     isNavigable: true,
                     targetPage: .communication
-                ))
+                )
+            )
         }
 
         return items
@@ -436,7 +445,8 @@ struct WizardSystemStatusOverview: View {
         // Don't count unverified items as issues - we can't verify them anyway
         visibleIssueCount = displayItems.filter { $0.status != .completed && $0.status != .unverified }.count
         AppLogger.shared.log(
-            "🔍 [NavSeq] ✅ navSequence updated: \(ordered.count) pages: \(ordered.map(\.displayName))")
+            "🔍 [NavSeq] ✅ navSequence updated: \(ordered.count) pages: \(ordered.map(\.displayName))"
+        )
     }
 
     // MARK: - Dependency Logic
@@ -582,7 +592,8 @@ struct WizardSystemStatusOverview: View {
         AppLogger.shared.log(
             granted
                 ? "🔐 [WizardSystemStatusOverview] FDA granted (cached)"
-                : "🔐 [WizardSystemStatusOverview] FDA not granted (cached)")
+                : "🔐 [WizardSystemStatusOverview] FDA not granted (cached)"
+        )
         return granted
     }
 

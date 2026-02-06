@@ -181,7 +181,8 @@ extension InstallationWizardView {
             // Notify StartupValidator to refresh main screen status
             NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
             AppLogger.shared.log(
-                "🔄 [Wizard] Triggered StartupValidator refresh after successful auto-fix")
+                "🔄 [Wizard] Triggered StartupValidator refresh after successful auto-fix"
+            )
 
             // Schedule a follow-up health check; if still red, show a diagnostic error toast
             Task {
@@ -217,7 +218,8 @@ extension InstallationWizardView {
                     } else if !suppressToast {
                         let detail = await kanataManager.getVirtualHIDBreakageSummary()
                         AppLogger.shared.log(
-                            "❌ [Wizard] Post-fix health check failed; will show diagnostic toast")
+                            "❌ [Wizard] Post-fix health check failed; will show diagnostic toast"
+                        )
                         await MainActor.run {
                             if smStatePost == .smappservicePending {
                                 toastManager.showError(
@@ -250,5 +252,4 @@ extension InstallationWizardView {
         AppLogger.shared.log("🔍 [ActionDescription] Returning description: \(description)")
         return description
     }
-
 }

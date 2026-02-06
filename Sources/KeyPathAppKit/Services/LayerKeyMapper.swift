@@ -296,5 +296,4 @@ actor LayerKeyMapper {
 
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Pre-build complete: \(cache.count) layers cached")
     }
-
 }

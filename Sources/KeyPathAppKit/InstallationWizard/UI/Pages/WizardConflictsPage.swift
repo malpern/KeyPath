@@ -15,7 +15,7 @@ struct WizardConflictsPage: View {
     @EnvironmentObject var stateMachine: WizardStateMachine
     @State private var isDisablingPermanently = false
 
-    // Check if there are Karabiner-related conflicts
+    /// Check if there are Karabiner-related conflicts
     private var hasKarabinerConflict: Bool {
         issues.contains { issue in
             issue.description.lowercased().contains("karabiner")
@@ -348,7 +348,7 @@ struct TechnicalDetailsView: View {
         return details
     }
 
-    // Helper function to parse process information
+    /// Helper function to parse process information
     private func parseProcessInfo(_ text: String) -> (name: String, description: String, pid: String) {
         // Extract PID using regex - handle both formats: "PID: 123" and "(PID: 123)"
         let pidPattern = #"PID: (\d+)"#

@@ -88,7 +88,7 @@ final class RuleCollectionConfigurationSequencesTests: XCTestCase {
         }
         """
 
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let config = try JSONDecoder().decode(RuleCollectionConfiguration.self, from: data)
 
         XCTAssertEqual(config.displayStyle, .table, "Should decode legacy config")

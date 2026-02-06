@@ -121,38 +121,38 @@ struct ContentView: View {
             onOpenSystemStatus: { openSystemStatusSettings() },
             onShowMessage: { message in showStatusMessage(message: message) }
         )
-            .padding(.horizontal)
-            .padding(.top, 0)
-            .padding(.bottom, 0)
-            .frame(width: 500, alignment: .top)
-            .onAppear {
-                if FeatureFlags.allowOptionalWizard {
-                    Task { @MainActor in
-                        let snapshot = await PermissionOracle.shared.currentSnapshot()
-                        showSetupBanner = !snapshot.keyPath.hasAllPermissions
-                        AppLogger.shared.log("🔄 [ContentView] Initial setup banner: keyPath.hasAllPermissions=\(snapshot.keyPath.hasAllPermissions), showBanner=\(showSetupBanner)")
-                    }
+        .padding(.horizontal)
+        .padding(.top, 0)
+        .padding(.bottom, 0)
+        .frame(width: 500, alignment: .top)
+        .onAppear {
+            if FeatureFlags.allowOptionalWizard {
+                Task { @MainActor in
+                    let snapshot = await PermissionOracle.shared.currentSnapshot()
+                    showSetupBanner = !snapshot.keyPath.hasAllPermissions
+                    AppLogger.shared.log("🔄 [ContentView] Initial setup banner: keyPath.hasAllPermissions=\(snapshot.keyPath.hasAllPermissions), showBanner=\(showSetupBanner)")
                 }
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                // Status message toast
-                Group {
-                    if showStatusMessage {
-                        StatusMessageView(
-                            message: statusMessage,
-                            isVisible: true
-                        )
-                        .padding(.horizontal)
-                        .padding(.bottom, 12)
-                        .transition(.opacity)
-                    } else {
-                        Color.clear
-                            .frame(height: 0)
-                    }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            // Status message toast
+            Group {
+                if showStatusMessage {
+                    StatusMessageView(
+                        message: statusMessage,
+                        isVisible: true
+                    )
+                    .padding(.horizontal)
+                    .padding(.bottom, 12)
+                    .transition(.opacity)
+                } else {
+                    Color.clear
+                        .frame(height: 0)
                 }
-                .frame(height: showStatusMessage ? 80 : 0)
-                .animation(.easeInOut(duration: 0.25), value: showStatusMessage)
             }
+            .frame(height: showStatusMessage ? 80 : 0)
+            .animation(.easeInOut(duration: 0.25), value: showStatusMessage)
+        }
     }
 
     private var contentWithSheets: some View {
@@ -236,7 +236,8 @@ struct ContentView: View {
                 // we'll skip inside the observer.
                 if isReturningFromPermissionGrant {
                     AppLogger.shared.log(
-                        "🔧 [ContentView] Skipping auto-launch - returning from permission granting")
+                        "🔧 [ContentView] Skipping auto-launch - returning from permission granting"
+                    )
                     WizardLogger.shared.log("SKIPPING auto-launch (would reset wizard flag)")
                 }
 

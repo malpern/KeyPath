@@ -2,7 +2,7 @@ import KeyPathCore
 import SwiftUI
 
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 // MARK: - Mapping Table Content
@@ -22,7 +22,7 @@ struct MappingTableContent: View {
         mappings.contains { $0.description != nil }
     }
 
-    // Calculate column widths based on content
+    /// Calculate column widths based on content
     private var keyColumnWidth: CGFloat {
         let maxInput = mappings.map { prettyKeyName($0.input) }.max(by: { $0.count < $1.count }) ?? ""
         return max(60, CGFloat(maxInput.count) * 10 + 20)
@@ -96,20 +96,17 @@ struct MappingTableContent: View {
         )
     }
 
-    @ViewBuilder
     private func headerCell(_ text: String, color: Color = .secondary) -> some View {
         Text(text)
             .font(.subheadline.weight(.semibold))
             .foregroundColor(color)
     }
 
-    @ViewBuilder
     private func keyCell(_ text: String) -> some View {
         StandardKeyBadge(key: formatKeyForDisplay(text), color: .blue)
             .fixedSize(horizontal: true, vertical: false)
     }
 
-    @ViewBuilder
     private func descriptionCell(_ text: String?) -> some View {
         Text(text ?? "")
             .font(.body)
@@ -117,7 +114,6 @@ struct MappingTableContent: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    @ViewBuilder
     private func actionCell(_ text: String) -> some View {
         Text(text)
             .font(.body.monospaced())

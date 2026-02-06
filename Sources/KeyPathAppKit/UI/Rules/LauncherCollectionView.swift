@@ -17,7 +17,7 @@ struct LauncherCollectionView: View {
     @State private var showAddMapping = false
     @State private var preselectedKey: String?
 
-    // Local state for immediate UI response
+    /// Local state for immediate UI response
     @State private var localHyperTriggerMode: HyperTriggerMode = .hold
 
     private var existingDomains: Set<String> {
@@ -362,9 +362,9 @@ private struct LauncherMappingEditor: View {
                     get: { displayKey },
                     set: { updateKey(from: $0) }
                 ))
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 60)
-                    .accessibilityIdentifier("launcher-editor-key-field")
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 60)
+                .accessibilityIdentifier("launcher-editor-key-field")
 
                 // Target type
                 Picker("Type", selection: $targetType) {

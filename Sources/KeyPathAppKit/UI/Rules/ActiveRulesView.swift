@@ -200,7 +200,6 @@ private extension RuleCollectionRow {
         }
     }
 
-    @ViewBuilder
     private var defaultMappingsList: some View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(collection.mappings.prefix(8)) { mapping in
@@ -314,7 +313,6 @@ private struct MappingTableView: View {
         )
     }
 
-    @ViewBuilder
     private func headerCell(_ text: String, width: CGFloat, alignment: Alignment = .center, color: Color = .secondary) -> some View {
         Text(text)
             .font(.caption.weight(.semibold))
@@ -322,7 +320,6 @@ private struct MappingTableView: View {
             .frame(width: width, alignment: alignment)
     }
 
-    @ViewBuilder
     private func keyCell(_ text: String, width: CGFloat) -> some View {
         Text(text)
             .font(.callout.monospaced().weight(.medium))
@@ -330,7 +327,6 @@ private struct MappingTableView: View {
             .frame(width: width, alignment: .center)
     }
 
-    @ViewBuilder
     private func actionCell(_ text: String, width: CGFloat) -> some View {
         Text(text)
             .font(.callout.monospaced())

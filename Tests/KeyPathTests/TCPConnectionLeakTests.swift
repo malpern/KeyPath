@@ -1,7 +1,6 @@
+@testable import KeyPathAppKit
 import Network
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 /// Tests for TCP connection leak prevention
 /// Verifies that file descriptors are properly cleaned up when connections close

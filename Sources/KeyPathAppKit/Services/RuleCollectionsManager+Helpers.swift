@@ -3,13 +3,12 @@ import KeyPathCore
 import KeyPathPermissions
 
 extension RuleCollectionsManager {
-// MARK: - Private Helpers
+    // MARK: - Private Helpers
 
-func ensureDefaultCollectionsIfNeeded() {
-    if ruleCollections.isEmpty {
-        ruleCollections = RuleCollectionCatalog().defaultCollections()
+    func ensureDefaultCollectionsIfNeeded() {
+        if ruleCollections.isEmpty {
+            ruleCollections = RuleCollectionCatalog().defaultCollections()
+        }
+        refreshLayerIndicatorState()
     }
-    refreshLayerIndicatorState()
-}
-
 }

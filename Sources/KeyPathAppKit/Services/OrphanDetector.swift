@@ -76,7 +76,8 @@ final class OrphanDetector {
         }
 
         AppLogger.shared.log(
-            "🧹 [OrphanDetector] Detected orphaned installation (leftover files from manual deletion)")
+            "🧹 [OrphanDetector] Detected orphaned installation (leftover files from manual deletion)"
+        )
         if hasOrphanedFiles {
             AppLogger.shared.log("🧹 [OrphanDetector]   - User data files: YES")
         }

@@ -18,6 +18,7 @@ struct LauncherMappingRowView: View {
     private var keyTranslator: LauncherKeymapTranslator {
         LauncherKeymapTranslator(keymapId: selectedKeymapId, includePunctuationStore: includePunctuationStore)
     }
+
     private var displayKey: String {
         keyTranslator.displayLabel(for: mapping.key)
     }

@@ -416,7 +416,6 @@ struct AdvancedSettingsTabView: View {
 
     // MARK: - Sections
 
-    @ViewBuilder
     private var duplicateAppsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
@@ -536,7 +535,8 @@ struct AdvancedSettingsTabView: View {
             duplicateAppCopies = refreshed
             if removed > 0 {
                 settingsToastManager.showSuccess(
-                    "Removed \(removed) extra copy\(removed == 1 ? "" : "ies")")
+                    "Removed \(removed) extra copy\(removed == 1 ? "" : "ies")"
+                )
             } else {
                 settingsToastManager.showInfo("No extra copies removed")
             }
@@ -552,7 +552,8 @@ struct AdvancedSettingsTabView: View {
                 settingsToastManager.showInfo("Reset everything complete")
             } else {
                 settingsToastManager.showError(
-                    report.failureReason ?? "Reset everything failed")
+                    report.failureReason ?? "Reset everything failed"
+                )
             }
         }
     }

@@ -72,7 +72,8 @@ final class HelperMaintenance: ObservableObject {
 
             // Step 4: Remove residual files (legacy paths) – AppleScript fallback optional
             let cleanupResult = await removeLegacyHelperArtifacts(
-                useAppleScriptFallback: useAppleScriptFallback)
+                useAppleScriptFallback: useAppleScriptFallback
+            )
             switch cleanupResult {
             case .removed:
                 break

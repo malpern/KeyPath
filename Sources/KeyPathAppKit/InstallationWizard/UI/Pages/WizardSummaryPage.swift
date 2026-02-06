@@ -16,7 +16,7 @@ struct WizardSummaryPage: View {
     @Binding var showAllItems: Bool // Lifted to parent to drive navigation sequence
     @Binding var navSequence: [WizardPage] // Ordered pages for back/next navigation
 
-    // Access underlying RuntimeCoordinator for business logic
+    /// Access underlying RuntimeCoordinator for business logic
     private var kanataManager: RuntimeCoordinator {
         kanataViewModel.underlyingManager
     }
@@ -272,7 +272,7 @@ struct WizardSummaryPage: View {
         }
     }
 
-    // Adjust icon top padding: bring the issues icon 30% closer to the top
+    /// Adjust icon top padding: bring the issues icon 30% closer to the top
     private var iconTopPadding: CGFloat {
         switch headerMode {
         case .issues:
@@ -282,13 +282,15 @@ struct WizardSummaryPage: View {
         }
     }
 
-    // Max height for list region before internal scrolling kicks in
+    /// Max height for list region before internal scrolling kicks in
     private var listMaxHeight: CGFloat {
         460
     }
 
-    // Small optical alignment to normalize SF Symbol vertical metrics
-    private var iconVerticalTweak: CGFloat { 2.0 }
+    /// Small optical alignment to normalize SF Symbol vertical metrics
+    private var iconVerticalTweak: CGFloat {
+        2.0
+    }
 
     // MARK: - Issue Counting (summary indicator)
 

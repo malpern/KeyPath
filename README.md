@@ -460,7 +460,7 @@ KeyPath stands on the shoulders of giants:
 ---
 
 <div align="center">
-  <strong>Made with ❤️ for the macOS community</strong>
+  <strong>Made by Micah Alpern for the macOS and mechanical keyboard communities.</strong>
   
   <p>If KeyPath helps you, consider ⭐ starring the repo!</p>
   

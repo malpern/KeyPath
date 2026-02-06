@@ -1,13 +1,12 @@
 import Foundation
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
 @testable import KeyPathPermissions
 @testable import KeyPathWizardCore
+@preconcurrency import XCTest
 
 @MainActor
 final class WizardStateMachineDeterminismTests: XCTestCase {
-    // Helper builders for concise snapshots
+    /// Helper builders for concise snapshots
     private func makePermissions(
         keyPathAX: PermissionOracle.Status,
         keyPathIM: PermissionOracle.Status,

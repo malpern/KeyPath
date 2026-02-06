@@ -31,7 +31,9 @@ public struct AppConditionInfo: Equatable, Identifiable, Sendable {
     public let displayName: String
     public let icon: NSImage
 
-    public var id: String { bundleIdentifier }
+    public var id: String {
+        bundleIdentifier
+    }
 
     public init(bundleIdentifier: String, displayName: String, icon: NSImage) {
         self.bundleIdentifier = bundleIdentifier

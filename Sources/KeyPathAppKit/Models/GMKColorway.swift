@@ -9,7 +9,9 @@ enum LegendStyle: String, Codable, CaseIterable, Identifiable, Equatable {
     case iconMods // Symbols on modifiers (⇧ instead of "shift")
     case blank // No legends at all
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var displayName: String {
         switch self {
@@ -105,7 +107,7 @@ struct GMKColorway: Identifiable, Codable, Equatable {
     let accentBase: String // Accent key background (if any)
     let accentLegend: String // Accent key legend
 
-    // Attribution
+    /// Attribution
     let sourceURL: String?
 
     // Legend style configuration
@@ -115,12 +117,29 @@ struct GMKColorway: Identifiable, Codable, Equatable {
 
     // MARK: - SwiftUI Colors
 
-    var alphaBaseColor: Color { Color(hex: alphaBase) }
-    var alphaLegendColor: Color { Color(hex: alphaLegend) }
-    var modBaseColor: Color { Color(hex: modBase) }
-    var modLegendColor: Color { Color(hex: modLegend) }
-    var accentBaseColor: Color { Color(hex: accentBase) }
-    var accentLegendColor: Color { Color(hex: accentLegend) }
+    var alphaBaseColor: Color {
+        Color(hex: alphaBase)
+    }
+
+    var alphaLegendColor: Color {
+        Color(hex: alphaLegend)
+    }
+
+    var modBaseColor: Color {
+        Color(hex: modBase)
+    }
+
+    var modLegendColor: Color {
+        Color(hex: modLegend)
+    }
+
+    var accentBaseColor: Color {
+        Color(hex: accentBase)
+    }
+
+    var accentLegendColor: Color {
+        Color(hex: accentLegend)
+    }
 
     /// Preview colors for swatch display (4 colors: alpha, mod, accent, legend)
     var swatchColors: [Color] {

@@ -4,7 +4,6 @@ import SwiftUI
 extension OverlayInspectorPanel {
     // MARK: - Keymaps Content
 
-    @ViewBuilder
     var keymapsContent: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Alt layouts section (QWERTY + ergonomic layouts) - no header

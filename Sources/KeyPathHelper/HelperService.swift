@@ -81,7 +81,8 @@ class HelperService: NSObject, HelperProtocol {
                 let bs = Self.run("/bin/launchctl", ["bootstrap", "system", dest])
                 if bs.status != 0 {
                     throw HelperError.operationFailed(
-                        "launchctl bootstrap failed (status=\(bs.status)): \(bs.out)")
+                        "launchctl bootstrap failed (status=\(bs.status)): \(bs.out)"
+                    )
                 }
                 _ = Self.run("/bin/launchctl", ["enable", "system/\(serviceID)"])
                 _ = Self.run("/bin/launchctl", ["kickstart", "-k", "system/\(serviceID)"])
@@ -169,7 +170,8 @@ class HelperService: NSObject, HelperProtocol {
                 let bs = Self.run("/bin/launchctl", ["bootstrap", "system", plistPath])
                 if bs.status != 0 {
                     throw HelperError.operationFailed(
-                        "bootstrap logrotate failed (status=\(bs.status)): \(bs.out)")
+                        "bootstrap logrotate failed (status=\(bs.status)): \(bs.out)"
+                    )
                 }
             },
             reply: reply
@@ -205,9 +207,11 @@ class HelperService: NSObject, HelperProtocol {
                 let dstDir = "/Library/LaunchDaemons"
                 _ = Self.run("/bin/mkdir", ["-p", dstDir])
                 let dVhidD = (dstDir as NSString).appendingPathComponent(
-                    "\(Self.vhidDaemonServiceID).plist")
+                    "\(Self.vhidDaemonServiceID).plist"
+                )
                 let dVhidM = (dstDir as NSString).appendingPathComponent(
-                    "\(Self.vhidManagerServiceID).plist")
+                    "\(Self.vhidManagerServiceID).plist"
+                )
 
                 for (src, dst) in [(tVhidD, dVhidD), (tVhidM, dVhidM)] {
                     _ = Self.run("/bin/rm", ["-f", dst])
@@ -340,7 +344,7 @@ class HelperService: NSObject, HelperProtocol {
         )
     }
 
-    // Shared implementation for installing/repairing VHID services
+    /// Shared implementation for installing/repairing VHID services
     private static func installOrRepairVHIDServices() throws {
         try ensureConsoleUserConfigArtifacts()
 
@@ -396,7 +400,8 @@ class HelperService: NSObject, HelperProtocol {
                 let result = kill(pid, SIGTERM)
                 if result != 0 {
                     throw HelperError.operationFailed(
-                        "Failed to terminate process \(pid): \(String(cString: strerror(errno)))")
+                        "Failed to terminate process \(pid): \(String(cString: strerror(errno)))"
+                    )
                 }
                 NSLog("[KeyPathHelper] Successfully terminated process \(pid)")
             },
@@ -490,7 +495,8 @@ class HelperService: NSObject, HelperProtocol {
             operation: {
                 let appBundle = Self.appBundlePathFromHelper()
                 let bundledKanata = (appBundle as NSString).appendingPathComponent(
-                    "Contents/Library/KeyPath/kanata")
+                    "Contents/Library/KeyPath/kanata"
+                )
 
                 guard FileManager.default.fileExists(atPath: bundledKanata) else {
                     throw HelperError.invalidArgument("Bundled kanata not found at: \(bundledKanata)")
@@ -742,12 +748,14 @@ class HelperService: NSObject, HelperProtocol {
         } catch let error as HelperError {
             NSLog("[KeyPathHelper] ❌ \(name) failed: \(error.localizedDescription)")
             logger.error(
-                "\(name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+                "\(name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)"
+            )
             reply(false, error.localizedDescription)
         } catch {
             NSLog("[KeyPathHelper] ❌ \(name) failed: \(error.localizedDescription)")
             logger.error(
-                "\(name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+                "\(name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)"
+            )
             reply(false, error.localizedDescription)
         }
     }
@@ -782,9 +790,11 @@ extension HelperService {
         let fm = FileManager.default
         if fm.fileExists(atPath: dst) {
             let srcHash = run("/sbin/md5", ["-q", src]).out.trimmingCharacters(
-                in: .whitespacesAndNewlines)
+                in: .whitespacesAndNewlines
+            )
             let dstHash = run("/sbin/md5", ["-q", dst]).out.trimmingCharacters(
-                in: .whitespacesAndNewlines)
+                in: .whitespacesAndNewlines
+            )
             if !srcHash.isEmpty, srcHash == dstHash {
                 NSLog("[KeyPathHelper] Skipping copy; kanata unchanged (")
                 return false
@@ -812,7 +822,7 @@ extension HelperService {
         return (p.terminationStatus, s)
     }
 
-    // Basic service inspection helpers (minimal parsing of `launchctl print`)
+    /// Basic service inspection helpers (minimal parsing of `launchctl print`)
     static func isServiceLoaded(_ serviceID: String) -> Bool {
         let r = run("/bin/launchctl", ["print", "system/\(serviceID)"])
         return r.status == 0

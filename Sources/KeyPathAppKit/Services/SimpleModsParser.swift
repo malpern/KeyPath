@@ -103,7 +103,8 @@ public final class SimpleModsParser {
                                 conflictingLine: lineNumber,
                                 conflictingFile: configPath,
                                 reason: "Duplicate mapping in same block"
-                            ))
+                            )
+                        )
                     } else {
                         blockMappings.append(mapping)
                         allMappings.append(mapping)
@@ -128,7 +129,8 @@ public final class SimpleModsParser {
                                 conflictingLine: lineNumber,
                                 conflictingFile: configPath,
                                 reason: "Mapping exists outside managed block"
-                            ))
+                            )
+                        )
                     }
                     allMappings.append(mapping)
                 }

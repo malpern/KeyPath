@@ -73,7 +73,6 @@ struct LauncherKeycapView: View {
 
     // MARK: - Content Views
 
-    @ViewBuilder
     private func capsLockContent(size: CGFloat) -> some View {
         // Hyper star indicator on caps lock
         VStack(spacing: 2) {
@@ -86,7 +85,6 @@ struct LauncherKeycapView: View {
         }
     }
 
-    @ViewBuilder
     private func mappedKeyContent(iconSize: CGFloat, labelSize: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
             // Centered icon
@@ -121,7 +119,6 @@ struct LauncherKeycapView: View {
     }
 
     /// Small link badge for website icons
-    @ViewBuilder
     private func linkBadge(size: CGFloat) -> some View {
         Image(systemName: "link")
             .font(.system(size: size * 0.65, weight: .bold))
@@ -135,7 +132,6 @@ struct LauncherKeycapView: View {
             .offset(x: size * 0.15, y: size * 0.15)
     }
 
-    @ViewBuilder
     private func unmappedKeyContent(labelSize: CGFloat) -> some View {
         // Just the letter, centered, dimmed
         Text(displayLabel.uppercased())

@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 final class TcpServerResponseTests: XCTestCase {
     func testDecodeOk() throws {

@@ -1,10 +1,9 @@
 import Foundation
-import Testing
-
 @testable import KeyPathAppKit
 @testable import KeyPathDaemonLifecycle
 @testable import KeyPathPermissions
 @testable import KeyPathWizardCore
+import Testing
 
 @MainActor
 @Suite("SystemValidator Tests")
@@ -104,7 +103,7 @@ struct SystemValidatorTests {
     }
 
     @Test("SystemSnapshot validates staleness")
-    func snapshotStalenessDetection() async {
+    func snapshotStalenessDetection() {
         // Create a snapshot with old timestamp
         let oldTimestamp = Date(timeIntervalSinceNow: -35)
 

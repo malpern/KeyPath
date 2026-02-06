@@ -37,7 +37,8 @@ extension HelperManager {
 
         // Create new connection
         AppLogger.shared.log(
-            "🔗 [HelperManager] Creating XPC connection to \(Self.helperMachServiceName)")
+            "🔗 [HelperManager] Creating XPC connection to \(Self.helperMachServiceName)"
+        )
 
         let newConnection = NSXPCConnection(
             machServiceName: Self.helperMachServiceName, options: .privileged
@@ -62,7 +63,8 @@ extension HelperManager {
 
         connection = newConnection
         AppLogger.shared.info(
-            "✅ [HelperManager] XPC connection established (PID: \(newConnection.processIdentifier))")
+            "✅ [HelperManager] XPC connection established (PID: \(newConnection.processIdentifier))"
+        )
 
         return newConnection
     }
@@ -124,7 +126,8 @@ extension HelperManager {
             let combined = result.stdout + "\n" + result.stderr
             guard
                 let req = combined.components(separatedBy: "designated =>").last?.trimmingCharacters(
-                    in: .whitespacesAndNewlines), !req.isEmpty
+                    in: .whitespacesAndNewlines
+                ), !req.isEmpty
             else {
                 AppLogger.shared.log("⚠️ [HelperManager] Could not parse helper designated requirement")
                 return
@@ -151,7 +154,8 @@ extension HelperManager {
                 plistRequirement = sm
                 if !req.contains("com.keypath.helper") {
                     warnings.append(
-                        "helper req does not show expected identifier, while Info.plist declares it")
+                        "helper req does not show expected identifier, while Info.plist declares it"
+                    )
                 }
             }
 
@@ -159,7 +163,8 @@ extension HelperManager {
                 AppLogger.shared.log("🔒 [HelperManager] Embedded helper signature looks valid")
             } else {
                 AppLogger.shared.log(
-                    "⚠️ [HelperManager] Embedded helper signature warnings: \(warnings.joined(separator: "; "))")
+                    "⚠️ [HelperManager] Embedded helper signature warnings: \(warnings.joined(separator: "; "))"
+                )
                 if let plistRequirement {
                     AppLogger.shared.log(
                         "ℹ️ [HelperManager] App Info.plist SMPrivilegedExecutables[\(Self.helperBundleIdentifier)] = \(plistRequirement)"
@@ -169,7 +174,8 @@ extension HelperManager {
             }
         } catch {
             AppLogger.shared.log(
-                "⚠️ [HelperManager] Could not run codesign: \(error.localizedDescription)")
+                "⚠️ [HelperManager] Could not run codesign: \(error.localizedDescription)"
+            )
         }
     }
 }

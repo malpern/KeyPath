@@ -7,7 +7,7 @@ import KeyPathWizardCore
 /// Characterization tests to ensure auto-fix actions map to the same recipes the planner uses.
 @MainActor
 final class WizardRecipeParityTests: XCTestCase {
-    func testRecipeIDsMatchForCommonActions() async {
+    func testRecipeIDsMatchForCommonActions() {
         let engine = InstallerEngine()
         let context = SystemContextBuilder(
             permissionsStatus: .granted,

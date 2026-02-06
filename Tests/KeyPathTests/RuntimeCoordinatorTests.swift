@@ -1,12 +1,11 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 @MainActor
 final class RuntimeCoordinatorTests: KeyPathTestCase {
     lazy var manager: RuntimeCoordinator = .init()
 
-    func testInitialState() async {
+    func testInitialState() {
         // Test initial published properties
         // XCTAssertFalse(manager.isRunning, "Should not be running initially") // Removed
         if let error = manager.lastError {
@@ -20,7 +19,7 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
         XCTAssertNil(manager.lastProcessExitCode, "Should have no initial exit code")
     }
 
-    func testDiagnosticManagement() async {
+    func testDiagnosticManagement() {
         // Test adding diagnostics
         let diagnostic = KanataDiagnostic(
             timestamp: Date(),
@@ -59,7 +58,7 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
         XCTAssertNotNil(systemDiagnostics)
     }
 
-    func testKeyMappingStorage() async {
+    func testKeyMappingStorage() {
         // Test that key mappings can be stored
         let testMapping = KeyMapping(input: "caps", output: "escape")
 
@@ -71,14 +70,14 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
         XCTAssertEqual(manager.keyMappings.first?.output, "escape")
     }
 
-    func testConfigPathProperty() async {
+    func testConfigPathProperty() {
         // Test that configPath is accessible
         let configPath = manager.configPath
         XCTAssertFalse(configPath.isEmpty, "Config path should not be empty")
         XCTAssertTrue(configPath.contains("keypath.kbd"), "Config path should contain keypath.kbd")
     }
 
-    func testInstallationStatus() async {
+    func testInstallationStatus() {
         // Test installation status check
         let isInstalled = manager.isCompletelyInstalled()
 

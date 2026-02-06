@@ -1,9 +1,8 @@
+@testable import KeyPathAppKit
 @preconcurrency import XCTest
 
-@testable import KeyPathAppKit
-
 final class RuleCollectionStoreTests: XCTestCase {
-    func testLoadFallsBackToDefaultsWhenFileMissing() async throws {
+    func testLoadFallsBackToDefaultsWhenFileMissing() async {
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("rule-collections-\(UUID().uuidString)")
         let store = RuleCollectionStore.testStore(at: tempURL)

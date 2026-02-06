@@ -122,8 +122,13 @@ struct OverlayKeycapView: View {
     }
 
     /// Size thresholds for typography adaptation
-    var isSmallSize: Bool { scale < 0.8 }
-    var isLargeSize: Bool { scale >= 1.5 }
+    var isSmallSize: Bool {
+        scale < 0.8
+    }
+
+    var isLargeSize: Bool {
+        scale >= 1.5
+    }
 
     /// Home row keyCodes (A, S, D, F, J, K, L, ;)
     private static let homeRowKeyCodes: Set<UInt16> = [0, 1, 2, 3, 38, 40, 37, 41]

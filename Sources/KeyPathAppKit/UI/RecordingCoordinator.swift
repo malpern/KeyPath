@@ -111,8 +111,13 @@ final class RecordingCoordinator: ObservableObject {
         }
     }
 
-    func capturedInputSequence() -> KeySequence? { input.capturedSequence }
-    func capturedOutputSequence() -> KeySequence? { output.capturedSequence }
+    func capturedInputSequence() -> KeySequence? {
+        input.capturedSequence
+    }
+
+    func capturedOutputSequence() -> KeySequence? {
+        output.capturedSequence
+    }
 
     func clearCapturedSequences() {
         input.capturedSequence = nil
@@ -122,12 +127,29 @@ final class RecordingCoordinator: ObservableObject {
         refreshDisplayTexts()
     }
 
-    func inputDisplayText() -> String { input.fieldText }
-    func outputDisplayText() -> String { output.fieldText }
-    func inputButtonIcon() -> String { input.buttonIcon }
-    func outputButtonIcon() -> String { output.buttonIcon }
-    func isInputRecording() -> Bool { input.isRecording }
-    func isOutputRecording() -> Bool { output.isRecording }
+    func inputDisplayText() -> String {
+        input.fieldText
+    }
+
+    func outputDisplayText() -> String {
+        output.fieldText
+    }
+
+    func inputButtonIcon() -> String {
+        input.buttonIcon
+    }
+
+    func outputButtonIcon() -> String {
+        output.buttonIcon
+    }
+
+    func isInputRecording() -> Bool {
+        input.isRecording
+    }
+
+    func isOutputRecording() -> Bool {
+        output.isRecording
+    }
 
     func stopAllRecording() {
         stopInputRecording()
@@ -152,7 +174,8 @@ final class RecordingCoordinator: ObservableObject {
             AppLogger.shared.log("❌ [Coordinator] Save requested without both sequences")
             await MainActor.run {
                 onError(
-                    KeyPathError.coordination(.recordingFailed(reason: "Missing input/output sequences")))
+                    KeyPathError.coordination(.recordingFailed(reason: "Missing input/output sequences"))
+                )
             }
             return
         }
@@ -215,7 +238,8 @@ final class RecordingCoordinator: ObservableObject {
 
             await MainActor.run {
                 onSuccess(
-                    "Key mapping saved: \(inputSequence.displayString) → \(outputSequence.displayString)")
+                    "Key mapping saved: \(inputSequence.displayString) → \(outputSequence.displayString)"
+                )
                 clearCapturedSequences()
             }
         } catch {
@@ -625,7 +649,8 @@ final class RecordingCoordinator: ObservableObject {
         let keyWindow = app.keyWindow != nil
         let occlusion = app.keyWindow?.occlusionState.rawValue ?? 0
         AppLogger.shared.log(
-            "🔍 \(prefix) Focus: appActive=\(isActive), keyWindow=\(keyWindow), occlusion=\(occlusion)")
+            "🔍 \(prefix) Focus: appActive=\(isActive), keyWindow=\(keyWindow), occlusion=\(occlusion)"
+        )
     }
 }
 

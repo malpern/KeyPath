@@ -1,6 +1,5 @@
-import XCTest
-
 @testable import KeyPathAppKit
+import XCTest
 
 /// Tests for verifying that media keys in custom rules are properly
 /// converted to LayerKeyInfo with systemActionIdentifier set.

@@ -1,7 +1,6 @@
 import Foundation
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 /// Unit tests for ServiceHealthChecker service.
 ///

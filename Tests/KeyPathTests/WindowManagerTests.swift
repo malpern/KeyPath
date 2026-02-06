@@ -1,7 +1,6 @@
 import Foundation
-import Testing
-
 @testable import KeyPathAppKit
+import Testing
 
 // MARK: - WindowPosition Tests
 
@@ -62,7 +61,7 @@ struct WindowPositionTests {
 
 @Suite("Window Frame Calculation Tests")
 struct WindowFrameCalculationTests {
-    // Test screen: 1920x1080, with 25px menu bar
+    /// Test screen: 1920x1080, with 25px menu bar
     let visibleFrame = CGRect(x: 0, y: 0, width: 1920, height: 1055)
 
     @Test("Left half calculation")

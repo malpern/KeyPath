@@ -18,7 +18,6 @@ extension OverlayKeycapView {
     /// **Alpha keys (no shiftLabel)**: 2-position layout
     /// - Center: LARGE main character (e.g., "Q")
     /// - Bottom-right: small hiragana (e.g., "た")
-    @ViewBuilder
     var multiLegendContent: some View {
         GeometryReader { geometry in
             let padding: CGFloat = 3 * scale
@@ -189,7 +188,6 @@ extension OverlayKeycapView {
 
     /// Link indicator for website icons in launcher mode
     /// Simple icon with good contrast, no complex background
-    @ViewBuilder
     func launcherLinkBadge(size: CGFloat) -> some View {
         Image(systemName: "link")
             .font(.system(size: size * 1.2, weight: .semibold))
@@ -307,7 +305,6 @@ extension OverlayKeycapView {
     }
 
     /// Nav-layer identity mapping: large centered label (same visual weight as base layer)
-    @ViewBuilder
     var navIdentityContent: some View {
         Text(baseLabel.uppercased())
             .font(.system(size: 12 * scale, weight: .medium))
@@ -527,7 +524,6 @@ extension OverlayKeycapView {
     }
 
     /// Render text label with dynamic sizing and multi-line wrapping
-    @ViewBuilder
     func dynamicTextLabel(_ text: String) -> some View {
         GeometryReader { geometry in
             let availableWidth = geometry.size.width - 4 * scale

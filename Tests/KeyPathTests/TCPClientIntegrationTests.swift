@@ -1,7 +1,6 @@
+@testable import KeyPathAppKit
 import Network
 @preconcurrency import XCTest
-
-@testable import KeyPathAppKit
 
 final class TCPClientIntegrationTests: XCTestCase {
     private static let tcpTestsEnabled =
@@ -47,8 +46,8 @@ final class TCPClientIntegrationTests: XCTestCase {
         }
     }
 
-    // Verify framing: Reload(wait) eventually returns ReloadResult
-    // This test uses the high-level client which properly handles broadcasts
+    /// Verify framing: Reload(wait) eventually returns ReloadResult
+    /// This test uses the high-level client which properly handles broadcasts
     func testFramingReloadWaitSingleObject() async throws {
         guard await serverReachable() else { throw XCTSkip("TCP server not running") }
 
@@ -68,7 +67,7 @@ final class TCPClientIntegrationTests: XCTestCase {
         }
     }
 
-    // After a successful Reload(wait), Status should report last_reload with timing info
+    /// After a successful Reload(wait), Status should report last_reload with timing info
     func testReloadThenStatusHasLastReloadFields() async throws {
         guard await serverReachable() else { throw XCTSkip("TCP server not running") }
         let client = KanataTCPClient(port: port)
@@ -91,7 +90,7 @@ final class TCPClientIntegrationTests: XCTestCase {
         }
     }
 
-    // Try very small timeout; verify client handles it gracefully
+    /// Try very small timeout; verify client handles it gracefully
     func testReloadWaitVerySmallTimeoutStillSingleObject() async throws {
         guard await serverReachable() else { throw XCTSkip("TCP server not running") }
 

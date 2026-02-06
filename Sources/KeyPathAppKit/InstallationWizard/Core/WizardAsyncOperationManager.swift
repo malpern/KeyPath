@@ -119,7 +119,8 @@ class WizardAsyncOperationManager {
                     if let timeoutError = error as? TimeoutError {
                         wizardError = WizardError.timeout(operation: timeoutError.operation)
                         AppLogger.shared.warn(
-                            "⏱️ [AsyncOp] Operation timed out: \(opName) after \(timeoutDuration)s")
+                            "⏱️ [AsyncOp] Operation timed out: \(opName) after \(timeoutDuration)s"
+                        )
                     } else {
                         wizardError = WizardError.fromError(error, operation: opName)
                         AppLogger.shared.error(
@@ -182,7 +183,8 @@ class WizardAsyncOperationManager {
         }
 
         AppLogger.shared.debug(
-            "🛑 [AsyncOp] All operations cancelled asynchronously (\(tasksToCancel.count) tasks)")
+            "🛑 [AsyncOp] All operations cancelled asynchronously (\(tasksToCancel.count) tasks)"
+        )
 
         // Schedule UI cleanup for later, but don't wait for it
         Task { @MainActor [weak self] in
@@ -212,7 +214,8 @@ class WizardAsyncOperationManager {
     /// Reset stuck operations (useful when operations don't clean up properly)
     @MainActor func resetStuckOperations() {
         AppLogger.shared.warn(
-            "🔧 [AsyncOp] Resetting \(runningOperations.count) stuck operations: \(runningOperations)")
+            "🔧 [AsyncOp] Resetting \(runningOperations.count) stuck operations: \(runningOperations)"
+        )
         runningOperations.removeAll()
         operationProgress.removeAll()
     }

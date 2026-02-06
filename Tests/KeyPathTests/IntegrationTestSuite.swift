@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 /// Complete integration test suite for autonomous testing
 /// Tests all components working together in realistic scenarios
@@ -197,7 +196,7 @@ final class IntegrationTestSuite: XCTestCase {
     // MARK: - Individual Scenario Tests
 
     func testNewUserCompleteJourney() async throws {
-        let scenario = testScenarios.first { $0.name == "New User Complete Journey" }!
+        let scenario = try XCTUnwrap(testScenarios.first { $0.name == "New User Complete Journey" })
 
         mockEnvironment.reset()
         scenario.setup(mockEnvironment)
@@ -209,7 +208,7 @@ final class IntegrationTestSuite: XCTestCase {
     }
 
     func testNewUserJourneyReportsInstallFailure() async throws {
-        let scenario = testScenarios.first { $0.name == "New User Complete Journey" }!
+        let scenario = try XCTUnwrap(testScenarios.first { $0.name == "New User Complete Journey" })
 
         mockEnvironment.reset()
         scenario.setup(mockEnvironment)
@@ -226,7 +225,7 @@ final class IntegrationTestSuite: XCTestCase {
     }
 
     func testPartialInstallationRecovery() async throws {
-        let scenario = testScenarios.first { $0.name == "Partial Installation Recovery" }!
+        let scenario = try XCTUnwrap(testScenarios.first { $0.name == "Partial Installation Recovery" })
 
         mockEnvironment.reset()
         scenario.setup(mockEnvironment)
@@ -238,7 +237,7 @@ final class IntegrationTestSuite: XCTestCase {
     }
 
     func testPowerUserWorkflow() async throws {
-        let scenario = testScenarios.first { $0.name == "Power User Daily Workflow" }!
+        let scenario = try XCTUnwrap(testScenarios.first { $0.name == "Power User Daily Workflow" })
 
         mockEnvironment.reset()
         scenario.setup(mockEnvironment)
@@ -250,7 +249,7 @@ final class IntegrationTestSuite: XCTestCase {
     }
 
     func testErrorRecovery() async throws {
-        let scenario = testScenarios.first { $0.name == "Error Recovery and Resilience" }!
+        let scenario = try XCTUnwrap(testScenarios.first { $0.name == "Error Recovery and Resilience" })
 
         mockEnvironment.reset()
         scenario.setup(mockEnvironment)
@@ -262,7 +261,7 @@ final class IntegrationTestSuite: XCTestCase {
     }
 
     func testSecurityCompliance() async throws {
-        let scenario = testScenarios.first { $0.name == "Security and Root Privileges" }!
+        let scenario = try XCTUnwrap(testScenarios.first { $0.name == "Security and Root Privileges" })
 
         mockEnvironment.reset()
         scenario.setup(mockEnvironment)

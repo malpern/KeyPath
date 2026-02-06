@@ -1,6 +1,5 @@
-import XCTest
-
 @testable import KeyPathAppKit
+import XCTest
 
 final class LauncherGridConfigKeyValidationTests: XCTestCase {
     func testNormalizeKeyConvertsPunctuationAliases() {

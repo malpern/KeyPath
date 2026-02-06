@@ -1,7 +1,6 @@
 import Foundation
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 /// Unit tests for ConfigHotReloadService.
 ///
@@ -58,7 +57,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
 
     // MARK: - File Reading Tests
 
-    func testHandleExternalChangeReadsFile() async throws {
+    func testHandleExternalChangeReadsFile() async {
         let tempFile = createTempConfigFile(content: "(defcfg)\n(defsrc)\n(deflayer base)")
 
         let result = await service.handleExternalChange(configPath: tempFile.path)
@@ -77,7 +76,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
 
     // MARK: - Validation Tests
 
-    func testHandleExternalChangeValidatesConfig() async throws {
+    func testHandleExternalChangeValidatesConfig() async {
         let validConfig = """
         (defcfg)
         (defsrc caps)
@@ -92,7 +91,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         XCTAssertTrue(result.success || !result.success, "Should return validation result")
     }
 
-    func testHandleExternalChangeFailsOnInvalidConfig() async throws {
+    func testHandleExternalChangeFailsOnInvalidConfig() async {
         let invalidConfig = "invalid config syntax {"
         let tempFile = createTempConfigFile(content: invalidConfig)
 
@@ -104,7 +103,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
 
     // MARK: - Reload Handler Tests
 
-    func testHandleExternalChangeCallsReloadHandler() async throws {
+    func testHandleExternalChangeCallsReloadHandler() async {
         reloadHandlerResult = true
         let validConfig = """
         (defcfg)
@@ -121,7 +120,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         }
     }
 
-    func testHandleExternalChangeSucceedsWhenReloadHandlerFailsButServiceUnavailable() async throws {
+    func testHandleExternalChangeSucceedsWhenReloadHandlerFailsButServiceUnavailable() async {
         // When reload handler fails but service is unavailable (process not running),
         // we should return success because the config is valid - just can't reload yet.
         // This is the expected behavior during wizard fix operations.
@@ -145,7 +144,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
 
     // MARK: - Callback Tests
 
-    func testCallbacksInvokedOnSuccess() async throws {
+    func testCallbacksInvokedOnSuccess() async {
         reloadHandlerResult = true
         let validConfig = """
         (defcfg)
@@ -175,7 +174,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         XCTAssertTrue(resetCalled, "onReset should be called after delay")
     }
 
-    func testCallbacksInvokedOnServiceUnavailable() async throws {
+    func testCallbacksInvokedOnServiceUnavailable() async {
         // Force reload handler to fail - in test environment this triggers
         // "service unavailable" path (process not running) which calls onReset
         reloadHandlerResult = false

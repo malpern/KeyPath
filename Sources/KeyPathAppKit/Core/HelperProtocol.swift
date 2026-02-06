@@ -94,7 +94,7 @@ import Foundation
     /// - Parameter reply: Completion handler with (success, errorMessage)
     func restartKarabinerDaemon(reply: @escaping (Bool, String?) -> Void)
 
-    // Karabiner conflict management
+    /// Karabiner conflict management
     func disableKarabinerGrabber(reply: @escaping (Bool, String?) -> Void)
 
     // Note: executeCommand removed for security reasons.

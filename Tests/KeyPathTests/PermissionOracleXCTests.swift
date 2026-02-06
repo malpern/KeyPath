@@ -1,8 +1,7 @@
-import KeyPathCore
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+import KeyPathCore
 @testable import KeyPathPermissions
+@preconcurrency import XCTest
 
 @MainActor
 final class PermissionOracleXCTests: XCTestCase {

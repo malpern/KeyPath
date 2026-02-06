@@ -39,10 +39,10 @@ class KanataViewModel: ObservableObject {
     @Published var validationAlertMessage = ""
     @Published var validationAlertActions: [ValidationAlertAction] = []
 
-    // Save progress feedback
+    /// Save progress feedback
     @Published var saveStatus: SaveStatus = .idle
 
-    // Emergency stop state
+    /// Emergency stop state
     @Published var emergencyStopActivated: Bool = false
 
     // Toast notifications

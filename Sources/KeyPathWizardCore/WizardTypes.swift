@@ -6,7 +6,10 @@ import SwiftUI
 
 /// Represents the current page in the installation wizard
 public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
-    public var id: String { rawValue }
+    public var id: String {
+        rawValue
+    }
+
     case summary = "Summary"
     case helper = "Privileged Helper"
     case fullDiskAccess = "Full Disk Access"
@@ -57,9 +60,9 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
     }
 }
 
-// Explicit, user-facing ordering for wizard navigation and bullets.
-// This matches the Summary order shown in WizardSystemStatusOverview.
-// NOTE: Helper is FIRST (after summary) because it's required for privileged operations
+/// Explicit, user-facing ordering for wizard navigation and bullets.
+/// This matches the Summary order shown in WizardSystemStatusOverview.
+/// NOTE: Helper is FIRST (after summary) because it's required for privileged operations
 public extension WizardPage {
     static let orderedPages: [WizardPage] = [
         .summary,

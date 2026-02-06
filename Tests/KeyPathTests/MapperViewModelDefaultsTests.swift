@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 /// Tests for MapperViewModel's default values and identity mapping behavior.
 /// Verifies that:

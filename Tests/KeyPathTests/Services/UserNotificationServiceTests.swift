@@ -1,8 +1,7 @@
 import Foundation
+@testable import KeyPathAppKit
 import KeyPathWizardCore
 import Testing
-
-@testable import KeyPathAppKit
 
 /// Tests for UserNotificationService - notification management and deduplication
 @Suite("User Notification Service Tests")
@@ -26,9 +25,11 @@ struct UserNotificationServiceTests {
         #expect(UserNotificationService.Action.retryStart.rawValue == "KP_ACTION_RETRY_START")
         #expect(
             UserNotificationService.Action.openInputMonitoring.rawValue
-                == "KP_ACTION_OPEN_INPUT_MONITORING")
+                == "KP_ACTION_OPEN_INPUT_MONITORING"
+        )
         #expect(
-            UserNotificationService.Action.openAccessibility.rawValue == "KP_ACTION_OPEN_ACCESSIBILITY")
+            UserNotificationService.Action.openAccessibility.rawValue == "KP_ACTION_OPEN_ACCESSIBILITY"
+        )
         #expect(UserNotificationService.Action.openApp.rawValue == "KP_ACTION_OPEN_APP")
     }
 
@@ -39,22 +40,26 @@ struct UserNotificationServiceTests {
         let permissionDenied = LaunchFailureStatus.permissionDenied("Accessibility required")
         #expect(
             permissionDenied.shortMessage.contains("permissions")
-                || permissionDenied.shortMessage.contains("Accessibility"))
+                || permissionDenied.shortMessage.contains("Accessibility")
+        )
 
         let serviceFailure = LaunchFailureStatus.serviceFailure("test error")
         #expect(
             serviceFailure.shortMessage == "test error"
-                || serviceFailure.shortMessage.contains("test error"))
+                || serviceFailure.shortMessage.contains("test error")
+        )
 
         let configError = LaunchFailureStatus.configError("invalid config")
         #expect(
             configError.shortMessage == "invalid config"
-                || configError.shortMessage.contains("invalid config"))
+                || configError.shortMessage.contains("invalid config")
+        )
 
         let missingDep = LaunchFailureStatus.missingDependency("required binary")
         #expect(
             missingDep.shortMessage == "required binary"
-                || missingDep.shortMessage.contains("required binary"))
+                || missingDep.shortMessage.contains("required binary")
+        )
     }
 
     // MARK: - Integration Tests

@@ -31,7 +31,7 @@ private class MockSMAppService: SMAppServiceProtocol, @unchecked Sendable {
 final class KanataServiceIntegrationTests: KeyPathAsyncTestCase {
     var service: KanataService!
 
-    // Keep reference to original factory to restore it
+    /// Keep reference to original factory to restore it
     var originalFactory: ((String) -> SMAppServiceProtocol)!
 
     override func setUp() async throws {
@@ -114,7 +114,10 @@ final class KanataServiceIntegrationTests: KeyPathAsyncTestCase {
         // Given: Mock that throws on register
         class ThrowingMockSM: SMAppServiceProtocol, @unchecked Sendable {
             var status: SMAppService.Status = .notRegistered
-            func register() throws { throw KanataDaemonError.registrationFailed("Mock error") }
+            func register() throws {
+                throw KanataDaemonError.registrationFailed("Mock error")
+            }
+
             func unregister() async throws {}
         }
         KanataService.smServiceFactory = { _ in ThrowingMockSM() }

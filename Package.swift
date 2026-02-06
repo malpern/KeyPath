@@ -43,7 +43,7 @@ let package = Package(
     ],
     dependencies: [
         // Sparkle for automatic updates
-        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0")
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.8.1")
     ],
     targets: [
         // Core library with shared types/utilities

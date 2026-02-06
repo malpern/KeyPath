@@ -50,7 +50,8 @@ final class PermissionRequestService {
         ensureForeground()
         if !isForeground() {
             AppLogger.shared.warn(
-                "⚠️ [PermissionRequest] Skipping IOHIDRequestAccess - app not foreground")
+                "⚠️ [PermissionRequest] Skipping IOHIDRequestAccess - app not foreground"
+            )
             return false
         }
         if !ignoreCooldown, withinCooldown(lastPromptIMKey) {
@@ -62,7 +63,8 @@ final class PermissionRequestService {
         // IOHIDRequestAccess() automatically shows the system dialog if not granted.
         // Returns true if granted, false otherwise.
         AppLogger.shared.log(
-            "🔐 [PermissionRequest] Requesting Input Monitoring via IOHIDRequestAccess()")
+            "🔐 [PermissionRequest] Requesting Input Monitoring via IOHIDRequestAccess()"
+        )
         let granted = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
         if granted {
             AppLogger.shared.log("✅ [PermissionRequest] Input Monitoring already granted")
@@ -92,7 +94,8 @@ final class PermissionRequestService {
         let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as CFString
         let options = [key as String: true] as CFDictionary
         AppLogger.shared.log(
-            "🔐 [PermissionRequest] Requesting Accessibility via AXIsProcessTrustedWithOptions()")
+            "🔐 [PermissionRequest] Requesting Accessibility via AXIsProcessTrustedWithOptions()"
+        )
         let trusted = AXIsProcessTrustedWithOptions(options)
         if trusted {
             AppLogger.shared.log("✅ [PermissionRequest] Accessibility already granted")

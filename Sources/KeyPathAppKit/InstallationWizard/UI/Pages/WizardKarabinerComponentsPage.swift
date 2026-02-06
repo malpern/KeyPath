@@ -78,7 +78,8 @@ struct WizardKarabinerComponentsPage: View {
                                             ? "checkmark.circle.fill" : "xmark.circle.fill"
                                     )
                                     .foregroundColor(
-                                        componentStatus(for: .backgroundServices) == .completed ? .green : .red)
+                                        componentStatus(for: .backgroundServices) == .completed ? .green : .red
+                                    )
                                     HStack(spacing: 0) {
                                         Text("Background Services")
                                             .font(.headline)
@@ -358,7 +359,8 @@ struct WizardKarabinerComponentsPage: View {
             // 1) Driver install/repair (always if missing, repair if unhealthy)
             if isInstalled {
                 AppLogger.shared.log(
-                    "🔧 [Karabiner Fix] Driver installed but having issues - attempting repair")
+                    "🔧 [Karabiner Fix] Driver installed but having issues - attempting repair"
+                )
                 AppLogger.shared.log("🔧 [Karabiner Fix] Calling performAutomaticDriverRepair()...")
                 _ = await performAutomaticDriverRepair()
                 AppLogger.shared.log("🔧 [Karabiner Fix] performAutomaticDriverRepair() returned")

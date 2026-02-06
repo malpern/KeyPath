@@ -99,7 +99,6 @@ struct ChordGroupsCollectionView: View {
 
     // MARK: - Summary Section
 
-    @ViewBuilder
     private var summarySection: some View {
         HStack(spacing: 12) {
             Image(systemName: "keyboard.badge.ellipsis")
@@ -143,7 +142,6 @@ struct ChordGroupsCollectionView: View {
         }
     }
 
-    @ViewBuilder
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "keyboard.badge.ellipsis")
@@ -178,7 +176,6 @@ struct ChordGroupsCollectionView: View {
 
     // MARK: - Details Section
 
-    @ViewBuilder
     private var detailsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Group selector
@@ -236,7 +233,6 @@ struct ChordGroupsCollectionView: View {
         }
     }
 
-    @ViewBuilder
     private func groupDetailsView(group: ChordGroup) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             // Group info

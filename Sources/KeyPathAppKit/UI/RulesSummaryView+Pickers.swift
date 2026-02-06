@@ -2,7 +2,7 @@ import KeyPathCore
 import SwiftUI
 
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 // MARK: - Single Key Picker Content
@@ -183,7 +183,7 @@ struct MiniPresetCard: View {
 
     @State private var isHovered = false
 
-    // Define keyboard rows for mini preview (home row focus)
+    /// Define keyboard rows for mini preview (home row focus)
     private static let previewRows: [[String]] = [
         ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"]
     ]

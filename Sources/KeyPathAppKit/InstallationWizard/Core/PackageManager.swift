@@ -201,7 +201,8 @@ class PackageManager {
                 return cached.status
             } else {
                 AppLogger.shared.log(
-                    "🔄 [PackageManager] Code signing cache invalidated (file changed): \(path)")
+                    "🔄 [PackageManager] Code signing cache invalidated (file changed): \(path)"
+                )
                 Self.cacheLock.withLock {
                     Self.codeSigningCache.removeValue(forKey: path)
                     Self.cacheAccessOrder.removeAll { $0 == path }
@@ -247,7 +248,8 @@ class PackageManager {
             let message =
                 SecCopyErrorMessageString(createStatus, nil) as String? ?? "OSStatus=\(createStatus)"
             AppLogger.shared.log(
-                "❌ [PackageManager] SecStaticCodeCreateWithPath failed for \(path): \(message)")
+                "❌ [PackageManager] SecStaticCodeCreateWithPath failed for \(path): \(message)"
+            )
             return .invalid(reason: message)
         }
 
@@ -331,7 +333,8 @@ class PackageManager {
         let existingInstallation = await detectKanataInstallation()
         if existingInstallation.isInstalled {
             AppLogger.shared.log(
-                "ℹ️ [PackageManager] Kanata already installed: \(existingInstallation.description)")
+                "ℹ️ [PackageManager] Kanata already installed: \(existingInstallation.description)"
+            )
             return .success
         }
 
@@ -339,7 +342,8 @@ class PackageManager {
         AppLogger.shared.log("🔍 [PackageManager] Checking if Kanata formula is available...")
         if await !checkBrewFormulaAvailability(formula: "kanata") {
             AppLogger.shared.log(
-                "❌ [PackageManager] Kanata formula not found - may need 'brew update' first")
+                "❌ [PackageManager] Kanata formula not found - may need 'brew update' first"
+            )
             return .packageNotFound
         }
 
@@ -364,19 +368,23 @@ class PackageManager {
 
                 if verificationResult.isInstalled {
                     AppLogger.shared.log(
-                        "✅ [PackageManager] Installation verified: \(verificationResult.description)")
+                        "✅ [PackageManager] Installation verified: \(verificationResult.description)"
+                    )
                     return .success
                 } else {
                     AppLogger.shared.log(
-                        "❌ [PackageManager] Installation completed but Kanata binary not detected")
+                        "❌ [PackageManager] Installation completed but Kanata binary not detected"
+                    )
                     await detectCommonIssues() // Log potential issues
                     return .failure(
                         reason:
-                        "Installation completed but binary not found - possible PATH or installation issue")
+                        "Installation completed but binary not found - possible PATH or installation issue"
+                    )
                 }
             } else {
                 AppLogger.shared.log(
-                    "❌ [PackageManager] Homebrew installation failed with status \(result.exitCode)")
+                    "❌ [PackageManager] Homebrew installation failed with status \(result.exitCode)"
+                )
                 AppLogger.shared.log("📝 [PackageManager] Error output: \(output)")
 
                 // Analyze common installation failures
@@ -426,7 +434,8 @@ class PackageManager {
         // Log potential issues
         if !homebrewAvailable {
             AppLogger.shared.log(
-                "⚠️ [PackageManager] No package manager detected - automatic installation not available")
+                "⚠️ [PackageManager] No package manager detected - automatic installation not available"
+            )
         }
 
         if !kanataInfo.isInstalled {
@@ -459,7 +468,8 @@ class PackageManager {
 
         for homebrewPath in homebrewPaths where !pathEnv.contains(homebrewPath) {
             AppLogger.shared.log(
-                "⚠️ [PackageManager] PATH may be missing \(homebrewPath) - this could prevent detection")
+                "⚠️ [PackageManager] PATH may be missing \(homebrewPath) - this could prevent detection"
+            )
         }
 
         // Check for partial Homebrew installation
@@ -487,23 +497,27 @@ class PackageManager {
         // Check for Homebrew but no Kanata formula
         if checkHomebrewInstallation(), await !checkBrewFormulaAvailability(formula: "kanata") {
             AppLogger.shared.log(
-                "⚠️ [PackageManager] Homebrew available but Kanata formula not found - may need tap update")
+                "⚠️ [PackageManager] Homebrew available but Kanata formula not found - may need tap update"
+            )
         }
     }
 
     /// Analyzes installation failures and logs potential solutions
     private func analyzeInstallationFailure(output: String, exitCode: Int32) {
         AppLogger.shared.log(
-            "🔍 [PackageManager] Analyzing installation failure (exit code: \(exitCode))")
+            "🔍 [PackageManager] Analyzing installation failure (exit code: \(exitCode))"
+        )
 
         let outputLower = output.lowercased()
 
         // Common Homebrew installation issues
         if outputLower.contains("permission denied") || outputLower.contains("operation not permitted") {
             AppLogger.shared.log(
-                "⚠️ [PackageManager] Permission issue detected - may need to fix Homebrew permissions")
+                "⚠️ [PackageManager] Permission issue detected - may need to fix Homebrew permissions"
+            )
             AppLogger.shared.log(
-                "💡 [PackageManager] Suggested fix: sudo chown -R $(whoami) /opt/homebrew || /usr/local")
+                "💡 [PackageManager] Suggested fix: sudo chown -R $(whoami) /opt/homebrew || /usr/local"
+            )
         }
 
         if outputLower.contains("no such file or directory") && outputLower.contains("xcode") {
@@ -532,7 +546,8 @@ class PackageManager {
 
         if exitCode == 1, outputLower.contains("already installed") {
             AppLogger.shared.log(
-                "ℹ️ [PackageManager] Package may already be installed but not detected in PATH")
+                "ℹ️ [PackageManager] Package may already be installed but not detected in PATH"
+            )
         }
     }
 
@@ -552,7 +567,8 @@ class PackageManager {
                         priority: .high,
                         command: "brew install kanata",
                         description: "Install Kanata keyboard remapping engine via Homebrew"
-                    ))
+                    )
+                )
             } else {
                 recommendations.append(
                     InstallationRecommendation(
@@ -561,7 +577,8 @@ class PackageManager {
                         priority: .high,
                         command: "Download from GitHub releases",
                         description: "Install Homebrew first, then install Kanata"
-                    ))
+                    )
+                )
             }
         }
 
@@ -573,7 +590,8 @@ class PackageManager {
                 priority: .high,
                 command: "Download from https://karabiner-elements.pqrs.org/",
                 description: "Install Karabiner-Elements to provide the required VirtualHID driver"
-            ))
+            )
+        )
 
         return recommendations
     }

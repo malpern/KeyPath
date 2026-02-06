@@ -18,5 +18,4 @@ extension MapperViewModel {
     func clearAppCondition() {
         appConditionManager.clearAppCondition()
     }
-
 }

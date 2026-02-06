@@ -301,7 +301,6 @@ struct OverlayDragHeader: View {
         Color.white.opacity(isDark ? 0.7 : 0.6)
     }
 
-    @ViewBuilder
     private func statusSlot(indicatorCornerRadius: CGFloat, buttonSize: CGFloat) -> some View {
         ZStack(alignment: .leading) {
             if healthIndicatorState != .dismissed {
@@ -844,4 +843,3 @@ struct SystemHealthIndicatorView: View {
         .accessibilityIdentifier("overlay-health-indicator")
     }
 }
-

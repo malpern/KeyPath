@@ -164,12 +164,11 @@ public actor SubprocessRunner: SubprocessRunning {
                 AppLogger.shared.warn("⚠️ [SubprocessRunner] pgrep exited with code \(result.exitCode)")
                 return []
             }
-            let pids = result.stdout
+            return result.stdout
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .components(separatedBy: .newlines)
                 .filter { !$0.isEmpty }
                 .compactMap { Int32($0.trimmingCharacters(in: .whitespaces)) }
-            return pids
         } catch {
             AppLogger.shared.warn("⚠️ [SubprocessRunner] pgrep failed for pattern '\(pattern)': \(error)")
             return []

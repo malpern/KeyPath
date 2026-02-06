@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 @MainActor
 final class InstallerEngineBrokerForwardingTests: XCTestCase {
@@ -56,7 +55,10 @@ private final class PrivilegedCoordinatorStub: PrivilegedOperationsCoordinating 
     func installAllLaunchDaemonServices(kanataBinaryPath _: String, kanataConfigPath _: String, tcpPort _: Int) async throws {}
     func installAllLaunchDaemonServices() async throws {}
     func restartUnhealthyServices() async throws {}
-    func installServicesIfUninstalled(context _: String) async throws -> Bool { false }
+    func installServicesIfUninstalled(context _: String) async throws -> Bool {
+        false
+    }
+
     func installLaunchDaemonServicesWithoutLoading() async throws {}
     func installLogRotation() async throws {}
     func regenerateServiceConfiguration() async throws {}

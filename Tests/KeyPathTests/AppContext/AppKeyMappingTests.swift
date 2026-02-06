@@ -1,6 +1,5 @@
-@preconcurrency import XCTest
-
 @testable import KeyPathAppKit
+@preconcurrency import XCTest
 
 final class AppKeyMappingTests: XCTestCase {
     // MARK: - Virtual Key Name Generation
