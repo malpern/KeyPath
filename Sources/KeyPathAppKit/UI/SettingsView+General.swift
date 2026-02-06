@@ -7,16 +7,22 @@ import SwiftUI
 private enum GeneralSettingsSection: String, CaseIterable, Identifiable {
     case settings = "Settings"
     case virtualKeys = "Virtual Keys"
+    #if DEBUG
     case experimental = "Experimental"
+    #endif
 
     var id: String { rawValue }
 
-    /// Sections to show based on feature flags
+    /// Sections to show based on feature flags and build configuration
     static var visibleSections: [GeneralSettingsSection] {
+        var sections: [GeneralSettingsSection] = [.settings]
         if FeatureFlags.simulatorAndVirtualKeysEnabled {
-            return allCases
+            sections.append(.virtualKeys)
         }
-        return allCases.filter { $0 != .virtualKeys }
+        #if DEBUG
+        sections.append(.experimental)
+        #endif
+        return sections
     }
 }
 
@@ -54,8 +60,10 @@ struct GeneralSettingsTabView: View {
                             .padding(.horizontal, 20)
                             .padding(.top, 8)
                     }
+                #if DEBUG
                 case .experimental:
                     ExperimentalSettingsSection()
+                #endif
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

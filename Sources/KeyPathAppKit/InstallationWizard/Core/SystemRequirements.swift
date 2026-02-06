@@ -293,25 +293,9 @@ class SystemRequirements {
         )
     }
 
-    // MARK: - Additional Permission Checks
-
-    /// Checks if driver extension is enabled in System Settings
-    func checkDriverExtensionEnabled() async -> Bool {
-        // This would typically require checking System Extensions framework
-        // For now, return true as a placeholder - implementation would require
-        // SystemExtensions framework calls to check if Karabiner driver is enabled
-        AppLogger.shared.log("🔍 [SystemRequirements] Checking driver extension status (placeholder)")
-        return true
-    }
-
-    /// Checks if background services are enabled
-    func checkBackgroundServicesEnabled() async -> Bool {
-        // This would typically check Login Items and launch agents
-        // For now, return true as a placeholder - implementation would require
-        // checking specific Karabiner background services in Login Items
-        AppLogger.shared.log("🔍 [SystemRequirements] Checking background services status (placeholder)")
-        return true
-    }
+    // NOTE: Driver extension and background service checks were removed (MAL-94).
+    // They were placeholder stubs returning `true` with no callers.
+    // If real checks are needed, use InstallerEngine.inspectSystem() instead.
 }
 
 // MARK: - Supporting Types
