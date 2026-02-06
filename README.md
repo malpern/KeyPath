@@ -440,6 +440,7 @@ MIT License - see [LICENSE](LICENSE) for details.
   - `swift test --enable-code-coverage --filter KeyPathErrorTests`
   - `swift test --enable-code-coverage --filter PermissionOracleTests`
   - `./Scripts/generate-coverage.sh coverage`
+  - Current narrow-lane baseline: `0.29%` TOTAL line coverage (this is a CI plumbing baseline, not full-suite project coverage).
 - **CI-full replicator:** `CI_INTEGRATION_TESTS=true ./Scripts/archive/run-core-tests.sh` – runs the Unit, Core, and IntegrationTestSuite buckets defined in `run-core-tests.sh`; by default the CI runs with `CI_INTEGRATION_TESTS=false`, so set this flag manually (or adjust CI) when you need the deeper installer/privileged coverage to execute alongside unit/core tests.
 - **SMAppService sanity check:** `./Scripts/verify-kanata-plist.sh` – use before distributing a build (CI runs it against `Sources/KeyPath/com.keypath.kanata.plist`).
 

@@ -10,6 +10,8 @@ jobs:
   build-and-test:
     runs-on: macos-latest
     timeout-minutes: 15
+    env:
+      COVERAGE_BASELINE_PERCENT: "0.29"
     
     steps:
     - name: Checkout code
@@ -76,6 +78,29 @@ jobs:
         swift test --enable-code-coverage --filter PermissionOracleTests
         chmod +x ./Scripts/generate-coverage.sh
         ./Scripts/generate-coverage.sh coverage
+
+    - name: Enforce Coverage Non-Regression (Narrow Lane)
+      run: |
+        echo "📏 Enforcing narrow-lane coverage floor (${COVERAGE_BASELINE_PERCENT}%)..."
+        if [ ! -f "coverage/coverage-summary.txt" ]; then
+          echo "❌ Missing coverage/coverage-summary.txt"
+          exit 1
+        fi
+
+        ACTUAL_COVERAGE=$(awk '/^TOTAL/ {for(i=1;i<=NF;i++) if ($i ~ /%$/) {gsub("%","",$i); print $i; exit}}' coverage/coverage-summary.txt)
+        if [ -z "${ACTUAL_COVERAGE}" ]; then
+          echo "❌ Could not parse TOTAL coverage from coverage/coverage-summary.txt"
+          cat coverage/coverage-summary.txt
+          exit 1
+        fi
+
+        echo "Coverage (narrow lane): ${ACTUAL_COVERAGE}%"
+        if awk -v actual="${ACTUAL_COVERAGE}" -v baseline="${COVERAGE_BASELINE_PERCENT}" 'BEGIN {exit !(actual + 0 >= baseline + 0)}'; then
+          echo "✅ Coverage is non-regressing (>= ${COVERAGE_BASELINE_PERCENT}%)"
+        else
+          echo "❌ Coverage regression: ${ACTUAL_COVERAGE}% < ${COVERAGE_BASELINE_PERCENT}%"
+          exit 1
+        fi
     
     - name: Upload Test Results
       if: always()  # Upload results even if tests failed
@@ -120,6 +145,7 @@ jobs:
         echo "### 📊 Test Coverage" >> $GITHUB_STEP_SUMMARY
         if [ -f "coverage/coverage-summary.txt" ]; then
           echo "- Baseline: \`$(cat coverage/coverage-summary.txt)\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Enforced narrow-lane floor: \`${COVERAGE_BASELINE_PERCENT}%\`" >> $GITHUB_STEP_SUMMARY
           echo "- Detailed report attached in test-results artifact (\`coverage/\`)." >> $GITHUB_STEP_SUMMARY
         else
           echo "- Coverage baseline artifact was not generated in this run." >> $GITHUB_STEP_SUMMARY

@@ -17,6 +17,9 @@ Versioning once public release tags are established.
 
 - Documentation and CI policy are being aligned for open source release quality
 gates.
+- CI now enforces coverage non-regression for the narrow baseline lane:
+  `KeyPathErrorTests` + `PermissionOracleTests` with an initial floor of
+  `0.29%` TOTAL line coverage.
 
 ## [0.0.0-internal]
 
