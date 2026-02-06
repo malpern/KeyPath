@@ -4,6 +4,7 @@ import SwiftUI
 @testable import KeyPathAppKit
 
 /// Tests for collection color routing in OverlayKeycapView
+@MainActor
 final class OverlayKeycapViewColorTests: XCTestCase {
     // MARK: - Test Data
 
@@ -93,7 +94,7 @@ final class OverlayKeycapViewColorTests: XCTestCase {
     func testCollectionColor_AllKnownCollectionsHaveUniqueColors() {
         let view = makeKeycapView()
 
-        let vimColor = view.collectionColor(for: vimCollectionId)
+        _ = view.collectionColor(for: vimCollectionId)
         let windowColor = view.collectionColor(for: windowCollectionId)
         let symbolColor = view.collectionColor(for: symbolCollectionId)
         let launcherColor = view.collectionColor(for: launcherCollectionId)

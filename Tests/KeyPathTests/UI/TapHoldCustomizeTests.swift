@@ -238,10 +238,15 @@ final class TapHoldAccessibilityTests: XCTestCase {
         XCTAssertTrue(holdKeycap.hasPrefix("customize-"), "Hold keycap ID should start with customize-")
         XCTAssertTrue(holdClear.hasPrefix("customize-"), "Hold clear ID should start with customize-")
         XCTAssertTrue(doubleTapKeycap.hasPrefix("customize-"), "Double tap keycap ID should start with customize-")
+        XCTAssertTrue(doubleTapClear.hasSuffix("-clear"), "Double tap clear ID should end with -clear")
         XCTAssertTrue(tapDanceKeycap.contains("tapDance"), "Tap dance ID should contain tapDance")
+        XCTAssertTrue(tapDanceClear.contains("tapDance"), "Tap dance clear ID should contain tapDance")
+        XCTAssertTrue(tapDanceRemove.contains("remove"), "Tap dance remove ID should contain remove")
         XCTAssertTrue(tapDanceKeycap.contains("-0-"), "Tap dance ID should contain index")
         XCTAssertTrue(addTapDance.contains("add"), "Add button ID should contain add")
         XCTAssertTrue(timing.contains("timing"), "Timing ID should contain timing")
+        XCTAssertTrue(tapTimeout.contains("tap-timeout"), "Tap timeout ID should contain tap-timeout")
+        XCTAssertTrue(holdTimeout.contains("hold-timeout"), "Hold timeout ID should contain hold-timeout")
         XCTAssertTrue(advancedToggle.contains("advanced"), "Advanced toggle ID should contain advanced")
     }
 }
