@@ -187,6 +187,9 @@ class MainAppStateController: ObservableObject {
         // NOTE: Kanata v1.9.0 TCP does NOT require authentication
         // No token check needed - just verify service has TCP configuration
 
+        // In tests, Bundle.main resolves to the Xcode toolchain — plist path is meaningless
+        if TestEnvironment.isRunningTests { return true }
+
         // Check SMAppService plist first if active, otherwise fall back to legacy plist
         let plistPath = KanataDaemonManager.getActivePlistPath()
 
