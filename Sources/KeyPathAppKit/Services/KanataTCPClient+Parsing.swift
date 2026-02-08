@@ -11,7 +11,7 @@ extension KanataTCPClient {
         }
 
         // These are broadcast events that Kanata sends to all clients
-        let broadcastKeys = ["LayerChange", "ConfigFileReload", "MessagePush", "Ready", "ConfigError"]
+        let broadcastKeys = ["LayerChange", "ConfigFileReload", "MessagePush", "Ready", "ConfigError", "LayerNames"]
         return broadcastKeys.contains(where: { json[$0] != nil })
     }
 
@@ -39,7 +39,8 @@ extension KanataTCPClient {
         for (_, value) in json {
             if let dict = value as? [String: Any],
                let nested = dict["request_id"],
-               let requestId = parseRequestIdValue(nested) {
+               let requestId = parseRequestIdValue(nested)
+            {
                 return requestId
             }
         }
@@ -61,9 +62,11 @@ extension KanataTCPClient {
             // Check if it's a single-line response
             let lines = response.split(separator: "\n")
             if let firstLine = lines.first,
-               let lineData = String(firstLine).data(using: .utf8) {
+               let lineData = String(firstLine).data(using: .utf8)
+            {
                 if let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData),
-                   serverResponse.isError {
+                   serverResponse.isError
+                {
                     return serverResponse.msg ?? "Unknown error"
                 }
             }
@@ -83,7 +86,8 @@ extension KanataTCPClient {
 
     /// Extract a named server message (second line) from a newline-delimited response
     func extractMessage<T: Decodable>(named name: String, into _: T.Type, from data: Data)
-        throws -> T? {
+        throws -> T?
+    {
         guard let s = String(data: data, encoding: .utf8) else {
             AppLogger.shared.log("🔍 [TCP extractMessage] Failed to decode data as UTF-8")
             return nil

@@ -184,6 +184,49 @@ final class TCPClientRequestIDTests: XCTestCase {
         XCTAssertEqual(extracted, 123)
     }
 
+    // MARK: - Broadcast Detection Tests
+
+    /// Test that isUnsolicitedBroadcast recognizes all known broadcast message types
+    func testIsUnsolicitedBroadcastRecognizesAllTypes() throws {
+        let client = KanataTCPClient(port: port)
+
+        let broadcastMessages: [(String, String)] = [
+            ("LayerChange", #"{"LayerChange":{"new":"nav"}}"#),
+            ("ConfigFileReload", #"{"ConfigFileReload":{}}"#),
+            ("MessagePush", #"{"MessagePush":{"msg":"hello"}}"#),
+            ("Ready", #"{"Ready":{}}"#),
+            ("ConfigError", #"{"ConfigError":{"msg":"bad config"}}"#),
+            ("LayerNames", #"{"LayerNames":{"names":["base","nav","sym"]}}"#),
+        ]
+
+        for (name, json) in broadcastMessages {
+            let data = try XCTUnwrap(json.data(using: .utf8))
+            XCTAssertTrue(
+                client.isUnsolicitedBroadcast(data),
+                "\(name) should be recognized as an unsolicited broadcast"
+            )
+        }
+    }
+
+    /// Test that command responses are NOT classified as broadcasts
+    func testIsUnsolicitedBroadcastRejectsResponses() throws {
+        let client = KanataTCPClient(port: port)
+
+        let responseMessages = [
+            #"{"HelloOk":{"version":"1.10.0","protocol":1}}"#,
+            #"{"StatusInfo":{"engine_version":"1.10.0","uptime_s":100}}"#,
+            #"{"status":"Ok","request_id":1}"#,
+        ]
+
+        for json in responseMessages {
+            let data = try XCTUnwrap(json.data(using: .utf8))
+            XCTAssertFalse(
+                client.isUnsolicitedBroadcast(data),
+                "Command response should NOT be classified as broadcast: \(json)"
+            )
+        }
+    }
+
     // MARK: - Real-World Scenario Tests
 
     /// Test rapid successive requests (the problem request_id solves)

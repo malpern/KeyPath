@@ -28,7 +28,8 @@ final class SimpleModsSmokeTests: XCTestCase {
         let candidateMappings = [("f1", "f2"), ("2", "3"), ("caps", "escape")]
         var added = false
         for (fromKey, toKey) in candidateMappings
-            where !service.installedMappings.contains(where: { $0.fromKey == fromKey && $0.toKey == toKey }) {
+            where !service.installedMappings.contains(where: { $0.fromKey == fromKey && $0.toKey == toKey })
+        {
             service.addMapping(fromKey: fromKey, toKey: toKey)
             added = true
             break

@@ -104,7 +104,13 @@ final class ContextHUDController {
                     oneShotOverride.activate(normalized)
                 }
             case "kanata":
-                if oneShotOverride.shouldIgnoreKanataUpdate(normalizedLayer: normalized) {
+                if normalized == "base" {
+                    // If one-shot override is active, ignore Kanata's "base" report.
+                    // The override will be cleared by key press or timeout instead.
+                    if oneShotOverride.currentLayer != nil {
+                        return
+                    }
+                } else if oneShotOverride.shouldIgnoreKanataUpdate(normalizedLayer: normalized) {
                     return
                 }
             default:
@@ -116,18 +122,9 @@ final class ContextHUDController {
         guard normalized != previousLayer.lowercased() else { return }
         previousLayer = layerName
 
-        let triggerMode = PreferencesService.shared.contextHUDTriggerMode
-
-        // Base layer handling depends on trigger mode
+        // Base layer → dismiss (layer deactivated via hold release or one-shot consumption)
         if normalized == "base" {
-            switch triggerMode {
-            case .holdToShow:
-                // Hold mode: dismiss immediately when modifier is released
-                dismiss()
-            case .tapToToggle:
-                // Tap mode: keep HUD visible, let timeout or Esc dismiss it
-                break
-            }
+            dismiss()
             return
         }
 
@@ -143,21 +140,9 @@ final class ContextHUDController {
             AppLogger.shared.debug("🎯 [ContextHUD] Clearing one-shot override '\(overrideLayer)' on key press: \(key)")
         }
 
-        // Dismiss on Escape
+        // Dismiss on Escape (manual override for both modes)
         if key.lowercased() == "esc" {
             dismiss()
-            return
-        }
-
-        // Dismiss on mapped key press (user used a key from the HUD)
-        // In tap-to-toggle mode, don't dismiss on key press (only Esc dismisses)
-        guard window?.isVisible == true else { return }
-        let triggerMode = PreferencesService.shared.contextHUDTriggerMode
-        if triggerMode == .holdToShow {
-            let normalizedKey = key.lowercased()
-            if !Self.modifierKeys.contains(normalizedKey) {
-                dismiss()
-            }
         }
     }
 
@@ -207,7 +192,7 @@ final class ContextHUDController {
                 let layout = PhysicalLayout.find(id: layoutId) ?? .macBookUS
 
                 // Build key mapping for this layer
-                let keyMap = try await self.layerKeyMapper.getMapping(
+                let keyMap = try await layerKeyMapper.getMapping(
                     for: layerName,
                     configPath: configPath,
                     layout: layout,
@@ -224,18 +209,16 @@ final class ContextHUDController {
                 )
 
                 // Update view model
-                self.viewModel.update(
+                viewModel.update(
                     layerName: layerName,
                     keyMap: keyMap,
                     collections: enabledCollections,
                     style: style
                 )
 
-                // Show the window
-                self.showWindow()
-
-                // Schedule auto-dismiss
-                self.scheduleDismiss()
+                // Show the window — dismissal is driven by layer→base change,
+                // matching how the overlay behaves (no auto-dismiss timer).
+                showWindow()
             } catch {
                 AppLogger.shared.error("🎯 [ContextHUD] Failed to build layer mapping: \(error)")
             }
@@ -254,7 +237,7 @@ final class ContextHUDController {
             hostingView.rootView = ContextHUDView(viewModel: viewModel)
         }
 
-        // Position at lower 1/3 center of screen
+        // Position at center of screen
         positionWindow()
 
         // Animate in: scale + fade
@@ -330,11 +313,11 @@ final class ContextHUDController {
     private func createWindow() {
         let hudView = ContextHUDView(viewModel: viewModel)
         let hosting = NSHostingView(rootView: hudView)
-        hosting.setFrameSize(NSSize(width: 280, height: 160))
+        hosting.setFrameSize(NSSize(width: 400, height: 240))
 
         let newWindow = ContextHUDWindow(contentView: hosting)
-        self.hostingView = hosting
-        self.window = newWindow
+        hostingView = hosting
+        window = newWindow
     }
 
     private func positionWindow() {
@@ -343,16 +326,16 @@ final class ContextHUDController {
         // Size to fit content
         if let hostingView {
             let fittingSize = hostingView.fittingSize
-            let width = min(max(fittingSize.width, 200), 400)
-            let height = min(max(fittingSize.height, 80), 500)
+            let width = min(max(fittingSize.width, 240), 800)
+            let height = min(max(fittingSize.height, 100), 600)
             window.setContentSize(NSSize(width: width, height: height))
         }
 
-        // Position at lower 1/3 center
+        // Position at center of screen
         let screenFrame = screen.visibleFrame
         let windowFrame = window.frame
         let x = screenFrame.midX - (windowFrame.width / 2)
-        let y = screenFrame.minY + (screenFrame.height / 3) - (windowFrame.height / 2)
+        let y = screenFrame.midY - (windowFrame.height / 2)
         window.setFrameOrigin(NSPoint(x: x, y: y))
     }
 }

@@ -16,7 +16,7 @@ enum PlistGenerator {
     /// Service identifier for the Karabiner Virtual HID Device manager
     static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
 
-    /// Service identifier for the log rotation service
+    /// Service identifier for the legacy log rotation service (kept for cleanup paths)
     static let logRotationServiceID = "com.keypath.logrotate"
 
     // MARK: - Executable Paths
@@ -227,42 +227,6 @@ enum PlistGenerator {
         """
     }
 
-    // MARK: - Log Rotation Plist Generation
-
-    /// Generate the log rotation service launchd plist XML content.
-    ///
-    /// Creates a plist that runs a log rotation script hourly (at minute 0)
-    /// to keep log files under control. The script is responsible for:
-    /// - Rotating kanata.log and other KeyPath service logs
-    /// - Keeping total log size under 10MB
-    ///
-    /// - Parameter scriptPath: Path to the log rotation shell script
-    /// - Returns: Complete plist XML string ready to write to disk
-    static func generateLogRotationPlist(scriptPath: String) -> String {
-        """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>Label</key>
-            <string>\(logRotationServiceID)</string>
-            <key>ProgramArguments</key>
-            <array>
-                <string>\(scriptPath)</string>
-            </array>
-            <key>StartCalendarInterval</key>
-            <dict>
-                <key>Minute</key>
-                <integer>0</integer>
-            </dict>
-            <key>StandardOutPath</key>
-            <string>/var/log/keypath-logrotate.log</string>
-            <key>StandardErrorPath</key>
-            <string>/var/log/keypath-logrotate.log</string>
-            <key>UserName</key>
-            <string>root</string>
-        </dict>
-        </plist>
-        """
-    }
+    // Note: Log rotation plist generation was removed in favor of newsyslog.
+    // See ServiceBootstrapper.generateNewsyslogConfig() for the replacement.
 }

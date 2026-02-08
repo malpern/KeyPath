@@ -178,7 +178,8 @@ struct RulesSummaryAppLaunchChip: View {
 
         // Get app name from bundle
         if let bundle = Bundle(url: url),
-           let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String {
+           let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
+        {
             appName = name
         } else {
             // Use filename without extension

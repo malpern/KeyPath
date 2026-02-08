@@ -230,39 +230,11 @@ final class PlistGeneratorTests: XCTestCase {
         }
     }
 
-    // MARK: - Log Rotation Plist Tests
+    // MARK: - Legacy Log Rotation Service ID
 
-    func testGenerateLogRotationPlistContainsRequiredKeys() {
-        let scriptPath = "/usr/local/bin/keypath-logrotate.sh"
-        let plist = PlistGenerator.generateLogRotationPlist(scriptPath: scriptPath)
-
-        XCTAssertTrue(plist.contains("<key>Label</key>"))
-        XCTAssertTrue(plist.contains("<key>ProgramArguments</key>"))
-        XCTAssertTrue(plist.contains("<key>StartCalendarInterval</key>"))
-    }
-
-    func testGenerateLogRotationPlistContainsServiceID() {
-        let plist = PlistGenerator.generateLogRotationPlist(scriptPath: "/tmp/test.sh")
-
-        XCTAssertTrue(plist.contains("com.keypath.logrotate"))
-    }
-
-    func testGenerateLogRotationPlistContainsScriptPath() {
-        let scriptPath = "/usr/local/bin/keypath-logrotate.sh"
-        let plist = PlistGenerator.generateLogRotationPlist(scriptPath: scriptPath)
-
-        XCTAssertTrue(plist.contains(scriptPath))
-    }
-
-    func testGenerateLogRotationPlistValidXML() {
-        let plist = PlistGenerator.generateLogRotationPlist(scriptPath: "/tmp/test.sh")
-
-        guard let data = plist.data(using: .utf8),
-              let _ = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any]
-        else {
-            XCTFail("Generated log rotation plist is not valid XML/plist format")
-            return
-        }
+    func testLogRotationServiceIDIsKeptForLegacyCleanup() {
+        // logRotationServiceID is kept for legacy cleanup paths
+        XCTAssertEqual(PlistGenerator.logRotationServiceID, "com.keypath.logrotate")
     }
 
     // MARK: - Consistency Tests

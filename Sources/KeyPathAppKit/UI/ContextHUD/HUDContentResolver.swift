@@ -11,7 +11,7 @@ enum HUDContentResolver {
     static func resolve(
         layerName: String,
         keyMap: [UInt16: LayerKeyInfo],
-        collections: [RuleCollection]
+        collections _: [RuleCollection]
     ) -> HUDContentStyle {
         let normalized = layerName.lowercased()
 

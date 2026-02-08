@@ -359,7 +359,8 @@ class KanataDaemonManager {
             if let plist = NSDictionary(contentsOfFile: expectedPlistPath) as? [String: Any],
                let args = plist["ProgramArguments"] as? [String],
                let first = args.first,
-               !first.contains("kanata-launcher") {
+               !first.contains("kanata-launcher")
+            {
                 AppLogger.shared.log(
                     "❌ [KanataDaemonManager] Plist ProgramArguments missing kanata-launcher wrapper (found: \(first))"
                 )
@@ -377,7 +378,8 @@ class KanataDaemonManager {
             if let plist = NSDictionary(contentsOfFile: resourcePath) as? [String: Any],
                let args = plist["ProgramArguments"] as? [String],
                let first = args.first,
-               !first.contains("kanata-launcher") {
+               !first.contains("kanata-launcher")
+            {
                 AppLogger.shared.log(
                     "❌ [KanataDaemonManager] Resource plist missing kanata-launcher wrapper (found: \(first))"
                 )
@@ -589,7 +591,8 @@ class KanataDaemonManager {
             // Check if error is just "requires approval" - this is OK, user can approve later
             if let kanataError = error as? KanataDaemonError,
                case let .registrationFailed(reason) = kanataError,
-               reason.contains("Approval required") {
+               reason.contains("Approval required")
+            {
                 AppLogger.shared.log(
                     "⚠️ [KanataDaemonManager] Registration requires user approval - this is OK"
                 )

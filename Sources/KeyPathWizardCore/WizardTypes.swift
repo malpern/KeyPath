@@ -168,7 +168,7 @@ public enum ComponentRequirement: Equatable, Sendable {
     case communicationServerNotResponding // Communication server configured but not responding
     case tcpServerConfiguration // TCP enabled but not configured in service
     case tcpServerNotResponding // TCP configured but not responding
-    case logRotation // Log rotation service to manage Kanata logs
+    case logRotation // Log rotation via newsyslog to manage Kanata logs
 }
 
 /// Actions that can be automatically fixed by the wizard
@@ -188,7 +188,7 @@ public enum AutoFixAction: Equatable, Sendable {
     case restartUnhealthyServices // Restart services that are loaded but crashed
     case adoptOrphanedProcess // Install LaunchDaemon to manage existing process
     case replaceOrphanedProcess // Kill orphaned process and start managed one
-    case installLogRotation // Install log rotation service to keep logs under 10MB
+    case installLogRotation // Install newsyslog config for log rotation to keep logs under 10MB
     case replaceKanataWithBundled // Replace system kanata with bundled Developer ID signed binary
     case enableTCPServer // Enable TCP server for communication
     case setupTCPAuthentication // Generate and configure TCP authentication token

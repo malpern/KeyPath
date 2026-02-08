@@ -77,7 +77,8 @@ final class ServiceBootstrapper {
     /// - Parameter within: Time window in seconds (default: 2.0)
     /// - Returns: `true` if any service was restarted within the window
     nonisolated static func hadRecentRestart(within seconds: TimeInterval = healthyWarmupWindow)
-        -> Bool {
+        -> Bool
+    {
         let now = Date()
         return restartTimeLock.withLock { times in
             times.values.contains { now.timeIntervalSince($0) < seconds }
@@ -263,7 +264,8 @@ final class ServiceBootstrapper {
     private func getLaunchctlPath() -> String {
         // Allow override for testing
         if let override = ProcessInfo.processInfo.environment["KEYPATH_LAUNCHCTL_PATH"],
-           !override.isEmpty {
+           !override.isEmpty
+        {
             return override
         }
         return "/bin/launchctl"
@@ -316,131 +318,78 @@ final class ServiceBootstrapper {
         }
     }
 
-    // MARK: - Log Rotation Service
+    // MARK: - Newsyslog Config
 
-    /// Install the log rotation service
+    /// Install the newsyslog config for log rotation
     ///
-    /// Creates the rotation script and plist, then installs them with admin privileges.
+    /// Writes a config file to /etc/newsyslog.d/ that the system newsyslog daemon
+    /// picks up automatically (runs every 30 minutes). Replaces the old custom
+    /// log rotation daemon with proven system infrastructure.
     ///
     /// - Returns: `true` if installation succeeded
-    func installLogRotationService() async -> Bool {
-        AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing log rotation service (keeps logs < 10MB)")
+    func installNewsyslogConfig() async -> Bool {
+        AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing newsyslog config (keeps logs < 10MB)")
 
         if TestEnvironment.shouldSkipAdminOperations {
-            AppLogger.shared.log("🧪 [ServiceBootstrapper] Test mode - skipping log rotation install")
+            AppLogger.shared.log("🧪 [ServiceBootstrapper] Test mode - skipping newsyslog config install")
             return true
         }
 
-        let script = generateLogRotationScript()
-        let plist = PlistGenerator.generateLogRotationPlist(scriptPath: logRotationScriptPath)
+        let configContent = Self.generateNewsyslogConfig()
+        let configPath = "/etc/newsyslog.d/com.keypath.conf"
 
         let tempDir = NSTemporaryDirectory()
-        let scriptTempPath = "\(tempDir)keypath-logrotate.sh"
-        let plistTempPath = "\(tempDir)\(Self.logRotationServiceID).plist"
+        let tempPath = "\(tempDir)com.keypath.conf"
 
         do {
-            // Write script and plist to temp files
-            try script.write(toFile: scriptTempPath, atomically: true, encoding: .utf8)
-            try plist.write(toFile: plistTempPath, atomically: true, encoding: .utf8)
+            try configContent.write(toFile: tempPath, atomically: true, encoding: .utf8)
 
-            // Install both with admin privileges
-            let scriptFinal = logRotationScriptPath
-            let plistFinal = "\(getLaunchDaemonsPath())/\(Self.logRotationServiceID).plist"
+            var commands = [
+                "mkdir -p /etc/newsyslog.d",
+                "cp '\(tempPath)' '\(configPath)'",
+                "chmod 644 '\(configPath)'",
+                "chown root:wheel '\(configPath)'"
+            ]
 
-            let command = """
-            mkdir -p /usr/local/bin && \
-            cp '\(scriptTempPath)' '\(scriptFinal)' && \
-            chmod 755 '\(scriptFinal)' && \
-            chown root:wheel '\(scriptFinal)' && \
-            cp '\(plistTempPath)' '\(plistFinal)' && \
-            chmod 644 '\(plistFinal)' && \
-            chown root:wheel '\(plistFinal)' && \
-            launchctl bootstrap system '\(plistFinal)'
-            """
+            // Legacy cleanup: remove old custom log rotation daemon
+            commands.append("launchctl bootout system/com.keypath.logrotate 2>/dev/null || true")
+            commands.append("rm -f /Library/LaunchDaemons/com.keypath.logrotate.plist 2>/dev/null || true")
+            commands.append("rm -f /usr/local/bin/keypath-logrotate.sh 2>/dev/null || true")
 
             let result = await executePrivilegedBatch(
-                label: "install log rotation service",
-                commands: [command],
-                prompt: "KeyPath needs to install the log rotation service."
+                label: "install newsyslog config",
+                commands: commands,
+                prompt: "KeyPath needs to install the log rotation config."
             )
 
-            // Clean up temp files
-            try? FileManager.default.removeItem(atPath: scriptTempPath)
-            try? FileManager.default.removeItem(atPath: plistTempPath)
+            try? FileManager.default.removeItem(atPath: tempPath)
 
-            let success = result.success
-            if success {
-                AppLogger.shared.log("✅ [ServiceBootstrapper] Log rotation service installed successfully")
-                await rotateCurrentLogs()
+            if result.success {
+                AppLogger.shared.log("✅ [ServiceBootstrapper] Newsyslog config installed successfully")
             } else {
-                AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to install log rotation service: \(result.output)")
+                AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to install newsyslog config: \(result.output)")
             }
 
-            return success
+            return result.success
 
         } catch {
-            AppLogger.shared.log("❌ [ServiceBootstrapper] Error preparing log rotation files: \(error)")
+            AppLogger.shared.log("❌ [ServiceBootstrapper] Error preparing newsyslog config: \(error)")
             return false
         }
     }
 
-    /// Path to the log rotation script
-    private var logRotationScriptPath: String {
-        "/usr/local/bin/keypath-logrotate.sh"
-    }
-
-    /// Generate the log rotation shell script
-    private func generateLogRotationScript() -> String {
+    /// Generate the newsyslog config file content
+    static func generateNewsyslogConfig() -> String {
         """
-        #!/bin/bash
-        # KeyPath Log Rotation Script - keeps logs under 10MB
-        LOG_FILE="/var/log/kanata.log"
-        MAX_SIZE=$((10 * 1024 * 1024))  # 10MB
-
-        if [[ -f "$LOG_FILE" ]]; then
-            size=$(stat -f%z "$LOG_FILE" 2>/dev/null || echo 0)
-            if [[ $size -gt $MAX_SIZE ]]; then
-                # Rotate logs: remove old backup, move current to .1
-                [[ -f "${LOG_FILE}.1" ]] && rm -f "${LOG_FILE}.1"
-                mv "$LOG_FILE" "${LOG_FILE}.1"
-                touch "$LOG_FILE"
-                chmod 644 "$LOG_FILE"
-                echo "$(date): Rotated kanata.log ($size bytes)" >> /var/log/keypath-rotation.log
-            fi
-        fi
+        # KeyPath log rotation - managed by KeyPath installer
+        # Rotate kanata logs at 10MB, keep 3 compressed archives
+        /var/log/kanata.log\t\t\t\t644  3\t   10240  *\tNJ
         """
     }
 
-    /// Immediately rotate current large log files
-    private func rotateCurrentLogs() async {
-        AppLogger.shared.log("🔄 [ServiceBootstrapper] Immediately rotating current large log files")
-
-        let command = """
-        [[ -f /var/log/kanata.log ]] && \
-        size=$(stat -f%z /var/log/kanata.log 2>/dev/null || echo 0) && \
-        if [[ $size -gt 5242880 ]]; then \
-            echo "Rotating kanata.log ($size bytes)"; \
-            [[ -f /var/log/kanata.log.1 ]] && rm -f /var/log/kanata.log.1; \
-            mv /var/log/kanata.log /var/log/kanata.log.1; \
-            touch /var/log/kanata.log && chmod 644 /var/log/kanata.log; \
-        fi
-        """
-
-        do {
-            _ = try await SubprocessRunner.shared.run(
-                "/bin/sh",
-                args: ["-c", command],
-                timeout: 5
-            )
-        } catch {
-            AppLogger.shared.log("⚠️ [ServiceBootstrapper] Failed to rotate logs: \(error)")
-        }
-    }
-
-    /// Check if log rotation service is installed
-    func isLogRotationServiceInstalled() -> Bool {
-        let plistPath = "\(getLaunchDaemonsPath())/\(Self.logRotationServiceID).plist"
-        return FileManager.default.fileExists(atPath: plistPath)
+    /// Check if newsyslog config is installed
+    func isNewsyslogConfigInstalled() -> Bool {
+        FileManager.default.fileExists(atPath: "/etc/newsyslog.d/com.keypath.conf")
     }
 
     // MARK: - Restart Unhealthy Services

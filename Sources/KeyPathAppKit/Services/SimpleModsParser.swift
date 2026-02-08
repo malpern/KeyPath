@@ -43,7 +43,8 @@ public final class SimpleModsParser {
 
             // Check for KP:BEGIN (accept both '#' and ';' comment styles)
             if trimmed.hasPrefix("# KP:BEGIN") || trimmed.hasPrefix("; KP:BEGIN")
-                || trimmed.hasPrefix(";; KP:BEGIN") {
+                || trimmed.hasPrefix(";; KP:BEGIN")
+            {
                 if inBlock {
                     // Nested block - not expected but handle gracefully
                     continue
@@ -62,7 +63,8 @@ public final class SimpleModsParser {
 
             // Check for KP:END (accept both '#' and ';' comment styles)
             if trimmed.hasPrefix("# KP:END") || trimmed.hasPrefix("; KP:END")
-                || trimmed.hasPrefix(";; KP:END") {
+                || trimmed.hasPrefix(";; KP:END")
+            {
                 if inBlock {
                     let endId = parseAttributes(from: trimmed)["id"]
                     if endId == blockId {

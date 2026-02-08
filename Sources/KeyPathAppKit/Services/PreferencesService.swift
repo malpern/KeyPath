@@ -32,20 +32,20 @@ enum ContextHUDDisplayMode: String, CaseIterable {
 }
 
 /// How the overlay/HUD is triggered when the modifier (Hyper/Meh) is activated
-enum ContextHUDTriggerMode: String, CaseIterable {
+public enum ContextHUDTriggerMode: String, CaseIterable, Sendable {
     /// Show while holding modifier, dismiss on release
     case holdToShow
     /// Tap modifier to toggle visibility on/off
     case tapToToggle
 
-    var displayName: String {
+    public var displayName: String {
         switch self {
         case .holdToShow: "Hold to Show"
         case .tapToToggle: "Tap to Toggle"
         }
     }
 
-    var description: String {
+    public var description: String {
         switch self {
         case .holdToShow: "Appears while holding, dismisses on release"
         case .tapToToggle: "Tap to show, tap again or press Esc to dismiss"
@@ -183,6 +183,8 @@ final class PreferencesService: @unchecked Sendable {
         didSet {
             UserDefaults.standard.set(contextHUDTriggerMode.rawValue, forKey: Keys.contextHUDTriggerMode)
             AppLogger.shared.log("🎯 [Preferences] contextHUDTriggerMode = \(contextHUDTriggerMode.rawValue)")
+            // Trigger config regeneration since this affects Kanata layer activation behavior
+            NotificationCenter.default.post(name: .configAffectingPreferenceChanged, object: nil)
         }
     }
 
@@ -274,7 +276,8 @@ final class PreferencesService: @unchecked Sendable {
 
         // Leader key preference
         if let data = UserDefaults.standard.data(forKey: Keys.leaderKeyPreference),
-           let stored = try? JSONDecoder().decode(LeaderKeyPreference.self, from: data) {
+           let stored = try? JSONDecoder().decode(LeaderKeyPreference.self, from: data)
+        {
             leaderKeyPreference = stored
         } else {
             leaderKeyPreference = .default

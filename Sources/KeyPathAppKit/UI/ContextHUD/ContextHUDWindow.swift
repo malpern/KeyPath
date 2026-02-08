@@ -26,6 +26,11 @@ final class ContextHUDWindow: NSWindow {
         hidesOnDeactivate = false
     }
 
-    override var canBecomeKey: Bool { false }
-    override var canBecomeMain: Bool { false }
+    override var canBecomeKey: Bool {
+        false
+    }
+
+    override var canBecomeMain: Bool {
+        false
+    }
 }

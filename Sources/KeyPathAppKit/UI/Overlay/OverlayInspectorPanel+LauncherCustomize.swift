@@ -127,7 +127,8 @@ extension OverlayInspectorPanel {
         Task {
             let collections = await RuleCollectionStore.shared.loadCollections()
             if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
-               let config = launcherCollection.configuration.launcherGridConfig {
+               let config = launcherCollection.configuration.launcherGridConfig
+            {
                 await MainActor.run {
                     var mutableConfig = config
                     LauncherWelcomeWindowController.show(
@@ -177,7 +178,8 @@ extension OverlayInspectorPanel {
         Task {
             let collections = await RuleCollectionStore.shared.loadCollections()
             if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
-               let config = launcherCollection.configuration.launcherGridConfig {
+               let config = launcherCollection.configuration.launcherGridConfig
+            {
                 await MainActor.run {
                     launcherActivationMode = config.activationMode
                     launcherHyperTriggerMode = config.hyperTriggerMode

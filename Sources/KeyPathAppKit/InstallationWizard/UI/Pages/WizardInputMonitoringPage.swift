@@ -286,7 +286,8 @@ struct WizardInputMonitoringPage: View {
 
         Task {
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: allIssues),
-               nextPage != stateMachine.currentPage {
+               nextPage != stateMachine.currentPage
+            {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)
@@ -449,7 +450,8 @@ private func positionSettingsAndFinderSideBySide() {
         let axApp = AXUIElementCreateApplication(settingsApp.processIdentifier)
         var windowsRef: CFTypeRef?
         if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-           let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
+           let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+        {
             let axWindow = windows[0]
             var position = CGPoint(x: settingsFrame.minX, y: screen.frame.maxY - settingsFrame.maxY)
             var size = CGSize(width: settingsFrame.width, height: settingsFrame.height)
@@ -467,7 +469,8 @@ private func positionSettingsAndFinderSideBySide() {
         let axApp = AXUIElementCreateApplication(finderApp.processIdentifier)
         var windowsRef: CFTypeRef?
         if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-           let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
+           let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+        {
             let axWindow = windows[0]
             var position = CGPoint(x: finderFrame.minX, y: screen.frame.maxY - finderFrame.maxY)
             var size = CGSize(width: finderFrame.width, height: finderFrame.height)
@@ -594,71 +597,71 @@ struct CleanupStep: View {
 // MARK: - Preview
 
 #if DEBUG
-struct WizardInputMonitoringPage_Previews: PreviewProvider {
-    static var previews: some View {
-        let manager = RuntimeCoordinator()
-        let viewModel = KanataViewModel(manager: manager)
-        let stateMachine = WizardStateMachine()
-        let interpreter = WizardStateInterpreter()
+    struct WizardInputMonitoringPage_Previews: PreviewProvider {
+        static var previews: some View {
+            let manager = RuntimeCoordinator()
+            let viewModel = KanataViewModel(manager: manager)
+            let stateMachine = WizardStateMachine()
+            let interpreter = WizardStateInterpreter()
 
-        return Group {
-            WizardInputMonitoringPage(
-                systemState: .missingPermissions(missing: [.keyPathInputMonitoring, .kanataInputMonitoring]),
-                issues: [
-                    PreviewFixtures.permissionIssue(
-                        .keyPathInputMonitoring,
-                        title: "KeyPath Input Monitoring Required",
-                        description: "KeyPath needs Input Monitoring permission to capture keyboard events."
-                    ),
-                    PreviewFixtures.permissionIssue(
-                        .kanataInputMonitoring,
-                        title: "kanata Input Monitoring Required",
-                        description: "kanata needs Input Monitoring to remap keys."
-                    )
-                ],
-                allIssues: [],
-                stateInterpreter: interpreter,
-                onRefresh: {},
-                onNavigateToPage: nil,
-                onDismiss: nil,
-                kanataManager: manager
-            )
-            .previewDisplayName("Input Monitoring - Missing")
+            return Group {
+                WizardInputMonitoringPage(
+                    systemState: .missingPermissions(missing: [.keyPathInputMonitoring, .kanataInputMonitoring]),
+                    issues: [
+                        PreviewFixtures.permissionIssue(
+                            .keyPathInputMonitoring,
+                            title: "KeyPath Input Monitoring Required",
+                            description: "KeyPath needs Input Monitoring permission to capture keyboard events."
+                        ),
+                        PreviewFixtures.permissionIssue(
+                            .kanataInputMonitoring,
+                            title: "kanata Input Monitoring Required",
+                            description: "kanata needs Input Monitoring to remap keys."
+                        )
+                    ],
+                    allIssues: [],
+                    stateInterpreter: interpreter,
+                    onRefresh: {},
+                    onNavigateToPage: nil,
+                    onDismiss: nil,
+                    kanataManager: manager
+                )
+                .previewDisplayName("Input Monitoring - Missing")
 
-            WizardInputMonitoringPage(
-                systemState: .missingPermissions(missing: [.kanataInputMonitoring]),
-                issues: [
-                    PreviewFixtures.permissionIssue(
-                        .kanataInputMonitoring,
-                        title: "kanata Input Monitoring Required",
-                        description: "Enable kanata in Input Monitoring."
-                    )
-                ],
-                allIssues: [],
-                stateInterpreter: interpreter,
-                onRefresh: {},
-                onNavigateToPage: nil,
-                onDismiss: nil,
-                kanataManager: manager
-            )
-            .previewDisplayName("Input Monitoring - Partial")
+                WizardInputMonitoringPage(
+                    systemState: .missingPermissions(missing: [.kanataInputMonitoring]),
+                    issues: [
+                        PreviewFixtures.permissionIssue(
+                            .kanataInputMonitoring,
+                            title: "kanata Input Monitoring Required",
+                            description: "Enable kanata in Input Monitoring."
+                        )
+                    ],
+                    allIssues: [],
+                    stateInterpreter: interpreter,
+                    onRefresh: {},
+                    onNavigateToPage: nil,
+                    onDismiss: nil,
+                    kanataManager: manager
+                )
+                .previewDisplayName("Input Monitoring - Partial")
 
-            WizardInputMonitoringPage(
-                systemState: .ready,
-                issues: PreviewFixtures.noIssues,
-                allIssues: [],
-                stateInterpreter: interpreter,
-                onRefresh: {},
-                onNavigateToPage: nil,
-                onDismiss: nil,
-                kanataManager: manager
-            )
-            .previewDisplayName("Input Monitoring - Ready")
+                WizardInputMonitoringPage(
+                    systemState: .ready,
+                    issues: PreviewFixtures.noIssues,
+                    allIssues: [],
+                    stateInterpreter: interpreter,
+                    onRefresh: {},
+                    onNavigateToPage: nil,
+                    onDismiss: nil,
+                    kanataManager: manager
+                )
+                .previewDisplayName("Input Monitoring - Ready")
+            }
+            .frame(width: WizardDesign.Layout.pageWidth)
+            .fixedSize(horizontal: false, vertical: true)
+            .environmentObject(viewModel)
+            .environmentObject(stateMachine)
         }
-        .frame(width: WizardDesign.Layout.pageWidth)
-        .fixedSize(horizontal: false, vertical: true)
-        .environmentObject(viewModel)
-        .environmentObject(stateMachine)
     }
-}
 #endif

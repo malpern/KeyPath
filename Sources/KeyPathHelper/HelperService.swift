@@ -139,39 +139,29 @@ class HelperService: NSObject, HelperProtocol {
         )
     }
 
-    func installLogRotation(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] installLogRotation requested")
+    func installNewsyslogConfig(reply: @escaping (Bool, String?) -> Void) {
+        NSLog("[KeyPathHelper] installNewsyslogConfig requested")
         executePrivilegedOperation(
-            name: "installLogRotation",
+            name: "installNewsyslogConfig",
             operation: {
-                let scriptPath = "/usr/local/bin/keypath-logrotate.sh"
-                let plistPath = "/Library/LaunchDaemons/com.keypath.logrotate.plist"
+                let configPath = "/etc/newsyslog.d/com.keypath.conf"
+                let config = Self.generateNewsyslogConfig()
 
-                let script = Self.generateLogRotationScript()
-                let plist = Self.generateLogRotationPlist(scriptPath: scriptPath)
+                // Ensure directory exists
+                _ = Self.run("/bin/mkdir", ["-p", "/etc/newsyslog.d"])
 
-                // Write temp files then install atomically
-                let tmpDir = NSTemporaryDirectory()
-                let tmpScript = (tmpDir as NSString).appendingPathComponent("keypath-logrotate.sh")
-                let tmpPlist = (tmpDir as NSString).appendingPathComponent("com.keypath.logrotate.plist")
-                try script.write(toFile: tmpScript, atomically: true, encoding: .utf8)
-                try plist.write(toFile: tmpPlist, atomically: true, encoding: .utf8)
+                // Write config file
+                try config.write(toFile: configPath, atomically: true, encoding: .utf8)
+                _ = Self.run("/bin/chmod", ["644", configPath])
+                _ = Self.run("/usr/sbin/chown", ["root:wheel", configPath])
 
-                _ = Self.run("/bin/mkdir", ["-p", "/usr/local/bin"])
-                _ = Self.run("/bin/cp", [tmpScript, scriptPath])
-                _ = Self.run("/bin/chmod", ["755", scriptPath])
-                _ = Self.run("/usr/sbin/chown", ["root:wheel", scriptPath])
-
-                _ = Self.run("/bin/cp", [tmpPlist, plistPath])
-                _ = Self.run("/bin/chmod", ["644", plistPath])
-                _ = Self.run("/usr/sbin/chown", ["root:wheel", plistPath])
-
-                _ = Self.run("/bin/launchctl", ["bootout", "system/com.keypath.logrotate"]) // ignore failures
-                let bs = Self.run("/bin/launchctl", ["bootstrap", "system", plistPath])
-                if bs.status != 0 {
-                    throw HelperError.operationFailed(
-                        "bootstrap logrotate failed (status=\(bs.status)): \(bs.out)"
-                    )
+                // Legacy cleanup: remove old custom log rotation daemon if present
+                _ = Self.run("/bin/launchctl", ["bootout", "system/com.keypath.logrotate"])
+                if FileManager.default.fileExists(atPath: "/Library/LaunchDaemons/com.keypath.logrotate.plist") {
+                    _ = Self.run("/bin/rm", ["-f", "/Library/LaunchDaemons/com.keypath.logrotate.plist"])
+                }
+                if FileManager.default.fileExists(atPath: "/usr/local/bin/keypath-logrotate.sh") {
+                    _ = Self.run("/bin/rm", ["-f", "/usr/local/bin/keypath-logrotate.sh"])
                 }
             },
             reply: reply
@@ -590,6 +580,8 @@ class HelperService: NSObject, HelperProtocol {
             _ = run("/bin/launchctl", ["bootout", "system/\(daemon)"])
             NSLog("[KeyPathHelper] Stopped/unloaded: \(daemon)")
         }
+        // Legacy log rotation daemon cleanup
+        _ = run("/bin/launchctl", ["bootout", "system/com.keypath.logrotate"])
     }
 
     private static func removeLaunchDaemonPlists() {
@@ -642,6 +634,16 @@ class HelperService: NSObject, HelperProtocol {
                 _ = run("/bin/rm", ["-f", log])
                 NSLog("[KeyPathHelper] Removed log: \(log)")
             }
+        }
+        // Remove newsyslog config
+        if FileManager.default.fileExists(atPath: "/etc/newsyslog.d/com.keypath.conf") {
+            _ = run("/bin/rm", ["-f", "/etc/newsyslog.d/com.keypath.conf"])
+            NSLog("[KeyPathHelper] Removed newsyslog config")
+        }
+        // Remove legacy log rotation script
+        if FileManager.default.fileExists(atPath: "/usr/local/bin/keypath-logrotate.sh") {
+            _ = run("/bin/rm", ["-f", "/usr/local/bin/keypath-logrotate.sh"])
+            NSLog("[KeyPathHelper] Removed legacy log rotation script")
         }
     }
 
@@ -867,60 +869,11 @@ extension HelperService {
         firstMatch(pattern, in: text).flatMap { Int($0) }
     }
 
-    static func generateLogRotationScript() -> String {
+    static func generateNewsyslogConfig() -> String {
         """
-        #!/bin/bash
-        set -euo pipefail
-        LOG_DIR="/Library/Logs/KeyPath"
-        mkdir -p "$LOG_DIR"
-        MAX_SIZE_BYTES=$((10 * 1024 * 1024))
-
-        rotate_log() {
-            local logfile="$1"
-            if [[ -f "$logfile" ]]; then
-                local size=$(stat -f%z "$logfile" 2>/dev/null || echo 0)
-                if [[ $size -gt $MAX_SIZE_BYTES ]]; then
-                    echo "$(date): Rotating $logfile (size: $size bytes)"
-                    [[ -f "$logfile.1" ]] && rm -f "$logfile.1"
-                    mv "$logfile" "$logfile.1"
-                    touch "$logfile" && chmod 644 "$logfile" && chown root:wheel "$logfile" 2>/dev/null || true
-                    echo "$(date): Log rotation completed for $logfile"
-                fi
-            fi
-        }
-
-        rotate_log "$LOG_DIR/kanata.log"
-        for logfile in "$LOG_DIR"/keypath*.log; do
-            [[ -f "$logfile" ]] && rotate_log "$logfile"
-        done
-        """
-    }
-
-    static func generateLogRotationPlist(scriptPath: String) -> String {
-        """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>Label</key>
-            <string>com.keypath.logrotate</string>
-            <key>ProgramArguments</key>
-            <array>
-                <string>\(scriptPath)</string>
-            </array>
-            <key>StartCalendarInterval</key>
-            <dict>
-                <key>Minute</key>
-                <integer>0</integer>
-            </dict>
-            <key>StandardOutPath</key>
-            <string>/var/log/keypath-logrotate.log</string>
-            <key>StandardErrorPath</key>
-            <string>/var/log/keypath-logrotate.log</string>
-            <key>UserName</key>
-            <string>root</string>
-        </dict>
-        </plist>
+        # KeyPath log rotation - managed by KeyPath installer
+        # Rotate kanata logs at 10MB, keep 3 compressed archives
+        /var/log/kanata.log\t\t\t\t644  3\t   10240  *\tNJ
         """
     }
 
@@ -987,7 +940,8 @@ extension HelperService {
     }
 
     private static func generateKanataPlist(binaryPath: String, cfgPath: String, tcpPort: Int)
-        -> String {
+        -> String
+    {
         let args = kanataArguments(binaryPath: binaryPath, cfgPath: cfgPath, tcpPort: tcpPort)
         let argsXML = args.map { "                <string>\($0)</string>" }.joined(separator: "\n")
         return """

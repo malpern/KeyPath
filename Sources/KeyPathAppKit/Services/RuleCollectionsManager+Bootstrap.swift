@@ -20,7 +20,8 @@ extension RuleCollectionsManager {
         if storedCustomRules.isEmpty,
            let customIndex = storedCollections.firstIndex(where: {
                $0.id == RuleCollectionIdentifier.customMappings
-           }) {
+           })
+        {
             let legacy = storedCollections.remove(at: customIndex)
             storedCustomRules = legacy.mappings.map { mapping in
                 CustomRule(

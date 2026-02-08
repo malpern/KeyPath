@@ -1,24 +1,23 @@
 import SwiftUI
 
-/// Visual settings section for the Context HUD
+/// Visual settings section for the Shortcut List
 struct ContextHUDSettingsSection: View {
     @State private var displayMode = PreferencesService.shared.contextHUDDisplayMode
     @State private var triggerMode = PreferencesService.shared.contextHUDTriggerMode
-    @State private var timeout = PreferencesService.shared.contextHUDTimeout
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Context HUD")
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Shortcut List")
                 .font(.headline)
                 .foregroundColor(.secondary)
 
-            // Display Mode - visual cards
-            VStack(alignment: .leading, spacing: 6) {
+            // Display Mode
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Display")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     displayModeCard(
                         mode: .overlayOnly,
                         icon: "keyboard",
@@ -28,25 +27,25 @@ struct ContextHUDSettingsSection: View {
                     displayModeCard(
                         mode: .hudOnly,
                         icon: "list.bullet.rectangle",
-                        title: "HUD",
-                        subtitle: "Compact list"
+                        title: "List",
+                        subtitle: "Compact view"
                     )
                     displayModeCard(
                         mode: .both,
                         icon: "rectangle.on.rectangle",
                         title: "Both",
-                        subtitle: "Overlay + HUD"
+                        subtitle: "Overlay + List"
                     )
                 }
             }
 
-            // Trigger Mode - visual cards
-            VStack(alignment: .leading, spacing: 6) {
+            // Trigger Mode
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Trigger")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     triggerModeCard(
                         mode: .holdToShow,
                         icon: "hand.tap",
@@ -60,34 +59,6 @@ struct ContextHUDSettingsSection: View {
                         subtitle: "Toggle on/off"
                     )
                 }
-            }
-
-            // Timeout slider
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Image(systemName: "timer")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-
-                    Text("Auto-dismiss")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-
-                    Spacer()
-
-                    Text("\(timeout, specifier: "%.1f")s")
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundColor(.primary)
-                        .frame(width: 36)
-                }
-
-                Slider(value: $timeout, in: 1 ... 10, step: 0.5)
-                    .frame(maxWidth: 260)
-                    .onChange(of: timeout) { _, newValue in
-                        PreferencesService.shared.contextHUDTimeout = newValue
-                    }
-                    .accessibilityIdentifier("settings-context-hud-timeout")
-                    .accessibilityLabel("Context HUD Timeout")
             }
         }
     }
@@ -108,12 +79,11 @@ struct ContextHUDSettingsSection: View {
                 PreferencesService.shared.contextHUDDisplayMode = mode
             }
         } label: {
-            VStack(spacing: 6) {
-                // Icon area with mini illustration
+            VStack(spacing: 8) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.05))
-                        .frame(height: 36)
+                        .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.04))
+                        .frame(height: 40)
 
                     Image(systemName: icon)
                         .font(.system(size: 18))
@@ -121,24 +91,25 @@ struct ContextHUDSettingsSection: View {
                 }
 
                 Text(title)
-                    .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
+                    .font(.subheadline.weight(isSelected ? .semibold : .regular))
                     .foregroundStyle(isSelected ? .primary : .secondary)
 
                 Text(subtitle)
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
-            .frame(width: 80)
-            .padding(.vertical, 8)
-            .padding(.horizontal, 4)
+            .frame(width: 84)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 6)
+            .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? Color.accentColor.opacity(0.08) : .clear)
+                    .fill(isSelected ? Color.accentColor.opacity(0.06) : .clear)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .strokeBorder(
-                        isSelected ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.1),
+                        isSelected ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.08),
                         lineWidth: isSelected ? 1.5 : 0.5
                     )
             )
@@ -164,32 +135,33 @@ struct ContextHUDSettingsSection: View {
                 PreferencesService.shared.contextHUDTriggerMode = mode
             }
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.system(size: 16))
                     .foregroundStyle(isSelected ? Color.accentColor : .secondary)
                     .frame(width: 24)
 
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
+                        .font(.subheadline.weight(isSelected ? .semibold : .regular))
                         .foregroundStyle(isSelected ? .primary : .secondary)
                     Text(subtitle)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 8)
-            .padding(.horizontal, 10)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? Color.accentColor.opacity(0.08) : .clear)
+                    .fill(isSelected ? Color.accentColor.opacity(0.06) : .clear)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .strokeBorder(
-                        isSelected ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.1),
+                        isSelected ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.08),
                         lineWidth: isSelected ? 1.5 : 0.5
                     )
             )

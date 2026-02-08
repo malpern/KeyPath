@@ -325,8 +325,15 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             }
             updateLayerName(layerName)
         case .kanata:
-            if oneShotOverride.shouldIgnoreKanataUpdate(normalizedLayer: normalized),
-               let overrideLayer = oneShotOverride.currentLayer {
+            // Always honor Kanata's "base" layer change — it means the layer definitively
+            // returned to base (one-shot consumed, hold released, etc.). Clear any one-shot
+            // override that may be blocking the update. This handles the case where
+            // one-shot-press layers don't fire an exit fake key (no push-msg "layer:base").
+            if normalized == "base" {
+                oneShotOverride.clear()
+            } else if oneShotOverride.shouldIgnoreKanataUpdate(normalizedLayer: normalized),
+                      let overrideLayer = oneShotOverride.currentLayer
+            {
                 AppLogger.shared.debug(
                     "🧭 [OverlayController] Ignoring kanata layer '\(layerName)' while one-shot override '\(overrideLayer)' active"
                 )
@@ -898,7 +905,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             }
 
             if let mapping = viewModel.launcherMappings[normalizedKey],
-               let message = Self.launcherActionMessage(for: mapping.target) {
+               let message = Self.launcherActionMessage(for: mapping.target)
+            {
                 AppLogger.shared.log("🖱️ [OverlayController] Launcher key clicked: \(normalizedKey) -> \(message)")
                 ActionDispatcher.shared.dispatch(message: message)
                 ActionDispatcher.shared.dispatch(message: "layer:base")

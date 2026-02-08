@@ -13,7 +13,7 @@ struct ContextHUDView: View {
                     .frame(width: 6, height: 6)
 
                 Text(viewModel.layerName.uppercased())
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .font(.system(size: 13, weight: .bold, design: .monospaced))
                     .foregroundStyle(.white)
                     .tracking(1.5)
             }
@@ -24,8 +24,8 @@ struct ContextHUDView: View {
             // Content based on style
             contentView
         }
-        .padding(12)
-        .frame(minWidth: 200, maxWidth: 400)
+        .padding(20)
+        .frame(minWidth: 240, maxWidth: 800)
         .appGlassSheet(cornerRadius: 12)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Context HUD: \(viewModel.layerName)")

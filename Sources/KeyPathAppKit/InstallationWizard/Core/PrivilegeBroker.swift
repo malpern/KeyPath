@@ -37,9 +37,9 @@ public struct PrivilegeBroker {
         try await coordinator.restartUnhealthyServices()
     }
 
-    /// Install log rotation service
-    public func installLogRotation() async throws {
-        try await coordinator.installLogRotation()
+    /// Install newsyslog config for log rotation
+    public func installNewsyslogConfig() async throws {
+        try await coordinator.installNewsyslogConfig()
     }
 
     /// Install LaunchDaemon services without loading (adopt/replace paths)

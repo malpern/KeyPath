@@ -254,7 +254,8 @@ struct ToastModifier: ViewModifier {
 extension View {
     /// Add toast notification support to a view
     func withToasts(_ toastManager: WizardToastManager, onToastAction: (() -> Void)? = nil)
-        -> some View {
+        -> some View
+    {
         modifier(ToastModifier(toastManager: toastManager, onToastAction: onToastAction))
     }
 }

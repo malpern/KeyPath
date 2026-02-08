@@ -56,7 +56,8 @@ extension KeyboardCapture {
         // De-dup identical events
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {
             if last.baseKey == keyPress.baseKey,
-               Date().timeIntervalSince(lastAt) <= dedupWindow {
+               Date().timeIntervalSince(lastAt) <= dedupWindow
+            {
                 AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate TCP key: \(keyName)")
                 return
             }

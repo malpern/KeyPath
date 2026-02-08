@@ -99,9 +99,26 @@ extension LayerKeyMapper {
         case "end": "↘"
         case "pageup", "pgup": "⇞"
         case "pagedown", "pgdn": "⇟"
+        // Media / system keys (macOS function row)
+        case "brdn": "☀-"
+        case "brup": "☀+"
+        case "mission_control": "Mission Control"
+        case "launchpad": "Launchpad"
+        case "prev": "⏮"
+        case "next": "⏭"
+        case "pp": "⏯"
+        case "mute": "🔇"
+        case "vold": "🔉"
+        case "volu": "🔊"
         default:
-            // Return as-is if unknown
-            kanataKey
+            // Raw Kanata HID codes (k###) are unmapped system keys — show as "Key ###"
+            if kanataKey.lowercased().hasPrefix("k"),
+               let code = Int(kanataKey.dropFirst())
+            {
+                "Key \(code)"
+            } else {
+                kanataKey
+            }
         }
     }
 

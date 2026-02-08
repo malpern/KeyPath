@@ -416,7 +416,8 @@ struct WizardAccessibilityPage: View {
             }
 
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: allIssues),
-               nextPage != stateMachine.currentPage {
+               nextPage != stateMachine.currentPage
+            {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)
@@ -477,7 +478,8 @@ struct WizardAccessibilityPage: View {
             let axApp = AXUIElementCreateApplication(settingsApp.processIdentifier)
             var windowsRef: CFTypeRef?
             if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-               let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
+               let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+            {
                 let axWindow = windows[0]
                 var position = CGPoint(x: settingsFrame.minX, y: screen.frame.maxY - settingsFrame.maxY)
                 var size = CGSize(width: settingsFrame.width, height: settingsFrame.height)
@@ -495,7 +497,8 @@ struct WizardAccessibilityPage: View {
             let axApp = AXUIElementCreateApplication(finderApp.processIdentifier)
             var windowsRef: CFTypeRef?
             if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-               let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
+               let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+            {
                 let axWindow = windows[0]
                 var position = CGPoint(x: finderFrame.minX, y: screen.frame.maxY - finderFrame.maxY)
                 var size = CGSize(width: finderFrame.width, height: finderFrame.height)
@@ -513,67 +516,67 @@ struct WizardAccessibilityPage: View {
 // MARK: - Preview
 
 #if DEBUG
-struct WizardAccessibilityPage_Previews: PreviewProvider {
-    static var previews: some View {
-        let manager = RuntimeCoordinator()
-        let viewModel = KanataViewModel(manager: manager)
-        let stateMachine = WizardStateMachine()
+    struct WizardAccessibilityPage_Previews: PreviewProvider {
+        static var previews: some View {
+            let manager = RuntimeCoordinator()
+            let viewModel = KanataViewModel(manager: manager)
+            let stateMachine = WizardStateMachine()
 
-        return Group {
-            WizardAccessibilityPage(
-                systemState: .missingPermissions(missing: [.keyPathAccessibility, .kanataAccessibility]),
-                issues: [
-                    PreviewFixtures.permissionIssue(
-                        .keyPathAccessibility,
-                        title: "KeyPath Accessibility Required",
-                        description: "KeyPath needs Accessibility permission to monitor keyboard events."
-                    ),
-                    PreviewFixtures.permissionIssue(
-                        .kanataAccessibility,
-                        title: "kanata Accessibility Required",
-                        description: "kanata also needs Accessibility permission for remapping."
-                    )
-                ],
-                allIssues: [],
-                onRefresh: {},
-                onNavigateToPage: nil,
-                onDismiss: nil,
-                kanataManager: manager
-            )
-            .previewDisplayName("Accessibility - Missing")
+            return Group {
+                WizardAccessibilityPage(
+                    systemState: .missingPermissions(missing: [.keyPathAccessibility, .kanataAccessibility]),
+                    issues: [
+                        PreviewFixtures.permissionIssue(
+                            .keyPathAccessibility,
+                            title: "KeyPath Accessibility Required",
+                            description: "KeyPath needs Accessibility permission to monitor keyboard events."
+                        ),
+                        PreviewFixtures.permissionIssue(
+                            .kanataAccessibility,
+                            title: "kanata Accessibility Required",
+                            description: "kanata also needs Accessibility permission for remapping."
+                        )
+                    ],
+                    allIssues: [],
+                    onRefresh: {},
+                    onNavigateToPage: nil,
+                    onDismiss: nil,
+                    kanataManager: manager
+                )
+                .previewDisplayName("Accessibility - Missing")
 
-            WizardAccessibilityPage(
-                systemState: .missingPermissions(missing: [.kanataAccessibility]),
-                issues: [
-                    PreviewFixtures.permissionIssue(
-                        .kanataAccessibility,
-                        title: "kanata Accessibility Required",
-                        description: "Enable kanata in Accessibility."
-                    )
-                ],
-                allIssues: [],
-                onRefresh: {},
-                onNavigateToPage: nil,
-                onDismiss: nil,
-                kanataManager: manager
-            )
-            .previewDisplayName("Accessibility - Partial")
+                WizardAccessibilityPage(
+                    systemState: .missingPermissions(missing: [.kanataAccessibility]),
+                    issues: [
+                        PreviewFixtures.permissionIssue(
+                            .kanataAccessibility,
+                            title: "kanata Accessibility Required",
+                            description: "Enable kanata in Accessibility."
+                        )
+                    ],
+                    allIssues: [],
+                    onRefresh: {},
+                    onNavigateToPage: nil,
+                    onDismiss: nil,
+                    kanataManager: manager
+                )
+                .previewDisplayName("Accessibility - Partial")
 
-            WizardAccessibilityPage(
-                systemState: .ready,
-                issues: PreviewFixtures.noIssues,
-                allIssues: [],
-                onRefresh: {},
-                onNavigateToPage: nil,
-                onDismiss: nil,
-                kanataManager: manager
-            )
-            .previewDisplayName("Accessibility - Ready")
+                WizardAccessibilityPage(
+                    systemState: .ready,
+                    issues: PreviewFixtures.noIssues,
+                    allIssues: [],
+                    onRefresh: {},
+                    onNavigateToPage: nil,
+                    onDismiss: nil,
+                    kanataManager: manager
+                )
+                .previewDisplayName("Accessibility - Ready")
+            }
+            .frame(width: WizardDesign.Layout.pageWidth)
+            .fixedSize(horizontal: false, vertical: true)
+            .environmentObject(viewModel)
+            .environmentObject(stateMachine)
         }
-        .frame(width: WizardDesign.Layout.pageWidth)
-        .fixedSize(horizontal: false, vertical: true)
-        .environmentObject(viewModel)
-        .environmentObject(stateMachine)
     }
-}
 #endif

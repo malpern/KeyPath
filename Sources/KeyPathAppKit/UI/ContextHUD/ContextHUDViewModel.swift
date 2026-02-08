@@ -33,9 +33,29 @@ final class ContextHUDViewModel {
         // Build collection lookup by UUID
         let collectionLookup = Dictionary(uniqueKeysWithValues: collections.map { ($0.id, $0) })
 
-        // Filter out transparent keys and build entries
+        // Filter out transparent keys, identity mappings, and raw HID codes
         let entries: [HUDKeyEntry] = keyMap.compactMap { keyCode, info in
             guard !info.isTransparent else { return nil }
+
+            // Skip raw HID codes (e.g., "k464") — these are unmapped system keys
+            if let output = info.outputKey,
+               output.lowercased().hasPrefix("k"),
+               Int(output.dropFirst()) != nil
+            {
+                return nil
+            }
+
+            // Skip identity mappings the transparent detector missed
+            // (e.g., fn→fn where simulator outputs a different code)
+            // Only apply to keys without a collection — collection-assigned keys are intentional
+            if info.collectionId == nil,
+               let output = info.outputKey
+            {
+                let inputName = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
+                if LayerKeyMapper.normalizeKeyName(inputName) == LayerKeyMapper.normalizeKeyName(output) {
+                    return nil
+                }
+            }
 
             let keycap = keycapLabel(for: keyCode)
             let color = collectionColor(for: info.collectionId)

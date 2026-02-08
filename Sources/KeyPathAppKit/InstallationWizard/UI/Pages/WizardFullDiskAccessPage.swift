@@ -217,7 +217,8 @@ struct WizardFullDiskAccessPage: View {
             // Get the next page based on current state
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
                nextPage != stateMachine.currentPage,
-               nextPage != .fullDiskAccess { // Don't loop back to FDA
+               nextPage != .fullDiskAccess
+            { // Don't loop back to FDA
                 stateMachine.navigateToPage(nextPage)
             } else {
                 // If no specific next page, go to summary
@@ -236,7 +237,8 @@ struct WizardFullDiskAccessPage: View {
         // Check cache first
         if let lastCheckTime = lastFDACheckTime,
            Date().timeIntervalSince(lastCheckTime) < cacheValidityDuration,
-           cachedFDAStatus {
+           cachedFDAStatus
+        {
             // Use cached positive result (don't cache negative to allow quick detection)
             hasFullDiskAccess = cachedFDAStatus
             hasCheckedPermission = true

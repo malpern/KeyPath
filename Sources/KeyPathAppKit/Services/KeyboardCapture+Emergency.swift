@@ -100,7 +100,8 @@ extension KeyboardCapture {
             // Check if all three keys are pressed simultaneously
             if pressedKeys.contains(leftControlKey),
                pressedKeys.contains(spaceKey),
-               pressedKeys.contains(escapeKey) {
+               pressedKeys.contains(escapeKey)
+            {
                 AppLogger.shared.log("🚨 [Emergency] Kanata emergency stop sequence detected!")
 
                 DispatchQueue.main.async {

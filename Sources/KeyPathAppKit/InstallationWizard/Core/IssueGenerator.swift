@@ -8,7 +8,8 @@ class IssueGenerator {
     // MARK: - Issue Creation
 
     func createSystemRequirementIssues(from result: SystemRequirements.ValidationResult)
-        -> [WizardIssue] {
+        -> [WizardIssue]
+    {
         var issues: [WizardIssue] = []
 
         // Create issues for each compatibility problem
@@ -83,7 +84,8 @@ class IssueGenerator {
     }
 
     private func createGroupedConflictDescription(conflictType: String, conflicts: [SystemConflict])
-        -> String {
+        -> String
+    {
         let count = conflicts.count
         let plural = count > 1 ? "es" : ""
 
@@ -240,7 +242,7 @@ class IssueGenerator {
             category: .installation,
             title: "Log Rotation Recommended",
             description:
-            "Install log rotation to automatically manage Kanata logs and keep them under 10MB total. This prevents performance issues from large log files.",
+            "Install newsyslog config to automatically rotate Kanata logs and keep them under 10MB. Uses the built-in macOS newsyslog system.",
             autoFixAction: .installLogRotation,
             userAction: nil
         )

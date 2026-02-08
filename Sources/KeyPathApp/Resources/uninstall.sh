@@ -96,7 +96,7 @@ check_root() {
 
 stop_and_unload_daemon() {
     log_info "Stopping and unloading LaunchDaemons..."
-    
+
     # Stop kanata daemon if it's running
     if launchctl list | grep -q "$LAUNCH_DAEMON_LABEL"; then
         launchctl kill TERM "system/$LAUNCH_DAEMON_LABEL" 2>/dev/null || true
@@ -106,20 +106,23 @@ stop_and_unload_daemon() {
     else
         log_info "Kanata LaunchDaemon was not running"
     fi
-    
+
     # Stop VirtualHID daemon
     if launchctl list | grep -q "$VHID_DAEMON_LABEL"; then
         launchctl kill TERM "system/$VHID_DAEMON_LABEL" 2>/dev/null || true
         launchctl bootout "system/$VHID_DAEMON_LABEL" 2>/dev/null || true
         log_success "VirtualHID daemon stopped and unloaded"
     fi
-    
+
     # Stop VirtualHID manager
     if launchctl list | grep -q "$VHID_MANAGER_LABEL"; then
         launchctl kill TERM "system/$VHID_MANAGER_LABEL" 2>/dev/null || true
         launchctl bootout "system/$VHID_MANAGER_LABEL" 2>/dev/null || true
         log_success "VirtualHID manager stopped and unloaded"
     fi
+
+    # Legacy log rotation daemon cleanup
+    launchctl bootout system/com.keypath.logrotate 2>/dev/null || true
 }
 
 remove_launch_daemon() {
@@ -181,12 +184,30 @@ remove_keypath_app() {
 
 remove_log_files() {
     log_info "Removing log files..."
-    
+
     if [[ -f "/var/log/kanata.log" ]]; then
         rm -f "/var/log/kanata.log"
         log_success "Log files removed"
     else
         log_info "Log files not found"
+    fi
+
+    # Remove newsyslog config
+    if [[ -f "/etc/newsyslog.d/com.keypath.conf" ]]; then
+        rm -f "/etc/newsyslog.d/com.keypath.conf"
+        log_success "Newsyslog config removed"
+    fi
+
+    # Remove legacy log rotation script
+    if [[ -f "/usr/local/bin/keypath-logrotate.sh" ]]; then
+        rm -f "/usr/local/bin/keypath-logrotate.sh"
+        log_success "Legacy log rotation script removed"
+    fi
+
+    # Remove legacy log rotation plist
+    if [[ -f "/Library/LaunchDaemons/com.keypath.logrotate.plist" ]]; then
+        rm -f "/Library/LaunchDaemons/com.keypath.logrotate.plist"
+        log_success "Legacy log rotation plist removed"
     fi
 }
 

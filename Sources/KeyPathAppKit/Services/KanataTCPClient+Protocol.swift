@@ -31,7 +31,8 @@ extension KanataTCPClient {
 
             if let version = try container.decodeIfPresent(String.self, forKey: .version),
                let protocolVersion = try container.decodeIfPresent(Int.self, forKey: .protocolVersion),
-               let capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities) {
+               let capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities)
+            {
                 self.version = version
                 self.protocolVersion = protocolVersion
                 self.capabilities = capabilities

@@ -11,7 +11,7 @@ protocol PrivilegedOperationsCoordinating: AnyObject {
     func restartUnhealthyServices() async throws
     func installServicesIfUninstalled(context: String) async throws -> Bool
     func installLaunchDaemonServicesWithoutLoading() async throws
-    func installLogRotation() async throws
+    func installNewsyslogConfig() async throws
     func regenerateServiceConfiguration() async throws
     func repairVHIDDaemonServices() async throws
     func downloadAndInstallCorrectVHIDDriver() async throws
@@ -230,7 +230,8 @@ final class PrivilegedOperationsCoordinator {
 
         let now = Date()
         if let last = Self.lastServiceInstallAttempt,
-           now.timeIntervalSince(last) < Self.serviceInstallThrottle {
+           now.timeIntervalSince(last) < Self.serviceInstallThrottle
+        {
             let remaining = Self.serviceInstallThrottle - now.timeIntervalSince(last)
             AppLogger.shared.log(
                 "\(Self.serviceGuardLogPrefix) \(context): skipping auto-install (throttled, \(String(format: "%.1f", remaining))s remaining)"
@@ -255,15 +256,15 @@ final class PrivilegedOperationsCoordinator {
         try await sudoRegenerateConfig()
     }
 
-    /// Install log rotation service
-    func installLogRotation() async throws {
-        AppLogger.shared.log("🔐 [PrivCoordinator] Installing log rotation")
+    /// Install newsyslog config for log rotation
+    func installNewsyslogConfig() async throws {
+        AppLogger.shared.log("🔐 [PrivCoordinator] Installing newsyslog config")
 
         switch Self.operationMode {
         case .privilegedHelper:
-            try await helperInstallLogRotation()
+            try await helperInstallNewsyslogConfig()
         case .directSudo:
-            try await sudoInstallLogRotation()
+            try await sudoInstallNewsyslogConfig()
         }
     }
 
@@ -444,14 +445,14 @@ final class PrivilegedOperationsCoordinator {
         try await sudoRegenerateConfig()
     }
 
-    private func helperInstallLogRotation() async throws {
+    private func helperInstallNewsyslogConfig() async throws {
         do {
-            try await HelperManager.shared.installLogRotation()
+            try await HelperManager.shared.installNewsyslogConfig()
         } catch {
             AppLogger.shared.log(
-                "🚨 [PrivCoordinator] FALLBACK: helper installLogRotation failed: \(error.localizedDescription). Using AppleScript/sudo path."
+                "🚨 [PrivCoordinator] FALLBACK: helper installNewsyslogConfig failed: \(error.localizedDescription). Using AppleScript/sudo path."
             )
-            try await sudoInstallLogRotation()
+            try await sudoInstallNewsyslogConfig()
         }
     }
 
@@ -704,13 +705,13 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
-    /// Install log rotation service
+    /// Install newsyslog config for log rotation
     /// Uses extracted ServiceBootstrapper
-    private func sudoInstallLogRotation() async throws {
-        let success = await ServiceBootstrapper.shared.installLogRotationService()
+    private func sudoInstallNewsyslogConfig() async throws {
+        let success = await ServiceBootstrapper.shared.installNewsyslogConfig()
 
         if !success {
-            throw PrivilegedOperationError.operationFailed("Log rotation installation failed")
+            throw PrivilegedOperationError.operationFailed("Newsyslog config installation failed")
         }
     }
 
@@ -975,7 +976,8 @@ final class PrivilegedOperationsCoordinator {
     private static func notifySMAppServiceApprovalRequired(context: String) {
         let now = Date()
         if let last = lastSMAppApprovalNotice,
-           now.timeIntervalSince(last) < smAppApprovalNoticeThrottle {
+           now.timeIntervalSince(last) < smAppApprovalNoticeThrottle
+        {
             return
         }
         lastSMAppApprovalNotice = now

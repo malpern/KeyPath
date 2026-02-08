@@ -4,7 +4,7 @@
 // MARK: - HUDContentResolver Tests
 
 final class HUDContentResolverTests: XCTestCase {
-    // Layer name matching
+    /// Layer name matching
     func testWindowLayerName() {
         let style = HUDContentResolver.resolve(layerName: "window", keyMap: [:], collections: [])
         XCTAssertEqual(style, .windowSnappingGrid)
@@ -55,7 +55,7 @@ final class HUDContentResolverTests: XCTestCase {
         XCTAssertEqual(style, .defaultList)
     }
 
-    // Collection-based resolution
+    /// Collection-based resolution
     func testWindowSnappingCollectionOverridesDefault() {
         let keyMap: [UInt16: LayerKeyInfo] = [
             0: .mapped(displayLabel: "Left", outputKey: "left", outputKeyCode: nil,

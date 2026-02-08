@@ -76,7 +76,8 @@ struct ContentViewMainTab: View {
     private var saveButtonSection: some View {
         // Save button - only visible when input OR output has content
         if recordingCoordinator.capturedInputSequence() != nil
-            || recordingCoordinator.capturedOutputSequence() != nil {
+            || recordingCoordinator.capturedOutputSequence() != nil
+        {
             HStack {
                 Spacer()
                 Button(

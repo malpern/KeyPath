@@ -26,8 +26,8 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
         try await super.tearDown()
     }
 
-    func testInstallLogRotationExecutesWithoutCrash() async {
-        // This test verifies that installLogRotation() executes without crashing.
+    func testInstallNewsyslogConfigExecutesWithoutCrash() async {
+        // This test verifies that installNewsyslogConfig() executes without crashing.
         // In test mode, privileged operations are skipped via TestEnvironment.shouldSkipAdminOperations,
         // so we just verify the method completes (whether success or expected failure).
         // The actual implementation uses AdminCommandExecutor (backed by PrivilegedCommandRunner).
@@ -35,7 +35,7 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
         let coordinator = PrivilegedOperationsCoordinator.shared
 
         do {
-            try await coordinator.installLogRotation()
+            try await coordinator.installNewsyslogConfig()
             // Success in test mode (admin ops skipped)
         } catch {
             // Also acceptable - may fail due to permissions in some test environments

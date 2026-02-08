@@ -385,7 +385,8 @@ extension KanataConfiguration {
     // Note: renderDisabledCollections removed - disabled collections not written to config (ADR-025)
 
     static func metadataLines(for collection: RuleCollection, indent: String, status: String)
-        -> [String] {
+        -> [String]
+    {
         [
             "\(indent);; === Collection: \(collection.name) (\(status)) ===",
             "\(indent);; UUID: \(collection.id.uuidString)",

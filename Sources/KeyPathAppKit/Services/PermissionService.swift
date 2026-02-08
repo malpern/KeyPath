@@ -77,7 +77,8 @@ class PermissionService {
         -> (
             hasInputMonitoring: Bool, hasAccessibility: Bool, confidence: String,
             verificationMethod: String, hasAllRequiredPermissions: Bool, errorDetails: [String]
-        ) {
+        )
+    {
         (
             hasInputMonitoring: false, hasAccessibility: false, confidence: "low",
             verificationMethod: "oracle-migration-stub", hasAllRequiredPermissions: false,

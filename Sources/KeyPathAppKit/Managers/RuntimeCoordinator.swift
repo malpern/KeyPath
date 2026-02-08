@@ -423,6 +423,20 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         )
         Task { await ruleCollectionsManager.bootstrap() }
         ruleCollectionsManager.startEventMonitoring(port: PreferencesService.shared.tcpServerPort)
+
+        // Observe config-affecting preference changes (e.g., nav trigger mode) to regenerate config
+        NotificationCenter.default.addObserver(
+            forName: .configAffectingPreferenceChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                AppLogger.shared.log("🔄 [RuntimeCoordinator] Config-affecting preference changed, regenerating config...")
+                await self.ruleCollectionsManager.regenerateConfigFromCollections()
+            }
+        }
+
         AppLogger.shared.log("🏗️ [RuntimeCoordinator] init() completed")
     }
 

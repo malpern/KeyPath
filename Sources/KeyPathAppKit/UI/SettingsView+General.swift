@@ -39,7 +39,7 @@ struct GeneralSettingsTabView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Segmented control for section switching
-            Picker("Section", selection: $selectedSection) {
+            Picker("", selection: $selectedSection) {
                 ForEach(GeneralSettingsSection.visibleSections) { section in
                     Text(section.rawValue).tag(section)
                 }
@@ -128,8 +128,11 @@ struct GeneralSettingsTabView: View {
                     }
                     .frame(minWidth: 220)
 
-                    // Right: Recording Settings
+                    // Right column
                     VStack(alignment: .leading, spacing: 20) {
+                        // Shortcut List Settings (top of column)
+                        ContextHUDSettingsSection()
+
                         // Capture Mode
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Capture Mode")
@@ -248,9 +251,6 @@ struct GeneralSettingsTabView: View {
                             .accessibilityIdentifier("settings-reset-overlay-size-button")
                             .accessibilityLabel("Reset Overlay Size")
                         }
-
-                        // Context HUD Settings
-                        ContextHUDSettingsSection()
                     }
 
                     Spacer()
