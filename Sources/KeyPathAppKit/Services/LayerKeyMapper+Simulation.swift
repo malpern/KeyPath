@@ -256,7 +256,7 @@ extension LayerKeyMapper {
                 var primaryOutputKey: String?
                 var primaryOutputKeyCode: UInt16?
                 for output in parsed.outputs {
-                    if !isModifierSymbol(output) {
+                    if !isModifier(output) {
                         primaryOutputKey = output
                         primaryOutputKeyCode = kanataKeyToKeyCode(output)
                         break
@@ -419,20 +419,13 @@ extension LayerKeyMapper {
     ) -> String? {
         if outputs.isEmpty { return nil }
 
-        // Normalize modifier aliases and be tolerant of naming variants
+        // Normalize modifier aliases to canonical left-side names for Hyper/Meh detection
         let normalizedSet: Set<String> = Set(outputs.map { key in
             switch key {
-            case "cmd", "lcmd", "command", "lcommand", "meta": "lmet"
-            case "rmet": "lmet"
-            case "lctrl", "ctrl", "control", "lcontrol": "lctl"
-            case "rctl", "rctrl", "rcontrol": "lctl"
+            case "cmd", "lcmd", "command", "lcommand", "meta", "rmet": "lmet"
+            case "lctrl", "ctrl", "control", "lcontrol", "rctl", "rctrl", "rcontrol": "lctl"
             case "ralt": "lalt"
             case "rsft", "rshift", "shift": "lsft"
-            // Simulator-specific left-side modifier symbols (‹…›)
-            case "‹⎈": "lctl" // Control
-            case "‹◆": "lmet" // Command
-            case "‹⎇": "lalt" // Option
-            case "‹⇧": "lsft" // Shift
             default: key
             }
         })

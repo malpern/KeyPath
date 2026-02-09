@@ -50,17 +50,10 @@ extension LayerKeyMapper {
         case let key where key.count == 1 && key.first!.isNumber:
             key
         // Arrow keys - Mac uses these specific Unicode arrows
-        // Handle both kanata names and simulator output symbols (◀▶▲▼)
-        case "left", "◀": "←"
-        case "right", "▶": "→"
-        case "up", "▲": "↑"
-        case "down", "▼": "↓"
-        // Modifier symbols from simulator (used in combos like Cmd+Arrow)
-        // The simulator outputs ‹◆ for left-Cmd, ◆› for right-Cmd, etc.
-        case "‹◆", "◆›": "⌘" // Command
-        case "‹⎇", "⎇›": "⌥" // Option
-        case "‹⇧", "⇧›": "⇧" // Shift
-        case "‹⎈", "⎈›": "⌃" // Control
+        case "left": "←"
+        case "right": "→"
+        case "up": "↑"
+        case "down": "↓"
         // Modifiers - Standard Mac symbols
         case "leftshift", "lsft": "⇧" // U+21E7 Upwards White Arrow
         case "rightshift", "rsft": "⇧"
@@ -122,10 +115,10 @@ extension LayerKeyMapper {
         }
     }
 
-    /// Check if a key is a modifier symbol from the simulator
-    func isModifierSymbol(_ key: String) -> Bool {
-        switch key {
-        case "‹◆", "◆›", "‹⎇", "⎇›", "‹⇧", "⇧›", "‹⎈", "⎈›":
+    /// Check if a key is a modifier (canonical kanata names)
+    func isModifier(_ key: String) -> Bool {
+        switch key.lowercased() {
+        case "lsft", "rsft", "lctl", "rctl", "lalt", "ralt", "lmet", "rmet":
             true
         default:
             false
@@ -133,45 +126,34 @@ extension LayerKeyMapper {
     }
 
     /// Normalize key names to canonical form for transparent key detection.
-    /// Maps simulator symbols and aliases to their base key names.
+    /// Maps aliases to their base key names. The simulator outputs canonical
+    /// names (lmet, left, etc.) so no Unicode symbol handling is needed here.
     nonisolated static func normalizeKeyName(_ key: String) -> String {
         switch key.lowercased() {
-        // Arrow symbols from simulator
-        case "◀", "←": "left"
-        case "▶", "→": "right"
-        case "▲", "↑": "up"
-        case "▼", "↓": "down"
         // Modifier aliases
-        case "‹◆", "◆›", "lmet", "rmet", "cmd", "lcmd", "command", "meta": "lmet"
-        case "‹⎇", "⎇›", "lalt", "ralt", "opt", "option": "lalt"
-        case "‹⇧", "⇧›", "lsft", "rsft", "lshift", "rshift", "shift": "lsft"
-        case "‹⎈", "⎈›", "lctl", "rctl", "lctrl", "rctrl", "ctrl", "control": "lctl"
+        case "lmet", "rmet", "cmd", "lcmd", "command", "meta": "lmet"
+        case "lalt", "ralt", "opt", "option": "lalt"
+        case "lsft", "rsft", "lshift", "rshift", "shift": "lsft"
+        case "lctl", "rctl", "lctrl", "rctrl", "ctrl", "control": "lctl"
         // Special keys
-        case "ret", "return", "⏎": "enter"
-        case "bspc", "␈": "backspace"
-        case "spc", "sp", "␠", "␣": "space"
+        case "ret", "return": "enter"
+        case "bspc": "backspace"
+        case "spc", "sp": "space"
         case "esc": "escape"
         case "caps": "capslock"
         case "del": "delete"
-        // Punctuation aliases (simulator abbrevs + symbol forms)
-        case "grv", "grave", "`": "grave"
-        case "min", "minus", "-", "−": "minus"
-        case "eql", "equal", "=": "equal"
-        case "lbrc", "leftbrace", "[", "{", "lbrack", "leftbracket": "leftbrace"
-        case "rbrc", "rightbrace", "]", "}", "rbrack", "rightbracket": "rightbrace"
-        case "bksl", "backslash", "\\": "backslash"
-        case "scln", "semicolon", ";": "semicolon"
-        case "apos", "apostrophe", "quote", "'": "apostrophe"
-        case "comm", "comma", ",": "comma"
-        case "dot", "period", ".": "dot"
-        case "slash", "slsh", "/": "slash"
-        // Tab and fn stay as-is
-        case "⇥", "⭾": "tab"
-        case "↩": "enter"
-        case "⌫": "backspace"
-        case "⌦": "delete"
-        case "⎋": "escape"
-        case "⇪": "capslock"
+        // Punctuation aliases (simulator abbreviations)
+        case "grv", "grave": "grave"
+        case "min", "minus": "minus"
+        case "eql", "equal": "equal"
+        case "lbrc", "leftbrace", "lbrack", "leftbracket": "leftbrace"
+        case "rbrc", "rightbrace", "rbrack", "rightbracket": "rightbrace"
+        case "bksl", "backslash": "backslash"
+        case "scln", "semicolon": "semicolon"
+        case "apos", "apostrophe", "quote": "apostrophe"
+        case "comm", "comma": "comma"
+        case "dot", "period": "dot"
+        case "slash", "slsh": "slash"
         default:
             key.lowercased()
         }
@@ -179,20 +161,11 @@ extension LayerKeyMapper {
 
     /// Convert Kanata key name to macOS key code
     func kanataKeyToKeyCode(_ kanataKey: String) -> UInt16? {
-        // Handle simulator output symbols (arrows)
-        let normalizedKey: String = switch kanataKey {
-        case "◀": "left"
-        case "▶": "right"
-        case "▲": "up"
-        case "▼": "down"
-        default: kanataKey
-        }
-
         // Reverse lookup using OverlayKeyboardView.keyCodeToKanataName
         let allKeyCodes: [UInt16] = Array(0 ... 127) + [0xFFFF]
         for code in allKeyCodes {
             let name = OverlayKeyboardView.keyCodeToKanataName(code)
-            if name.lowercased() == normalizedKey.lowercased() {
+            if name.lowercased() == kanataKey.lowercased() {
                 return code
             }
         }
