@@ -79,12 +79,12 @@ From `HelloOk` response:
     "reload",
     "status",
     "ready",
-    "hold_activated",
-    "tap_activated",
-    "oneshot_activated",
-    "chord_resolved",
-    "tap_dance_resolved",
-    "key_input"
+    "hold-activated",
+    "tap-activated",
+    "oneshot-activated",
+    "chord-resolved",
+    "tap-dance-resolved",
+    "key-input"
   ]
 }
 ```

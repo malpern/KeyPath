@@ -614,14 +614,15 @@ actor KanataEventListener {
         }
 
         // Handle HoldActivated events (tap-hold key transitioned to hold state)
-        // Format from Kanata: {"HoldActivated":{"key":"caps","action":"lctl+lmet+lalt+lsft","t":12345}}
-        if let holdActivated = json["HoldActivated"] as? [String: Any],
-           let key = holdActivated["key"] as? String,
-           let action = holdActivated["action"] as? String,
-           let timestamp = holdActivated["t"] as? UInt64
-        {
+        // Format from Kanata: {"HoldActivated":{"key":"caps"}}
+        // Note: upstream only sends "key"; "action" and "t" are not included
+        if let holdActivated = json["HoldActivated"] as? [String: Any] {
+            let key = holdActivated["key"] as? String ?? ""
+            let action = holdActivated["action"] as? String ?? ""
+            let timestamp = holdActivated["t"] as? UInt64 ?? 0
+
             // Respect capability advertisement when available; still process for backward compat
-            if capabilities.isEmpty || capabilities.contains("hold_activated") {
+            if capabilities.isEmpty || capabilities.contains("hold-activated") {
                 AppLogger.shared.log("🔒 [EventListener] HoldActivated: \(key) -> \(action)")
                 let activation = KanataHoldActivation(key: key, action: action, timestamp: timestamp)
                 if let handler = holdActivatedHandler {
@@ -634,15 +635,15 @@ actor KanataEventListener {
         }
 
         // Handle TapActivated events (tap-hold key triggered its tap action)
-        // Format from Kanata: {"TapActivated":{"key":"caps","action":"esc","t":12345}}
-        // Note: Kanata often sends empty "action" field; suppression uses static map instead
+        // Format from Kanata: {"TapActivated":{"key":"caps"}}
+        // Note: upstream only sends "key"; "action" and "t" are not included
         if let tapActivated = json["TapActivated"] as? [String: Any] {
             let key = tapActivated["key"] as? String ?? ""
             let action = tapActivated["action"] as? String ?? ""
             let timestamp = tapActivated["t"] as? UInt64 ?? 0
 
             // Respect capability advertisement when available; still process for backward compat
-            if capabilities.isEmpty || capabilities.contains("tap_activated") {
+            if capabilities.isEmpty || capabilities.contains("tap-activated") {
                 AppLogger.shared.debug("👆 [EventListener] TapActivated: \(key) -> \(action)")
                 let activation = KanataTapActivation(key: key, action: action, timestamp: timestamp)
                 if let handler = tapActivatedHandler {
@@ -661,7 +662,7 @@ actor KanataEventListener {
            let modifiers = oneShotActivated["modifiers"] as? String,
            let timestamp = oneShotActivated["t"] as? UInt64
         {
-            if capabilities.isEmpty || capabilities.contains("oneshot_activated") {
+            if capabilities.isEmpty || capabilities.contains("oneshot-activated") {
                 AppLogger.shared.log("⚡ [EventListener] OneShotActivated: \(key) -> \(modifiers)")
                 let activation = KanataOneShotActivation(key: key, modifiers: modifiers, timestamp: timestamp)
                 if let handler = oneShotActivatedHandler {
@@ -680,7 +681,7 @@ actor KanataEventListener {
            let action = chordResolved["action"] as? String,
            let timestamp = chordResolved["t"] as? UInt64
         {
-            if capabilities.isEmpty || capabilities.contains("chord_resolved") {
+            if capabilities.isEmpty || capabilities.contains("chord-resolved") {
                 AppLogger.shared.log("🎹 [EventListener] ChordResolved: \(keys) -> \(action)")
                 let resolution = KanataChordResolution(keys: keys, action: action, timestamp: timestamp)
                 if let handler = chordResolvedHandler {
@@ -700,7 +701,7 @@ actor KanataEventListener {
            let action = tapDanceResolved["action"] as? String,
            let timestamp = tapDanceResolved["t"] as? UInt64
         {
-            if capabilities.isEmpty || capabilities.contains("tap_dance_resolved") {
+            if capabilities.isEmpty || capabilities.contains("tap-dance-resolved") {
                 AppLogger.shared.log("💃 [EventListener] TapDanceResolved: \(key) x\(tapCount) -> \(action)")
                 let resolution = KanataTapDanceResolution(
                     key: key,

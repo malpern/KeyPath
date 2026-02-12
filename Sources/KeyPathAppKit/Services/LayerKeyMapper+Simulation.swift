@@ -12,8 +12,7 @@ extension LayerKeyMapper {
     }
 
     /// Parse raw simulation events to extract output keys for a single key tap.
-    /// Uses JSON mode (--json) to correctly capture all outputs from multi actions,
-    /// unlike --key-mapping mode which only returns the first output.
+    /// Uses JSON mode (--json) to correctly capture all outputs from multi actions.
     /// - Parameters:
     ///   - simName: The simulator key name that was pressed
     ///   - events: The simulation events from JSON mode
@@ -97,12 +96,12 @@ extension LayerKeyMapper {
                     // Single key: press, wait 50ms, release, then wait 250ms for tap-hold to resolve.
                     // Tap-hold behaviors need time after release to determine if it was a tap (the
                     // typical threshold is 200ms, so 250ms ensures the tap fires).
-                    let simContent = "d:\(simName) t:50 u:\(simName) t:250"
+                    // Prepend ls: to switch to the target layer before simulating.
+                    let simContent = "ls:\(startLayer) d:\(simName) t:50 u:\(simName) t:250"
                     do {
                         let result = try await self.simulatorService.simulateRaw(
                             simContent: simContent,
-                            configPath: configPath,
-                            startLayer: startLayer
+                            configPath: configPath
                         )
                         return (keyCode, label, simName, result)
                     } catch {
@@ -317,12 +316,11 @@ extension LayerKeyMapper {
         let simName = toSimulatorKeyName(tcpName)
 
         // Long press: hold for 400ms to exceed typical tap-hold timeouts (200ms default)
-        // Use simulateRaw to specify start layer and a long press
-        let simContent = "d:\(simName) t:400 u:\(simName)"
+        // Prepend ls: to switch to the target layer before simulating.
+        let simContent = "ls:\(startLayer) d:\(simName) t:400 u:\(simName)"
         let result = try await simulatorService.simulateRaw(
             simContent: simContent,
-            configPath: configPath,
-            startLayer: startLayer
+            configPath: configPath
         )
 
         // Track net pressed output keys between the input press and its release.
