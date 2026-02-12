@@ -56,7 +56,7 @@ extension KanataTCPClient {
                 attempts += 1
                 lastLine = nextLine
 
-                if isUnsolicitedBroadcast(nextLine) {
+                if !isCommandResponse(nextLine) {
                     continue
                 }
 

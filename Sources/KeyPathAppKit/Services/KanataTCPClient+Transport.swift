@@ -187,8 +187,8 @@ extension KanataTCPClient {
                                 }
                                 attempts += 1
 
-                                // First check: is this an unsolicited broadcast?
-                                if self.isUnsolicitedBroadcast(responseData) {
+                                // First check: is this a command response?
+                                if !self.isCommandResponse(responseData) {
                                     if let msgStr = String(data: responseData, encoding: .utf8) {
                                         AppLogger.shared.log("🔄 [TCP] Skipping broadcast: \(msgStr.prefix(100))")
                                     }
@@ -212,15 +212,15 @@ extension KanataTCPClient {
                                             continue
                                         }
                                     } else {
-                                        // We sent request_id but response doesn't have one
-                                        // This is likely a broadcast that slipped through - skip it
-                                        // Modern Kanata versions support request_id, so rejecting is safer
+                                        // We sent request_id but response doesn't have one.
+                                        // Since it already passed isCommandResponse(), accept it —
+                                        // the server just doesn't echo request_id for this command type.
                                         if let msgStr = String(data: responseData, encoding: .utf8) {
-                                            AppLogger.shared.warn(
-                                                "⚠️ [TCP] Response missing request_id when we sent \(sentId) - likely broadcast, skipping: \(msgStr.prefix(100))"
+                                            AppLogger.shared.debug(
+                                                "✅ [TCP] Accepting command response without request_id (sent=\(sentId)): \(msgStr.prefix(100))"
                                             )
                                         }
-                                        continue // Skip and read next line
+                                        break // Accept as our response
                                     }
                                 }
 

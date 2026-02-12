@@ -256,7 +256,19 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
             return
         }
 
-        // Check for suppression first
+        // Handle atomic writes by rebinding file descriptor on rename/delete.
+        // This MUST happen before the suppression check — if the file was atomically
+        // replaced during suppression, the old file descriptor becomes stale and the
+        // watcher goes permanently dead.
+        if flags.contains(.rename) || flags.contains(.delete) {
+            AppLogger.shared.log(
+                "📁 [FileWatcher] Detected atomic write (rename/delete) - rebinding file descriptor"
+            )
+            pendingAtomicWriteEvent = true
+            rebindFileMonitor(to: path)
+        }
+
+        // Check for suppression — skip the callback but descriptor is already rebound above
         if isSuppressedNow() {
             AppLogger.shared.log("🔇 [FileWatcher] Event suppressed - skipping processing")
             return
@@ -269,15 +281,6 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
 
         inFlightProcessing = true
         defer { inFlightProcessing = false }
-
-        // Handle atomic writes by rebinding file descriptor on rename/delete
-        if flags.contains(.rename) || flags.contains(.delete) {
-            AppLogger.shared.log(
-                "📁 [FileWatcher] Detected atomic write (rename/delete) - rebinding file descriptor"
-            )
-            pendingAtomicWriteEvent = true
-            rebindFileMonitor(to: path)
-        }
 
         // Process the change event
         await handleFileChangeEvent()

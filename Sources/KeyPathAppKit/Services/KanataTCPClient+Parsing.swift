@@ -4,15 +4,24 @@ import KeyPathCore
 // MARK: - Message Parsing and Broadcast Detection
 
 extension KanataTCPClient {
-    /// Check if a JSON message is an unsolicited broadcast event (not a command response)
-    nonisolated func isUnsolicitedBroadcast(_ data: Data) -> Bool {
+    /// Check if a JSON message looks like a valid command response (not a broadcast).
+    /// Uses an allowlist approach: only known response patterns are accepted.
+    /// Everything else (broadcasts, new event types) is automatically filtered.
+    nonisolated func isCommandResponse(_ data: Data) -> Bool {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return false
         }
 
-        // These are broadcast events that Kanata sends to all clients
-        let broadcastKeys = ["LayerChange", "ConfigFileReload", "MessagePush", "Ready", "ConfigError", "LayerNames"]
-        return broadcastKeys.contains(where: { json[$0] != nil })
+        // Status responses: {"status":"Ok"} or {"status":"Error","msg":"..."}
+        if json["status"] != nil { return true }
+
+        // Named command response objects
+        let responseKeys: Set<String> = [
+            "HelloOk", "StatusInfo", "ReloadResult",
+            "LayerNames", "FakeKeyNames",
+            "CurrentLayerName", "CurrentLayerInfo",
+        ]
+        return json.keys.contains(where: { responseKeys.contains($0) })
     }
 
     /// Helper to extract request_id from a JSON response
