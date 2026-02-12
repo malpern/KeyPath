@@ -31,6 +31,19 @@ extension KeyboardVisualizationViewModel {
         // (e.g., user switches layers while holding a tap-hold key)
         activeTapHoldSources.removeAll()
 
+        // When returning to base layer, clear hold state for all keys.
+        // This handles the case where KeyInput events are unavailable (older kanata)
+        // and the Release event never fires to clear holdActiveKeyCodes.
+        if targetLayerName.lowercased() == "base" {
+            for keyCode in holdActiveKeyCodes {
+                holdClearWorkItems[keyCode]?.cancel()
+                holdClearWorkItems.removeValue(forKey: keyCode)
+            }
+            holdActiveKeyCodes.removeAll()
+            holdLabels.removeAll()
+            pressedKeyCodes.removeAll()
+        }
+
         // Check if we'll be entering/exiting launcher mode
         let willBeLauncherMode = targetLayerName.lowercased() == Self.launcherLayerName
 
