@@ -61,6 +61,7 @@ extension FeatureFlags {
     private static let keyboardSuppressionDebugEnabledKey = "KEYBOARD_SUPPRESSION_DEBUG_ENABLED"
     private static let uninstallForTestingKey = "UNINSTALL_FOR_TESTING"
     private static let learningTipsModeKey = "LEARNING_TIPS_MODE"
+    private static let contextHUDListEnabledKey = "CONTEXT_HUD_LIST_ENABLED"
 
     // MARK: - Active Feature Flags
 
@@ -144,6 +145,19 @@ extension FeatureFlags {
 
     static func setLearningTipsMode(_ mode: LearningTipsMode) {
         UserDefaults.standard.set(mode.rawValue, forKey: learningTipsModeKey)
+    }
+
+    /// Context HUD floating list window (default OFF - experimental)
+    /// When enabled, shows a compact key list alongside or instead of the keyboard overlay.
+    static var contextHUDListEnabled: Bool {
+        if UserDefaults.standard.object(forKey: contextHUDListEnabledKey) == nil {
+            return false // default OFF
+        }
+        return UserDefaults.standard.bool(forKey: contextHUDListEnabledKey)
+    }
+
+    static func setContextHUDListEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: contextHUDListEnabledKey)
     }
 
     // MARK: - Future Implementation (not yet built)

@@ -1,5 +1,18 @@
 import SwiftUI
 
+// MARK: - Environment Key for Pressed Key Codes
+
+private struct PressedKeyCodesKey: EnvironmentKey {
+    static let defaultValue: Set<UInt16> = []
+}
+
+extension EnvironmentValues {
+    var pressedKeyCodes: Set<UInt16> {
+        get { self[PressedKeyCodesKey.self] }
+        set { self[PressedKeyCodesKey.self] = newValue }
+    }
+}
+
 /// Default list view for the Context HUD showing keycap + action pairs in columns
 struct ContextHUDDefaultListView: View {
     let groups: [HUDKeyGroup]
@@ -58,6 +71,11 @@ private struct ColumnarKeyLayout: View {
 /// A keycap chip showing the key and its action
 struct HUDKeycapChip: View {
     let entry: HUDKeyEntry
+    @Environment(\.pressedKeyCodes) private var pressedKeyCodes
+
+    private var isPressed: Bool {
+        pressedKeyCodes.contains(entry.keyCode)
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -69,12 +87,13 @@ struct HUDKeycapChip: View {
                 .padding(.horizontal, 4)
                 .background(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(entry.color.opacity(0.35))
+                        .fill(entry.color.opacity(isPressed ? 0.65 : 0.35))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(entry.color.opacity(0.5), lineWidth: 0.5)
+                        .strokeBorder(entry.color.opacity(isPressed ? 0.9 : 0.5), lineWidth: isPressed ? 1.0 : 0.5)
                 )
+                .scaleEffect(isPressed ? 1.08 : 1.0)
 
             // Action label or SF Symbol
             if let sfSymbol = entry.sfSymbol {
@@ -87,7 +106,18 @@ struct HUDKeycapChip: View {
                     .foregroundStyle(.white.opacity(0.8))
                     .lineLimit(1)
             }
+
+            // Dual-action: show hold action after separator
+            if let holdAction = entry.holdAction {
+                Text("\u{00B7}")
+                    .foregroundStyle(.white.opacity(0.35))
+                Text(holdAction)
+                    .font(.system(size: 15, weight: .medium).italic())
+                    .foregroundStyle(.white.opacity(0.5))
+                    .lineLimit(1)
+            }
         }
+        .animation(.easeOut(duration: 0.1), value: isPressed)
     }
 }
 

@@ -71,6 +71,19 @@ final class ContextHUDController {
         }
 
         NotificationCenter.default.addObserver(
+            forName: .kanataHoldActivated,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let key = notification.userInfo?["key"] as? String
+            let action = notification.userInfo?["action"] as? String
+            Task { @MainActor in
+                guard let self else { return }
+                self.handleHoldActivated(key: key, action: action)
+            }
+        }
+
+        NotificationCenter.default.addObserver(
             forName: .kanataConfigChanged,
             object: nil,
             queue: .main
@@ -87,6 +100,9 @@ final class ContextHUDController {
 
     func handleLayerChange(_ layerName: String, source: String?) {
         let normalized = layerName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        // Context HUD list is an experimental feature - skip when disabled
+        guard FeatureFlags.contextHUDListEnabled else { return }
 
         // Check display mode preference
         let displayMode = PreferencesService.shared.contextHUDDisplayMode
@@ -133,7 +149,18 @@ final class ContextHUDController {
     }
 
     func handleKeyInput(key: String?, action: String?) {
-        guard let key, action == "press" else { return }
+        guard let key else { return }
+
+        if let keyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(key) {
+            if action == "press" {
+                viewModel.pressedKeyCodes.insert(keyCode)
+            } else if action == "release" {
+                viewModel.pressedKeyCodes.remove(keyCode)
+                viewModel.activeHoldLabels.removeValue(forKey: keyCode)
+            }
+        }
+
+        guard action == "press" else { return }
 
         // Clear one-shot override on non-modifier key press
         if let overrideLayer = oneShotOverride.clearOnKeyPress(key, modifierKeys: Self.modifierKeys) {
@@ -146,6 +173,13 @@ final class ContextHUDController {
         }
     }
 
+    func handleHoldActivated(key: String?, action: String?) {
+        guard let key, let action else { return }
+        guard let keyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(key) else { return }
+        let displayLabel = KeyboardVisualizationViewModel.actionToDisplayLabel(action)
+        viewModel.activeHoldLabels[keyCode] = displayLabel
+    }
+
     /// Whether the HUD window is currently visible (internal for testing)
     var isVisible: Bool {
         window?.isVisible ?? false
@@ -154,6 +188,11 @@ final class ContextHUDController {
     /// The current previous layer (internal for testing)
     var currentPreviousLayer: String {
         previousLayer
+    }
+
+    /// The view model (internal for testing)
+    var testViewModel: ContextHUDViewModel {
+        viewModel
     }
 
     /// Reset state for testing
@@ -208,7 +247,7 @@ final class ContextHUDController {
                     collections: enabledCollections
                 )
 
-                // Update view model
+                // Phase 1: show HUD immediately with tap-only labels
                 viewModel.update(
                     layerName: layerName,
                     keyMap: keyMap,
@@ -219,10 +258,68 @@ final class ContextHUDController {
                 // Show the window — dismissal is driven by layer→base change,
                 // matching how the overlay behaves (no auto-dismiss timer).
                 showWindow()
+
+                // Phase 2: resolve hold labels in background, then re-update
+                if FeatureFlags.simulatorAndVirtualKeysEnabled {
+                    let holdLabels = await resolveHoldLabels(
+                        keyMap: keyMap,
+                        configPath: configPath,
+                        layerName: layerName
+                    )
+                    guard !Task.isCancelled, !holdLabels.isEmpty else { return }
+                    viewModel.update(
+                        layerName: layerName,
+                        keyMap: keyMap,
+                        collections: enabledCollections,
+                        style: style,
+                        holdLabels: holdLabels
+                    )
+                }
             } catch {
                 AppLogger.shared.error("🎯 [ContextHUD] Failed to build layer mapping: \(error)")
             }
         }
+    }
+
+    /// Resolve hold labels for tap-hold keys via simulator
+    private func resolveHoldLabels(
+        keyMap: [UInt16: LayerKeyInfo],
+        configPath: String,
+        layerName: String
+    ) async -> [UInt16: String] {
+        // Filter to non-transparent, non-layer-switch keys
+        let candidates = keyMap.filter { _, info in
+            !info.isTransparent && !info.isLayerSwitch
+        }
+        guard !candidates.isEmpty else { return [:] }
+
+        var result: [UInt16: String] = [:]
+        await withTaskGroup(of: (UInt16, String?).self) { group in
+            for (keyCode, info) in candidates {
+                group.addTask { [layerKeyMapper] in
+                    do {
+                        let label = try await layerKeyMapper.holdDisplayLabel(
+                            for: keyCode,
+                            configPath: configPath,
+                            startLayer: layerName
+                        )
+                        // Filter out hold == tap (not a real tap-hold)
+                        if let label, label != info.displayLabel {
+                            return (keyCode, label)
+                        }
+                        return (keyCode, nil)
+                    } catch {
+                        return (keyCode, nil)
+                    }
+                }
+            }
+            for await (keyCode, label) in group {
+                if let label {
+                    result[keyCode] = label
+                }
+            }
+        }
+        return result
     }
 
     private func showWindow() {

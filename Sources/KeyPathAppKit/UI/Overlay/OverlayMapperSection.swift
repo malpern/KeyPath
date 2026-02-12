@@ -70,7 +70,7 @@ struct OverlayMapperSection: View {
             let defaultKeyCode: UInt16 = 0 // 'A' key on macOS
             let layerInfo = layerKeyMap[defaultKeyCode]
             let inputLabel = "a"
-            let outputLabel = layerInfo?.displayLabel.lowercased() ?? "a"
+            let outputLabel = layerInfo?.displayLabel ?? "a"
             let appId = layerInfo?.appLaunchIdentifier
             let systemId = layerInfo?.systemActionIdentifier
             let urlId = layerInfo?.urlIdentifier

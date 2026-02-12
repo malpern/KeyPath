@@ -16,6 +16,18 @@ struct ContextHUDView: View {
                     .font(.system(size: 13, weight: .bold, design: .monospaced))
                     .foregroundStyle(.white)
                     .tracking(1.5)
+
+                ForEach(viewModel.holdBadges, id: \.self) { badge in
+                    Text(badge)
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(.white.opacity(0.15))
+                        )
+                }
             }
 
             Divider()
@@ -31,18 +43,20 @@ struct ContextHUDView: View {
         .accessibilityLabel("Context HUD: \(viewModel.layerName)")
     }
 
-    @ViewBuilder
     private var contentView: some View {
-        switch viewModel.style {
-        case .defaultList:
-            ContextHUDDefaultListView(groups: viewModel.groups)
-        case .windowSnappingGrid:
-            ContextHUDWindowSnapView(entries: viewModel.allEntries)
-        case .launcherIcons:
-            ContextHUDLauncherView(entries: viewModel.allEntries)
-        case .symbolPicker:
-            ContextHUDSymbolView(entries: viewModel.allEntries)
+        Group {
+            switch viewModel.style {
+            case .defaultList:
+                ContextHUDDefaultListView(groups: viewModel.groups)
+            case .windowSnappingGrid:
+                ContextHUDWindowSnapView(entries: viewModel.allEntries)
+            case .launcherIcons:
+                ContextHUDLauncherView(entries: viewModel.allEntries)
+            case .symbolPicker:
+                ContextHUDSymbolView(entries: viewModel.allEntries)
+            }
         }
+        .environment(\.pressedKeyCodes, viewModel.pressedKeyCodes)
     }
 
     private var headerColor: Color {

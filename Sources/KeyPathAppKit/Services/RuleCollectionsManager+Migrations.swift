@@ -7,6 +7,7 @@ extension RuleCollectionsManager {
 
     private enum MigrationKey {
         static let launcherEnabledByDefault = "RuleCollections.Migration.LauncherEnabledByDefault"
+        static let vimEnabledByDefault = "RuleCollections.Migration.VimEnabledByDefault"
     }
 
     /// Run one-time migrations for collection state changes
@@ -21,6 +22,18 @@ extension RuleCollectionsManager {
                 }
             }
             UserDefaults.standard.set(true, forKey: MigrationKey.launcherEnabledByDefault)
+        }
+
+        // Migration: Enable Vim navigation by default.
+        // This keeps existing installs aligned with catalog defaults (new installs already default to enabled).
+        if !UserDefaults.standard.bool(forKey: MigrationKey.vimEnabledByDefault) {
+            if let index = ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.vimNavigation }) {
+                if !ruleCollections[index].isEnabled {
+                    ruleCollections[index].isEnabled = true
+                    AppLogger.shared.log("♻️ [RuleCollections] Migration: Enabled Vim by default")
+                }
+            }
+            UserDefaults.standard.set(true, forKey: MigrationKey.vimEnabledByDefault)
         }
     }
 

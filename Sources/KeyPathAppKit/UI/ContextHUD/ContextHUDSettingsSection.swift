@@ -11,31 +11,33 @@ struct ContextHUDSettingsSection: View {
                 .font(.headline)
                 .foregroundColor(.secondary)
 
-            // Display Mode
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Display")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+            // Display Mode (only when Context HUD List is enabled)
+            if FeatureFlags.contextHUDListEnabled {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Display")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
 
-                HStack(spacing: 10) {
-                    displayModeCard(
-                        mode: .overlayOnly,
-                        icon: "keyboard",
-                        title: "Overlay",
-                        subtitle: "Full keyboard"
-                    )
-                    displayModeCard(
-                        mode: .hudOnly,
-                        icon: "list.bullet.rectangle",
-                        title: "List",
-                        subtitle: "Compact view"
-                    )
-                    displayModeCard(
-                        mode: .both,
-                        icon: "rectangle.on.rectangle",
-                        title: "Both",
-                        subtitle: "Overlay + List"
-                    )
+                    HStack(spacing: 10) {
+                        displayModeCard(
+                            mode: .overlayOnly,
+                            icon: "keyboard",
+                            title: "Overlay",
+                            subtitle: "Full keyboard"
+                        )
+                        displayModeCard(
+                            mode: .hudOnly,
+                            icon: "list.bullet.rectangle",
+                            title: "List",
+                            subtitle: "Compact view"
+                        )
+                        displayModeCard(
+                            mode: .both,
+                            icon: "rectangle.on.rectangle",
+                            title: "Both",
+                            subtitle: "Overlay + List"
+                        )
+                    }
                 }
             }
 

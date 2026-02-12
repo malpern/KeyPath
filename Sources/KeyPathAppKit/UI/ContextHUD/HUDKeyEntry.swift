@@ -13,13 +13,15 @@ struct HUDKeyEntry: Identifiable, Equatable {
     let appIdentifier: String?
     /// URL identifier for web URL actions
     let urlIdentifier: String?
+    /// Hold action label for tap-hold keys (e.g., "✦" for Hyper)
+    let holdAction: String?
     /// Color for this entry's collection
     let color: Color
     /// Physical key code for sorting by position
     let keyCode: UInt16
 
     static func == (lhs: HUDKeyEntry, rhs: HUDKeyEntry) -> Bool {
-        lhs.keycap == rhs.keycap && lhs.action == rhs.action && lhs.keyCode == rhs.keyCode
+        lhs.keycap == rhs.keycap && lhs.action == rhs.action && lhs.holdAction == rhs.holdAction && lhs.keyCode == rhs.keyCode
     }
 }
 

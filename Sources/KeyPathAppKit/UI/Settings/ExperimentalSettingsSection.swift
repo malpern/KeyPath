@@ -9,6 +9,7 @@ struct ExperimentalSettingsSection: View {
     @State private var simulatorAndVirtualKeysEnabled = FeatureFlags.simulatorAndVirtualKeysEnabled
     @State private var uninstallForTesting = FeatureFlags.uninstallForTesting
     @State private var learningTipsMode = FeatureFlags.learningTipsMode
+    @State private var contextHUDListEnabled = FeatureFlags.contextHUDListEnabled
     @State private var qmkSearchEnabled = UserDefaults.standard.bool(forKey: LayoutPreferences.qmkSearchEnabledKey)
 
     var body: some View {
@@ -149,6 +150,15 @@ struct ExperimentalSettingsSection: View {
                 identifier: "feature-flag-uninstall-testing"
             )
             .accessibilityIdentifier("feature-flag-uninstall-testing-row")
+
+            featureFlagToggle(
+                title: "Context HUD List",
+                description: "Show compact key list window on layer activation",
+                isOn: $contextHUDListEnabled,
+                onChange: { FeatureFlags.setContextHUDListEnabled($0) },
+                identifier: "feature-flag-context-hud-list"
+            )
+            .accessibilityIdentifier("feature-flag-context-hud-list-row")
 
             learningTipsModePicker
                 .accessibilityIdentifier("feature-flag-learning-tips-row")

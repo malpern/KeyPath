@@ -294,6 +294,70 @@ final class ContextHUDViewModelTests: XCTestCase {
         XCTAssertEqual(vm.groups.first?.name, "Keys")
         XCTAssertEqual(vm.groups.first?.entries.count, 2)
     }
+
+    // MARK: - Hold Label Tests
+
+    func testUpdateWithHoldLabels() {
+        let vm = ContextHUDViewModel()
+        let keyMap: [UInt16: LayerKeyInfo] = [
+            57: .mapped(displayLabel: "Esc", outputKey: "esc", outputKeyCode: nil),
+            4: .mapped(displayLabel: "Left", outputKey: "left", outputKeyCode: nil),
+        ]
+        let holdLabels: [UInt16: String] = [57: "✦"]
+
+        vm.update(layerName: "nav", keyMap: keyMap, collections: [], style: .defaultList, holdLabels: holdLabels)
+
+        let capsEntry = vm.allEntries.first { $0.keyCode == 57 }
+        XCTAssertEqual(capsEntry?.holdAction, "✦")
+
+        let otherEntry = vm.allEntries.first { $0.keyCode == 4 }
+        XCTAssertNil(otherEntry?.holdAction)
+    }
+
+    func testHoldLabelSameAsTapFiltered() {
+        let vm = ContextHUDViewModel()
+        let keyMap: [UInt16: LayerKeyInfo] = [
+            0: .mapped(displayLabel: "Left", outputKey: "left", outputKeyCode: nil),
+        ]
+        // Hold label matches tap label — should be filtered out
+        let holdLabels: [UInt16: String] = [0: "Left"]
+
+        vm.update(layerName: "nav", keyMap: keyMap, collections: [], style: .defaultList, holdLabels: holdLabels)
+
+        XCTAssertNil(vm.allEntries.first?.holdAction, "Hold label same as tap should be filtered")
+    }
+
+    func testClearResetsPressedAndHoldState() {
+        let vm = ContextHUDViewModel()
+        vm.pressedKeyCodes = [1, 2, 3]
+        vm.activeHoldLabels = [1: "✦"]
+
+        vm.clear()
+
+        XCTAssertTrue(vm.pressedKeyCodes.isEmpty)
+        XCTAssertTrue(vm.activeHoldLabels.isEmpty)
+    }
+
+    func testPressedKeyCodes() {
+        let vm = ContextHUDViewModel()
+        vm.pressedKeyCodes.insert(4)
+        XCTAssertTrue(vm.pressedKeyCodes.contains(4))
+
+        vm.pressedKeyCodes.remove(4)
+        XCTAssertFalse(vm.pressedKeyCodes.contains(4))
+    }
+
+    func testHoldBadgesComputed() {
+        let vm = ContextHUDViewModel()
+        vm.activeHoldLabels = [57: "✦", 58: "⌘"]
+        XCTAssertEqual(vm.holdBadges, ["⌘", "✦"])
+    }
+
+    func testHoldBadgesDeduplicates() {
+        let vm = ContextHUDViewModel()
+        vm.activeHoldLabels = [57: "✦", 58: "✦"]
+        XCTAssertEqual(vm.holdBadges, ["✦"])
+    }
 }
 
 // MARK: - ContextHUDController Tests
@@ -435,6 +499,35 @@ final class ContextHUDControllerTests: XCTestCase {
         // Kanata reports "base" while one-shot is active - should be ignored
         controller.handleLayerChange("base", source: "kanata")
         XCTAssertEqual(controller.currentPreviousLayer, "nav", "Kanata update should be ignored during one-shot override")
+    }
+
+    // MARK: - Hold Activated
+
+    func testHoldActivatedAddsLabel() {
+        // "caps" → keyCode 57 in kanataNameToKeyCode
+        controller.handleHoldActivated(key: "caps", action: "lctl+lmet+lalt+lsft")
+        XCTAssertEqual(controller.testViewModel.activeHoldLabels[57], "✦")
+    }
+
+    func testKeyReleaseRemovesHoldLabel() {
+        controller.handleHoldActivated(key: "caps", action: "lctl+lmet+lalt+lsft")
+        XCTAssertNotNil(controller.testViewModel.activeHoldLabels[57])
+
+        controller.handleKeyInput(key: "caps", action: "release")
+        XCTAssertNil(controller.testViewModel.activeHoldLabels[57])
+    }
+
+    func testKeyPressAddsToPressed() {
+        controller.handleKeyInput(key: "h", action: "press")
+        XCTAssertTrue(controller.testViewModel.pressedKeyCodes.contains(4))
+    }
+
+    func testKeyReleaseRemovesFromPressed() {
+        controller.handleKeyInput(key: "h", action: "press")
+        XCTAssertTrue(controller.testViewModel.pressedKeyCodes.contains(4))
+
+        controller.handleKeyInput(key: "h", action: "release")
+        XCTAssertFalse(controller.testViewModel.pressedKeyCodes.contains(4))
     }
 
     // MARK: - Key Input Handling

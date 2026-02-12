@@ -15,6 +15,15 @@ final class ContextHUDViewModel {
     /// Flat list of all entries (for custom views that don't use grouping)
     var allEntries: [HUDKeyEntry] = []
 
+    /// Key codes currently pressed (for live highlighting)
+    var pressedKeyCodes: Set<UInt16> = []
+    /// Hold labels keyed by keyCode (for active modifier badge)
+    var activeHoldLabels: [UInt16: String] = [:]
+    /// Unique hold labels for header badges
+    var holdBadges: [String] {
+        Array(Set(activeHoldLabels.values)).sorted()
+    }
+
     /// Transform raw layer key data into grouped HUD entries
     /// - Parameters:
     ///   - layerName: The current layer name
@@ -25,7 +34,8 @@ final class ContextHUDViewModel {
         layerName: String,
         keyMap: [UInt16: LayerKeyInfo],
         collections: [RuleCollection],
-        style: HUDContentStyle
+        style: HUDContentStyle,
+        holdLabels: [UInt16: String] = [:]
     ) {
         self.layerName = layerName
         self.style = style
@@ -63,12 +73,19 @@ final class ContextHUDViewModel {
                 IconResolverService.shared.systemActionSymbol(for: $0)
             }
 
+            // Look up hold label; filter out cases where hold == tap (not a real tap-hold key)
+            let holdLabel: String? = {
+                guard let label = holdLabels[keyCode], label != info.displayLabel else { return nil }
+                return label
+            }()
+
             return HUDKeyEntry(
                 keycap: keycap,
                 action: info.displayLabel,
                 sfSymbol: sfSymbol,
                 appIdentifier: info.appLaunchIdentifier,
                 urlIdentifier: info.urlIdentifier,
+                holdAction: holdLabel,
                 color: color,
                 keyCode: keyCode
             )
@@ -103,6 +120,8 @@ final class ContextHUDViewModel {
         style = .defaultList
         groups = []
         allEntries = []
+        pressedKeyCodes = []
+        activeHoldLabels = [:]
     }
 
     // MARK: - Private Helpers
