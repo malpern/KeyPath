@@ -322,14 +322,14 @@ struct WizardCommunicationPage: View {
     private struct TimeoutError: Error {}
 
     private func testConfigReload(client: KanataTCPClient) async -> Bool {
-        // Test a simple config reload to ensure full functionality
-        let result = await client.reloadConfig()
-        switch result {
-        case .success:
-            return true
-        case .failure, .networkError:
-            return false
-        }
+        // Test a simple config reload to ensure full functionality.
+        //
+        // Use EngineClient (single-flight) so wizard polling can't overlap with other reload
+        // triggers (e.g., config saves / hot reload), which can cause spurious timeouts.
+        _ = client // legacy parameter; keep signature small for now
+        let engine = TCPEngineClient(timeout: 2.0)
+        let result = await engine.reloadConfig()
+        return result.isSuccess
     }
 
     /// Lightweight TCP readiness check used by polling loops.

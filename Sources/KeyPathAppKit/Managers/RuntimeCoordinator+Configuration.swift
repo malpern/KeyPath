@@ -106,18 +106,16 @@ extension RuntimeCoordinator {
             AppLogger.shared.debug(
                 "📡 [Reload] TCP reload failed: \(tcpResult.errorMessage ?? "Unknown error")"
             )
-            // Fall back to service restart
-            AppLogger.shared.warn("⚠️ [Reload] Falling back to service restart")
-            let restarted = await restartServiceWithFallback(reason: "Config reload fallback")
-            if restarted {
-                // After a successful restart, clear stale diagnostics
-                clearDiagnostics()
-            }
+            // Reliability-first: do NOT restart Kanata just because a config reload failed.
+            // Restarts create a remapping gap and can make typing sporadic.
+            //
+            // Callers can decide whether to retry or escalate to a restart based on explicit
+            // engine health checks (process exited, TCP unreachable, etc).
             return ReloadResult(
-                success: restarted,
-                response: restarted ? "Service restarted (TCP reload failed)" : nil,
-                errorMessage: restarted ? nil : "Service restart failed",
-                protocol: nil
+                success: false,
+                response: tcpResult.response,
+                errorMessage: tcpResult.errorMessage ?? "TCP reload failed",
+                protocol: .tcp
             )
         }
     }
@@ -166,10 +164,10 @@ extension RuntimeCoordinator {
     func triggerReload() async {
         let result = await triggerConfigReload()
         if !result.isSuccess {
-            AppLogger.shared.info(
-                "🔄 [Reload] Falling back to service restart due to error: \(result.errorMessage ?? "Unknown")"
+            // Keep the engine running; surface the error in logs and let the caller decide how to recover.
+            AppLogger.shared.warn(
+                "⚠️ [Reload] Reload failed (no automatic restart): \(result.errorMessage ?? "Unknown")"
             )
-            _ = await restartServiceWithFallback(reason: "triggerReload fallback")
         }
     }
 }

@@ -9,14 +9,17 @@ final class TCPEngineClient: EngineClient, @unchecked Sendable {
     }
 
     func reloadConfig() async -> EngineReloadResult {
-        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
-        let client = KanataTCPClient(port: port, timeout: timeout)
-        let tcp = await client.reloadConfig()
+        let timeout = self.timeout
+        return await EngineReloadSingleFlight.shared.run(reason: "TCPEngineClient.reloadConfig") {
+            let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
+            let client = KanataTCPClient(port: port, timeout: timeout)
+            let tcp = await client.reloadConfig()
 
-        // FIX #1: Explicitly close connection to prevent file descriptor leak
-        await client.cancelInflightAndCloseConnection()
+            // Always close to avoid leaking descriptors and to reduce server-side BrokenPipe spam.
+            await client.cancelInflightAndCloseConnection()
 
-        return mapTCP(tcp)
+            return self.mapTCP(tcp)
+        }
     }
 
     private func mapTCP(_ result: TCPReloadResult) -> EngineReloadResult {
