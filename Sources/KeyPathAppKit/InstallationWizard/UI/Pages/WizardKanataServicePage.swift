@@ -361,13 +361,29 @@ struct WizardKanataServicePage: View {
             let recentLines = lines.suffix(40) // Check last 40 lines
 
             for line in recentLines.reversed() {
-                if line.contains("ERROR") || line.contains("FATAL") || line.contains("panic") {
+                if isLikelyActionableCrashLine(line) {
                     return extractErrorMessage(from: line)
                 }
             }
         }
 
         return nil
+    }
+
+    nonisolated static func isLikelyActionableCrashLine(_ line: String) -> Bool {
+        let lower = line.lowercased()
+        let hasErrorSignal = lower.contains("error") || lower.contains("fatal") || lower.contains("panic")
+        guard hasErrorSignal else { return false }
+
+        // Ignore known non-fatal runtime noise that should not drive wizard crash UI.
+        if lower.contains("error writing reloadresult: broken pipe") { return false }
+        if lower.contains("broken pipe (os error 32)") { return false }
+        if lower.contains("connection reset by peer") { return false }
+        if lower.contains("client sent an invalid message") { return false }
+        if lower.contains("iohiddeviceopen error: (iokit/common) exclusive access and device already open") { return false }
+        if lower.contains("iohiddeviceopen error: (iokit/common) not permitted apple internal keyboard / trackpad") { return false }
+
+        return true
     }
 
     private nonisolated static func readRecentLogData(from path: String, maxBytes: Int) -> Data? {

@@ -85,4 +85,5 @@ if FileManager.default.fileExists(atPath: configPath) {
 }
 
 print("\n🎯 LaunchDaemon architecture test complete!")
-print("🔍 Check /var/log/kanata.log for hot reload results")
+print("🔍 Check /var/log/com.keypath.kanata.stdout.log for hot reload results")
+print("🔍 Check /var/log/com.keypath.kanata.stderr.log for errors")

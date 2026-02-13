@@ -416,6 +416,7 @@ final class PrivilegedOperationsCoordinator {
     /// Install the bundled Kanata binary to the system location
     func installBundledKanata() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Installing bundled Kanata binary")
+        ServiceBootstrapper.shared.markRestartTime(for: [ServiceBootstrapper.kanataServiceID])
 
         switch Self.operationMode {
         case .privilegedHelper:
@@ -423,6 +424,8 @@ final class PrivilegedOperationsCoordinator {
         case .directSudo:
             try await sudoInstallBundledKanata()
         }
+
+        ServiceBootstrapper.shared.markRestartTime(for: [ServiceBootstrapper.kanataServiceID])
 
         // Ensure SMAppService launchd job exists after installing the binary
         // (common case: fresh reinstall leaves service missing even though binary is present)

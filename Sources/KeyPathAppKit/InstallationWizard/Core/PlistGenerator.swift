@@ -37,7 +37,7 @@ enum PlistGenerator {
     ///   - binaryPath: Path to the Kanata binary executable
     ///   - configPath: Path to the Kanata configuration file (.kbd)
     ///   - tcpPort: TCP port for Kanata's communication server (default: 37001)
-    ///   - verboseLogging: If true, uses --trace mode; otherwise uses --debug mode
+    ///   - verboseLogging: If true, adds --trace mode; otherwise keeps production logging defaults
     /// - Returns: Array of command-line arguments for the Kanata process
     static func buildKanataPlistArguments(
         binaryPath: String,
@@ -50,13 +50,10 @@ enum PlistGenerator {
         // Add TCP port for communication server
         arguments.append(contentsOf: ["--port", "\(tcpPort)"])
 
-        // Add logging flags based on verboseLogging preference
+        // Keep production logging quiet by default.
+        // Trace logging is opt-in for advanced diagnostics.
         if verboseLogging {
-            // Trace mode: comprehensive logging with event timing
             arguments.append("--trace")
-        } else {
-            // Standard debug mode
-            arguments.append("--debug")
         }
         arguments.append("--log-layer-changes")
 
@@ -68,7 +65,7 @@ enum PlistGenerator {
     /// Creates a plist that runs Kanata as a root daemon with:
     /// - TCP server on the specified port for inter-process communication
     /// - Automatic restart on load (RunAtLoad)
-    /// - Logging to /var/log/kanata.log
+    /// - Split logging to /var/log/com.keypath.kanata.{stdout,stderr}.log
     /// - File descriptor limits for stable operation
     /// - Association with the KeyPath app bundle
     ///
@@ -76,7 +73,7 @@ enum PlistGenerator {
     ///   - binaryPath: Path to the Kanata binary executable
     ///   - configPath: Path to the Kanata configuration file (.kbd)
     ///   - tcpPort: TCP port for Kanata's communication server (default: 37001)
-    ///   - verboseLogging: If true, uses --trace mode; otherwise uses --debug mode
+    ///   - verboseLogging: If true, adds --trace mode; otherwise keeps production logging defaults
     /// - Returns: Complete plist XML string ready to write to disk
     static func generateKanataPlist(
         binaryPath: String,
@@ -117,9 +114,9 @@ enum PlistGenerator {
             <key>KeepAlive</key>
             <false/>
             <key>StandardOutPath</key>
-            <string>/var/log/kanata.log</string>
+            <string>/var/log/com.keypath.kanata.stdout.log</string>
             <key>StandardErrorPath</key>
-            <string>/var/log/kanata.log</string>
+            <string>/var/log/com.keypath.kanata.stderr.log</string>
             <key>SoftResourceLimits</key>
             <dict>
                 <key>NumberOfFiles</key>

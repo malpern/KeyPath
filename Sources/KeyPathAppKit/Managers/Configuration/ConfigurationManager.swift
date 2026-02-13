@@ -92,8 +92,7 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
                 arguments.append("--trace")
                 AppLogger.shared.log("📊 [ConfigManager] Verbose logging enabled (--trace)")
             } else {
-                // Standard debug mode with layer changes
-                arguments.append("--debug")
+                AppLogger.shared.log("📊 [ConfigManager] Production logging enabled (layer changes only)")
             }
             arguments.append("--log-layer-changes")
         }

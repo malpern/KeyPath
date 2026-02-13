@@ -297,7 +297,7 @@ The helper keeps this binary updated from the bundled copy when needed and ensur
 
 1. **Check macOS version** - Requires macOS 26.0 or later
 2. **Run setup wizard** - Go to File → Run Setup Wizard
-3. **Check logs** - View system logs: `tail -f /var/log/kanata.log`
+3. **Check logs** - View system logs: `tail -f /var/log/com.keypath.kanata.stdout.log`
 
 ### Keys Not Remapping?
 

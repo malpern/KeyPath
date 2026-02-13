@@ -117,7 +117,7 @@ struct GeneralSettingsTabView: View {
                                     .foregroundColor(.secondary)
 
                                 Button("Open") {
-                                    openLogFile("/var/log/kanata.log")
+                                    openLogFile(WizardSystemPaths.kanataLogFile)
                                 }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)

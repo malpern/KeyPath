@@ -374,7 +374,8 @@ print(snapshot.diagnosticSummary)
 sudo launchctl print system/com.keypath.kanata
 
 # View logs
-tail -f /var/log/kanata.log
+tail -f /var/log/com.keypath.kanata.stdout.log
+tail -f /var/log/com.keypath.kanata.stderr.log
 ```
 
 **Wizard won't advance:**
@@ -532,7 +533,8 @@ sudo ./Scripts/uninstall.sh
 
 ### Debugging Resources
 
-- `/var/log/kanata.log` - Kanata daemon logs
+- `/var/log/com.keypath.kanata.stdout.log` - Kanata daemon stdout
+- `/var/log/com.keypath.kanata.stderr.log` - Kanata daemon stderr/errors
 - `DiagnosticsView` in app - System diagnostics
 - `PermissionOracle.diagnosticSummary` - Permission state
 - `launchctl print system/com.keypath.kanata` - Service status

@@ -147,11 +147,11 @@ extension FeatureFlags {
         UserDefaults.standard.set(mode.rawValue, forKey: learningTipsModeKey)
     }
 
-    /// Context HUD floating list window (default OFF - experimental)
+    /// Context HUD floating list window (default ON)
     /// When enabled, shows a compact key list alongside or instead of the keyboard overlay.
     static var contextHUDListEnabled: Bool {
         if UserDefaults.standard.object(forKey: contextHUDListEnabledKey) == nil {
-            return false // default OFF
+            return true // default ON
         }
         return UserDefaults.standard.bool(forKey: contextHUDListEnabledKey)
     }

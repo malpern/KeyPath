@@ -43,6 +43,8 @@ final class ConfigHotReloadService {
     private var configurationService: ConfigurationService?
     private var reloadHandler: (() async -> Bool)?
     private var configParser: ((String) throws -> [KeyMapping])?
+    private var serviceManagementStateProvider: (() async -> KanataDaemonManager.ServiceManagementState)?
+    private var isKanataProcessRunningProvider: (() async -> Bool)?
 
     /// UI feedback callbacks
     var callbacks = Callbacks()
@@ -67,11 +69,15 @@ final class ConfigHotReloadService {
     func configure(
         configurationService: ConfigurationService,
         reloadHandler: @escaping () async -> Bool,
-        configParser: @escaping (String) throws -> [KeyMapping]
+        configParser: @escaping (String) throws -> [KeyMapping],
+        serviceManagementStateProvider: (() async -> KanataDaemonManager.ServiceManagementState)? = nil,
+        isKanataProcessRunningProvider: (() async -> Bool)? = nil
     ) {
         self.configurationService = configurationService
         self.reloadHandler = reloadHandler
         self.configParser = configParser
+        self.serviceManagementStateProvider = serviceManagementStateProvider
+        self.isKanataProcessRunningProvider = isKanataProcessRunningProvider
     }
 
     // MARK: - External Change Handling
@@ -157,14 +163,12 @@ final class ConfigHotReloadService {
         } else {
             // Check if service is simply unavailable (SMAppService pending, service not running, or process not started)
             // In this case, don't show error to user - config is valid, just can't reload yet
-            let smState = await KanataDaemonManager.shared.refreshManagementState()
+            let smState = await currentServiceManagementState()
 
             // Also check if Kanata process is actually running - if service is "active" but
             // process isn't running yet, we shouldn't show an error.
-            // IMPORTANT: Run this off MainActor to avoid blocking UI - InstallerEngine spawns subprocesses.
-            let isProcessRunning = await Task.detached {
-                await InstallerEngine().checkKanataServiceHealth().isRunning
-            }.value
+            // Use ServiceHealthChecker directly here to avoid hopping through @MainActor InstallerEngine.
+            let isProcessRunning = await checkKanataProcessRunning()
 
             if smState == .smappservicePending || smState.needsInstallation || !isProcessRunning {
                 let reason = !isProcessRunning ? "process not running" :
@@ -209,5 +213,19 @@ final class ConfigHotReloadService {
             try? await Task.sleep(for: .seconds(self?.statusResetDelay ?? 2.0))
             self?.callbacks.onReset?()
         }
+    }
+
+    private func checkKanataProcessRunning() async -> Bool {
+        if let provider = isKanataProcessRunningProvider {
+            return await provider()
+        }
+        return await ServiceHealthChecker.shared.checkKanataServiceHealth().isRunning
+    }
+
+    private func currentServiceManagementState() async -> KanataDaemonManager.ServiceManagementState {
+        if let provider = serviceManagementStateProvider {
+            return await provider()
+        }
+        return await KanataDaemonManager.shared.refreshManagementState()
     }
 }

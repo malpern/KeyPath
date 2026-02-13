@@ -382,8 +382,11 @@ final class ServiceBootstrapper {
     static func generateNewsyslogConfig() -> String {
         """
         # KeyPath log rotation - managed by KeyPath installer
-        # Rotate kanata logs at 10MB, keep 3 compressed archives
-        /var/log/kanata.log\t\t\t\t644  3\t   10240  *\tNJ
+        # Rotate kanata logs at 10MB, keep 3 compressed archives.
+        # Keep legacy /var/log/kanata.log for older installs.
+        /var/log/com.keypath.kanata.stdout.log\t644  3\t10240  *\tNJ
+        /var/log/com.keypath.kanata.stderr.log\t644  3\t10240  *\tNJ
+        /var/log/kanata.log\t\t\t644  3\t10240  *\tNJ
         """
     }
 
@@ -494,6 +497,7 @@ final class ServiceBootstrapper {
         if toRestart.contains(Self.kanataServiceID), state.isSMAppServiceManaged {
             AppLogger.shared.log("🔧 [ServiceBootstrapper] Refreshing Kanata via SMAppService")
             do {
+                markRestartTime(for: [Self.kanataServiceID])
                 try await KanataDaemonManager.shared.unregister()
                 // Poll for service readiness with a short wait, instead of fixed sleep
                 for _ in 0 ..< 6 { // ~0.6s
@@ -503,6 +507,7 @@ final class ServiceBootstrapper {
                     _ = await WizardSleep.ms(100)
                 }
                 try await KanataDaemonManager.shared.register()
+                markRestartTime(for: [Self.kanataServiceID])
                 toRestart.removeAll { $0 == Self.kanataServiceID }
                 AppLogger.shared.log("✅ [ServiceBootstrapper] Kanata SMAppService refreshed")
             } catch {
@@ -814,7 +819,9 @@ final class ServiceBootstrapper {
         // Register with SMAppService
         do {
             AppLogger.shared.log("🔧 [ServiceBootstrapper] Calling KanataDaemonManager.register()...")
+            markRestartTime(for: [Self.kanataServiceID])
             try await KanataDaemonManager.shared.register()
+            markRestartTime(for: [Self.kanataServiceID])
             AppLogger.shared.info("✅ [ServiceBootstrapper] Kanata daemon registered via SMAppService")
             return true
         } catch {

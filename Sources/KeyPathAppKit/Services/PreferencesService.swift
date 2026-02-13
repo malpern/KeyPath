@@ -226,7 +226,11 @@ final class PreferencesService: @unchecked Sendable {
         static let notificationsEnabled = true
         static let applyMappingsDuringRecording = true
         static let isSequenceMode = true
-        static let verboseKanataLogging = false // Off by default to avoid log spam
+        #if DEBUG
+            static let verboseKanataLogging = true // Debug builds favor diagnostics
+        #else
+            static let verboseKanataLogging = false // Release builds favor smaller logs
+        #endif
         static let activityLoggingEnabled = false // Requires explicit opt-in
         static let contextHUDDisplayMode = ContextHUDDisplayMode.both
         static let contextHUDTriggerMode = ContextHUDTriggerMode.holdToShow

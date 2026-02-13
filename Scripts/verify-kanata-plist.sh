@@ -31,4 +31,9 @@ if [ "$bundle_program" != "$EXPECTED" ]; then
     exit 1
 fi
 
-echo "✅ Verified kanata plist uses $EXPECTED"
+if /usr/libexec/PlistBuddy -c 'Print :ProgramArguments' "$PLIST" 2>/dev/null | /usr/bin/grep -Fq -- "--debug"; then
+    echo "❌ ProgramArguments contains --debug (production plist must not enable debug logging)." >&2
+    exit 1
+fi
+
+echo "✅ Verified kanata plist uses $EXPECTED and omits --debug"

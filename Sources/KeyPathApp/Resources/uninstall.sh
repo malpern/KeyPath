@@ -185,8 +185,21 @@ remove_keypath_app() {
 remove_log_files() {
     log_info "Removing log files..."
 
-    if [[ -f "/var/log/kanata.log" ]]; then
-        rm -f "/var/log/kanata.log"
+    local removed_any=0
+    local log_files=(
+        "/var/log/com.keypath.kanata.stdout.log"
+        "/var/log/com.keypath.kanata.stderr.log"
+        "/var/log/kanata.log"
+    )
+
+    for log_file in "${log_files[@]}"; do
+        if [[ -f "$log_file" ]]; then
+            rm -f "$log_file"
+            removed_any=1
+        fi
+    done
+
+    if [[ "$removed_any" -eq 1 ]]; then
         log_success "Log files removed"
     else
         log_info "Log files not found"

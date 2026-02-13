@@ -844,7 +844,7 @@ KeyPath supports hot-reloading configuration changes:
 1. **Check status indicator** - Look for green checkmarks in the app
 2. **Verify permissions** - Ensure permissions granted in System Settings
 3. **Use Fix Issues** - Click "Fix Issues" button in the app for automated fixes
-4. **Check logs** - View system logs: `tail -f /var/log/kanata.log`
+4. **Check logs** - View system logs: `tail -f /var/log/com.keypath.kanata.stderr.log`
 
 [[app-wont-start]]
 ==== KeyPath Won't Start?
@@ -893,7 +893,7 @@ keypath-cli repair
 ==== Log Files
 
 KeyPath logs to:
-- **System logs**: `/var/log/kanata.log` (if running as LaunchDaemon)
+- **System logs**: `/var/log/com.keypath.kanata.stdout.log` and `/var/log/com.keypath.kanata.stderr.log` (if running as LaunchDaemon)
 - **Console.app**: Filter for "KeyPath" or "kanata"
 - **App logs**: Check Console.app → KeyPath process
 
@@ -1045,7 +1045,8 @@ KeyPath supports modifier prefixes in output:
 | `~/Library/Application Support/KeyPath/CustomRules.json` | Custom rules
 | `/Library/KeyPath/bin/kanata` | System-installed Kanata binary
 | `/Library/LaunchDaemons/com.keypath.kanata.plist` | LaunchDaemon plist (SMAppService-managed)
-| `/var/log/kanata.log` | System logs (if running as LaunchDaemon)
+| `/var/log/com.keypath.kanata.stdout.log` | Kanata stdout log (if running as LaunchDaemon)
+| `/var/log/com.keypath.kanata.stderr.log` | Kanata stderr/error log (if running as LaunchDaemon)
 |===
 
 [[tcp-port]]

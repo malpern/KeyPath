@@ -20,6 +20,8 @@ import os.lock
 /// - `isVHIDDaemonConfiguredCorrectly`: Verify VHID plist configuration
 final class ServiceHealthChecker: @unchecked Sendable {
     static let shared = ServiceHealthChecker()
+    private nonisolated static let launchctlNotFoundExitCode: Int32 = 113
+    private nonisolated static let kanataRestartGraceWindow: TimeInterval = 12.0
 
     private init() {}
 
@@ -243,8 +245,22 @@ final class ServiceHealthChecker: @unchecked Sendable {
         if kanataState.isSMAppServiceManaged {
             // SMAppService is managing Kanata - use fast checks
             kanataLoaded = true // SMAppService managed = loaded
-            // For health, just check if process is running (faster than launchctl print)
-            kanataHealthy = await checkKanataServiceHealth().isRunning
+            // For health, check process first, then treat launchctl "not found" as transient
+            // during known restart windows to avoid false negatives.
+            let runningState = await evaluateKanataLaunchctlRunningState()
+            if runningState.isRunning {
+                kanataHealthy = true
+            } else if shouldTreatKanataAsTransientlyHealthy(
+                smState: kanataState,
+                launchctlExitCode: runningState.exitCode
+            ) {
+                kanataHealthy = true
+                AppLogger.shared.log(
+                    "ℹ️ [ServiceHealthChecker] Treating Kanata as transiently healthy (SMAppService restart window, exit=\(runningState.exitCode?.description ?? "nil"))"
+                )
+            } else {
+                kanataHealthy = false
+            }
             AppLogger.shared.log(
                 "🔍 [ServiceHealthChecker] Kanata SMAppService-managed: loaded=true, healthy=\(kanataHealthy)"
             )
@@ -287,31 +303,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
         timeoutMs: Int = 300
     ) async -> KanataHealthSnapshot {
         // 1) launchctl check for PID using SubprocessRunner
-        let isRunning: Bool
-        do {
-            let result = try await SubprocessRunner.shared.launchctl(
-                "print", ["system/\(Self.kanataServiceID)"]
-            )
-            if result.exitCode == 0 {
-                // Look for pid = in the output
-                var foundPid = false
-                for line in result.stdout.components(separatedBy: "\n") where line.contains("pid =") {
-                    let comps = line.components(separatedBy: "=")
-                    if comps.count == 2,
-                       Int(comps[1].trimmingCharacters(in: .whitespaces)) != nil
-                    {
-                        foundPid = true
-                        break
-                    }
-                }
-                isRunning = foundPid
-            } else {
-                isRunning = false
-            }
-        } catch {
-            AppLogger.shared.warn("⚠️ [ServiceHealthChecker] launchctl check failed: \(error)")
-            isRunning = false
-        }
+        let runningState = await evaluateKanataLaunchctlRunningState()
+        let isRunning = runningState.isRunning
 
         // 2) TCP probe (Hello/Status) - runs off MainActor via Task.detached for blocking socket ops
         let tcpOK = await Task.detached { [self] in
@@ -326,6 +319,44 @@ final class ServiceHealthChecker: @unchecked Sendable {
         return KanataHealthSnapshot(
             isRunning: isRunning,
             isResponding: tcpOK
+        )
+    }
+
+    private nonisolated func evaluateKanataLaunchctlRunningState() async
+        -> (isRunning: Bool, exitCode: Int32?)
+    {
+        do {
+            let result = try await SubprocessRunner.shared.launchctl(
+                "print", ["system/\(Self.kanataServiceID)"]
+            )
+            if result.exitCode != 0 {
+                return (false, result.exitCode)
+            }
+
+            for line in result.stdout.components(separatedBy: "\n") where line.contains("pid =") {
+                let components = line.components(separatedBy: "=")
+                if components.count == 2,
+                   Int(components[1].trimmingCharacters(in: .whitespaces)) != nil
+                {
+                    return (true, result.exitCode)
+                }
+            }
+            return (false, result.exitCode)
+        } catch {
+            AppLogger.shared.warn("⚠️ [ServiceHealthChecker] launchctl check failed: \(error)")
+            return (false, nil)
+        }
+    }
+
+    private nonisolated func shouldTreatKanataAsTransientlyHealthy(
+        smState: KanataDaemonManager.ServiceManagementState,
+        launchctlExitCode: Int32?
+    ) -> Bool {
+        guard launchctlExitCode == Self.launchctlNotFoundExitCode else { return false }
+        guard smState.isSMAppServiceManaged else { return false }
+        return ServiceBootstrapper.wasRecentlyRestarted(
+            Self.kanataServiceID,
+            within: Self.kanataRestartGraceWindow
         )
     }
 

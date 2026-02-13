@@ -142,6 +142,36 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         }
     }
 
+    func testHandleExternalChangeFailsWhenReloadFailsAndServiceRunning() async {
+        // If reload fails while service is running and installation state is not pending,
+        // this should be treated as a real failure.
+        reloadHandlerResult = false
+
+        service.configure(
+            configurationService: configService,
+            reloadHandler: { [weak self] in
+                self?.reloadHandlerCalled = true
+                return self?.reloadHandlerResult ?? false
+            },
+            configParser: { _ in [] },
+            serviceManagementStateProvider: { .smappserviceActive },
+            isKanataProcessRunningProvider: { true }
+        )
+
+        let validConfig = """
+        (defcfg)
+        (defsrc caps)
+        (deflayer base esc)
+        """
+        let tempFile = createTempConfigFile(content: validConfig)
+
+        let result = await service.handleExternalChange(configPath: tempFile.path)
+
+        XCTAssertTrue(reloadHandlerCalled, "Reload handler should be called")
+        XCTAssertFalse(result.success, "Should fail when reload fails and service is running")
+        XCTAssertEqual(result.message, "Hot reload failed")
+    }
+
     // MARK: - Callback Tests
 
     func testCallbacksInvokedOnSuccess() async {

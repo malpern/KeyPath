@@ -263,4 +263,12 @@ final class ServiceBootstrapperTests: XCTestCase {
         // The file won't exist in test environment
         XCTAssertFalse(result)
     }
+
+    func testGenerateNewsyslogConfigIncludesCurrentAndLegacyKanataLogs() {
+        let config = ServiceBootstrapper.generateNewsyslogConfig()
+
+        XCTAssertTrue(config.contains("/var/log/com.keypath.kanata.stdout.log"))
+        XCTAssertTrue(config.contains("/var/log/com.keypath.kanata.stderr.log"))
+        XCTAssertTrue(config.contains("/var/log/kanata.log"))
+    }
 }

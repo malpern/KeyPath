@@ -11,6 +11,10 @@ echo "🔄 Running hot reload integration tests..."
 CONFIG_PATH="/Users/malpern/.config/keypath/keypath.kbd"
 BACKUP_PATH="${CONFIG_PATH}.backup"
 TEST_LOG="/tmp/hot-reload-test.log"
+KANATA_LOG="/var/log/com.keypath.kanata.stdout.log"
+if [ ! -f "$KANATA_LOG" ] && [ -f "/var/log/kanata.log" ]; then
+    KANATA_LOG="/var/log/kanata.log"
+fi
 
 # Test mappings
 ORIGINAL_MAPPING="caps -> esc"
@@ -56,7 +60,7 @@ echo "✅ Configuration backed up"
 
 # Step 4: Get baseline log position
 echo "🔍 Step 4: Getting baseline log position..."
-BASELINE_LOG_SIZE=$(wc -c < /var/log/kanata.log 2>/dev/null || echo "0")
+BASELINE_LOG_SIZE=$(wc -c < "$KANATA_LOG" 2>/dev/null || echo "0")
 echo "📊 Baseline log size: $BASELINE_LOG_SIZE bytes"
 
 # Step 5: Generate test configuration
@@ -93,7 +97,7 @@ for i in {1..10}; do
     sleep 1
     
     # Check if log size increased (indicates reload activity)
-    CURRENT_LOG_SIZE=$(wc -c < /var/log/kanata.log 2>/dev/null || echo "0")
+    CURRENT_LOG_SIZE=$(wc -c < "$KANATA_LOG" 2>/dev/null || echo "0")
     if [ "$CURRENT_LOG_SIZE" -gt "$BASELINE_LOG_SIZE" ]; then
         echo "📈 Log activity detected (size: $CURRENT_LOG_SIZE bytes)"
         RELOAD_DETECTED=true
@@ -132,9 +136,9 @@ fi
 
 # Step 9: Check recent log entries for reload confirmation
 echo "🔍 Step 9: Analyzing reload logs..."
-if tail -20 /var/log/kanata.log 2>/dev/null | grep -q "main.*Loading config"; then
+if tail -20 "$KANATA_LOG" 2>/dev/null | grep -q "main.*Loading config"; then
     echo "✅ Configuration reload confirmed in logs"
-elif tail -20 /var/log/kanata.log 2>/dev/null | grep -q "cfg"; then
+elif tail -20 "$KANATA_LOG" 2>/dev/null | grep -q "cfg"; then
     echo "⚠️  Configuration-related activity detected"
 else
     echo "⚠️  No explicit reload confirmation in recent logs"

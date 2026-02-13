@@ -16,6 +16,12 @@ fi
 RETRY_COUNT_FILE="/var/tmp/keypath-vhid-retry-count"
 MAX_RETRIES=3
 RETRY_RESET_SECONDS=60
+MAX_LOG_BYTES=$((10 * 1024 * 1024))
+KANATA_STDOUT_LOG="/var/log/com.keypath.kanata.stdout.log"
+KANATA_STDERR_LOG="/var/log/com.keypath.kanata.stderr.log"
+KANATA_LEGACY_LOG="/var/log/kanata.log"
+KEYPATH_PREFERENCES_PLIST_BASENAME="com.keypath.KeyPath.plist"
+VERBOSE_LOGGING_PREF_KEY="KeyPath.Diagnostics.VerboseKanataLogging"
 
 # Check if VirtualHID daemon is running (required for Kanata to work)
 check_vhid_daemon() {
@@ -48,6 +54,50 @@ increment_retry_count() {
     count=$((count + 1))
     echo "$count" > "$RETRY_COUNT_FILE"
     echo "$count"
+}
+
+truncate_log_if_oversized() {
+    local path="$1"
+    if [ ! -f "$path" ]; then
+        return
+    fi
+
+    local size
+    size=$(/usr/bin/stat -f%z "$path" 2>/dev/null || echo 0)
+    if [ "$size" -gt "$MAX_LOG_BYTES" ]; then
+        /usr/bin/logger -t "kanata-launcher" "Truncating oversized log: $path (${size} bytes)"
+        : > "$path" || true
+    fi
+}
+
+has_arg() {
+    local needle="$1"
+    shift
+    for arg in "$@"; do
+        if [ "$arg" = "$needle" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+is_verbose_logging_enabled() {
+    local home="$1"
+    local prefs_plist="$home/Library/Preferences/$KEYPATH_PREFERENCES_PLIST_BASENAME"
+    if [ ! -f "$prefs_plist" ]; then
+        return 1
+    fi
+
+    local raw
+    raw=$(/usr/bin/defaults read "$prefs_plist" "$VERBOSE_LOGGING_PREF_KEY" 2>/dev/null || echo "")
+    case "$raw" in
+        1|true|TRUE|yes|YES)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
 }
 
 # Pre-flight check: ensure VirtualHID daemon is available
@@ -112,4 +162,23 @@ fi
 /usr/bin/logger -t "kanata-launcher" "Launching Kanata for user=$console_user config=$config_path"
 /usr/bin/logger -t "kanata-launcher" "Using kanata binary: $KANATA_BIN"
 
-exec "$KANATA_BIN" --cfg "$config_path" "$@"
+# Keep daemon logs bounded even before newsyslog runs.
+truncate_log_if_oversized "$KANATA_STDOUT_LOG"
+truncate_log_if_oversized "$KANATA_STDERR_LOG"
+truncate_log_if_oversized "$KANATA_LEGACY_LOG"
+
+trace_arg=""
+# Respect app preference for verbose daemon logging.
+# This keeps production defaults quiet, while making dev diagnostics a one-toggle restart.
+if is_verbose_logging_enabled "$console_home"; then
+    if ! has_arg "--trace" "$@" && ! has_arg "--debug" "$@"; then
+        trace_arg="--trace"
+        /usr/bin/logger -t "kanata-launcher" "Verbose logging enabled via user preference (--trace)"
+    fi
+fi
+
+if [ -n "$trace_arg" ]; then
+    exec "$KANATA_BIN" --cfg "$config_path" "$@" "$trace_arg"
+else
+    exec "$KANATA_BIN" --cfg "$config_path" "$@"
+fi

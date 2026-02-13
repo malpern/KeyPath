@@ -146,10 +146,11 @@ public enum WizardSystemPaths {
 
     // MARK: - Log Files
 
-    /// Candidate Kanata log files (SMAppService stdout first, legacy launchctl second)
+    /// Candidate Kanata log files (SMAppService stdout/stderr first, legacy launchctl second)
     public static var kanataLogFileCandidates: [String] {
         [
             remapSystemPath("/var/log/com.keypath.kanata.stdout.log"),
+            remapSystemPath("/var/log/com.keypath.kanata.stderr.log"),
             remapSystemPath("/var/log/kanata.log")
         ]
     }

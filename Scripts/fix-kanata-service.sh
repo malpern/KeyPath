@@ -28,7 +28,6 @@ cat > "$TEMP_PLIST" << 'EOF'
         <string>--port</string>
         <string>37000</string>
         <string>--watch</string>
-        <string>--debug</string>
         <string>--log-layer-changes</string>
     </array>
     <key>RunAtLoad</key>
@@ -36,9 +35,9 @@ cat > "$TEMP_PLIST" << 'EOF'
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/var/log/kanata.log</string>
+    <string>/var/log/com.keypath.kanata.stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/var/log/kanata.log</string>
+    <string>/var/log/com.keypath.kanata.stderr.log</string>
 </dict>
 </plist>
 EOF
@@ -123,5 +122,6 @@ else
 fi
 
 echo ""
-echo "📝 To check logs: tail -f /var/log/kanata.log"
+echo "📝 To check logs: tail -f /var/log/com.keypath.kanata.stdout.log"
+echo "📝 For errors:      tail -f /var/log/com.keypath.kanata.stderr.log"
 echo "🔧 To restart: sudo launchctl kickstart -k system/com.keypath.kanata"
