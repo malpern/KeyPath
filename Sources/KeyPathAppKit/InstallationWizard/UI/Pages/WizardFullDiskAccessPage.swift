@@ -1,19 +1,6 @@
 import KeyPathCore
 import KeyPathWizardCore
-import os
 import SwiftUI
-
-/// Thread-safe counter for detection attempts
-final class DetectionCounter: @unchecked Sendable {
-    private let lock = OSAllocatedUnfairLock(initialState: 0)
-
-    func increment() -> Int {
-        lock.withLock { state in
-            state += 1
-            return state
-        }
-    }
-}
 
 /// Wizard page for requesting Full Disk Access permission
 /// This is optional but helps with better diagnostics and automatic problem resolution
@@ -26,13 +13,6 @@ struct WizardFullDiskAccessPage: View {
     @State private var hasFullDiskAccess = false
     @State private var isChecking = false
     @State private var showSuccessAnimation = false
-    @State private var detectionTimer: Timer?
-
-    // Modal states for System Settings flow
-    @State private var showingSystemSettingsWait = false
-    @State private var showingRestartRequired = false
-    @State private var systemSettingsDetectionAttempts = 0
-    private let maxDetectionAttempts = 4 // 8 seconds total (2 sec intervals)
 
     // Cache FDA status to avoid repeated checks
     @State private var lastFDACheckTime: Date?
@@ -119,12 +99,7 @@ struct WizardFullDiskAccessPage: View {
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
         .onAppear {
-            // Check status when page appears
             checkFullDiskAccess()
-            startAutoDetection()
-        }
-        .onDisappear {
-            stopAutoDetection()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             // Re-check FDA when app becomes active (user may have granted it in System Settings)
@@ -135,34 +110,6 @@ struct WizardFullDiskAccessPage: View {
         }
         .sheet(isPresented: $showingDetails) {
             FullDiskAccessDetailsSheet()
-        }
-        .sheet(isPresented: $showingSystemSettingsWait) {
-            SystemSettingsWaitingView(
-                detectionAttempts: $systemSettingsDetectionAttempts,
-                maxAttempts: maxDetectionAttempts,
-                onDetected: {
-                    // FDA was detected!
-                    showingSystemSettingsWait = false
-                    hasFullDiskAccess = true
-                    showSuccessAnimation = true
-                    AppLogger.shared.log("✅ [Wizard] FDA detected during System Settings wait")
-                },
-                onTimeout: {
-                    // Couldn't detect after 8 seconds - FDA requires app restart
-                    showingSystemSettingsWait = false
-                    AppLogger.shared.log("⏱️ [Wizard] FDA detection timed out - showing restart prompt")
-                    // Show restart required modal after a brief delay
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        showingRestartRequired = true
-                    }
-                },
-                onCancel: {
-                    // User cancelled the wait
-                    showingSystemSettingsWait = false
-                    systemSettingsDetectionAttempts = 0
-                    AppLogger.shared.log("❌ [Wizard] User cancelled FDA detection wait")
-                }
-            )
         }
         .onChange(of: hasFullDiskAccess) { _, newValue in
             if newValue, !showSuccessAnimation {
@@ -175,23 +122,6 @@ struct WizardFullDiskAccessPage: View {
                 // Don't auto-navigate - let user navigate manually
                 // User can use navigation buttons or close dialog
             }
-        }
-        .onChange(of: showingSystemSettingsWait) { _, newValue in
-            if !newValue {
-                isChecking = false
-            }
-        }
-        .sheet(isPresented: $showingRestartRequired) {
-            RestartRequiredView(
-                onRestart: {
-                    AppLogger.shared.log("🔄 [Wizard] User requested restart for FDA")
-                    AppRestarter.restartForWizard(at: "fullDiskAccess")
-                },
-                onCancel: {
-                    showingRestartRequired = false
-                    AppLogger.shared.log("❌ [Wizard] User cancelled FDA restart")
-                }
-            )
         }
     }
 
@@ -230,7 +160,9 @@ struct WizardFullDiskAccessPage: View {
     private func openSystemSettingsCTA() {
         guard !isChecking else { return }
         isChecking = true
-        openFullDiskAccessSettingsWithDetection()
+        openFullDiskAccessSettings()
+        // Detection happens automatically via didBecomeActiveNotification when user returns
+        isChecking = false
     }
 
     private func checkFullDiskAccess() {
@@ -306,21 +238,6 @@ struct WizardFullDiskAccessPage: View {
         return false
     }
 
-    private func startAutoDetection() {
-        // DISABLED: This timer was potentially causing invasive file system checks
-        // that could trigger automatic addition to System Preferences
-        // Only check once on page load, not continuously
-
-        AppLogger.shared.log(
-            "🔐 [WizardFullDiskAccessPage] Auto-detection timer DISABLED to prevent invasive checks"
-        )
-    }
-
-    private func stopAutoDetection() {
-        detectionTimer?.invalidate()
-        detectionTimer = nil
-    }
-
     private func openFullDiskAccessSettings() {
         if let url = URL(string: WizardSystemPaths.fullDiskAccessSettings) {
             if NSWorkspace.shared.open(url) {
@@ -329,55 +246,7 @@ struct WizardFullDiskAccessPage: View {
             AppLogger.shared.log("🔗 [Wizard] Opened Full Disk Access settings")
         }
     }
-
-    private func openFullDiskAccessSettingsWithDetection() {
-        // Open System Settings
-        openFullDiskAccessSettings()
-
-        // Show modal and start detection
-        showingSystemSettingsWait = true
-        systemSettingsDetectionAttempts = 0
-
-        // Start enhanced detection timer
-        // Use a thread-safe counter for detection attempts
-        let detectionCounter = DetectionCounter()
-
-        detectionTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-            // Use synchronous MainActor.assumeIsolated to avoid data race
-            MainActor.assumeIsolated {
-                let currentCount = detectionCounter.increment()
-                systemSettingsDetectionAttempts = currentCount
-
-                let shouldStop: Bool
-                if performFDACheck() {
-                    shouldStop = true
-                    cachedFDAStatus = true
-                    lastFDACheckTime = Date()
-                    hasFullDiskAccess = true
-                    FullDiskAccessChecker.shared.updateCachedValue(true)
-                    if showingSystemSettingsWait {
-                        showingSystemSettingsWait = false
-                        showSuccessAnimation = true
-                    }
-                } else if currentCount >= maxDetectionAttempts {
-                    shouldStop = true
-                    if showingSystemSettingsWait {
-                        showingSystemSettingsWait = false
-                    }
-                } else {
-                    shouldStop = false
-                }
-
-                if shouldStop {
-                    detectionTimer?.invalidate()
-                    detectionTimer = nil
-                }
-            }
-        }
-    }
 }
-
-// Remove this old saveWizardStateAndRestart function as we don't need it anymore
 
 // MARK: - Benefit Row Component
 

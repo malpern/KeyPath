@@ -36,6 +36,7 @@ extension InstallationWizardView {
                     issues: stateMachine.wizardIssues.filter { $0.category == .conflicts },
                     allIssues: stateMachine.wizardIssues,
                     isFixing: fixInFlight,
+                    onAutoFix: performAutoFix,
                     onRefresh: { refreshSystemState() },
                     kanataManager: kanataManager
                 )

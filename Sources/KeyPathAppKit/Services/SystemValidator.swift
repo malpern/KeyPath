@@ -398,6 +398,7 @@ class SystemValidator {
         // and all mechanisms (daemon, wizard instructions, diagnostics) agree on a single executable path.
         let kanataBinaryDetector = KanataBinaryDetector.shared
         let kanataBinaryInstalled = kanataBinaryDetector.isInstalled()
+        let kanataBinaryVersionMismatch = kanataBinaryDetector.hasVersionMismatch()
 
         // Check VirtualHID Device installation (fast sync check)
         let vhidInstalled = vhidDeviceManager.detectInstallation()
@@ -426,7 +427,7 @@ class SystemValidator {
 
         AppLogger.shared
             .log(
-                "🔍 [SystemValidator] Components: kanata=\(kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidServices=\(vhidServicesHealthy), vhidVersionMismatch=\(vhidVersionMismatch)"
+                "🔍 [SystemValidator] Components: kanata=\(kanataBinaryInstalled), kanataMismatch=\(kanataBinaryVersionMismatch), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidServices=\(vhidServicesHealthy), vhidVersionMismatch=\(vhidVersionMismatch)"
             )
 
         return ComponentStatus(
@@ -437,7 +438,8 @@ class SystemValidator {
             vhidDeviceHealthy: vhidHealthy,
             launchDaemonServicesHealthy: launchDaemonServicesHealthy,
             vhidServicesHealthy: vhidServicesHealthy,
-            vhidVersionMismatch: vhidVersionMismatch
+            vhidVersionMismatch: vhidVersionMismatch,
+            kanataBinaryVersionMismatch: kanataBinaryVersionMismatch
         )
     }
 
@@ -604,7 +606,8 @@ class SystemValidator {
                 vhidDeviceHealthy: true,
                 launchDaemonServicesHealthy: true,
                 vhidServicesHealthy: true,
-                vhidVersionMismatch: false
+                vhidVersionMismatch: false,
+                kanataBinaryVersionMismatch: false
             ),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
             health: HealthStatus(kanataRunning: true, karabinerDaemonRunning: true, vhidHealthy: true),
@@ -635,7 +638,8 @@ class SystemValidator {
                 vhidDeviceHealthy: false,
                 launchDaemonServicesHealthy: false,
                 vhidServicesHealthy: false,
-                vhidVersionMismatch: false
+                vhidVersionMismatch: false,
+                kanataBinaryVersionMismatch: false
             ),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
             health: HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: false),

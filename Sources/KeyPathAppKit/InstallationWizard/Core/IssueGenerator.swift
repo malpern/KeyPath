@@ -335,6 +335,7 @@ class IssueGenerator {
         case .vhidDeviceRunning: "VirtualHIDDevice Daemon"
         case .vhidDaemonMisconfigured: "VirtualHIDDevice Daemon Misconfigured"
         case .vhidDriverVersionMismatch: "Karabiner Driver Version Incompatible"
+        case .kanataBinaryVersionMismatch: "Kanata Binary Outdated"
         case .launchDaemonServices: "LaunchDaemon Services Not Installed"
         case .launchDaemonServicesUnhealthy: "LaunchDaemon Services Failing"
         case .kanataTCPServer: "TCP Server Not Responding"
@@ -375,6 +376,8 @@ class IssueGenerator {
             "The installed LaunchDaemon for the VirtualHID daemon points to a legacy path. It should use the DriverKit daemon path."
         case .vhidDriverVersionMismatch:
             "The installed Karabiner-DriverKit-VirtualHIDDevice version is incompatible with the current version of Kanata. Kanata v1.10.0 requires driver v\(VHIDDeviceManager.requiredDriverVersionString), but a different version is installed. KeyPath includes the correct driver version and can install it for you."
+        case .kanataBinaryVersionMismatch:
+            "The installed kanata binary at /Library/KeyPath/bin/kanata differs from the version bundled with KeyPath. This can happen after updating KeyPath or if an upstream kanata was previously installed. Click Fix to replace it with the bundled version."
         case .launchDaemonServices:
             "LaunchDaemon services are not installed or loaded. These provide reliable system-level service management for KeyPath components."
         case .launchDaemonServicesUnhealthy:
@@ -432,6 +435,8 @@ class IssueGenerator {
             .repairVHIDDaemonServices
         case .vhidDriverVersionMismatch:
             .fixDriverVersionMismatch
+        case .kanataBinaryVersionMismatch:
+            .replaceKanataWithBundled
         case .launchDaemonServices:
             .installLaunchDaemonServices
         case .launchDaemonServicesUnhealthy:

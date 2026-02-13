@@ -22,7 +22,13 @@ extension ContentView {
             }
         }
 
-        if hasServiceIssue, !lastKanataServiceIssuePresent, hasSeenHealthyKanataService {
+        // Grace period: don't show alert within 10s of launch (service may bounce during startup/deploy)
+        let timeSinceLaunch = Date().timeIntervalSince(appLaunchTime)
+        let wizardOpen = WizardWindowController.shared.isVisible
+
+        if hasServiceIssue, !lastKanataServiceIssuePresent, hasSeenHealthyKanataService,
+           !wizardOpen, timeSinceLaunch > 10
+        {
             let reason = serviceIssue?.description ?? "Service stopped unexpectedly"
             logKanataServiceStopSnapshot(reason: reason)
             showingKanataServiceStoppedAlert = true

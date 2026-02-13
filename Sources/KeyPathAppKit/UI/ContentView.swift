@@ -63,6 +63,7 @@ struct ContentView: View {
     @State var aiRepairBackupPath: String?
     @State var lastKanataServiceIssuePresent = false
     @State var hasSeenHealthyKanataService = false
+    let appLaunchTime = Date()
 
     // Observer registration guards (prevent duplicate NotificationCenter registrations)
     @State var startupObserversInstalled = false
@@ -238,7 +239,6 @@ struct ContentView: View {
                     AppLogger.shared.log(
                         "🔧 [ContentView] Skipping auto-launch - returning from permission granting"
                     )
-                    WizardLogger.shared.log("SKIPPING auto-launch (would reset wizard flag)")
                 }
 
                 if !hasCheckedRequirements {

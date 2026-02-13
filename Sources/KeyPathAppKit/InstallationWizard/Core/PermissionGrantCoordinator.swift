@@ -30,7 +30,7 @@ enum CoordinatorPermissionType: String, CaseIterable {
 class PermissionGrantCoordinator: ObservableObject {
     static let shared = PermissionGrantCoordinator()
 
-    private let logger = WizardLogger.shared
+    private let logger = AppLogger.shared
     private let maxReturnTime: TimeInterval = 600 // 10 minutes
 
     /// Prevent double-dismiss race conditions

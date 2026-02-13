@@ -116,6 +116,9 @@ struct SystemContextAdapter {
         if context.components.vhidVersionMismatch {
             missing.append(.vhidDriverVersionMismatch)
         }
+        if context.components.kanataBinaryVersionMismatch {
+            missing.append(.kanataBinaryVersionMismatch)
+        }
         if !context.components.vhidDeviceHealthy {
             missing.append(.vhidDeviceRunning)
         }
@@ -256,6 +259,20 @@ struct SystemContextAdapter {
                     title: "Driver Version Mismatch",
                     description: "Karabiner VirtualHID driver version mismatch",
                     autoFixAction: .fixDriverVersionMismatch,
+                    userAction: nil
+                )
+            )
+        }
+        if context.components.kanataBinaryVersionMismatch {
+            issues.append(
+                WizardIssue(
+                    identifier: .component(.kanataBinaryVersionMismatch),
+                    severity: .error,
+                    category: .installation,
+                    title: "Kanata Binary Outdated",
+                    description:
+                    "The installed kanata binary differs from the version bundled with KeyPath. Click Fix to update.",
+                    autoFixAction: .replaceKanataWithBundled,
                     userAction: nil
                 )
             )

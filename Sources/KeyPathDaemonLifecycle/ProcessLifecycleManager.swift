@@ -342,6 +342,24 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
                 + "Confidence=\(confidence), " + "CacheAge=\(String(format: "%.1f", cacheAge))s"
         )
 
+        // If the process uses our config path but doesn't match the cached PID,
+        // the cache may be stale (e.g. daemon restarted kanata with a new PID).
+        // Invalidate cache and retry once before declaring it external.
+        if !isThisProcessManaged {
+            AppLogger.shared.log(
+                "🔄 [ProcessLifecycleManager] PID \(process.pid): Config path matches but PID doesn't — refreshing cache"
+            )
+            await pidCache.invalidateCache()
+            let (freshPID, _) = await pidCache.getCachedPIDWithConfidence()
+            let matchAfterRefresh = freshPID != nil && freshPID == process.pid
+
+            AppLogger.shared.log(
+                "🔍 [ProcessLifecycleManager] PID \(process.pid): After refresh — CachedPID=\(freshPID ?? -1), Match=\(matchAfterRefresh)"
+            )
+
+            return matchAfterRefresh
+        }
+
         return isThisProcessManaged
     }
 }

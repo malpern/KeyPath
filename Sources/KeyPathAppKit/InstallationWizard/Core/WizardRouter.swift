@@ -90,7 +90,9 @@ enum WizardRouter {
         let hasKanataIssues = issues.contains {
             if $0.category == .installation {
                 switch $0.identifier {
-                case .component(.kanataBinaryMissing), .component(.kanataService):
+                case .component(.kanataBinaryMissing),
+                     .component(.kanataBinaryVersionMismatch),
+                     .component(.kanataService):
                     return true
                 default:
                     return false
