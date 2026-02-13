@@ -230,7 +230,7 @@ struct InlineStatusView: View {
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: WizardDesign.Spacing.elementGap) {
-                // Status indicator (icons only; no spinner here — spinner stays on the button)
+                // Status indicator (icons only; in-progress activity uses the shared blue bar below)
                 Group {
                     switch status {
                     case .success:

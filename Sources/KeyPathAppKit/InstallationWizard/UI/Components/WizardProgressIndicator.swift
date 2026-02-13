@@ -1,5 +1,43 @@
 import SwiftUI
 
+/// Shared indeterminate activity treatment for wizard flows.
+///
+/// This is the single "thinking" language used across overlays, headers, and inline loading views.
+struct WizardActivityIndicator: View {
+    let message: String?
+    let width: CGFloat
+    let height: CGFloat
+
+    init(message: String? = nil, width: CGFloat = 200, height: CGFloat = 6) {
+        self.message = message
+        self.width = width
+        self.height = height
+    }
+
+    var body: some View {
+        VStack(spacing: 10) {
+            if let message, !message.isEmpty {
+                Text(message)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: height / 2)
+                    .fill(Color(NSColor.separatorColor).opacity(0.35))
+                    .frame(width: width, height: height)
+
+                IndeterminateProgressBar()
+                    .frame(width: width, height: height)
+                    .clipShape(RoundedRectangle(cornerRadius: height / 2))
+            }
+            .frame(width: width, height: height)
+        }
+    }
+}
+
 /// A reusable progress indicator component for wizard operations
 struct WizardProgressIndicator: View {
     let title: String
@@ -112,19 +150,12 @@ struct WizardOperationProgress: View {
     let progress: Double
     let isIndeterminate: Bool
 
-    @State private var rotationAngle: Double = 0
-
     var body: some View {
-        // Just the spinning gear - no text, no progress bar, minimal padding
-        Image(systemName: "gear")
-            .font(.system(size: 32))
-            .foregroundColor(.secondary)
-            .rotationEffect(.degrees(rotationAngle))
-            .onAppear {
-                withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
-                    rotationAngle = 360
-                }
-            }
+        WizardActivityIndicator(
+            message: operationDisplayName,
+            width: 220,
+            height: 6
+        )
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 8)
@@ -132,18 +163,12 @@ struct WizardOperationProgress: View {
             )
     }
 
-    private func getProgressDescription() -> String {
-        if isIndeterminate {
-            "Please wait..."
-        } else if progress < 0.3 {
-            "Starting..."
-        } else if progress < 0.7 {
-            "Processing..."
-        } else if progress < 1.0 {
-            "Almost done..."
-        } else {
-            "Complete!"
+    private var operationDisplayName: String {
+        let trimmed = operationName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return "Working..."
         }
+        return trimmed
     }
 }
 

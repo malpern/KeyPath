@@ -142,13 +142,12 @@ struct WizardHelperPage: View {
 
     private var loadingView: some View {
         VStack(spacing: WizardDesign.Spacing.sectionGap) {
-            ProgressView()
-                .scaleEffect(1.5)
-                .frame(height: 80)
-
-            Text("Checking Helper Status")
-                .font(.system(size: 20, weight: .semibold, design: .default))
-                .foregroundColor(.primary)
+            WizardActivityIndicator(
+                message: "Checking Helper Status",
+                width: 240,
+                height: 6
+            )
+            .frame(height: 52)
 
             Text("Verifying privileged helper is responding...")
                 .font(.system(size: 14, weight: .regular))

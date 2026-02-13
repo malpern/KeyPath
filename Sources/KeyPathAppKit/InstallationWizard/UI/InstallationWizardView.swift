@@ -39,7 +39,7 @@ struct InstallationWizardView: View {
     @State var toastManager = WizardToastManager()
 
     // UI state
-    @State var isValidating: Bool = true // Track validation state for gear icon
+    @State var isValidating: Bool = true // Track validation state for summary activity indicator
     @State var preflightStart = Date()
     @State var evaluationProgress: Double = 0.0
     // stateMachine.wizardState and stateMachine.wizardIssues now live in stateMachine (single source of truth)
@@ -104,7 +104,7 @@ struct InstallationWizardView: View {
                     .id(stateMachine.currentPage) // Force view recreation on page change
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .overlay {
-                        // Don't show overlay during validation - summary page has its own gear
+                        // Don't show overlay during validation - summary page has its own validating indicator
                         if asyncOperationManager.hasRunningOperations, !isValidating {
                             operationProgressOverlay()
                                 .allowsHitTesting(false) // Don't block X button interaction

@@ -8,7 +8,7 @@ extension InstallationWizardView {
 
     /// Consolidated refresh method that handles all refresh scenarios
     /// - Parameters:
-    ///   - showSpinner: Whether to show the validating spinner (used when returning to summary)
+    ///   - showSpinner: Whether to show summary validating activity state
     ///   - previousPage: The page we're coming from (enables special handling for communication page)
     func refreshSystemState(showSpinner: Bool = false, previousPage: WizardPage? = nil) {
         guard !isForceClosing else {
@@ -29,7 +29,7 @@ extension InstallationWizardView {
         // Cancel any previous refresh task
         refreshTask?.cancel()
 
-        // Show spinner if requested (used when returning to summary page)
+        // Show validating state if requested (used when returning to summary page)
         if showSpinner {
             withAnimation(.easeInOut(duration: 0.2)) {
                 isValidating = true
@@ -38,7 +38,7 @@ extension InstallationWizardView {
         }
 
         refreshTask = Task { [previousPage, showSpinner] in
-            // Wait for in-flight operations to complete (only when showing spinner)
+            // Wait for in-flight operations to complete (only when showing validating state)
             if showSpinner, await MainActor.run(body: { asyncOperationManager.hasRunningOperations }) {
                 AppLogger.shared.log("🔍 [Wizard] Refresh waiting for in-flight operations")
                 while !Task.isCancelled,
@@ -405,7 +405,7 @@ extension InstallationWizardView {
         isForceClosing = true
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Force closing flag set - no new operations allowed")
 
-        // Immediately clear operation state to stop UI spinners
+        // Immediately clear operation state to stop loading indicators
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Clearing operation state...")
         Task { @MainActor in
             AppLogger.shared.log("🔴 [FORCE-CLOSE] MainActor task - clearing operations")

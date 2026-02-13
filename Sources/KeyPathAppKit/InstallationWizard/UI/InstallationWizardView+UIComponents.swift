@@ -161,24 +161,11 @@ extension InstallationWizardView {
 
     @ViewBuilder
     func operationProgressOverlay() -> some View {
-        let operationName = getCurrentOperationName()
-
-        // Minimal overlay for system state detection - just progress indicator
-        if operationName.contains("System State Detection") {
-            ProgressView()
-                .scaleEffect(1.0)
-        } else {
-            // Enhanced overlay with cancellation support
-            VStack(spacing: 16) {
-                WizardOperationProgress(
-                    operationName: operationName,
-                    progress: getCurrentOperationProgress(),
-                    isIndeterminate: isCurrentOperationIndeterminate()
-                )
-
-                // No cancel button - use X in top-right instead
-            }
-            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-        }
+        WizardOperationProgress(
+            operationName: getCurrentOperationName(),
+            progress: getCurrentOperationProgress(),
+            isIndeterminate: isCurrentOperationIndeterminate()
+        )
+        .transition(.opacity.combined(with: .scale(scale: 0.95)))
     }
 }
