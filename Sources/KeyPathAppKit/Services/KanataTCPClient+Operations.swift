@@ -255,7 +255,7 @@ extension KanataTCPClient {
                 if let reload = try extractMessage(
                     named: "ReloadResult", into: ReloadResult.self, from: nextLine
                 ) {
-                    if reload.ready {
+                    if reload.isSuccess {
                         let dur = reload.duration_ms ?? 0
                         let ep = reload.epoch ?? 0
                         let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
@@ -264,7 +264,13 @@ extension KanataTCPClient {
                         return .success(response: firstLineStr)
                     } else {
                         let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
-                        AppLogger.shared.log("⚠️ [TCP] Reload(wait) timeout (request_id=\(requestId)) before \(reload.timeout_ms) ms")
+                        if reload.isTimeout, let timeoutMs = reload.timeout_ms {
+                            AppLogger.shared.log("⚠️ [TCP] Reload(wait) timeout (request_id=\(requestId)) before \(timeoutMs) ms")
+                        } else if reload.ok == false {
+                            AppLogger.shared.log("❌ [TCP] Reload(wait) failed (request_id=\(requestId)) ok=false")
+                        } else {
+                            AppLogger.shared.log("❌ [TCP] Reload(wait) failed (request_id=\(requestId))")
+                        }
                         AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload timed out")
                         return .failure(error: "timeout", response: firstLineStr)
                     }
@@ -278,7 +284,7 @@ extension KanataTCPClient {
             if let reload = try extractMessage(
                 named: "ReloadResult", into: ReloadResult.self, from: firstLine
             ) {
-                if reload.ready {
+                if reload.isSuccess {
                     let dur = reload.duration_ms ?? 0
                     let ep = reload.epoch ?? 0
                     let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
@@ -287,7 +293,13 @@ extension KanataTCPClient {
                     return .success(response: firstLineStr)
                 } else {
                     let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
-                    AppLogger.shared.log("⚠️ [TCP] Reload(wait) timeout (request_id=\(requestId)) before \(reload.timeout_ms) ms")
+                    if reload.isTimeout, let timeoutMs = reload.timeout_ms {
+                        AppLogger.shared.log("⚠️ [TCP] Reload(wait) timeout (request_id=\(requestId)) before \(timeoutMs) ms")
+                    } else if reload.ok == false {
+                        AppLogger.shared.log("❌ [TCP] Reload(wait) failed (request_id=\(requestId)) ok=false")
+                    } else {
+                        AppLogger.shared.log("❌ [TCP] Reload(wait) failed (request_id=\(requestId))")
+                    }
                     AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload timed out")
                     return .failure(error: "timeout", response: firstLineStr)
                 }

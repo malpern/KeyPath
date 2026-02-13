@@ -176,16 +176,24 @@ extension KanataTCPClient {
                     Task {
                         do {
                             var responseData: Data
-                            var attempts = 0
-                            let maxDrainAttempts = 50 // Prevent infinite loop - increased for high load scenarios
+                            let start = CFAbsoluteTimeGetCurrent()
+                            let deadline = start + self.timeout
 
                             // If we sent a request_id, match responses by request_id
                             // Otherwise fall back to old broadcast draining behavior
-                            repeat {
-                                responseData = try await withTimeout(seconds: 5.0) {
+                            while true {
+                                // Time-bound drain: under heavy broadcast load (typing), the response can be
+                                // queued behind lots of KeyInput events. A fixed read-count limit causes
+                                // false "invalidResponse" errors, so we drain until we get a real response
+                                // or hit the overall timeout.
+                                let now = CFAbsoluteTimeGetCurrent()
+                                if now >= deadline {
+                                    throw KeyPathError.communication(.timeout)
+                                }
+                                let remaining = max(0.05, deadline - now)
+                                responseData = try await withTimeout(seconds: remaining) {
                                     try await self.readUntilNewline(on: connection)
                                 }
-                                attempts += 1
 
                                 // First check: is this a command response?
                                 if !self.isCommandResponse(responseData) {
@@ -226,10 +234,6 @@ extension KanataTCPClient {
 
                                 // No request_id matching - got a response that's not a broadcast
                                 break
-                            } while attempts < maxDrainAttempts
-
-                            if attempts >= maxDrainAttempts {
-                                throw KeyPathError.communication(.invalidResponse)
                             }
 
                             if completionFlag.markCompleted() {

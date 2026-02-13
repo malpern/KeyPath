@@ -81,12 +81,21 @@ extension KanataTCPClient {
     }
 
     struct ReloadResult: Codable {
-        let ready: Bool
-        let timeout_ms: UInt32
+        // Kanata protocol has multiple variants in the wild:
+        // - Older: { "ReloadResult": { "ready": true|false, "timeout_ms": ... } }
+        // - Newer: { "ReloadResult": { "ok": true|false, ... } }
+        //
+        // Keep these optional for forward/backward compatibility.
+        let ready: Bool?
+        let timeout_ms: UInt32?
         let ok: Bool?
         let duration_ms: UInt64?
         let epoch: UInt64?
         let request_id: UInt64?
+
+        // Unified interpretation across protocol variants.
+        var isSuccess: Bool { ok ?? ready ?? false }
+        var isTimeout: Bool { (ok == nil) && (ready == false) && (timeout_ms != nil) }
     }
 
     /// Action types for fake key commands
