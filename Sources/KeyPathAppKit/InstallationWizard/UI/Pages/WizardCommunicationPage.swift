@@ -209,13 +209,14 @@ struct WizardCommunicationPage: View {
                             "🌐 [WizardCommDetail] hello ok port=\(port) duration_ms=\(Int(dt * 1000)) caps=\(hello.capabilities.joined(separator: ","))"
                         )
 
-                        // Ensure Status capability exists to claim "Communication Ready"
-                        if !hello.hasCapabilities(["status"]) {
-                            AppLogger.shared.log("🌐 [WizardCommDetail] missing 'status' capability -> not ready")
+                        // "status" is not implemented by all Kanata TCP builds; treat TCP reachability
+                        // as readiness as long as reload is supported (needed for KeyPath's instant apply).
+                        if !hello.hasCapabilities(["reload"]) {
+                            AppLogger.shared.log("🌐 [WizardCommDetail] missing 'reload' capability -> not ready")
                             await MainActor.run {
                                 withAnimation(.easeInOut(duration: 0.3)) {
                                     commStatus = .needsSetup(
-                                        "TCP reachable but Status capability not available (older Kanata). Install/update via Wizard."
+                                        "TCP reachable but reload capability not available (older Kanata). Install/update via Wizard."
                                     )
                                     actionStatus = .idle
                                 }

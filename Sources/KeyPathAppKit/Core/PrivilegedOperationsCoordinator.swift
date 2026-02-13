@@ -143,8 +143,13 @@ final class PrivilegedOperationsCoordinator {
         switch Self.operationMode {
         case .privilegedHelper:
             do {
-                try await HelperManager.shared.installLaunchDaemonServicesWithoutLoading()
-                AppLogger.shared.log("✅ [PrivCoordinator] Helper successfully installed services")
+                // VirtualHID is managed via launchctl (root); Kanata is managed via SMAppService.
+                // Ensure VHID services are present/healthy, then register Kanata via SMAppService.
+                try await HelperManager.shared.restartUnhealthyServices()
+                try await KanataDaemonManager.shared.register()
+                AppLogger.shared.log(
+                    "✅ [PrivCoordinator] Helper installed VHID services; Kanata registered via SMAppService"
+                )
             } catch {
                 AppLogger.shared.log("⚠️ [PrivCoordinator] Helper failed (\(error)), falling back to sudo")
                 try await sudoInstallAllServicesWithPreferences()

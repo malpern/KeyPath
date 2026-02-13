@@ -137,6 +137,30 @@ final class ServiceHealthChecker: @unchecked Sendable {
         )
         let startTime = Date()
 
+        // Special handling for Kanata: SMAppService-managed installs can transiently fail `launchctl print`
+        // (or be in a warm-up window) even when the daemon is starting. Prefer PID/TCP probes.
+        if serviceID == Self.kanataServiceID, !TestEnvironment.shouldSkipAdminOperations {
+            let state = await KanataDaemonManager.shared.refreshManagementState()
+            if state.isSMAppServiceManaged {
+                let snap = await checkKanataServiceHealth()
+                if snap.isRunning || snap.isResponding {
+                    AppLogger.shared.log(
+                        "🔍 [ServiceHealthChecker] Kanata healthy via SMAppService probe: running=\(snap.isRunning) responding=\(snap.isResponding) (state: \(state.description))"
+                    )
+                    return true
+                }
+                if ServiceBootstrapper.wasRecentlyRestarted(
+                    Self.kanataServiceID,
+                    within: Self.kanataRestartGraceWindow
+                ) {
+                    AppLogger.shared.log(
+                        "ℹ️ [ServiceHealthChecker] Treating Kanata as transiently healthy (recent restart window, state: \(state.description))"
+                    )
+                    return true
+                }
+            }
+        }
+
         if TestEnvironment.shouldSkipAdminOperations {
             let plistPath = getPlistPath(for: serviceID)
             let exists = FileManager.default.fileExists(atPath: plistPath)

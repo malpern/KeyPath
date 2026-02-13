@@ -205,6 +205,56 @@ extension KanataTCPClient {
                 return .failure(error: errorMsg, response: firstLineStr)
             }
 
+            // Kanata uses a two-line protocol for reload:
+            //   Line 1: {"status":"Ok"}\n
+            //   Line 2: {"ReloadResult":{...}}\n
+            //
+            // Some callers (wizard / comm checks) intentionally close the connection after this
+            // method returns. If we don't read the second line, Kanata may attempt to write the
+            // ReloadResult to a closed socket, producing "Broken pipe" spam in its stderr log.
+            let connection = try await ensureConnectionCore()
+            let deadline = CFAbsoluteTimeGetCurrent() + (Double(timeoutMs) / 1000.0) + 1.0
+            var attempts = 0
+
+            while CFAbsoluteTimeGetCurrent() < deadline, attempts < 25 {
+                let remaining = max(0.1, deadline - CFAbsoluteTimeGetCurrent())
+                let nextLine = try await withTimeout(seconds: remaining) {
+                    try await self.readUntilNewline(on: connection)
+                }
+                attempts += 1
+
+                if !isCommandResponse(nextLine) {
+                    continue
+                }
+
+                if let json = try? JSONSerialization.jsonObject(with: nextLine) as? [String: Any],
+                   let status = json["status"] as? String,
+                   status.lowercased() == "error"
+                {
+                    let errorMsg = json["msg"] as? String ?? "Reload failed"
+                    AppLogger.shared.log("❌ [TCP] Reload failed (follow-up): \(errorMsg)")
+                    return .failure(error: errorMsg, response: firstLineStr)
+                }
+
+                if let reload = try extractMessage(
+                    named: "ReloadResult", into: ReloadResult.self, from: nextLine
+                ) {
+                    if reload.ready {
+                        let dur = reload.duration_ms ?? 0
+                        let ep = reload.epoch ?? 0
+                        let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
+                        AppLogger.shared.log("✅ [TCP] Reload(wait) ok duration=\(dur)ms epoch=\(ep)")
+                        AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload completed successfully")
+                        return .success(response: firstLineStr)
+                    } else {
+                        let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
+                        AppLogger.shared.log("⚠️ [TCP] Reload(wait) timeout before \(reload.timeout_ms) ms")
+                        AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload timed out")
+                        return .failure(error: "timeout", response: firstLineStr)
+                    }
+                }
+            }
+
             if let reload = try extractMessage(
                 named: "ReloadResult", into: ReloadResult.self, from: firstLine
             ) {
@@ -223,7 +273,8 @@ extension KanataTCPClient {
                 }
             }
 
-            // If we couldn't parse ReloadResult, treat status OK as success (backward compat)
+            // If we couldn't parse ReloadResult, treat status OK as success (backward compat).
+            // This should only happen if the server doesn't implement the second line.
             let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
             AppLogger.shared.log("✅ [TCP] Config reload acknowledged (status OK, no ReloadResult)")
             AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload completed (backward compat mode)")

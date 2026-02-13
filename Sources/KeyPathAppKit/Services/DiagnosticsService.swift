@@ -399,25 +399,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
             )
         }
 
-        // TCP engine status (non-blocking informational)
-        if let tcpInfo = await fetchTcpStatusInfo() {
-            if let last = tcpInfo.last_reload {
-                let dur = last.duration_ms.map(String.init) ?? "-"
-                let ep = last.epoch.map(String.init) ?? "-"
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .info,
-                        category: .system,
-                        title: "Last Reload",
-                        description: "ok=\(last.ok) duration_ms=\(dur) epoch=\(ep)",
-                        technicalDetails: "Reported by TCP StatusInfo",
-                        suggestedAction: "",
-                        canAutoFix: false
-                    )
-                )
-            }
-        }
+        // Note: Some Kanata builds do not implement a Status command.
+        // Keep TCP diagnostics driven by HelloOk + log analysis instead.
 
         // TCP handshake summary (protocol/capabilities)
         if let hello = await fetchTcpHello() {
@@ -436,23 +419,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                 )
             )
 
-            // Enforce protocol v2 for full functionality
-            if proto < 2 {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .system,
-                        title: "Kanata protocol too old",
-                        description:
-                        "Detected protocol v\(proto). KeyPath requires v2 for blocking reload and richer status.",
-                        technicalDetails: "HelloOk reported protocol=\(proto)",
-                        suggestedAction:
-                        "Use Regenerate Services to install the bundled Kanata and reload services.",
-                        canAutoFix: true
-                    )
-                )
-            }
+            // Protocol numbers are not stable across Kanata forks; prefer capability checks.
+            // Keep this informational to avoid false "old version" errors.
         }
 
         // Include log-based integration health (Diagnostics-only, non-blocking)
