@@ -96,6 +96,8 @@ extension RuntimeCoordinator {
         if tcpResult.isSuccess {
             // Successful reload -> clear stale diagnostics (e.g., Invalid Configuration)
             clearDiagnostics()
+            // Notify UI that we recovered from a previous reload failure.
+            NotificationCenter.default.post(name: .configReloadRecovered, object: nil)
             return ReloadResult(
                 success: true,
                 response: tcpResult.response ?? "",
@@ -111,6 +113,14 @@ extension RuntimeCoordinator {
             //
             // Callers can decide whether to retry or escalate to a restart based on explicit
             // engine health checks (process exited, TCP unreachable, etc).
+            NotificationCenter.default.post(
+                name: .configReloadFailed,
+                object: nil,
+                userInfo: [
+                    "message": tcpResult.errorMessage ?? "TCP reload failed",
+                    "response": tcpResult.response ?? ""
+                ]
+            )
             return ReloadResult(
                 success: false,
                 response: tcpResult.response,

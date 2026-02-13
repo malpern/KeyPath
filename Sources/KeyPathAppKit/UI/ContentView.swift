@@ -43,6 +43,7 @@ struct ContentView: View {
     @State var showingEmergencyStopDialog = false
     @State var showingUninstallDialog = false
     @State var toastManager = WizardToastManager()
+    @State private var lastReloadFailureToastAt: Date?
 
     @State var saveDebounceTimer: Timer?
     let saveDebounceDelay: TimeInterval = 0.1
@@ -466,6 +467,26 @@ struct ContentView: View {
                 let errors = notification.userInfo?["errors"] as? [String] ?? []
                 guard !errors.isEmpty else { return }
                 presentValidationFailureModal(errors)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .configReloadFailed)) { notification in
+                // Subtle, non-modal feedback for background reload failures. Rate-limit to avoid spam.
+                let now = Date()
+                if let last = lastReloadFailureToastAt, now.timeIntervalSince(last) < 10 {
+                    return
+                }
+                lastReloadFailureToastAt = now
+
+                let message = (notification.userInfo?["message"] as? String) ?? "Config reload failed"
+                toastManager.showError("Reload delayed: \(message)")
+                // Keep the existing sound-based progress tracking: errors still chime.
+                SoundManager.shared.playErrorSound()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .configReloadRecovered)) { _ in
+                // Only show success if we previously warned; avoid noisy toasts on normal reloads.
+                guard lastReloadFailureToastAt != nil else { return }
+                lastReloadFailureToastAt = nil
+                toastManager.showSuccess("Reload recovered")
+                SoundManager.shared.playGlassSound()
             }
             .onReceive(stateController.$issues) { newIssues in
                 handleKanataServiceIssueChange(newIssues)

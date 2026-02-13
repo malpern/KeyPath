@@ -312,7 +312,7 @@ struct LiveKeyboardOverlayView: View {
             uiState.keyboardAspectRatio = keyboardAspectRatio
             inputSourceDetector.startMonitoring()
             if !isMapperAvailable, inspectorSection == .mapper {
-                inspectorSection = hasCustomRules ? .customRules : .layout
+                inspectorSection = hasCustomRules ? .customRules : .launchers
             }
             if inspectorSection.isSettingsShelf {
                 settingsSection = inspectorSection
