@@ -164,11 +164,10 @@ public enum CGSPrivateAPI {
 ///     manager.moveWindow(windowID, to: nextSpace)
 /// }
 /// ```
-@MainActor
 public final class SpaceManager {
     // MARK: - Singleton
 
-    public static let shared = SpaceManager()
+    @MainActor public static let shared = SpaceManager()
 
     // MARK: - Availability
 

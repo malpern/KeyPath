@@ -3,6 +3,7 @@ import KeyPathCore
 import KeyPathDaemonLifecycle
 
 /// Protocol for managing diagnostics, health monitoring, and log monitoring
+// @preconcurrency: @MainActor class conforms to Sendable protocol; actor isolation provides safety
 @preconcurrency
 protocol DiagnosticsManaging: Sendable {
     /// Add a diagnostic
@@ -32,7 +33,7 @@ protocol DiagnosticsManaging: Sendable {
 
 /// Manages diagnostics, health monitoring, and log monitoring
 @MainActor
-final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
+final class DiagnosticsManager: @preconcurrency DiagnosticsManaging { // @preconcurrency: @MainActor satisfies Sendable via isolation
     private var diagnostics: [KanataDiagnostic] = []
     private let diagnosticsService: DiagnosticsServiceProtocol
     private let kanataService: KanataService

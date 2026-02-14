@@ -64,17 +64,21 @@ public enum WizardSystemPaths {
         remapSystemPath("/usr/local/bin/kanata")
     }
 
-    private nonisolated(unsafe) static var bundledKanataPathOverride: String?
+    #if DEBUG
+        private nonisolated(unsafe) static var bundledKanataPathOverride: String?
 
-    public static func setBundledKanataPathOverride(_ path: String?) {
-        bundledKanataPathOverride = path
-    }
+        public static func setBundledKanataPathOverride(_ path: String?) {
+            bundledKanataPathOverride = path
+        }
+    #endif
 
     /// Bundled kanata binary path (preferred - properly signed)
     public static var bundledKanataPath: String {
-        if let override = bundledKanataPathOverride, !override.isEmpty {
-            return override
-        }
+        #if DEBUG
+            if let override = bundledKanataPathOverride, !override.isEmpty {
+                return override
+            }
+        #endif
         if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_KANATA_OVERRIDE"],
            !override.isEmpty
         {

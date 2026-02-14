@@ -406,16 +406,16 @@ public class KeyboardCapture: ObservableObject {
             sequenceTimer = nil
 
             // Send a user-facing message via sequence callback if available
+            // Already on @MainActor; call callbacks directly
             if let cb = sequenceCallback {
                 let kp = KeyPress(
                     baseKey: "⚠️ Couldn't start recording", modifiers: [], timestamp: Date(), keyCode: -1
                 )
                 let seq = KeySequence(keys: [kp], captureMode: .single)
-                DispatchQueue.main.async { cb(seq) }
-                // Do not nil-out the callback until after dispatch
+                cb(seq)
                 sequenceCallback = nil
             } else if let cb = captureCallback {
-                DispatchQueue.main.async { cb("⚠️ Couldn't start recording") }
+                cb("⚠️ Couldn't start recording")
                 captureCallback = nil
             }
             return
@@ -480,7 +480,8 @@ public class KeyboardCapture: ObservableObject {
         lastCapturedKey = keyPress
         lastCaptureAt = now
 
-        DispatchQueue.main.async {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             // Handle legacy callback if set (for backward compatibility)
             if self.sequenceCallback == nil, let legacyCallback = self.captureCallback {
                 legacyCallback(keyName)
@@ -539,7 +540,8 @@ public class KeyboardCapture: ObservableObject {
         lastCapturedKey = keyPress
         lastCaptureAt = now
 
-        DispatchQueue.main.async {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             if self.sequenceCallback == nil, let legacyCallback = self.captureCallback {
                 legacyCallback(keyName)
 

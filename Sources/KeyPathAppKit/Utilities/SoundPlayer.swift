@@ -30,10 +30,9 @@ class SoundPlayer {
             return
         }
 
-        DispatchQueue.main.async {
-            sound.play()
-            AppLogger.shared.log("🔊 [SoundPlayer] Playing success sound (Glass)")
-        }
+        // Already on @MainActor; play directly
+        sound.play()
+        AppLogger.shared.log("🔊 [SoundPlayer] Playing success sound (Glass)")
     }
 
     /// Play error sound (basso sound for config reload failure)
@@ -43,10 +42,9 @@ class SoundPlayer {
             return
         }
 
-        DispatchQueue.main.async {
-            sound.play()
-            AppLogger.shared.log("🔊 [SoundPlayer] Playing error sound (Basso)")
-        }
+        // Already on @MainActor; play directly
+        sound.play()
+        AppLogger.shared.log("🔊 [SoundPlayer] Playing error sound (Basso)")
     }
 
     /// Test if sounds are available

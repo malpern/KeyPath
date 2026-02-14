@@ -3,9 +3,8 @@ import KeyPathCore
 import Security
 
 /// Secure storage service for sensitive data using Keychain Services
-@MainActor
 final class KeychainService {
-    static let shared = KeychainService()
+    @MainActor static let shared = KeychainService()
 
     private let serviceName = "com.keypath.app"
 
@@ -16,7 +15,7 @@ final class KeychainService {
     private let tcpTokenAccount = "tcp-auth-token"
 
     /// Store TCP authentication token securely in Keychain
-    nonisolated func storeTCPToken(_ token: String) throws {
+    func storeTCPToken(_ token: String) throws {
         let tokenData = token.data(using: .utf8) ?? Data()
 
         let query: [String: Any] = [
@@ -40,7 +39,7 @@ final class KeychainService {
     }
 
     /// Retrieve TCP authentication token from Keychain
-    nonisolated func retrieveTCPToken() throws -> String? {
+    func retrieveTCPToken() throws -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
@@ -68,7 +67,7 @@ final class KeychainService {
     }
 
     /// Delete TCP authentication token from Keychain
-    nonisolated func deleteTCPToken() throws {
+    func deleteTCPToken() throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
@@ -99,7 +98,7 @@ final class KeychainService {
     /// Store Claude API key securely in Keychain
     /// - Parameter key: The Anthropic API key (should start with "sk-ant-")
     /// - Throws: KeyPathError if storage fails
-    nonisolated func storeClaudeAPIKey(_ key: String) throws {
+    func storeClaudeAPIKey(_ key: String) throws {
         assert(!key.isEmpty, "API key cannot be empty")
 
         let keyData = key.data(using: .utf8) ?? Data()
@@ -126,7 +125,7 @@ final class KeychainService {
 
     /// Retrieve Claude API key from Keychain
     /// - Returns: The stored API key, or nil if not found
-    nonisolated func retrieveClaudeAPIKey() -> String? {
+    func retrieveClaudeAPIKey() -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
@@ -154,7 +153,7 @@ final class KeychainService {
 
     /// Delete Claude API key from Keychain
     /// - Throws: KeyPathError if deletion fails
-    nonisolated func deleteClaudeAPIKey() throws {
+    func deleteClaudeAPIKey() throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
@@ -190,7 +189,7 @@ final class KeychainService {
     /// Get Claude API key from environment variable or Keychain
     /// Environment variable takes precedence (for developer workflow)
     /// - Returns: The API key if available from either source
-    nonisolated func getClaudeAPIKey() -> String? {
+    func getClaudeAPIKey() -> String? {
         // First try environment variable (developer workflow)
         if let envKey = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !envKey.isEmpty {
             return envKey
@@ -202,7 +201,7 @@ final class KeychainService {
 
     /// Static method to get Claude API key without needing MainActor access
     /// Use this from non-MainActor contexts
-    nonisolated static func getClaudeAPIKeyStatic() -> String? {
+    static func getClaudeAPIKeyStatic() -> String? {
         // First try environment variable (developer workflow)
         if let envKey = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !envKey.isEmpty {
             return envKey

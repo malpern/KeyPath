@@ -45,114 +45,121 @@ struct MappingRowView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                // Mapping content
+        Button(action: {
+            if let onEdit = onEditMapping {
+                onEdit(mapping.id)
+            }
+        }) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    // Show layer activator if present
-                    if layerActivator != nil {
-                        HStack(spacing: 4) {
-                            Text("Hold")
-                                .font(.body.monospaced().weight(.semibold))
-                                .foregroundColor(.accentColor)
-                            Text(leaderKeyDisplay)
-                                .font(.body.monospaced().weight(.semibold))
-                                .foregroundColor(KeycapStyle.textColor)
+                    // Mapping content
+                    HStack(spacing: 8) {
+                        // Show layer activator if present
+                        if layerActivator != nil {
+                            HStack(spacing: 4) {
+                                Text("Hold")
+                                    .font(.body.monospaced().weight(.semibold))
+                                    .foregroundColor(.accentColor)
+                                Text(leaderKeyDisplay)
+                                    .font(.body.monospaced().weight(.semibold))
+                                    .foregroundColor(KeycapStyle.textColor)
+                            }
+                            .modifier(KeycapStyle())
+
+                            Text("+")
+                                .font(.body)
+                                .foregroundColor(.secondary)
                         }
-                        .modifier(KeycapStyle())
 
-                        Text("+")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Text(prettyKeyName(mapping.input))
-                        .font(.body.monospaced().weight(.semibold))
-                        .foregroundColor(KeycapStyle.textColor)
-                        .modifier(KeycapStyle())
-
-                    Image(systemName: "arrow.right")
-                        .font(.body.weight(.medium))
-                        .foregroundColor(.secondary)
-
-                    // Show rich chips for app/system/url/layer actions, otherwise show key chip
-                    if let appId = appLaunchIdentifier {
-                        RulesSummaryAppLaunchChip(appIdentifier: appId)
-                    } else if let actionId = systemActionIdentifier {
-                        RulesSummarySystemActionChip(actionIdentifier: actionId)
-                    } else if let urlId = urlIdentifier {
-                        RulesSummaryURLChip(urlString: urlId)
-                    } else if let layerName = layerSwitchIdentifier {
-                        RulesSummaryLayerSwitchChip(layerName: layerName)
-                    } else {
-                        Text(prettyKeyName(mapping.output))
+                        Text(prettyKeyName(mapping.input))
                             .font(.body.monospaced().weight(.semibold))
                             .foregroundColor(KeycapStyle.textColor)
                             .modifier(KeycapStyle())
-                    }
 
-                    // Show rule name/title if provided
-                    if let title = mapping.description, !title.isEmpty {
-                        Text(title)
-                            .font(.subheadline)
+                        Image(systemName: "arrow.right")
+                            .font(.body.weight(.medium))
                             .foregroundColor(.secondary)
-                    }
 
-                    // Behavior summary for custom rules on same line
-                    if let behavior = mapping.behavior {
-                        behaviorSummaryView(behavior: behavior)
-                    }
-
-                    Spacer(minLength: 0)
-                }
-
-                Spacer()
-
-                // Action buttons - subtle icons that appear on hover
-                if onEditMapping != nil || onDeleteMapping != nil {
-                    HStack(spacing: 4) {
-                        if let onEdit = onEditMapping {
-                            Button {
-                                onEdit(mapping.id)
-                            } label: {
-                                Image(systemName: "pencil")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
-                                    .frame(width: 28, height: 28)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
+                        // Show rich chips for app/system/url/layer actions, otherwise show key chip
+                        if let appId = appLaunchIdentifier {
+                            RulesSummaryAppLaunchChip(appIdentifier: appId)
+                        } else if let actionId = systemActionIdentifier {
+                            RulesSummarySystemActionChip(actionIdentifier: actionId)
+                        } else if let urlId = urlIdentifier {
+                            RulesSummaryURLChip(urlString: urlId)
+                        } else if let layerName = layerSwitchIdentifier {
+                            RulesSummaryLayerSwitchChip(layerName: layerName)
+                        } else {
+                            Text(prettyKeyName(mapping.output))
+                                .font(.body.monospaced().weight(.semibold))
+                                .foregroundColor(KeycapStyle.textColor)
+                                .modifier(KeycapStyle())
                         }
 
-                        if let onDelete = onDeleteMapping {
-                            Button {
-                                onDelete(mapping.id)
-                            } label: {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
-                                    .frame(width: 28, height: 28)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
+                        // Show rule name/title if provided
+                        if let title = mapping.description, !title.isEmpty {
+                            Text(title)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
                         }
 
-                        // Spacer for alignment
-                        Spacer()
-                            .frame(width: 0)
+                        // Behavior summary for custom rules on same line
+                        if let behavior = mapping.behavior {
+                            behaviorSummaryView(behavior: behavior)
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+
+                    Spacer()
+
+                    // Action buttons - subtle icons that appear on hover
+                    if onEditMapping != nil || onDeleteMapping != nil {
+                        HStack(spacing: 4) {
+                            if let onEdit = onEditMapping {
+                                Button {
+                                    onEdit(mapping.id)
+                                } label: {
+                                    Image(systemName: "pencil")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
+                                        .frame(width: 28, height: 28)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            if let onDelete = onDeleteMapping {
+                                Button {
+                                    onDelete(mapping.id)
+                                } label: {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
+                                        .frame(width: 28, height: 28)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            // Spacer for alignment
+                            Spacer()
+                                .frame(width: 0)
+                        }
                     }
                 }
             }
+            .padding(.leading, 48)
+            .padding(.trailing, 12)
+            .padding(.vertical, 4)
+            .padding(.horizontal, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isHovered && isEditable ? Color.primary.opacity(0.03) : Color.clear)
+            )
+            .contentShape(Rectangle())
         }
-        .padding(.leading, 48)
-        .padding(.trailing, 12)
-        .padding(.vertical, 4)
-        .padding(.horizontal, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isHovered && isEditable ? Color.primary.opacity(0.03) : Color.clear)
-        )
-        .contentShape(Rectangle())
+        .buttonStyle(.plain)
         .onHover { hovering in
             isHovered = hovering
             if isEditable {
@@ -161,11 +168,6 @@ struct MappingRowView: View {
                 } else {
                     NSCursor.pop()
                 }
-            }
-        }
-        .onTapGesture {
-            if let onEdit = onEditMapping {
-                onEdit(mapping.id)
             }
         }
     }

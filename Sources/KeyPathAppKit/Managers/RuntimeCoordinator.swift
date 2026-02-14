@@ -1,5 +1,5 @@
 import ApplicationServices
-@preconcurrency import Foundation
+import Foundation
 import IOKit.hidsystem
 import KeyPathCore
 import KeyPathDaemonLifecycle
@@ -429,7 +429,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             forName: .configAffectingPreferenceChanged,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
+        ) { @Sendable [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
                 AppLogger.shared.log("🔄 [RuntimeCoordinator] Config-affecting preference changed, regenerating config...")

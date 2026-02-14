@@ -265,14 +265,12 @@ class PermissionGrantCoordinator: ObservableObject {
     }
 
     private func showUserFeedback(_ message: String) {
-        // Send notification to ContentView to show user feedback
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(
-                name: NSNotification.Name("ShowUserFeedback"),
-                object: nil,
-                userInfo: ["message": message]
-            )
-        }
+        // Already on @MainActor; post notification directly
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ShowUserFeedback"),
+            object: nil,
+            userInfo: ["message": message]
+        )
     }
 
     func reopenWizard(for permissionType: CoordinatorPermissionType) {

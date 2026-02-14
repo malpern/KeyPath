@@ -546,65 +546,68 @@ private struct SiteRow: View {
     @State private var favicon: NSImage?
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Checkbox
-            Toggle("", isOn: Binding(
-                get: { isSelected },
-                set: { _ in onSelect() }
-            ))
-            .toggleStyle(.checkbox)
-            .labelsHidden()
-            .disabled(isAlreadyAdded)
-            .accessibilityIdentifier("browser-history-toggle-\(site.domain)")
-
-            // Favicon
-            Group {
-                if let favicon {
-                    Image(nsImage: favicon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 20, height: 20)
-                } else {
-                    Image(systemName: "globe")
-                        .frame(width: 20, height: 20)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            // Domain
-            Text(site.domain)
-                .font(.system(size: 13))
-
-            Spacer()
-
-            // Visit count
-            Text("\(site.visitCount) visits")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            if isAlreadyAdded {
-                Text("Added")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.secondary.opacity(0.12))
-                    )
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isSelected ? Color.accentColor.opacity(0.1) : Color(NSColor.controlBackgroundColor))
-        )
-        .contentShape(Rectangle())
-        .onTapGesture {
+        Button(action: {
             guard !isAlreadyAdded else { return }
             onSelect()
+        }) {
+            HStack(spacing: 12) {
+                // Checkbox
+                Toggle("", isOn: Binding(
+                    get: { isSelected },
+                    set: { _ in onSelect() }
+                ))
+                .toggleStyle(.checkbox)
+                .labelsHidden()
+                .disabled(isAlreadyAdded)
+                .accessibilityIdentifier("browser-history-toggle-\(site.domain)")
+
+                // Favicon
+                Group {
+                    if let favicon {
+                        Image(nsImage: favicon)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 20, height: 20)
+                    } else {
+                        Image(systemName: "globe")
+                            .frame(width: 20, height: 20)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                // Domain
+                Text(site.domain)
+                    .font(.system(size: 13))
+
+                Spacer()
+
+                // Visit count
+                Text("\(site.visitCount) visits")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                if isAlreadyAdded {
+                    Text("Added")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.secondary.opacity(0.12))
+                        )
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isSelected ? Color.accentColor.opacity(0.1) : Color(NSColor.controlBackgroundColor))
+            )
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .disabled(isAlreadyAdded)
         .opacity(isAlreadyAdded ? 0.65 : 1.0)
         .task {
             favicon = await FaviconFetcher.shared.fetchFavicon(for: site.domain)

@@ -7,10 +7,12 @@ extension HelperManager {
     /// Install the privileged helper using SMJobBless
     /// - Throws: HelperManagerError if installation fails
     func installHelper() async throws {
-        if let override = Self.testInstallHelperOverride {
-            try await override()
-            return
-        }
+        #if DEBUG
+            if let override = Self.testInstallHelperOverride {
+                try await override()
+                return
+            }
+        #endif
         AppLogger.shared.log("🔐 [SMAPPSERVICE-TRIGGER] *** Registering privileged helper via SMAppService")
         // Log stack trace to identify caller
         let callStack = Thread.callStackSymbols.prefix(10).joined(separator: "\n")

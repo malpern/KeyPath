@@ -114,7 +114,7 @@ final class RecordingCoordinatorTests: XCTestCase {
 
 // MARK: - Test Doubles
 
-private final class StubPermissionProvider: PermissionSnapshotProviding {
+private final class StubPermissionProvider: PermissionSnapshotProviding, @unchecked Sendable {
     var snapshot: PermissionOracle.Snapshot
 
     init(snapshot: PermissionOracle.Snapshot) {

@@ -5,7 +5,7 @@ import OSLog
 
 /// Handles wizard navigation logic based on system state
 @MainActor
-final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
+final class WizardNavigationEngine: WizardNavigating {
     // Track single-show pages
     private var hasShownFullDiskAccessPage = false
     private var hasShownKanataMigrationPage = false

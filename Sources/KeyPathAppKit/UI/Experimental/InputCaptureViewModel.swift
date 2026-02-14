@@ -32,7 +32,8 @@ class InputCaptureViewModel: ObservableObject {
                 modifiers: event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             )
 
-            DispatchQueue.main.async {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                     self.capturedInputs.append(.key(keyInput))
                 }

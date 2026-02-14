@@ -104,36 +104,7 @@ struct HomeRowKeyChip: View {
     }
 
     var body: some View {
-        VStack(spacing: 4) {
-            // Key label
-            Text(keyDisplay)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundColor(textColor)
-
-            // Modifier symbol
-            if modifier != nil, isEnabled {
-                Text(modifierDisplay)
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundColor(textColor.opacity(0.8))
-            } else if !isEnabled {
-                Text("—")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary.opacity(0.5))
-            }
-        }
-        .frame(width: 64, height: 64)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(backgroundColor)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(borderColor, lineWidth: borderWidth)
-        )
-        .scaleEffect(isPressed ? 0.95 : (isHovered ? 1.05 : 1.0))
-        .animation(.easeInOut(duration: 0.15), value: isHovered)
-        .animation(.easeInOut(duration: 0.1), value: isPressed)
-        .onTapGesture {
+        Button(action: {
             withAnimation(.easeInOut(duration: 0.1)) {
                 isPressed = true
             }
@@ -143,7 +114,38 @@ struct HomeRowKeyChip: View {
                 }
                 onTap()
             }
+        }) {
+            VStack(spacing: 4) {
+                // Key label
+                Text(keyDisplay)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(textColor)
+
+                // Modifier symbol
+                if modifier != nil, isEnabled {
+                    Text(modifierDisplay)
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(textColor.opacity(0.8))
+                } else if !isEnabled {
+                    Text("—")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary.opacity(0.5))
+                }
+            }
+            .frame(width: 64, height: 64)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(backgroundColor)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(borderColor, lineWidth: borderWidth)
+            )
+            .scaleEffect(isPressed ? 0.95 : (isHovered ? 1.05 : 1.0))
+            .animation(.easeInOut(duration: 0.15), value: isHovered)
+            .animation(.easeInOut(duration: 0.1), value: isPressed)
         }
+        .buttonStyle(.plain)
         .onHover { hovering in
             onHover(hovering)
             #if os(macOS)

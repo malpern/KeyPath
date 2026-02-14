@@ -594,36 +594,40 @@ public actor PermissionOracle {
     /// Execute sqlite3 query with timeout protection
     /// This is a minimal, defensive implementation that avoids external dependencies
     private func runSQLiteQuery(dbPath: String, sql: String, timeout: Double) async -> String? {
-        await withCheckedContinuation { continuation in
-            Task.detached {
-                let task = Process()
-                task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
-                task.arguments = [dbPath, sql]
+        // Use structured concurrency: run the process on a detached task and race
+        // it against a cancellable timeout, avoiding fire-and-forget GCD dispatches.
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+        task.arguments = [dbPath, sql]
 
-                let pipe = Pipe()
-                task.standardOutput = pipe
-                task.standardError = pipe
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
 
-                var output: String?
-                do {
-                    try task.run()
-                    // Implement a simple timeout by dispatching a kill if needed
-                    let deadline = DispatchTime.now() + timeout
-                    DispatchQueue.global().asyncAfter(deadline: deadline) {
-                        if task.isRunning {
-                            task.terminate() // best-effort timeout protection
-                        }
-                    }
-                    task.waitUntilExit()
-                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                    output = String(data: data, encoding: .utf8)
-                } catch {
-                    AppLogger.shared.log("❌ [Oracle] sqlite3 query failed: \(error)")
-                    output = nil
-                }
-                continuation.resume(returning: output)
+        do {
+            try task.run()
+        } catch {
+            AppLogger.shared.log("❌ [Oracle] sqlite3 query failed: \(error)")
+            return nil
+        }
+
+        // Schedule a cancellable timeout that terminates the process if it runs too long
+        let timeoutTask = Task.detached {
+            try await Task.sleep(for: .seconds(timeout))
+            if task.isRunning {
+                task.terminate() // best-effort timeout protection
             }
         }
+
+        // Wait for the process on a detached task to avoid blocking the caller's actor
+        let output: String? = await Task.detached {
+            task.waitUntilExit()
+            timeoutTask.cancel() // Process finished; cancel the timeout
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            return String(data: data, encoding: .utf8)
+        }.value
+
+        return output
     }
 }
 

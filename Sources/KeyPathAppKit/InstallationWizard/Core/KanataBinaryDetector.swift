@@ -7,8 +7,7 @@ import KeyPathWizardCore
 /// This service provides a single source of truth for kanata binary detection,
 /// ensuring consistent status reporting across the main app, wizard components,
 /// and status indicators.
-@MainActor
-final class KanataBinaryDetector {
+final class KanataBinaryDetector: Sendable {
     static let shared = KanataBinaryDetector()
 
     private init() {}

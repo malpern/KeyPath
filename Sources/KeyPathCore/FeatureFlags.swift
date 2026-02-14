@@ -12,14 +12,18 @@ public final class FeatureFlags {
     private var _startupModeActive: Bool = false
 
     /// Test seam: allow injecting startup mode during unit tests
-    public nonisolated(unsafe) static var testStartupMode: Bool?
+    #if DEBUG
+        public nonisolated(unsafe) static var testStartupMode: Bool?
+    #endif
 
     /// True while we want to avoid potentially-blocking permission checks during early startup.
     public var startupModeActive: Bool {
         // Test seam: use injected value in tests
-        if TestEnvironment.isRunningTests, let override = Self.testStartupMode {
-            return override
-        }
+        #if DEBUG
+            if TestEnvironment.isRunningTests, let override = Self.testStartupMode {
+                return override
+            }
+        #endif
         return stateQueue.sync { _startupModeActive }
     }
 

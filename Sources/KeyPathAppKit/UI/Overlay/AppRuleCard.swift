@@ -66,63 +66,63 @@ struct AppRuleCard: View {
     private func ruleRow(override: AppKeyOverride) -> some View {
         let isHovered = hoveredOverrideId == override.id
 
-        HStack(spacing: 8) {
-            // Input key chip
-            KeyChip(text: override.inputKey)
+        Button(action: { onEdit(override) }) {
+            HStack(spacing: 8) {
+                // Input key chip
+                KeyChip(text: override.inputKey)
 
-            // Arrow (matching Settings style)
-            Image(systemName: "arrow.right")
-                .font(.body.weight(.medium))
-                .foregroundStyle(.secondary)
+                // Arrow (matching Settings style)
+                Image(systemName: "arrow.right")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.secondary)
 
-            // Output key chip
-            KeyChip(text: override.outputAction)
+                // Output key chip
+                KeyChip(text: override.outputAction)
 
-            Spacer(minLength: 4)
+                Spacer(minLength: 4)
 
-            // Action buttons (visible with varying opacity based on hover)
-            HStack(spacing: 4) {
-                Button { onEdit(override) } label: {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary.opacity(isHovered ? 1 : 0.5))
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
+                // Action buttons (visible with varying opacity based on hover)
+                HStack(spacing: 4) {
+                    Button { onEdit(override) } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary.opacity(isHovered ? 1 : 0.5))
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("edit-rule-\(override.id)")
+                    .accessibilityLabel("Edit rule \(override.inputKey) to \(override.outputAction)")
+
+                    Button { onDelete(override) } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary.opacity(isHovered ? 1 : 0.5))
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("delete-rule-\(override.id)")
+                    .accessibilityLabel("Delete rule \(override.inputKey) to \(override.outputAction)")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("edit-rule-\(override.id)")
-                .accessibilityLabel("Edit rule \(override.inputKey) to \(override.outputAction)")
-
-                Button { onDelete(override) } label: {
-                    Image(systemName: "trash")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary.opacity(isHovered ? 1 : 0.5))
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("delete-rule-\(override.id)")
-                .accessibilityLabel("Delete rule \(override.inputKey) to \(override.outputAction)")
             }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 8)
+            .background(isHovered ? Color.accentColor.opacity(0.15) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Color.accentColor.opacity(isHovered ? 0.4 : 0), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 8)
-        .background(isHovered ? Color.accentColor.opacity(0.15) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color.accentColor.opacity(isHovered ? 0.4 : 0), lineWidth: 1)
-        )
-        .contentShape(Rectangle())
+        .buttonStyle(.plain)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 hoveredOverrideId = hovering ? override.id : nil
             }
             // Notify parent for keyboard highlighting
             onRuleHover?(hovering ? override.inputKey : nil)
-        }
-        .onTapGesture {
-            onEdit(override)
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("app-rule-row-\(override.id)")
@@ -201,80 +201,80 @@ struct GlobalRulesCard: View {
     private func globalRuleRow(rule: CustomRule) -> some View {
         let isHovered = hoveredRuleId == rule.id
 
-        ZStack(alignment: .trailing) {
-            // Rule mapping content
-            HStack(spacing: 8) {
-                // Input key chip
-                GlobalKeyChip(text: rule.input)
+        Button(action: { onEdit(rule) }) {
+            ZStack(alignment: .trailing) {
+                // Rule mapping content
+                HStack(spacing: 8) {
+                    // Input key chip
+                    GlobalKeyChip(text: rule.input)
 
-                // Arrow (matching Settings style)
-                Image(systemName: "arrow.right")
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    // Arrow (matching Settings style)
+                    Image(systemName: "arrow.right")
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.secondary)
 
-                // Output - show layer chip for layer switches, otherwise regular key chip
-                if let layerName = LayerInfo.extractLayerName(from: rule.output) {
-                    DrawerLayerChip(layerName: layerName)
-                } else {
-                    GlobalKeyChip(text: rule.output)
+                    // Output - show layer chip for layer switches, otherwise regular key chip
+                    if let layerName = LayerInfo.extractLayerName(from: rule.output) {
+                        DrawerLayerChip(layerName: layerName)
+                    } else {
+                        GlobalKeyChip(text: rule.output)
+                    }
+
+                    Spacer(minLength: 0)
                 }
 
-                Spacer(minLength: 0)
-            }
+                // Action buttons overlay - only visible on hover
+                if isHovered {
+                    HStack(spacing: 2) {
+                        Button { onEdit(rule) } label: {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 24, height: 24)
+                                .background(
+                                    Circle()
+                                        .fill(Color.accentColor)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("edit-global-rule-\(rule.id)")
+                        .accessibilityLabel("Edit rule \(rule.input) to \(rule.output)")
 
-            // Action buttons overlay - only visible on hover
-            if isHovered {
-                HStack(spacing: 2) {
-                    Button { onEdit(rule) } label: {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 24, height: 24)
-                            .background(
-                                Circle()
-                                    .fill(Color.accentColor)
-                            )
+                        Button { onDelete(rule) } label: {
+                            Image(systemName: "trash")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 24, height: 24)
+                                .background(
+                                    Circle()
+                                        .fill(Color.red.opacity(0.85))
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("delete-global-rule-\(rule.id)")
+                        .accessibilityLabel("Delete rule \(rule.input) to \(rule.output)")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("edit-global-rule-\(rule.id)")
-                    .accessibilityLabel("Edit rule \(rule.input) to \(rule.output)")
-
-                    Button { onDelete(rule) } label: {
-                        Image(systemName: "trash")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 24, height: 24)
-                            .background(
-                                Circle()
-                                    .fill(Color.red.opacity(0.85))
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("delete-global-rule-\(rule.id)")
-                    .accessibilityLabel("Delete rule \(rule.input) to \(rule.output)")
+                    .padding(.trailing, 4)
+                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
                 }
-                .padding(.trailing, 4)
-                .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+            .background(isHovered ? Color.accentColor.opacity(0.15) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Color.accentColor.opacity(isHovered ? 0.4 : 0), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 8)
-        .background(isHovered ? Color.accentColor.opacity(0.15) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color.accentColor.opacity(isHovered ? 0.4 : 0), lineWidth: 1)
-        )
-        .contentShape(Rectangle())
+        .buttonStyle(.plain)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 hoveredRuleId = hovering ? rule.id : nil
             }
             // Notify parent for keyboard highlighting
             onRuleHover?(hovering ? rule.input : nil)
-        }
-        .onTapGesture {
-            onEdit(rule)
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("global-rule-row-\(rule.id)")

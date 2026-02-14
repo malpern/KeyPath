@@ -211,108 +211,110 @@ private struct LauncherMappingRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            // Icon or Checkbox (checkbox replaces icon on hover)
-            Group {
-                if isHovering {
-                    // Checkbox toggle on hover (replaces icon)
-                    Toggle("", isOn: $isEnabled)
-                        .toggleStyle(.checkbox)
-                        .labelsHidden()
-                        .controlSize(.small)
-                        .frame(width: 16, height: 16)
-                        .accessibilityIdentifier("overlay-launcher-toggle-\(mapping.key)")
-                } else if let icon {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 16, height: 16)
-                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                        .saturation(Double(1 - fadeAmount)) // Monochromatic when faded
-                } else {
-                    Image(systemName: mapping.isApp ? "app.fill" : "globe")
-                        .font(.system(size: 12))
-                        .frame(width: 16, height: 16)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            // Name - strikethrough when disabled
-            Text(mapping.displayName)
-                .font(.system(size: 11))
-                .foregroundStyle(isEnabled ? .primary : .secondary)
-                .strikethrough(!isEnabled, color: .secondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
-
-            Spacer(minLength: 0)
-
-            // Delete button on hover (before key badge)
-            if isHovering, onPoofAt != nil || onDelete != nil {
-                Button {
-                    // Get screen coordinates for the poof animation
-                    if let onPoofAt, let window = NSApp.keyWindow {
-                        // Convert the row's center to screen coordinates
-                        let windowFrame = window.frame
-                        let rowCenter = CGPoint(
-                            x: deleteButtonFrame.midX,
-                            y: deleteButtonFrame.midY
-                        )
-                        // Convert from SwiftUI coordinates (origin top-left) to screen (origin bottom-left)
-                        let screenPoint = NSPoint(
-                            x: windowFrame.origin.x + rowCenter.x,
-                            y: windowFrame.origin.y + windowFrame.height - rowCenter.y
-                        )
-                        onPoofAt(screenPoint)
+        Button(action: { onTap() }) {
+            HStack(spacing: 8) {
+                // Icon or Checkbox (checkbox replaces icon on hover)
+                Group {
+                    if isHovering {
+                        // Checkbox toggle on hover (replaces icon)
+                        Toggle("", isOn: $isEnabled)
+                            .toggleStyle(.checkbox)
+                            .labelsHidden()
+                            .controlSize(.small)
+                            .frame(width: 16, height: 16)
+                            .accessibilityIdentifier("overlay-launcher-toggle-\(mapping.key)")
+                    } else if let icon {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 16, height: 16)
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                            .saturation(Double(1 - fadeAmount)) // Monochromatic when faded
                     } else {
-                        onDelete?()
+                        Image(systemName: mapping.isApp ? "app.fill" : "globe")
+                            .font(.system(size: 12))
+                            .frame(width: 16, height: 16)
+                            .foregroundStyle(.secondary)
                     }
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("overlay-launcher-delete-\(mapping.key)")
-                .help("Delete")
-                .background(
-                    GeometryReader { geo in
-                        Color.clear.preference(
-                            key: FramePreferenceKey.self,
-                            value: geo.frame(in: .global)
-                        )
-                    }
-                )
-                .onPreferenceChange(FramePreferenceKey.self) { frame in
-                    deleteButtonFrame = frame
-                }
-            }
 
-            // Key badge (far right) - dimmed when disabled
-            Text(displayKey.uppercased())
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundStyle(.white)
-                .frame(width: 18, height: 18)
-                .background(
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(isEnabled ? Color.accentColor : Color.gray)
-                )
+                // Name - strikethrough when disabled
+                Text(mapping.displayName)
+                    .font(.system(size: 11))
+                    .foregroundStyle(isEnabled ? .primary : .secondary)
+                    .strikethrough(!isEnabled, color: .secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Spacer(minLength: 0)
+
+                // Delete button on hover (before key badge)
+                if isHovering, onPoofAt != nil || onDelete != nil {
+                    Button {
+                        // Get screen coordinates for the poof animation
+                        if let onPoofAt, let window = NSApp.keyWindow {
+                            // Convert the row's center to screen coordinates
+                            let windowFrame = window.frame
+                            let rowCenter = CGPoint(
+                                x: deleteButtonFrame.midX,
+                                y: deleteButtonFrame.midY
+                            )
+                            // Convert from SwiftUI coordinates (origin top-left) to screen (origin bottom-left)
+                            let screenPoint = NSPoint(
+                                x: windowFrame.origin.x + rowCenter.x,
+                                y: windowFrame.origin.y + windowFrame.height - rowCenter.y
+                            )
+                            onPoofAt(screenPoint)
+                        } else {
+                            onDelete?()
+                        }
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("overlay-launcher-delete-\(mapping.key)")
+                    .help("Delete")
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear.preference(
+                                key: FramePreferenceKey.self,
+                                value: geo.frame(in: .global)
+                            )
+                        }
+                    )
+                    .onPreferenceChange(FramePreferenceKey.self) { frame in
+                        deleteButtonFrame = frame
+                    }
+                }
+
+                // Key badge (far right) - dimmed when disabled
+                Text(displayKey.uppercased())
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.white)
+                    .frame(width: 18, height: 18)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(isEnabled ? Color.accentColor : Color.gray)
+                    )
+            }
+            .opacity(rowOpacity)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(isHovering ? Color.white.opacity(0.06) : Color.clear)
+            )
         }
-        .opacity(rowOpacity)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .background(
-            RoundedRectangle(cornerRadius: 4)
-                .fill(isHovering ? Color.white.opacity(0.06) : Color.clear)
-        )
+        .buttonStyle(.plain)
         .onHover { hovering in
             isHovering = hovering
             // Notify parent for keyboard highlighting
             onHoverChange?(hovering ? mapping.key : nil)
         }
-        .onTapGesture { onTap() }
         .task {
             await loadIcon()
         }

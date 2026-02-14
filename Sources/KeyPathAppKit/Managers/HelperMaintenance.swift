@@ -104,7 +104,9 @@ final class HelperMaintenance: ObservableObject {
     /// Find all KeyPath.app copies visible to Spotlight (fast, robust in practice).
     /// Results are sorted with `/Applications/KeyPath.app` first if present.
     /// Excludes build directories (dist/, .build/, build/) to avoid flagging build artifacts.
-    nonisolated(unsafe) static var testDuplicateAppPathsOverride: (() -> [String]?)?
+    #if DEBUG
+        nonisolated(unsafe) static var testDuplicateAppPathsOverride: (() -> [String]?)?
+    #endif
     nonisolated func detectDuplicateAppCopies() -> [String] {
         var paths: [String] = []
         let process = Process()
@@ -116,16 +118,25 @@ final class HelperMaintenance: ObservableObject {
         do { try process.run() } catch {
             return canonicalAppCandidates()
         }
-        if let override = Self.testDuplicateAppPathsOverride?() {
-            paths = override
-        } else {
+        #if DEBUG
+            if let override = Self.testDuplicateAppPathsOverride?() {
+                paths = override
+            } else {
+                process.waitUntilExit()
+                let s = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                paths = s.split(separator: "\n").map(String.init)
+                if paths.isEmpty {
+                    paths = canonicalAppCandidates()
+                }
+            }
+        #else
             process.waitUntilExit()
             let s = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             paths = s.split(separator: "\n").map(String.init)
             if paths.isEmpty {
                 paths = canonicalAppCandidates()
             }
-        }
+        #endif
 
         // Filter out build directories to avoid flagging build artifacts as duplicates
         let buildDirPatterns = ["/dist/", "/.build/", "/build/", "/DerivedData/"]

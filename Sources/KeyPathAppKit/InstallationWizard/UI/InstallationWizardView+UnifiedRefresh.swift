@@ -314,8 +314,8 @@ extension InstallationWizardView {
         // Cancel any Login Items polling before dismissing
         stopLoginItemsApprovalPolling()
 
-        // Use DispatchQueue to ensure immediate execution
-        DispatchQueue.main.async {
+        // Defer to next run loop tick so polling cancellation settles before dismiss
+        Task { @MainActor in
             // Trigger StartupValidator refresh before dismissing
             // This ensures main screen status updates after wizard changes
             NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
@@ -443,10 +443,9 @@ extension InstallationWizardView {
 
     func showStartConfirmation() async -> Bool {
         await withCheckedContinuation { continuation in
-            DispatchQueue.main.async {
-                startConfirmationResult = continuation
-                showingStartConfirmation = true
-            }
+            // Already on @MainActor; set state directly
+            startConfirmationResult = continuation
+            showingStartConfirmation = true
         }
     }
 }

@@ -74,7 +74,7 @@ enum SignatureHealthCheck {
 
             // Show alert in non-headless mode
             if !ProcessInfo.processInfo.arguments.contains("--headless") {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     showSignatureMismatchAlert()
                 }
             }

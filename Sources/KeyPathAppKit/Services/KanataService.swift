@@ -47,9 +47,15 @@ public final class KanataService: ObservableObject {
     }
 
     /// Factory used to create SMAppService instances (test seam)
-    nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
-        NativeSMAppService(wrapped: SMAppService.daemon(plistName: plistName))
-    }
+    #if DEBUG
+        nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
+            NativeSMAppService(wrapped: SMAppService.daemon(plistName: plistName))
+        }
+    #else
+        static let smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
+            NativeSMAppService(wrapped: SMAppService.daemon(plistName: plistName))
+        }
+    #endif
 
     // MARK: - Internal Dependencies (Hidden from consumers)
 

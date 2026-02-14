@@ -1,8 +1,7 @@
 import Foundation
 
 /// Catalog of preset simple modifications
-@MainActor
-public final class SimpleModsCatalog {
+public final class SimpleModsCatalog: Sendable {
     public static let shared = SimpleModsCatalog()
 
     private init() {}

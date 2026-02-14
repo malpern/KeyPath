@@ -81,6 +81,8 @@ protocol DiagnosticsServiceProtocol: Sendable {
 
 // MARK: - Implementation
 
+// SAFETY: @unchecked Sendable — all stored state (processLifecycleManager) is itself
+// Sendable (@MainActor final class). Methods are stateless diagnostic queries.
 final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable {
     /// Dependencies
     private let processLifecycleManager: ProcessLifecycleManager

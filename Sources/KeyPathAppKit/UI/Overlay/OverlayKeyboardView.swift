@@ -288,8 +288,8 @@ struct OverlayKeyboardView: View {
             cachedLabelToKeyCode = rebuildLabelToKeyCodeCache()
             // Enable animation after initial render completes
             // This ensures the first load positions keys without animation,
-            // but subsequent keymap changes animate properly
-            DispatchQueue.main.async {
+            // but subsequent keymap changes animate properly (deferred to next run loop tick)
+            Task { @MainActor in
                 initialRenderComplete = true
             }
         }

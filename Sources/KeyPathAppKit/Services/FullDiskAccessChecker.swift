@@ -10,15 +10,16 @@ import KeyPathCore
 /// Important constraints:
 /// - This must only be used from the GUI app (user session).
 /// - This is a heuristic check (file readability) and should remain best-effort + cached.
-@MainActor
 final class FullDiskAccessChecker {
-    static let shared = FullDiskAccessChecker()
+    @MainActor static let shared = FullDiskAccessChecker()
 
     private init() {}
 
     /// Test seam: override the probe result (used by unit tests).
     /// This must remain nil in production.
-    nonisolated(unsafe) static var probeOverride: (() -> Bool)?
+    #if DEBUG
+        nonisolated(unsafe) static var probeOverride: (() -> Bool)?
+    #endif
 
     private var cachedValue: Bool?
     private var lastCheckTime: Date?
@@ -62,15 +63,17 @@ final class FullDiskAccessChecker {
     }
 
     private func performFDACheck() -> Bool {
-        if let override = Self.probeOverride {
-            // Guardrail: this seam is for unit tests only.
-            // In production builds, ignore any override to avoid accidental behavior changes.
-            if !TestEnvironment.isRunningTests {
-                AppLogger.shared.warn("⚠️ [FullDiskAccessChecker] probeOverride set outside tests - ignoring")
-            } else {
-                return override()
+        #if DEBUG
+            if let override = Self.probeOverride {
+                // Guardrail: this seam is for unit tests only.
+                // In production builds, ignore any override to avoid accidental behavior changes.
+                if !TestEnvironment.isRunningTests {
+                    AppLogger.shared.warn("⚠️ [FullDiskAccessChecker] probeOverride set outside tests - ignoring")
+                } else {
+                    return override()
+                }
             }
-        }
+        #endif
 
         // NOTE: We intentionally do NOT probe the user-scoped TCC.db here.
         // The purpose is to detect FDA needed for Kanata verification (system TCC.db readability).

@@ -96,8 +96,8 @@ struct WizardSystemStatusOverview: View {
         .modifier(WizardDesign.DisableFocusEffects())
         .background(Color.clear)
         .onAppear {
-            // Aggressively disable focus ring on underlying NSView
-            DispatchQueue.main.async {
+            // Aggressively disable focus ring on underlying NSView (deferred for AppKit interop)
+            Task { @MainActor in
                 if let window = NSApp.keyWindow,
                    let contentView = window.contentView
                 {

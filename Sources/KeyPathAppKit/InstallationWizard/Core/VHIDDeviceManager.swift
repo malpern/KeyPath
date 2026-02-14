@@ -4,6 +4,9 @@ import KeyPathCore
 
 /// Manages the Karabiner VirtualHIDDevice Manager component
 /// This is critical for keyboard remapping functionality on macOS
+// SAFETY: @unchecked Sendable — no mutable instance state. Static mutable properties
+// (testPIDProvider, testShellProvider, testInstalledVersionProvider) are nonisolated(unsafe)
+// test seams only written during single-threaded test setup.
 final class VHIDDeviceManager: @unchecked Sendable {
     private enum DaemonHealthState {
         case healthy
@@ -25,13 +28,19 @@ final class VHIDDeviceManager: @unchecked Sendable {
     private static let vhidDeviceRunningCheck = "Karabiner-VirtualHIDDevice-Daemon"
 
     /// Test seam: allow injecting PID provider during unit tests
-    nonisolated(unsafe) static var testPIDProvider: (() -> [String])?
+    #if DEBUG
+        nonisolated(unsafe) static var testPIDProvider: (() -> [String])?
+    #endif
 
     /// Test seam: allow mocking shell command results during unit tests
-    nonisolated(unsafe) static var testShellProvider: ((String) -> String)?
+    #if DEBUG
+        nonisolated(unsafe) static var testShellProvider: ((String) -> String)?
+    #endif
 
     /// Test seam: allow injecting installed version during unit tests
-    nonisolated(unsafe) static var testInstalledVersionProvider: (() -> String?)?
+    #if DEBUG
+        nonisolated(unsafe) static var testInstalledVersionProvider: (() -> String?)?
+    #endif
 
     // MARK: - Step Progress Reporting
 
@@ -43,7 +52,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
     /// Publish a step update (thread-safe, dispatches to main for UI)
     private static func reportStep(_ step: String) {
         AppLogger.shared.log("📊 [VHIDManager] Step: \(step)")
-        DispatchQueue.main.async {
+        Task { @MainActor in
             stepProgress.send(step)
         }
     }
@@ -214,30 +223,32 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
         return await Task.detached {
             // Test seam: allow mocked PID list in tests
-            if TestEnvironment.isRunningTests, let provider = Self.testPIDProvider {
-                let startTime = CFAbsoluteTimeGetCurrent()
-                let pids = provider().filter { !$0.isEmpty }
-                let processCount = pids.count
-                if processCount == 0 {
-                    AppLogger.shared.log("🔍 [VHIDManager] (test) VHIDDevice daemon health: NOT RUNNING")
-                    return .notRunning
-                }
-                if processCount > 1 {
+            #if DEBUG
+                if TestEnvironment.isRunningTests, let provider = Self.testPIDProvider {
+                    let startTime = CFAbsoluteTimeGetCurrent()
+                    let pids = provider().filter { !$0.isEmpty }
+                    let processCount = pids.count
+                    if processCount == 0 {
+                        AppLogger.shared.log("🔍 [VHIDManager] (test) VHIDDevice daemon health: NOT RUNNING")
+                        return .notRunning
+                    }
+                    if processCount > 1 {
+                        AppLogger.shared.log(
+                            "❌ [VHIDManager] (test) UNHEALTHY: Multiple VHIDDevice daemon processes detected (\(processCount))"
+                        )
+                        AppLogger.shared.log("❌ [VHIDManager] (test) PIDs: \(pids.joined(separator: ", "))")
+                        let duration = CFAbsoluteTimeGetCurrent() - startTime
+                        AppLogger.shared.log(
+                            "🔍 [VHIDManager] (test) VHIDDevice daemon health: UNHEALTHY (duplicates) (took \(String(format: "%.3f", duration))s)"
+                        )
+                        return .duplicateProcesses
+                    }
                     AppLogger.shared.log(
-                        "❌ [VHIDManager] (test) UNHEALTHY: Multiple VHIDDevice daemon processes detected (\(processCount))"
+                        "🔍 [VHIDManager] (test) VHIDDevice daemon health: HEALTHY (single instance)"
                     )
-                    AppLogger.shared.log("❌ [VHIDManager] (test) PIDs: \(pids.joined(separator: ", "))")
-                    let duration = CFAbsoluteTimeGetCurrent() - startTime
-                    AppLogger.shared.log(
-                        "🔍 [VHIDManager] (test) VHIDDevice daemon health: UNHEALTHY (duplicates) (took \(String(format: "%.3f", duration))s)"
-                    )
-                    return .duplicateProcesses
+                    return .healthy
                 }
-                AppLogger.shared.log(
-                    "🔍 [VHIDManager] (test) VHIDDevice daemon health: HEALTHY (single instance)"
-                )
-                return .healthy
-            }
+            #endif
 
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
@@ -344,9 +355,11 @@ final class VHIDDeviceManager: @unchecked Sendable {
         }
 
         // Test seam for unit tests
-        if TestEnvironment.isRunningTests, let provider = Self.testPIDProvider {
-            return provider().filter { !$0.isEmpty }
-        }
+        #if DEBUG
+            if TestEnvironment.isRunningTests, let provider = Self.testPIDProvider {
+                return provider().filter { !$0.isEmpty }
+            }
+        #endif
 
         let pids = await SubprocessRunner.shared.pgrep(Self.vhidDeviceRunningCheck)
         return pids.map { String($0) }
@@ -415,9 +428,11 @@ final class VHIDDeviceManager: @unchecked Sendable {
     /// Gets the installed VirtualHIDDevice daemon version
     func getInstalledVersion() -> String? {
         // Test seam: allow injecting version during tests
-        if let testProvider = Self.testInstalledVersionProvider {
-            return testProvider()
-        }
+        #if DEBUG
+            if let testProvider = Self.testInstalledVersionProvider {
+                return testProvider()
+            }
+        #endif
 
         guard FileManager.default.fileExists(atPath: Self.vhidDeviceDaemonInfoPlistPath) else {
             AppLogger.shared.log(
@@ -723,9 +738,11 @@ final class VHIDDeviceManager: @unchecked Sendable {
     /// Fast shell command execution using SubprocessRunner
     private func shellAsync(_ command: String) async -> String {
         // Test seam: use mock shell results in tests
-        if TestEnvironment.isRunningTests, let provider = Self.testShellProvider {
-            return provider(command)
-        }
+        #if DEBUG
+            if TestEnvironment.isRunningTests, let provider = Self.testShellProvider {
+                return provider(command)
+            }
+        #endif
 
         do {
             let result = try await SubprocessRunner.shared.run(

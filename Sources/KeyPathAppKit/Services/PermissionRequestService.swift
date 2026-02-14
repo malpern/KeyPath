@@ -1,5 +1,5 @@
 import AppKit
-@preconcurrency import ApplicationServices
+@preconcurrency import ApplicationServices // @preconcurrency: ApplicationServices lacks Sendable annotations in Apple SDK
 import Foundation
 import IOKit.hid
 import KeyPathCore

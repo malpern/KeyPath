@@ -482,7 +482,7 @@ struct OverlayDragHeader: View {
         } else {
             // Mouse left - start grace period before actually marking as not hovering
             layerGracePeriodTimer = Timer.scheduledTimer(withTimeInterval: layerPillGracePeriod, repeats: false) { _ in
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     isHoveringLayerPill = false
                     // Schedule collapse with longer delay since user was engaged
                     scheduleLayerPillCollapse(delay: layerPillHoverCollapseDelay)
@@ -517,7 +517,7 @@ struct OverlayDragHeader: View {
 
         // Schedule collapse
         layerCollapseTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { _ in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 // Don't collapse if hovering or picker is open
                 guard !isHoveringLayerPill, !isLayerPickerOpen else { return }
                 withAnimation(layerPillSpring) {

@@ -160,9 +160,11 @@ extension HelperManager {
     /// - Returns false for phantom registrations, connection failures, timeouts
     /// - Should be used by wizard to verify helper is truly working
     func testHelperFunctionality() async -> Bool {
-        if let override = Self.testHelperFunctionalityOverride {
-            return await override()
-        }
+        #if DEBUG
+            if let override = Self.testHelperFunctionalityOverride {
+                return await override()
+            }
+        #endif
         AppLogger.shared.log("🧪 [HelperManager] Testing helper functionality via XPC ping")
 
         // Pre-flight check: Must be installed first

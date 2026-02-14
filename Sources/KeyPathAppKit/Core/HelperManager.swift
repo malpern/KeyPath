@@ -20,15 +20,25 @@ actor HelperManager {
 
     /// Allows unit tests to inject a fake SMAppService and simulate states like `.notFound`.
     /// Default implementation wraps Apple's `SMAppService`.
-    nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
-        NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
-    }
+    #if DEBUG
+        nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
+            NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
+        }
 
-    nonisolated(unsafe) static var testHelperFunctionalityOverride: (() async -> Bool)?
-    nonisolated(unsafe) static var testInstallHelperOverride: (() async throws -> Void)?
-    nonisolated(unsafe) static var subprocessRunnerFactory: () -> SubprocessRunning = {
-        SubprocessRunner.shared
-    }
+        nonisolated(unsafe) static var testHelperFunctionalityOverride: (() async -> Bool)?
+        nonisolated(unsafe) static var testInstallHelperOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var subprocessRunnerFactory: () -> SubprocessRunning = {
+            SubprocessRunner.shared
+        }
+    #else
+        static let smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
+            NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
+        }
+
+        static let subprocessRunnerFactory: () -> SubprocessRunning = {
+            SubprocessRunner.shared
+        }
+    #endif
 
     // MARK: - Singleton
 

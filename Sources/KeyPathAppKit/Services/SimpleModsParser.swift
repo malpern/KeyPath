@@ -1,8 +1,7 @@
 import Foundation
 
 /// Parser for reading and indexing simple modifications sentinel blocks
-@MainActor
-public final class SimpleModsParser {
+public final class SimpleModsParser: Sendable {
     private let configPath: String
 
     public init(configPath: String) {

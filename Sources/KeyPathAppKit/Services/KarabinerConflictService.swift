@@ -274,29 +274,26 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     // MARK: - Private Helper Methods
 
     private func requestPermissionToDisableKarabiner() async -> Bool {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.main.async {
-                if TestEnvironment.isRunningTests {
-                    AppLogger.shared.log("🧪 [Karabiner] Auto-consenting in test environment (no NSAlert)")
-                    continuation.resume(returning: true)
-                } else {
-                    let alert = NSAlert()
-                    alert.messageText = "Disable Karabiner Elements?"
-                    alert.informativeText = """
-                    Karabiner Elements is conflicting with Kanata.
+        // Already on @MainActor; no need for DispatchQueue.main.async
+        if TestEnvironment.isRunningTests {
+            AppLogger.shared.log("🧪 [Karabiner] Auto-consenting in test environment (no NSAlert)")
+            return true
+        } else {
+            let alert = NSAlert()
+            alert.messageText = "Disable Karabiner Elements?"
+            alert.informativeText = """
+            Karabiner Elements is conflicting with Kanata.
 
-                    Disable the conflicting services to allow KeyPath to work?
+            Disable the conflicting services to allow KeyPath to work?
 
-                    Note: Event Viewer and other Karabiner apps will continue working.
-                    """
-                    alert.addButton(withTitle: "Disable Conflicting Services")
-                    alert.addButton(withTitle: "Cancel")
-                    alert.alertStyle = .warning
+            Note: Event Viewer and other Karabiner apps will continue working.
+            """
+            alert.addButton(withTitle: "Disable Conflicting Services")
+            alert.addButton(withTitle: "Cancel")
+            alert.alertStyle = .warning
 
-                    let response = alert.runModal()
-                    continuation.resume(returning: response == .alertFirstButtonReturn)
-                }
-            }
+            let response = alert.runModal()
+            return response == .alertFirstButtonReturn
         }
     }
 

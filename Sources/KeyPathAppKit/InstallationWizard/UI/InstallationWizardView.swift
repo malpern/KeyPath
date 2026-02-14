@@ -135,8 +135,8 @@ struct InstallationWizardView: View {
         // Aggressively disable focus rings during validation
         .onChange(of: isValidating) { _, newValue in
             if newValue {
-                // Clear focus when validation starts
-                DispatchQueue.main.async {
+                // Clear focus when validation starts (deferred to next run loop for AppKit interop)
+                Task { @MainActor in
                     NSApp.keyWindow?.makeFirstResponder(nil)
                     if let window = NSApp.keyWindow, let contentView = window.contentView {
                         disableFocusRings(in: contentView)

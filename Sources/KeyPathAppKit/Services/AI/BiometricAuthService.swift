@@ -4,8 +4,9 @@ import LocalAuthentication
 
 /// Service for biometric authentication before expensive API operations
 /// Provides Touch ID/Face ID authentication with password fallback
-@MainActor
-public class BiometricAuthService {
+// SAFETY: @unchecked Sendable — mutable state (hasAuthenticatedThisSession) is a single-writer
+// session flag only set during user-initiated authentication; LAContext is thread-safe.
+public final class BiometricAuthService: @unchecked Sendable {
     /// Shared instance
     public static let shared = BiometricAuthService()
 

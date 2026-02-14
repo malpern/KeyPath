@@ -118,7 +118,8 @@ public final class AppLogger {
         }
 
         // Start automatic flush timer
-        DispatchQueue.main.async {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             self.flushTimer = Timer.scheduledTimer(withTimeInterval: self.flushInterval, repeats: true) {
                 _ in
                 self.flushBuffer()

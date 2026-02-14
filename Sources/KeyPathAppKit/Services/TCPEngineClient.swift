@@ -1,6 +1,8 @@
 import Foundation
 
 /// Default EngineClient implementation using the TCP transport.
+// SAFETY: @unchecked Sendable — all stored state (timeout) is immutable after init.
+// Each method creates short-lived KanataTCPClient instances locally.
 final class TCPEngineClient: EngineClient, @unchecked Sendable {
     private let timeout: TimeInterval
 

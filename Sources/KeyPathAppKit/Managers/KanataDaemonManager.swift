@@ -18,9 +18,15 @@ class KanataDaemonManager {
 
     /// Allows unit tests to inject a fake SMAppService and simulate states like `.notFound`.
     /// Default implementation wraps Apple's `SMAppService`.
-    nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
-        NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
-    }
+    #if DEBUG
+        nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
+            NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
+        }
+    #else
+        static let smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
+            NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
+        }
+    #endif
 
     // MARK: - Singleton
 

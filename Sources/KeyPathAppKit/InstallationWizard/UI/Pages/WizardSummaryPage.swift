@@ -148,8 +148,8 @@ struct WizardSummaryPage: View {
                 } else {
                     headerMode = isEverythingComplete ? .success : .issues
                 }
-                // Aggressively clear focus to avoid blue focus ring artifacts
-                DispatchQueue.main.async {
+                // Aggressively clear focus to avoid blue focus ring artifacts (deferred for AppKit interop)
+                Task { @MainActor in
                     NSApp.keyWindow?.makeFirstResponder(nil)
                     // Also disable focus rings on the window itself
                     if let window = NSApp.keyWindow {
@@ -162,7 +162,7 @@ struct WizardSummaryPage: View {
             .onChange(of: isValidating) { _, newValue in
                 if !newValue {
                     // Transition from validating indicator to final state
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         NSApp.keyWindow?.makeFirstResponder(nil)
                     }
                     withAnimation(.easeInOut(duration: 0.2)) {

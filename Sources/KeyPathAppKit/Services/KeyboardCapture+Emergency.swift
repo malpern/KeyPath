@@ -104,8 +104,8 @@ extension KeyboardCapture {
             {
                 AppLogger.shared.log("🚨 [Emergency] Kanata emergency stop sequence detected!")
 
-                DispatchQueue.main.async {
-                    self.emergencyCallback?()
+                Task { @MainActor [weak self] in
+                    self?.emergencyCallback?()
                 }
 
                 // Clear the set to prevent repeated triggers

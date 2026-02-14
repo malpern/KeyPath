@@ -8,7 +8,7 @@ import KeyPathCore
 /// - When checking conflicts, we read the PID file to know what we own
 /// - No more guessing based on command patterns
 @MainActor
-public final class ProcessLifecycleManager: @unchecked Sendable {
+public final class ProcessLifecycleManager {
     // MARK: - Intent
 
     public enum ProcessIntent {

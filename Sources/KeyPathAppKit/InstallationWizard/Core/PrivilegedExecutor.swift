@@ -17,6 +17,8 @@ import KeyPathCore
 /// ## Thread Safety
 /// - `executeWithOsascript` may show a modal dialog that blocks the thread
 /// - For UI contexts, consider calling from a background thread or using async wrappers
+// SAFETY: @unchecked Sendable — singleton with no mutable state. All methods are
+// pure functions that create short-lived Process instances and return results.
 final class PrivilegedExecutor: @unchecked Sendable {
     // MARK: - Singleton
 

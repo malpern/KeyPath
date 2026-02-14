@@ -2,8 +2,7 @@ import Foundation
 import KeyPathCore
 
 /// Writer for managing simple modifications sentinel blocks
-@MainActor
-public final class SimpleModsWriter {
+public final class SimpleModsWriter: Sendable {
     private let configPath: String
 
     public init(configPath: String) {

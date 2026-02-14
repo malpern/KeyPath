@@ -237,7 +237,7 @@ struct InputCaptureExperimentView: View {
                 guard let data = item as? Data,
                       let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
 
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         if url.pathExtension == "app" {
                             // It's an app

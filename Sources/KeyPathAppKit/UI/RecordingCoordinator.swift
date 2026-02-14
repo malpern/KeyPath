@@ -53,7 +53,7 @@ final class RecordingCoordinator: ObservableObject {
 
     private var kanataManager: RuntimeCoordinator?
     private var showStatusMessage: ((String) -> Void)?
-    private var permissionProvider: PermissionSnapshotProviding?
+    private var permissionProvider: (any PermissionSnapshotProviding)?
     private var keyboardCapture: RecordingCapture?
     private var captureFactory: () -> RecordingCapture = { KeyboardCaptureAdapter() }
 
@@ -73,7 +73,7 @@ final class RecordingCoordinator: ObservableObject {
     func configure(
         kanataManager: RuntimeCoordinator,
         statusHandler: @escaping (String) -> Void,
-        permissionProvider: PermissionSnapshotProviding,
+        permissionProvider: any PermissionSnapshotProviding,
         keyboardCaptureFactory: @escaping () -> RecordingCapture = { KeyboardCaptureAdapter() }
     ) {
         self.kanataManager = kanataManager

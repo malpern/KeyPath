@@ -54,6 +54,9 @@ public enum ContextHUDTriggerMode: String, CaseIterable, Sendable {
 }
 
 /// Manages KeyPath application preferences and settings
+// SAFETY: @unchecked Sendable — all mutable state is backed by UserDefaults (thread-safe)
+// and the shared instance is confined to @MainActor. @Observable macro prevents conforming
+// to Sendable directly; @unchecked bridges the gap.
 @Observable
 final class PreferencesService: @unchecked Sendable {
     // MARK: - Shared instance (backward compatible)

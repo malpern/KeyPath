@@ -5,28 +5,28 @@ import SwiftUI
 // MARK: - Permission Snapshot Provider DI
 
 /// Minimal protocol to provide permission snapshots from the Oracle
-protocol PermissionSnapshotProviding {
+protocol PermissionSnapshotProviding: Sendable {
     func currentSnapshot() async -> PermissionOracle.Snapshot
 }
 
 extension PermissionOracle: PermissionSnapshotProviding {}
 
 /// Adapter to avoid storing actor singletons directly in nonisolated defaults
-private struct PermissionOracleAdapter: PermissionSnapshotProviding, Sendable {
+private struct PermissionOracleAdapter: PermissionSnapshotProviding {
     func currentSnapshot() async -> PermissionOracle.Snapshot {
         await PermissionOracle.shared.currentSnapshot()
     }
 }
 
 /// EnvironmentKey for injecting a permission snapshot provider
-@preconcurrency private struct PermissionSnapshotProviderKey: EnvironmentKey {
-    static var defaultValue: PermissionSnapshotProviding {
+private struct PermissionSnapshotProviderKey: EnvironmentKey {
+    static var defaultValue: any PermissionSnapshotProviding {
         PermissionOracleAdapter()
     }
 }
 
 extension EnvironmentValues {
-    var permissionSnapshotProvider: PermissionSnapshotProviding {
+    var permissionSnapshotProvider: any PermissionSnapshotProviding {
         get { self[PermissionSnapshotProviderKey.self] }
         set { self[PermissionSnapshotProviderKey.self] = newValue }
     }
@@ -35,7 +35,7 @@ extension EnvironmentValues {
 // MARK: - Preferences Service DI
 
 /// EnvironmentKey for PreferencesService (DI)
-@preconcurrency private struct PreferencesServiceKey: EnvironmentKey {
+private struct PreferencesServiceKey: EnvironmentKey {
     static var defaultValue: PreferencesService {
         PreferencesService()
     }
@@ -51,14 +51,14 @@ extension EnvironmentValues {
 // MARK: - Privileged Operations DI
 
 /// EnvironmentKey for PrivilegedOperations (DI)
-@preconcurrency private struct PrivilegedOperationsKey: EnvironmentKey {
-    static var defaultValue: PrivilegedOperations {
+private struct PrivilegedOperationsKey: EnvironmentKey {
+    static var defaultValue: any PrivilegedOperations {
         HelperBackedPrivilegedOperations()
     }
 }
 
 extension EnvironmentValues {
-    var privilegedOperations: PrivilegedOperations {
+    var privilegedOperations: any PrivilegedOperations {
         get { self[PrivilegedOperationsKey.self] }
         set { self[PrivilegedOperationsKey.self] = newValue }
     }

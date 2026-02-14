@@ -3,6 +3,7 @@ import Foundation
 import KeyPathCore
 
 /// Protocol for managing Kanata configuration files
+// @preconcurrency: @MainActor class conforms to Sendable protocol; actor isolation provides safety
 @preconcurrency
 protocol ConfigurationManaging: Sendable {
     var configPath: String { get }
@@ -53,7 +54,7 @@ protocol ConfigurationManaging: Sendable {
 
 /// Manages Kanata configuration files and operations
 @MainActor
-final class ConfigurationManager: @preconcurrency ConfigurationManaging {
+final class ConfigurationManager: @preconcurrency ConfigurationManaging { // @preconcurrency: @MainActor satisfies Sendable via isolation
     let configPath: String
     let configDirectory: String
 

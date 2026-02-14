@@ -18,6 +18,8 @@ import os.lock
 /// ## Service Configuration Checks
 /// - `isKanataPlistInstalled`: Check if Kanata plist exists
 /// - `isVHIDDaemonConfiguredCorrectly`: Verify VHID plist configuration
+// SAFETY: @unchecked Sendable — singleton with no mutable instance state.
+// All methods are stateless queries delegating to SubprocessRunner or file checks.
 final class ServiceHealthChecker: @unchecked Sendable {
     static let shared = ServiceHealthChecker()
     private nonisolated static let launchctlNotFoundExitCode: Int32 = 113

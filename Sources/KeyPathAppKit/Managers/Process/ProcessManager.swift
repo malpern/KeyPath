@@ -27,6 +27,8 @@ protocol ProcessManaging: Sendable {
 }
 
 /// Manages Kanata process lifecycle using LaunchDaemon
+// SAFETY: @unchecked Sendable — all stored state (processLifecycleManager,
+// karabinerConflictService) is immutable after init and itself Sendable.
 final class ProcessManager: ProcessManaging, @unchecked Sendable {
     private let processLifecycleManager: ProcessLifecycleManager
     private let karabinerConflictService: KarabinerConflictManaging
