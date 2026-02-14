@@ -7,6 +7,21 @@ final class RecentKeypressesServiceTests: XCTestCase {
     var service: RecentKeypressesService!
     private var notificationCenter: NotificationCenter!
 
+    private func waitForEventsCount(
+        _ expected: Int,
+        timeout: TimeInterval = 1.0,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if service.events.count == expected { return }
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: 1_000_000) // 1ms backoff
+        }
+        XCTFail("Timed out waiting for events.count == \(expected). Got \(service.events.count)", file: file, line: line)
+    }
+
     override func setUp() async throws {
         try await super.setUp()
         // Create fresh service for each test with isolated notification center
@@ -44,8 +59,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
         // Post first event
         postKey("a", action: "press")
 
-        // Wait for async processing
-        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
+        await waitForEventsCount(1)
 
         let eventsAfterFirst = service.events.count
         XCTAssertEqual(eventsAfterFirst, 1, "First event should be added")
@@ -53,8 +67,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
         // Post duplicate within 100ms
         postKey("a", action: "press")
 
-        // Wait for async processing
-        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
+        await waitForEventsCount(1)
 
         let eventsAfterDuplicate = service.events.count
         XCTAssertEqual(
@@ -67,12 +80,12 @@ final class RecentKeypressesServiceTests: XCTestCase {
         // Post first event
         postKey("a", action: "press")
 
-        try await Task.sleep(nanoseconds: 10_000_000)
+        await waitForEventsCount(1)
 
         // Post different key within 100ms
         postKey("b", action: "press")
 
-        try await Task.sleep(nanoseconds: 10_000_000)
+        await waitForEventsCount(2)
 
         XCTAssertEqual(
             service.events.count, 2,
@@ -84,12 +97,12 @@ final class RecentKeypressesServiceTests: XCTestCase {
         // Post press event
         postKey("a", action: "press")
 
-        try await Task.sleep(nanoseconds: 10_000_000)
+        await waitForEventsCount(1)
 
         // Post release event within 100ms
         postKey("a", action: "release")
 
-        try await Task.sleep(nanoseconds: 10_000_000)
+        await waitForEventsCount(2)
 
         XCTAssertEqual(
             service.events.count, 2,
@@ -107,7 +120,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
         // Post same key after 100ms
         postKey("a", action: "press")
 
-        try await Task.sleep(nanoseconds: 10_000_000)
+        await waitForEventsCount(2)
 
         XCTAssertEqual(
             service.events.count, 2,
@@ -133,6 +146,8 @@ final class RecentKeypressesServiceTests: XCTestCase {
         postKey("t", action: "release")
         try await Task.sleep(nanoseconds: 10_000_000) // Wait for processing
 
+        await waitForEventsCount(4)
+
         // Should have 4 events (2 't' presses + 2 't' releases)
         XCTAssertEqual(
             service.events.count, 4,
@@ -157,18 +172,16 @@ final class RecentKeypressesServiceTests: XCTestCase {
     func testDeduplication_LayerChange_IsTreatedSeparately() async throws {
         // Post event in base layer
         postLayer("base")
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         postKey("a", action: "press")
-        try await Task.sleep(nanoseconds: 10_000_000)
+        await waitForEventsCount(1)
 
         // Change layer
         postLayer("nav")
-        try await Task.sleep(nanoseconds: 10_000_000)
 
         // Post same key in different layer within 100ms
         postKey("a", action: "press")
-        try await Task.sleep(nanoseconds: 10_000_000)
+        await waitForEventsCount(2)
 
         XCTAssertEqual(
             service.events.count, 2,
@@ -187,7 +200,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
 
         postKey("a", action: "press")
 
-        try await Task.sleep(nanoseconds: 10_000_000)
+        await waitForEventsCount(1)
 
         XCTAssertEqual(
             service.events.count, 1,
@@ -204,7 +217,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
 
         postKey("a", action: "release")
 
-        try await Task.sleep(nanoseconds: 10_000_000)
+        await waitForEventsCount(2)
 
         XCTAssertEqual(
             service.events.count, 2,
@@ -223,7 +236,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
 
         postKey("a", action: "press")
 
-        try await Task.sleep(nanoseconds: 10_000_000)
+        await waitForEventsCount(0)
 
         XCTAssertEqual(
             service.events.count, 0,
@@ -239,7 +252,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
 
         postKey("a", action: "press")
 
-        try await Task.sleep(nanoseconds: 10_000_000)
+        await waitForEventsCount(1)
 
         XCTAssertEqual(
             service.events.count, 1,
@@ -256,13 +269,13 @@ final class RecentKeypressesServiceTests: XCTestCase {
             try await Task.sleep(nanoseconds: 1_000_000) // 1ms between events
         }
 
-        try await Task.sleep(nanoseconds: 10_000_000)
+        await waitForEventsCount(15)
 
         // Now post duplicate of first key within 100ms total
         // But it's the 16th event, so more than 10 events ago
         postKey("key0", action: "press")
 
-        try await Task.sleep(nanoseconds: 10_000_000)
+        await waitForEventsCount(16)
 
         // Should be accepted because deduplication only checks last 10 events
         XCTAssertEqual(
@@ -275,7 +288,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
         // Add some events
         postKey("a", action: "press")
 
-        try await Task.sleep(nanoseconds: 10_000_000)
+        await waitForEventsCount(1)
 
         XCTAssertGreaterThan(service.events.count, 0)
 

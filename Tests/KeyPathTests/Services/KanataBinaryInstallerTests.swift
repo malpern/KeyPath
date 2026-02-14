@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 @preconcurrency import XCTest
 
 /// Unit tests for KanataBinaryInstaller service.
@@ -26,20 +27,17 @@ final class KanataBinaryInstallerTests: XCTestCase {
     // MARK: - Binary Availability Tests
 
     func testIsBundledKanataAvailable() {
-        // In test mode, this checks file existence
-        let available = installer.isBundledKanataAvailable()
-        XCTAssertTrue(available == true || available == false, "Should return boolean result")
+        // Environment-dependent (bundle layout), but should never crash.
+        _ = installer.isBundledKanataAvailable()
     }
 
     func testGetKanataBinaryPath() {
         let path = installer.getKanataBinaryPath()
 
-        // Should return either bundled or system path
-        XCTAssertFalse(path.isEmpty, "Should return a path")
-        XCTAssertTrue(
-            path.contains("kanata") || path.contains("KeyPath"),
-            "Path should contain 'kanata' or 'KeyPath'"
-        )
+        let systemPath = WizardSystemPaths.kanataSystemInstallPath
+        let bundledPath = WizardSystemPaths.bundledKanataPath
+        XCTAssertTrue(path == systemPath || path == bundledPath)
+        XCTAssertTrue(path.hasPrefix("/"), "Path should be absolute")
     }
 
     // MARK: - Version Checking Tests
@@ -50,19 +48,15 @@ final class KanataBinaryInstallerTests: XCTestCase {
     }
 
     func testShouldUpgradeKanata() async {
-        // In test mode, this may return false or check file existence
-        let shouldUpgrade = await installer.shouldUpgradeKanata()
-        XCTAssertTrue(shouldUpgrade == true || shouldUpgrade == false, "Should return boolean")
+        // Environment-dependent. Avoid asserting behavior tied to local system state.
+        _ = await installer.shouldUpgradeKanata()
     }
 
     // MARK: - Installation Tests (Test Mode)
 
     func testInstallBundledKanataInTestMode() async {
-        // In test mode, should check file existence without actual installation
-        let result = await installer.installBundledKanata()
-
-        // Should return true if bundled binary exists, false otherwise
-        XCTAssertTrue(result == true || result == false, "Should return boolean result")
+        // Environment-dependent. Ensure no crash in test mode.
+        _ = await installer.installBundledKanata()
     }
 
     // MARK: - Path Resolution Tests

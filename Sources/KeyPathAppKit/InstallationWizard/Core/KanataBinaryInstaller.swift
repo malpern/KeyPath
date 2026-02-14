@@ -68,10 +68,10 @@ final class KanataBinaryInstaller {
             // transitions as transient while the daemon is being swapped.
             ServiceBootstrapper.shared.markRestartTime(for: [Self.kanataServiceID])
 
-            let qSystemDir = shellSingleQuoted(systemDir)
-            let qBundledPath = shellSingleQuoted(bundledPath)
-            let qSystemPath = shellSingleQuoted(systemPath)
-            let qServiceID = shellSingleQuoted(Self.kanataServiceID)
+            let qSystemDir = Self.shellSingleQuoted(systemDir)
+            let qBundledPath = Self.shellSingleQuoted(bundledPath)
+            let qSystemPath = Self.shellSingleQuoted(systemPath)
+            let qServiceID = Self.shellSingleQuoted(Self.kanataServiceID)
             let command = """
             set -e
             SYSTEM_DIR='\(qSystemDir)'
@@ -421,23 +421,31 @@ final class KanataBinaryInstaller {
                 timeout: 10
             )
             let output = "\(result.stdout)\n\(result.stderr)"
-            if let regex = try? NSRegularExpression(pattern: #"TeamIdentifier=([A-Z0-9]+)"#) {
-                let nsRange = NSRange(output.startIndex ..< output.endIndex, in: output)
-                if let match = regex.firstMatch(in: output, options: [], range: nsRange),
-                   match.numberOfRanges > 1,
-                   let teamRange = Range(match.range(at: 1), in: output)
-                {
-                    return String(output[teamRange])
-                }
-            }
-            return nil
+            return Self.parseTeamIdentifier(fromCodesignOutput: output)
         } catch {
             AppLogger.shared.warn("⚠️ [KanataBinaryInstaller] Unable to extract TeamIdentifier for \(path): \(error)")
             return nil
         }
     }
 
-    private func shellSingleQuoted(_ value: String) -> String {
+    nonisolated internal static func parseTeamIdentifier(fromCodesignOutput output: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: #"TeamIdentifier=([A-Z0-9]+)"#) else {
+            return nil
+        }
+
+        let nsRange = NSRange(output.startIndex ..< output.endIndex, in: output)
+        guard let match = regex.firstMatch(in: output, options: [], range: nsRange) else {
+            return nil
+        }
+        guard match.numberOfRanges > 1, let teamRange = Range(match.range(at: 1), in: output) else {
+            return nil
+        }
+        return String(output[teamRange])
+    }
+
+    nonisolated internal static func shellSingleQuoted(_ value: String) -> String {
+        // Escapes single quotes for inclusion inside a surrounding single-quoted string in POSIX shells.
+        // Example: abc'def -> abc'"'"'def
         value.replacingOccurrences(of: "'", with: "'\"'\"'")
     }
 }

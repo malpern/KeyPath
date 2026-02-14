@@ -2,28 +2,48 @@ import Foundation
 @testable import KeyPathAppKit
 @preconcurrency import XCTest
 
-/// Unit tests for ServiceHealthChecker service.
-///
-/// Tests health checking and status reporting.
-/// These tests verify:
-/// - Service loaded detection (in test mode)
-/// - Service health checks (in test mode)
-/// - Status aggregation
-/// - Service identifier constants
 final class ServiceHealthCheckerTests: XCTestCase {
-    var checker: ServiceHealthChecker!
+    private var checker: ServiceHealthChecker!
+    private var tempLaunchDaemonsDir: URL!
+    private var originalLaunchDaemonsDir: String?
 
     override func setUp() async throws {
         try await super.setUp()
         checker = ServiceHealthChecker.shared
+
+        tempLaunchDaemonsDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ServiceHealthCheckerTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempLaunchDaemonsDir, withIntermediateDirectories: true)
+
+        originalLaunchDaemonsDir = ProcessInfo.processInfo.environment["KEYPATH_LAUNCH_DAEMONS_DIR"]
+        setenv("KEYPATH_LAUNCH_DAEMONS_DIR", tempLaunchDaemonsDir.path, 1)
     }
 
     override func tearDown() async throws {
         checker = nil
+        if let originalLaunchDaemonsDir {
+            setenv("KEYPATH_LAUNCH_DAEMONS_DIR", originalLaunchDaemonsDir, 1)
+        } else {
+            unsetenv("KEYPATH_LAUNCH_DAEMONS_DIR")
+        }
+        try? FileManager.default.removeItem(at: tempLaunchDaemonsDir)
+        tempLaunchDaemonsDir = nil
+        originalLaunchDaemonsDir = nil
         try await super.tearDown()
     }
 
-    // MARK: - Service Identifier Tests
+    private func writeEmptyPlist(serviceID: String) throws {
+        let url = tempLaunchDaemonsDir.appendingPathComponent("\(serviceID).plist")
+        FileManager.default.createFile(atPath: url.path, contents: Data(), attributes: nil)
+    }
+
+    private func writeVHIDPlist(programPath: String) throws {
+        let dict: NSDictionary = [
+            "ProgramArguments": [programPath]
+        ]
+        let url = tempLaunchDaemonsDir.appendingPathComponent("\(ServiceHealthChecker.vhidDaemonServiceID).plist")
+        XCTAssertTrue(dict.write(to: url, atomically: true))
+    }
 
     func testServiceIdentifiers() {
         XCTAssertEqual(ServiceHealthChecker.kanataServiceID, "com.keypath.kanata")
@@ -31,132 +51,58 @@ final class ServiceHealthCheckerTests: XCTestCase {
         XCTAssertEqual(ServiceHealthChecker.vhidManagerServiceID, "com.keypath.karabiner-vhidmanager")
     }
 
-    // MARK: - Service Loaded Tests (Test Mode)
-
-    func testIsServiceLoadedReturnsBoolean() async {
+    func testIsServiceLoadedUsesPlistExistenceInTestMode() async throws {
+        try writeEmptyPlist(serviceID: ServiceHealthChecker.kanataServiceID)
         let loaded = await checker.isServiceLoaded(serviceID: ServiceHealthChecker.kanataServiceID)
-
-        // In test mode, checks file existence
-        XCTAssertTrue(loaded == true || loaded == false, "Should return boolean")
+        XCTAssertTrue(loaded)
     }
 
-    func testIsServiceLoadedWithInvalidServiceID() async {
+    func testIsServiceLoadedReturnsFalseForInvalidServiceID() async {
         let loaded = await checker.isServiceLoaded(serviceID: "com.keypath.invalid-service")
-
-        // Should return false for invalid service
-        XCTAssertFalse(loaded, "Should return false for invalid service ID")
+        XCTAssertFalse(loaded)
     }
 
-    func testIsServiceLoadedForVHIDServices() async {
-        let vhidDaemonLoaded = await checker.isServiceLoaded(serviceID: ServiceHealthChecker.vhidDaemonServiceID)
-        let vhidManagerLoaded = await checker.isServiceLoaded(serviceID: ServiceHealthChecker.vhidManagerServiceID)
+    func testIsServiceLoadedForVHIDServicesUsesPlistExistenceInTestMode() async throws {
+        try writeEmptyPlist(serviceID: ServiceHealthChecker.vhidDaemonServiceID)
+        try writeEmptyPlist(serviceID: ServiceHealthChecker.vhidManagerServiceID)
 
-        // Should return boolean results
-        XCTAssertTrue(vhidDaemonLoaded == true || vhidDaemonLoaded == false, "Should return boolean for VHID daemon")
-        XCTAssertTrue(vhidManagerLoaded == true || vhidManagerLoaded == false, "Should return boolean for VHID manager")
+        let daemonLoaded = await checker.isServiceLoaded(serviceID: ServiceHealthChecker.vhidDaemonServiceID)
+        let managerLoaded = await checker.isServiceLoaded(serviceID: ServiceHealthChecker.vhidManagerServiceID)
+        XCTAssertTrue(daemonLoaded)
+        XCTAssertTrue(managerLoaded)
     }
 
-    // MARK: - Service Health Tests (Test Mode)
-
-    func testIsServiceHealthyReturnsBoolean() async {
+    func testIsServiceHealthyUsesPlistExistenceInTestMode() async throws {
+        try writeEmptyPlist(serviceID: ServiceHealthChecker.kanataServiceID)
         let healthy = await checker.isServiceHealthy(serviceID: ServiceHealthChecker.kanataServiceID)
-
-        // In test mode, may check file existence or process status
-        XCTAssertTrue(healthy == true || healthy == false, "Should return boolean")
+        XCTAssertTrue(healthy)
     }
 
-    func testIsServiceHealthyWithInvalidServiceID() async {
+    func testIsServiceHealthyReturnsFalseForInvalidServiceID() async {
         let healthy = await checker.isServiceHealthy(serviceID: "com.keypath.invalid-service")
-
-        // Should return false for invalid service
-        XCTAssertFalse(healthy, "Should return false for invalid service ID")
+        XCTAssertFalse(healthy)
     }
 
-    // MARK: - Service Status Tests
-
-    func testGetServiceStatusReturnsStatus() async {
-        let status = await checker.getServiceStatus()
-
-        // Should return a LaunchDaemonStatus with all fields
-        XCTAssertNotNil(status, "Should return status")
-        XCTAssertTrue(
-            status.kanataServiceLoaded == true || status.kanataServiceLoaded == false,
-            "Should have kanata loaded status"
-        )
-        XCTAssertTrue(
-            status.vhidDaemonServiceLoaded == true || status.vhidDaemonServiceLoaded == false,
-            "Should have VHID daemon loaded status"
-        )
-        XCTAssertTrue(
-            status.vhidManagerServiceLoaded == true || status.vhidManagerServiceLoaded == false,
-            "Should have VHID manager loaded status"
-        )
-    }
-
-    func testGetServiceStatusComputedProperties() async {
-        let status = await checker.getServiceStatus()
-
-        // Test computed properties
-        _ = status.allServicesLoaded
-        _ = status.allServicesHealthy
-        _ = status.description
-
-        // Should not crash
-        XCTAssertTrue(true, "Computed properties should work")
-    }
-
-    func testGetServiceStatusIsConsistent() async {
-        let status1 = await checker.getServiceStatus()
-        let status2 = await checker.getServiceStatus()
-
-        // Status should be consistent within a short time window
-        XCTAssertEqual(
-            status1.kanataServiceLoaded, status2.kanataServiceLoaded,
-            "Kanata loaded status should be consistent"
-        )
-        XCTAssertEqual(
-            status1.vhidDaemonServiceLoaded, status2.vhidDaemonServiceLoaded,
-            "VHID daemon loaded status should be consistent"
-        )
-    }
-
-    // MARK: - Kanata Health Check Tests
-
-    func testCheckKanataServiceHealthReturnsHealth() async {
+    func testCheckKanataServiceHealthDoesNotProbeSystemInTestMode() async {
         let health = await checker.checkKanataServiceHealth()
-
-        // Should return health snapshot
-        XCTAssertNotNil(health, "Should return health snapshot")
-        XCTAssertTrue(
-            health.isRunning == true || health.isRunning == false,
-            "Should have isRunning boolean"
-        )
-        XCTAssertTrue(
-            health.isResponding == true || health.isResponding == false,
-            "Should have isResponding boolean"
-        )
+        XCTAssertFalse(health.isRunning)
+        XCTAssertFalse(health.isResponding)
     }
 
-    func testCheckKanataServiceHealthWithCustomPort() async {
-        let health = await checker.checkKanataServiceHealth(tcpPort: 12345)
-
-        // Should return health snapshot
-        XCTAssertNotNil(health, "Should return health snapshot")
+    func testIsKanataPlistInstalledUsesLaunchDaemonsOverride() throws {
+        try writeEmptyPlist(serviceID: ServiceHealthChecker.kanataServiceID)
+        XCTAssertTrue(checker.isKanataPlistInstalled())
     }
 
-    // MARK: - Configuration Check Tests
-
-    func testIsKanataPlistInstalled() {
-        let installed = checker.isKanataPlistInstalled()
-
-        // In test mode, checks file existence
-        XCTAssertTrue(installed == true || installed == false, "Should return boolean")
+    func testIsVHIDDaemonConfiguredCorrectlyReadsProgramArguments() throws {
+        let expectedPath =
+            "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
+        try writeVHIDPlist(programPath: expectedPath)
+        XCTAssertTrue(checker.isVHIDDaemonConfiguredCorrectly())
     }
 
-    func testIsVHIDDaemonConfiguredCorrectly() {
-        let configured = checker.isVHIDDaemonConfiguredCorrectly()
-
-        // Should return boolean
-        XCTAssertTrue(configured == true || configured == false, "Should return boolean")
+    func testIsVHIDDaemonConfiguredCorrectlyReturnsFalseForWrongPath() throws {
+        try writeVHIDPlist(programPath: "/wrong/path")
+        XCTAssertFalse(checker.isVHIDDaemonConfiguredCorrectly())
     }
 }

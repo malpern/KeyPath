@@ -326,6 +326,11 @@ final class ServiceHealthChecker: @unchecked Sendable {
         tcpPort: Int = 37001,
         timeoutMs: Int = 300
     ) async -> KanataHealthSnapshot {
+        if TestEnvironment.shouldSkipAdminOperations {
+            // Keep tests hermetic: avoid probing launchctl and real TCP sockets.
+            return KanataHealthSnapshot(isRunning: false, isResponding: false)
+        }
+
         // 1) launchctl check for PID using SubprocessRunner
         let runningState = await evaluateKanataLaunchctlRunningState()
         let isRunning = runningState.isRunning
