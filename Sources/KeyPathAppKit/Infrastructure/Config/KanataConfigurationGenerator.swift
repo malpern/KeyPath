@@ -174,12 +174,7 @@ public struct KanataConfiguration: Sendable {
     #if os(macOS)
         private static func detectMacOSVirtualHIDDevicesForExclusion() -> [String] {
             guard let output = runKanataListForDeviceNames() else { return [] }
-            return parseExcludedMacOSDeviceNames(fromKanataList: output)
-        }
 
-        /// Parse the output of `kanata --list` and return device identifiers suitable for
-        /// `macos-dev-names-exclude`. Kept as a pure function for unit testing.
-        internal static func parseExcludedMacOSDeviceNames(fromKanataList output: String) -> [String] {
             // Example lines (columns):
             // 0xHASH   vendor_id  product_id  product_key...
             // We exclude both the hash and the product key for robustness.
