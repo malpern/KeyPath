@@ -244,12 +244,13 @@ struct MapperInspectorPanel: View {
             }
 
             // Toggle on its own line
-            Toggle("Different actions for tap vs hold", isOn: $viewModel.showAdvanced)
-                .toggleStyle(.switch)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("mapper-advanced-behavior-toggle")
-                .accessibilityLabel("Different actions for tap vs hold")
+            Toggle("Different actions for tap vs hold", isOn: $viewModel.showAdvanced).accessibilityIdentifier(
+                "mapper-advanced-behavior-toggle"
+            )
+            .toggleStyle(.switch)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Different actions for tap vs hold")
         }
         .padding(.vertical, 4)
     }
@@ -259,13 +260,16 @@ struct MapperInspectorPanel: View {
         if reduceTransparency {
             LeftRoundedRectangle(radius: 10)
                 .fill(Color(NSColor.controlBackgroundColor))
-        } else if #available(macOS 26.0, *) {
-            LeftRoundedRectangle(radius: 10)
-                .fill(.clear)
-                .glassEffect(.regular, in: LeftRoundedRectangle(radius: 10))
         } else {
-            LeftRoundedRectangle(radius: 10)
-                .fill(Color(white: isDark ? 0.12 : 0.92))
+            ZStack {
+                VisualEffectRepresentable(material: .menu, blending: .withinWindow)
+                LeftRoundedRectangle(radius: 10)
+                    .fill(Color.white.opacity(isDark ? 0.06 : 0.10))
+                LeftRoundedRectangle(radius: 10)
+                    .stroke(Color.white.opacity(0.16), lineWidth: 0.5)
+                    .blendMode(.overlay)
+            }
+            .clipShape(LeftRoundedRectangle(radius: 10))
         }
     }
 }

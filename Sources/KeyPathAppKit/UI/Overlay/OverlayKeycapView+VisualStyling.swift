@@ -19,10 +19,12 @@ extension OverlayKeycapView {
         // Extract RGB components (simplified - assumes sRGB)
         let fromRGB = NSColor(from).usingColorSpace(.sRGB) ?? NSColor.black
         let toRGB = NSColor(to).usingColorSpace(.sRGB) ?? NSColor.black
+        let t = Double(progress)
+        let inv = 1.0 - t
 
-        let r = Double(fromRGB.redComponent) * (1 - progress) + Double(toRGB.redComponent) * progress
-        let g = Double(fromRGB.greenComponent) * (1 - progress) + Double(toRGB.greenComponent) * progress
-        let b = Double(fromRGB.blueComponent) * (1 - progress) + Double(toRGB.blueComponent) * progress
+        let r = Double(fromRGB.redComponent) * inv + Double(toRGB.redComponent) * t
+        let g = Double(fromRGB.greenComponent) * inv + Double(toRGB.greenComponent) * t
+        let b = Double(fromRGB.blueComponent) * inv + Double(toRGB.blueComponent) * t
 
         return (r, g, b)
     }

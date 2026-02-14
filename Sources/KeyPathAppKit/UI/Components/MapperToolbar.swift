@@ -17,13 +17,7 @@ struct MapperToolbar: View {
         toolbarContent
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .modifier(
-                GlassEffectModifier(
-                    isEnabled: !reduceTransparency,
-                    cornerRadius: 12,
-                    fallbackFill: Color(NSColor.controlBackgroundColor)
-                )
-            )
+            .background(toolbarBackground)
     }
 
     private var toolbarContent: some View {
@@ -56,43 +50,53 @@ struct MapperToolbar: View {
             } label: {
                 Image(systemName: "sidebar.right")
             }
-            .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+            .buttonStyle(.plain)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .background(toolbarButtonBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .foregroundStyle(isInspectorOpen ? Color.accentColor : .secondary)
             .help(isInspectorOpen ? "Hide Inspector" : "Show Inspector")
         }
     }
-}
 
-// MARK: - Liquid Glass Effect (macOS 26+ only - no fallback)
+    private var toolbarBackground: some View {
+        Group {
+            if reduceTransparency {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(NSColor.controlBackgroundColor))
+            } else {
+                AppGlassBackground(style: .headerStrong, cornerRadius: 12)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
 
-private struct GlassEffectModifier: ViewModifier {
-    let isEnabled: Bool
-    let cornerRadius: CGFloat
-    let fallbackFill: Color
-
-    func body(content: Content) -> some View {
-        if isEnabled {
-            content.glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
-        } else {
-            content
-                .background(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(fallbackFill)
-                )
+    private var toolbarButtonBackground: some View {
+        Group {
+            if reduceTransparency {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color(NSColor.controlBackgroundColor))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(Color(NSColor.separatorColor).opacity(0.4), lineWidth: 0.5)
+                    )
+            } else {
+                ZStack {
+                    VisualEffectRepresentable(material: .menu, blending: .withinWindow)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.accentColor.opacity(isInspectorOpen ? 0.18 : 0.10))
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.white.opacity(0.22), lineWidth: 0.5)
+                        .blendMode(.overlay)
+                }
+            }
         }
     }
 }
 
-private struct GlassButtonStyleModifier: ViewModifier {
-    let reduceTransparency: Bool
+// MARK: - Notes
 
-    func body(content: Content) -> some View {
-        if reduceTransparency {
-            content.buttonStyle(BorderedButtonStyle())
-        } else if #available(macOS 26.0, *) {
-            content.buttonStyle(GlassButtonStyle())
-        } else {
-            content.buttonStyle(BorderedButtonStyle())
-        }
-    }
-}
+//
+// We intentionally avoid SwiftUI "Liquid Glass" APIs here.
+// GitHub CI currently builds with Xcode 16.4 (macOS 15 SDK), which does not include those symbols.
