@@ -9,7 +9,11 @@ import KeyPathCore
 /// - Handles atomic writes by monitoring file creation/deletion/move events
 /// - Provides comprehensive error logging and recovery
 /// - Uses proper file descriptor management with cleanup
-class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
+///
+/// All mutable state is isolated to `@MainActor` since this is an `ObservableObject`
+/// observed by SwiftUI and owned by `@MainActor`-isolated coordinators.
+@MainActor
+class ConfigFileWatcher: ObservableObject {
     // MARK: - Properties
 
     private var fileMonitorSource: DispatchSourceFileSystemObject?
@@ -31,17 +35,23 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
     private var inFlightProcessing = false
 
     /// Dedicated queue for file system events (avoid main thread contention)
+    /// The DispatchSource fires events on this queue, but handlers immediately
+    /// hop to MainActor via Task { @MainActor in ... }
     private let queue = DispatchQueue(label: "com.keypath.configwatcher", qos: .utility)
 
     /// Callback for when file changes are detected
-    private var onFileChanged: (() async -> Void)?
+    private var onFileChanged: (@MainActor () async -> Void)?
 
     init() {
         AppLogger.shared.log("📁 [FileWatcher] ConfigFileWatcher initialized with robust monitoring")
     }
 
     deinit {
-        stopWatching()
+        // deinit cannot be @MainActor, so we capture what we need and clean up directly.
+        // DispatchSource.cancel() is thread-safe and can be called from any thread.
+        fileMonitorSource?.cancel()
+        directoryMonitorSource?.cancel()
+        debounceTask?.cancel()
         AppLogger.shared.log("📁 [FileWatcher] ConfigFileWatcher deinitialized")
     }
 
@@ -65,7 +75,7 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
     /// - Parameters:
     ///   - path: The file path to monitor
     ///   - onChange: Callback to execute when file changes are detected
-    func startWatching(path: String, onChange: @escaping () async -> Void) {
+    func startWatching(path: String, onChange: @MainActor @escaping () async -> Void) {
         if isWatching || isWatchingDirectory {
             AppLogger.shared.log(
                 "⚠️ [FileWatcher] Already watching - stopping previous watch before starting new one"
@@ -125,11 +135,15 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         )
 
         // Set up event handler with atomic write detection
-        fileMonitorSource?.setEventHandler { [weak self] in
-            guard let self, let source = fileMonitorSource else { return }
+        // The handler fires on `queue` but immediately hops to MainActor.
+        // We capture `source` directly so we can read `.data` synchronously
+        // in the handler without touching @MainActor-isolated state.
+        let source = fileMonitorSource!
+        source.setEventHandler { [weak self] in
+            guard self != nil else { return }
             let flags = DispatchSource.FileSystemEvent(rawValue: source.data)
             AppLogger.shared.log("📁 [FileWatcher] File system event received - flags: \(flags)")
-            Task { [weak self] in
+            Task { @MainActor [weak self] in
                 await self?.handleFileEvent(flags: flags)
             }
         }
@@ -183,11 +197,12 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         )
 
         // Set up event handler for directory changes
+        // The handler fires on `queue` but immediately hops to MainActor
         directoryMonitorSource?.setEventHandler {
             AppLogger.shared.log(
                 "📁 [FileWatcher] Directory event received - checking if target file was created"
             )
-            Task { [weak self] in
+            Task { @MainActor [weak self] in
                 await self?.handleDirectoryChangeEvent()
             }
         }
@@ -295,8 +310,9 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         fileMonitorSource = nil
         isWatching = false
 
-        // Wait a brief moment for atomic write to complete
-        queue.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+        // Wait a brief moment for atomic write to complete, then re-setup on MainActor
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
             self?.setupFileMonitoring()
         }
     }
@@ -321,10 +337,7 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
 
             // Trigger initial change callback since the file was just created
             AppLogger.shared.log("📁 [FileWatcher] Triggering change callback for newly created file")
-            await MainActor.run {
-                Task { await onFileChanged?() }
-                return ()
-            }
+            await onFileChanged?()
         } else {
             AppLogger.shared.log("📁 [FileWatcher] Directory changed but target file not yet created")
         }
@@ -370,7 +383,7 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         debounceTask?.cancel()
 
         // Schedule debounce task to handle rapid file changes
-        debounceTask = Task { [weak self] in
+        debounceTask = Task { @MainActor [weak self] in
             guard let self else { return }
             try? await Task.sleep(nanoseconds: UInt64(debounceDelay * 1_000_000_000))
             await processFileChange()
@@ -388,8 +401,9 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
                 "🔄 [FileWatcher] Retrying file monitoring setup (attempt \(retryCount)/\(maxRetries))"
             )
 
-            // Retry after a brief delay
-            queue.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            // Retry after a brief delay on MainActor
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1s
                 self?.setupFileMonitoring()
             }
         } else {
@@ -409,8 +423,9 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
                 "🔄 [FileWatcher] Retrying directory monitoring setup (attempt \(retryCount)/\(maxRetries))"
             )
 
-            // Retry after a brief delay
-            queue.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            // Retry after a brief delay on MainActor
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2s
                 self?.setupDirectoryMonitoring()
             }
         } else {
@@ -422,7 +437,7 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
 
     // MARK: - Private Methods
 
-    private func openFileDescriptor(at path: String) -> Int32? {
+    private nonisolated func openFileDescriptor(at path: String) -> Int32? {
         let fd = open(path, O_EVTONLY)
         if fd >= 0 {
             AppLogger.shared.log("📁 [FileWatcher] Successfully opened file descriptor \(fd) for: \(path)")
@@ -539,11 +554,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
             AppLogger.shared.log("📁 [FileWatcher] Triggering file change callback (size unknown)")
         }
 
-        // Trigger the callback on MainActor
-        await MainActor.run {
-            Task { await onFileChanged?() }
-            return ()
-        }
+        // Trigger the callback (already on MainActor)
+        await onFileChanged?()
         AppLogger.shared.log("✅ [FileWatcher] File change callback completed")
     }
 }

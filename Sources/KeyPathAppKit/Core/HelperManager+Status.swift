@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import os.lock
 
 extension HelperManager {
     // MARK: - Helper Status
@@ -67,53 +68,65 @@ extension HelperManager {
         do {
             let proxy = try await getRemoteProxy { _ in /* proxy error handled by timeout path */ }
             return await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
-                let sema = DispatchSemaphore(value: 0)
-                final class VersionHolder: @unchecked Sendable {
-                    var value: String?
+                // Guard ensures the continuation is resumed exactly once.
+                // The lock protects a Bool: false = not yet resumed, true = already resumed.
+                let resumed = OSAllocatedUnfairLock(initialState: false)
+
+                // Schedule a timeout task that will fire if the XPC callback is too slow.
+                let timeoutTask = Task { @Sendable in
+                    try await Task.sleep(for: .seconds(3))
+                    // If we get here, the sleep was NOT cancelled, so we timed out.
+                    let alreadyResumed = resumed.withLock { flag -> Bool in
+                        if flag { return true }
+                        flag = true
+                        return false
+                    }
+                    guard !alreadyResumed else { return }
+                    AppLogger.shared.log(
+                        "⚠️ [HelperManager] getVersion timed out - clearing connection cache"
+                    )
+                    await HelperManager.shared.clearConnection()
+                    continuation.resume(returning: nil)
                 }
-                let versionHolder = VersionHolder()
+
                 AppLogger.shared.log("📤 [HelperManager] Calling proxy.getVersion()")
                 proxy.getVersion { version, error in
                     let threadName = Thread.current.isMainThread ? "main" : "background"
                     AppLogger.shared.log(
                         "📥 [HelperManager] getVersion callback received on \(threadName) thread"
                     )
+
+                    // Cancel the timeout since the callback arrived.
+                    timeoutTask.cancel()
+
+                    let alreadyResumed = resumed.withLock { flag -> Bool in
+                        if flag { return true }
+                        flag = true
+                        return false
+                    }
+                    guard !alreadyResumed else {
+                        AppLogger.shared.log(
+                            "⚠️ [HelperManager] getVersion callback arrived after timeout - ignoring"
+                        )
+                        return
+                    }
+
                     if let version {
-                        AppLogger.shared.log("✅ [HelperManager] getVersion callback: version=\(version)")
-                        versionHolder.value = version
+                        AppLogger.shared.info("✅ [HelperManager] Helper version: \(version)")
+                        continuation.resume(returning: version)
                     } else {
                         let msg = error ?? "Unknown error"
                         AppLogger.shared.log("❌ [HelperManager] getVersion callback error: \(msg)")
+                        AppLogger.shared.log(
+                            "⚠️ [HelperManager] getVersion callback completed but no version received - clearing connection cache"
+                        )
+                        Task { await HelperManager.shared.clearConnection() }
+                        continuation.resume(returning: nil)
                     }
-                    AppLogger.shared.log("📥 [HelperManager] Signaling semaphore")
-                    sema.signal()
                 }
                 AppLogger.shared.log(
                     "📤 [HelperManager] proxy.getVersion() call dispatched, waiting for callback"
                 )
-                DispatchQueue.global(qos: .utility).async {
-                    let waited = sema.wait(timeout: .now() + 3)
-                    if waited == .timedOut {
-                        AppLogger.shared.log(
-                            "⚠️ [HelperManager] getVersion timed out - clearing connection cache"
-                        )
-                        // Clear connection on timeout - it's likely stale
-                        Task { await HelperManager.shared.clearConnection() }
-                        continuation.resume(returning: nil)
-                    } else {
-                        if let v = versionHolder.value {
-                            AppLogger.shared.info("✅ [HelperManager] Helper version: \(v)")
-                            continuation.resume(returning: v)
-                        } else {
-                            AppLogger.shared.log(
-                                "⚠️ [HelperManager] getVersion callback completed but no version received - clearing connection cache"
-                            )
-                            // Clear connection if callback completed but no version (connection issue)
-                            Task { await HelperManager.shared.clearConnection() }
-                            continuation.resume(returning: nil)
-                        }
-                    }
-                }
             }
         } catch {
             AppLogger.shared.log(

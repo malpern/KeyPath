@@ -27,6 +27,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private weak var appStateController: MainAppStateController?
     private weak var ruleCollectionsManager: RuleCollectionsManager?
 
+    /// Cached app keymaps, keyed by bundle identifier.
+    /// Updated asynchronously; read synchronously during menu building.
+    private var cachedAppKeymaps: [String: AppKeymap] = [:]
+
     // MARK: - Feature IDs (in display order: approachable → nerdy)
 
     private static let featureCollections: [(id: UUID, name: String)] = [
@@ -78,8 +82,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
         .store(in: &cancellables)
 
+        // Observe app keymap changes to keep cache fresh
+        NotificationCenter.default.publisher(for: .appKeymapsDidChange)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.refreshAppKeymapCache()
+            }
+            .store(in: &cancellables)
+
         // Initial icon update
         updateStatusIcon()
+
+        // Initial cache load
+        refreshAppKeymapCache()
 
         AppLogger.shared.log("📊 [MenuBar] Configured with state observation")
     }
@@ -294,8 +309,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        // Use synchronous approach to get cached keymap data for menu building
-        let keymap = getAppKeymapSync(bundleIdentifier: bundleId)
+        // Read from the locally cached keymaps (updated asynchronously)
+        let keymap = cachedAppKeymaps[bundleId]
 
         if let keymap, !keymap.overrides.isEmpty {
             // Header for app-specific mappings
@@ -347,20 +362,17 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(createItem)
     }
 
-    /// Synchronously get app keymap (for menu building)
-    private func getAppKeymapSync(bundleIdentifier: String) -> AppKeymap? {
-        // Use a semaphore to wait for the async result
-        var result: AppKeymap?
-        let semaphore = DispatchSemaphore(value: 0)
-
-        Task {
-            result = await AppKeymapStore.shared.getKeymap(bundleIdentifier: bundleIdentifier)
-            semaphore.signal()
+    /// Asynchronously refresh the cached app keymaps from the store.
+    /// Called on initial configure and whenever `.appKeymapsDidChange` fires.
+    private func refreshAppKeymapCache() {
+        Task { @MainActor [weak self] in
+            let keymaps = await AppKeymapStore.shared.loadKeymaps()
+            var keymapsByBundle: [String: AppKeymap] = [:]
+            for keymap in keymaps {
+                keymapsByBundle[keymap.mapping.bundleIdentifier] = keymap
+            }
+            self?.cachedAppKeymaps = keymapsByBundle
         }
-
-        // Wait with a short timeout to avoid blocking UI
-        _ = semaphore.wait(timeout: .now() + 0.1)
-        return result
     }
 
     // MARK: - Actions

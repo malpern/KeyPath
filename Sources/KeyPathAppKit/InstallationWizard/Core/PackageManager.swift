@@ -11,7 +11,7 @@ class PackageManager {
     /// Cache for code signing status to avoid expensive Security framework calls
     /// Cache key: file path
     /// Cache value: (status, modificationDate, fileSize)
-    private struct CacheEntry {
+    private struct CacheEntry: Sendable {
         let status: CodeSigningStatus
         let modificationDate: Date
         let fileSize: Int64
@@ -20,10 +20,16 @@ class PackageManager {
     /// Maximum number of entries in the code signing cache (LRU eviction)
     private static let maxCacheSize = 50
 
-    private nonisolated(unsafe) static var codeSigningCache: [String: CacheEntry] = [:]
-    /// Tracks access order for LRU eviction (most recently used at end)
-    private nonisolated(unsafe) static var cacheAccessOrder: [String] = []
-    private static let cacheLock = OSAllocatedUnfairLock(initialState: ())
+    /// Thread-safe LRU cache state protected by OSAllocatedUnfairLock.
+    /// Both the dictionary and access-order array live inside the lock's state
+    /// so they are always mutated atomically under a single lock acquisition.
+    private struct CacheState: Sendable {
+        var entries: [String: CacheEntry] = [:]
+        /// Tracks access order for LRU eviction (most recently used at end)
+        var accessOrder: [String] = []
+    }
+
+    private static let cache = OSAllocatedUnfairLock(initialState: CacheState())
 
     // MARK: - Types
 
@@ -182,57 +188,67 @@ class PackageManager {
             return detectCodeSigningStatus(at: path)
         }
 
-        // Check cache first (thread-safe)
-        let cached: CacheEntry? = Self.cacheLock.withLock {
-            Self.codeSigningCache[path]
+        // Check cache atomically (single lock acquisition for lookup + access-order update)
+        enum CacheLookup {
+            case hit(CodeSigningStatus)
+            case stale
+            case miss
         }
 
-        if let cached {
-            // Cache is valid if modification date and size match
-            if modDate == cached.modificationDate, fileSize == cached.fileSize {
-                AppLogger.shared.log("✅ [PackageManager] Code signing cache hit for \(path)")
-                // Update access order (move to end = most recently used)
-                Self.cacheLock.withLock {
-                    if let index = Self.cacheAccessOrder.firstIndex(of: path) {
-                        Self.cacheAccessOrder.remove(at: index)
+        let lookup: CacheLookup = Self.cache.withLock { state in
+            if let cached = state.entries[path] {
+                if modDate == cached.modificationDate, fileSize == cached.fileSize {
+                    // Cache hit - update access order (move to end = most recently used)
+                    if let index = state.accessOrder.firstIndex(of: path) {
+                        state.accessOrder.remove(at: index)
                     }
-                    Self.cacheAccessOrder.append(path)
-                }
-                return cached.status
-            } else {
-                AppLogger.shared.log(
-                    "🔄 [PackageManager] Code signing cache invalidated (file changed): \(path)"
-                )
-                Self.cacheLock.withLock {
-                    Self.codeSigningCache.removeValue(forKey: path)
-                    Self.cacheAccessOrder.removeAll { $0 == path }
+                    state.accessOrder.append(path)
+                    return .hit(cached.status)
+                } else {
+                    // Stale entry - remove it atomically
+                    state.entries.removeValue(forKey: path)
+                    state.accessOrder.removeAll { $0 == path }
+                    return .stale
                 }
             }
+            return .miss
+        }
+
+        switch lookup {
+        case let .hit(status):
+            AppLogger.shared.log("✅ [PackageManager] Code signing cache hit for \(path)")
+            return status
+        case .stale:
+            AppLogger.shared.log(
+                "🔄 [PackageManager] Code signing cache invalidated (file changed): \(path)"
+            )
+        case .miss:
+            break
         }
 
         // Cache miss or invalidated - perform actual check
         let status = detectCodeSigningStatus(at: path)
 
-        // Cache the result with already-read file metadata
-        Self.cacheLock.withLock {
+        // Cache the result atomically (single lock acquisition for eviction + insert)
+        Self.cache.withLock { state in
             // Evict oldest entry if cache is at capacity (LRU)
-            if Self.codeSigningCache.count >= Self.maxCacheSize {
-                if let oldestPath = Self.cacheAccessOrder.first {
-                    Self.codeSigningCache.removeValue(forKey: oldestPath)
-                    Self.cacheAccessOrder.removeFirst()
+            if state.entries.count >= Self.maxCacheSize {
+                if let oldestPath = state.accessOrder.first {
+                    state.entries.removeValue(forKey: oldestPath)
+                    state.accessOrder.removeFirst()
                     AppLogger.shared.log("🗑️ [PackageManager] Evicted oldest cache entry: \(oldestPath)")
                 }
             }
 
             // Add new entry
-            Self.codeSigningCache[path] = CacheEntry(
+            state.entries[path] = CacheEntry(
                 status: status,
                 modificationDate: modDate,
                 fileSize: fileSize
             )
             // Add to end of access order (most recently used)
-            Self.cacheAccessOrder.removeAll { $0 == path }
-            Self.cacheAccessOrder.append(path)
+            state.accessOrder.removeAll { $0 == path }
+            state.accessOrder.append(path)
         }
         AppLogger.shared.log("💾 [PackageManager] Cached code signing status for \(path)")
 
@@ -618,7 +634,7 @@ enum KanataInstallationType {
 }
 
 /// Code signing status of a kanata binary
-enum CodeSigningStatus {
+enum CodeSigningStatus: Sendable {
     case developerIDSigned(authority: String)
     case adhocSigned
     case unsigned
