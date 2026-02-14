@@ -14,8 +14,7 @@ extension OverlayMapperSection {
             Color.clear.frame(height: 20)
 
             if !viewModel.appsWithCurrentKeyMapping.isEmpty,
-               let keyCode = viewModel.inputKeyCode
-            {
+               let keyCode = viewModel.inputKeyCode {
                 let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
                 FlowLayout(spacing: 4) {
                     ForEach(viewModel.appsWithCurrentKeyMapping) { appKeymap in
@@ -168,8 +167,7 @@ extension OverlayMapperSection {
 
     func selectRunningApp(_ app: NSRunningApplication) {
         if let bundleId = app.bundleIdentifier,
-           let name = app.localizedName
-        {
+           let name = app.localizedName {
             let icon = app.icon ?? NSWorkspace.shared.icon(forFile: app.bundleURL?.path ?? "")
             viewModel.selectedAppCondition = AppConditionInfo(
                 bundleIdentifier: bundleId,

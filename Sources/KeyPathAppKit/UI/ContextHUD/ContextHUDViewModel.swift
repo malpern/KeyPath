@@ -50,8 +50,7 @@ final class ContextHUDViewModel {
             // Skip raw HID codes (e.g., "k464") — these are unmapped system keys
             if let output = info.outputKey,
                output.lowercased().hasPrefix("k"),
-               Int(output.dropFirst()) != nil
-            {
+               Int(output.dropFirst()) != nil {
                 return nil
             }
 
@@ -59,8 +58,7 @@ final class ContextHUDViewModel {
             // (e.g., fn→fn where simulator outputs a different code)
             // Only apply to keys without a collection — collection-assigned keys are intentional
             if info.collectionId == nil,
-               let output = info.outputKey
-            {
+               let output = info.outputKey {
                 let inputName = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
                 if LayerKeyMapper.normalizeKeyName(inputName) == LayerKeyMapper.normalizeKeyName(output) {
                     return nil

@@ -65,6 +65,7 @@ struct SplashView: View {
 
     var body: some View {
         let buildInfo = BuildInfo.current()
+        // swiftformat:disable:next redundantLet
         let _ = SplashDiagnostics.logBodyOnce(posterImage: posterImage)
         let debugLayout =
             ProcessInfo.processInfo.environment["KEYPATH_SPLASH_DEBUG_LAYOUT"] == "1"

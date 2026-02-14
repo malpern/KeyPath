@@ -460,8 +460,7 @@ private struct InstalledMappingRow: View {
             let trivial1 = "\(mapping.fromKey) → \(mapping.toKey)"
             let trivial2 = "\(mapping.fromKey) to \(mapping.toKey)"
             if name.caseInsensitiveCompare(trivial1) == .orderedSame
-                || name.caseInsensitiveCompare(trivial2) == .orderedSame
-            {
+                || name.caseInsensitiveCompare(trivial2) == .orderedSame {
                 return nil
             }
             return name
@@ -556,8 +555,7 @@ private struct AvailablePresetRow: View {
         let trivial1 = "\(preset.fromKey) → \(preset.toKey)"
         let trivial2 = "\(preset.fromKey) to \(preset.toKey)"
         if preset.name.caseInsensitiveCompare(trivial1) == .orderedSame
-            || preset.name.caseInsensitiveCompare(trivial2) == .orderedSame
-        {
+            || preset.name.caseInsensitiveCompare(trivial2) == .orderedSame {
             return nil
         }
         return preset.name
@@ -581,8 +579,7 @@ private struct AvailablePresetRow: View {
         let tokens = [preset.fromKey.lowercased(), preset.toKey.lowercased()]
         let alnum = lower.replacingOccurrences(of: "[^a-z0-9 ]", with: "", options: .regularExpression)
         if tokens.allSatisfy({ alnum.contains($0) }), !lower.contains("useful"), !lower.contains("vim"),
-           !lower.contains("tip"), !lower.contains("recommend")
-        {
+           !lower.contains("tip"), !lower.contains("recommend") {
             return nil
         }
         return desc
@@ -642,68 +639,5 @@ private struct ConflictMappingDialog: View {
             .cornerRadius(8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-// MARK: - KeyCap styling for key labels
-
-struct KeyCapChip: View {
-    let text: String
-    @State private var isHovered = false
-
-    var body: some View {
-        Text(text)
-            .font(.caption)
-            .foregroundColor(isHovered ? Color(NSColor.windowBackgroundColor) : Color.primary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isHovered ? Color.primary : Color(NSColor.controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-            )
-            .onHover { hovering in
-                isHovered = hovering
-            }
-    }
-}
-
-/// Small key chip showing letter above modifier symbol (for home row mods summary)
-struct HomeRowKeyChipSmall: View {
-    let letter: String
-    let symbol: String
-    @State private var isHovered = false
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text(letter)
-                .font(.system(size: 14, weight: .medium))
-            if !symbol.isEmpty {
-                Text(symbol)
-                    .font(.system(size: 12))
-                    .foregroundColor(isHovered ? Color(NSColor.windowBackgroundColor).opacity(0.8) : Color.secondary)
-            }
-        }
-        .frame(width: 36, height: 40)
-        .foregroundColor(isHovered ? Color(NSColor.windowBackgroundColor) : Color.primary)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isHovered ? Color.primary : Color(NSColor.controlBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-        )
-        .onHover { hovering in
-            isHovered = hovering
-            if hovering {
-                NSCursor.pointingHand.push()
-            } else {
-                NSCursor.pop()
-            }
-        }
     }
 }

@@ -5,7 +5,7 @@ struct ContextHUDSymbolView: View {
     let entries: [HUDKeyEntry]
 
     private let columns = [
-        GridItem(.adaptive(minimum: 40, maximum: 56), spacing: 6),
+        GridItem(.adaptive(minimum: 40, maximum: 56), spacing: 6)
     ]
 
     var body: some View {

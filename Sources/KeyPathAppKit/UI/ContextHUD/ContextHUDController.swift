@@ -25,7 +25,7 @@ final class ContextHUDController {
     private static let modifierKeys: Set<String> = [
         "leftshift", "rightshift", "leftalt", "rightalt",
         "leftctrl", "rightctrl", "leftmeta", "rightmeta",
-        "capslock", "fn",
+        "capslock", "fn"
     ]
 
     private init() {

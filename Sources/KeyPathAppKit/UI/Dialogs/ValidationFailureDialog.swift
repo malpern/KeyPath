@@ -194,7 +194,7 @@ struct ValidationFailureDialog: View {
     ValidationFailureDialog(
         errors: [
             "Line 12: expected ')'",
-            "Line 34: unknown key 'foo_bar'",
+            "Line 34: unknown key 'foo_bar'"
         ],
         configPath: "/Users/example/.config/kanata/kanata.kbd",
         onCopyErrors: {},
@@ -208,4 +208,3 @@ struct ValidationFailureDialog: View {
     )
     .customizeSheetWindow()
 }
-

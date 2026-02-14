@@ -11,36 +11,36 @@ struct RootView: View {
 
     var body: some View {
         SplashView()
-        .sheet(isPresented: $showingWhatsNew) {
-            WhatsNewView()
-                .onDisappear {
-                    WhatsNewTracker.markAsSeen()
-                }
-        }
-        .sheet(isPresented: $showingEmergencyStopDialog) {
-            EmergencyStopDialog(isActivated: kanataVM.emergencyStopActivated)
-        }
-        .sheet(isPresented: $showingUninstallDialog) {
-            UninstallKeyPathDialog()
-                .environmentObject(kanataVM)
-        }
-        .sheet(isPresented: $showingSimpleModsDialog) {
-            SimpleModsView(configPath: kanataVM.configPath)
-                .environmentObject(kanataVM)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowEmergencyStop"))) { _ in
-            showingEmergencyStopDialog = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUninstall"))) { _ in
-            showingUninstallDialog = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowSimpleMods"))) { _ in
-            showingSimpleModsDialog = true
-        }
-        .task {
-            if WhatsNewTracker.shouldShowWhatsNew() {
-                showingWhatsNew = true
+            .sheet(isPresented: $showingWhatsNew) {
+                WhatsNewView()
+                    .onDisappear {
+                        WhatsNewTracker.markAsSeen()
+                    }
             }
-        }
+            .sheet(isPresented: $showingEmergencyStopDialog) {
+                EmergencyStopDialog(isActivated: kanataVM.emergencyStopActivated)
+            }
+            .sheet(isPresented: $showingUninstallDialog) {
+                UninstallKeyPathDialog()
+                    .environmentObject(kanataVM)
+            }
+            .sheet(isPresented: $showingSimpleModsDialog) {
+                SimpleModsView(configPath: kanataVM.configPath)
+                    .environmentObject(kanataVM)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowEmergencyStop"))) { _ in
+                showingEmergencyStopDialog = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUninstall"))) { _ in
+                showingUninstallDialog = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowSimpleMods"))) { _ in
+                showingSimpleModsDialog = true
+            }
+            .task {
+                if WhatsNewTracker.shouldShowWhatsNew() {
+                    showingWhatsNew = true
+                }
+            }
     }
 }

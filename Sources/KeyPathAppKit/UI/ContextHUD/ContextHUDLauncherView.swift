@@ -6,7 +6,7 @@ struct ContextHUDLauncherView: View {
     let entries: [HUDKeyEntry]
 
     private let columns = [
-        GridItem(.adaptive(minimum: 52, maximum: 64), spacing: 8),
+        GridItem(.adaptive(minimum: 52, maximum: 64), spacing: 8)
     ]
 
     var body: some View {
@@ -40,8 +40,7 @@ private struct LauncherIconCell: View {
     @ViewBuilder
     private var iconView: some View {
         if let appIdentifier = entry.appIdentifier,
-           let icon = IconResolverService.shared.resolveAppIcon(for: appIdentifier)
-        {
+           let icon = IconResolverService.shared.resolveAppIcon(for: appIdentifier) {
             Image(nsImage: icon)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
