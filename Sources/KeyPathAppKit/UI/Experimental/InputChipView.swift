@@ -35,7 +35,7 @@ struct InputChipView: View {
             if isHovered {
                 Button(action: onDelete) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
+                        .font(.headline)
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
@@ -77,14 +77,14 @@ struct InputChipView: View {
 
             // Key name
             Text(keyInput.displayName)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(.body.weight(.semibold))
                 .foregroundColor(.primary)
         }
     }
 
     private func modifierBadge(_ symbol: String) -> some View {
         Text(symbol)
-            .font(.system(size: 12, weight: .medium))
+            .font(.footnote.weight(.medium))
             .foregroundColor(.secondary)
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
@@ -100,16 +100,16 @@ struct InputChipView: View {
                     .frame(width: 20, height: 20)
             } else {
                 Image(systemName: "app.fill")
-                    .font(.system(size: 16))
+                    .font(.headline)
                     .foregroundColor(.accentColor)
             }
 
             Text(appInput.name)
-                .font(.system(size: 13, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundColor(.primary)
 
             Image(systemName: "arrow.up.forward.app")
-                .font(.system(size: 10))
+                .font(.caption2)
                 .foregroundColor(.secondary)
         }
     }
@@ -117,11 +117,11 @@ struct InputChipView: View {
     private func urlChipContent(_ urlInput: CapturedInput.URLInput) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "link")
-                .font(.system(size: 14))
+                .font(.body)
                 .foregroundColor(.accentColor)
 
             Text(urlInput.title)
-                .font(.system(size: 13, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundColor(.primary)
                 .lineLimit(1)
         }

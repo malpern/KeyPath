@@ -11,11 +11,11 @@ extension OverlayMapperSection {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: currentType.icon)
-                    .font(.system(size: 10))
+                    .font(.caption2)
                 Text(currentType.label)
                     .lineLimit(1)
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 8))
+                    .font(.caption2)
             }
             .font(.caption2)
             .foregroundStyle(currentType.isDefault ? .secondary : .primary)

@@ -16,7 +16,7 @@ struct DisplaysCard: View {
             HStack(spacing: 8) {
                 SnapKeyBadge(key: "[", color: .orange, isHighlighted: isHovered, size: .small)
                 Image(systemName: "arrow.left.arrow.right")
-                    .font(.system(size: 10))
+                    .font(.caption2)
                     .foregroundColor(.secondary)
                 SnapKeyBadge(key: "]", color: .orange, isHighlighted: isHovered, size: .small)
             }

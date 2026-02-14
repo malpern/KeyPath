@@ -21,7 +21,7 @@ struct LayerSwitchChip: View {
         HStack(spacing: 5) {
             // Layer icon
             Image(systemName: layerIcon)
-                .font(.system(size: 12, weight: .medium))
+                .font(.footnote.weight(.medium))
                 .foregroundColor(.accentColor)
                 .frame(width: 16, height: 16)
 

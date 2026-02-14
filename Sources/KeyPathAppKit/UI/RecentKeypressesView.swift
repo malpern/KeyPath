@@ -61,7 +61,7 @@ struct RecentKeypressesView: View {
             if service.events.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "keyboard")
-                        .font(.system(size: 40))
+                        .font(.largeTitle)
                         .foregroundColor(.secondary)
                     Text("No keypresses recorded")
                         .foregroundColor(.secondary)

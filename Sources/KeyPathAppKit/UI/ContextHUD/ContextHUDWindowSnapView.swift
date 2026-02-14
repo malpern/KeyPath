@@ -62,7 +62,7 @@ struct ContextHUDWindowSnapView: View {
                 Group {
                     if let entry {
                         Text(entry.keycap)
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .font(.caption2.monospaced().weight(.bold))
                             .foregroundStyle(.white.opacity(0.9))
                     }
                 }

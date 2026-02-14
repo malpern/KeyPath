@@ -147,7 +147,7 @@ struct SimulatorView: View {
     private var disabledView: some View {
         VStack(spacing: 12) {
             Image(systemName: "keyboard.slash")
-                .font(.system(size: 36))
+                .font(.largeTitle)
                 .foregroundColor(.secondary)
             Text("Simulator Disabled")
                 .font(.title3.weight(.semibold))

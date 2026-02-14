@@ -415,7 +415,7 @@ private struct LauncherMappingEditor: View {
                     }
                     TextField("Bundle ID (optional)", text: $bundleId)
                         .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.caption.monospaced())
                         .accessibilityIdentifier("launcher-editor-bundle-id-field")
                 case .website:
                     TextField("URL (e.g., github.com)", text: $url)

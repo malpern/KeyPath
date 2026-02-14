@@ -4,7 +4,7 @@ import SwiftUI
 // MARK: - Main View
 
 struct InputCaptureExperimentView: View {
-    @StateObject private var viewModel = InputCaptureViewModel()
+    @State private var viewModel = InputCaptureViewModel()
     @State private var isRecording = false
     @State private var showingAppPicker = false
     @State private var dropTargetHighlight = false
@@ -112,7 +112,7 @@ struct InputCaptureExperimentView: View {
                     .frame(width: 60, height: 60)
 
                 Image(systemName: isRecording ? "waveform" : "keyboard")
-                    .font(.system(size: 24))
+                    .font(.title2)
                     .foregroundColor(isRecording ? .accentColor : .secondary)
                     .symbolEffect(.pulse, isActive: isRecording)
             }

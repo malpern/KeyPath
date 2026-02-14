@@ -168,11 +168,11 @@ struct WizardToastView: View {
                         .frame(width: 16, height: 16)
                     Image(systemName: toast.icon)
                         .foregroundColor(toast.color)
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.headline.weight(.medium))
                 }
 
                 Text(toast.message)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.body.weight(.medium))
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.leading)
 
@@ -180,7 +180,7 @@ struct WizardToastView: View {
 
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.footnote.weight(.medium))
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)

@@ -125,7 +125,7 @@ private struct TooltipView: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11))
+            .font(.caption)
             .foregroundStyle(.primary)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)

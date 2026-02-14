@@ -88,7 +88,7 @@ struct ContextHUDSettingsSection: View {
                         .frame(height: 40)
 
                     Image(systemName: icon)
-                        .font(.system(size: 18))
+                        .font(.title3)
                         .foregroundStyle(isSelected ? Color.accentColor : .secondary)
                 }
 
@@ -139,7 +139,7 @@ struct ContextHUDSettingsSection: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.system(size: 16))
+                    .font(.headline)
                     .foregroundStyle(isSelected ? Color.accentColor : .secondary)
                     .frame(width: 24)
 

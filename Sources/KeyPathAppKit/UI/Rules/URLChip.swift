@@ -23,7 +23,7 @@ struct URLChip: View {
                     .frame(width: 16, height: 16)
             } else {
                 Image(systemName: "link")
-                    .font(.system(size: 12))
+                    .font(.footnote)
                     .foregroundColor(.secondary)
                     .frame(width: 16, height: 16)
             }

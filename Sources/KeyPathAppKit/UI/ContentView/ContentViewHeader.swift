@@ -39,7 +39,7 @@ struct ContentViewHeader: View {
                 // System Status indicator
                 HStack(spacing: 6) {
                     Text("System")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.caption.weight(.medium))
                         .foregroundColor(.secondary)
 
                     SystemStatusIndicator(

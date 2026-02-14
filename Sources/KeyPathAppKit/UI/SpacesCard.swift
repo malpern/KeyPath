@@ -24,7 +24,7 @@ struct SpacesCard: View {
             HStack(spacing: 8) {
                 SnapKeyBadge(key: prevKey, color: .cyan, isHighlighted: isHovered, size: .small)
                 Image(systemName: "arrow.left.arrow.right")
-                    .font(.system(size: 10))
+                    .font(.caption2)
                     .foregroundColor(.secondary)
                 SnapKeyBadge(key: nextKey, color: .cyan, isHighlighted: isHovered, size: .small)
             }

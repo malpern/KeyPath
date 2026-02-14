@@ -353,7 +353,7 @@ struct ChordGroupsModalView: View {
     private var emptyState: some View {
         VStack(spacing: 16) {
             Image(systemName: "keyboard.badge.ellipsis")
-                .font(.system(size: 48))
+                .font(.largeTitle)
                 .foregroundColor(.secondary)
             Text("No Group Selected")
                 .font(.title3)

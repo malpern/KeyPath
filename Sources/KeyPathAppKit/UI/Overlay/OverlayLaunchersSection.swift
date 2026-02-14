@@ -13,7 +13,7 @@ struct OverlayLaunchersSection: View {
     /// Callback when customize is tapped (opens slide-over panel)
     var onCustomize: (() -> Void)?
 
-    @StateObject private var store = LauncherStore()
+    @State private var store = LauncherStore()
     @State private var showAddSheet = false
     @State private var editingMapping: QuickLaunchMapping?
 
@@ -66,7 +66,7 @@ struct OverlayLaunchersSection: View {
                         onCustomize?()
                     } label: {
                         Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 14))
+                            .font(.body)
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
@@ -106,7 +106,7 @@ struct OverlayLaunchersSection: View {
     private var emptyState: some View {
         VStack(spacing: 6) {
             Image(systemName: "plus.circle.dashed")
-                .font(.system(size: 24))
+                .font(.title2)
                 .foregroundStyle(.tertiary)
             Text("Add shortcuts below")
                 .font(.caption)
@@ -232,7 +232,7 @@ private struct LauncherMappingRow: View {
                             .saturation(Double(1 - fadeAmount)) // Monochromatic when faded
                     } else {
                         Image(systemName: mapping.isApp ? "app.fill" : "globe")
-                            .font(.system(size: 12))
+                            .font(.footnote)
                             .frame(width: 16, height: 16)
                             .foregroundStyle(.secondary)
                     }
@@ -240,7 +240,7 @@ private struct LauncherMappingRow: View {
 
                 // Name - strikethrough when disabled
                 Text(mapping.displayName)
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .foregroundStyle(isEnabled ? .primary : .secondary)
                     .strikethrough(!isEnabled, color: .secondary)
                     .lineLimit(1)
@@ -270,7 +270,7 @@ private struct LauncherMappingRow: View {
                         }
                     } label: {
                         Image(systemName: "trash")
-                            .font(.system(size: 10))
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
@@ -291,7 +291,7 @@ private struct LauncherMappingRow: View {
 
                 // Key badge (far right) - dimmed when disabled
                 Text(displayKey.uppercased())
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .font(.caption2.monospaced().weight(.bold))
                     .foregroundStyle(.white)
                     .frame(width: 18, height: 18)
                     .background(
@@ -380,7 +380,7 @@ private struct AddLauncherSheet: View {
                     }
                     TextField("Bundle ID (optional)", text: $bundleId)
                         .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.caption.monospaced())
                         .accessibilityIdentifier("overlay-launcher-add-bundle-id")
                 } else {
                     TextField("URL (e.g. github.com)", text: $targetName)
@@ -537,7 +537,7 @@ private struct EditLauncherSheet: View {
                     }
                     TextField("Bundle ID (optional)", text: $bundleId)
                         .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.caption.monospaced())
                         .accessibilityIdentifier("overlay-launcher-edit-bundle-id")
                 } else {
                     TextField("URL (e.g. github.com)", text: $targetName)

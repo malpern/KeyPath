@@ -26,7 +26,7 @@ struct AppRuleCard: View {
                 }
 
                 Text(keymap.mapping.displayName)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.footnote.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
@@ -35,7 +35,7 @@ struct AppRuleCard: View {
                 // Add rule button (secondary color, light grey)
                 Button(action: onAddRule) {
                     Image(systemName: "plus")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
@@ -85,7 +85,7 @@ struct AppRuleCard: View {
                 HStack(spacing: 4) {
                     Button { onEdit(override) } label: {
                         Image(systemName: "pencil")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.footnote.weight(.medium))
                             .foregroundStyle(.secondary.opacity(isHovered ? 1 : 0.5))
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
@@ -96,7 +96,7 @@ struct AppRuleCard: View {
 
                     Button { onDelete(override) } label: {
                         Image(systemName: "trash")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.footnote.weight(.medium))
                             .foregroundStyle(.secondary.opacity(isHovered ? 1 : 0.5))
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
@@ -228,7 +228,7 @@ struct GlobalRulesCard: View {
                     HStack(spacing: 2) {
                         Button { onEdit(rule) } label: {
                             Image(systemName: "pencil")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.caption.weight(.semibold))
                                 .foregroundStyle(.white)
                                 .frame(width: 24, height: 24)
                                 .background(
@@ -242,7 +242,7 @@ struct GlobalRulesCard: View {
 
                         Button { onDelete(rule) } label: {
                             Image(systemName: "trash")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.caption.weight(.semibold))
                                 .foregroundStyle(.white)
                                 .frame(width: 24, height: 24)
                                 .background(
@@ -331,7 +331,7 @@ private struct DrawerLayerChip: View {
         HStack(spacing: 5) {
             // Layer icon
             Image(systemName: layerIcon)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundColor(.accentColor)
 
             // Layer name (e.g., "Nav Layer")

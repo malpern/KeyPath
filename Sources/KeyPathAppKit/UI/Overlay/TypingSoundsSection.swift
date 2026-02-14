@@ -14,7 +14,7 @@ struct TypingSoundsSection: View {
         VStack(alignment: .leading, spacing: 12) {
             // Section header
             Text("Typing Sounds")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
@@ -83,7 +83,7 @@ private struct SoundProfileCard: View {
                 ZStack {
                     if profile.id == SoundProfile.off.id {
                         Image(systemName: "speaker.slash.fill")
-                            .font(.system(size: 16, weight: .medium))
+                            .font(.headline.weight(.medium))
                             .foregroundStyle(.secondary)
                     } else {
                         Circle()
@@ -157,7 +157,7 @@ private struct SoundProfileDescriptionBar: View {
                 // Color dot or icon
                 if profile.id == SoundProfile.off.id {
                     Image(systemName: "speaker.slash.fill")
-                        .font(.system(size: 12))
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 } else {
                     Circle()
@@ -167,11 +167,11 @@ private struct SoundProfileDescriptionBar: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(profile.name)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.primary)
 
                     Text(profile.descriptor)
-                        .font(.system(size: 10))
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
 
@@ -182,14 +182,14 @@ private struct SoundProfileDescriptionBar: View {
             if profile.id != SoundProfile.off.id {
                 HStack(spacing: 8) {
                     Image(systemName: "speaker.fill")
-                        .font(.system(size: 10))
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
 
                     Slider(value: $volume, in: 0 ... 1)
                         .controlSize(.small)
 
                     Image(systemName: "speaker.wave.3.fill")
-                        .font(.system(size: 10))
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             }

@@ -25,7 +25,7 @@ struct StartConfirmationDialog: View {
                         .frame(width: 80, height: 80)
                         .overlay {
                             Image(systemName: "keyboard")
-                                .font(.system(size: 36, weight: .medium))
+                                .font(.largeTitle.weight(.medium))
                                 .foregroundColor(.white)
                         }
 
@@ -113,7 +113,7 @@ struct StartConfirmationDialog: View {
                         label: {
                             HStack {
                                 Image(systemName: "play.fill")
-                                    .font(.system(size: 16, weight: .medium))
+                                    .font(.headline.weight(.medium))
                                 Text("Start KeyPath")
                                     .fontWeight(.semibold)
                             }
@@ -181,7 +181,7 @@ struct KeyCapView: View {
                 .frame(width: 50, height: 44)
                 .overlay(
                     Text(text)
-                        .font(.system(size: 18, weight: .medium, design: .monospaced))
+                        .font(.title3.monospaced().weight(.medium))
                         .foregroundColor(.primary)
                 )
                 .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)

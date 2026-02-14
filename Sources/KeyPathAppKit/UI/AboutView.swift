@@ -64,27 +64,27 @@ struct AboutView: View {
             }
 
             Text("KeyPath")
-                .font(.system(size: 30, weight: .semibold))
+                .font(.title.weight(.semibold))
                 .foregroundColor(.primary)
 
             VStack(spacing: 4) {
                 Text("Version \(buildInfo.version) (Build \(buildInfo.build))")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.body.weight(.medium))
                     .foregroundColor(.secondary)
 
                 Text("Built \(formattedBuildDate(buildInfo.date))")
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .foregroundColor(.secondary)
 
                 if let kanataVersion = buildInfo.kanataVersion {
                     Text("Kanata \(kanataVersion)")
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
 
             Text("Reliable keyboard remapping with system-level diagnostics.")
-                .font(.system(size: 12))
+                .font(.footnote)
                 .foregroundColor(.secondary)
         }
         .padding(.horizontal, 32)
@@ -130,7 +130,7 @@ struct AboutView: View {
 
                 if let statusMessage {
                     Text(statusMessage)
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .foregroundColor(.secondary)
                         .padding(.top, 2)
                 }
@@ -183,7 +183,7 @@ struct AboutView: View {
 
             HStack(alignment: .center, spacing: 12) {
                 Text("Update Channel")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .frame(width: 110, alignment: .leading)
 
                 Picker("Update Channel", selection: Binding(
@@ -200,7 +200,7 @@ struct AboutView: View {
             }
 
             Text("Stable releases plus beta previews.")
-                .font(.system(size: 11))
+                .font(.caption)
                 .foregroundColor(.secondary)
 
             Button {
@@ -285,12 +285,12 @@ struct AboutView: View {
     private var footerSection: some View {
         VStack(spacing: 8) {
             Text("Made by Micah Alpern for the macOS and mechanical keyboard communities.")
-                .font(.system(size: 11))
+                .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
             Text("© \(currentYear) Micah Alpern. MIT License.")
-                .font(.system(size: 10))
+                .font(.caption2)
                 .foregroundColor(Color.secondary.opacity(0.75))
         }
         .padding(.horizontal, 32)
@@ -304,7 +304,7 @@ struct AboutView: View {
 
     private func sectionTitle(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 11, weight: .semibold))
+            .font(.caption.weight(.semibold))
             .foregroundColor(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -312,13 +312,13 @@ struct AboutView: View {
     private func statusRow(label: String, value: String, color: Color) -> some View {
         HStack {
             Text(label)
-                .font(.system(size: 12, weight: .medium))
+                .font(.footnote.weight(.medium))
                 .foregroundColor(.secondary)
 
             Spacer()
 
             Text(value)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.footnote.weight(.semibold))
                 .foregroundColor(color)
         }
     }
@@ -466,7 +466,7 @@ private struct LinkButton: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Image(systemName: "arrow.up.right")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundColor(.secondary)
             }
             .contentShape(Rectangle())
@@ -512,11 +512,11 @@ private struct AttributionRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
                         Text(name)
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundColor(.primary)
 
                         Text(license)
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.caption2.weight(.medium))
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -527,13 +527,13 @@ private struct AttributionRow: View {
                     }
 
                     Text(description)
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 Image(systemName: "arrow.up.right")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundColor(.secondary)
             }
             .contentShape(Rectangle())

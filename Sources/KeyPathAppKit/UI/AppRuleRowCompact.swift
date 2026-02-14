@@ -77,7 +77,7 @@ struct AppRuleRowCompact: View {
                             onEdit()
                         } label: {
                             Image(systemName: "pencil")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.footnote.weight(.medium))
                                 .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
                                 .frame(width: 28, height: 28)
                                 .contentShape(Rectangle())
@@ -88,7 +88,7 @@ struct AppRuleRowCompact: View {
                             onDelete()
                         } label: {
                             Image(systemName: "trash")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.footnote.weight(.medium))
                                 .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
                                 .frame(width: 28, height: 28)
                                 .contentShape(Rectangle())

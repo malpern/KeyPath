@@ -19,7 +19,7 @@ struct WizardNavigationControl: View {
                     }
                 }) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .medium)) // 25% larger (11 * 1.25 = 13.75 ≈ 14)
+                        .font(.body.weight(.medium)) // 25% larger (11 * 1.25 = 13.75 ≈ 14)
                         .foregroundColor(
                             stateMachine.canNavigateBack ? .primary : .secondary.opacity(0.4)
                         )
@@ -42,7 +42,7 @@ struct WizardNavigationControl: View {
                     }
                 }) {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .medium)) // 25% larger
+                        .font(.body.weight(.medium)) // 25% larger
                         .foregroundColor(
                             stateMachine.canNavigateForward ? .primary : .secondary.opacity(0.4)
                         )
@@ -111,7 +111,7 @@ struct CloseButton: View {
             AppLogger.shared.log("✖️ [Wizard] Close pressed — navigating to summary")
         } label: {
             Image(systemName: "xmark")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundColor(Color(NSColor.secondaryLabelColor)) // More subtle symbol color
                 .frame(width: 20, height: 20)
                 .background(

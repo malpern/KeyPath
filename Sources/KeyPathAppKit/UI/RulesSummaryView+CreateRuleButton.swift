@@ -23,7 +23,7 @@ struct CreateRuleButton: View {
                     .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: shadowY)
 
                 Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 40))
+                    .font(.largeTitle)
                     .foregroundColor(iconColor)
             }
             .scaleEffect(isMouseDown ? 0.95 : (isAnyHovered ? 1.05 : 1.0))

@@ -3,10 +3,11 @@ import SwiftUI
 
 // MARK: - View Model
 
+@Observable
 @MainActor
-class InputCaptureViewModel: ObservableObject {
-    @Published var capturedInputs: [CapturedInput] = []
-    @Published var isRecording = false
+class InputCaptureViewModel {
+    var capturedInputs: [CapturedInput] = []
+    var isRecording = false
 
     private var eventMonitor: Any?
 

@@ -24,7 +24,7 @@ struct ContextHUDDefaultListView: View {
                     // Collection header
                     if groups.count > 1 {
                         Text(group.name.uppercased())
-                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .font(.caption.monospaced().weight(.semibold))
                             .foregroundStyle(group.color.opacity(0.8))
                             .tracking(1.5)
                     }
@@ -81,7 +81,7 @@ struct HUDKeycapChip: View {
         HStack(spacing: 10) {
             // Keycap
             Text(entry.keycap)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(.headline.weight(.bold))
                 .foregroundStyle(.white)
                 .frame(minWidth: 32, minHeight: 32)
                 .padding(.horizontal, 4)
@@ -98,11 +98,11 @@ struct HUDKeycapChip: View {
             // Action label or SF Symbol
             if let sfSymbol = entry.sfSymbol {
                 Image(systemName: sfSymbol)
-                    .font(.system(size: 16))
+                    .font(.headline)
                     .foregroundStyle(.white.opacity(0.8))
             } else {
                 Text(entry.action)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.body.weight(.medium))
                     .foregroundStyle(.white.opacity(0.8))
                     .lineLimit(1)
             }

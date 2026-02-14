@@ -17,7 +17,7 @@ struct WizardErrorDisplay: View {
             // Error icon and message
             VStack(spacing: WizardDesign.Spacing.elementGap) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 32))
+                    .font(.title)
                     .foregroundColor(WizardDesign.Colors.error)
 
                 Text(error.userMessage)
@@ -39,13 +39,13 @@ struct WizardErrorDisplay: View {
                             HStack(alignment: .top, spacing: WizardDesign.Spacing.labelGap) {
                                 // Step number
                                 Text("\(index + 1).")
-                                    .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                    .font(.body.monospaced().weight(.medium))
                                     .foregroundColor(WizardDesign.Colors.info)
                                     .frame(width: 20, alignment: .leading)
 
                                 // Step description
                                 Text(action)
-                                    .font(.system(size: 14))
+                                    .font(.body)
                                     .foregroundColor(.secondary)
                                     .multilineTextAlignment(.leading)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -93,19 +93,19 @@ struct WizardErrorToast: View {
         HStack(spacing: WizardDesign.Spacing.elementGap) {
             // Error icon
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 16))
+                .font(.headline)
                 .foregroundColor(WizardDesign.Colors.error)
 
             // Error message
             VStack(alignment: .leading, spacing: 4) {
                 Text(error.userMessage)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.body.weight(.medium))
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.leading)
 
                 if let firstAction = error.recoveryActions.first {
                     Text(firstAction)
-                        .font(.system(size: 12))
+                        .font(.footnote)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.leading)
                 }
@@ -116,7 +116,7 @@ struct WizardErrorToast: View {
             // Dismiss button
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.body.weight(.medium))
                     .foregroundColor(.secondary)
             }
             .buttonStyle(.plain)
@@ -140,7 +140,7 @@ struct WizardErrorBanner: View {
         HStack(spacing: WizardDesign.Spacing.elementGap) {
             // Error icon
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 20))
+                .font(.title3)
                 .foregroundColor(WizardDesign.Colors.error)
 
             VStack(alignment: .leading, spacing: 4) {

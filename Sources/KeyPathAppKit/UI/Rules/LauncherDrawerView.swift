@@ -143,7 +143,7 @@ struct LauncherDrawerView: View {
     private var emptyState: some View {
         VStack(spacing: 8) {
             Image(systemName: "keyboard")
-                .font(.system(size: 32))
+                .font(.title)
                 .foregroundColor(.secondary.opacity(0.5))
             Text("No launchers configured")
                 .font(.subheadline)
@@ -229,7 +229,7 @@ private struct DrawerMappingRow: View {
 
             // Key badge
             Text(displayKey.uppercased())
-                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .font(.footnote.monospaced().weight(.bold))
                 .foregroundColor(.white)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
@@ -240,7 +240,7 @@ private struct DrawerMappingRow: View {
 
             // Target name
             Text(mapping.target.displayName)
-                .font(.system(size: 13))
+                .font(.subheadline)
                 .lineLimit(1)
                 .foregroundColor(mapping.isEnabled ? .primary : .secondary)
 

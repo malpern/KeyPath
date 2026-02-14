@@ -13,7 +13,7 @@ struct ScriptSecurityWarningView: View {
         VStack(spacing: 20) {
             // Warning icon
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 48))
+                .font(.largeTitle)
                 .foregroundColor(.orange)
 
             Text("Script Execution Warning")
@@ -25,7 +25,7 @@ struct ScriptSecurityWarningView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 Text(scriptPath)
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(.footnote.monospaced())
                     .lineLimit(2)
                     .truncationMode(.middle)
                     .padding(.horizontal, 12)
@@ -112,7 +112,7 @@ struct ScriptExecutionDisabledView: View {
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "lock.shield.fill")
-                .font(.system(size: 48))
+                .font(.largeTitle)
                 .foregroundColor(.secondary)
 
             Text("Script Execution Disabled")

@@ -33,7 +33,7 @@ struct AdvancedSettingsTabView: View {
                                 .frame(width: 80, height: 80)
 
                             Image(systemName: "trash.circle.fill")
-                                .font(.system(size: 40))
+                                .font(.largeTitle)
                                 .foregroundColor(.red)
                         }
 

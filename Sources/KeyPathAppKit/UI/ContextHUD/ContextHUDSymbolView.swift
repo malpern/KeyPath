@@ -26,13 +26,13 @@ private struct SymbolCell: View {
         VStack(spacing: 2) {
             // Symbol character
             Text(entry.action)
-                .font(.system(size: 16))
+                .font(.headline)
                 .foregroundStyle(.white)
                 .frame(width: 32, height: 28)
 
             // Trigger key
             Text(entry.keycap)
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .font(.caption2.monospaced().weight(.bold))
                 .foregroundStyle(.blue.opacity(0.7))
         }
         .frame(width: 40)

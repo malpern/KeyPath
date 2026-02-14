@@ -219,7 +219,7 @@ extension OverlayMapperSection {
                         .foregroundStyle(isSelected ? Color.accentColor : .primary)
                 }
                 Text(action.name)
-                    .font(.system(size: 9))
+                    .font(.caption2)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                     .foregroundStyle(isSelected ? Color.accentColor : .secondary)
@@ -243,7 +243,7 @@ extension OverlayMapperSection {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(Color.orange)
 
                 Text(healthGateTitle)

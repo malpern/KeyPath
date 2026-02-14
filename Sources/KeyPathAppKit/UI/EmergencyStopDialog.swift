@@ -13,7 +13,7 @@ struct EmergencyStopDialog: View {
                     .foregroundColor(isActivated ? .green : .orange)
 
                 Text(isActivated ? "Emergency Stop Activated" : "Emergency Stop")
-                    .font(.system(size: 32, weight: .bold))
+                    .font(.title.weight(.bold))
 
                 if isActivated {
                     Text(
@@ -117,7 +117,7 @@ struct EmergencyStopDialog: View {
                         )
 
                         Text("+")
-                            .font(.system(size: 36, weight: .bold))
+                            .font(.largeTitle.weight(.bold))
                             .foregroundColor(.secondary)
                             .padding(.vertical)
 
@@ -129,7 +129,7 @@ struct EmergencyStopDialog: View {
                         )
 
                         Text("+")
-                            .font(.system(size: 36, weight: .bold))
+                            .font(.largeTitle.weight(.bold))
                             .foregroundColor(.secondary)
                             .padding(.vertical)
 

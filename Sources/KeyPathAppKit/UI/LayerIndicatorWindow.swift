@@ -74,12 +74,12 @@ struct LayerIndicatorView: View {
     var body: some View {
         VStack(spacing: 4) {
             Text("LAYER")
-                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .font(.caption2.monospaced().weight(.medium))
                 .foregroundColor(.white.opacity(0.6))
                 .tracking(2)
 
             Text(layerName.uppercased())
-                .font(.system(size: 24, weight: .bold, design: .monospaced))
+                .font(.title2.monospaced().weight(.bold))
                 .foregroundColor(.white)
         }
         .frame(width: 200, height: 60)
@@ -96,8 +96,9 @@ struct LayerIndicatorView: View {
 }
 
 /// Manager for the layer indicator window
+@Observable
 @MainActor
-class LayerIndicatorManager: ObservableObject {
+class LayerIndicatorManager {
     static let shared = LayerIndicatorManager()
 
     private var window: LayerIndicatorWindow?

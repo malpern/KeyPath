@@ -121,7 +121,7 @@ struct MappingRowView: View {
                                     onEdit(mapping.id)
                                 } label: {
                                     Image(systemName: "pencil")
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(.footnote.weight(.medium))
                                         .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
                                         .frame(width: 28, height: 28)
                                         .contentShape(Rectangle())
@@ -134,7 +134,7 @@ struct MappingRowView: View {
                                     onDelete(mapping.id)
                                 } label: {
                                     Image(systemName: "trash")
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(.footnote.weight(.medium))
                                         .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
                                         .frame(width: 28, height: 28)
                                         .contentShape(Rectangle())

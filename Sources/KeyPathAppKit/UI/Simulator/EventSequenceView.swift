@@ -96,17 +96,17 @@ struct EventChip: View {
         HStack(spacing: 4) {
             // Index badge
             Text("\(index)")
-                .font(.system(size: 10, weight: .medium))
+                .font(.caption2.weight(.medium))
                 .foregroundColor(.secondary)
 
             // Key press/release indicator (tap) or timer icon (hold)
             Text(icon)
-                .font(.system(size: 10))
+                .font(.caption2)
                 .foregroundColor(accentColor)
 
             // Key label
             Text(tap.displayLabel)
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .font(.subheadline.monospaced().weight(.semibold))
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)

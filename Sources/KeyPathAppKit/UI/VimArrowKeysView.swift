@@ -12,7 +12,7 @@ struct VimArrowKeysView: View {
                 // Left side labels
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("← H")
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .font(.caption.monospaced().weight(.medium))
                     Text("Move left")
                         .font(.caption2)
                         .foregroundColor(.secondary)
@@ -31,7 +31,7 @@ struct VimArrowKeysView: View {
                 // Right side labels
                 VStack(alignment: .leading, spacing: 4) {
                     Text("L →")
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .font(.caption.monospaced().weight(.medium))
                     Text("Move right")
                         .font(.caption2)
                         .foregroundColor(.secondary)
@@ -77,14 +77,14 @@ struct VimArrowKey: View {
         ZStack {
             // Pulse arrow (animated)
             Text(direction.arrow)
-                .font(.system(size: 14, weight: .bold))
+                .font(.body.weight(.bold))
                 .foregroundColor(.blue)
                 .offset(pulseOffset)
                 .opacity(pulseOpacity)
 
             // Key label
             Text(key)
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .font(.subheadline.monospaced().weight(.semibold))
                 .foregroundColor(isHovered ? .blue : .primary)
                 .frame(width: 28, height: 28)
                 .background(

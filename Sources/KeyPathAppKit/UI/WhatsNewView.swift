@@ -27,7 +27,7 @@ struct WhatsNewView: View {
             // Header
             VStack(spacing: 8) {
                 Image(systemName: "sparkles")
-                    .font(.system(size: 44))
+                    .font(.largeTitle)
                     .foregroundStyle(.blue)
                     .symbolEffect(.pulse)
 

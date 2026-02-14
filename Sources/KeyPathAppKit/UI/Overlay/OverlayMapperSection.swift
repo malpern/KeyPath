@@ -388,7 +388,7 @@ struct OverlayMapperSection: View {
                                     showingResetDialog = true
                                 } label: {
                                     Image(systemName: "arrow.counterclockwise")
-                                        .font(.system(size: 14, weight: .semibold))
+                                        .font(.body.weight(.semibold))
                                         .foregroundStyle(.secondary)
                                 }
                                 .buttonStyle(.plain)
@@ -533,7 +533,7 @@ struct OverlayMapperSection: View {
                 Text(displayText)
                     .lineLimit(1)
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 8))
+                    .font(.caption2)
             }
             .font(.caption2)
             .foregroundStyle(hasCondition ? .primary : .secondary)

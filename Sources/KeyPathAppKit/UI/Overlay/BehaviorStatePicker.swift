@@ -199,7 +199,7 @@ private struct BehaviorKeycapIcon: View {
 
             // Downward press indicator
             Image(systemName: "chevron.down")
-                .font(.system(size: 8, weight: .bold))
+                .font(.caption2.weight(.bold))
                 .foregroundStyle(strokeColor)
                 .offset(y: 1)
         }

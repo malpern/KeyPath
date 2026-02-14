@@ -40,7 +40,7 @@ struct SlideOverPanel<Content: View>: View {
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.footnote.weight(.semibold))
                     Text("Back")
                         .font(.subheadline)
                 }
@@ -62,7 +62,7 @@ struct SlideOverPanel<Content: View>: View {
             // Invisible spacer to center title
             HStack(spacing: 4) {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.footnote.weight(.semibold))
                 Text("Back")
                     .font(.subheadline)
             }

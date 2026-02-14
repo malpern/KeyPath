@@ -16,7 +16,7 @@ struct VimCategoryCard: View {
             // Header with icon and title
             HStack(spacing: 8) {
                 Image(systemName: category.icon)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundColor(isHovered ? .white : category.accentColor)
                     .symbolEffect(.bounce, value: isHovered)
                     .frame(width: 26, height: 26)
@@ -26,7 +26,7 @@ struct VimCategoryCard: View {
                     )
 
                 Text(category.title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(.primary)
 
                 Spacer()

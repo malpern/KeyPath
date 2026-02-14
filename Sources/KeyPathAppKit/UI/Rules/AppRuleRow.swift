@@ -30,7 +30,7 @@ struct AppRuleRow: View {
                 onDelete()
             } label: {
                 Image(systemName: "trash")
-                    .font(.system(size: 12))
+                    .font(.footnote)
                     .foregroundStyle(.red.opacity(0.8))
             }
             .buttonStyle(.plain)

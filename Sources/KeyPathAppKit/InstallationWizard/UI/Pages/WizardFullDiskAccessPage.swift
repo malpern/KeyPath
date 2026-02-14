@@ -38,7 +38,7 @@ struct WizardFullDiskAccessPage: View {
 
                 // Larger headline
                 Text(hasFullDiskAccess ? "Enhanced Diagnostics Enabled" : "Enhanced Diagnostics")
-                    .font(.system(size: 23, weight: .semibold, design: .default))
+                    .font(.title2.weight(.semibold))
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
@@ -46,18 +46,18 @@ struct WizardFullDiskAccessPage: View {
                 // Concise value proposition
                 if hasFullDiskAccess {
                     Text("KeyPath can now verify all permissions")
-                        .font(.system(size: 15, weight: .regular))
+                        .font(.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                 } else {
                     VStack(spacing: 12) {
                         Text("Helps KeyPath verify Kanata's permissions and diagnose issues.")
-                            .font(.system(size: 15, weight: .regular))
+                            .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
 
                         Text("Without this, some permission checks will show as \"unverified.\"")
-                            .font(.system(size: 13, weight: .regular))
+                            .font(.subheadline)
                             .foregroundColor(.secondary.opacity(0.8))
                             .multilineTextAlignment(.center)
                     }
@@ -86,7 +86,7 @@ struct WizardFullDiskAccessPage: View {
                             skipFullDiskAccessPrompt()
                         }
                         .buttonStyle(.link)
-                        .font(.system(size: 14))
+                        .font(.body)
                     }
                 }
                 .padding(.top, WizardDesign.Spacing.sectionGap)
@@ -258,17 +258,17 @@ private struct BenefitRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 20))
+                .font(.title3)
                 .foregroundColor(.blue)
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(.primary)
 
                 Text(description)
-                    .font(.system(size: 12))
+                    .font(.footnote)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

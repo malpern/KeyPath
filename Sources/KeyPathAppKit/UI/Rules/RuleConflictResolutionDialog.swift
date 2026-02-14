@@ -141,7 +141,7 @@ struct RuleConflictResolutionDialog: View {
 
     private func ruleIcon(for source: RuleConflictSourceSnapshot) -> some View {
         Image(systemName: source.icon)
-            .font(.system(size: 28))
+            .font(.title)
     }
 
     // MARK: - Conflicting Keys Section
@@ -216,7 +216,7 @@ struct RuleConflictResolutionDialog: View {
             // Header with icon and name
             HStack(spacing: 10) {
                 Image(systemName: source.icon)
-                    .font(.system(size: 20))
+                    .font(.title3)
                     .foregroundColor(accentColor)
 
                 VStack(alignment: .leading, spacing: 2) {

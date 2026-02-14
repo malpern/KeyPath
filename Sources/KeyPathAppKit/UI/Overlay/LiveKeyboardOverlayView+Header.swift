@@ -349,7 +349,7 @@ struct OverlayDragHeader: View {
         }
 
         return Text(indicator)
-            .font(.system(size: 10, weight: .medium))
+            .font(.caption2.weight(.medium))
             .foregroundStyle(headerIconColor)
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
@@ -390,11 +390,11 @@ struct OverlayDragHeader: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: iconName)
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.caption2.weight(.medium))
                         Text(layerDisplayName)
-                            .font(.system(size: 9, weight: .medium))
+                            .font(.caption2.weight(.medium))
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 7, weight: .semibold))
+                            .font(.caption2.weight(.semibold))
                             .opacity(0.7)
                     }
                     .foregroundStyle(headerIconColor)
@@ -715,9 +715,9 @@ struct OverlayDragHeader: View {
     private func kanataDisconnectedPill(indicatorCornerRadius: CGFloat) -> some View {
         HStack(spacing: 4) {
             Image(systemName: "antenna.radiowaves.left.and.right.slash")
-                .font(.system(size: 9, weight: .medium))
+                .font(.caption2.weight(.medium))
             Text("No TCP")
-                .font(.system(size: 10, weight: .semibold))
+                .font(.caption2.weight(.semibold))
         }
         .foregroundStyle(Color.orange.opacity(0.9))
         .padding(.horizontal, 8)
@@ -770,7 +770,7 @@ struct SystemHealthIndicatorView: View {
                         .scaleEffect(0.5)
                         .frame(width: 12, height: 12)
                     Text("Checking...")
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.caption2.weight(.medium))
                 }
                 .foregroundStyle(headerIconColor)
                 .padding(.horizontal, 8)
@@ -784,10 +784,10 @@ struct SystemHealthIndicatorView: View {
                 // Green checkmark - briefly visible before fading
                 HStack(spacing: 4) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.caption2.weight(.medium))
                         .foregroundColor(.green)
                     Text("Ready")
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.caption2.weight(.medium))
                         .foregroundStyle(headerIconColor)
                 }
                 .padding(.horizontal, 8)
@@ -806,10 +806,10 @@ struct SystemHealthIndicatorView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundColor(.orange)
                         Text(issueCount == 1 ? "1 Issue" : "\(issueCount) Issues")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundColor(.orange)
                     }
                     .padding(.horizontal, 8)

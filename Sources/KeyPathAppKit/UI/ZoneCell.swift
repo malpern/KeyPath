@@ -29,7 +29,7 @@ struct ZoneCell: View {
                 VStack {
                     Spacer()
                     Text(zone.label)
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.caption2.weight(.medium))
                         .foregroundColor(zone.color)
                         .padding(.bottom, 4)
                 }

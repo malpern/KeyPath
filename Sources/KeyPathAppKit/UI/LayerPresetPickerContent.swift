@@ -126,7 +126,7 @@ struct MiniKeycap: View {
 
     var body: some View {
         Text(label)
-            .font(.system(size: 9, weight: .medium, design: .monospaced))
+            .font(.caption2.monospaced().weight(.medium))
             .frame(width: 16, height: 16)
             .background(
                 RoundedRectangle(cornerRadius: 3)

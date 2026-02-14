@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import Observation
 
 /// Protocol for observing keyboard events for activity logging
 public protocol KeyboardActivityObserver: AnyObject {
@@ -9,13 +10,14 @@ public protocol KeyboardActivityObserver: AnyObject {
 
 /// Main activity logging service
 /// Coordinates event capture, buffering, and storage
+@Observable
 @MainActor
-public final class ActivityLogger: ObservableObject, KeyboardActivityObserver {
-    // MARK: - Published State
+public final class ActivityLogger: KeyboardActivityObserver {
+    // MARK: - Observable State
 
-    @Published public private(set) var isEnabled: Bool = false
-    @Published public private(set) var eventCount: Int = 0
-    @Published public private(set) var lastEventTime: Date?
+    public private(set) var isEnabled: Bool = false
+    public private(set) var eventCount: Int = 0
+    public private(set) var lastEventTime: Date?
 
     // MARK: - Singleton
 

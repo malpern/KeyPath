@@ -99,7 +99,7 @@ struct BrowserHistorySuggestionsView: View {
             Spacer()
 
             Image(systemName: "shield.lefthalf.filled")
-                .font(.system(size: 48))
+                .font(.largeTitle)
                 .foregroundColor(.accentColor)
 
             VStack(spacing: 8) {
@@ -192,7 +192,7 @@ struct BrowserHistorySuggestionsView: View {
                 // FDA warning
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 32))
+                        .font(.title)
                         .foregroundColor(.orange)
 
                     Text("Full Disk Access Required")
@@ -224,7 +224,7 @@ struct BrowserHistorySuggestionsView: View {
             if installedBrowsers.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "safari")
-                        .font(.system(size: 32))
+                        .font(.title)
                         .foregroundColor(.secondary)
                     Text("No supported browsers found")
                         .foregroundColor(.secondary)
@@ -301,7 +301,7 @@ struct BrowserHistorySuggestionsView: View {
             if let error = errorMessage {
                 VStack(spacing: 16) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 32))
+                        .font(.title)
                         .foregroundColor(.orange)
                     Text("Scan Failed")
                         .font(.headline)
@@ -347,7 +347,7 @@ struct BrowserHistorySuggestionsView: View {
             } else if scannedSites.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 32))
+                        .font(.title)
                         .foregroundColor(.secondary)
                     Text("No sites found")
                         .font(.headline)
@@ -577,7 +577,7 @@ private struct SiteRow: View {
 
                 // Domain
                 Text(site.domain)
-                    .font(.system(size: 13))
+                    .font(.subheadline)
 
                 Spacer()
 

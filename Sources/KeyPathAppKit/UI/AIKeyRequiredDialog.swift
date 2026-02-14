@@ -60,7 +60,7 @@ struct AIKeyRequiredDialog: View {
     private var headerSection: some View {
         VStack(spacing: 12) {
             Image(systemName: "sparkles")
-                .font(.system(size: 44))
+                .font(.largeTitle)
                 .foregroundStyle(
                     LinearGradient(
                         colors: [.purple, .blue],

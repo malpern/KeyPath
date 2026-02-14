@@ -60,14 +60,14 @@ struct WizardHeroSection: View {
 
             // Title
             Text(title)
-                .font(.system(size: 23, weight: .semibold, design: .default))
+                .font(.title2.weight(.semibold))
                 .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
 
             // Subtitle
             Text(subtitle)
-                .font(.system(size: 17, weight: .regular))
+                .font(.headline.weight(.regular))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
@@ -235,12 +235,12 @@ struct InlineStatusView: View {
                     switch status {
                     case .success:
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 16))
+                            .font(.headline)
                             .foregroundColor(WizardDesign.Colors.success)
 
                     case .error:
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 16))
+                            .font(.headline)
                             .foregroundColor(WizardDesign.Colors.error)
 
                     case .inProgress, .idle:
@@ -250,7 +250,7 @@ struct InlineStatusView: View {
 
                 // Status message
                 Text(message)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.body.weight(.medium))
                     .foregroundColor(status.color)
                     .multilineTextAlignment(.center)
             }

@@ -20,7 +20,7 @@ struct AppRulesSectionHeaderCompact: View {
                     .frame(width: 14, height: 14)
             } else {
                 Image(systemName: "app.fill")
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(width: 14, height: 14)
             }

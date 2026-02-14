@@ -346,7 +346,7 @@ private struct InlineChordRowView: View {
             HStack(spacing: 2) {
                 ForEach(chord.keys, id: \.self) { key in
                     Text(key.uppercased())
-                        .font(.system(size: 9, design: .monospaced))
+                        .font(.caption2.monospaced())
                         .fontWeight(.semibold)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 2)
@@ -356,11 +356,11 @@ private struct InlineChordRowView: View {
             }
 
             Image(systemName: "arrow.right")
-                .font(.system(size: 8))
+                .font(.caption2)
                 .foregroundColor(.secondary)
 
             Text(chord.output)
-                .font(.system(size: 11, design: .monospaced))
+                .font(.caption.monospaced())
 
             if let description = chord.description, !description.isEmpty {
                 Text("·")
@@ -376,7 +376,7 @@ private struct InlineChordRowView: View {
 
             // Ergonomic indicator (small)
             Image(systemName: chord.ergonomicScore.icon)
-                .font(.system(size: 10))
+                .font(.caption2)
                 .foregroundColor(ergonomicColor(chord.ergonomicScore))
         }
         .padding(.vertical, 4)

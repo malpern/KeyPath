@@ -79,7 +79,7 @@ struct MapperInspectorPanel: View {
                         viewModel.clearAppCondition()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 14))
+                            .font(.body)
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
@@ -136,7 +136,7 @@ struct MapperInspectorPanel: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "app.dashed")
-                            .font(.system(size: 16))
+                            .font(.headline)
                             .foregroundStyle(.secondary)
                             .frame(width: 24, height: 24)
 
@@ -147,7 +147,7 @@ struct MapperInspectorPanel: View {
                         Spacer()
 
                         Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(.tertiary)
                     }
                     .padding(.vertical, 8)
@@ -236,7 +236,7 @@ struct MapperInspectorPanel: View {
             // Label on its own line
             HStack(spacing: 8) {
                 Image(systemName: "hand.tap")
-                    .font(.system(size: 14))
+                    .font(.body)
                     .foregroundStyle(viewModel.showAdvanced ? Color.accentColor : .secondary)
                 Text("Hold, Double Tap, etc.")
                     .font(.subheadline)
@@ -290,7 +290,7 @@ struct InspectorButton: View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 16))
+                    .font(.headline)
                     .foregroundStyle(isSelected ? Color.accentColor : .secondary)
                     .frame(width: 24)
 
@@ -346,7 +346,7 @@ struct SystemActionButton: View {
         Button(action: onTap) {
             VStack(spacing: 6) {
                 Image(systemName: action.sfSymbol)
-                    .font(.system(size: 18))
+                    .font(.title3)
                     .foregroundStyle(isSelected ? Color.accentColor : .primary)
 
                 Text(action.name)

@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 /// Tracks learning state for a contextual tip with spaced repetition logic.
 /// - Initial learning requires 6 successful uses
@@ -49,8 +50,9 @@ struct TipLearningState: Codable, Equatable {
 /// Manages contextual feature tips with learning-based visibility.
 /// Tips are shown until the user demonstrates they've learned the feature,
 /// with automatic reset if the feature goes unused for too long.
+@Observable
 @MainActor
-final class FeatureTipManager: ObservableObject {
+final class FeatureTipManager {
     static let shared = FeatureTipManager()
 
     /// Identifiers for trackable tips
@@ -104,9 +106,7 @@ final class FeatureTipManager: ObservableObject {
         state.recordUse()
         saveState(state, for: tip)
 
-        if state.isLearned {
-            objectWillChange.send()
-        }
+        // No manual change notification needed -- @Observable tracks stateCache mutations automatically
     }
 
     /// Get the current learning state for a tip (for UI display)
@@ -125,7 +125,6 @@ final class FeatureTipManager: ObservableObject {
     func reset(_ tip: TipID) {
         stateCache.removeValue(forKey: tip)
         defaults.removeObject(forKey: tip.rawValue)
-        objectWillChange.send()
     }
 
     /// Reset all tips (for testing/debugging)
@@ -134,7 +133,6 @@ final class FeatureTipManager: ObservableObject {
         for tip in TipID.allCases {
             defaults.removeObject(forKey: tip.rawValue)
         }
-        objectWillChange.send()
     }
 
     // MARK: - Persistence

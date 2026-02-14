@@ -37,7 +37,7 @@ struct ConflictResolutionDialog: View {
                     // Hold path
                     VStack(spacing: 8) {
                         Image(systemName: "hand.raised.fill")
-                            .font(.system(size: 32))
+                            .font(.title)
                             .foregroundColor(.orange)
                         Text("Hold")
                             .font(.caption.weight(.medium))
@@ -51,7 +51,7 @@ struct ConflictResolutionDialog: View {
                     // Tap Dance path
                     VStack(spacing: 8) {
                         Image(systemName: "hand.tap.fill")
-                            .font(.system(size: 32))
+                            .font(.title)
                             .foregroundColor(.purple)
                         Text("Tap Dance")
                             .font(.caption.weight(.medium))

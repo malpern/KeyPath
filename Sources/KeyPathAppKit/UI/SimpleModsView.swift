@@ -360,7 +360,7 @@ private struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 48))
+                .font(.largeTitle)
                 .foregroundColor(.secondary)
             Text(title)
                 .font(.headline)

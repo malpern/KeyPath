@@ -149,11 +149,11 @@ struct SequencesModalView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(sequence.name)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                         .foregroundColor(.primary)
 
                     Text(sequence.prettyKeys)
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .foregroundColor(.secondary)
                 }
 
@@ -165,7 +165,7 @@ struct SequencesModalView: View {
                 }) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.orange)
-                        .font(.system(size: 12))
+                        .font(.footnote)
                 }
             }
             .padding(.horizontal, 12)
@@ -279,7 +279,7 @@ struct SequencesModalView: View {
                     if index < sequence.keys.wrappedValue.count - 1 {
                         Image(systemName: "arrow.right")
                             .foregroundColor(.secondary)
-                            .font(.system(size: 12))
+                            .font(.footnote)
                     }
 
                     // Remove button
@@ -292,7 +292,7 @@ struct SequencesModalView: View {
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundColor(.red.opacity(0.7))
-                                .font(.system(size: 14))
+                                .font(.body)
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("sequences-modal-remove-key-\(index)")
@@ -332,7 +332,7 @@ struct SequencesModalView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("⚡ Activate Layer")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.subheadline.weight(.medium))
 
                 if case let .activateLayer(layer) = sequence.action.wrappedValue {
                     LayerPicker(selection: Binding(
@@ -421,7 +421,7 @@ struct SequencesModalView: View {
                                 .foregroundColor(.orange)
 
                             Text(conflict.description)
-                                .font(.system(size: 13))
+                                .font(.subheadline)
                                 .foregroundColor(.primary)
                         }
                         .padding()

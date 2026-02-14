@@ -222,7 +222,7 @@ private struct AIUsageHistoryView: View {
                 // Empty state
                 VStack(spacing: 12) {
                     Image(systemName: "sparkles")
-                        .font(.system(size: 40))
+                        .font(.largeTitle)
                         .foregroundColor(.secondary)
                     Text("No AI generations yet")
                         .font(.subheadline)

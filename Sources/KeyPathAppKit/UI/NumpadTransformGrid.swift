@@ -41,7 +41,7 @@ struct NumpadTransformGrid: View {
                             VStack(spacing: 2) {
                                 TransformKeycap(label: key.uppercased(), isHighlighted: true, isInput: true)
                                 Image(systemName: "arrow.down")
-                                    .font(.system(size: 8))
+                                    .font(.caption2)
                                     .foregroundColor(.secondary)
                                 TransformKeycap(label: outputFor(key) ?? key, isHighlighted: true, isInput: false)
                             }

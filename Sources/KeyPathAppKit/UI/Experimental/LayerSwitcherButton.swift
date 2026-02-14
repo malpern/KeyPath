@@ -49,7 +49,7 @@ struct LayerSwitcherButton: View {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "square.3.layers.3d")
-                    .font(.system(size: 10))
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
 
                 Text(displayName)
@@ -57,7 +57,7 @@ struct LayerSwitcherButton: View {
                     .foregroundStyle(.secondary)
 
                 Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 8, weight: .semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 8)

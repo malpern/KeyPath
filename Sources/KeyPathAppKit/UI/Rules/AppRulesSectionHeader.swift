@@ -18,7 +18,7 @@ struct AppRulesSectionHeader: View {
                         .frame(width: 20, height: 20)
                 } else {
                     Image(systemName: "app.fill")
-                        .font(.system(size: 16))
+                        .font(.headline)
                         .foregroundStyle(.secondary)
                         .frame(width: 20, height: 20)
                 }

@@ -20,7 +20,7 @@ struct WizardActivityIndicator: View {
         VStack(spacing: 9) {
             if let message, !message.isEmpty {
                 Text(message)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
@@ -102,14 +102,14 @@ struct WizardProgressIndicator: View {
             // Title and percentage
             HStack {
                 Text(title)
-                    .font(.system(size: 13))
+                    .font(.subheadline)
                     .foregroundColor(.secondary)
 
                 Spacer()
 
                 if !isIndeterminate {
                     Text(String(localized: "\(Int(progress * 100))%"))
-                        .font(.system(size: 13, design: .monospaced))
+                        .font(.subheadline.monospaced())
                         .foregroundColor(.secondary)
                 }
             }

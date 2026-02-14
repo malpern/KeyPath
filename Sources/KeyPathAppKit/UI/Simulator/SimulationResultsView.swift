@@ -23,7 +23,7 @@ struct SimulationResultsView: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "keyboard")
-                .font(.system(size: 40))
+                .font(.largeTitle)
                 .foregroundColor(.secondary.opacity(0.5))
 
             Text("Click keys above, then Run to simulate")
@@ -224,7 +224,7 @@ struct SimulationResultsView: View {
         }
 
         return Text(label)
-            .font(.system(size: 9, weight: .bold, design: .monospaced))
+            .font(.caption2.monospaced().weight(.bold))
             .foregroundColor(.white)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)

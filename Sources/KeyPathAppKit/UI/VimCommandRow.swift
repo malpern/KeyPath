@@ -13,7 +13,7 @@ struct VimCommandRow: View {
             // Description
             if let desc = command.description {
                 Text(desc)
-                    .font(.system(size: 12))
+                    .font(.footnote)
                     .foregroundColor(.primary)
             }
 
@@ -23,7 +23,7 @@ struct VimCommandRow: View {
             if command.shiftedOutput != nil {
                 HStack(spacing: 2) {
                     Text("+⇧")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.caption2.weight(.medium))
                         .foregroundColor(.orange)
                 }
             }
@@ -32,7 +32,7 @@ struct VimCommandRow: View {
             if command.ctrlOutput != nil {
                 HStack(spacing: 2) {
                     Text("+⌃")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.caption2.weight(.medium))
                         .foregroundColor(.cyan)
                 }
             }

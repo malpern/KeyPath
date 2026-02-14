@@ -16,11 +16,11 @@ struct HalfZoneButton: View {
             if zone == .left {
                 SnapKeyBadge(key: zone.key(for: convention), color: zone.color, isHighlighted: isHovered)
                 Text(zone.label)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.caption.weight(.medium))
                     .foregroundColor(isHovered ? zone.color : .secondary)
             } else {
                 Text(zone.label)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.caption.weight(.medium))
                     .foregroundColor(isHovered ? zone.color : .secondary)
                 SnapKeyBadge(key: zone.key(for: convention), color: zone.color, isHighlighted: isHovered)
             }

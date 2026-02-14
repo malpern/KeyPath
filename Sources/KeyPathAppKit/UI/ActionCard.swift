@@ -14,7 +14,7 @@ struct ActionCard<Content: View>: View {
             // Header
             HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.footnote.weight(.semibold))
                     .foregroundColor(isHovered ? .white : accentColor)
                     .frame(width: 22, height: 22)
                     .background(
@@ -23,7 +23,7 @@ struct ActionCard<Content: View>: View {
                     )
 
                 Text(title)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundColor(.primary)
             }
 

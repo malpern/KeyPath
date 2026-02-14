@@ -35,7 +35,7 @@ extension OverlayInspectorPanel {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text("International")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.footnote.weight(.semibold))
                         .foregroundStyle(.primary.opacity(0.7))
                         .textCase(.uppercase)
                         .tracking(0.8)
@@ -69,9 +69,9 @@ extension OverlayInspectorPanel {
             } label: {
                 HStack(spacing: 4) {
                     Text("International physical layouts")
-                        .font(.system(size: 11))
+                        .font(.caption)
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.caption2.weight(.semibold))
                 }
                 .foregroundStyle(.secondary)
             }

@@ -13,7 +13,7 @@ struct StatusMessageView: View {
                     .frame(width: 28, height: 28)
 
                 Image(systemName: iconName)
-                    .font(.system(size: 28))
+                    .font(.title)
                     .foregroundColor(iconColor)
             }
 

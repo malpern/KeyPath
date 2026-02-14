@@ -129,7 +129,7 @@ struct WizardAccessibilityPage: View {
                         // Guard: recommend running from /Applications for stable permissions
                         if !isRunningFromApplicationsFolder {
                             Text("For the smoothest setup, move KeyPath to /Applications and relaunch.")
-                                .font(.system(size: 13))
+                                .font(.subheadline)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
                                 .padding(.top, WizardDesign.Spacing.elementGap)

@@ -21,7 +21,7 @@ struct SystemActionChip: View {
         HStack(spacing: 6) {
             // System action SF Symbol
             Image(systemName: actionInfo.icon)
-                .font(.system(size: 12))
+                .font(.footnote)
                 .foregroundColor(.accentColor)
                 .frame(width: 16, height: 16)
 

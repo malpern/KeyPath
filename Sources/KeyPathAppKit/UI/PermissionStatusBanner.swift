@@ -11,15 +11,15 @@ struct PermissionStatusBanner: View {
             HStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundColor(.orange)
-                    .font(.system(size: 14))
+                    .font(.body)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Accessibility Permission Required")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.footnote.weight(.semibold))
                         .foregroundColor(.primary)
 
                     Text("Enable in System Settings > Privacy & Security > Accessibility, then restart KeyPath.")
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .foregroundColor(.secondary)
                 }
 

@@ -24,7 +24,7 @@ struct RulesSummaryURLChip: View {
                     .frame(width: 16, height: 16)
             } else {
                 Image(systemName: "link")
-                    .font(.system(size: 12))
+                    .font(.footnote)
                     .foregroundColor(KeycapStyle.textColor.opacity(0.6))
                     .frame(width: 16, height: 16)
             }

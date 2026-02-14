@@ -128,7 +128,7 @@ struct CustomRulesListView: View {
             VStack(spacing: 20) {
                 VStack(spacing: 12) {
                     Image(systemName: "square.and.pencil")
-                        .font(.system(size: 48, weight: .ultraLight))
+                        .font(.largeTitle.weight(.ultraLight))
                         .foregroundColor(.secondary.opacity(0.3))
 
                     VStack(spacing: 4) {

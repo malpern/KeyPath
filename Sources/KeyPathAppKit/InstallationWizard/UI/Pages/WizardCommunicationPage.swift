@@ -60,7 +60,7 @@ struct WizardCommunicationPage: View {
                     .frame(width: 140, height: 130)
 
                     Text("TCP Communication")
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.title3.weight(.semibold))
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.center)
 

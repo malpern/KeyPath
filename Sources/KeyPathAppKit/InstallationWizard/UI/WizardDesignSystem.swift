@@ -529,14 +529,14 @@ enum WizardDesign {
 
                         // Standardized title (23pt)
                         Text(title)
-                            .font(.system(size: 23, weight: .semibold, design: .default))
+                            .font(.title2.weight(.semibold))
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
 
                         // Standardized subtitle (17pt)
                         Text(subtitle)
-                            .font(.system(size: 17, weight: .regular))
+                            .font(.headline.weight(.regular))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
 
@@ -825,7 +825,7 @@ struct MiniCheckmarkBurst: View {
 
             // Checkmark
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 20))
+                .font(.title3)
                 .foregroundColor(.green)
                 .scaleEffect(scale)
                 .opacity(opacity)
@@ -1053,7 +1053,7 @@ struct AnimatedStatusIcon: View {
                             .frame(width: 16, height: 16)
                         Image(systemName: finalStateIcon)
                             .foregroundColor(finalStateColor)
-                            .font(.system(size: 16))
+                            .font(.headline)
                     }
                     .modifier(AvailabilitySymbolBounce())
                     .transition(
@@ -1066,7 +1066,7 @@ struct AnimatedStatusIcon: View {
                     // Initial clock state
                     Image(systemName: "clock.fill")
                         .foregroundColor(WizardDesign.Colors.inProgress)
-                        .font(.system(size: 16))
+                        .font(.headline)
                         .onAppear {
                             // Animate to final state immediately (no delay)
                             withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
@@ -1081,13 +1081,13 @@ struct AnimatedStatusIcon: View {
                     // Empty circle
                     Image(systemName: "circle")
                         .foregroundColor(WizardDesign.Colors.secondaryText)
-                        .font(.system(size: 16))
+                        .font(.headline)
 
                 case .inProgress:
                     // Animated clock
                     Image(systemName: "clock.fill")
                         .foregroundColor(WizardDesign.Colors.inProgress)
-                        .font(.system(size: 16))
+                        .font(.headline)
 
                 case .warning:
                     // Orange warning triangle with adaptive circle background
@@ -1097,7 +1097,7 @@ struct AnimatedStatusIcon: View {
                             .frame(width: 16, height: 16)
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(WizardDesign.Colors.warning)
-                            .font(.system(size: 16))
+                            .font(.headline)
                     }
                     .modifier(AvailabilitySymbolBounce())
 
@@ -1109,7 +1109,7 @@ struct AnimatedStatusIcon: View {
                             .frame(width: 16, height: 16)
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(WizardDesign.Colors.success)
-                            .font(.system(size: 16))
+                            .font(.headline)
                     }
                     .modifier(AvailabilitySymbolBounce())
 
@@ -1121,7 +1121,7 @@ struct AnimatedStatusIcon: View {
                             .frame(width: 16, height: 16)
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(WizardDesign.Colors.error)
-                            .font(.system(size: 16))
+                            .font(.headline)
                     }
                     .modifier(AvailabilitySymbolBounce())
 
@@ -1133,7 +1133,7 @@ struct AnimatedStatusIcon: View {
                             .frame(width: 16, height: 16)
                         Image(systemName: "questionmark.circle")
                             .foregroundColor(WizardDesign.Colors.secondaryText)
-                            .font(.system(size: 16))
+                            .font(.headline)
                     }
                 }
             }

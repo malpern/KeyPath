@@ -21,7 +21,7 @@ struct AppLaunchChip: View {
                     .frame(width: 16, height: 16)
             } else {
                 Image(systemName: "app.fill")
-                    .font(.system(size: 12))
+                    .font(.footnote)
                     .foregroundColor(.secondary)
                     .frame(width: 16, height: 16)
             }

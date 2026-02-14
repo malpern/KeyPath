@@ -21,12 +21,12 @@ struct ColorwayCard: View {
                 // Name and designer
                 VStack(spacing: 1) {
                     Text(colorway.name)
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.caption2.weight(.bold))
                         .foregroundStyle(isSelected ? .primary : .secondary)
                         .lineLimit(1)
 
                     Text(colorway.designer)
-                        .font(.system(size: 8))
+                        .font(.caption2)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }

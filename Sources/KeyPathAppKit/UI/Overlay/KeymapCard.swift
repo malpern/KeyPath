@@ -31,7 +31,7 @@ struct KeymapCard: View {
                 // Label with info button
                 HStack(spacing: 4) {
                     Text(keymap.name)
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.caption2.weight(.bold))
                         .foregroundStyle(isSelected ? .primary : .secondary)
                         .lineLimit(1)
 
@@ -39,7 +39,7 @@ struct KeymapCard: View {
                         NSWorkspace.shared.open(keymap.learnMoreURL)
                     } label: {
                         Image(systemName: "info.circle")
-                            .font(.system(size: 10))
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
@@ -83,7 +83,7 @@ struct KeymapCard: View {
             .fill(Color.gray.opacity(0.2))
             .overlay(
                 Image(systemName: "keyboard")
-                    .font(.system(size: 16))
+                    .font(.headline)
                     .foregroundStyle(.secondary)
             )
     }

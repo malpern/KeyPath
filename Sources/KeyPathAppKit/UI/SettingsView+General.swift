@@ -90,7 +90,7 @@ struct GeneralSettingsTabView: View {
                             // KeyPath Log
                             VStack(spacing: 8) {
                                 Image(systemName: "doc.text.fill")
-                                    .font(.system(size: 40))
+                                    .font(.largeTitle)
                                     .foregroundColor(.blue)
 
                                 Text("KeyPath log")
@@ -109,7 +109,7 @@ struct GeneralSettingsTabView: View {
                             // Kanata Log
                             VStack(spacing: 8) {
                                 Image(systemName: "doc.text.fill")
-                                    .font(.system(size: 40))
+                                    .font(.largeTitle)
                                     .foregroundColor(.green)
 
                                 Text("Kanata log")

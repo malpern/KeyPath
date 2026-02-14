@@ -31,7 +31,7 @@ private struct LauncherIconCell: View {
 
             // Keycap label
             Text(entry.keycap)
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .font(.caption2.monospaced().weight(.bold))
                 .foregroundStyle(.white.opacity(0.7))
         }
         .frame(width: 52)
@@ -47,12 +47,12 @@ private struct LauncherIconCell: View {
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         } else if let sfSymbol = entry.sfSymbol {
             Image(systemName: sfSymbol)
-                .font(.system(size: 20))
+                .font(.title3)
                 .foregroundStyle(.cyan)
         } else {
             // Fallback: show action text
             Text(String(entry.action.prefix(3)))
-                .font(.system(size: 14, weight: .bold))
+                .font(.body.weight(.bold))
                 .foregroundStyle(.cyan.opacity(0.8))
                 .frame(width: 32, height: 32)
                 .background(

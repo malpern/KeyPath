@@ -7,7 +7,7 @@ struct VimArrowKeysCompact: View {
                 VimKeyBadge(key: key, color: .blue)
             }
             Text("= Arrow keys")
-                .font(.system(size: 10))
+                .font(.caption2)
                 .foregroundColor(.secondary)
         }
     }

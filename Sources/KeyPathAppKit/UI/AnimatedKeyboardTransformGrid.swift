@@ -227,7 +227,7 @@ struct KeycapSlot: View {
             // Show key label only if no mapping (symbols rendered in overlay)
             if !hasMapping {
                 Text(key.uppercased())
-                    .font(.system(size: 11, weight: .regular, design: .monospaced))
+                    .font(.caption.monospaced())
                     .foregroundColor(.secondary)
             }
         }
@@ -271,7 +271,7 @@ struct FloatingSymbol: View {
 
     var body: some View {
         Text(symbol)
-            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+            .font(.caption.monospaced().weight(.semibold))
             .foregroundColor(.accentColor)
             .frame(width: 22, height: 22)
             .scaleEffect(scale)

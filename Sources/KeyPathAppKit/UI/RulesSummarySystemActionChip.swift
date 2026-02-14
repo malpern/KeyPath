@@ -24,7 +24,7 @@ struct RulesSummarySystemActionChip: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: iconName)
-                .font(.system(size: 12, weight: .medium))
+                .font(.footnote.weight(.medium))
                 .foregroundColor(KeycapStyle.textColor)
                 .frame(width: 16, height: 16)
 

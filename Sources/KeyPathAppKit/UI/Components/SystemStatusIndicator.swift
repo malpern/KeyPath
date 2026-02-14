@@ -53,7 +53,7 @@ struct SystemStatusIndicator: View {
                 }
                 // Status icon
                 iconView()
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.footnote.weight(.medium))
                     .foregroundColor(iconColor)
             }
         }

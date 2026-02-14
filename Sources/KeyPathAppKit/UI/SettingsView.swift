@@ -61,7 +61,7 @@ struct StatusSettingsTabView: View {
 
                             Button(action: { wizardInitialPage = .summary }) {
                                 Image(systemName: systemHealthIcon)
-                                    .font(.system(size: 40))
+                                    .font(.largeTitle)
                                     .foregroundColor(systemHealthTint)
                             }
                             .buttonStyle(.plain)

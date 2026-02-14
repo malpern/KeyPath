@@ -13,13 +13,13 @@ struct ContextHUDView: View {
                     .frame(width: 6, height: 6)
 
                 Text(viewModel.layerName.uppercased())
-                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .font(.subheadline.monospaced().weight(.bold))
                     .foregroundStyle(.white)
                     .tracking(1.5)
 
                 ForEach(viewModel.holdBadges, id: \.self) { badge in
                     Text(badge)
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .font(.caption.monospaced().weight(.bold))
                         .foregroundStyle(.white.opacity(0.9))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)

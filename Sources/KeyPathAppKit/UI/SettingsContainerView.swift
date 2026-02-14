@@ -162,7 +162,7 @@ private struct SettingsTabButton: View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: tab.icon)
-                    .font(.system(size: 28, weight: .regular))
+                    .font(.title)
                     .foregroundColor(disabled ? Color.secondary.opacity(0.35)
                         : (isSelected ? Color.accentColor : Color.secondary))
                     .frame(width: 54, height: 54)
@@ -213,7 +213,7 @@ private struct RulesDisabledView: View {
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "power")
-                .font(.system(size: 40, weight: .semibold))
+                .font(.largeTitle.weight(.semibold))
                 .foregroundColor(.secondary)
             Text("Turn on Kanata to manage rules.")
                 .font(.title3.weight(.semibold))

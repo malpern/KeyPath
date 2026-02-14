@@ -1,11 +1,12 @@
 import SwiftUI
 
 /// Observable state for tracking which keys in the hide shortcut are pressed
+@Observable
 @MainActor
-final class HideShortcutKeyState: ObservableObject {
-    @Published var commandPressed = false
-    @Published var optionPressed = false
-    @Published var kPressed = false
+final class HideShortcutKeyState {
+    var commandPressed = false
+    var optionPressed = false
+    var kPressed = false
 
     /// Reset all states
     func reset() {
@@ -22,7 +23,7 @@ struct HideHintBubble: View {
     /// Whether the bubble should be visible
     @Binding var isVisible: Bool
     /// Key press state for visual feedback
-    @ObservedObject var keyState: HideShortcutKeyState
+    var keyState: HideShortcutKeyState
     /// Auto-dismiss timer task
     @State private var dismissTask: Task<Void, Never>?
 
@@ -38,15 +39,15 @@ struct HideHintBubble: View {
                 // Hide label with icon
                 HStack(spacing: 4) {
                     Image(systemName: "eye.slash")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.caption.weight(.medium))
                     Text("Hide")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.caption.weight(.medium))
                 }
                 .foregroundStyle(.secondary)
 
                 // Separator
                 Text("—")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary.opacity(0.4))
 
                 // Key chips for ⌘⌥K - respond to actual key presses
@@ -121,7 +122,7 @@ private struct ModifierKeyChip: View {
 
     var body: some View {
         Text(symbol)
-            .font(.system(size: 10, weight: .semibold, design: .rounded))
+            .font(.caption2.weight(.semibold))
             .foregroundStyle(textColor)
             .frame(minWidth: 18)
             .padding(.horizontal, 5)
@@ -172,7 +173,7 @@ private struct DownCaretShape: Shape {
                     .frame(width: 24, height: 24)
                     .overlay(
                         Image(systemName: "eye.slash")
-                            .font(.system(size: 10))
+                            .font(.caption2)
                             .foregroundColor(.white)
                     )
             }

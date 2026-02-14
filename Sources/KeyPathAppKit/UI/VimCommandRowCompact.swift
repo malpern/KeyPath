@@ -13,7 +13,7 @@ struct VimCommandRowCompact: View {
             // Description
             if let desc = command.description {
                 Text(desc)
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             }
@@ -23,12 +23,12 @@ struct VimCommandRowCompact: View {
             // Modifier indicators
             if command.shiftedOutput != nil {
                 Text("⇧")
-                    .font(.system(size: 9))
+                    .font(.caption2)
                     .foregroundColor(.orange)
             }
             if command.ctrlOutput != nil {
                 Text("⌃")
-                    .font(.system(size: 9))
+                    .font(.caption2)
                     .foregroundColor(.cyan)
             }
         }

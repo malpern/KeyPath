@@ -151,7 +151,7 @@ struct WizardHelperPage: View {
             .wizardInlineProgressVisible(true)
 
             Text("Verifying privileged helper is responding...")
-                .font(.system(size: 14, weight: .regular))
+                .font(.body)
                 .foregroundColor(.secondary)
         }
         .heroSectionContainer()
@@ -174,7 +174,7 @@ struct WizardHelperPage: View {
                     HStack {
                         Spacer()
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 40, weight: .medium))
+                            .font(.largeTitle.weight(.medium))
                             .foregroundColor(WizardDesign.Colors.success)
                             .background(WizardDesign.Colors.wizardBackground)
                             .clipShape(Circle())
@@ -187,13 +187,13 @@ struct WizardHelperPage: View {
 
             // Contextual Headline
             Text("Privileged Helper Ready")
-                .font(.system(size: 23, weight: .semibold, design: .default))
+                .font(.title2.weight(.semibold))
                 .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
 
             // Description
             Text(helperVersion != nil ? "Version \(helperVersion!) — system operations available" : "System operations available without password prompts.")
-                .font(.system(size: 15, weight: .regular))
+                .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
@@ -264,7 +264,7 @@ struct WizardHelperPage: View {
                     HStack {
                         Spacer()
                         Image(systemName: isInstalled ? "exclamationmark.triangle.fill" : "xmark.circle.fill")
-                            .font(.system(size: 32, weight: .medium)) // Reduced from 40 to 32
+                            .font(.title.weight(.medium)) // Reduced from 40 to 32
                             .foregroundColor(
                                 isInstalled ? WizardDesign.Colors.warning : WizardDesign.Colors.error
                             )
@@ -279,13 +279,13 @@ struct WizardHelperPage: View {
 
             // Contextual Headline
             Text(contextualHeadline)
-                .font(.system(size: 20, weight: .semibold, design: .default)) // Reduced from 23 to 20
+                .font(.title3.weight(.semibold)) // Reduced from 23 to 20
                 .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
 
             // Description
             Text(contextualDescription)
-                .font(.system(size: 14, weight: .regular)) // Reduced from 15 to 14
+                .font(.body) // Reduced from 15 to 14
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32) // Reduced from 40 to 32
@@ -299,11 +299,11 @@ struct WizardHelperPage: View {
             if isInstalled, isRunningAdHoc {
                 VStack(spacing: 8) {
                     Text("Unsigned build detected")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
 
                     Text("This build is ad-hoc signed, so the privileged helper will reject it. Use a signed build (e.g. `./build.sh`) or open the signed app in /Applications.")
-                        .font(.system(size: 13, weight: .regular))
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -329,7 +329,7 @@ struct WizardHelperPage: View {
                 }
 
                 Text("Toggle KeyPath to ON under Background Items, then return here.")
-                    .font(.system(size: 13, weight: .regular)) // Reduced from 14 to 13
+                    .font(.subheadline) // Reduced from 14 to 13
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24) // Reduced from 32 to 24

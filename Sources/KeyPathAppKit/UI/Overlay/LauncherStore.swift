@@ -2,9 +2,10 @@ import AppKit
 import KeyPathCore
 import SwiftUI
 
+@Observable
 @MainActor
-final class LauncherStore: ObservableObject {
-    @Published var mappings: [QuickLaunchMapping] = []
+final class LauncherStore {
+    var mappings: [QuickLaunchMapping] = []
     private var knownMappingIds: Set<UUID> = []
 
     init() {

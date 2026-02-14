@@ -92,7 +92,7 @@ struct FunctionKeysView: View {
 private struct FnKeyBadge: View {
     var body: some View {
         Text("fn")
-            .font(.system(size: 9, weight: .bold, design: .rounded))
+            .font(.caption2.weight(.bold))
             .foregroundColor(.white)
             .frame(width: 20, height: 16)
             .background(
@@ -151,12 +151,12 @@ private struct FunctionKeyCard: View {
                 if displayedShowMedia {
                     // Media key icon
                     Image(systemName: keyInfo.mediaIcon)
-                        .font(.system(size: 15, weight: .medium))
+                        .font(.body.weight(.medium))
                         .foregroundColor(keyInfo.iconColor)
                 } else {
                     // Function key label
                     Text(keyInfo.fKeyLabel)
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .font(.footnote.monospaced().weight(.semibold))
                         .foregroundColor(.primary)
                 }
             }
@@ -177,7 +177,7 @@ private struct FunctionKeyCard: View {
 
             // Small label underneath
             Text(displayedShowMedia ? keyInfo.shortLabel : keyInfo.fKeyLabel)
-                .font(.system(size: 9, weight: .medium))
+                .font(.caption2.weight(.medium))
                 .foregroundColor(.secondary)
                 .lineLimit(1)
         }

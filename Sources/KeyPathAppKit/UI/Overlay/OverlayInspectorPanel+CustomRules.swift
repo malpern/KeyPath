@@ -61,7 +61,7 @@ extension OverlayInspectorPanel {
                 // Reset all rules button
                 Button { onResetAllRules?() } label: {
                     Image(systemName: "arrow.counterclockwise")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.footnote.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
@@ -72,7 +72,7 @@ extension OverlayInspectorPanel {
                 // New rule button
                 Button { onCreateNewAppRule?() } label: {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 16))
+                        .font(.headline)
                         .foregroundStyle(Color.accentColor)
                 }
                 .buttonStyle(.plain)

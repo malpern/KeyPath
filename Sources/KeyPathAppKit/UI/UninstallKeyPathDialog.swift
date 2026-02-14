@@ -17,7 +17,7 @@ struct UninstallKeyPathDialog: View {
             if didSucceed {
                 // Success state
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 48))
+                    .font(.largeTitle)
                     .foregroundColor(.green)
 
                 Text("Uninstall Complete")
@@ -25,7 +25,7 @@ struct UninstallKeyPathDialog: View {
             } else {
                 // Confirmation/working state
                 Image(systemName: "trash.circle.fill")
-                    .font(.system(size: 48))
+                    .font(.largeTitle)
                     .foregroundColor(.red)
 
                 Text("Uninstall KeyPath?")

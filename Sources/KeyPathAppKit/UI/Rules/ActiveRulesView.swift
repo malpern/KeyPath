@@ -10,7 +10,7 @@ struct ActiveRulesView: View {
         if kanataManager.ruleCollections.isEmpty {
             VStack(spacing: 12) {
                 Image(systemName: "list.bullet")
-                    .font(.system(size: 48))
+                    .font(.largeTitle)
                     .foregroundColor(.secondary.opacity(0.5))
                 Text("No active key mappings")
                     .font(.title3)
@@ -148,12 +148,12 @@ private extension RuleCollectionRow {
         if icon.hasPrefix("text:") {
             let text = String(icon.dropFirst(5))
             Text(text)
-                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                .font(.body.monospaced().weight(.bold))
                 .foregroundColor(.secondary)
                 .frame(width: 24, height: 24)
         } else {
             Image(systemName: icon)
-                .font(.system(size: 24))
+                .font(.title2)
                 .foregroundColor(.secondary)
         }
     }

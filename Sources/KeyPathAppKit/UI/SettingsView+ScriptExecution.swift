@@ -117,7 +117,7 @@ private struct ScriptExecutionLogView: View {
                 // Empty state
                 VStack(spacing: 12) {
                     Image(systemName: "doc.text.magnifyingglass")
-                        .font(.system(size: 40))
+                        .font(.largeTitle)
                         .foregroundColor(.secondary)
                     Text("No scripts have been executed yet")
                         .font(.subheadline)
@@ -133,7 +133,7 @@ private struct ScriptExecutionLogView: View {
                                 .foregroundColor(entry.success ? .green : .red)
 
                             Text(entry.path)
-                                .font(.system(size: 12, design: .monospaced))
+                                .font(.footnote.monospaced())
                                 .lineLimit(1)
                                 .truncationMode(.middle)
 
