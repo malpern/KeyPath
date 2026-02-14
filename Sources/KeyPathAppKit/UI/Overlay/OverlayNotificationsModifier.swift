@@ -31,7 +31,7 @@ struct OverlayNotificationsModifier: ViewModifier {
                 onLoadCustomRulesState()
             }
             // Keep overlay behavior aligned with legacy main-window alerts.
-            .onReceive(MainAppStateController.shared.$issues) { newIssues in
+            .onChange(of: MainAppStateController.shared.issues) { _, newIssues in
                 onServiceIssueChange(newIssues)
             }
             .onReceive(NotificationCenter.default.publisher(for: .configValidationFailed)) { notification in

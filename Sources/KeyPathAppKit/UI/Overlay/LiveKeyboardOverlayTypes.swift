@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import KeyPathCore
 import SwiftUI
 
@@ -13,24 +12,25 @@ enum HealthIndicatorState: Equatable {
     case dismissed
 }
 
+@Observable
 @MainActor
-final class LiveKeyboardOverlayUIState: ObservableObject {
-    @Published var isInspectorOpen = false
-    @Published var inspectorReveal: CGFloat = 0
-    @Published var isInspectorAnimating = false
-    @Published var isInspectorClosing = false
-    @Published var desiredContentHeight: CGFloat = 0
-    @Published var desiredContentWidth: CGFloat = 0
-    @Published var keyboardAspectRatio: CGFloat = PhysicalLayout.macBookUS.totalWidth / PhysicalLayout.macBookUS.totalHeight
+final class LiveKeyboardOverlayUIState {
+    var isInspectorOpen = false
+    var inspectorReveal: CGFloat = 0
+    var isInspectorAnimating = false
+    var isInspectorClosing = false
+    var desiredContentHeight: CGFloat = 0
+    var desiredContentWidth: CGFloat = 0
+    var keyboardAspectRatio: CGFloat = PhysicalLayout.macBookUS.totalWidth / PhysicalLayout.macBookUS.totalHeight
 
     /// Health indicator state for startup validation display
-    @Published var healthIndicatorState: HealthIndicatorState = .dismissed
+    var healthIndicatorState: HealthIndicatorState = .dismissed
 
     /// Brief highlight of the drawer button when toggled via hotkey
-    @Published var drawerButtonHighlighted = false
+    var drawerButtonHighlighted = false
 
     /// Whether the hide hint bubble is currently showing (affects window height)
-    @Published var showingHintBubble = false
+    var showingHintBubble = false
 
     /// Height of the hint bubble area when shown
     static let hintBubbleHeight: CGFloat = 40

@@ -4,7 +4,7 @@ import SwiftUI
 /// Helper view for individual diagnostic issue rows
 private struct DiagnosticIssueRow: View {
     let issue: KanataDiagnostic
-    @ObservedObject var kanataManager: KanataViewModel
+    var kanataManager: KanataViewModel
 
     var body: some View {
         HStack {
@@ -30,7 +30,7 @@ private struct DiagnosticIssueRow: View {
 
 struct DiagnosticSummarySection: View {
     let criticalIssues: [KanataDiagnostic]
-    @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
+    var kanataManager: KanataViewModel // Phase 4: MVVM
     let onViewDetails: () -> Void
 
     var body: some View {

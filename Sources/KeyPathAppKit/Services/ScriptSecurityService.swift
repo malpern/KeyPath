@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import Observation
 
 /// Manages security settings and approvals for script execution in Quick Launcher.
 ///
@@ -8,8 +9,9 @@ import KeyPathCore
 /// 2. User must explicitly enable via Settings
 /// 3. First run shows warning dialog (can be bypassed via setting)
 /// 4. All executions are logged for audit trail
+@Observable
 @MainActor
-public final class ScriptSecurityService: ObservableObject {
+public final class ScriptSecurityService {
     public static let shared = ScriptSecurityService()
 
     // MARK: - UserDefaults Keys
@@ -23,7 +25,7 @@ public final class ScriptSecurityService: ObservableObject {
     // MARK: - Published Properties
 
     /// Whether script execution is globally enabled
-    @Published public var isScriptExecutionEnabled: Bool {
+    public var isScriptExecutionEnabled: Bool {
         didSet {
             UserDefaults.standard.set(isScriptExecutionEnabled, forKey: Keys.scriptExecutionEnabled)
             AppLogger.shared.log("🔐 [ScriptSecurity] Script execution \(isScriptExecutionEnabled ? "ENABLED" : "DISABLED")")
@@ -31,7 +33,7 @@ public final class ScriptSecurityService: ObservableObject {
     }
 
     /// Whether to skip the first-run confirmation dialog
-    @Published public var bypassFirstRunDialog: Bool {
+    public var bypassFirstRunDialog: Bool {
         didSet {
             UserDefaults.standard.set(bypassFirstRunDialog, forKey: Keys.bypassFirstRunDialog)
             AppLogger.shared.log("🔐 [ScriptSecurity] Bypass dialog: \(bypassFirstRunDialog)")

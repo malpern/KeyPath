@@ -3,7 +3,7 @@ import KeyPathCore
 import SwiftUI
 
 struct AvailableRulesView: View {
-    @EnvironmentObject var kanataManager: KanataViewModel
+    @Environment(KanataViewModel.self) var kanataManager
     private let catalog = RuleCollectionCatalog()
 
     private var availableCollections: [RuleCollection] {

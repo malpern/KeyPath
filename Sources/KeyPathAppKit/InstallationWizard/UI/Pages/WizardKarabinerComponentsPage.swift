@@ -26,7 +26,7 @@ struct WizardKarabinerComponentsPage: View {
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @State private var lastKarabinerHealthy = false
     @State private var stepProgressCancellable: AnyCancellable?
-    @EnvironmentObject var stateMachine: WizardStateMachine
+    @Environment(WizardStateMachine.self) var stateMachine
 
     var body: some View {
         VStack(spacing: 0) {

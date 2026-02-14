@@ -63,7 +63,7 @@ struct WindowResizeHandles: ViewModifier {
     @State private var isDragging = false
     @State private var isMoving = false
     @State private var isOptionResizing = false
-    @EnvironmentObject private var vizViewModel: KeyboardVisualizationViewModel
+    @Environment(KeyboardVisualizationViewModel.self) private var vizViewModel
     @State private var initialFrame: NSRect = .zero
     @State private var initialMouseLocation: NSPoint = .zero
 

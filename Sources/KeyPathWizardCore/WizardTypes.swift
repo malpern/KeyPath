@@ -249,7 +249,7 @@ public enum IssueIdentifier: Equatable, Sendable {
 }
 
 /// Issue detected by the wizard that requires attention
-public struct WizardIssue: Identifiable, Sendable {
+public struct WizardIssue: Identifiable, Equatable, Sendable {
     public let id = UUID()
     public let identifier: IssueIdentifier
     public let severity: IssueSeverity
@@ -277,7 +277,7 @@ public struct WizardIssue: Identifiable, Sendable {
         self.userAction = userAction
     }
 
-    public enum IssueSeverity: Sendable {
+    public enum IssueSeverity: Equatable, Sendable {
         case info
         case warning
         case error
@@ -302,7 +302,7 @@ public struct WizardIssue: Identifiable, Sendable {
         }
     }
 
-    public enum IssueCategory: Sendable {
+    public enum IssueCategory: Equatable, Sendable {
         case conflicts
         case permissions
         case backgroundServices

@@ -3,7 +3,7 @@ import KeyPathCore
 import SwiftUI
 
 struct CustomRulesView: View {
-    @EnvironmentObject var kanataManager: KanataViewModel
+    @Environment(KanataViewModel.self) var kanataManager
     @State private var pendingDeleteRule: CustomRule?
     @State private var appKeymaps: [AppKeymap] = []
     @State private var pendingDeleteAppRule: (keymap: AppKeymap, override: AppKeyOverride)?

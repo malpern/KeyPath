@@ -2,7 +2,7 @@ import KeyPathCore
 import SwiftUI
 
 struct RecordingSection: View {
-    @ObservedObject var coordinator: RecordingCoordinator
+    var coordinator: RecordingCoordinator
     let onInputRecord: () -> Void
     let onOutputRecord: () -> Void
     let onShowMessage: (String) -> Void

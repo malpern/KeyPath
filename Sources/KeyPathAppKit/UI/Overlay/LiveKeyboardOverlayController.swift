@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
@@ -25,12 +24,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     var resizeStartMouse: NSPoint = .zero
     var resizeStartFrame: NSRect = .zero
     var inspectorDebugLastLog: CFTimeInterval = 0
-    var cancellables = Set<AnyCancellable>()
     private var healthObserver: OverlayHealthIndicatorObserver?
     private weak var hostingView: NSHostingView<AnyView>?
     private let frameStore = OverlayWindowFrameStore()
     var hintWindowController: HideHintWindowController?
-    var hintBubbleObserver: AnyCancellable?
+    var hintBubbleObserver: Task<Void, Never>?
 
     /// Reference to KanataViewModel for opening Mapper window
     private weak var kanataViewModel: KanataViewModel?
@@ -463,7 +461,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Don't manually set .checking - let the observer determine state based on
         // MainAppStateController's current validation state. This fixes the bug where
         // calling showForStartup() multiple times would leave UI stuck in .checking
-        // because the observer guard prevents re-subscription and Combine doesn't re-emit.
+        // because the observer guard prevents re-subscription.
         observeHealthState()
         healthObserver?.refresh()
 
@@ -551,10 +549,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             )
         }
 
-        healthObserver?.start(
-            validationStatePublisher: MainAppStateController.shared.$validationState.eraseToAnyPublisher(),
-            issuesPublisher: MainAppStateController.shared.$issues.eraseToAnyPublisher()
-        )
+        healthObserver?.startObserving(controller: MainAppStateController.shared)
     }
 
     /// Handle tap on health indicator - launches wizard and dismisses indicator

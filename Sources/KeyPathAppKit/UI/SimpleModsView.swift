@@ -2,7 +2,7 @@ import SwiftUI
 
 /// View for managing simple key mappings
 struct SimpleModsView: View {
-    @StateObject private var service: SimpleModsService
+    @State private var service: SimpleModsService
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
     @State private var uiError: String?
@@ -20,7 +20,7 @@ struct SimpleModsView: View {
     }
 
     init(configPath: String) {
-        _service = StateObject(wrappedValue: SimpleModsService(configPath: configPath))
+        _service = State(wrappedValue: SimpleModsService(configPath: configPath))
     }
 
     var body: some View {
@@ -296,7 +296,7 @@ struct SimpleModsView: View {
         return presets
     }
 
-    @EnvironmentObject private var kanataViewModel: KanataViewModel
+    @Environment(KanataViewModel.self) private var kanataViewModel
 
     private func findViewModel() -> KanataViewModel {
         kanataViewModel
@@ -399,7 +399,7 @@ private struct CategoryButton: View {
 /// Row for an installed mapping (with toggle and delete)
 private struct InstalledMappingRow: View {
     let mapping: SimpleMapping
-    @ObservedObject var service: SimpleModsService
+    var service: SimpleModsService
 
     var body: some View {
         HStack {
@@ -472,7 +472,7 @@ private struct InstalledMappingRow: View {
 /// Row for an available preset (with add button)
 private struct AvailablePresetRow: View {
     let preset: SimpleModPreset
-    @ObservedObject var service: SimpleModsService
+    var service: SimpleModsService
     @State private var showConflictSheet = false
     @State private var conflictingMapping: SimpleMapping?
 

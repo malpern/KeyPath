@@ -4,6 +4,7 @@ import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathWizardCore
+import Observation
 
 /// Main app state controller using SystemValidator
 ///
@@ -14,16 +15,17 @@ import KeyPathWizardCore
 /// - Manual refresh via user action
 /// - SystemValidator defensive assertions active
 @MainActor
-class MainAppStateController: ObservableObject {
+@Observable
+class MainAppStateController {
     // MARK: - Shared Instance
 
     static let shared = MainAppStateController()
 
     // MARK: - Published State (Compatible with existing UI)
 
-    @Published var validationState: ValidationState? // nil = not yet validated, show nothing
-    @Published var issues: [WizardIssue] = []
-    @Published var lastValidationDate: Date?
+    var validationState: ValidationState? // nil = not yet validated, show nothing
+    var issues: [WizardIssue] = []
+    var lastValidationDate: Date?
 
     // MARK: - Validation State (compatible with StartupValidator)
 
@@ -45,9 +47,9 @@ class MainAppStateController: ObservableObject {
 
     // MARK: - Dependencies
 
-    private var validator: SystemValidator?
-    private weak var kanataManager: RuntimeCoordinator?
-    private var hasRunInitialValidation = false
+    @ObservationIgnored private var validator: SystemValidator?
+    @ObservationIgnored private weak var kanataManager: RuntimeCoordinator?
+    @ObservationIgnored private var hasRunInitialValidation = false
 
     /// Returns true if configure() has been called.
     /// Use this to assert initialization order invariants.
@@ -57,18 +59,18 @@ class MainAppStateController: ObservableObject {
 
     // MARK: - Validation Cooldown (Optimization: Skip redundant validations on rapid restarts)
 
-    private var lastValidationTime: Date?
-    private let validationCooldown: TimeInterval = 30.0 // Skip validation if completed within last 30 seconds
+    @ObservationIgnored private var lastValidationTime: Date?
+    @ObservationIgnored private let validationCooldown: TimeInterval = 30.0 // Skip validation if completed within last 30 seconds
     private enum ValidationError: Error { case timeout }
 
     // MARK: - Service Health Monitoring (Fix for stale overlay state)
 
-    private var cancellables = Set<AnyCancellable>()
-    private var lastKnownServiceHealthy: Bool?
-    private var periodicRefreshTask: Task<Void, Never>?
-    private let definitiveStartupGracePeriod: TimeInterval = 3.0
-    private let transientStartupGracePeriod: TimeInterval = 12.0
-    private let startupCheckInterval: TimeInterval = 0.5
+    @ObservationIgnored private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored private var lastKnownServiceHealthy: Bool?
+    @ObservationIgnored private var periodicRefreshTask: Task<Void, Never>?
+    @ObservationIgnored private let definitiveStartupGracePeriod: TimeInterval = 3.0
+    @ObservationIgnored private let transientStartupGracePeriod: TimeInterval = 12.0
+    @ObservationIgnored private let startupCheckInterval: TimeInterval = 0.5
 
     // MARK: - Initialization
 
@@ -242,27 +244,24 @@ class MainAppStateController: ObservableObject {
     private func subscribeToServiceHealth() {
         guard let kanataManager else { return }
 
-        kanataManager.kanataService.$state
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] newState in
-                guard let self else { return }
-
-                // ServiceState: .running(pid:), .stopped, .failed, .maintenance, .requiresApproval, .unknown
+        // Poll KanataService.state for health transitions
+        Task { @MainActor [weak self] in
+            while let self, !Task.isCancelled {
+                let newState = kanataManager.kanataService.state
                 let isHealthy = if case .running = newState { true } else { false }
-                let wasHealthy = lastKnownServiceHealthy
+                let wasHealthy = self.lastKnownServiceHealthy
 
-                // Only revalidate on health transitions (not every 2s poll)
                 if wasHealthy != isHealthy {
-                    lastKnownServiceHealthy = isHealthy
+                    self.lastKnownServiceHealthy = isHealthy
                     AppLogger.shared.log(
                         "🔄 [MainAppStateController] Service health changed: \(wasHealthy.map { String($0) } ?? "nil") → \(isHealthy)"
                     )
-                    Task { @MainActor in
-                        await self.revalidate()
-                    }
+                    await self.revalidate()
                 }
+
+                try? await Task.sleep(for: .seconds(2))
             }
-            .store(in: &cancellables)
+        }
 
         AppLogger.shared.log("🔄 [MainAppStateController] Subscribed to KanataService health changes")
     }

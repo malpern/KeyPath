@@ -1,7 +1,7 @@
 import AppKit
-import Combine
 import Foundation
 import KeyPathCore
+import Observation
 
 /// Service that monitors frontmost application changes and signals Kanata
 /// to activate/deactivate app-specific virtual keys.
@@ -21,30 +21,30 @@ import KeyPathCore
 ///    - Release previous VK (if any)
 ///    - Press new VK
 @MainActor
-public final class AppContextService: ObservableObject {
+@Observable
+public final class AppContextService {
     // MARK: - Singleton
 
     public static let shared = AppContextService()
 
-    // MARK: - Published State
+    // MARK: - Observable State
 
     /// The currently active app's bundle identifier (nil if no app has focus)
-    @Published public private(set) var currentBundleIdentifier: String?
+    public private(set) var currentBundleIdentifier: String?
 
     /// The currently active virtual key (nil if current app has no keymap)
-    @Published public private(set) var currentVirtualKey: String?
+    public private(set) var currentVirtualKey: String?
 
     /// Whether the service is actively monitoring
-    @Published public private(set) var isMonitoring: Bool = false
+    public private(set) var isMonitoring: Bool = false
 
     // MARK: - Private State
 
-    private var tcpClient: KanataTCPClient?
-    private var cancellables = Set<AnyCancellable>()
-    private let workspaceObservers = NotificationObserverManager()
+    @ObservationIgnored private var tcpClient: KanataTCPClient?
+    @ObservationIgnored private let workspaceObservers = NotificationObserverManager()
 
     /// Cache of bundle ID → virtual key name mappings
-    private var bundleToVKMapping: [String: String] = [:]
+    @ObservationIgnored private var bundleToVKMapping: [String: String] = [:]
 
     // MARK: - Initialization
 
@@ -98,7 +98,6 @@ public final class AppContextService: ObservableObject {
         // Release current virtual key if any (await to ensure it completes)
         await releaseCurrentVirtualKey()
 
-        cancellables.removeAll()
         isMonitoring = false
         currentBundleIdentifier = nil
         currentVirtualKey = nil

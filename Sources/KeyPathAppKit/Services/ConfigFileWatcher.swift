@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import Observation
 
 /// Service for monitoring configuration file changes and triggering hot reloads
 ///
@@ -10,37 +11,38 @@ import KeyPathCore
 /// - Provides comprehensive error logging and recovery
 /// - Uses proper file descriptor management with cleanup
 ///
-/// All mutable state is isolated to `@MainActor` since this is an `ObservableObject`
-/// observed by SwiftUI and owned by `@MainActor`-isolated coordinators.
+/// All mutable state is isolated to `@MainActor` since this is an `@Observable` class
+/// owned by `@MainActor`-isolated coordinators.
 @MainActor
-class ConfigFileWatcher: ObservableObject {
+@Observable
+class ConfigFileWatcher {
     // MARK: - Properties
 
-    private var fileMonitorSource: DispatchSourceFileSystemObject?
-    private var directoryMonitorSource: DispatchSourceFileSystemObject?
-    private var lastModificationDate: Date?
-    private var debounceTask: Task<Void, Never>?
-    private var watchedFilePath: String?
-    private var watchedDirectoryPath: String?
-    private var isWatching = false
-    private var isWatchingDirectory = false
+    @ObservationIgnored private var fileMonitorSource: DispatchSourceFileSystemObject?
+    @ObservationIgnored private var directoryMonitorSource: DispatchSourceFileSystemObject?
+    @ObservationIgnored private var lastModificationDate: Date?
+    @ObservationIgnored private var debounceTask: Task<Void, Never>?
+    @ObservationIgnored private var watchedFilePath: String?
+    @ObservationIgnored private var watchedDirectoryPath: String?
+    @ObservationIgnored private var isWatching = false
+    @ObservationIgnored private var isWatchingDirectory = false
 
-    private let debounceDelay: TimeInterval = 0.5 // 500ms debounce
-    private let maxRetries = 3
-    private var retryCount = 0
-    private var pendingAtomicWriteEvent = false
+    @ObservationIgnored private let debounceDelay: TimeInterval = 0.5 // 500ms debounce
+    @ObservationIgnored private let maxRetries = 3
+    @ObservationIgnored private var retryCount = 0
+    @ObservationIgnored private var pendingAtomicWriteEvent = false
 
     // Suppression to prevent self-initiated reload loops
-    private var suppressUntil: Date?
-    private var inFlightProcessing = false
+    @ObservationIgnored private var suppressUntil: Date?
+    @ObservationIgnored private var inFlightProcessing = false
 
     /// Dedicated queue for file system events (avoid main thread contention)
     /// The DispatchSource fires events on this queue, but handlers immediately
     /// hop to MainActor via Task { @MainActor in ... }
-    private let queue = DispatchQueue(label: "com.keypath.configwatcher", qos: .utility)
+    @ObservationIgnored private let queue = DispatchQueue(label: "com.keypath.configwatcher", qos: .utility)
 
     /// Callback for when file changes are detected
-    private var onFileChanged: (@MainActor () async -> Void)?
+    @ObservationIgnored private var onFileChanged: (@MainActor () async -> Void)?
 
     init() {
         AppLogger.shared.log("📁 [FileWatcher] ConfigFileWatcher initialized with robust monitoring")

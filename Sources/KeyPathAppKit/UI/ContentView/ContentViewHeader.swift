@@ -2,7 +2,7 @@ import KeyPathCore
 import SwiftUI
 
 struct ContentViewHeader: View {
-    @ObservedObject var validator: MainAppStateController // 🎯 Phase 3: New controller
+    var validator: MainAppStateController // 🎯 Phase 3: New controller
     @Binding var showingInstallationWizard: Bool
     let onWizardRequest: () -> Void
     let layerIndicatorVisible: Bool

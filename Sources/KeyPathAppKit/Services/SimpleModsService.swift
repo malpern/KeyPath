@@ -1,28 +1,30 @@
 import Foundation
 import KeyPathCore
+import Observation
 
 /// Main service for managing simple modifications
 @MainActor
-public final class SimpleModsService: ObservableObject {
-    @Published public private(set) var installedMappings: [SimpleMapping] = []
-    @Published public private(set) var availablePresets: [SimpleModPreset] = []
-    @Published public private(set) var conflicts: [MappingConflict] = []
-    @Published public private(set) var isApplying = false
-    @Published public private(set) var lastError: String?
-    @Published public private(set) var lastRollbackReason: String? // Tracks why a rollback occurred
-    @Published public private(set) var lastRollbackDetails: String? // Additional diagnostic details
+@Observable
+public final class SimpleModsService {
+    public private(set) var installedMappings: [SimpleMapping] = []
+    public private(set) var availablePresets: [SimpleModPreset] = []
+    public private(set) var conflicts: [MappingConflict] = []
+    public private(set) var isApplying = false
+    public private(set) var lastError: String?
+    public private(set) var lastRollbackReason: String? // Tracks why a rollback occurred
+    public private(set) var lastRollbackDetails: String? // Additional diagnostic details
 
-    private let configPath: String
-    private let parser: SimpleModsParser
-    private let writer: SimpleModsWriter
-    private let catalog = SimpleModsCatalog.shared
+    @ObservationIgnored private let configPath: String
+    @ObservationIgnored private let parser: SimpleModsParser
+    @ObservationIgnored private let writer: SimpleModsWriter
+    @ObservationIgnored private let catalog = SimpleModsCatalog.shared
 
     // Debounce timer for instant apply
-    private var applyDebounceTask: Task<Void, Never>?
-    private let debounceDelay: TimeInterval = 0.3
+    @ObservationIgnored private var applyDebounceTask: Task<Void, Never>?
+    @ObservationIgnored private let debounceDelay: TimeInterval = 0.3
 
     /// Apply pipeline dependencies (will be injected)
-    private var kanataManager: RuntimeCoordinator?
+    @ObservationIgnored private var kanataManager: RuntimeCoordinator?
 
     public init(configPath: String) {
         self.configPath = configPath

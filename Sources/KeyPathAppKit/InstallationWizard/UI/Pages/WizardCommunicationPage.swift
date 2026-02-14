@@ -9,8 +9,8 @@ struct WizardCommunicationPage: View {
     @State private var isFixing = false
     @State private var lastCheckTime = Date()
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
-    @EnvironmentObject var stateMachine: WizardStateMachine
-    @EnvironmentObject var kanataViewModel: KanataViewModel
+    @Environment(WizardStateMachine.self) var stateMachine
+    @Environment(KanataViewModel.self) var kanataViewModel
     @Environment(\.preferencesService) private var preferences: PreferencesService
 
     /// Access underlying RuntimeCoordinator for business logic

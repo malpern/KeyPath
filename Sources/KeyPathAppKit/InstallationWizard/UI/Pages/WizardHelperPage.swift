@@ -25,7 +25,7 @@ struct WizardHelperPage: View {
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @State private var hasLoggedDiagnostics = false
     @State private var approvalPollingTimer: Timer?
-    @EnvironmentObject var stateMachine: WizardStateMachine
+    @Environment(WizardStateMachine.self) var stateMachine
 
     /// Check if bundled helper is newer than installed helper
     private var hasUpdateAvailable: Bool {

@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import Observation
 
 // MARK: - Error Severity
 
@@ -121,25 +122,26 @@ struct ErrorPattern {
 
 /// Monitors Kanata stderr for critical errors and health issues
 @MainActor
-final class KanataErrorMonitor: ObservableObject {
+@Observable
+final class KanataErrorMonitor {
     static let shared = KanataErrorMonitor()
 
-    // MARK: - Published State
+    // MARK: - Observable State
 
-    @Published private(set) var recentErrors: [KanataError] = []
-    @Published private(set) var healthStatus: KanataHealthStatus = .healthy
-    @Published private(set) var unreadErrorCount: Int = 0
+    private(set) var recentErrors: [KanataError] = []
+    private(set) var healthStatus: KanataHealthStatus = .healthy
+    private(set) var unreadErrorCount: Int = 0
 
     // MARK: - Configuration
 
-    private let maxErrors = 100 // Ring buffer size
-    private let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
-    private let monitoringInterval: TimeInterval = 2.0 // Check every 2 seconds
-    private let patternCountWindow: TimeInterval = 60.0 // Count patterns over 1 minute window
+    @ObservationIgnored private let maxErrors = 100 // Ring buffer size
+    @ObservationIgnored private let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
+    @ObservationIgnored private let monitoringInterval: TimeInterval = 2.0 // Check every 2 seconds
+    @ObservationIgnored private let patternCountWindow: TimeInterval = 60.0 // Count patterns over 1 minute window
 
     // MARK: - Critical Error Patterns
 
-    private lazy var errorPatterns: [ErrorPattern] = [
+    @ObservationIgnored private lazy var errorPatterns: [ErrorPattern] = [
         // File descriptor exhaustion - CRITICAL
         ErrorPattern(
             pattern: "Too many open files|file descriptor|Os \\{ code: 24",
@@ -197,11 +199,11 @@ final class KanataErrorMonitor: ObservableObject {
 
     // MARK: - State Tracking
 
-    private var lastFilePosition: UInt64 = 0
-    private var monitoringTask: Task<Void, Never>?
-    private var patternCounts: [String: [(Date, Int)]] = [:] // patternName -> [(timestamp, count)]
-    private var lastToastTime: [String: Date] = [:] // patternName -> last toast time
-    private let toastCooldown: TimeInterval = 300.0 // 5 minutes between toasts for same pattern
+    @ObservationIgnored private var lastFilePosition: UInt64 = 0
+    @ObservationIgnored private var monitoringTask: Task<Void, Never>?
+    @ObservationIgnored private var patternCounts: [String: [(Date, Int)]] = [:] // patternName -> [(timestamp, count)]
+    @ObservationIgnored private var lastToastTime: [String: Date] = [:] // patternName -> last toast time
+    @ObservationIgnored private let toastCooldown: TimeInterval = 300.0 // 5 minutes between toasts for same pattern
 
     private init() {
         AppLogger.shared.info("[ErrorMonitor] Initialized")

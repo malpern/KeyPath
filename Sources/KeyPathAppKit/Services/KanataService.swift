@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
+import Observation
 import ServiceManagement
 
 /// Errors related to Kanata service operations
@@ -39,7 +40,8 @@ public enum KanataServiceError: LocalizedError, Equatable {
 ///
 /// It provides a single, high-level API for starting, stopping, and monitoring the service.
 @MainActor
-public final class KanataService: ObservableObject {
+@Observable
+public final class KanataService {
     public static let shared = KanataService()
 
     private enum Constants {
@@ -59,8 +61,8 @@ public final class KanataService: ObservableObject {
 
     // MARK: - Internal Dependencies (Hidden from consumers)
 
-    private let healthMonitor: ServiceHealthMonitor
-    private let pidCache = LaunchDaemonPIDCache()
+    @ObservationIgnored private let healthMonitor: ServiceHealthMonitor
+    @ObservationIgnored private let pidCache = LaunchDaemonPIDCache()
 
     private struct ProcessSnapshot {
         let isRunning: Bool
@@ -94,13 +96,13 @@ public final class KanataService: ObservableObject {
         }
     }
 
-    @Published public private(set) var state: ServiceState = .unknown
+    public private(set) var state: ServiceState = .unknown
 
     /// Polling task for status updates
-    private var statusTask: Task<Void, Never>?
+    @ObservationIgnored private var statusTask: Task<Void, Never>?
     /// Debounce transient "enabled but no PID" samples to avoid false failure reports.
-    private var enabledWithoutProcessSampleCount = 0
-    private let enabledWithoutProcessFailureThreshold = 3
+    @ObservationIgnored private var enabledWithoutProcessSampleCount = 0
+    @ObservationIgnored private let enabledWithoutProcessFailureThreshold = 3
 
     // MARK: - Initialization
 

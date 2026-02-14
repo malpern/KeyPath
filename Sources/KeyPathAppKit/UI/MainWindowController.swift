@@ -14,7 +14,7 @@ final class MainWindowController: NSWindowController {
 
         // Create SwiftUI hosting controller with full environment
         let rootView = RootView()
-            .environmentObject(viewModel) // Phase 4: Inject ViewModel
+            .environment(viewModel) // Phase 4: Inject ViewModel
             .environment(\.preferencesService, PreferencesService.shared)
             .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
 

@@ -19,7 +19,7 @@ struct WizardFullDiskAccessPage: View {
     @State private var cachedFDAStatus: Bool = false
     private let cacheValidityDuration: TimeInterval = 10.0 // Cache for 10 seconds
 
-    @EnvironmentObject var stateMachine: WizardStateMachine
+    @Environment(WizardStateMachine.self) var stateMachine
 
     var body: some View {
         VStack(spacing: 0) {

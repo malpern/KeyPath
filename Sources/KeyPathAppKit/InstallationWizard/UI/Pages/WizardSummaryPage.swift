@@ -8,7 +8,7 @@ struct WizardSummaryPage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
     let stateInterpreter: WizardStateInterpreter
-    @EnvironmentObject var kanataViewModel: KanataViewModel
+    @Environment(KanataViewModel.self) var kanataViewModel
     let onStartService: () -> Void
     let onDismiss: () -> Void
     let onNavigateToPage: ((WizardPage) -> Void)?

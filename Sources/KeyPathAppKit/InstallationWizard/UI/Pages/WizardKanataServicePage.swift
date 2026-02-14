@@ -3,7 +3,7 @@ import KeyPathWizardCore
 import SwiftUI
 
 struct WizardKanataServicePage: View {
-    @EnvironmentObject var kanataViewModel: KanataViewModel
+    @Environment(KanataViewModel.self) var kanataViewModel
     let systemState: WizardSystemState
     let issues: [WizardIssue]
     let onRefresh: () -> Void
@@ -20,7 +20,7 @@ struct WizardKanataServicePage: View {
     @State private var refreshTask: Task<Void, Never>?
 
     /// Integration with RuntimeCoordinator for better error context
-    @EnvironmentObject var stateMachine: WizardStateMachine
+    @Environment(WizardStateMachine.self) var stateMachine
 
     enum ServiceStatus: Equatable {
         case unknown
@@ -588,7 +588,7 @@ struct WizardKanataServicePage_Previews: PreviewProvider {
             )
             .previewDisplayName("Kanata Service - Ready")
         }
-        .environmentObject(viewModel)
-        .environmentObject(stateMachine)
+        .environment(viewModel)
+        .environment(stateMachine)
     }
 }

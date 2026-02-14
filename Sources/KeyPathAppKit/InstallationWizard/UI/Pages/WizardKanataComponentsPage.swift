@@ -20,7 +20,7 @@ struct WizardKanataComponentsPage: View {
     @State private var pendingIssueFixId: UUID?
     @State private var pendingIssueFixTitle: String?
     @State private var queuedFixTimeoutTask: Task<Void, Never>?
-    @EnvironmentObject var stateMachine: WizardStateMachine
+    @Environment(WizardStateMachine.self) var stateMachine
 
     var body: some View {
         VStack(spacing: 0) {

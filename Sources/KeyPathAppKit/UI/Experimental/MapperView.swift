@@ -14,8 +14,8 @@ extension Notification.Name {
 /// Experimental key mapping page with visual keycap-based input/output capture.
 /// Accessible from File menu as "Mapper".
 struct MapperView: View {
-    @EnvironmentObject var kanataManager: KanataViewModel
-    @StateObject private var viewModel = MapperViewModel()
+    @Environment(KanataViewModel.self) var kanataManager
+    @State private var viewModel = MapperViewModel()
 
     /// Optional preset input from overlay click
     var presetInput: String?

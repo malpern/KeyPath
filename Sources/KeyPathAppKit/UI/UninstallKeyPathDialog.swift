@@ -3,7 +3,7 @@ import SwiftUI
 
 struct UninstallKeyPathDialog: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var kanataManager: KanataViewModel
+    @Environment(KanataViewModel.self) var kanataManager
 
     // Local state tracking
     @State private var isRunning = false

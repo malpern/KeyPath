@@ -1,6 +1,7 @@
 import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathWizardCore
+import Observation
 import SwiftUI
 
 /// Record of wizard snapshot for caching
@@ -19,62 +20,63 @@ struct WizardSnapshotRecord {
 /// - Simple navigation logic (no separate engine/coordinator)
 /// - Uses SystemValidator (stateless)
 @MainActor
-class WizardStateMachine: ObservableObject {
+@Observable
+class WizardStateMachine {
     // MARK: - Published State
 
     /// Raw system snapshot from SystemValidator (internal use)
-    @Published var systemSnapshot: SystemSnapshot?
+    var systemSnapshot: SystemSnapshot?
 
     /// Current wizard system state (canonical source - pass to child views)
-    @Published var wizardState: WizardSystemState = .initializing
+    var wizardState: WizardSystemState = .initializing
 
     /// Current wizard issues (canonical source - pass to child views)
-    @Published var wizardIssues: [WizardIssue] = []
+    var wizardIssues: [WizardIssue] = []
 
     /// Current wizard page
-    @Published var currentPage: WizardPage = .summary
+    var currentPage: WizardPage = .summary
 
     /// Last visited page for direction detection
-    @Published var lastVisitedPage: WizardPage?
+    var lastVisitedPage: WizardPage?
 
     /// Whether user has manually interacted (blocks auto-navigation)
-    @Published var userInteractionMode = false
+    var userInteractionMode = false
 
     /// Optional external sequence to drive back/next order (e.g., filtered issues-only list).
     /// When nil or empty, the default ordered pages are used.
-    @Published var customSequence: [WizardPage]?
+    var customSequence: [WizardPage]?
 
     /// Whether we're currently refreshing state
-    @Published var isRefreshing = false
+    var isRefreshing = false
 
     /// Last refresh timestamp
-    @Published var lastRefreshTime: Date?
+    var lastRefreshTime: Date?
 
     /// Monotonically increasing version counter, bumped each time state detection completes.
     /// Used by callers to detect when a refresh has finished.
-    @Published private(set) var stateVersion: Int = 0
+    private(set) var stateVersion: Int = 0
 
     /// Cache for the last known wizard state (for backward compatibility with legacy flows)
     var lastWizardSnapshot: WizardSnapshotRecord?
 
     // MARK: - Dependencies
 
-    private var validator: SystemValidator?
-    private weak var kanataManager: RuntimeCoordinator?
+    @ObservationIgnored private var validator: SystemValidator?
+    @ObservationIgnored private weak var kanataManager: RuntimeCoordinator?
 
     /// Navigation engine for determining appropriate pages
-    let navigationEngine = WizardNavigationEngine()
+    @ObservationIgnored let navigationEngine = WizardNavigationEngine()
 
     // MARK: - Navigation State
 
-    private var lastPageChangeTime = Date()
-    private let autoNavigationGracePeriod: TimeInterval = 10.0
-    private let navigationAnimation: Animation = .spring(response: 0.35, dampingFraction: 0.9)
+    @ObservationIgnored private var lastPageChangeTime = Date()
+    @ObservationIgnored private let autoNavigationGracePeriod: TimeInterval = 10.0
+    @ObservationIgnored private let navigationAnimation: Animation = .spring(response: 0.35, dampingFraction: 0.9)
 
     // MARK: - Defensive State
 
-    private var refreshCount = 0
-    private var lastRefreshStart: Date?
+    @ObservationIgnored private var refreshCount = 0
+    @ObservationIgnored private var lastRefreshStart: Date?
 
     // MARK: - Initialization
 

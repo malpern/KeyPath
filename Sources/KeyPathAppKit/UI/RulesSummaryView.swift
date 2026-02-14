@@ -32,7 +32,7 @@ struct SequencesEditState: Identifiable {
 }
 
 struct RulesTabView: View {
-    @EnvironmentObject var kanataManager: KanataViewModel
+    @Environment(KanataViewModel.self) var kanataManager
     @State private var showingResetConfirmation = false
     @State private var showingNewRuleSheet = false
     @State private var settingsToastManager = WizardToastManager()
@@ -205,6 +205,7 @@ struct RulesTabView: View {
     }
 
     var body: some View {
+        @Bindable var kanataManager = kanataManager
         VStack(spacing: 0) {
             // Top Action Bar
             HStack(spacing: 12) {

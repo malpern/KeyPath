@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Slide-over view for configuring multi-tap (2x, 3x, 4x) actions.
 struct MultiTapSlideOverView: View {
-    @ObservedObject var viewModel: MapperViewModel
+    var viewModel: MapperViewModel
     let sourceKey: String
 
     private let tapCounts = [2, 3, 4]

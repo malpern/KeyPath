@@ -2,6 +2,7 @@ import Combine
 import Foundation
 import KeyPathCore
 import KeyPathWizardCore
+import Observation
 
 @MainActor
 final class OverlayHealthIndicatorObserver {
@@ -32,11 +33,12 @@ final class OverlayHealthIndicatorObserver {
         self.sleep = sleep
     }
 
+    /// Start observing using Combine publishers (used by tests with CurrentValueSubject)
     func start(
         validationStatePublisher: AnyPublisher<MainAppStateController.ValidationState?, Never>,
         issuesPublisher: AnyPublisher<[WizardIssue], Never>
     ) {
-        AppLogger.shared.log("🔔 [HealthObserver] start() called - isObserving=\(isObserving)")
+        AppLogger.shared.log("🔔 [HealthObserver] start(publishers:) called - isObserving=\(isObserving)")
         guard !isObserving else {
             AppLogger.shared.log("🔔 [HealthObserver] start() - already observing, skipping")
             return
@@ -51,6 +53,34 @@ final class OverlayHealthIndicatorObserver {
         .sink { [weak self] state, issues in
             self?.handle(state: state, issues: issues)
         }
+    }
+
+    /// Start observing an @Observable MainAppStateController via polling
+    func startObserving(controller: MainAppStateController) {
+        AppLogger.shared.log("🔔 [HealthObserver] startObserving(controller:) called - isObserving=\(isObserving)")
+        guard !isObserving else {
+            AppLogger.shared.log("🔔 [HealthObserver] startObserving() - already observing, skipping")
+            return
+        }
+        isObserving = true
+
+        Task { @MainActor [weak self] in
+            var lastState: MainAppStateController.ValidationState?
+            var lastIssueCount: Int?
+            while let self, !Task.isCancelled {
+                let state = controller.validationState
+                let issues = controller.issues
+                if state != lastState || issues.count != lastIssueCount {
+                    lastState = state
+                    lastIssueCount = issues.count
+                    self.handle(state: state, issues: issues)
+                }
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+        }
+
+        // Handle initial values
+        handle(state: controller.validationState, issues: controller.issues)
     }
 
     /// Force a refresh of the health state from current MainAppStateController values.

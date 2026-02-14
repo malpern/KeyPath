@@ -1,13 +1,15 @@
 import Foundation
 import KeyPathCore
 import KeyPathWizardCore
+import Observation
 
 /// Manager wrapper for WizardAutoFixer that provides configuration and delegation
 ///
-/// This class serves as an ObservableObject wrapper around WizardAutoFixer,
+/// This class serves as an @Observable wrapper around WizardAutoFixer,
 /// allowing lazy configuration after view initialization.
 @MainActor
-class WizardAutoFixerManager: ObservableObject {
+@Observable
+class WizardAutoFixerManager {
     private(set) var autoFixer: WizardAutoFixer?
 
     func configure(

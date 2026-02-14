@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Main simulator view combining keyboard input, event queue, and results display.
 struct SimulatorView: View {
-    @StateObject private var viewModel = SimulatorViewModel()
+    @State private var viewModel = SimulatorViewModel()
     @FocusState private var isKeyboardFocused: Bool
     @AppStorage(LayoutPreferences.layoutIdKey) private var selectedLayoutId: String = LayoutPreferences.defaultLayoutId
 

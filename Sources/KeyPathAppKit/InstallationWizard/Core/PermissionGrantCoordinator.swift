@@ -2,6 +2,7 @@ import Foundation
 import KeyPathCore
 import KeyPathPermissions
 import KeyPathWizardCore
+import Observation
 import SwiftUI
 
 enum CoordinatorPermissionType: String, CaseIterable {
@@ -27,18 +28,19 @@ enum CoordinatorPermissionType: String, CaseIterable {
 }
 
 @MainActor
-class PermissionGrantCoordinator: ObservableObject {
+@Observable
+class PermissionGrantCoordinator {
     static let shared = PermissionGrantCoordinator()
 
-    private let logger = AppLogger.shared
-    private let maxReturnTime: TimeInterval = 600 // 10 minutes
+    @ObservationIgnored private let logger = AppLogger.shared
+    @ObservationIgnored private let maxReturnTime: TimeInterval = 600 // 10 minutes
 
     /// Prevent double-dismiss race conditions
-    private var didFireCompletion = false
+    @ObservationIgnored private var didFireCompletion = false
 
     // Service bounce flag keys
-    private static let serviceBounceNeededKey = "keypath_service_bounce_needed"
-    private static let serviceBounceTimestampKey = "keypath_service_bounce_timestamp"
+    @ObservationIgnored private static let serviceBounceNeededKey = "keypath_service_bounce_needed"
+    @ObservationIgnored private static let serviceBounceTimestampKey = "keypath_service_bounce_timestamp"
 
     private init() {}
 

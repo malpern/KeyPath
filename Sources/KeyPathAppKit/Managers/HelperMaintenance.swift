@@ -1,6 +1,6 @@
-import Combine
 import Foundation
 import KeyPathCore
+import Observation
 import ServiceManagement
 
 /// A focused utility for maintaining the privileged helper registration and artifacts.
@@ -17,17 +17,18 @@ import ServiceManagement
 /// - Uses AppleScript `do shell script … with administrator privileges` as a fallback
 ///   when the helper cannot perform privileged operations.
 @MainActor
-final class HelperMaintenance: ObservableObject {
+@Observable
+final class HelperMaintenance {
     /// Shared instance for UI integration
     static let shared = HelperMaintenance()
 
     /// Log lines for UI to present progress
-    @Published private(set) var logLines: [String] = []
+    private(set) var logLines: [String] = []
 
     /// Whether a cleanup run is currently in progress
-    @Published private(set) var isRunning: Bool = false
+    private(set) var isRunning: Bool = false
 
-    private var testHooks: TestHooks?
+    @ObservationIgnored private var testHooks: TestHooks?
 
     private init() {}
 

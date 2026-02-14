@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import Observation
 import Sparkle
 
 public enum UpdateChannel: String, CaseIterable, Identifiable {
@@ -19,22 +20,23 @@ public enum UpdateChannel: String, CaseIterable, Identifiable {
 /// - Pre/post-install hooks to properly stop/restart KeyPath services
 ///
 /// Per AGENTS.md, all service stop/restart operations go through InstallerEngine.
+@Observable
 @MainActor
-public final class UpdateService: NSObject, ObservableObject {
+public final class UpdateService: NSObject {
     // MARK: - Singleton
 
     public static let shared = UpdateService()
 
     // MARK: - Properties
 
-    private var updaterController: SPUStandardUpdaterController?
-    private let channelDefaultsKey = "keypath.update.channel"
+    @ObservationIgnored private var updaterController: SPUStandardUpdaterController?
+    @ObservationIgnored private let channelDefaultsKey = "keypath.update.channel"
 
-    @Published public private(set) var canCheckForUpdates = false
-    @Published public private(set) var lastUpdateCheckDate: Date?
-    @Published public private(set) var automaticallyChecksForUpdates = true
-    @Published public private(set) var updateChannel: UpdateChannel = .stable
-    @Published public private(set) var currentFeedURL: String?
+    public private(set) var canCheckForUpdates = false
+    public private(set) var lastUpdateCheckDate: Date?
+    public private(set) var automaticallyChecksForUpdates = true
+    public private(set) var updateChannel: UpdateChannel = .stable
+    public private(set) var currentFeedURL: String?
 
     // MARK: - Initialization
 

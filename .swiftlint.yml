@@ -76,6 +76,43 @@ custom_rules:
       - "Sources/.*/ProcessLifecycleManager\\.swift"  # Legacy lifecycle utility (monitored separately)
       - "dev-tools/.*"  # Allow Process() in dev tools
 
+  # Prevent legacy ObservableObject patterns — use @Observable instead
+  no_observable_object:
+    name: "Use @Observable Instead"
+    regex: ':\s*ObservableObject\b'
+    message: "Use @Observable macro instead of ObservableObject protocol. See Swift Observation framework."
+    severity: warning
+
+  no_published:
+    name: "Use @Observable Instead of @Published"
+    regex: '@Published\s'
+    message: "Use @Observable macro instead of @Published. Properties on @Observable classes are automatically tracked."
+    severity: warning
+
+  no_state_object:
+    name: "Use @State Instead of @StateObject"
+    regex: '@StateObject\s'
+    message: "Use @State instead of @StateObject for @Observable classes."
+    severity: warning
+
+  no_observed_object:
+    name: "Use var or @Bindable Instead of @ObservedObject"
+    regex: '@ObservedObject\s'
+    message: "Use plain var (or @Bindable for bindings) instead of @ObservedObject for @Observable classes."
+    severity: warning
+
+  no_environment_object:
+    name: "Use @Environment Instead of @EnvironmentObject"
+    regex: '@EnvironmentObject\s'
+    message: "Use @Environment(Type.self) instead of @EnvironmentObject for @Observable classes."
+    severity: warning
+
+  no_environment_object_modifier:
+    name: "Use .environment() Instead of .environmentObject()"
+    regex: '\.environmentObject\s*\('
+    message: "Use .environment(value) instead of .environmentObject(value) for @Observable classes."
+    severity: warning
+
   # Flag Button/Toggle/Picker without accessibilityIdentifier
   # All interactive UI elements must have accessibility identifiers for automation
   require_accessibility_identifier:

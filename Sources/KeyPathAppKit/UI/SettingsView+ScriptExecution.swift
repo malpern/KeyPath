@@ -5,7 +5,7 @@ import SwiftUI
 
 /// Settings section for Script Execution in Quick Launcher
 struct ScriptExecutionSettingsSection: View {
-    @ObservedObject private var securityService = ScriptSecurityService.shared
+    @Bindable private var securityService = ScriptSecurityService.shared
     @State private var showingExecutionLog = false
 
     var body: some View {
@@ -81,7 +81,7 @@ struct ScriptExecutionSettingsSection: View {
 
 /// Shows the history of script executions for audit purposes
 private struct ScriptExecutionLogView: View {
-    @ObservedObject private var securityService = ScriptSecurityService.shared
+    private var securityService = ScriptSecurityService.shared
     @Environment(\.dismiss) private var dismiss
 
     private var logEntries: [(id: Int, path: String, timestamp: String, success: Bool, error: String)] {

@@ -4,8 +4,8 @@ import SwiftUI
 
 /// About window for KeyPath - app identity, system health, updates, links, and attribution
 struct AboutView: View {
-    @ObservedObject private var updateService = UpdateService.shared
-    @ObservedObject private var recentKeypresses = RecentKeypressesService.shared
+    private var updateService = UpdateService.shared
+    private var recentKeypresses = RecentKeypressesService.shared
 
     private let buildInfo = BuildInfo.current()
     private let currentYear = Calendar.current.component(.year, from: Date())

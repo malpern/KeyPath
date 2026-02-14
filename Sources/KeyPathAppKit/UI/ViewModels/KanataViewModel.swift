@@ -2,57 +2,59 @@ import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathWizardCore
+import Observation
 import SwiftUI
 
 /// MVVM ViewModel for RuntimeCoordinator
 ///
 /// This class provides a thin UI-focused layer between SwiftUI views and RuntimeCoordinator.
-/// It owns all @Published properties for UI reactivity and delegates business logic to RuntimeCoordinator.
+/// It owns all observed properties for UI reactivity and delegates business logic to RuntimeCoordinator.
 ///
 /// Architecture:
-/// - ObservableObject for SwiftUI reactivity
-/// - All @Published properties moved from RuntimeCoordinator
+/// - @Observable for SwiftUI reactivity
+/// - All observed properties for UI reactivity
 /// - Thin adapter - no business logic
 /// - Observes RuntimeCoordinator state changes
 /// - Delegates all actions to RuntimeCoordinator
 @MainActor
-class KanataViewModel: ObservableObject {
-    // MARK: - Published Properties (moved from RuntimeCoordinator)
+@Observable
+class KanataViewModel {
+    // MARK: - Observable Properties (moved from RuntimeCoordinator)
 
     // Core Status Properties
-    @Published var lastError: String?
-    @Published var lastWarning: String?
-    @Published var keyMappings: [KeyMapping] = []
-    @Published var ruleCollections: [RuleCollection] = []
-    @Published var customRules: [CustomRule] = []
-    @Published var currentLayerName: String = RuleCollectionLayer.base.displayName
-    @Published var diagnostics: [KanataDiagnostic] = []
-    @Published var lastProcessExitCode: Int32?
-    @Published var lastConfigUpdate: Date = .init()
+    var lastError: String?
+    var lastWarning: String?
+    var keyMappings: [KeyMapping] = []
+    var ruleCollections: [RuleCollection] = []
+    var customRules: [CustomRule] = []
+    var currentLayerName: String = RuleCollectionLayer.base.displayName
+    var diagnostics: [KanataDiagnostic] = []
+    var lastProcessExitCode: Int32?
+    var lastConfigUpdate: Date = .init()
 
     // UI State Properties (Legacy state removed - use InstallerEngine/SystemContext)
     // Removed: errorReason, showWizard, launchFailureStatus
 
     // Validation-specific UI state
-    @Published var showingValidationAlert = false
-    @Published var validationAlertTitle = ""
-    @Published var validationAlertMessage = ""
-    @Published var validationAlertActions: [ValidationAlertAction] = []
+    var showingValidationAlert = false
+    var validationAlertTitle = ""
+    var validationAlertMessage = ""
+    var validationAlertActions: [ValidationAlertAction] = []
 
     /// Save progress feedback
-    @Published var saveStatus: SaveStatus = .idle
+    var saveStatus: SaveStatus = .idle
 
     /// Emergency stop state
-    @Published var emergencyStopActivated: Bool = false
+    var emergencyStopActivated: Bool = false
 
     // Toast notifications
-    @Published var toastMessage: String?
-    @Published var toastType: ToastType = .success
-    private var toastTask: Task<Void, Never>?
+    var toastMessage: String?
+    var toastType: ToastType = .success
+    @ObservationIgnored private var toastTask: Task<Void, Never>?
 
     // Rule conflict resolution
-    @Published var showRuleConflictDialog = false
-    @Published var pendingRuleConflict: RuleConflictContext?
+    var showRuleConflictDialog = false
+    var pendingRuleConflict: RuleConflictContext?
 
     enum ToastType {
         case success
@@ -63,8 +65,8 @@ class KanataViewModel: ObservableObject {
 
     // MARK: - Private Properties
 
-    private let manager: RuntimeCoordinator
-    private var stateObservationTask: Task<Void, Never>?
+    @ObservationIgnored private let manager: RuntimeCoordinator
+    @ObservationIgnored private var stateObservationTask: Task<Void, Never>?
 
     // MARK: - Manager Access
 

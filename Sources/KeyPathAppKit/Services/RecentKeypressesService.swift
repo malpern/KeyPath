@@ -1,9 +1,11 @@
 import Foundation
 import KeyPathCore
+import Observation
 
 /// Tracks recent keypresses from Kanata TCP events for debugging and visualization.
+@Observable
 @MainActor
-final class RecentKeypressesService: ObservableObject {
+final class RecentKeypressesService {
     static let shared = RecentKeypressesService()
 
     /// Maximum number of events to keep in history
@@ -43,26 +45,26 @@ final class RecentKeypressesService: ObservableObject {
     }
 
     /// Recent keypress events (newest first)
-    @Published private(set) var events: [KeypressEvent] = []
+    private(set) var events: [KeypressEvent] = []
 
     /// Current layer name (for context)
-    @Published private(set) var currentLayer: String = "base"
+    private(set) var currentLayer: String = "base"
 
     /// Whether recording is enabled
-    @Published var isRecording: Bool = true
+    var isRecording: Bool = true
 
     /// Tracks consecutive same-key presses for duplicate detection
-    private var consecutiveKeyCount: Int = 0
-    private var lastConsecutiveKey: String?
-    private var consecutiveKeyStartTime: Date?
+    @ObservationIgnored private var consecutiveKeyCount: Int = 0
+    @ObservationIgnored private var lastConsecutiveKey: String?
+    @ObservationIgnored private var consecutiveKeyStartTime: Date?
     /// Stores timestamps of each consecutive press for detailed timing analysis
-    private var consecutivePressTimestamps: [Date] = []
+    @ObservationIgnored private var consecutivePressTimestamps: [Date] = []
     /// Tracks if we saw a release between presses (helps diagnose cause)
-    private var sawReleaseBetweenPresses: Bool = false
-    private var lastKeyAction: String?
+    @ObservationIgnored private var sawReleaseBetweenPresses: Bool = false
+    @ObservationIgnored private var lastKeyAction: String?
 
-    private let observers = NotificationObserverManager()
-    private let notificationCenter: NotificationCenter
+    @ObservationIgnored private let observers = NotificationObserverManager()
+    @ObservationIgnored private let notificationCenter: NotificationCenter
 
     private init(notificationCenter: NotificationCenter = .default) {
         self.notificationCenter = notificationCenter

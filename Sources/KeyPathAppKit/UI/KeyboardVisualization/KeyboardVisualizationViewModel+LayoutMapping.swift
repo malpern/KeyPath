@@ -1,6 +1,5 @@
 import AppKit
 import Carbon
-import Combine
 import Foundation
 import KeyPathCore
 import SwiftUI
@@ -195,7 +194,6 @@ extension KeyboardVisualizationViewModel {
                 // Update layer name and mapping atomically to prevent UI flash
                 // This ensures the UI never shows mismatched layer name + old mapping
                 await MainActor.run {
-                    self.objectWillChange.send()
                     self.currentLayerName = targetLayerName
                     self.layerKeyMap = mapping
                     self.remapOutputMap = self.buildRemapOutputMap(from: mapping)

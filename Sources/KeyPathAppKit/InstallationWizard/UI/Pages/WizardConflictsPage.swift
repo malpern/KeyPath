@@ -13,7 +13,7 @@ struct WizardConflictsPage: View {
     let kanataManager: RuntimeCoordinator
 
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
-    @EnvironmentObject var stateMachine: WizardStateMachine
+    @Environment(WizardStateMachine.self) var stateMachine
 
     var body: some View {
         VStack(spacing: 0) {

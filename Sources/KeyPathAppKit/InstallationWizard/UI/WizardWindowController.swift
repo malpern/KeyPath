@@ -46,7 +46,7 @@ final class WizardWindowController {
             NSHostingView(rootView:
                 AnyView(
                     wizardView
-                        .environmentObject(viewModel)
+                        .environment(viewModel)
                         .frame(width: 700)
                         .fixedSize(horizontal: false, vertical: true)
                 ))

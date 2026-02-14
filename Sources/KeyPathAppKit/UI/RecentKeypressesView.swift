@@ -4,7 +4,7 @@ import SwiftUI
 /// A simple view showing recent keypresses from Kanata TCP events.
 /// Useful for debugging and understanding what keys are being pressed.
 struct RecentKeypressesView: View {
-    @ObservedObject private var service = RecentKeypressesService.shared
+    private var service = RecentKeypressesService.shared
 
     var body: some View {
         VStack(spacing: 0) {

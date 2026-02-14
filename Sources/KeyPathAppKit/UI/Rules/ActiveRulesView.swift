@@ -3,10 +3,11 @@ import KeyPathCore
 import SwiftUI
 
 struct ActiveRulesView: View {
-    @EnvironmentObject var kanataManager: KanataViewModel
+    @Environment(KanataViewModel.self) var kanataManager
     @State private var isHoveringEmptyState = false
 
     var body: some View {
+        @Bindable var kanataManager = kanataManager
         if kanataManager.ruleCollections.isEmpty {
             VStack(spacing: 12) {
                 Image(systemName: "list.bullet")

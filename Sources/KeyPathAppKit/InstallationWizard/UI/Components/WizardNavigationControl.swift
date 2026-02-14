@@ -5,7 +5,7 @@ import SwiftUI
 /// System Preferences-style navigation control for wizard detail pages
 /// Automatically reads navigation state from environment
 struct WizardNavigationControl: View {
-    @EnvironmentObject var stateMachine: WizardStateMachine
+    @Environment(WizardStateMachine.self) var stateMachine
     @State private var isHovering = false
 
     var body: some View {
@@ -80,7 +80,7 @@ struct WizardNavigationControl: View {
 
 /// ViewModifier that adds navigation control overlay to wizard detail pages
 struct WizardDetailPageModifier: ViewModifier {
-    @EnvironmentObject var stateMachine: WizardStateMachine
+    @Environment(WizardStateMachine.self) var stateMachine
 
     func body(content: Content) -> some View {
         content
@@ -102,7 +102,7 @@ extension View {
 
 /// Close button for wizard detail pages with hover state
 struct CloseButton: View {
-    @EnvironmentObject var stateMachine: WizardStateMachine
+    @Environment(WizardStateMachine.self) var stateMachine
     @State private var isHovering = false
 
     var body: some View {

@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import Observation
 
 /// Phase 2: Centralized State Machine for Kanata Lifecycle Management
 ///
@@ -7,7 +8,8 @@ import KeyPathCore
 /// by ensuring only valid state transitions can occur. All Kanata lifecycle operations
 /// must go through this state machine.
 @MainActor
-public final class LifecycleStateMachine: ObservableObject {
+@Observable
+public final class LifecycleStateMachine {
     // MARK: - State Definition
 
     /// Comprehensive state enumeration covering all possible Kanata states
@@ -108,16 +110,16 @@ public final class LifecycleStateMachine: ObservableObject {
 
     // MARK: - State Machine Properties
 
-    @Published public private(set) var currentState: KanataState = .uninitialized
-    @Published public private(set) var lastEvent: LifecycleEvent?
-    @Published public private(set) var lastTransition: Date?
-    @Published public private(set) var errorMessage: String?
-    @Published public private(set) var stateContext: [String: Any] = [:]
+    public private(set) var currentState: KanataState = .uninitialized
+    public private(set) var lastEvent: LifecycleEvent?
+    public private(set) var lastTransition: Date?
+    public private(set) var errorMessage: String?
+    public private(set) var stateContext: [String: Any] = [:]
 
     // MARK: - State Machine Logic
 
     /// Valid state transitions defined as [currentState: [event: nextState]]
-    private let stateTransitions: [KanataState: [LifecycleEvent: KanataState]] = [
+    @ObservationIgnored private let stateTransitions: [KanataState: [LifecycleEvent: KanataState]] = [
         .uninitialized: [
             .initialize: .initializing
         ],
@@ -241,9 +243,6 @@ public final class LifecycleStateMachine: ObservableObject {
             "✅ [StateMachine-\(correlationId)] Transition: \(previousState.rawValue) → \(nextState.rawValue)"
         )
 
-        // Emit state change notification
-        objectWillChange.send()
-
         return true
     }
 
@@ -272,7 +271,6 @@ public final class LifecycleStateMachine: ObservableObject {
         lastTransition = nil
         errorMessage = nil
         stateContext.removeAll()
-        objectWillChange.send()
     }
 
     /// Get current state information for debugging/monitoring

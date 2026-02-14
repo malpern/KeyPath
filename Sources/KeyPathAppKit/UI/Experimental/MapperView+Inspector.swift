@@ -6,7 +6,7 @@ import SwiftUI
 /// Inspector panel with Liquid Glass styling for the Mapper window.
 /// Contains output type selection (key, app, system action, URL).
 struct MapperInspectorPanel: View {
-    @ObservedObject var viewModel: MapperViewModel
+    @Bindable var viewModel: MapperViewModel
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 

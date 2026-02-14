@@ -8,7 +8,7 @@ import SwiftUI
 
 public struct KeyPathApp: App {
     // Phase 4: MVVM - Use ViewModel instead of Manager directly
-    @StateObject private var viewModel: KanataViewModel
+    @State private var viewModel: KanataViewModel
     private let kanataManager: RuntimeCoordinator
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
@@ -44,7 +44,7 @@ public struct KeyPathApp: App {
         )
         let manager = RuntimeCoordinator(injectedConfigurationService: configurationService)
         kanataManager = manager
-        _viewModel = StateObject(wrappedValue: KanataViewModel(manager: manager))
+        viewModel = KanataViewModel(manager: manager)
         AppLogger.shared.debug(
             "🎯 [Phase 4] MVVM architecture initialized - ViewModel wrapping RuntimeCoordinator"
         )
@@ -105,7 +105,7 @@ public struct KeyPathApp: App {
         // Settings scene for preferences window
         Settings {
             SettingsContainerView()
-                .environmentObject(viewModel) // Phase 4: Inject ViewModel
+                .environment(viewModel) // Phase 4: Inject ViewModel
                 .environment(\.preferencesService, PreferencesService.shared)
                 .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
         }
@@ -1128,7 +1128,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
 /// SwiftUI wrapper for Sparkle's "Check for Updates" menu item
 struct CheckForUpdatesView: View {
-    @ObservedObject private var updateService = UpdateService.shared
+    private var updateService = UpdateService.shared
 
     /// The updater parameter is kept for API compatibility but we use the shared service
     init(updater _: SPUUpdater?) {}

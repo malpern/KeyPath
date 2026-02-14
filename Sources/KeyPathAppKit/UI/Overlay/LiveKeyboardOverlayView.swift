@@ -6,8 +6,8 @@ import SwiftUI
 /// The main live keyboard overlay view.
 /// Shows a borderless floating keyboard that highlights keys as they are pressed.
 struct LiveKeyboardOverlayView: View {
-    @ObservedObject var viewModel: KeyboardVisualizationViewModel
-    @ObservedObject var uiState: LiveKeyboardOverlayUIState
+    var viewModel: KeyboardVisualizationViewModel
+    var uiState: LiveKeyboardOverlayUIState
     let inspectorWidth: CGFloat
     let isMapperAvailable: Bool
     let kanataViewModel: KanataViewModel?
@@ -68,7 +68,7 @@ struct LiveKeyboardOverlayView: View {
     // MARK: - Input & Settings State
 
     /// Japanese input mode detector for showing mode indicator
-    @ObservedObject private var inputSourceDetector = InputSourceDetector.shared
+    var inputSourceDetector = InputSourceDetector.shared
     /// Whether the settings shelf is active (gear mode)
     @State private var isSettingsShelfActive = false
 
@@ -373,7 +373,7 @@ struct LiveKeyboardOverlayView: View {
             reduceMotion: reduceMotion,
             onMouseMove: { viewModel.noteInteraction() }
         )
-        .environmentObject(viewModel)
+        .environment(viewModel)
         .overlayCursorTracking(
             isOverlayHovered: $isOverlayHovered,
             isKeyboardDragging: isKeyboardDragging,
@@ -594,7 +594,7 @@ struct LiveKeyboardOverlayView: View {
                     launcherMappings: viewModel.launcherMappings,
                     isInspectorVisible: inspectorVisible
                 )
-                .environmentObject(viewModel)
+                .environment(viewModel)
                 .frame(
                     width: fixedKeyboardWidth,
                     height: fixedKeyboardHeight,

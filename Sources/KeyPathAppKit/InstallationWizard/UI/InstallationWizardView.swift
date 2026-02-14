@@ -6,7 +6,7 @@ import SwiftUI
 /// Main installation wizard view using clean architecture
 struct InstallationWizardView: View {
     @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var kanataViewModel: KanataViewModel
+    @Environment(KanataViewModel.self) var kanataViewModel
 
     /// Access underlying RuntimeCoordinator for business logic
     var kanataManager: RuntimeCoordinator {
@@ -32,8 +32,8 @@ struct InstallationWizardView: View {
     var initialPage: WizardPage?
 
     // New architecture components
-    @StateObject var stateMachine = WizardStateMachine()
-    @StateObject var autoFixer = WizardAutoFixerManager()
+    @State var stateMachine = WizardStateMachine()
+    @State var autoFixer = WizardAutoFixerManager()
     let stateInterpreter = WizardStateInterpreter()
     @State var asyncOperationManager = WizardAsyncOperationManager()
     @State var toastManager = WizardToastManager()
@@ -130,7 +130,7 @@ struct InstallationWizardView: View {
             .background(WizardDesign.Colors.wizardBackground) // Simple solid background, no visual effect
         }
         .withToasts(toastManager)
-        .environmentObject(stateMachine)
+        .environment(stateMachine)
         .focused($hasKeyboardFocus) // Enable focus for reliable ESC key handling
         // Aggressively disable focus rings during validation
         .onChange(of: isValidating) { _, newValue in
@@ -151,7 +151,7 @@ struct InstallationWizardView: View {
         .overlay(alignment: .topTrailing) {
             if stateMachine.currentPage != .summary {
                 CloseButton()
-                    .environmentObject(stateMachine)
+                    .environment(stateMachine)
                     .padding(.top, 8 + 4) // Extra padding from edge
                     .padding(.trailing, 8 + 4) // Extra padding from edge
                     // Prevent close button from animating during page transitions

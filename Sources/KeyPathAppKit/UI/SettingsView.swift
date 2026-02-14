@@ -7,7 +7,7 @@ import SwiftUI
 // MARK: - Status Settings Tab
 
 struct StatusSettingsTabView: View {
-    @EnvironmentObject var kanataManager: KanataViewModel
+    @Environment(KanataViewModel.self) var kanataManager
 
     @State var wizardInitialPage: WizardPage? // nil = don't show wizard
     @State private var showSetupBanner = false
@@ -220,7 +220,7 @@ struct StatusSettingsTabView: View {
         .sheet(item: $wizardInitialPage) { page in
             InstallationWizardView(initialPage: page)
                 .customizeSheetWindow()
-                .environmentObject(kanataManager)
+                .environment(kanataManager)
         }
         .alert("Permissions Required", isPresented: $showingPermissionAlert) {
             Button("Open Wizard") {

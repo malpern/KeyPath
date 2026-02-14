@@ -6,48 +6,49 @@ import SwiftUI
 /// ViewModel for the keyboard simulator.
 /// Manages queued key taps, simulation execution, and results display.
 /// Tracks physical keyboard state for visual feedback.
+@Observable
 @MainActor
-final class SimulatorViewModel: ObservableObject {
+final class SimulatorViewModel {
     // MARK: - Input State
 
     /// Queued key taps waiting to be simulated
-    @Published var queuedTaps: [SimulatorKeyTap] = []
+    var queuedTaps: [SimulatorKeyTap] = []
 
     /// Default delay between taps in milliseconds
-    @Published var defaultDelayMs: UInt64 = 200
+    var defaultDelayMs: UInt64 = 200
 
     /// Default hold duration in milliseconds
-    @Published var holdDelayMs: UInt64 = 400
+    var holdDelayMs: UInt64 = 400
 
     /// Currently pressed key codes (from physical keyboard)
-    @Published var pressedKeyCodes: Set<UInt16> = []
+    var pressedKeyCodes: Set<UInt16> = []
 
     // MARK: - App Context (for app-specific mappings)
 
     /// Selected app bundle ID for simulation (nil = no app context)
-    @Published var selectedAppBundleId: String?
+    var selectedAppBundleId: String?
 
     /// Available apps with app-specific keymaps
-    @Published var availableApps: [(bundleId: String, displayName: String)] = []
+    var availableApps: [(bundleId: String, displayName: String)] = []
 
     // MARK: - Output State
 
     /// Latest simulation result
-    @Published var result: SimulationResult?
+    var result: SimulationResult?
 
     /// Whether simulation is currently running
-    @Published var isRunning = false
+    var isRunning = false
 
     /// Last error that occurred
-    @Published var error: Error?
+    var error: Error?
 
     // MARK: - Key Monitoring
 
-    private var eventMonitor: Any?
+    @ObservationIgnored private var eventMonitor: Any?
 
     // MARK: - Dependencies
 
-    private let service: SimulatorService
+    @ObservationIgnored private let service: SimulatorService
 
     /// Path to the user's config file
     var configPath: String {

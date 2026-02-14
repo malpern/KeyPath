@@ -3,6 +3,7 @@ import Combine
 import Foundation
 import KeyPathCore
 import KeyPathWizardCore
+import Observation
 
 @MainActor
 final class MenuBarController: NSObject, NSMenuDelegate {
@@ -71,16 +72,21 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         self.appStateController = appStateController
         self.ruleCollectionsManager = ruleCollectionsManager
 
-        // Observe validation state and issues changes to update icon
-        Publishers.CombineLatest(
-            appStateController.$validationState,
-            appStateController.$issues
-        )
-        .receive(on: DispatchQueue.main)
-        .sink { [weak self] _, _ in
-            self?.updateStatusIcon()
+        // Poll validation state and issues changes to update icon
+        Task { @MainActor [weak self] in
+            var lastState: MainAppStateController.ValidationState?
+            var lastIssueCount: Int?
+            while let self, !Task.isCancelled {
+                let state = appStateController.validationState
+                let issueCount = appStateController.issues.count
+                if state != lastState || issueCount != lastIssueCount {
+                    lastState = state
+                    lastIssueCount = issueCount
+                    self.updateStatusIcon()
+                }
+                try? await Task.sleep(for: .milliseconds(250))
+            }
         }
-        .store(in: &cancellables)
 
         // Observe app keymap changes to keep cache fresh
         NotificationCenter.default.publisher(for: .appKeymapsDidChange)

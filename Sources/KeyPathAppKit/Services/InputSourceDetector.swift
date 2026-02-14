@@ -1,22 +1,23 @@
 import Carbon
-import Combine
 import Foundation
 import KeyPathCore
+import Observation
 
 /// Detects the current input source/IME state.
 /// Primarily used to show Japanese input mode (hiragana/katakana/alphanumeric) in the overlay.
 @MainActor
-public final class InputSourceDetector: ObservableObject {
+@Observable
+public final class InputSourceDetector {
     public static let shared = InputSourceDetector()
 
     /// Current input source identifier (e.g., "com.apple.inputmethod.Kotoeri.Japanese")
-    @Published public private(set) var inputSourceID: String = ""
+    public private(set) var inputSourceID: String = ""
 
     /// Whether a Japanese input method is currently active
-    @Published public private(set) var isJapaneseInputActive: Bool = false
+    public private(set) var isJapaneseInputActive: Bool = false
 
     /// The current Japanese input mode (if Japanese IME is active)
-    @Published public private(set) var japaneseMode: JapaneseInputMode = .unknown
+    public private(set) var japaneseMode: JapaneseInputMode = .unknown
 
     /// Display character for the current input mode (あ, ア, A, or nil)
     public var modeIndicator: String? {
@@ -25,7 +26,7 @@ public final class InputSourceDetector: ObservableObject {
     }
 
     /// Reference count for monitoring - allows multiple callers to share the observer
-    private var monitoringCount = 0
+    @ObservationIgnored private var monitoringCount = 0
 
     private init() {
         refresh()

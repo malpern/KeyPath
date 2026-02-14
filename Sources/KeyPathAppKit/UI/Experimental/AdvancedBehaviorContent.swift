@@ -107,7 +107,7 @@ struct MiniActionKeycap: View {
 
 /// Content showing hold and double-tap options with mini keycaps (toggle is in sidebar).
 struct AdvancedBehaviorContent: View {
-    @ObservedObject var viewModel: MapperViewModel
+    @Bindable var viewModel: MapperViewModel
 
     var body: some View {
         VStack(spacing: 16) {

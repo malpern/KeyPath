@@ -1,8 +1,8 @@
 import AppKit
 import Carbon
-import Combine
 import Foundation
 import KeyPathCore
+import Observation
 
 // Import the event processing infrastructure
 #if canImport(KeyPath)
@@ -10,51 +10,52 @@ import KeyPathCore
 #endif
 
 @MainActor
-public class KeyboardCapture: ObservableObject {
-    var eventTap: CFMachPort?
-    var runLoopSource: CFRunLoopSource?
-    var captureCallback: ((String) -> Void)?
-    var sequenceCallback: ((KeySequence) -> Void)?
-    var isCapturing = false
-    var isContinuous = false
-    private(set) var suppressEvents = true // default: suppress during raw capture (exposed for tests)
-    var pauseTimer: Timer?
-    let pauseDuration: TimeInterval = 2.0 // 2 seconds pause to auto-stop
-    var noKeyBreadcrumbTimer: Timer?
-    var anyEventSeen = false
+@Observable
+public class KeyboardCapture {
+    @ObservationIgnored var eventTap: CFMachPort?
+    @ObservationIgnored var runLoopSource: CFRunLoopSource?
+    @ObservationIgnored var captureCallback: ((String) -> Void)?
+    @ObservationIgnored var sequenceCallback: ((KeySequence) -> Void)?
+    @ObservationIgnored var isCapturing = false
+    @ObservationIgnored var isContinuous = false
+    @ObservationIgnored private(set) var suppressEvents = true // default: suppress during raw capture (exposed for tests)
+    @ObservationIgnored var pauseTimer: Timer?
+    @ObservationIgnored let pauseDuration: TimeInterval = 2.0 // 2 seconds pause to auto-stop
+    @ObservationIgnored var noKeyBreadcrumbTimer: Timer?
+    @ObservationIgnored var anyEventSeen = false
 
     // TCP-based capture for when Kanata is running
-    var tcpKeyInputObserver: NSObjectProtocol?
-    var isTcpCaptureMode = false
+    @ObservationIgnored var tcpKeyInputObserver: NSObjectProtocol?
+    @ObservationIgnored var isTcpCaptureMode = false
 
     // Enhanced sequence capture properties
-    var captureMode: CaptureMode = .single
-    var capturedKeys: [KeyPress] = []
-    let chordWindow: TimeInterval = 0.05 // 50ms window for chord detection
-    let sequenceTimeout: TimeInterval = 2.0 // 2 seconds for sequence completion
-    var lastKeyTime: Date?
-    var chordTimer: Timer?
-    var sequenceTimer: Timer?
-    var localMonitor: Any?
-    var mediaKeyMonitor: Any?
-    var lastCapturedKey: KeyPress?
-    var lastCaptureAt: Date?
-    let dedupWindow: TimeInterval = 0.04 // 40ms
-    var currentTapLocation: CGEventTapLocation = .cgSessionEventTap
-    var pressedModifierKeyCodes: Set<Int64> = []
+    @ObservationIgnored var captureMode: CaptureMode = .single
+    @ObservationIgnored var capturedKeys: [KeyPress] = []
+    @ObservationIgnored let chordWindow: TimeInterval = 0.05 // 50ms window for chord detection
+    @ObservationIgnored let sequenceTimeout: TimeInterval = 2.0 // 2 seconds for sequence completion
+    @ObservationIgnored var lastKeyTime: Date?
+    @ObservationIgnored var chordTimer: Timer?
+    @ObservationIgnored var sequenceTimer: Timer?
+    @ObservationIgnored var localMonitor: Any?
+    @ObservationIgnored var mediaKeyMonitor: Any?
+    @ObservationIgnored var lastCapturedKey: KeyPress?
+    @ObservationIgnored var lastCaptureAt: Date?
+    @ObservationIgnored let dedupWindow: TimeInterval = 0.04 // 40ms
+    @ObservationIgnored var currentTapLocation: CGEventTapLocation = .cgSessionEventTap
+    @ObservationIgnored var pressedModifierKeyCodes: Set<Int64> = []
 
     /// Event router for processing captured events through the event processing chain
-    var eventRouter: EventRouter?
+    @ObservationIgnored var eventRouter: EventRouter?
 
     /// Enable/disable event router integration (for backward compatibility)
     /// Default: false to maintain legacy behavior and avoid CGEvent tap conflicts
-    public var useEventRouter: Bool = false
+    @ObservationIgnored public var useEventRouter: Bool = false
 
     /// Reference to RuntimeCoordinator to check if Kanata is running (to avoid tap conflicts)
-    weak var kanataManager: RuntimeCoordinator?
+    @ObservationIgnored weak var kanataManager: RuntimeCoordinator?
 
     /// Activity observer for logging keyboard shortcuts
-    weak var activityObserver: KeyboardActivityObserver?
+    @ObservationIgnored weak var activityObserver: KeyboardActivityObserver?
 
     /// Non-blocking check for whether Kanata is running, using cached service state.
     /// Replaces the old blocking `pgrep` call that could stall the main actor.
@@ -98,11 +99,11 @@ public class KeyboardCapture: ObservableObject {
     }
 
     // Emergency stop sequence detection
-    var emergencyEventTap: CFMachPort?
-    var emergencyRunLoopSource: CFRunLoopSource?
-    var emergencyCallback: (() -> Void)?
-    var isMonitoringEmergency = false
-    var pressedKeys: Set<Int64> = []
+    @ObservationIgnored var emergencyEventTap: CFMachPort?
+    @ObservationIgnored var emergencyRunLoopSource: CFRunLoopSource?
+    @ObservationIgnored var emergencyCallback: (() -> Void)?
+    @ObservationIgnored var isMonitoringEmergency = false
+    @ObservationIgnored var pressedKeys: Set<Int64> = []
 
     func startCapture(callback: @escaping (String) -> Void) {
         guard !isCapturing else { return }

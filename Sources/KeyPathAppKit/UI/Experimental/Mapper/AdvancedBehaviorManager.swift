@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import Observation
 
 /// Manages advanced key behavior configuration: hold actions, tap-dance steps, and timing.
 ///
@@ -10,8 +11,9 @@ import KeyPathCore
 /// - Tap-dance steps (double tap, triple tap, etc.)
 /// - Timing configuration (tap timeout, hold timeout)
 /// - Conflict detection between hold and tap-dance
+@Observable
 @MainActor
-public final class AdvancedBehaviorManager: ObservableObject {
+public final class AdvancedBehaviorManager {
     // MARK: - Hold Behavior
 
     /// Type of hold behavior for tap-hold keys
@@ -36,25 +38,25 @@ public final class AdvancedBehaviorManager: ObservableObject {
     }
 
     /// The configured hold behavior type
-    @Published public var holdBehavior: HoldBehaviorType = .basic
+    public var holdBehavior: HoldBehaviorType = .basic
 
     /// The action to perform when key is held (e.g., "lmet" for Command)
-    @Published public var holdAction: String = ""
+    public var holdAction: String = ""
 
     /// Custom keys that trigger tap for customKeys behavior
-    @Published public var customTapKeysText: String = ""
+    public var customTapKeysText: String = ""
 
     /// Whether advanced section is expanded
-    @Published public var showAdvanced = false
+    public var showAdvanced = false
 
     // MARK: - Tap-Dance
 
     /// Double tap action
-    @Published public var doubleTapAction: String = ""
+    public var doubleTapAction: String = ""
 
     /// Tap-dance steps beyond double tap (Triple Tap, Quad Tap, etc.)
     /// Each step has a label, action, and recording state
-    @Published public var tapDanceSteps: [(label: String, action: String, isRecording: Bool)] = []
+    public var tapDanceSteps: [(label: String, action: String, isRecording: Bool)] = []
 
     /// Labels for tap-dance steps
     public static let tapDanceLabels = ["Triple Tap", "Quad Tap", "Quint Tap", "Sext Tap", "Sept Tap"]
@@ -62,21 +64,21 @@ public final class AdvancedBehaviorManager: ObservableObject {
     // MARK: - Macro
 
     /// Macro behavior for one-input → many-outputs
-    @Published public var macroBehavior: MacroBehavior?
+    public var macroBehavior: MacroBehavior?
 
     /// Whether currently recording macro outputs
-    @Published public var isRecordingMacro = false
+    public var isRecordingMacro = false
 
     // MARK: - Timing
 
     /// Whether timing section is expanded
-    @Published public var showTimingAdvanced = false
+    public var showTimingAdvanced = false
 
     /// Tap timeout in milliseconds
-    @Published public var tapTimeout: Int = 200
+    public var tapTimeout: Int = 200
 
     /// Hold timeout in milliseconds
-    @Published public var holdTimeout: Int = 200
+    public var holdTimeout: Int = 200
 
     /// Combined tapping term (legacy, uses tapTimeout value)
     public var tappingTerm: Int {
@@ -88,24 +90,24 @@ public final class AdvancedBehaviorManager: ObservableObject {
 
     /// Additional keys that form the combo with the input key
     /// For example, if input is "j" and comboKeys is ["k"], the combo is j+k pressed together
-    @Published public var comboKeys: [String] = []
+    public var comboKeys: [String] = []
 
     /// The output when the combo is triggered (e.g., "esc", "enter", "C-x")
-    @Published public var comboOutput: String = ""
+    public var comboOutput: String = ""
 
     /// Timing window for combo detection in milliseconds
-    @Published public var comboTimeout: Int = 200
+    public var comboTimeout: Int = 200
 
     // MARK: - Recording State
 
     /// Whether currently recording hold action
-    @Published public var isRecordingHold = false
+    public var isRecordingHold = false
 
     /// Whether currently recording double tap action
-    @Published public var isRecordingDoubleTap = false
+    public var isRecordingDoubleTap = false
 
     /// Whether currently recording combo output
-    @Published public var isRecordingComboOutput = false
+    public var isRecordingComboOutput = false
 
     // MARK: - Conflict Detection
 
@@ -115,13 +117,13 @@ public final class AdvancedBehaviorManager: ObservableObject {
     }
 
     /// Whether conflict dialog should be shown
-    @Published public var showConflictDialog = false
+    public var showConflictDialog = false
 
     /// The type of pending conflict
-    @Published public var pendingConflictType: ConflictType?
+    public var pendingConflictType: ConflictType?
 
     /// The field that triggered the conflict ("hold", "doubleTap", or "tapDance-N")
-    @Published public var pendingConflictField: String = ""
+    public var pendingConflictField: String = ""
 
     // MARK: - Initialization
 

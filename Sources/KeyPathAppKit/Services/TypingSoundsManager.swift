@@ -1,6 +1,7 @@
 import AppKit
 import AVFoundation
 import KeyPathCore
+import Observation
 
 // MARK: - Sound Profile Model
 
@@ -74,12 +75,13 @@ struct SoundProfile: Identifiable, Equatable {
 // MARK: - Typing Sounds Manager
 
 /// Manages keyboard typing sound playback
+@Observable
 @MainActor
-final class TypingSoundsManager: ObservableObject {
+final class TypingSoundsManager {
     static let shared = TypingSoundsManager()
 
     /// Currently selected sound profile
-    @Published var selectedProfile: SoundProfile = .off {
+    var selectedProfile: SoundProfile = .off {
         didSet {
             UserDefaults.standard.set(selectedProfile.id, forKey: "typingSoundProfileId")
             if selectedProfile.id != SoundProfile.off.id {
@@ -89,7 +91,7 @@ final class TypingSoundsManager: ObservableObject {
     }
 
     /// Volume level (0.0 to 1.0)
-    @Published var volume: Float = 0.7 {
+    var volume: Float = 0.7 {
         didSet {
             UserDefaults.standard.set(volume, forKey: "typingSoundVolume")
         }
@@ -101,17 +103,17 @@ final class TypingSoundsManager: ObservableObject {
     }
 
     /// Audio players for keydown sounds
-    private var keydownPlayers: [AVAudioPlayer] = []
+    @ObservationIgnored private var keydownPlayers: [AVAudioPlayer] = []
     /// Audio players for keyup sounds
-    private var keyupPlayers: [AVAudioPlayer] = []
+    @ObservationIgnored private var keyupPlayers: [AVAudioPlayer] = []
     /// Index for round-robin player selection
-    private var keydownIndex = 0
-    private var keyupIndex = 0
+    @ObservationIgnored private var keydownIndex = 0
+    @ObservationIgnored private var keyupIndex = 0
     /// Number of concurrent players per sound type
-    private let playerPoolSize = 8
+    @ObservationIgnored private let playerPoolSize = 8
 
     /// Observer for TCP key input events
-    private var keyInputObserver: Any?
+    @ObservationIgnored private var keyInputObserver: Any?
 
     private init() {
         // Restore saved preferences

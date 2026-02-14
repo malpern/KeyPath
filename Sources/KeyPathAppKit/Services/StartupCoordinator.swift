@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import Observation
 
 /// Coordinates a boring, phased startup to keep the first display cycle clean.
 ///
@@ -11,13 +12,14 @@ import KeyPathCore
 /// - T+1000ms: optional auto-launch attempt
 /// - T+1250ms: emergency monitoring (event taps) if permitted
 @MainActor
-final class StartupCoordinator: ObservableObject {
+@Observable
+final class StartupCoordinator {
     static let shared = StartupCoordinator()
 
     enum Phase: String { case idle, painted, warmed, validated, launched, monitoring }
 
-    @Published private(set) var phase: Phase = .idle
-    private var timers: [DispatchSourceTimer] = []
+    private(set) var phase: Phase = .idle
+    @ObservationIgnored private var timers: [DispatchSourceTimer] = []
 
     private init() {}
 

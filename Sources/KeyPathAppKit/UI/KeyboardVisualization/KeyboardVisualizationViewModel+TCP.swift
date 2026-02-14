@@ -1,8 +1,8 @@
 import AppKit
 import Carbon
-import Combine
 import Foundation
 import KeyPathCore
+import Observation
 import SwiftUI
 
 extension KeyboardVisualizationViewModel {
@@ -134,16 +134,22 @@ extension KeyboardVisualizationViewModel {
         AppLogger.shared.debug("⌨️ [KeyboardViz] One-shot observer registered")
     }
 
-    /// Set up subscription for app context changes (app-specific key overrides)
+    /// Set up observation for app context changes (app-specific key overrides)
     func setupAppContextObserver() {
-        appContextCancellable = AppContextService.shared.$currentBundleIdentifier
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] bundleId in
-                guard let self else { return }
-                Task { @MainActor in
+        // Cancel any previous observation task
+        appContextObservationTask?.cancel()
+
+        appContextObservationTask = Task { @MainActor [weak self] in
+            var lastBundleId: String?
+            while let self, !Task.isCancelled {
+                let bundleId = AppContextService.shared.currentBundleIdentifier
+                if bundleId != lastBundleId {
+                    lastBundleId = bundleId
                     await self.handleAppContextChange(bundleId: bundleId)
                 }
+                try? await Task.sleep(for: .milliseconds(100))
             }
+        }
         AppLogger.shared.debug("⌨️ [KeyboardViz] App context observer registered")
     }
 

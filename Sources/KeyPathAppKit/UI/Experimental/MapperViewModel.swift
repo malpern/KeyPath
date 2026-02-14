@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import KeyPathCore
 import SwiftUI
 
@@ -8,23 +7,24 @@ import SwiftUI
 
 // MARK: - Mapper View Model
 
+@Observable
 @MainActor
-class MapperViewModel: ObservableObject {
-    @Published var inputLabel: String = "A"
-    @Published var outputLabel: String = "A"
-    @Published var isRecordingInput = false
-    @Published var isRecordingOutput = false
-    @Published var isSaving = false
-    @Published var statusMessage: String?
-    @Published var statusIsError = false
-    @Published var currentLayer: String = "base"
-    @Published var availableLayers: [String] = ["base", "nav"]
+class MapperViewModel {
+    var inputLabel: String = "A"
+    var outputLabel: String = "A"
+    var isRecordingInput = false
+    var isRecordingOutput = false
+    var isSaving = false
+    var statusMessage: String?
+    var statusIsError = false
+    var currentLayer: String = "base"
+    var availableLayers: [String] = ["base", "nav"]
     /// Selected app for launch action (nil = normal key output)
-    @Published var selectedApp: AppLaunchInfo?
+    var selectedApp: AppLaunchInfo?
     /// Selected system action (nil = normal key output)
-    @Published var selectedSystemAction: SystemActionInfo?
+    var selectedSystemAction: SystemActionInfo?
     /// Selected URL for web URL mapping (nil = normal key output)
-    @Published var selectedURL: String? {
+    var selectedURL: String? {
         didSet {
             if selectedURL != oldValue {
                 selectedURLFavicon = nil
@@ -33,21 +33,21 @@ class MapperViewModel: ObservableObject {
     }
 
     /// Favicon for the selected URL
-    @Published var selectedURLFavicon: NSImage?
+    var selectedURLFavicon: NSImage?
     /// Whether the URL input dialog is visible
-    @Published var showingURLDialog = false
+    var showingURLDialog = false
     /// Text input for URL dialog
-    @Published var urlInputText = ""
+    var urlInputText = ""
     /// Key code of the captured input (for overlay-style rendering)
     /// Default to 0 (A key) so the default state shows the A key selected
-    @Published var inputKeyCode: UInt16? = 0
+    var inputKeyCode: UInt16? = 0
     /// Apps that have a mapping for the currently selected input key
-    @Published var appsWithCurrentKeyMapping: [AppKeymap] = []
+    var appsWithCurrentKeyMapping: [AppKeymap] = []
 
     // MARK: - App Condition (Delegated to AppConditionManager)
 
     /// Manager for app condition (precondition) selection
-    @Published var appConditionManager = AppConditionManager()
+    var appConditionManager = AppConditionManager()
 
     /// Legacy accessor for selectedAppCondition
     var selectedAppCondition: AppConditionInfo? {
@@ -59,13 +59,7 @@ class MapperViewModel: ObservableObject {
 
     /// Manager for advanced key behaviors (hold, tap-dance, timing)
     /// Views should access advanced behavior properties through this manager.
-    @Published var advancedBehavior = AdvancedBehaviorManager()
-
-    init() {
-        advancedBehaviorCancellable = advancedBehavior.objectWillChange.sink { [weak self] _ in
-            self?.objectWillChange.send()
-        }
-    }
+    var advancedBehavior = AdvancedBehaviorManager()
 
     /// Legacy accessors for backward compatibility during migration
     /// These delegate to advancedBehavior and will be removed once views are updated
@@ -181,43 +175,42 @@ class MapperViewModel: ObservableObject {
         keys: [KeyPress(baseKey: "a", modifiers: [], keyCode: 0)],
         captureMode: .single
     )
-    var inputSequence: KeySequence? = MapperViewModel.defaultAKeySequence
-    var outputSequence: KeySequence? = MapperViewModel.defaultAKeySequence
-    var keyboardCapture: KeyboardCapture?
-    var simpleKeyCaptureMonitor: Any?
-    var simpleKeyCaptureToken: UUID?
-    var multiTapFinalizeTimer: Timer?
-    var multiTapPendingSequence: KeySequence?
-    var multiTapUpdateHandler: ((String) -> Void)?
-    var multiTapFinalizeHandler: ((String) -> Void)?
-    var multiTapStopHandler: (() -> Void)?
-    var advancedBehaviorCancellable: AnyCancellable?
-    var kanataManager: RuntimeCoordinator?
+    @ObservationIgnored var inputSequence: KeySequence? = MapperViewModel.defaultAKeySequence
+    @ObservationIgnored var outputSequence: KeySequence? = MapperViewModel.defaultAKeySequence
+    @ObservationIgnored var keyboardCapture: KeyboardCapture?
+    @ObservationIgnored var simpleKeyCaptureMonitor: Any?
+    @ObservationIgnored var simpleKeyCaptureToken: UUID?
+    @ObservationIgnored var multiTapFinalizeTimer: Timer?
+    @ObservationIgnored var multiTapPendingSequence: KeySequence?
+    @ObservationIgnored var multiTapUpdateHandler: ((String) -> Void)?
+    @ObservationIgnored var multiTapFinalizeHandler: ((String) -> Void)?
+    @ObservationIgnored var multiTapStopHandler: (() -> Void)?
+    @ObservationIgnored var kanataManager: RuntimeCoordinator?
     var rulesManager: RuleCollectionsManager? {
         kanataManager?.rulesManager
     }
 
-    var finalizeTimer: Timer?
+    @ObservationIgnored var finalizeTimer: Timer?
     /// ID of the last saved custom rule (for clearing/deleting)
-    var lastSavedRuleID: UUID?
+    @ObservationIgnored var lastSavedRuleID: UUID?
     /// Original key context from overlay click (for reset after clear)
-    var originalInputKey: String?
-    var originalOutputKey: String?
-    var originalAppIdentifier: String?
-    var originalSystemActionIdentifier: String?
-    var originalURL: String?
+    @ObservationIgnored var originalInputKey: String?
+    @ObservationIgnored var originalOutputKey: String?
+    @ObservationIgnored var originalAppIdentifier: String?
+    @ObservationIgnored var originalSystemActionIdentifier: String?
+    @ObservationIgnored var originalURL: String?
     /// Original layer from overlay click
-    var originalLayer: String?
+    @ObservationIgnored var originalLayer: String?
 
     /// State saved before starting output recording (for restore on cancel)
-    var savedOutputLabel: String?
-    var savedOutputSequence: KeySequence?
-    var savedSelectedApp: AppLaunchInfo?
-    var savedSelectedSystemAction: SystemActionInfo?
-    var savedMacroBehavior: MacroBehavior?
+    @ObservationIgnored var savedOutputLabel: String?
+    @ObservationIgnored var savedOutputSequence: KeySequence?
+    @ObservationIgnored var savedSelectedApp: AppLaunchInfo?
+    @ObservationIgnored var savedSelectedSystemAction: SystemActionInfo?
+    @ObservationIgnored var savedMacroBehavior: MacroBehavior?
 
     /// Delay before finalizing a sequence capture (allows for multi-key sequences)
-    let sequenceFinalizeDelay: TimeInterval = 0.8
+    @ObservationIgnored let sequenceFinalizeDelay: TimeInterval = 0.8
 
     var canSave: Bool {
         inputSequence != nil && (outputSequence != nil || selectedApp != nil || selectedSystemAction != nil || selectedURL != nil)

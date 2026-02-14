@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import Observation
 import UniformTypeIdentifiers
 
 /// Manages app condition (precondition) selection for per-app key mappings.
@@ -10,12 +11,13 @@ import UniformTypeIdentifiers
 /// - Running apps discovery for picker
 /// - App selection via file picker
 /// - App condition state management
+@Observable
 @MainActor
-public final class AppConditionManager: ObservableObject {
+public final class AppConditionManager {
     // MARK: - State
 
     /// Selected app precondition - rule only applies when this app is frontmost
-    @Published public var selectedAppCondition: AppConditionInfo?
+    public var selectedAppCondition: AppConditionInfo?
 
     // MARK: - Initialization
 

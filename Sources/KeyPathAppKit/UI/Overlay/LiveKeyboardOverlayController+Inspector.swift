@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import KeyPathCore
 import SwiftUI
 
@@ -216,23 +215,35 @@ extension LiveKeyboardOverlayController {
     }
 
     func observeDesiredContentHeight() {
-        uiState.$desiredContentHeight
-            .removeDuplicates()
-            .sink { [weak self] height in
-                guard let self, !self.isUserResizing else { return }
-                applyDesiredContentHeight(height)
+        Task { @MainActor [weak self] in
+            var lastHeight: CGFloat?
+            while let self {
+                let height = self.uiState.desiredContentHeight
+                if height != lastHeight {
+                    lastHeight = height
+                    if !self.isUserResizing {
+                        self.applyDesiredContentHeight(height)
+                    }
+                }
+                try? await Task.sleep(for: .milliseconds(50))
             }
-            .store(in: &cancellables)
+        }
     }
 
     func observeDesiredContentWidth() {
-        uiState.$desiredContentWidth
-            .removeDuplicates()
-            .sink { [weak self] width in
-                guard let self, !self.isUserResizing else { return }
-                applyDesiredContentWidth(width)
+        Task { @MainActor [weak self] in
+            var lastWidth: CGFloat?
+            while let self {
+                let width = self.uiState.desiredContentWidth
+                if width != lastWidth {
+                    lastWidth = width
+                    if !self.isUserResizing {
+                        self.applyDesiredContentWidth(width)
+                    }
+                }
+                try? await Task.sleep(for: .milliseconds(50))
             }
-            .store(in: &cancellables)
+        }
     }
 
     /// Show the hide hint bubble after health indicator dismisses
@@ -248,12 +259,18 @@ extension LiveKeyboardOverlayController {
         }
 
         // Otherwise, observe and wait for dismissal
-        hintBubbleObserver = uiState.$healthIndicatorState
-            .filter { $0 == .dismissed || $0 == .healthy }
-            .first()
-            .sink { [weak self] _ in
-                self?.showHintBubbleWithDelay(seconds: 0.5)
+        hintBubbleObserver?.cancel()
+        let observeTask = Task { @MainActor [weak self] in
+            while let self {
+                let state = self.uiState.healthIndicatorState
+                if state == .dismissed || state == .healthy {
+                    self.showHintBubbleWithDelay(seconds: 0.5)
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(50))
             }
+        }
+        hintBubbleObserver = observeTask
     }
 
     func showHintBubbleWithDelay(seconds: Double) {
@@ -278,13 +295,19 @@ extension LiveKeyboardOverlayController {
     }
 
     func observeKeyboardAspectRatio() {
-        uiState.$keyboardAspectRatio
-            .removeDuplicates()
-            .sink { [weak self] newAspectRatio in
-                guard let self, !self.isUserResizing else { return }
-                resizeWindowForNewAspectRatio(newAspectRatio)
+        Task { @MainActor [weak self] in
+            var lastRatio: CGFloat?
+            while let self {
+                let ratio = self.uiState.keyboardAspectRatio
+                if ratio != lastRatio {
+                    lastRatio = ratio
+                    if !self.isUserResizing {
+                        self.resizeWindowForNewAspectRatio(ratio)
+                    }
+                }
+                try? await Task.sleep(for: .milliseconds(50))
             }
-            .store(in: &cancellables)
+        }
     }
 
     func resizeWindowForNewAspectRatio(_ newAspectRatio: CGFloat) {

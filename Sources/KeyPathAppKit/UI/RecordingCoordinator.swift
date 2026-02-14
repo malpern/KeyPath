@@ -31,8 +31,9 @@ final class KeyboardCaptureAdapter: RecordingCapture {
     }
 }
 
+@Observable
 @MainActor
-final class RecordingCoordinator: ObservableObject {
+final class RecordingCoordinator {
     struct ChannelState {
         var fieldText: String = ""
         var isRecording: Bool = false
@@ -40,9 +41,9 @@ final class RecordingCoordinator: ObservableObject {
         var buttonIcon: String = "play.circle.fill"
     }
 
-    @Published private(set) var input = ChannelState()
-    @Published private(set) var output = ChannelState()
-    @Published var isSequenceMode: Bool {
+    private(set) var input = ChannelState()
+    private(set) var output = ChannelState()
+    var isSequenceMode: Bool {
         didSet {
             PreferencesService.shared.isSequenceMode = isSequenceMode
             inputPlaceholderRequested = true
@@ -51,19 +52,19 @@ final class RecordingCoordinator: ObservableObject {
         }
     }
 
-    private var kanataManager: RuntimeCoordinator?
-    private var showStatusMessage: ((String) -> Void)?
-    private var permissionProvider: (any PermissionSnapshotProviding)?
-    private var keyboardCapture: RecordingCapture?
-    private var captureFactory: () -> RecordingCapture = { KeyboardCaptureAdapter() }
+    @ObservationIgnored private var kanataManager: RuntimeCoordinator?
+    @ObservationIgnored private var showStatusMessage: ((String) -> Void)?
+    @ObservationIgnored private var permissionProvider: (any PermissionSnapshotProviding)?
+    @ObservationIgnored private var keyboardCapture: RecordingCapture?
+    @ObservationIgnored private var captureFactory: () -> RecordingCapture = { KeyboardCaptureAdapter() }
 
-    private var inputTimeoutTimer: Timer?
-    private var outputTimeoutTimer: Timer?
-    private var inputFinalizeTimer: Timer?
-    private var outputFinalizeTimer: Timer?
-    private var inputPlaceholderRequested = false
-    private var outputPlaceholderRequested = false
-    private var mappingsWereSuspended = false
+    @ObservationIgnored private var inputTimeoutTimer: Timer?
+    @ObservationIgnored private var outputTimeoutTimer: Timer?
+    @ObservationIgnored private var inputFinalizeTimer: Timer?
+    @ObservationIgnored private var outputFinalizeTimer: Timer?
+    @ObservationIgnored private var inputPlaceholderRequested = false
+    @ObservationIgnored private var outputPlaceholderRequested = false
+    @ObservationIgnored private var mappingsWereSuspended = false
 
     init() {
         // Initialize from saved preferences

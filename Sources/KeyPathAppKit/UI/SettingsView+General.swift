@@ -29,7 +29,7 @@ private enum GeneralSettingsSection: String, CaseIterable, Identifiable {
 }
 
 struct GeneralSettingsTabView: View {
-    @EnvironmentObject var kanataManager: KanataViewModel
+    @Environment(KanataViewModel.self) var kanataManager
     @State private var settingsToastManager = WizardToastManager()
     @State private var selectedSection: GeneralSettingsSection = .settings
     @AppStorage(LayoutPreferences.layoutIdKey) private var selectedLayoutId: String = LayoutPreferences.defaultLayoutId
@@ -317,7 +317,7 @@ private struct KeymapInfoPopover: View {
 // MARK: - Verbose Logging Toggle
 
 struct VerboseLoggingToggle: View {
-    @EnvironmentObject var kanataManager: KanataViewModel
+    @Environment(KanataViewModel.self) var kanataManager
     @State private var verboseLogging = PreferencesService.shared.verboseKanataLogging
     @State private var showingRestartAlert = false
 

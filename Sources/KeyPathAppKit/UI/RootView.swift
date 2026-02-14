@@ -7,7 +7,7 @@ struct RootView: View {
     @State private var showingUninstallDialog = false
     @State private var showingSimpleModsDialog = false
 
-    @EnvironmentObject private var kanataVM: KanataViewModel
+    @Environment(KanataViewModel.self) private var kanataVM
 
     var body: some View {
         SplashView()
@@ -22,11 +22,11 @@ struct RootView: View {
             }
             .sheet(isPresented: $showingUninstallDialog) {
                 UninstallKeyPathDialog()
-                    .environmentObject(kanataVM)
+                    .environment(kanataVM)
             }
             .sheet(isPresented: $showingSimpleModsDialog) {
                 SimpleModsView(configPath: kanataVM.configPath)
-                    .environmentObject(kanataVM)
+                    .environment(kanataVM)
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowEmergencyStop"))) { _ in
                 showingEmergencyStopDialog = true

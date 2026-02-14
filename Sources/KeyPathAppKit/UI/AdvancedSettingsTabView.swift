@@ -4,7 +4,7 @@ import KeyPathWizardCore
 import SwiftUI
 
 struct AdvancedSettingsTabView: View {
-    @EnvironmentObject var kanataManager: KanataViewModel
+    @Environment(KanataViewModel.self) var kanataManager
 
     @State private var helperInstalled: Bool = false
     @State private var helperVersion: String?
@@ -145,7 +145,7 @@ struct AdvancedSettingsTabView: View {
         .withToasts(settingsToastManager)
         .sheet(isPresented: $showingUninstallDialog) {
             UninstallKeyPathDialog()
-                .environmentObject(kanataManager)
+                .environment(kanataManager)
         }
         .task {
             await refreshHelperStatus()

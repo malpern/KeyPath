@@ -16,7 +16,7 @@ struct WizardAccessibilityPage: View {
     @State private var permissionPollingTask: Task<Void, Never>?
     @State private var showSuccessBurst = false
 
-    @EnvironmentObject var stateMachine: WizardStateMachine
+    @Environment(WizardStateMachine.self) var stateMachine
 
     private func statusIcon(for status: InstallationStatus) -> (name: String, color: Color) {
         switch status {
@@ -575,8 +575,8 @@ struct WizardAccessibilityPage: View {
             }
             .frame(width: WizardDesign.Layout.pageWidth)
             .fixedSize(horizontal: false, vertical: true)
-            .environmentObject(viewModel)
-            .environmentObject(stateMachine)
+            .environment(viewModel)
+            .environment(stateMachine)
         }
     }
 #endif

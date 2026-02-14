@@ -1,17 +1,19 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import Observation
 import ServiceManagement
 
 @MainActor
-final class UninstallCoordinator: ObservableObject {
-    @Published private(set) var logLines: [String] = []
-    @Published private(set) var isRunning = false
-    @Published private(set) var didSucceed = false
-    @Published private(set) var lastError: String?
+@Observable
+final class UninstallCoordinator {
+    private(set) var logLines: [String] = []
+    private(set) var isRunning = false
+    private(set) var didSucceed = false
+    private(set) var lastError: String?
 
-    private let resolveUninstallerURLClosure: () -> URL?
-    private let runWithAdminPrivilegesClosure: (URL, Bool) async -> AppleScriptResult
+    @ObservationIgnored private let resolveUninstallerURLClosure: () -> URL?
+    @ObservationIgnored private let runWithAdminPrivilegesClosure: (URL, Bool) async -> AppleScriptResult
 
     init(
         resolveUninstallerURL: @escaping () -> URL?,

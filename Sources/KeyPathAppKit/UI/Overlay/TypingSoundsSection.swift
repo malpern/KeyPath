@@ -4,7 +4,7 @@ import SwiftUI
 
 /// Section for selecting typing sound profiles in the overlay drawer
 struct TypingSoundsSection: View {
-    @ObservedObject private var soundsManager = TypingSoundsManager.shared
+    @Bindable private var soundsManager = TypingSoundsManager.shared
     @State private var hoveredProfile: SoundProfile?
     @State private var hoverDebounceTask: Task<Void, Never>?
 

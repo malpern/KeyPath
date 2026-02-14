@@ -39,7 +39,7 @@ enum SettingsTab: Hashable, CaseIterable {
 }
 
 struct SettingsContainerView: View {
-    @EnvironmentObject var kanataManager: KanataViewModel
+    @Environment(KanataViewModel.self) var kanataManager
     @State private var selection: SettingsTab = .status
     @State private var canManageRules: Bool = true
 
