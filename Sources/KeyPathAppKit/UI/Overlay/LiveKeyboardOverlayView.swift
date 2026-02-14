@@ -1,5 +1,6 @@
 import AppKit
 import KeyPathCore
+import KeyPathWizardCore
 import SwiftUI
 
 /// The main live keyboard overlay view.
@@ -77,6 +78,15 @@ struct LiveKeyboardOverlayView: View {
     @AppStorage("launcherWelcomeSeenForBuild") private var launcherWelcomeSeenForBuild: String = ""
     @State private var pendingLauncherConfig: LauncherGridConfig?
 
+    // MARK: - Service Stopped Alert (Overlay)
+
+    /// Legacy main-window alert (from ContentView) re-homed onto the overlay so the
+    /// main window can remain minimal without losing the "restart service" affordance.
+    @State private var showingKanataServiceStoppedAlert = false
+    @State private var lastKanataServiceIssuePresent = false
+    @State private var hasSeenHealthyKanataService = false
+    @State private var overlayLaunchTime = Date()
+
     /// Check if welcome should be shown for current build
     private var hasSeenLauncherWelcomeForCurrentBuild: Bool {
         let currentBuild = BuildInfo.current().date
@@ -136,6 +146,37 @@ struct LiveKeyboardOverlayView: View {
                 inspectorSection = settingsSection
             }
         }
+    }
+
+    private func handleKanataServiceIssueChange(_ issues: [WizardIssue]) {
+        let serviceIssue = issues.first { issue in
+            if case .component(.kanataService) = issue.identifier {
+                return true
+            }
+            return false
+        }
+        let hasServiceIssue = serviceIssue != nil
+
+        if !hasServiceIssue {
+            if let state = MainAppStateController.shared.validationState, state != .checking {
+                hasSeenHealthyKanataService = true
+            }
+        }
+
+        // Grace period: don't show alert within 10s of launch (service may bounce during startup/deploy)
+        let timeSinceLaunch = Date().timeIntervalSince(overlayLaunchTime)
+        let wizardOpen = WizardWindowController.shared.isVisible
+
+        if hasServiceIssue,
+           !lastKanataServiceIssuePresent,
+           hasSeenHealthyKanataService,
+           !wizardOpen,
+           timeSinceLaunch > 10
+        {
+            showingKanataServiceStoppedAlert = true
+        }
+
+        lastKanataServiceIssuePresent = hasServiceIssue
     }
 
     var body: some View {
@@ -343,6 +384,10 @@ struct LiveKeyboardOverlayView: View {
         content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .ruleCollectionsChanged)) { _ in
             loadCustomRulesState()
         })
+        // Keep overlay behavior aligned with legacy main-window alerts.
+        content = AnyView(content.onReceive(MainAppStateController.shared.$issues) { newIssues in
+            handleKanataServiceIssueChange(newIssues)
+        })
         content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .switchToAppRulesTab)) { _ in
             // Switch to Custom Rules tab after saving a rule
             loadCustomRulesState()
@@ -490,6 +535,28 @@ struct LiveKeyboardOverlayView: View {
                 if let error = appRuleDeleteError {
                     Text(error)
                 }
+            }
+        ))
+        // Alert when Kanata stops unexpectedly (presented on top of the overlay).
+        content = AnyView(content.alert(
+            "Kanata Service Stopped",
+            isPresented: $showingKanataServiceStoppedAlert,
+            actions: {
+                Button("Restart Service") {
+                    showingKanataServiceStoppedAlert = false
+                    Task { @MainActor in
+                        guard let kanataViewModel else { return }
+                        _ = await kanataViewModel.restartKanata(
+                            reason: "Service stopped alert (overlay)"
+                        )
+                    }
+                }
+                .accessibilityIdentifier("overlay-kanata-service-stopped-restart-button")
+                Button("Cancel", role: .cancel) {}
+                    .accessibilityIdentifier("overlay-kanata-service-stopped-cancel-button")
+            },
+            message: {
+                Text("The remapping service stopped unexpectedly.")
             }
         ))
         // Confirmation dialog for resetting all custom rules
