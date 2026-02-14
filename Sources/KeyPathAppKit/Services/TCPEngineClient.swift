@@ -11,7 +11,7 @@ final class TCPEngineClient: EngineClient, @unchecked Sendable {
     }
 
     func reloadConfig() async -> EngineReloadResult {
-        let timeout = self.timeout
+        let timeout = timeout
         return await EngineReloadSingleFlight.shared.run(reason: "TCPEngineClient.reloadConfig") {
             let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
             let client = KanataTCPClient(port: port, timeout: timeout)

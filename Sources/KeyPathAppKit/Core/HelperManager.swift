@@ -18,8 +18,8 @@ actor HelperManager {
 
     // MARK: - SMAppService indirection for testability
 
-    /// Allows unit tests to inject a fake SMAppService and simulate states like `.notFound`.
-    /// Default implementation wraps Apple's `SMAppService`.
+    // Allows unit tests to inject a fake SMAppService and simulate states like `.notFound`.
+    // Default implementation wraps Apple's `SMAppService`.
     #if DEBUG
         nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
             NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))

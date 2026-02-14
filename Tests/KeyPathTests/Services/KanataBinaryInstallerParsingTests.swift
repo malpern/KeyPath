@@ -23,4 +23,3 @@ final class KanataBinaryInstallerParsingTests: XCTestCase {
         XCTAssertEqual(KanataBinaryInstaller.shellSingleQuoted(""), "")
     }
 }
-

@@ -428,7 +428,7 @@ final class KanataBinaryInstaller {
         }
     }
 
-    nonisolated internal static func parseTeamIdentifier(fromCodesignOutput output: String) -> String? {
+    nonisolated static func parseTeamIdentifier(fromCodesignOutput output: String) -> String? {
         guard let regex = try? NSRegularExpression(pattern: #"TeamIdentifier=([A-Z0-9]+)"#) else {
             return nil
         }
@@ -443,7 +443,7 @@ final class KanataBinaryInstaller {
         return String(output[teamRange])
     }
 
-    nonisolated internal static func shellSingleQuoted(_ value: String) -> String {
+    nonisolated static func shellSingleQuoted(_ value: String) -> String {
         // Escapes single quotes for inclusion inside a surrounding single-quoted string in POSIX shells.
         // Example: abc'def -> abc'"'"'def
         value.replacingOccurrences(of: "'", with: "'\"'\"'")

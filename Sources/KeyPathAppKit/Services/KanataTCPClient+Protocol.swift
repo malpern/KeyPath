@@ -93,9 +93,14 @@ extension KanataTCPClient {
         let epoch: UInt64?
         let request_id: UInt64?
 
-        // Unified interpretation across protocol variants.
-        var isSuccess: Bool { ok ?? ready ?? false }
-        var isTimeout: Bool { (ok == nil) && (ready == false) && (timeout_ms != nil) }
+        /// Unified interpretation across protocol variants.
+        var isSuccess: Bool {
+            ok ?? ready ?? false
+        }
+
+        var isTimeout: Bool {
+            (ok == nil) && (ready == false) && (timeout_ms != nil)
+        }
     }
 
     /// Action types for fake key commands

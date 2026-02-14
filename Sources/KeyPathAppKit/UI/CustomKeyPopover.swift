@@ -29,7 +29,8 @@ struct CustomKeyPopover: View {
     /// Display label for the current input (shows friendly name for system actions)
     private var displayLabel: String {
         if let actionId = CustomRuleValidator.extractSystemActionId(from: keyInput),
-           let action = CustomRuleValidator.systemAction(for: actionId) {
+           let action = CustomRuleValidator.systemAction(for: actionId)
+        {
             return action.name
         }
         return keyInput

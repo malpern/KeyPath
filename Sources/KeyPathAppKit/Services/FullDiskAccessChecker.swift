@@ -15,8 +15,8 @@ final class FullDiskAccessChecker {
 
     private init() {}
 
-    /// Test seam: override the probe result (used by unit tests).
-    /// This must remain nil in production.
+    // Test seam: override the probe result (used by unit tests).
+    // This must remain nil in production.
     #if DEBUG
         nonisolated(unsafe) static var probeOverride: (() -> Bool)?
     #endif

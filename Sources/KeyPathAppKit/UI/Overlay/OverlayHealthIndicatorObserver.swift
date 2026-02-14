@@ -73,7 +73,7 @@ final class OverlayHealthIndicatorObserver {
                 if state != lastState || issues.count != lastIssueCount {
                     lastState = state
                     lastIssueCount = issues.count
-                    self.handle(state: state, issues: issues)
+                    handle(state: state, issues: issues)
                 }
                 try? await Task.sleep(for: .milliseconds(250))
             }

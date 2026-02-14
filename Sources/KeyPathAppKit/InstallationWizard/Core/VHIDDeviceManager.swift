@@ -27,17 +27,17 @@ final class VHIDDeviceManager: @unchecked Sendable {
         "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/Info.plist"
     private static let vhidDeviceRunningCheck = "Karabiner-VirtualHIDDevice-Daemon"
 
-    /// Test seam: allow injecting PID provider during unit tests
+    // Test seam: allow injecting PID provider during unit tests
     #if DEBUG
         nonisolated(unsafe) static var testPIDProvider: (() -> [String])?
     #endif
 
-    /// Test seam: allow mocking shell command results during unit tests
+    // Test seam: allow mocking shell command results during unit tests
     #if DEBUG
         nonisolated(unsafe) static var testShellProvider: ((String) -> String)?
     #endif
 
-    /// Test seam: allow injecting installed version during unit tests
+    // Test seam: allow injecting installed version during unit tests
     #if DEBUG
         nonisolated(unsafe) static var testInstalledVersionProvider: (() -> String?)?
     #endif

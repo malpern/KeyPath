@@ -55,7 +55,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
 
     // MARK: - Deduplication Tests
 
-    func testDeduplication_DuplicateWithin100ms_IsSkipped() async throws {
+    func testDeduplication_DuplicateWithin100ms_IsSkipped() async {
         // Post first event
         postKey("a", action: "press")
 
@@ -76,7 +76,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
         )
     }
 
-    func testDeduplication_DifferentKeyWithin100ms_IsAccepted() async throws {
+    func testDeduplication_DifferentKeyWithin100ms_IsAccepted() async {
         // Post first event
         postKey("a", action: "press")
 
@@ -93,7 +93,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
         )
     }
 
-    func testDeduplication_DifferentActionWithin100ms_IsAccepted() async throws {
+    func testDeduplication_DifferentActionWithin100ms_IsAccepted() async {
         // Post press event
         postKey("a", action: "press")
 
@@ -169,7 +169,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
         )
     }
 
-    func testDeduplication_LayerChange_IsTreatedSeparately() async throws {
+    func testDeduplication_LayerChange_IsTreatedSeparately() async {
         // Post event in base layer
         postLayer("base")
 
@@ -231,7 +231,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
 
     // MARK: - Recording Toggle Tests
 
-    func testRecordingToggle_WhenDisabled_EventsNotAdded() async throws {
+    func testRecordingToggle_WhenDisabled_EventsNotAdded() async {
         service.isRecording = false
 
         postKey("a", action: "press")
@@ -244,7 +244,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
         )
     }
 
-    func testRecordingToggle_WhenReEnabled_EventsAdded() async throws {
+    func testRecordingToggle_WhenReEnabled_EventsAdded() async {
         service.isRecording = false
         service.toggleRecording()
 
@@ -284,7 +284,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
         )
     }
 
-    func testClearEvents_RemovesAllEvents() async throws {
+    func testClearEvents_RemovesAllEvents() async {
         // Add some events
         postKey("a", action: "press")
 

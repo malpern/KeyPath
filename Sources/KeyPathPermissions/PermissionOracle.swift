@@ -620,14 +620,12 @@ public actor PermissionOracle {
         }
 
         // Wait for the process on a detached task to avoid blocking the caller's actor
-        let output: String? = await Task.detached {
+        return await Task.detached {
             task.waitUntilExit()
             timeoutTask.cancel() // Process finished; cancel the timeout
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             return String(data: data, encoding: .utf8)
         }.value
-
-        return output
     }
 }
 

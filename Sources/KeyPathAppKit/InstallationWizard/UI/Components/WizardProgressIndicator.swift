@@ -180,15 +180,15 @@ struct WizardOperationProgress: View {
             width: 220,
             height: 6
         )
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.regularMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(NSColor.separatorColor).opacity(0.35), lineWidth: 0.8)
-                    )
-            )
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.regularMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(NSColor.separatorColor).opacity(0.35), lineWidth: 0.8)
+                )
+        )
     }
 
     private var operationDisplayName: String {

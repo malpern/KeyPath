@@ -82,7 +82,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 if state != lastState || issueCount != lastIssueCount {
                     lastState = state
                     lastIssueCount = issueCount
-                    self.updateStatusIcon()
+                    updateStatusIcon()
                 }
                 try? await Task.sleep(for: .milliseconds(250))
             }

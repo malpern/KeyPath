@@ -218,11 +218,11 @@ extension LiveKeyboardOverlayController {
         Task { @MainActor [weak self] in
             var lastHeight: CGFloat?
             while let self {
-                let height = self.uiState.desiredContentHeight
+                let height = uiState.desiredContentHeight
                 if height != lastHeight {
                     lastHeight = height
-                    if !self.isUserResizing {
-                        self.applyDesiredContentHeight(height)
+                    if !isUserResizing {
+                        applyDesiredContentHeight(height)
                     }
                 }
                 try? await Task.sleep(for: .milliseconds(50))
@@ -234,11 +234,11 @@ extension LiveKeyboardOverlayController {
         Task { @MainActor [weak self] in
             var lastWidth: CGFloat?
             while let self {
-                let width = self.uiState.desiredContentWidth
+                let width = uiState.desiredContentWidth
                 if width != lastWidth {
                     lastWidth = width
-                    if !self.isUserResizing {
-                        self.applyDesiredContentWidth(width)
+                    if !isUserResizing {
+                        applyDesiredContentWidth(width)
                     }
                 }
                 try? await Task.sleep(for: .milliseconds(50))
@@ -262,9 +262,9 @@ extension LiveKeyboardOverlayController {
         hintBubbleObserver?.cancel()
         let observeTask = Task { @MainActor [weak self] in
             while let self {
-                let state = self.uiState.healthIndicatorState
+                let state = uiState.healthIndicatorState
                 if state == .dismissed || state == .healthy {
-                    self.showHintBubbleWithDelay(seconds: 0.5)
+                    showHintBubbleWithDelay(seconds: 0.5)
                     return
                 }
                 try? await Task.sleep(for: .milliseconds(50))
@@ -298,11 +298,11 @@ extension LiveKeyboardOverlayController {
         Task { @MainActor [weak self] in
             var lastRatio: CGFloat?
             while let self {
-                let ratio = self.uiState.keyboardAspectRatio
+                let ratio = uiState.keyboardAspectRatio
                 if ratio != lastRatio {
                     lastRatio = ratio
-                    if !self.isUserResizing {
-                        self.resizeWindowForNewAspectRatio(ratio)
+                    if !isUserResizing {
+                        resizeWindowForNewAspectRatio(ratio)
                     }
                 }
                 try? await Task.sleep(for: .milliseconds(50))

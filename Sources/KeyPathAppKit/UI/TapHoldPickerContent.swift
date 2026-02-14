@@ -69,7 +69,8 @@ struct TapHoldPickerContent: View {
     /// Get display label for a custom value (system action or key)
     private func displayLabelFor(_ value: String) -> String {
         if let actionId = CustomRuleValidator.extractSystemActionId(from: value),
-           let action = CustomRuleValidator.systemAction(for: actionId) {
+           let action = CustomRuleValidator.systemAction(for: actionId)
+        {
             return action.name
         }
         return value
@@ -78,7 +79,8 @@ struct TapHoldPickerContent: View {
     /// Get SF Symbol for a custom value if it's a system action
     private func sfSymbolFor(_ value: String) -> String? {
         if let actionId = CustomRuleValidator.extractSystemActionId(from: value),
-           let action = CustomRuleValidator.systemAction(for: actionId) {
+           let action = CustomRuleValidator.systemAction(for: actionId)
+        {
             return action.sfSymbol
         }
         return nil

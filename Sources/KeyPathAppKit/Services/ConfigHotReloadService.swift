@@ -207,7 +207,7 @@ final class ConfigHotReloadService {
     }
 
     // MARK: - Private Helpers
-    
+
     private func scheduleStatusReset() {
         // Capture the callback at scheduling time so callers (and tests) don't get flakiness if
         // the callbacks struct is mutated before the delay expires.

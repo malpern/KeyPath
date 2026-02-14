@@ -180,7 +180,8 @@ struct LiveKeyboardOverlayView: View {
            !lastKanataServiceIssuePresent,
            hasSeenHealthyKanataService,
            !wizardOpen,
-           timeSinceLaunch > 10 {
+           timeSinceLaunch > 10
+        {
             showingKanataServiceStoppedAlert = true
         }
 
@@ -322,14 +323,16 @@ struct LiveKeyboardOverlayView: View {
                 inspectorSection = .mapper
                 if let userInfo = notification.userInfo,
                    let inputKey = userInfo["inputKey"] as? String,
-                   let outputKey = userInfo["outputKey"] as? String {
+                   let outputKey = userInfo["outputKey"] as? String
+                {
                     var mapperUserInfo: [String: Any] = [
                         "inputKey": inputKey,
                         "outputKey": outputKey,
                         "keyCode": UInt16(0)
                     ]
                     if let appBundleId = userInfo["appBundleId"] as? String,
-                       let appDisplayName = userInfo["appDisplayName"] as? String {
+                       let appDisplayName = userInfo["appDisplayName"] as? String
+                    {
                         mapperUserInfo["appBundleId"] = appBundleId
                         mapperUserInfo["appDisplayName"] = appDisplayName
                     }

@@ -23,7 +23,8 @@ extension LiveKeyboardOverlayView {
             // Load the launcher config to pass to welcome dialog
             let collections = await RuleCollectionStore.shared.loadCollections()
             if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
-               let config = launcherCollection.configuration.launcherGridConfig {
+               let config = launcherCollection.configuration.launcherGridConfig
+            {
                 await MainActor.run {
                     pendingLauncherConfig = config
                     showLauncherWelcomeWindow()

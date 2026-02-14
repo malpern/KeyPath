@@ -249,14 +249,14 @@ class MainAppStateController {
             while let self, !Task.isCancelled {
                 let newState = kanataManager.kanataService.state
                 let isHealthy = if case .running = newState { true } else { false }
-                let wasHealthy = self.lastKnownServiceHealthy
+                let wasHealthy = lastKnownServiceHealthy
 
                 if wasHealthy != isHealthy {
-                    self.lastKnownServiceHealthy = isHealthy
+                    lastKnownServiceHealthy = isHealthy
                     AppLogger.shared.log(
                         "🔄 [MainAppStateController] Service health changed: \(wasHealthy.map { String($0) } ?? "nil") → \(isHealthy)"
                     )
-                    await self.revalidate()
+                    await revalidate()
                 }
 
                 try? await Task.sleep(for: .seconds(2))

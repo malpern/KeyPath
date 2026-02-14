@@ -40,7 +40,8 @@ private struct LauncherIconCell: View {
     @ViewBuilder
     private var iconView: some View {
         if let appIdentifier = entry.appIdentifier,
-           let icon = IconResolverService.shared.resolveAppIcon(for: appIdentifier) {
+           let icon = IconResolverService.shared.resolveAppIcon(for: appIdentifier)
+        {
             Image(nsImage: icon)
                 .resizable()
                 .aspectRatio(contentMode: .fit)

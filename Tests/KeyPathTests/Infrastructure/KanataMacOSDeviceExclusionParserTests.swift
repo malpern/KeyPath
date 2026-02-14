@@ -37,4 +37,3 @@ final class KanataMacOSDeviceExclusionParserTests: XCTestCase {
         }
     #endif
 }
-

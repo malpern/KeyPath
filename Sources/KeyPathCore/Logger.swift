@@ -120,7 +120,7 @@ public final class AppLogger {
         // Start automatic flush timer
         Task { @MainActor [weak self] in
             guard let self else { return }
-            self.flushTimer = Timer.scheduledTimer(withTimeInterval: self.flushInterval, repeats: true) {
+            flushTimer = Timer.scheduledTimer(withTimeInterval: flushInterval, repeats: true) {
                 _ in
                 self.flushBuffer()
             }

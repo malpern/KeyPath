@@ -484,19 +484,19 @@ public class KeyboardCapture {
         Task { @MainActor [weak self] in
             guard let self else { return }
             // Handle legacy callback if set (for backward compatibility)
-            if self.sequenceCallback == nil, let legacyCallback = self.captureCallback {
+            if sequenceCallback == nil, let legacyCallback = captureCallback {
                 legacyCallback(keyName)
 
-                if !self.isContinuous {
-                    self.stopCapture()
+                if !isContinuous {
+                    stopCapture()
                 } else {
-                    self.resetPauseTimer()
+                    resetPauseTimer()
                 }
                 return
             }
 
             // Handle new sequence capture
-            self.processKeyPress(keyPress)
+            processKeyPress(keyPress)
         }
     }
 
@@ -543,18 +543,18 @@ public class KeyboardCapture {
 
         Task { @MainActor [weak self] in
             guard let self else { return }
-            if self.sequenceCallback == nil, let legacyCallback = self.captureCallback {
+            if sequenceCallback == nil, let legacyCallback = captureCallback {
                 legacyCallback(keyName)
 
-                if !self.isContinuous {
-                    self.stopCapture()
+                if !isContinuous {
+                    stopCapture()
                 } else {
-                    self.resetPauseTimer()
+                    resetPauseTimer()
                 }
                 return
             }
 
-            self.processKeyPress(keyPress)
+            processKeyPress(keyPress)
         }
     }
 

@@ -102,9 +102,9 @@ final class HelperMaintenance {
         return healthy
     }
 
-    /// Find all KeyPath.app copies visible to Spotlight (fast, robust in practice).
-    /// Results are sorted with `/Applications/KeyPath.app` first if present.
-    /// Excludes build directories (dist/, .build/, build/) to avoid flagging build artifacts.
+    // Find all KeyPath.app copies visible to Spotlight (fast, robust in practice).
+    // Results are sorted with `/Applications/KeyPath.app` first if present.
+    // Excludes build directories (dist/, .build/, build/) to avoid flagging build artifacts.
     #if DEBUG
         nonisolated(unsafe) static var testDuplicateAppPathsOverride: (() -> [String]?)?
     #endif

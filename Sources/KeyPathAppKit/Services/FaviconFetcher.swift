@@ -69,7 +69,7 @@ final class FaviconFetcher {
 
         // 4. Start new fetch
         let fetchTask = Task<FaviconResult, Never> {
-            FaviconResult(image: await performFetch(for: domain, fullURL: url))
+            await FaviconResult(image: performFetch(for: domain, fullURL: url))
         }
 
         pendingFetches[domain] = fetchTask

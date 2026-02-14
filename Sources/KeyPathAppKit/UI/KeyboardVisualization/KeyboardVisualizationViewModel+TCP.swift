@@ -145,7 +145,7 @@ extension KeyboardVisualizationViewModel {
                 let bundleId = AppContextService.shared.currentBundleIdentifier
                 if bundleId != lastBundleId {
                     lastBundleId = bundleId
-                    await self.handleAppContextChange(bundleId: bundleId)
+                    await handleAppContextChange(bundleId: bundleId)
                 }
                 try? await Task.sleep(for: .milliseconds(100))
             }
@@ -501,7 +501,8 @@ extension KeyboardVisualizationViewModel {
             : false
 
         if FeatureFlags.keyboardSuppressionDebugEnabled,
-           let mappedOutput = remapOutputMap.first(where: { $0.value == keyCode }) {
+           let mappedOutput = remapOutputMap.first(where: { $0.value == keyCode })
+        {
             AppLogger.shared.debug(
                 """
                 🔄 [KeyboardViz] KeyInput \(key)(\(keyCode)): isRemapOutput=true, \

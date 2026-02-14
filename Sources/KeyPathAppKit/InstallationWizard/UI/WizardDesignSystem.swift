@@ -351,17 +351,17 @@ enum WizardDesign {
 
             func makeBody(configuration: Configuration) -> some View {
                 configuration.label
-                .font(WizardDesign.Typography.button)
-                .foregroundColor(.white)
-                .frame(minWidth: 120, minHeight: 26) // Fixed minimum dimensions for primary buttons (20% height reduction)
-                .padding(.horizontal, WizardDesign.Spacing.buttonPadding)
-                .padding(.vertical, WizardDesign.Spacing.elementGap)
-                .background(WizardDesign.Colors.primaryAction)
-                .clipShape(.rect(cornerRadius: 8))
-                .opacity(isLoading ? 0.85 : 1.0)
-                .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-                .animation(WizardDesign.Animation.buttonFeedback, value: configuration.isPressed)
-                .disabled(isLoading)
+                    .font(WizardDesign.Typography.button)
+                    .foregroundColor(.white)
+                    .frame(minWidth: 120, minHeight: 26) // Fixed minimum dimensions for primary buttons (20% height reduction)
+                    .padding(.horizontal, WizardDesign.Spacing.buttonPadding)
+                    .padding(.vertical, WizardDesign.Spacing.elementGap)
+                    .background(WizardDesign.Colors.primaryAction)
+                    .clipShape(.rect(cornerRadius: 8))
+                    .opacity(isLoading ? 0.85 : 1.0)
+                    .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+                    .animation(WizardDesign.Animation.buttonFeedback, value: configuration.isPressed)
+                    .disabled(isLoading)
             }
         }
 
@@ -375,27 +375,27 @@ enum WizardDesign {
 
             func makeBody(configuration: Configuration) -> some View {
                 configuration.label
-                .font(WizardDesign.Typography.button)
-                .foregroundColor(
-                    configuration.isPressed
-                        ? WizardDesign.Colors.wizardBackground // Invert for clear pressed feedback
-                        : WizardDesign.Colors.primaryAction
-                )
-                .frame(minWidth: 120, minHeight: 26) // Match primary button dimensions
-                .padding(.horizontal, WizardDesign.Spacing.buttonPadding)
-                .padding(.vertical, WizardDesign.Spacing.elementGap)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(configuration.isPressed ? WizardDesign.Colors.primaryAction : Color.clear)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(WizardDesign.Colors.primaryAction, lineWidth: 1.5)
-                )
-                .opacity(isLoading ? 0.85 : 1.0)
-                .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-                .animation(WizardDesign.Animation.buttonFeedback, value: configuration.isPressed)
-                .disabled(isLoading)
+                    .font(WizardDesign.Typography.button)
+                    .foregroundColor(
+                        configuration.isPressed
+                            ? WizardDesign.Colors.wizardBackground // Invert for clear pressed feedback
+                            : WizardDesign.Colors.primaryAction
+                    )
+                    .frame(minWidth: 120, minHeight: 26) // Match primary button dimensions
+                    .padding(.horizontal, WizardDesign.Spacing.buttonPadding)
+                    .padding(.vertical, WizardDesign.Spacing.elementGap)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(configuration.isPressed ? WizardDesign.Colors.primaryAction : Color.clear)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(WizardDesign.Colors.primaryAction, lineWidth: 1.5)
+                    )
+                    .opacity(isLoading ? 0.85 : 1.0)
+                    .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+                    .animation(WizardDesign.Animation.buttonFeedback, value: configuration.isPressed)
+                    .disabled(isLoading)
             }
         }
 
@@ -409,17 +409,17 @@ enum WizardDesign {
 
             func makeBody(configuration: Configuration) -> some View {
                 configuration.label
-                .font(WizardDesign.Typography.button)
-                .foregroundColor(.white)
-                .frame(minWidth: 120, minHeight: 26) // Fixed minimum dimensions (20% height reduction)
-                .padding(.horizontal, WizardDesign.Spacing.buttonPadding)
-                .padding(.vertical, WizardDesign.Spacing.elementGap)
-                .background(WizardDesign.Colors.error)
-                .clipShape(.rect(cornerRadius: 8))
-                .opacity(isLoading ? 0.85 : 1.0)
-                .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-                .animation(WizardDesign.Animation.buttonFeedback, value: configuration.isPressed)
-                .disabled(isLoading)
+                    .font(WizardDesign.Typography.button)
+                    .foregroundColor(.white)
+                    .frame(minWidth: 120, minHeight: 26) // Fixed minimum dimensions (20% height reduction)
+                    .padding(.horizontal, WizardDesign.Spacing.buttonPadding)
+                    .padding(.vertical, WizardDesign.Spacing.elementGap)
+                    .background(WizardDesign.Colors.error)
+                    .clipShape(.rect(cornerRadius: 8))
+                    .opacity(isLoading ? 0.85 : 1.0)
+                    .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+                    .animation(WizardDesign.Animation.buttonFeedback, value: configuration.isPressed)
+                    .disabled(isLoading)
             }
         }
 

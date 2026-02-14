@@ -18,14 +18,21 @@ final class EngineReloadSingleFlightTests: XCTestCase {
             isOpen = true
             let toResume = waiters
             waiters.removeAll()
-            for c in toResume { c.resume() }
+            for c in toResume {
+                c.resume()
+            }
         }
     }
 
     actor Counter {
         private var value = 0
-        func inc() { value += 1 }
-        func get() -> Int { value }
+        func inc() {
+            value += 1
+        }
+
+        func get() -> Int {
+            value
+        }
     }
 
     func testRunCoalescesConcurrentCalls() async {
@@ -60,7 +67,7 @@ final class EngineReloadSingleFlightTests: XCTestCase {
         let results = await [r1, r2, r3]
         let startedCount = await started.get()
         XCTAssertEqual(startedCount, 1, "Only one operation should execute")
-        XCTAssertTrue(results.allSatisfy { $0.isSuccess }, "All callers should receive success")
+        XCTAssertTrue(results.allSatisfy(\.isSuccess), "All callers should receive success")
         XCTAssertTrue(results.allSatisfy { $0.response == "ok" }, "All callers should receive the same result")
     }
 

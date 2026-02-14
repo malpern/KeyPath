@@ -114,7 +114,8 @@ public struct SystemActionInfo: Equatable, Identifiable, Sendable {
         // Handle raw push-msg strings: (push-msg "system:notification-center")
         if let regex = try? NSRegularExpression(pattern: #"\(push-msg\s+\"system:([^\"]+)\"\)"#, options: [.caseInsensitive]),
            let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
-           let range = Range(match.range(at: 1), in: trimmed) {
+           let range = Range(match.range(at: 1), in: trimmed)
+        {
             let extracted = String(trimmed[range]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             if let action = allActions.first(where: { $0.id.lowercased() == extracted }) {
                 return action

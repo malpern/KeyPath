@@ -16,7 +16,7 @@ final class FeatureFlags {
 
     private var _startupModeActive: Bool = false
 
-    /// Test seam: allow injecting startup mode during unit tests
+    // Test seam: allow injecting startup mode during unit tests
     #if DEBUG
         nonisolated(unsafe) static var testStartupMode: Bool?
     #endif

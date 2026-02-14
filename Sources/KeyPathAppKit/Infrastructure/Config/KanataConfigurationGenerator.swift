@@ -161,11 +161,11 @@ public struct KanataConfiguration: Sendable {
             AppLogger.shared.log("🧩 [KanataConfig] Excluding macOS devices from interception: \(devices.joined(separator: ", "))")
             return """
 
-          ;; Avoid grabbing VirtualHID output keyboard(s); prevents feedback loops.
-          macos-dev-names-exclude (
-        \(rendered)
-          )
-        """
+              ;; Avoid grabbing VirtualHID output keyboard(s); prevents feedback loops.
+              macos-dev-names-exclude (
+            \(rendered)
+              )
+            """
         #else
             return ""
         #endif
@@ -179,7 +179,7 @@ public struct KanataConfiguration: Sendable {
 
         /// Parse the output of `kanata --list` and return device identifiers suitable for
         /// `macos-dev-names-exclude`. Kept as a pure function for unit testing.
-        internal static func parseExcludedMacOSDeviceNames(fromKanataList output: String) -> [String] {
+        static func parseExcludedMacOSDeviceNames(fromKanataList output: String) -> [String] {
             // Example lines (columns):
             // 0xHASH   vendor_id  product_id  product_key...
             // We exclude both the hash and the product key for robustness.

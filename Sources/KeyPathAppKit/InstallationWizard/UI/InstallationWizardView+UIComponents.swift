@@ -159,7 +159,6 @@ extension InstallationWizardView {
         )
     }
 
-    @ViewBuilder
     func operationProgressOverlay() -> some View {
         WizardOperationProgress(
             operationName: getCurrentOperationName(),
