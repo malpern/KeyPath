@@ -1,7 +1,6 @@
 import AppKit
 import Foundation
 import KeyPathCore
-import Observation
 
 /// Service for monitoring configuration file changes and triggering hot reloads
 ///
@@ -11,38 +10,40 @@ import Observation
 /// - Provides comprehensive error logging and recovery
 /// - Uses proper file descriptor management with cleanup
 ///
-/// All mutable state is isolated to `@MainActor` since this is an `@Observable` class
-/// owned by `@MainActor`-isolated coordinators.
-@MainActor
-@Observable
-class ConfigFileWatcher {
+/// Thread safety: All public API is called from `@MainActor` coordinators, and all
+/// DispatchSource event handlers hop back to MainActor via `Task { @MainActor in }`.
+/// The class is intentionally NOT `@MainActor`-isolated because DispatchSource event
+/// handlers fire on a background queue, and Swift 6's runtime isolation checker crashes
+/// (dispatch_assert_queue_fail) when any reference to a `@MainActor`-isolated type is
+/// resolved on a non-MainActor queue — even weak references created on MainActor.
+class ConfigFileWatcher: @unchecked Sendable {
     // MARK: - Properties
 
-    @ObservationIgnored private var fileMonitorSource: DispatchSourceFileSystemObject?
-    @ObservationIgnored private var directoryMonitorSource: DispatchSourceFileSystemObject?
-    @ObservationIgnored private var lastModificationDate: Date?
-    @ObservationIgnored private var debounceTask: Task<Void, Never>?
-    @ObservationIgnored private var watchedFilePath: String?
-    @ObservationIgnored private var watchedDirectoryPath: String?
-    @ObservationIgnored private var isWatching = false
-    @ObservationIgnored private var isWatchingDirectory = false
+    private var fileMonitorSource: DispatchSourceFileSystemObject?
+    private var directoryMonitorSource: DispatchSourceFileSystemObject?
+    private var lastModificationDate: Date?
+    private var debounceTask: Task<Void, Never>?
+    private var watchedFilePath: String?
+    private var watchedDirectoryPath: String?
+    private var isWatching = false
+    private var isWatchingDirectory = false
 
-    @ObservationIgnored private let debounceDelay: TimeInterval = 0.5 // 500ms debounce
-    @ObservationIgnored private let maxRetries = 3
-    @ObservationIgnored private var retryCount = 0
-    @ObservationIgnored private var pendingAtomicWriteEvent = false
+    private let debounceDelay: TimeInterval = 0.5 // 500ms debounce
+    private let maxRetries = 3
+    private var retryCount = 0
+    private var pendingAtomicWriteEvent = false
 
     // Suppression to prevent self-initiated reload loops
-    @ObservationIgnored private var suppressUntil: Date?
-    @ObservationIgnored private var inFlightProcessing = false
+    private var suppressUntil: Date?
+    private var inFlightProcessing = false
 
     /// Dedicated queue for file system events (avoid main thread contention)
     /// The DispatchSource fires events on this queue, but handlers immediately
     /// hop to MainActor via Task { @MainActor in ... }
-    @ObservationIgnored private let queue = DispatchQueue(label: "com.keypath.configwatcher", qos: .utility)
+    private let queue = DispatchQueue(label: "com.keypath.configwatcher", qos: .utility)
 
     /// Callback for when file changes are detected
-    @ObservationIgnored private var onFileChanged: (@MainActor () async -> Void)?
+    private var onFileChanged: (@MainActor () async -> Void)?
 
     init() {
         AppLogger.shared.log("📁 [FileWatcher] ConfigFileWatcher initialized with robust monitoring")
@@ -136,13 +137,8 @@ class ConfigFileWatcher {
             queue: queue
         )
 
-        // Set up event handler with atomic write detection
-        // The handler fires on `queue` but immediately hops to MainActor.
-        // We capture `source` directly so we can read `.data` synchronously
-        // in the handler without touching @MainActor-isolated state.
         let source = fileMonitorSource!
         source.setEventHandler { [weak self] in
-            guard self != nil else { return }
             let flags = DispatchSource.FileSystemEvent(rawValue: source.data)
             AppLogger.shared.log("📁 [FileWatcher] File system event received - flags: \(flags)")
             Task { @MainActor [weak self] in
@@ -198,9 +194,7 @@ class ConfigFileWatcher {
             queue: queue
         )
 
-        // Set up event handler for directory changes
-        // The handler fires on `queue` but immediately hops to MainActor
-        directoryMonitorSource?.setEventHandler {
+        directoryMonitorSource?.setEventHandler { [weak self] in
             AppLogger.shared.log(
                 "📁 [FileWatcher] Directory event received - checking if target file was created"
             )
@@ -312,7 +306,7 @@ class ConfigFileWatcher {
         fileMonitorSource = nil
         isWatching = false
 
-        // Wait a brief moment for atomic write to complete, then re-setup on MainActor
+        // Wait a brief moment for atomic write to complete, then re-setup
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(50)) // 50ms
             self?.setupFileMonitoring()
@@ -403,7 +397,7 @@ class ConfigFileWatcher {
                 "🔄 [FileWatcher] Retrying file monitoring setup (attempt \(retryCount)/\(maxRetries))"
             )
 
-            // Retry after a brief delay on MainActor
+            // Retry after a brief delay
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(1)) // 1s
                 self?.setupFileMonitoring()
@@ -425,7 +419,7 @@ class ConfigFileWatcher {
                 "🔄 [FileWatcher] Retrying directory monitoring setup (attempt \(retryCount)/\(maxRetries))"
             )
 
-            // Retry after a brief delay on MainActor
+            // Retry after a brief delay
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(2)) // 2s
                 self?.setupDirectoryMonitoring()
@@ -439,7 +433,7 @@ class ConfigFileWatcher {
 
     // MARK: - Private Methods
 
-    private nonisolated func openFileDescriptor(at path: String) -> Int32? {
+    private func openFileDescriptor(at path: String) -> Int32? {
         let fd = open(path, O_EVTONLY)
         if fd >= 0 {
             AppLogger.shared.log("📁 [FileWatcher] Successfully opened file descriptor \(fd) for: \(path)")

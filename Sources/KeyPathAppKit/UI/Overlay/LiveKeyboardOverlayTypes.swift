@@ -68,14 +68,16 @@ final class OverlayWindow: NSWindow {
     /// Keep at least this many points visible inside the screen's visibleFrame so the window is recoverable.
     private let minVisible: CGFloat = 30
 
-    /// Prevent the window from becoming key window (so it doesn't steal keyboard focus from other apps)
+    /// In accessibility test mode, allow the window to become key so automation tools (Peekaboo) can interact with it.
+    /// In production, prevent the window from becoming key (so it doesn't steal keyboard focus from other apps).
+    private static let isAccessibilityTestMode = ProcessInfo.processInfo.environment["KEYPATH_ACCESSIBILITY_TEST_MODE"] != nil
+
     override var canBecomeKey: Bool {
-        false
+        Self.isAccessibilityTestMode
     }
 
-    /// Prevent the window from becoming main window
     override var canBecomeMain: Bool {
-        false
+        Self.isAccessibilityTestMode
     }
 
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
