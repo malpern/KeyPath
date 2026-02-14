@@ -50,8 +50,13 @@ If you enable the **Quick Launch** feature to suggest frequently visited website
 
 | Location | Contents |
 |----------|----------|
-| `~/Library/Application Support/KeyPath/keypath.kbd` | Your keyboard remapping configuration |
+| `~/.config/keypath/keypath.kbd` | Your keyboard remapping configuration |
+| `~/.config/keypath/keypath-apps.kbd` | KeyPath-generated companion config (included by `keypath.kbd`) |
+| `~/.config/keypath/RuleCollections.json` | Enabled/disabled collections state |
+| `~/.config/keypath/CustomRules.json` | Custom rules you create in the UI |
+| `~/.config/keypath/AppKeymaps.json` | Per-app keymaps (if configured) |
 | `~/Library/Application Support/KeyPath/Favicons/` | Cached website icons for Quick Launch |
+| `~/Library/Application Support/KeyPath/ActivityLog/` | Encrypted activity logs (only if Activity Logging is enabled) |
 | `~/Library/Logs/KeyPath/keypath-debug.log` | Debug logs (rotated at 5MB, max 3 files) |
 
 ### Preferences

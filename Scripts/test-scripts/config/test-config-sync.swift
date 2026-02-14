@@ -2,7 +2,7 @@
 
 import Foundation
 
-let userConfigPath = "/Users/malpern/Library/Application Support/KeyPath/keypath.kbd"
+let userConfigPath = "\(NSHomeDirectory())/.config/keypath/keypath.kbd"
 let systemConfigPath = "/usr/local/etc/kanata/keypath.kbd"
 
 print("🔄 Testing config synchronization from user to system path...")

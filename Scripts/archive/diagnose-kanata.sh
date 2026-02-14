@@ -49,7 +49,7 @@ echo
 
 # 3. Check configuration file
 echo -e "${BLUE}3. Checking KeyPath configuration...${NC}"
-CONFIG_PATH="$HOME/Library/Application Support/KeyPath/keypath.kbd"
+CONFIG_PATH="$HOME/.config/keypath/keypath.kbd"
 if [[ -f "$CONFIG_PATH" ]]; then
     echo -e "${GREEN}✓ Config file exists at: $CONFIG_PATH${NC}"
     echo "Config content:"

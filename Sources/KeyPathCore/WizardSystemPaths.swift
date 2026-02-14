@@ -325,17 +325,19 @@ public enum WizardSystemPaths {
         return foundConfigs
     }
 
-    /// KeyPath's expected config directory (Application Support)
+    /// Legacy KeyPath config directory (Application Support).
+    ///
+    /// KeyPath's canonical user-owned config directory is `~/.config/keypath`.
     public static var keyPathConfigDirectory: String {
         "\(userHomeDirectory)/Library/Application Support/KeyPath"
     }
 
-    /// KeyPath's expected config path (Application Support)
+    /// Legacy KeyPath config path (Application Support).
     public static var keyPathConfigPath: String {
         "\(keyPathConfigDirectory)/keypath.kbd"
     }
 
-    /// KeyPath's generated apps config file
+    /// Legacy KeyPath-generated apps config file (Application Support).
     public static var keyPathAppsConfigPath: String {
         "\(keyPathConfigDirectory)/keypath-apps.kbd"
     }

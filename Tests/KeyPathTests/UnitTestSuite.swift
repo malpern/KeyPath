@@ -83,11 +83,11 @@ final class UnitTestSuite: XCTestCase {
     func testBasicPathGeneration() {
         // Test basic path operations work
         let homePath = FileManager.default.homeDirectoryForCurrentUser.path
-        let configPath = homePath + "/Library/Application Support/KeyPath/keypath.kbd"
+        let configPath = homePath + "/.config/keypath/keypath.kbd"
 
         XCTAssertTrue(configPath.hasSuffix(".kbd"))
-        XCTAssertTrue(configPath.contains("Application Support"))
-        XCTAssertTrue(configPath.contains("KeyPath"))
+        XCTAssertTrue(configPath.contains(".config/keypath"))
+        XCTAssertFalse(configPath.contains("Application Support"))
     }
 
     // MARK: - TCP Protocol Tests

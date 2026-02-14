@@ -3,7 +3,7 @@
 echo "Testing system config creation..."
 
 # Test 1: Check if user config exists
-USER_CONFIG="$HOME/Library/Application Support/KeyPath/keypath.kbd"
+USER_CONFIG="$HOME/.config/keypath/keypath.kbd"
 echo "1. Checking user config at: $USER_CONFIG"
 if [ -f "$USER_CONFIG" ]; then
     echo "   ✅ User config exists"
@@ -12,7 +12,7 @@ if [ -f "$USER_CONFIG" ]; then
 else
     echo "   ❌ User config missing"
     echo "   Creating default user config..."
-    mkdir -p "$HOME/Library/Application Support/KeyPath"
+    mkdir -p "$HOME/.config/keypath"
     cat > "$USER_CONFIG" << EOF
 (defcfg
   process-unmapped-keys yes

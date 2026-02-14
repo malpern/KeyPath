@@ -5,7 +5,7 @@
 
   **Remap any key to any other key with a simple, native macOS app**
 
-  [![macOS 26+](https://img.shields.io/badge/macOS-26%2B-blue.svg)](https://www.apple.com/macos/)
+  [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue.svg)](https://www.apple.com/macos/)
   [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-orange.svg)](https://swift.org)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 </div>
@@ -75,7 +75,7 @@ Your remapping is active immediately—no restart, no manual service management,
 - **No telemetry** - Works completely offline, no data collection
 
 ### 🎨 Native macOS Experience
-- **Beautiful SwiftUI interface** with Liquid Glass design (macOS 26+)
+- **Beautiful SwiftUI interface** with Liquid Glass-inspired design
 - **System Settings integration** - Follows macOS design patterns
 - **Proper signing & notarization** - Works with macOS security features
 - **Accessibility support** - Respects macOS accessibility settings
@@ -137,7 +137,7 @@ The wizard handles all technical setup automatically and provides one-click fixe
 
 If you're already using Kanata on macOS, KeyPath can run your existing configuration with minimal changes. See the [Migration Guide](docs/migration/kanata-users.md) for details on bringing your own config (BYOC).
 
-**Quick path:** Copy your config to `~/Library/Application Support/KeyPath/keypath.kbd`, add `(include keypath-apps.kbd)` at the top, and run the setup wizard.
+**Quick path:** Copy your config to `~/.config/keypath/keypath.kbd`, add `(include keypath-apps.kbd)` at the top, and run the setup wizard.
 
 ### Create Your First Mapping
 
@@ -168,7 +168,7 @@ If you're already using Kanata on macOS, KeyPath can run your existing configura
 | **Instant Apply** | Changes work immediately - no restart needed |
 | **Safety Features** | Emergency stop (`Ctrl+Space+Esc`) prevents getting locked out |
 | **Smart Setup** | Installation wizard handles all technical setup automatically |
-| **Native macOS UI** | Beautiful SwiftUI interface with Liquid Glass design (macOS 26+) |
+| **Native macOS UI** | Beautiful SwiftUI interface with Liquid Glass-inspired design |
 
 ### For Power Users
 
@@ -248,7 +248,7 @@ KeyPath isn't just a wrapper around Kanata—it's a **complete macOS integration
 ### Technical Stack
 
 - **Swift 6.2** - Modern Swift concurrency (async/await, actors)
-- **SwiftUI** - Native macOS UI with Liquid Glass design
+- **SwiftUI** - Native macOS UI with Liquid Glass-inspired design
 - **Kanata** - Cross-platform keyboard remapping engine
 - **LaunchDaemon** - System-level service management
 - **Karabiner VirtualHID** - macOS HID driver for system-level remapping
@@ -295,7 +295,7 @@ The helper keeps this binary updated from the bundled copy when needed and ensur
 
 ### KeyPath Won't Start?
 
-1. **Check macOS version** - Requires macOS 26.0 or later
+1. **Check macOS version** - Requires macOS 15.0 (Sequoia) or later
 2. **Run setup wizard** - Go to File → Run Setup Wizard
 3. **Check logs** - View system logs: `tail -f /var/log/com.keypath.kanata.stdout.log`
 
@@ -319,7 +319,7 @@ The helper keeps this binary updated from the bundled copy when needed and ensur
 If you're using Xcode 26.0 beta, `swift test` can crash with SIGABRT after tests pass. Use the workaround:
 
 ```bash
-./run-tests-workaround.sh
+./Scripts/archive/run-tests-workaround.sh
 ```
 
 Our main test runners (`./test.sh` and `./Scripts/run-tests-safe.sh`) already include this workaround.
@@ -330,7 +330,7 @@ Our main test runners (`./test.sh` and `./Scripts/run-tests-safe.sh`) already in
 
 ### System Requirements
 
-- **macOS 26.0 or later**
+- **macOS 15.0 (Sequoia) or later**
 - **Apple Silicon or Intel Mac**
 
 ### Dependencies (Handled Automatically)
