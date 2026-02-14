@@ -444,7 +444,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             Task { @MainActor in
                 // Let the splash be visible for a brief moment before showing the overlay.
-                try? await Task.sleep(for: .milliseconds(420))
+                #if DEBUG
+                    // Keep it short by default (real macOS app splash feel), but allow
+                    // overriding for debugging via `KEYPATH_SPLASH_DELAY_MS`.
+                    let splashDelayMs = Int(ProcessInfo.processInfo.environment["KEYPATH_SPLASH_DELAY_MS"] ?? "")
+                        ?? 650
+                #else
+                    let splashDelayMs = 420
+                #endif
+                AppLogger.shared.info("[AppDelegate] Launch splash delay: \(splashDelayMs)ms")
+                try? await Task.sleep(for: .milliseconds(splashDelayMs))
 
                 LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
                 AppLogger.shared.debug("🪟 [AppDelegate] First activation - overlay shown")
@@ -484,6 +493,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_: Notification) {
         AppLogger.shared.info("🔍 [AppDelegate] applicationDidFinishLaunching called")
 
+        #if DEBUG
+            AppLogger.shared.info("[AppDelegate] Build configuration: DEBUG")
+        #else
+            AppLogger.shared.info("[AppDelegate] Build configuration: RELEASE")
+        #endif
+
         // Log build information for traceability
         let info = BuildInfo.current()
         AppLogger.shared.info(
@@ -498,6 +513,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if !isHeadlessMode {
             setupMenuBarController()
+        }
+
+        // Warm the splash poster early so it renders during the very brief launch splash.
+        // This avoids a "blank poster" flash from lazy NSImage decoding.
+        if !isHeadlessMode {
+            SplashView.PosterCache.warmIfNeeded()
         }
 
         // Legacy LaunchAgent support removed

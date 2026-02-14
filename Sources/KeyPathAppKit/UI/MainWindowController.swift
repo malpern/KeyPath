@@ -7,6 +7,7 @@ import SwiftUI
 @MainActor
 final class MainWindowController: NSWindowController {
     private var topLeftBeforeResize: NSPoint?
+    private let splashContentSize = NSSize(width: 640, height: 440)
 
     init(viewModel: KanataViewModel) {
         // Phase 4: MVVM - Use shared ViewModel (don't create a new one!)
@@ -19,57 +20,48 @@ final class MainWindowController: NSWindowController {
 
         let hostingController = NSHostingController(rootView: rootView)
 
-        // Create window with proper styling
+        // Create a chromeless splash window. Use borderless to avoid the system titlebar
+        // material banding (even with hidden traffic lights).
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            contentRect: NSRect(x: 0, y: 0, width: splashContentSize.width, height: splashContentSize.height),
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
 
         // Configure window properties
         window.title = ""
-        // Titled window with transparent titlebar & full-size content (Apple-recommended)
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.isMovableByWindowBackground = true
+        window.isMovableByWindowBackground = false
         window.hasShadow = true
 
-        // Transparent titlebar works without a toolbar; keep nil unless needed
-        window.toolbar = nil
-
-        // State restoration and window behavior
-        window.setFrameAutosaveName("MainWindow")
-        window.isRestorable = true
+        // Splash behavior: fixed size, no restoration (restored tiny sizes were collapsing the poster).
+        window.isRestorable = false
+        window.minSize = splashContentSize
+        window.maxSize = splashContentSize
         window.tabbingMode = .disallowed
         window.collectionBehavior = [.moveToActiveSpace]
 
-        // Only center if no saved frame exists
-        if !window.setFrameUsingName("MainWindow") {
-            window.center()
-        }
+        window.center()
 
         super.init(window: window)
 
         AppLogger.shared.log(
             """
             🪟 [MainWindowController] titleVisibility=\(window.titleVisibility.rawValue) \
-            transparent=\(window.titlebarAppearsTransparent) \
-            fullSize=\(window.styleMask.contains(.fullSizeContentView)) \
-            toolbar=\(window.toolbar != nil) opaque=\(window.isOpaque) \
+            borderless=\(window.styleMask.contains(.borderless)) \
+            opaque=\(window.isOpaque) \
             bgClear=\(window.backgroundColor == .clear)
             """
         )
 
-        // Wrap hosting view in a visual effect container so the entire window is glass-backed
-        let container = GlassContainerViewController(hosting: hostingController)
-        contentViewController = container
-
-        // Add a native titlebar accessory for drag + instrumentation (small build stamp)
-        let accessory = TitlebarHeaderAccessory()
-        window.addTitlebarAccessoryViewController(accessory)
+        // The splash draws its own background; keep the window chrome minimal.
+        hostingController.view.wantsLayer = true
+        hostingController.view.layer?.cornerCurve = .continuous
+        hostingController.view.layer?.cornerRadius = 24
+        hostingController.view.layer?.masksToBounds = true
+        contentViewController = hostingController
 
         // Configure window delegate for proper lifecycle
         window.delegate = self

@@ -16,6 +16,7 @@ PROJECT_DIR="$SCRIPT_DIR/.."
 APP_NAME="KeyPath"
 APP_BUNDLE="/Applications/${APP_NAME}.app"
 MACOS_DIR="$APP_BUNDLE/Contents/MacOS"
+RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
 ENTITLEMENTS="$PROJECT_DIR/KeyPath.entitlements"
 
 # Local module cache to avoid invalidations and sandboxed cache paths.
@@ -117,7 +118,9 @@ fi
 # Build debug (fast - incremental)
 echo "🔨 Building..."
 BUILD_LOG=$(mktemp -t keypath-build.XXXXXX)
-if ! BIN_DIR=$(swift build --product KeyPath --show-bin-path "${MODULE_CACHE_FLAGS[@]}" 2> "$BUILD_LOG" | tail -1); then
+# NOTE: `swift build --show-bin-path` does not reliably trigger a rebuild.
+# Always build first, then query the bin dir.
+if ! swift build --product KeyPath "${MODULE_CACHE_FLAGS[@]}" 2> "$BUILD_LOG"; then
     BUILD_END_MS=$(get_time_ms)
     DURATION=$((BUILD_END_MS - BUILD_START_MS))
     echo "❌ Build failed"
@@ -126,6 +129,8 @@ if ! BIN_DIR=$(swift build --product KeyPath --show-bin-path "${MODULE_CACHE_FLA
     log_build_event "BUILD_FAILED" "$DURATION"
     exit 1
 fi
+
+BIN_DIR=$(swift build --show-bin-path "${MODULE_CACHE_FLAGS[@]}" 2>> "$BUILD_LOG" | tail -1)
 tail -3 "$BUILD_LOG" || true
 rm -f "$BUILD_LOG"
 
@@ -141,6 +146,16 @@ fi
 # Copy binary to app bundle
 echo "📦 Deploying..."
 cp "$DEBUG_BIN" "$MACOS_DIR/$APP_NAME"
+
+# Sync app resources for fast iteration (quick-deploy doesn't rebuild the bundle).
+# This ensures new images/scripts added under Sources/KeyPathApp/Resources show up
+# immediately without requiring a full ./build.sh.
+mkdir -p "$RESOURCES_DIR"
+if command -v rsync >/dev/null 2>&1; then
+    rsync -a "$PROJECT_DIR/Sources/KeyPathApp/Resources/" "$RESOURCES_DIR/"
+else
+    cp -R "$PROJECT_DIR/Sources/KeyPathApp/Resources/." "$RESOURCES_DIR/"
+fi
 
 # Add the missing rpath for Sparkle framework (debug builds don't have this)
 if ! otool -l "$MACOS_DIR/$APP_NAME" | grep -q "@executable_path/../Frameworks"; then
@@ -160,8 +175,15 @@ fi
 # Restart the app
 echo "🔄 Restarting..."
 if pgrep -x "$APP_NAME" > /dev/null; then
-    killall "$APP_NAME" 2>/dev/null || true
-    sleep 0.3
+    # Be strict about restarting; stale running processes are the #1 source of
+    # “my change didn’t apply” confusion during fast iteration.
+    pkill -x "$APP_NAME" 2>/dev/null || true
+    for _ in {1..60}; do
+        if ! pgrep -x "$APP_NAME" >/dev/null; then
+            break
+        fi
+        sleep 0.05
+    done
 fi
 
 open "$APP_BUNDLE"
