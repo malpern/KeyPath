@@ -309,7 +309,7 @@ struct WizardCommunicationPage: View {
                 AppLogger.shared.log(
                     "🌐 [WizardCommDetail] hello attempt \(attempt) failed: \(error.localizedDescription). Retrying in \(delayMs)ms"
                 )
-                try? await Task.sleep(nanoseconds: UInt64(delayMs) * 1_000_000)
+                _ = await WizardSleep.ms(delayMs)
             }
         }
 

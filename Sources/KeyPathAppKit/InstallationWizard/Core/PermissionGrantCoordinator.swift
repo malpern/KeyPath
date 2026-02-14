@@ -110,7 +110,7 @@ class PermissionGrantCoordinator: ObservableObject {
 
     private func quitApplication() {
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(500))
+            _ = await WizardSleep.ms(500)
             NSApp.terminate(nil)
         }
     }

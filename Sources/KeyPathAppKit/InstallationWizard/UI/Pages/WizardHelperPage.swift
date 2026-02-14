@@ -451,7 +451,7 @@ struct WizardHelperPage: View {
         // After successful install, verify helper is now functional and update state
         if ok {
             // Give helper a moment to start responding
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+            _ = await WizardSleep.ms(500) // 0.5s
 
             let functional = await HelperManager.shared.testHelperFunctionality()
             let version = await HelperManager.shared.getHelperVersion()

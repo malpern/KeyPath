@@ -106,6 +106,7 @@ struct WizardInputMonitoringPage: View {
                         Button(nextStepButtonTitle) {
                             navigateToNextStep()
                         }
+                        .accessibilityIdentifier("wizard_input_monitoring_next")
                         .buttonStyle(WizardDesign.Component.PrimaryButton())
                         .keyboardShortcut(.defaultAction)
                         .padding(.top, WizardDesign.Spacing.sectionGap)
@@ -146,6 +147,7 @@ struct WizardInputMonitoringPage: View {
                                     Button("Fix") {
                                         openInputMonitoringSettings()
                                     }
+                                    .accessibilityIdentifier("wizard_input_monitoring_fix_keypath")
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                                     .scaleEffect(0.8)
                                 }
@@ -342,7 +344,7 @@ struct WizardInputMonitoringPage: View {
                         showSuccessBurst = true
                     }
                     // Wait for celebration, then refresh
-                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    _ = await WizardSleep.ms(1500)
                     showSuccessBurst = false
                     await onRefresh()
                     return
@@ -450,8 +452,7 @@ private func positionSettingsAndFinderSideBySide() {
         let axApp = AXUIElementCreateApplication(settingsApp.processIdentifier)
         var windowsRef: CFTypeRef?
         if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-           let windows = windowsRef as? [AXUIElement], !windows.isEmpty
-        {
+           let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
             let axWindow = windows[0]
             var position = CGPoint(x: settingsFrame.minX, y: screen.frame.maxY - settingsFrame.maxY)
             var size = CGSize(width: settingsFrame.width, height: settingsFrame.height)
@@ -469,8 +470,7 @@ private func positionSettingsAndFinderSideBySide() {
         let axApp = AXUIElementCreateApplication(finderApp.processIdentifier)
         var windowsRef: CFTypeRef?
         if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-           let windows = windowsRef as? [AXUIElement], !windows.isEmpty
-        {
+           let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
             let axWindow = windows[0]
             var position = CGPoint(x: finderFrame.minX, y: screen.frame.maxY - finderFrame.maxY)
             var size = CGSize(width: finderFrame.width, height: finderFrame.height)

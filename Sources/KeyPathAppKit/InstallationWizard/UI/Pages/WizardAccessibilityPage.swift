@@ -105,6 +105,7 @@ struct WizardAccessibilityPage: View {
                         Button(nextStepButtonTitle) {
                             navigateToNextStep()
                         }
+                        .accessibilityIdentifier("wizard_accessibility_next")
                         .buttonStyle(WizardDesign.Component.PrimaryButton())
                         .keyboardShortcut(.defaultAction)
                         .padding(.top, WizardDesign.Spacing.sectionGap)
@@ -138,6 +139,7 @@ struct WizardAccessibilityPage: View {
                         Button("Open Settings Manually") {
                             openAccessibilitySettings()
                         }
+                        .accessibilityIdentifier("wizard_accessibility_open_settings_manually")
                         .buttonStyle(.link)
                         .padding(.top, WizardDesign.Spacing.elementGap)
 
@@ -255,7 +257,7 @@ struct WizardAccessibilityPage: View {
                                 withAnimation(.spring(response: 0.3)) {
                                     showSuccessBurst = true
                                 }
-                                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                                _ = await WizardSleep.ms(1500)
                                 showSuccessBurst = false
                             }
                             await onRefresh()
@@ -478,8 +480,7 @@ struct WizardAccessibilityPage: View {
             let axApp = AXUIElementCreateApplication(settingsApp.processIdentifier)
             var windowsRef: CFTypeRef?
             if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-               let windows = windowsRef as? [AXUIElement], !windows.isEmpty
-            {
+               let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
                 let axWindow = windows[0]
                 var position = CGPoint(x: settingsFrame.minX, y: screen.frame.maxY - settingsFrame.maxY)
                 var size = CGSize(width: settingsFrame.width, height: settingsFrame.height)
@@ -497,8 +498,7 @@ struct WizardAccessibilityPage: View {
             let axApp = AXUIElementCreateApplication(finderApp.processIdentifier)
             var windowsRef: CFTypeRef?
             if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-               let windows = windowsRef as? [AXUIElement], !windows.isEmpty
-            {
+               let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
                 let axWindow = windows[0]
                 var position = CGPoint(x: finderFrame.minX, y: screen.frame.maxY - finderFrame.maxY)
                 var size = CGSize(width: finderFrame.width, height: finderFrame.height)
