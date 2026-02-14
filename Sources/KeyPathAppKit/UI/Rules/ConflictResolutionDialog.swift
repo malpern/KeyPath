@@ -173,7 +173,8 @@ struct ConflictResolutionDialog: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         HStack(spacing: 8) {
-                            ForEach(Array(conflict.existingTapDanceActions.enumerated()), id: \.offset) { index, action in
+                            ForEach(conflict.existingTapDanceActions.indices, id: \.self) { index in
+                                let action = conflict.existingTapDanceActions[index]
                                 HStack(spacing: 4) {
                                     Text("\(index + 2)×")
                                         .font(.caption)

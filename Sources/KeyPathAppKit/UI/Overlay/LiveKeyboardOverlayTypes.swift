@@ -107,16 +107,16 @@ final class OneShotLayerOverrideState {
     private(set) var currentLayer: String?
     private var overrideTask: Task<Void, Never>?
     private var overrideToken = UUID()
-    private let timeoutNanoseconds: UInt64
-    private let sleep: @Sendable (UInt64) async -> Void
+    private let timeoutDuration: Duration
+    private let sleep: @Sendable (Duration) async -> Void
 
     init(
-        timeoutNanoseconds: UInt64,
-        sleep: @escaping @Sendable (UInt64) async -> Void = { nanos in
-            try? await Task.sleep(nanoseconds: nanos)
+        timeoutDuration: Duration,
+        sleep: @escaping @Sendable (Duration) async -> Void = { duration in
+            try? await Task.sleep(for: duration)
         }
     ) {
-        self.timeoutNanoseconds = timeoutNanoseconds
+        self.timeoutDuration = timeoutDuration
         self.sleep = sleep
     }
 
@@ -150,7 +150,7 @@ final class OneShotLayerOverrideState {
         let token = UUID()
         overrideToken = token
         overrideTask = Task { @MainActor in
-            await sleep(timeoutNanoseconds)
+            await sleep(timeoutDuration)
             guard overrideToken == token else { return }
             if let layer = currentLayer {
                 AppLogger.shared.debug(

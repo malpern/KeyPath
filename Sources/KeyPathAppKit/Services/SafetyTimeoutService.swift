@@ -17,8 +17,7 @@ final class SafetyTimeoutService {
     ) {
         Task {
             // Wait for the timeout
-            let ns = UInt64(durationSeconds * 1_000_000_000)
-            try? await Task.sleep(nanoseconds: ns)
+            try? await Task.sleep(for: .seconds(durationSeconds))
 
             // Check condition and execute
             if await shouldStop() {

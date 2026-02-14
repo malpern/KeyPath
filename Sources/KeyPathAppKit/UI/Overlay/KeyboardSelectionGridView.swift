@@ -83,7 +83,7 @@ struct KeyboardSelectionGridView: View {
 
             // Debounce search
             searchTask = Task {
-                try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+                try? await Task.sleep(for: .milliseconds(200)) // 200ms
                 if !Task.isCancelled {
                     await performSearch(query: newValue)
                 }

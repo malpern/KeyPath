@@ -167,12 +167,12 @@ final class PermissionGate {
             case .accessibility:
                 _ = permissionService.requestAccessibilityPermission()
             }
-            try? await Task.sleep(nanoseconds: 400_000_000)
+            try? await Task.sleep(for: .milliseconds(400))
         }
 
         // Poll until granted or timeout
         for _ in 0 ..< 30 {
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            try? await Task.sleep(for: .seconds(1))
             let snap = await oracle.currentSnapshot()
             // JIT gates only request KeyPath permissions automatically. Kanata is handled via wizard.
             // Therefore, we only require KeyPath permission to proceed here.

@@ -129,7 +129,7 @@ final class HideHintWindowController {
     private func startDismissTimer() {
         dismissTask?.cancel()
         dismissTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
+            try? await Task.sleep(for: .seconds(10)) // 10 seconds
             guard !Task.isCancelled else { return }
             dismiss()
         }

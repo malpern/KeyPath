@@ -33,8 +33,8 @@ struct EventSequenceView: View {
         } else {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    ForEach(Array(taps.enumerated()), id: \.element.id) { index, tap in
-                        EventChip(tap: tap, index: index + 1)
+                    ForEach(taps.indices, id: \.self) { index in
+                        EventChip(tap: taps[index], index: index + 1)
                     }
                 }
             }
@@ -111,7 +111,7 @@ struct EventChip: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(backgroundColor)
-        .cornerRadius(6)
+        .clipShape(.rect(cornerRadius: 6))
     }
 }
 

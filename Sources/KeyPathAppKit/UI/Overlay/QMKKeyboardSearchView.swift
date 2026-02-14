@@ -57,7 +57,7 @@ struct QMKKeyboardSearchView: View {
 
             // Debounce search
             searchTask = Task {
-                try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+                try? await Task.sleep(for: .milliseconds(200)) // 200ms
                 if !Task.isCancelled {
                     await performSearch(query: newValue)
                 }
@@ -182,7 +182,8 @@ struct QMKKeyboardSearchView: View {
     private var keyboardListView: some View {
         ScrollView {
             LazyVStack(spacing: 1) {
-                ForEach(Array(keyboards.enumerated()), id: \.element.id) { index, keyboard in
+                ForEach(keyboards.indices, id: \.self) { index in
+                    let keyboard = keyboards[index]
                     KeyboardRow(
                         keyboard: keyboard,
                         isSelected: selectedIndex == index,

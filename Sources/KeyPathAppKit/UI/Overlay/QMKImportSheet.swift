@@ -101,7 +101,7 @@ struct QMKImportSheet: View {
                                 }
                                 .padding()
                                 .background(Color.secondary.opacity(0.1))
-                                .cornerRadius(8)
+                                .clipShape(.rect(cornerRadius: 8))
                             } else {
                                 Button("Choose File") {
                                     showFilePicker = true
@@ -170,7 +170,7 @@ struct QMKImportSheet: View {
                         }
                         .padding()
                         .background(Color.orange.opacity(0.1))
-                        .cornerRadius(8)
+                        .clipShape(.rect(cornerRadius: 8))
                     }
 
                     // Error message
@@ -184,7 +184,7 @@ struct QMKImportSheet: View {
                         }
                         .padding()
                         .background(Color.red.opacity(0.1))
-                        .cornerRadius(8)
+                        .clipShape(.rect(cornerRadius: 8))
                     }
 
                     // Import button

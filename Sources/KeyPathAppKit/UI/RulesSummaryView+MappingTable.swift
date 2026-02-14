@@ -56,7 +56,7 @@ struct MappingTableContent: View {
             .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
 
             // Data rows
-            ForEach(Array(mappings.enumerated()), id: \.element.id) { _, mapping in
+            ForEach(mappings, id: \.id) { mapping in
                 // Section break separator (extra whitespace)
                 if mapping.sectionBreak {
                     Spacer()
@@ -89,7 +89,7 @@ struct MappingTableContent: View {
             .padding(.vertical, 4)
         }
         .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(Color.gray.opacity(0.2), lineWidth: 1)

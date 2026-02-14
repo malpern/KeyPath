@@ -328,7 +328,8 @@ struct CustomRuleRow: View {
                     if behaviorItems.isEmpty {
                         EmptyView()
                     } else {
-                        ForEach(Array(behaviorItems.enumerated()), id: \.offset) { itemIndex, item in
+                        ForEach(behaviorItems.indices, id: \.self) { itemIndex in
+                            let item = behaviorItems[itemIndex]
                             if itemIndex > 0 {
                                 Text("•")
                                     .font(.caption)

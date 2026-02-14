@@ -103,7 +103,7 @@ private struct AvailableRuleCollectionCard: View {
                             .padding(.horizontal, 6)
                             .padding(.vertical, 4)
                             .background(Color(NSColor.controlBackgroundColor))
-                            .cornerRadius(6)
+                            .clipShape(.rect(cornerRadius: 6))
                         }
                         if collection.mappings.count > 6 {
                             Text("+\(collection.mappings.count - 6) more")

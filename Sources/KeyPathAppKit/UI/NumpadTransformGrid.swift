@@ -81,9 +81,9 @@ struct NumpadTransformGrid: View {
 
                         // Output side (numpad)
                         VStack(spacing: 3) {
-                            ForEach(Array(Self.numpadKeys.enumerated()), id: \.offset) { _, row in
+                            ForEach(Self.numpadKeys.indices, id: \.self) { rowIndex in
                                 HStack(spacing: 3) {
-                                    ForEach(row, id: \.self) { key in
+                                    ForEach(Self.numpadKeys[rowIndex], id: \.self) { key in
                                         TransformKeycap(label: outputFor(key) ?? "?", isHighlighted: true, isInput: false)
                                     }
                                 }

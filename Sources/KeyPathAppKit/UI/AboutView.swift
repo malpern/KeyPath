@@ -59,7 +59,7 @@ struct AboutView: View {
                 Image(nsImage: image)
                     .resizable()
                     .frame(width: 120, height: 120)
-                    .cornerRadius(16)
+                    .clipShape(.rect(cornerRadius: 16))
                     .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
             }
 

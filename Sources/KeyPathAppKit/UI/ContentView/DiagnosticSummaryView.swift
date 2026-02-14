@@ -40,7 +40,8 @@ struct DiagnosticSummaryView: View {
             }
 
             // Show first 2 critical issues as preview
-            ForEach(Array(criticalIssues.prefix(2).enumerated()), id: \.offset) { _, issue in
+            ForEach(Array(criticalIssues.prefix(2)).indices, id: \.self) { index in
+                let issue = criticalIssues[index]
                 HStack(alignment: .top, spacing: 8) {
                     Image(
                         systemName: issue.severity == .critical

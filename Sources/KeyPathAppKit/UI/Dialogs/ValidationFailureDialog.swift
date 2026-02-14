@@ -47,7 +47,8 @@ struct ValidationFailureDialog: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    ForEach(Array(normalizedErrors.enumerated()), id: \.offset) { index, error in
+                    ForEach(normalizedErrors.indices, id: \.self) { index in
+                        let error = normalizedErrors[index]
                         HStack(alignment: .top, spacing: 8) {
                             Text("\(index + 1).")
                                 .font(.body.bold())

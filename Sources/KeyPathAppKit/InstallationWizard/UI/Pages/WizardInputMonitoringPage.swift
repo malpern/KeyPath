@@ -531,7 +531,7 @@ struct StaleEntryCleanupInstructions: View {
                 }
                 .padding()
                 .background(Color.orange.opacity(0.05))
-                .cornerRadius(8)
+                .clipShape(.rect(cornerRadius: 8))
             }
 
             // Cleanup Instructions
@@ -550,7 +550,7 @@ struct StaleEntryCleanupInstructions: View {
             }
             .padding()
             .background(Color.blue.opacity(0.05))
-            .cornerRadius(8)
+            .clipShape(.rect(cornerRadius: 8))
 
             // Visual hint
             HStack {

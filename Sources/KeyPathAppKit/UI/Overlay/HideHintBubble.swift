@@ -87,7 +87,7 @@ struct HideHintBubble: View {
     private func startDismissTimer() {
         dismissTask?.cancel()
         dismissTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
+            try? await Task.sleep(for: .seconds(10)) // 10 seconds
             guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.3)) {
                 isVisible = false

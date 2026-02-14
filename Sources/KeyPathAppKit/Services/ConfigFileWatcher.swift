@@ -312,7 +312,7 @@ class ConfigFileWatcher: ObservableObject {
 
         // Wait a brief moment for atomic write to complete, then re-setup on MainActor
         Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+            try? await Task.sleep(for: .milliseconds(50)) // 50ms
             self?.setupFileMonitoring()
         }
     }
@@ -360,7 +360,7 @@ class ConfigFileWatcher: ObservableObject {
 
             // For atomic writes, the file might be temporarily gone
             // Wait a brief moment and check again
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            try? await Task.sleep(for: .milliseconds(100)) // 100ms
 
             if FileManager.default.fileExists(atPath: path) {
                 AppLogger.shared.log("📁 [FileWatcher] File reappeared - atomic write completed")
@@ -385,7 +385,7 @@ class ConfigFileWatcher: ObservableObject {
         // Schedule debounce task to handle rapid file changes
         debounceTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            try? await Task.sleep(nanoseconds: UInt64(debounceDelay * 1_000_000_000))
+            try? await Task.sleep(for: .seconds(debounceDelay))
             await processFileChange()
         }
     }
@@ -403,7 +403,7 @@ class ConfigFileWatcher: ObservableObject {
 
             // Retry after a brief delay on MainActor
             Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1s
+                try? await Task.sleep(for: .seconds(1)) // 1s
                 self?.setupFileMonitoring()
             }
         } else {
@@ -425,7 +425,7 @@ class ConfigFileWatcher: ObservableObject {
 
             // Retry after a brief delay on MainActor
             Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2s
+                try? await Task.sleep(for: .seconds(2)) // 2s
                 self?.setupDirectoryMonitoring()
             }
         } else {

@@ -80,7 +80,7 @@ struct AppPickerView: View {
                         }
                         .buttonStyle(.plain)
                         .background(Color.clear)
-                        .cornerRadius(6)
+                        .clipShape(.rect(cornerRadius: 6))
                     }
                 }
                 .padding(8)

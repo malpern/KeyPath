@@ -87,7 +87,8 @@ struct InputKeyboardGrid: View {
                 .foregroundColor(.secondary)
                 .padding(.bottom, 2)
 
-            ForEach(Array(keyboardRows.enumerated()), id: \.offset) { rowIndex, row in
+            ForEach(keyboardRows.indices, id: \.self) { rowIndex in
+                let row = keyboardRows[rowIndex]
                 HStack(spacing: 3) {
                     // Keyboard stagger: number=0, qwerty=0, home=8, bottom=16
                     if rowIndex == 2 { Spacer().frame(width: 8) } else if rowIndex == 3 { Spacer().frame(width: 16) }
@@ -167,7 +168,8 @@ struct OutputKeyboardWithAnimatedSymbols: View {
             ZStack(alignment: .topLeading) {
                 // Layer 1: Keycap backgrounds (stable slots)
                 VStack(alignment: .leading, spacing: 2) {
-                    ForEach(Array(keyboardRows.enumerated()), id: \.offset) { rowIndex, row in
+                    ForEach(keyboardRows.indices, id: \.self) { rowIndex in
+                        let row = keyboardRows[rowIndex]
                         HStack(spacing: 3) {
                             // Keyboard stagger: number=0, qwerty=0, home=8, bottom=16
                             if rowIndex == 2 { Spacer().frame(width: 8) } else if rowIndex == 3 { Spacer().frame(width: 16) }

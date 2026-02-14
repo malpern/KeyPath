@@ -249,7 +249,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
 
             // Brief pause between retries
             if attempt < maxTCPHealthCheckRetries {
-                try? await Task.sleep(nanoseconds: UInt64(tcpRetryDelay * 1_000_000_000))
+                try? await Task.sleep(for: .seconds(tcpRetryDelay))
             }
         }
 

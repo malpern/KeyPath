@@ -12,7 +12,7 @@ extension KanataTCPClient {
         } catch {
             if shouldRetry(error) {
                 AppLogger.shared.debug("🌐 [TCP] send retry after backoff: \(error)")
-                try? await Task.sleep(nanoseconds: UInt64(retryBackoffSeconds * 1_000_000_000))
+                try? await Task.sleep(for: .seconds(retryBackoffSeconds))
                 closeConnection()
                 return try await sendCore(data)
             }
@@ -33,7 +33,7 @@ extension KanataTCPClient {
 
             // Timeout task
             group.addTask {
-                try await Task.sleep(nanoseconds: UInt64(self.timeout * 1_000_000_000))
+                try await Task.sleep(for: .seconds(self.timeout))
                 throw KeyPathError.communication(.timeout)
             }
 
@@ -272,7 +272,7 @@ func withTimeout<T: Sendable>(
 
         // Add a timeout task
         group.addTask {
-            try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            try await Task.sleep(for: .seconds(seconds))
             throw TCPTimeoutError()
         }
 

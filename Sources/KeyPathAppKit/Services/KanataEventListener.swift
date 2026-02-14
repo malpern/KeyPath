@@ -391,7 +391,7 @@ actor KanataEventListener {
                 try await connectAndStream(port: port)
             } catch {
                 AppLogger.shared.debug("🌐 [EventListener] stream ended: \(error.localizedDescription)")
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                try? await Task.sleep(for: .seconds(1))
             }
         }
     }
@@ -418,7 +418,7 @@ actor KanataEventListener {
         pollTask = Task(priority: .background) { [weak self, weak connection] in
             guard let self, let connection else { return }
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 500_000_000)
+                try? await Task.sleep(for: .milliseconds(500))
                 try? await send(
                     jsonObject: ["RequestCurrentLayerName": [:] as [String: String]], over: connection
                 )

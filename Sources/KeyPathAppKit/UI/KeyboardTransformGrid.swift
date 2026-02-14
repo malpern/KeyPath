@@ -31,7 +31,8 @@ struct KeyboardTransformGrid: View {
                         .foregroundColor(.secondary)
                         .padding(.bottom, 2)
 
-                    ForEach(Array(Self.keyboardRows.enumerated()), id: \.offset) { rowIndex, row in
+                    ForEach(Self.keyboardRows.indices, id: \.self) { rowIndex in
+                        let row = Self.keyboardRows[rowIndex]
                         HStack(spacing: 3) {
                             // Stagger for realistic keyboard look
                             if rowIndex == 1 {
@@ -64,7 +65,8 @@ struct KeyboardTransformGrid: View {
                         .foregroundColor(.secondary)
                         .padding(.bottom, 2)
 
-                    ForEach(Array(Self.keyboardRows.enumerated()), id: \.offset) { rowIndex, row in
+                    ForEach(Self.keyboardRows.indices, id: \.self) { rowIndex in
+                        let row = Self.keyboardRows[rowIndex]
                         HStack(spacing: 3) {
                             // Match stagger
                             if rowIndex == 1 {

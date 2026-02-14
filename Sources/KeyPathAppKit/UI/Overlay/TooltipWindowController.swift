@@ -38,7 +38,7 @@ final class TooltipWindowController {
         currentTooltipId = id
 
         showTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(showDelay * 1_000_000_000))
+            try? await Task.sleep(for: .seconds(showDelay))
             guard !Task.isCancelled, currentTooltipId == id else { return }
             showWindow(text: text, anchorRect: anchorRect)
         }

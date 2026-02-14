@@ -57,9 +57,9 @@ private struct ColumnarKeyLayout: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 32) {
-            ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
+            ForEach(columns.indices, id: \.self) { columnIndex in
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(column) { entry in
+                    ForEach(columns[columnIndex]) { entry in
                         HUDKeycapChip(entry: entry)
                     }
                 }

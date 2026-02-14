@@ -158,7 +158,7 @@ struct AIKeyRequiredDialog: View {
         }
         .padding(12)
         .background(Color.orange.opacity(0.1))
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: 8))
         .accessibilityIdentifier("ai-key-dialog-cost-section")
     }
 
@@ -214,7 +214,7 @@ struct AIKeyRequiredDialog: View {
         }
         .padding(10)
         .background(Color.green.opacity(0.1))
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: 8))
         .accessibilityIdentifier("ai-key-dialog-security-note")
     }
 

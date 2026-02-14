@@ -272,7 +272,7 @@ class MainAppStateController: ObservableObject {
     private func startPeriodicRefresh() {
         periodicRefreshTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 60_000_000_000) // 60 seconds
+                try? await Task.sleep(for: .seconds(60)) // 60 seconds
                 guard let self, !Task.isCancelled else { break }
 
                 // Only refresh if validation is stale (>30s since last check)
@@ -484,7 +484,7 @@ class MainAppStateController: ObservableObject {
             snapshot = try await withThrowingTaskGroup(of: SystemSnapshot.self) { group in
                 group.addTask { await validator.checkSystem() }
                 group.addTask {
-                    try await Task.sleep(nanoseconds: 12_000_000_000) // 12s watchdog
+                    try await Task.sleep(for: .seconds(12)) // 12s watchdog
                     throw ValidationError.timeout
                 }
                 guard let first = try await group.next() else {
@@ -706,7 +706,7 @@ class MainAppStateController: ObservableObject {
             AppLogger.shared.debug(
                 "⏳ [MainAppStateController] Waiting for Kanata service (\(checks)) transient=\(inTransientWindow)"
             )
-            try? await Task.sleep(nanoseconds: UInt64(startupCheckInterval * 1_000_000_000))
+            try? await Task.sleep(for: .seconds(startupCheckInterval))
         }
 
         return .transientTimeout

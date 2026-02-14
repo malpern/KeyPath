@@ -89,7 +89,7 @@ struct InputChipView: View {
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
             .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(4)
+            .clipShape(.rect(cornerRadius: 4))
     }
 
     private func appChipContent(_ appInput: CapturedInput.AppInput) -> some View {

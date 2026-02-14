@@ -258,7 +258,7 @@ extension LiveKeyboardOverlayController {
 
     func showHintBubbleWithDelay(seconds: Double) {
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            try? await Task.sleep(for: .seconds(seconds))
             guard let window = self.window, window.isVisible else { return }
 
             // Create controller if needed

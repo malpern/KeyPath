@@ -181,7 +181,8 @@ struct AdvancedBehaviorContent: View {
             }
 
             // Triple+ Tap rows (dynamically added)
-            ForEach(Array(viewModel.tapDanceSteps.enumerated()), id: \.offset) { index, step in
+            ForEach(viewModel.tapDanceSteps.indices, id: \.self) { index in
+                let step = viewModel.tapDanceSteps[index]
                 HStack(spacing: 16) {
                     Text(step.label)
                         .font(.subheadline)

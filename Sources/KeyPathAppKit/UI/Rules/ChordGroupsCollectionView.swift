@@ -250,7 +250,7 @@ struct ChordGroupsCollectionView: View {
             }
             .padding(8)
             .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(8)
+            .clipShape(.rect(cornerRadius: 8))
 
             // Chords list
             if !group.chords.isEmpty {
@@ -294,7 +294,7 @@ struct ChordGroupsCollectionView: View {
                         .padding(.vertical, 4)
                         .padding(.horizontal, 8)
                         .background(Color.orange.opacity(0.1))
-                        .cornerRadius(6)
+                        .clipShape(.rect(cornerRadius: 6))
                     }
                 }
             }
@@ -351,7 +351,7 @@ private struct InlineChordRowView: View {
                         .padding(.horizontal, 4)
                         .padding(.vertical, 2)
                         .background(Color.accentColor.opacity(0.2))
-                        .cornerRadius(3)
+                        .clipShape(.rect(cornerRadius: 3))
                 }
             }
 
@@ -382,7 +382,7 @@ private struct InlineChordRowView: View {
         .padding(.vertical, 4)
         .padding(.horizontal, 8)
         .background(Color(nsColor: .controlBackgroundColor))
-        .cornerRadius(6)
+        .clipShape(.rect(cornerRadius: 6))
     }
 
     private func ergonomicColor(_ score: ErgonomicScore) -> Color {

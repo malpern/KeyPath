@@ -348,7 +348,7 @@ struct VerboseLoggingToggle: View {
                 }
                 .padding(12)
                 .background(Color.orange.opacity(0.1))
-                .cornerRadius(8)
+                .clipShape(.rect(cornerRadius: 8))
             }
         }
         .alert("Service Restart Required", isPresented: $showingRestartAlert) {

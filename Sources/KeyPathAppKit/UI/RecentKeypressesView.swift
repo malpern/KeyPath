@@ -120,7 +120,7 @@ private struct KeypressEventRow: View {
                     .padding(.vertical, 2)
                     .background(Color.blue.opacity(0.2))
                     .foregroundColor(.blue)
-                    .cornerRadius(4)
+                    .clipShape(.rect(cornerRadius: 4))
             }
 
             // Timestamp

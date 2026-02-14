@@ -17,7 +17,7 @@ final class OverlayOneShotLayerOverrideStateTests: XCTestCase {
     ]
 
     func testActivateKeepsLayerUntilCleared() {
-        let state = OneShotLayerOverrideState(timeoutNanoseconds: 1_000_000_000, sleep: Self.cancelAwareSleep)
+        let state = OneShotLayerOverrideState(timeoutDuration: .seconds(1), sleep: Self.cancelAwareSleep)
 
         state.activate("nav")
         XCTAssertEqual(state.currentLayer, "nav")
@@ -27,7 +27,7 @@ final class OverlayOneShotLayerOverrideStateTests: XCTestCase {
     }
 
     func testClearOnKeyPressIgnoresModifierKeys() {
-        let state = OneShotLayerOverrideState(timeoutNanoseconds: 1_000_000_000, sleep: Self.cancelAwareSleep)
+        let state = OneShotLayerOverrideState(timeoutDuration: .seconds(1), sleep: Self.cancelAwareSleep)
 
         state.activate("nav")
         let cleared = state.clearOnKeyPress("leftshift", modifierKeys: modifierKeys)
@@ -39,7 +39,7 @@ final class OverlayOneShotLayerOverrideStateTests: XCTestCase {
     }
 
     func testClearOnKeyPressReturnsLayerForNonModifier() {
-        let state = OneShotLayerOverrideState(timeoutNanoseconds: 1_000_000_000, sleep: Self.cancelAwareSleep)
+        let state = OneShotLayerOverrideState(timeoutDuration: .seconds(1), sleep: Self.cancelAwareSleep)
 
         state.activate("nav")
         let cleared = state.clearOnKeyPress("a", modifierKeys: modifierKeys)
@@ -49,7 +49,7 @@ final class OverlayOneShotLayerOverrideStateTests: XCTestCase {
     }
 
     func testImmediateTimeoutClearsLayer() async {
-        let state = OneShotLayerOverrideState(timeoutNanoseconds: 1, sleep: { _ in })
+        let state = OneShotLayerOverrideState(timeoutDuration: .nanoseconds(1), sleep: { _ in })
 
         state.activate("nav")
         await Task.yield()
@@ -57,7 +57,7 @@ final class OverlayOneShotLayerOverrideStateTests: XCTestCase {
         XCTAssertNil(state.currentLayer)
     }
 
-    nonisolated static let cancelAwareSleep: @Sendable (UInt64) async -> Void = { _ in
+    nonisolated static let cancelAwareSleep: @Sendable (Duration) async -> Void = { _ in
         while !Task.isCancelled {
             await Task.yield()
         }

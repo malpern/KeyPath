@@ -27,8 +27,7 @@ actor EngineReloadSingleFlight {
         let start = Date()
         let task = Task { () -> EngineReloadResult in
             if debounce > 0 {
-                let ns = UInt64(debounce * 1_000_000_000)
-                try? await Task.sleep(nanoseconds: ns)
+                try? await Task.sleep(for: .seconds(debounce))
             }
 
             let result = await operation()

@@ -310,7 +310,7 @@ private struct FullDiskAccessDetailsSheet: View {
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(8)
+                .clipShape(.rect(cornerRadius: 8))
 
                 VStack(alignment: .leading, spacing: 8) {
                     Label("With it enabled", systemImage: "checkmark.circle")
@@ -324,7 +324,7 @@ private struct FullDiskAccessDetailsSheet: View {
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.green.opacity(0.08))
-                .cornerRadius(8)
+                .clipShape(.rect(cornerRadius: 8))
 
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Without it", systemImage: "questionmark.circle")
@@ -338,7 +338,7 @@ private struct FullDiskAccessDetailsSheet: View {
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(8)
+                .clipShape(.rect(cornerRadius: 8))
 
                 Spacer()
             }

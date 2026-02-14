@@ -19,7 +19,7 @@ final class ContextHUDController {
     private var previousLayer: String = "base"
 
     private let oneShotOverride = OneShotLayerOverrideState(
-        timeoutNanoseconds: 5_000_000_000
+        timeoutDuration: .seconds(5)
     )
 
     private static let modifierKeys: Set<String> = [
@@ -399,7 +399,7 @@ final class ContextHUDController {
         dismissTask?.cancel()
         let timeout = PreferencesService.shared.contextHUDTimeout
         dismissTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+            try? await Task.sleep(for: .seconds(timeout))
             guard !Task.isCancelled else { return }
             self?.dismiss()
         }

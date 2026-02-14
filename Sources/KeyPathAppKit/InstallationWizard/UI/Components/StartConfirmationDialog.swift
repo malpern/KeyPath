@@ -121,7 +121,7 @@ struct StartConfirmationDialog: View {
                             .frame(maxWidth: .infinity)
                             .frame(height: 48)
                             .background(Color.blue.gradient)
-                            .cornerRadius(12)
+                            .clipShape(.rect(cornerRadius: 12))
                         }
                     )
                     .buttonStyle(.plain)

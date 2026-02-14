@@ -175,7 +175,7 @@ private struct StatCard: View {
         .frame(maxWidth: .infinity)
         .padding()
         .background(Color.secondary.opacity(0.1))
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: 8))
     }
 }
 
@@ -199,7 +199,7 @@ private struct ReportSection<Content: View>: View {
             }
             .padding()
             .background(Color.secondary.opacity(0.05))
-            .cornerRadius(8)
+            .clipShape(.rect(cornerRadius: 8))
         }
     }
 }

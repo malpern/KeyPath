@@ -76,7 +76,7 @@ public struct KeyPathApp: App {
         // Request user notification authorization after app has fully launched
         // Delayed to avoid UNUserNotificationCenter initialization issues during bundle setup
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s delay
+            try? await Task.sleep(for: .milliseconds(100)) // 0.1s delay
             UserNotificationService.shared.requestAuthorizationIfNeeded()
 
             // Start Kanata error monitoring
@@ -561,7 +561,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // In headless mode, ensure kanata starts
             Task {
                 // Small delay to let system settle
-                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                try? await Task.sleep(for: .seconds(2)) // 2 seconds
 
                 // Start kanata if not already running
                 if let manager = self.kanataManager {
@@ -703,7 +703,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 if !helperFunctional {
                     AppLogger.shared.info("🆕 [AppDelegate] Helper not functional - auto-launching wizard")
                     // Small delay to ensure overlay is visible first and orphan cleanup dialog can show first
-                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1s
+                    try? await Task.sleep(for: .seconds(1)) // 1s
                     NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
                 }
             }

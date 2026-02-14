@@ -124,7 +124,7 @@ public actor LaunchDaemonPIDCache {
                 }
 
                 group.addTask {
-                    try await Task.sleep(nanoseconds: UInt64(self.launchctlTimeout * 1_000_000_000))
+                    try await Task.sleep(for: .seconds(self.launchctlTimeout))
                     throw TimeoutError()
                 }
 
@@ -170,7 +170,7 @@ public actor LaunchDaemonPIDCache {
         task.terminate()
 
         Task.detached {
-            try? await Task.sleep(nanoseconds: 200_000_000)
+            try? await Task.sleep(for: .milliseconds(200))
             if pid > 0, kill(pid, 0) == 0 {
                 AppLogger.shared.log("⛔️ [PIDCache] launchctl did not exit, sending SIGKILL (pid=\(pid))")
                 _ = kill(pid, SIGKILL)

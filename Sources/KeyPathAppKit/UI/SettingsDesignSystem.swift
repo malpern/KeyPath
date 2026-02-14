@@ -109,8 +109,8 @@ struct ActionButtonRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ForEach(Array(buttons.enumerated()), id: \.offset) { _, button in
-                buttonView(for: button)
+            ForEach(buttons.indices, id: \.self) { index in
+                buttonView(for: buttons[index])
             }
             Spacer()
         }

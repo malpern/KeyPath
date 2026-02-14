@@ -173,7 +173,7 @@ struct EmergencyStopDialog: View {
                     }
                     .padding()
                     .background(Color.blue.opacity(0.1))
-                    .cornerRadius(12)
+                    .clipShape(.rect(cornerRadius: 12))
                 }
             }
 

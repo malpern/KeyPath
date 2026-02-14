@@ -106,7 +106,7 @@ public final class WindowManager {
             let delaySeconds = Double(attempt) // 1s, 2s, 3s
             AppLogger.shared.log("⏳ [WindowManager] Retry attempt \(attempt)/\(maxRetryAttempts) in \(delaySeconds)s")
 
-            try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
+            try? await Task.sleep(for: .seconds(delaySeconds))
 
             if SpaceManager.shared.retryInitialization() {
                 AppLogger.shared.log("✅ [WindowManager] Space APIs available after \(attempt) retry attempt(s)")

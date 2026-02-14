@@ -184,7 +184,7 @@ extension KanataTCPClient {
                 }
 
                 group.addTask {
-                    try await Task.sleep(nanoseconds: UInt64(timeoutMs + 1000) * 1_000_000)
+                    try await Task.sleep(for: .milliseconds(timeoutMs + 1000))
                     throw KeyPathError.communication(.timeout)
                 }
 

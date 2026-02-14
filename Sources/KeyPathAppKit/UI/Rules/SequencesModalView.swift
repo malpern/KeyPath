@@ -171,7 +171,7 @@ struct SequencesModalView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(selectedSequenceID == sequence.id ? Color.accentColor.opacity(0.2) : Color.clear)
-            .cornerRadius(6)
+            .clipShape(.rect(cornerRadius: 6))
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 8)
@@ -345,7 +345,7 @@ struct SequencesModalView: View {
             }
             .padding()
             .background(Color.accentColor.opacity(0.1))
-            .cornerRadius(8)
+            .clipShape(.rect(cornerRadius: 8))
         }
     }
 
@@ -363,7 +363,7 @@ struct SequencesModalView: View {
             .frame(height: 60)
             .padding(4)
             .background(Color(nsColor: .textBackgroundColor))
-            .cornerRadius(4)
+            .clipShape(.rect(cornerRadius: 4))
             .accessibilityIdentifier("sequences-modal-description-field")
             .accessibilityLabel("Sequence description")
         }
@@ -426,7 +426,7 @@ struct SequencesModalView: View {
                         }
                         .padding()
                         .background(Color.orange.opacity(0.1))
-                        .cornerRadius(8)
+                        .clipShape(.rect(cornerRadius: 8))
                     }
                 }
             }
@@ -455,7 +455,7 @@ struct SequencesModalView: View {
         }
         .padding()
         .background(Color.blue.opacity(0.05))
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: 8))
     }
 
     // MARK: - Empty State

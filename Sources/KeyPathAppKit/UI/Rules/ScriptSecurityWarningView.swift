@@ -31,7 +31,7 @@ struct ScriptSecurityWarningView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color(NSColor.textBackgroundColor))
-                    .cornerRadius(4)
+                    .clipShape(.rect(cornerRadius: 4))
             }
 
             // Risk warnings

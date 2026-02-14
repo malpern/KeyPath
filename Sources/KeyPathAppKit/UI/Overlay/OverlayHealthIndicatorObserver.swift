@@ -6,7 +6,7 @@ import KeyPathWizardCore
 @MainActor
 final class OverlayHealthIndicatorObserver {
     typealias StateHandler = (HealthIndicatorState) -> Void
-    typealias Sleep = (UInt64) async -> Void
+    typealias Sleep = (Duration) async -> Void
 
     private let onStateChange: StateHandler
     private let onDismiss: () -> Void
@@ -18,13 +18,13 @@ final class OverlayHealthIndicatorObserver {
     private var isObserving = false
 
     /// Debounce duration for showing "checking" state (prevents brief flashes)
-    private let checkingDebounceNanoseconds: UInt64 = 300_000_000 // 300ms
+    private let checkingDebounceDuration: Duration = .milliseconds(300)
 
     init(
         onStateChange: @escaping StateHandler,
         onDismiss: @escaping () -> Void,
-        sleep: @escaping Sleep = { nanoseconds in
-            try? await Task.sleep(nanoseconds: nanoseconds)
+        sleep: @escaping Sleep = { duration in
+            try? await Task.sleep(for: duration)
         }
     ) {
         self.onStateChange = onStateChange
@@ -140,8 +140,8 @@ final class OverlayHealthIndicatorObserver {
         // Cancel any existing debounce task
         checkingDebounceTask?.cancel()
 
-        checkingDebounceTask = Task { [weak self, sleep, checkingDebounceNanoseconds] in
-            await sleep(checkingDebounceNanoseconds)
+        checkingDebounceTask = Task { [weak self, sleep, checkingDebounceDuration] in
+            await sleep(checkingDebounceDuration)
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 self?.setState(.checking)
@@ -151,7 +151,7 @@ final class OverlayHealthIndicatorObserver {
 
     private func scheduleDismiss() {
         dismissTask = Task { [sleep] in
-            await sleep(1_500_000_000)
+            await sleep(.milliseconds(1500))
             guard !Task.isCancelled else { return }
             if case .healthy = currentState {
                 currentState = .dismissed

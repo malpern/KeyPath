@@ -101,7 +101,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     private let oneShotOverride = OneShotLayerOverrideState(
-        timeoutNanoseconds: LiveKeyboardOverlayController.oneShotTimeoutNanoseconds
+        timeoutDuration: LiveKeyboardOverlayController.oneShotTimeoutDuration
     )
     private var isLauncherSessionActive = false
     private var shouldRestoreAppHidden = false
@@ -357,7 +357,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         "fn"
     ]
 
-    private static let oneShotTimeoutNanoseconds: UInt64 = 5_000_000_000
+    private static let oneShotTimeoutDuration: Duration = .seconds(5)
 
     private func handleLauncherLayerTransition(normalizedLayer: String) {
         if normalizedLayer == "launcher" {

@@ -14,7 +14,7 @@ extension KanataTCPClient {
         } catch {
             if shouldRetry(error) {
                 AppLogger.shared.debug("🌐 [TCP] ensureConnection retry after backoff: \(error)")
-                try? await Task.sleep(nanoseconds: UInt64(retryBackoffSeconds * 1_000_000_000))
+                try? await Task.sleep(for: .seconds(retryBackoffSeconds))
                 // Reset any half-open state
                 closeConnection()
                 return try await ensureConnectionCore()
@@ -39,7 +39,7 @@ extension KanataTCPClient {
 
         // Wait if already connecting
         while isConnecting {
-            try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            try await Task.sleep(for: .milliseconds(100)) // 100ms
         }
 
         // Check again after waiting
@@ -106,7 +106,7 @@ extension KanataTCPClient {
 
             // Timeout task (use the configured timeout value)
             group.addTask {
-                try await Task.sleep(nanoseconds: UInt64(self.timeout * 1_000_000_000))
+                try await Task.sleep(for: .seconds(self.timeout))
                 newConnection.cancel() // Cancel the connection on timeout
                 throw KeyPathError.communication(.timeout)
             }

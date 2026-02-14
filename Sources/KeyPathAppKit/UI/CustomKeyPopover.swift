@@ -58,7 +58,8 @@ struct CustomKeyPopover: View {
                 if showingSuggestions, !structuredSuggestions.isEmpty {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 4) {
-                            ForEach(Array(structuredSuggestions.enumerated()), id: \.offset) { _, suggestion in
+                            ForEach(structuredSuggestions.indices, id: \.self) { suggestionIndex in
+                                let suggestion = structuredSuggestions[suggestionIndex]
                                 Button {
                                     keyInput = suggestion.value
                                     showingSuggestions = false
@@ -78,7 +79,7 @@ struct CustomKeyPopover: View {
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 6)
                                     .background(Color.accentColor.opacity(0.08))
-                                    .cornerRadius(4)
+                                    .clipShape(.rect(cornerRadius: 4))
                                 }
                                 .buttonStyle(.plain)
                             }

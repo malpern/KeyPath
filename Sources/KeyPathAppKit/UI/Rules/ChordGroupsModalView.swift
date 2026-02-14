@@ -286,7 +286,7 @@ struct ChordGroupsModalView: View {
                             .padding()
                             .frame(maxWidth: .infinity)
                             .background(Color(nsColor: .controlBackgroundColor))
-                            .cornerRadius(8)
+                            .clipShape(.rect(cornerRadius: 8))
                     }
 
                     Button(action: addNewChord) {
@@ -309,7 +309,7 @@ struct ChordGroupsModalView: View {
                             .padding(8)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Color.orange.opacity(0.1))
-                            .cornerRadius(8)
+                            .clipShape(.rect(cornerRadius: 8))
                         }
                     }
                 }
@@ -325,7 +325,7 @@ struct ChordGroupsModalView: View {
                 .padding(8)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.blue.opacity(0.1))
-                .cornerRadius(8)
+                .clipShape(.rect(cornerRadius: 8))
             }
             .padding(20)
         }
@@ -444,7 +444,7 @@ private struct GroupRowView: View {
             }
             .padding(8)
             .background(isSelected ? Color.accentColor : Color.clear)
-            .cornerRadius(6)
+            .clipShape(.rect(cornerRadius: 6))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("chord-group-row-\(group.id)")
@@ -469,7 +469,7 @@ private struct ChordRowView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Color.accentColor.opacity(0.2))
-                        .cornerRadius(4)
+                        .clipShape(.rect(cornerRadius: 4))
                 }
             }
 
@@ -513,7 +513,7 @@ private struct ChordRowView: View {
         }
         .padding(8)
         .background(Color(nsColor: .controlBackgroundColor))
-        .cornerRadius(6)
+        .clipShape(.rect(cornerRadius: 6))
     }
 
     private func ergonomicColor(_ score: ErgonomicScore) -> Color {
@@ -654,7 +654,7 @@ private struct ChordEditorDialog: View {
                                             .padding(.horizontal, 8)
                                             .padding(.vertical, 4)
                                             .background(Color.accentColor.opacity(0.2))
-                                            .cornerRadius(4)
+                                            .clipShape(.rect(cornerRadius: 4))
                                     }
                                 }
 
@@ -667,7 +667,7 @@ private struct ChordEditorDialog: View {
                             .padding(8)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Color(nsColor: .controlBackgroundColor))
-                            .cornerRadius(8)
+                            .clipShape(.rect(cornerRadius: 8))
                         }
                     }
                 }

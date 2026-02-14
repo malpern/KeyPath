@@ -568,7 +568,8 @@ struct OverlayDragHeader: View {
     /// Popover showing available layers
     private var layerPickerPopover: some View {
         VStack(spacing: 0) {
-            ForEach(Array(availableLayers.enumerated()), id: \.element) { index, layer in
+            ForEach(availableLayers.indices, id: \.self) { index in
+                let layer = availableLayers[index]
                 layerPickerRow(layer: layer, index: index)
 
                 if index < availableLayers.count - 1 {

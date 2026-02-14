@@ -65,7 +65,7 @@ struct EmergencyStopPauseCard: View {
                         .padding(.vertical, 10)
                         .background(Color.accentColor)
                         .foregroundColor(.white)
-                        .cornerRadius(8)
+                        .clipShape(.rect(cornerRadius: 8))
                     }
                 )
                 .buttonStyle(.plain)
