@@ -54,10 +54,19 @@ public enum PrivilegedCommandRunner {
     ///   - prompt: The prompt to show in the admin dialog (osascript only, ignored in sudo mode)
     /// - Returns: Result containing success status and output
     public static func execute(command: String, prompt: String) -> Result {
+        // Tests should never trigger interactive admin prompts. Most code paths that need
+        // privilege should be stubbed in tests via TestEnvironment.shouldSkipAdminOperations.
+        // Opt-in "real" privileged behavior is supported by setting KEYPATH_USE_SUDO=1
+        // (which makes TestEnvironment.shouldSkipAdminOperations == false).
+        if TestEnvironment.shouldSkipAdminOperations {
+            AppLogger.shared.log("🧪 [PrivilegedCommandRunner] Skipping privileged command in test mode")
+            return Result(success: true, output: "Skipped in test mode", exitCode: 0)
+        }
+
         if TestEnvironment.useSudoForPrivilegedOps {
-            executeWithSudo(command: command)
+            return executeWithSudo(command: command)
         } else {
-            executeWithOsascript(command: command, prompt: prompt)
+            return executeWithOsascript(command: command, prompt: prompt)
         }
     }
 
