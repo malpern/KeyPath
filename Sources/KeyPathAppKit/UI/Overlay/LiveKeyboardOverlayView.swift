@@ -86,6 +86,11 @@ struct LiveKeyboardOverlayView: View {
     @State private var lastKanataServiceIssuePresent = false
     @State private var hasSeenHealthyKanataService = false
     @State private var overlayLaunchTime = Date()
+    @State private var toastManager = WizardToastManager()
+    @State private var lastReloadFailureToastAt: Date?
+
+    @State private var showingValidationFailureModal = false
+    @State private var validationFailureErrors: [String] = []
 
     /// Check if welcome should be shown for current build
     private var hasSeenLauncherWelcomeForCurrentBuild: Bool {
@@ -177,6 +182,17 @@ struct LiveKeyboardOverlayView: View {
         }
 
         lastKanataServiceIssuePresent = hasServiceIssue
+    }
+
+    private func openSystemStatusSettings() {
+        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        NotificationCenter.default.post(name: .openSettingsSystemStatus, object: nil)
+    }
+
+    private func copyValidationErrorsToClipboard() {
+        let text = validationFailureErrors.joined(separator: "\n")
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     var body: some View {
@@ -388,6 +404,30 @@ struct LiveKeyboardOverlayView: View {
         content = AnyView(content.onReceive(MainAppStateController.shared.$issues) { newIssues in
             handleKanataServiceIssueChange(newIssues)
         })
+        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .configValidationFailed)) { notification in
+            let errors = notification.userInfo?["errors"] as? [String] ?? []
+            guard !errors.isEmpty else { return }
+            validationFailureErrors = errors
+            showingValidationFailureModal = true
+        })
+        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .configReloadFailed)) { notification in
+            // Subtle, non-modal feedback for background reload failures. Rate-limit to avoid spam.
+            let now = Date()
+            if let last = lastReloadFailureToastAt, now.timeIntervalSince(last) < 10 {
+                return
+            }
+            lastReloadFailureToastAt = now
+
+            let message = (notification.userInfo?["message"] as? String) ?? "Config reload failed"
+            toastManager.showError("Reload delayed: \(message)")
+            SoundManager.shared.playErrorSound()
+        })
+        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .configReloadRecovered)) { _ in
+            guard lastReloadFailureToastAt != nil else { return }
+            lastReloadFailureToastAt = nil
+            toastManager.showSuccess("Reload recovered")
+            SoundManager.shared.playGlassSound()
+        })
         content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .switchToAppRulesTab)) { _ in
             // Switch to Custom Rules tab after saving a rule
             loadCustomRulesState()
@@ -492,6 +532,7 @@ struct LiveKeyboardOverlayView: View {
         content = AnyView(content.accessibilityElement(children: .contain))
         content = AnyView(content.accessibilityIdentifier("keyboard-overlay"))
         content = AnyView(content.accessibilityLabel("KeyPath keyboard overlay"))
+        content = AnyView(content.withToasts(toastManager))
         // Confirmation dialog for deleting app rules
         content = AnyView(content.confirmationDialog(
             "Delete Rule?",
@@ -559,6 +600,33 @@ struct LiveKeyboardOverlayView: View {
                 Text("The remapping service stopped unexpectedly.")
             }
         ))
+        // Config validation failure UI (used to be on the historic main window).
+        content = AnyView(content.sheet(isPresented: $showingValidationFailureModal, onDismiss: {
+            validationFailureErrors = []
+        }) {
+            ValidationFailureDialog(
+                errors: validationFailureErrors,
+                configPath: kanataViewModel?.configPath ?? "",
+                onCopyErrors: { copyValidationErrorsToClipboard() },
+                onOpenConfig: {
+                    guard let kanataViewModel else { return }
+                    kanataViewModel.openFileInZed(kanataViewModel.configPath)
+                    showingValidationFailureModal = false
+                },
+                onOpenDiagnostics: {
+                    openSystemStatusSettings()
+                    showingValidationFailureModal = false
+                },
+                onDismiss: {
+                    showingValidationFailureModal = false
+                },
+                onRepairWithAI: nil,
+                isRepairing: .constant(false),
+                repairError: nil,
+                backupPath: nil
+            )
+            .customizeSheetWindow()
+        })
         // Confirmation dialog for resetting all custom rules
         content = AnyView(content.confirmationDialog(
             "Reset All Custom Rules?",
