@@ -91,6 +91,9 @@ struct LiveKeyboardOverlayView: View {
 
     @State private var showingValidationFailureModal = false
     @State private var validationFailureErrors: [String] = []
+    @State private var isAttemptingAIRepair = false
+    @State private var aiRepairError: String?
+    @State private var aiRepairBackupPath: String?
 
     /// Check if welcome should be shown for current build
     private var hasSeenLauncherWelcomeForCurrentBuild: Bool {
@@ -193,6 +196,61 @@ struct LiveKeyboardOverlayView: View {
         let text = validationFailureErrors.joined(separator: "\n")
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    private func attemptAIConfigRepair() {
+        guard let kanataViewModel else {
+            aiRepairError = "KeyPath is not connected to the remapping service."
+            return
+        }
+
+        isAttemptingAIRepair = true
+        aiRepairError = nil
+        aiRepairBackupPath = nil
+
+        Task {
+            do {
+                let backupPath = try await kanataViewModel.underlyingManager.configurationService
+                    .backupConfigBeforeAIRepair()
+                await MainActor.run {
+                    aiRepairBackupPath = backupPath
+                }
+
+                let brokenConfig = try await kanataViewModel.underlyingManager.configurationService
+                    .readCurrentConfig()
+
+                let repairedConfig = try await kanataViewModel.underlyingManager.attemptAIRepair(
+                    config: brokenConfig,
+                    errors: validationFailureErrors
+                )
+
+                let validation = await kanataViewModel.underlyingManager.configurationService
+                    .validateConfiguration(repairedConfig)
+
+                if validation.isValid {
+                    try await kanataViewModel.underlyingManager.configurationService
+                        .saveRepairedConfig(repairedConfig)
+                    _ = await kanataViewModel.restartKanata(reason: "AI config repair (overlay)")
+
+                    await MainActor.run {
+                        showingValidationFailureModal = false
+                        isAttemptingAIRepair = false
+                        toastManager.showSuccess("Config repaired")
+                    }
+                } else {
+                    await MainActor.run {
+                        validationFailureErrors = validation.errors
+                        aiRepairError = "AI repair improved the config but \(validation.errors.count) error(s) remain"
+                        isAttemptingAIRepair = false
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    aiRepairError = error.localizedDescription
+                    isAttemptingAIRepair = false
+                }
+            }
+        }
     }
 
     var body: some View {
@@ -603,6 +661,9 @@ struct LiveKeyboardOverlayView: View {
         // Config validation failure UI (used to be on the historic main window).
         content = AnyView(content.sheet(isPresented: $showingValidationFailureModal, onDismiss: {
             validationFailureErrors = []
+            aiRepairError = nil
+            aiRepairBackupPath = nil
+            isAttemptingAIRepair = false
         }) {
             ValidationFailureDialog(
                 errors: validationFailureErrors,
@@ -620,10 +681,10 @@ struct LiveKeyboardOverlayView: View {
                 onDismiss: {
                     showingValidationFailureModal = false
                 },
-                onRepairWithAI: nil,
-                isRepairing: .constant(false),
-                repairError: nil,
-                backupPath: nil
+                onRepairWithAI: KeychainService.shared.hasClaudeAPIKey ? { attemptAIConfigRepair() } : nil,
+                isRepairing: $isAttemptingAIRepair,
+                repairError: aiRepairError,
+                backupPath: aiRepairBackupPath
             )
             .customizeSheetWindow()
         })
