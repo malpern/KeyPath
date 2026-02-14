@@ -125,6 +125,8 @@ struct GeneralSettingsTabView: View {
                                 .accessibilityLabel("Open Kanata log")
                             }
                         }
+                        VerboseLoggingToggle()
+                            .padding(.top, 8)
                     }
                     .frame(minWidth: 220)
 
@@ -309,5 +311,65 @@ private struct KeymapInfoPopover: View {
         }
         .padding(12)
         .frame(maxWidth: 260)
+    }
+}
+
+// MARK: - Verbose Logging Toggle
+
+struct VerboseLoggingToggle: View {
+    @EnvironmentObject var kanataManager: KanataViewModel
+    @State private var verboseLogging = PreferencesService.shared.verboseKanataLogging
+    @State private var showingRestartAlert = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle("Verbose Kanata Logging", isOn: $verboseLogging)
+                .toggleStyle(.switch)
+                .accessibilityIdentifier("settings-verbose-logging-toggle")
+                .accessibilityLabel("Verbose Kanata Logging")
+                .onChange(of: verboseLogging) { _, newValue in
+                    Task { @MainActor in
+                        PreferencesService.shared.verboseKanataLogging = newValue
+                        showingRestartAlert = true
+                    }
+                }
+
+            if verboseLogging {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.orange)
+                        .font(.caption)
+
+                    Text(
+                        "Trace logging generates large log files. Use for debugging key repeat or performance issues only."
+                    )
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                }
+                .padding(12)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(8)
+            }
+        }
+        .alert("Service Restart Required", isPresented: $showingRestartAlert) {
+            Button("Later", role: .cancel) {}
+            Button("Restart Now") {
+                Task {
+                    await restartKanataService()
+                }
+            }
+        } message: {
+            Text(
+                "Kanata needs to restart for the new logging setting to take effect. Would you like to restart now?"
+            )
+        }
+    }
+
+    private func restartKanataService() async {
+        AppLogger.shared.log("\u{1F504} [VerboseLogging] Restarting Kanata service with new logging flags")
+        let success = await kanataManager.restartKanata(reason: "Verbose logging toggle")
+        if !success {
+            AppLogger.shared.error("\u{274C} [VerboseLogging] Kanata restart failed after verbose toggle")
+        }
     }
 }
