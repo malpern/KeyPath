@@ -12,12 +12,12 @@
     <!-- Program arguments: program path (required even with BundleProgram) and config -->
     <!-- Note: Config path uses ~ which will be expanded by launchd -->
     <!-- TCP port defaults to 37001, can be overridden via environment if needed -->
+    <!-- Debug logging is intentionally disabled in production to prevent log spam -->
     <key>ProgramArguments</key>
     <array>
         <string>Contents/Library/KeyPath/kanata-launcher</string>
         <string>--port</string>
         <string>37001</string>
-        <string>--debug</string>
         <string>--log-layer-changes</string>
     </array>
     

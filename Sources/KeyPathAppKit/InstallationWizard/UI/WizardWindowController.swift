@@ -176,6 +176,9 @@ final class WizardWindowController {
         // Reset overlay auto-hide guard
         LiveKeyboardOverlayController.shared.resetSettingsAutoHideGuard()
 
+        // Keep legacy listeners working (Settings, etc.)
+        NotificationCenter.default.post(name: .wizardClosed, object: nil)
+
         // Call dismiss handler
         onDismiss?()
         onDismiss = nil

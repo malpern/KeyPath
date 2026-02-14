@@ -20,7 +20,7 @@ KeyPath.app (SwiftUI) → InstallerEngine → LaunchDaemon/PrivilegedHelper
 - **KeyPath.app**: SwiftUI application with Liquid Glass UI (macOS 15+)
 - **InstallerEngine**: Unified façade for installation, repair, and system inspection
 - **LaunchDaemon**: System service (`com.keypath.kanata`) that runs Kanata
-- **Configuration**: User config at `~/Library/Application Support/KeyPath/keypath.kbd`
+- **Configuration**: User config at `~/.config/keypath/keypath.kbd`
 
 ### Key Manager Classes
 | Class | Responsibility |

@@ -39,8 +39,8 @@ final class PlistGeneratorTests: XCTestCase {
         XCTAssertEqual(args[2], "/tmp/test.kbd")
         XCTAssertEqual(args[3], "--port")
         XCTAssertEqual(args[4], "37001")
-        XCTAssertEqual(args[5], "--debug")
-        XCTAssertEqual(args[6], "--log-layer-changes")
+        XCTAssertEqual(args[5], "--log-layer-changes")
+        XCTAssertFalse(args.contains("--debug"))
     }
 
     func testBuildKanataPlistArgumentsVerbose() {
@@ -86,6 +86,17 @@ final class PlistGeneratorTests: XCTestCase {
         XCTAssertTrue(plist.contains("<key>RunAtLoad</key>"))
         XCTAssertTrue(plist.contains("<key>StandardOutPath</key>"))
         XCTAssertTrue(plist.contains("<key>StandardErrorPath</key>"))
+    }
+
+    func testGenerateKanataPlistUsesSplitStdoutAndStderrLogs() {
+        let plist = PlistGenerator.generateKanataPlist(
+            binaryPath: "/usr/local/bin/kanata",
+            configPath: "/tmp/test.kbd"
+        )
+
+        XCTAssertTrue(plist.contains("/var/log/com.keypath.kanata.stdout.log"))
+        XCTAssertTrue(plist.contains("/var/log/com.keypath.kanata.stderr.log"))
+        XCTAssertFalse(plist.contains("<string>/var/log/kanata.log</string>"))
     }
 
     func testGenerateKanataPlistContainsServiceID() {
@@ -144,7 +155,7 @@ final class PlistGeneratorTests: XCTestCase {
         )
 
         XCTAssertTrue(plistVerbose.contains("--trace"))
-        XCTAssertTrue(plistNormal.contains("--debug"))
+        XCTAssertFalse(plistNormal.contains("--debug"))
         XCTAssertFalse(plistVerbose.contains("--debug"))
         XCTAssertFalse(plistNormal.contains("--trace"))
     }
@@ -230,39 +241,11 @@ final class PlistGeneratorTests: XCTestCase {
         }
     }
 
-    // MARK: - Log Rotation Plist Tests
+    // MARK: - Legacy Log Rotation Service ID
 
-    func testGenerateLogRotationPlistContainsRequiredKeys() {
-        let scriptPath = "/usr/local/bin/keypath-logrotate.sh"
-        let plist = PlistGenerator.generateLogRotationPlist(scriptPath: scriptPath)
-
-        XCTAssertTrue(plist.contains("<key>Label</key>"))
-        XCTAssertTrue(plist.contains("<key>ProgramArguments</key>"))
-        XCTAssertTrue(plist.contains("<key>StartCalendarInterval</key>"))
-    }
-
-    func testGenerateLogRotationPlistContainsServiceID() {
-        let plist = PlistGenerator.generateLogRotationPlist(scriptPath: "/tmp/test.sh")
-
-        XCTAssertTrue(plist.contains("com.keypath.logrotate"))
-    }
-
-    func testGenerateLogRotationPlistContainsScriptPath() {
-        let scriptPath = "/usr/local/bin/keypath-logrotate.sh"
-        let plist = PlistGenerator.generateLogRotationPlist(scriptPath: scriptPath)
-
-        XCTAssertTrue(plist.contains(scriptPath))
-    }
-
-    func testGenerateLogRotationPlistValidXML() {
-        let plist = PlistGenerator.generateLogRotationPlist(scriptPath: "/tmp/test.sh")
-
-        guard let data = plist.data(using: .utf8),
-              let _ = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any]
-        else {
-            XCTFail("Generated log rotation plist is not valid XML/plist format")
-            return
-        }
+    func testLogRotationServiceIDIsKeptForLegacyCleanup() {
+        // logRotationServiceID is kept for legacy cleanup paths
+        XCTAssertEqual(PlistGenerator.logRotationServiceID, "com.keypath.logrotate")
     }
 
     // MARK: - Consistency Tests

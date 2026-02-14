@@ -11,7 +11,7 @@ protocol PrivilegedOperationsCoordinating: AnyObject {
     func restartUnhealthyServices() async throws
     func installServicesIfUninstalled(context: String) async throws -> Bool
     func installLaunchDaemonServicesWithoutLoading() async throws
-    func installLogRotation() async throws
+    func installNewsyslogConfig() async throws
     func regenerateServiceConfiguration() async throws
     func repairVHIDDaemonServices() async throws
     func downloadAndInstallCorrectVHIDDriver() async throws
@@ -143,8 +143,13 @@ final class PrivilegedOperationsCoordinator {
         switch Self.operationMode {
         case .privilegedHelper:
             do {
-                try await HelperManager.shared.installLaunchDaemonServicesWithoutLoading()
-                AppLogger.shared.log("✅ [PrivCoordinator] Helper successfully installed services")
+                // VirtualHID is managed via launchctl (root); Kanata is managed via SMAppService.
+                // Ensure VHID services are present/healthy, then register Kanata via SMAppService.
+                try await HelperManager.shared.restartUnhealthyServices()
+                try await KanataDaemonManager.shared.register()
+                AppLogger.shared.log(
+                    "✅ [PrivCoordinator] Helper installed VHID services; Kanata registered via SMAppService"
+                )
             } catch {
                 AppLogger.shared.log("⚠️ [PrivCoordinator] Helper failed (\(error)), falling back to sudo")
                 try await sudoInstallAllServicesWithPreferences()
@@ -230,7 +235,8 @@ final class PrivilegedOperationsCoordinator {
 
         let now = Date()
         if let last = Self.lastServiceInstallAttempt,
-           now.timeIntervalSince(last) < Self.serviceInstallThrottle {
+           now.timeIntervalSince(last) < Self.serviceInstallThrottle
+        {
             let remaining = Self.serviceInstallThrottle - now.timeIntervalSince(last)
             AppLogger.shared.log(
                 "\(Self.serviceGuardLogPrefix) \(context): skipping auto-install (throttled, \(String(format: "%.1f", remaining))s remaining)"
@@ -255,15 +261,15 @@ final class PrivilegedOperationsCoordinator {
         try await sudoRegenerateConfig()
     }
 
-    /// Install log rotation service
-    func installLogRotation() async throws {
-        AppLogger.shared.log("🔐 [PrivCoordinator] Installing log rotation")
+    /// Install newsyslog config for log rotation
+    func installNewsyslogConfig() async throws {
+        AppLogger.shared.log("🔐 [PrivCoordinator] Installing newsyslog config")
 
         switch Self.operationMode {
         case .privilegedHelper:
-            try await helperInstallLogRotation()
+            try await helperInstallNewsyslogConfig()
         case .directSudo:
-            try await sudoInstallLogRotation()
+            try await sudoInstallNewsyslogConfig()
         }
     }
 
@@ -415,6 +421,7 @@ final class PrivilegedOperationsCoordinator {
     /// Install the bundled Kanata binary to the system location
     func installBundledKanata() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Installing bundled Kanata binary")
+        ServiceBootstrapper.shared.markRestartTime(for: [ServiceBootstrapper.kanataServiceID])
 
         switch Self.operationMode {
         case .privilegedHelper:
@@ -422,6 +429,8 @@ final class PrivilegedOperationsCoordinator {
         case .directSudo:
             try await sudoInstallBundledKanata()
         }
+
+        ServiceBootstrapper.shared.markRestartTime(for: [ServiceBootstrapper.kanataServiceID])
 
         // Ensure SMAppService launchd job exists after installing the binary
         // (common case: fresh reinstall leaves service missing even though binary is present)
@@ -444,14 +453,14 @@ final class PrivilegedOperationsCoordinator {
         try await sudoRegenerateConfig()
     }
 
-    private func helperInstallLogRotation() async throws {
+    private func helperInstallNewsyslogConfig() async throws {
         do {
-            try await HelperManager.shared.installLogRotation()
+            try await HelperManager.shared.installNewsyslogConfig()
         } catch {
             AppLogger.shared.log(
-                "🚨 [PrivCoordinator] FALLBACK: helper installLogRotation failed: \(error.localizedDescription). Using AppleScript/sudo path."
+                "🚨 [PrivCoordinator] FALLBACK: helper installNewsyslogConfig failed: \(error.localizedDescription). Using AppleScript/sudo path."
             )
-            try await sudoInstallLogRotation()
+            try await sudoInstallNewsyslogConfig()
         }
     }
 
@@ -704,13 +713,13 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
-    /// Install log rotation service
+    /// Install newsyslog config for log rotation
     /// Uses extracted ServiceBootstrapper
-    private func sudoInstallLogRotation() async throws {
-        let success = await ServiceBootstrapper.shared.installLogRotationService()
+    private func sudoInstallNewsyslogConfig() async throws {
+        let success = await ServiceBootstrapper.shared.installNewsyslogConfig()
 
         if !success {
-            throw PrivilegedOperationError.operationFailed("Log rotation installation failed")
+            throw PrivilegedOperationError.operationFailed("Newsyslog config installation failed")
         }
     }
 
@@ -975,7 +984,8 @@ final class PrivilegedOperationsCoordinator {
     private static func notifySMAppServiceApprovalRequired(context: String) {
         let now = Date()
         if let last = lastSMAppApprovalNotice,
-           now.timeIntervalSince(last) < smAppApprovalNoticeThrottle {
+           now.timeIntervalSince(last) < smAppApprovalNoticeThrottle
+        {
             return
         }
         lastSMAppApprovalNotice = now

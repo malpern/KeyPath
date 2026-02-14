@@ -55,7 +55,8 @@ struct SequencesModalView: View {
 
             // Right panel
             if let selectedID = selectedSequenceID,
-               let index = localConfig.sequences.firstIndex(where: { $0.id == selectedID }) {
+               let index = localConfig.sequences.firstIndex(where: { $0.id == selectedID })
+            {
                 editorPanel(for: Binding(
                     get: { localConfig.sequences[index] },
                     set: { localConfig.sequences[index] = $0 }

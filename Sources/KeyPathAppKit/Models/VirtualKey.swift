@@ -125,7 +125,8 @@ public enum VirtualKeyParser {
         var searchIndex = config.startIndex
 
         while searchIndex < config.endIndex,
-              let startRange = config.range(of: marker, options: [], range: searchIndex ..< config.endIndex) {
+              let startRange = config.range(of: marker, options: [], range: searchIndex ..< config.endIndex)
+        {
             var depth = 0
             var index = startRange.lowerBound
             var foundMatch = false

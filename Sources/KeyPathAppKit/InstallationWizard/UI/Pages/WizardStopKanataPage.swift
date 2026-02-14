@@ -170,12 +170,12 @@ struct WizardStopKanataPage: View {
                 case .success, .processNotFound:
                     onComplete()
 
-                case let .killFailed(error):
-                    stopError = "Failed to stop Kanata: \(error.localizedDescription)"
+                case let .killFailed(message):
+                    stopError = "Failed to stop Kanata: \(message)"
 
-                case let .launchAgentDisableFailed(error):
+                case let .launchAgentDisableFailed(message):
                     // Still proceed - process might be stopped
-                    stopError = "Warning: LaunchAgent may restart Kanata: \(error.localizedDescription)"
+                    stopError = "Warning: LaunchAgent may restart Kanata: \(message)"
                     // Check if process is actually gone
                     if !ExternalKanataService.hasExternalKanataRunning() {
                         onComplete()

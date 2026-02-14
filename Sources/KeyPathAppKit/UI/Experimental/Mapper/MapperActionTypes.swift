@@ -4,7 +4,7 @@ import Foundation
 // MARK: - App Launch Info
 
 /// Info about a selected app for launch action
-public struct AppLaunchInfo: Equatable, Sendable {
+public struct AppLaunchInfo: Equatable {
     public let name: String
     public let bundleIdentifier: String?
     public let icon: NSImage
@@ -26,7 +26,7 @@ public struct AppLaunchInfo: Equatable, Sendable {
 // MARK: - App Condition Info
 
 /// Info about a selected app for precondition (rule only applies when this app is frontmost)
-public struct AppConditionInfo: Equatable, Identifiable, Sendable {
+public struct AppConditionInfo: Equatable, Identifiable {
     public let bundleIdentifier: String
     public let displayName: String
     public let icon: NSImage
@@ -104,22 +104,47 @@ public struct SystemActionInfo: Equatable, Identifiable, Sendable {
 
     /// Look up a SystemActionInfo by its kanata output (keycode, display name, or simulator name)
     public static func find(byOutput output: String) -> SystemActionInfo? {
-        // Check by id (system action identifier)
-        if let action = allActions.first(where: { $0.id == output }) {
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = trimmed.lowercased()
+        let normalizedDashed = lower
+            .replacingOccurrences(of: "_", with: "-")
+            .replacingOccurrences(of: " ", with: "-")
+        let normalizedCompact = normalizedDashed.replacingOccurrences(of: "-", with: "")
+
+	        // Handle raw push-msg strings: (push-msg "system:notification-center")
+	        if let regex = try? NSRegularExpression(pattern: #"\(push-msg\s+\"system:([^\"]+)\"\)"#, options: [.caseInsensitive]),
+	           let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
+	           let range = Range(match.range(at: 1), in: trimmed) {
+	            let extracted = String(trimmed[range]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+	            if let action = allActions.first(where: { $0.id.lowercased() == extracted }) {
+	                return action
+	            }
+	        }
+
+        // Check by id and common id variants.
+        if let action = allActions.first(where: {
+            let actionIdLower = $0.id.lowercased()
+            let actionIdCompact = actionIdLower.replacingOccurrences(of: "-", with: "")
+            return actionIdLower == lower || actionIdLower == normalizedDashed || actionIdCompact == normalizedCompact
+        }) {
             return action
         }
-        // Check by name first (for display labels from overlay)
-        if let action = allActions.first(where: { $0.name == output }) {
+
+        // Check by display name (case-insensitive).
+        if let action = allActions.first(where: { $0.name.lowercased() == lower }) {
             return action
         }
-        // Check by kanata keycode (for direct key outputs like "pp", "next")
-        if let action = allActions.first(where: { $0.kanataKeycode == output }) {
+
+        // Check by kanata keycode (for direct key outputs like "pp", "next").
+        if let action = allActions.first(where: { $0.kanataKeycode?.lowercased() == lower }) {
             return action
         }
-        // Check by simulator canonical name (e.g., "MediaTrackPrevious", "MediaPlayPause")
-        if let action = allActions.first(where: { $0.simulatorName == output }) {
+
+        // Check by simulator canonical name (e.g., "MediaPreviousSong", "MediaPlayPause").
+        if let action = allActions.first(where: { $0.simulatorName?.lowercased() == lower }) {
             return action
         }
+
         return nil
     }
 }

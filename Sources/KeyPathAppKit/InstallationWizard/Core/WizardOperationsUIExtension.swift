@@ -27,7 +27,8 @@ extension WizardOperations {
                     try await withThrowingTaskGroup(of: Void.self) { group in
                         group.addTask { await machine.refresh() }
                         group.addTask {
-                            try await Task.sleep(nanoseconds: 12_000_000_000)
+                            let clock = ContinuousClock()
+                            try await clock.sleep(for: .seconds(12))
                             throw StateDetectionError.timeout
                         }
                         _ = try await group.next()

@@ -27,7 +27,8 @@ extension RuleCollectionsManager {
             }
 
             if let act1 = candidateActivator,
-               let act2 = normalizedActivator(for: other) {
+               let act2 = normalizedActivator(for: other)
+            {
                 if act1 == act2 {
                     // Identical momentary activators are treated as redundant, not conflicts
                     continue

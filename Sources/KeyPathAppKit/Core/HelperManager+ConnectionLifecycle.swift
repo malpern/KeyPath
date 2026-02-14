@@ -149,7 +149,8 @@ extension HelperManager {
             var plistRequirement: String?
             if let info = NSDictionary(contentsOfFile: bundlePath + "/Contents/Info.plist"),
                let sm = (info["SMPrivilegedExecutables"] as? NSDictionary)?[Self.helperBundleIdentifier]
-               as? String {
+               as? String
+            {
                 plistRequirement = sm
                 if !req.contains("com.keypath.helper") {
                     warnings.append(

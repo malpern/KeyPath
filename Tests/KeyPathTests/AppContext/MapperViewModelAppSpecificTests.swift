@@ -111,7 +111,8 @@ final class MapperViewModelAppSpecificTests: XCTestCase {
 
         // Update with new override for same key
         let override2 = AppKeyOverride(inputKey: "a", outputAction: "c")
-        var keymap2 = try await XCTUnwrap(store.getKeymap(bundleIdentifier: bundleId))
+        let fetched = await store.getKeymap(bundleIdentifier: bundleId)
+        var keymap2 = try XCTUnwrap(fetched)
         keymap2.overrides = [override2]
         try await store.upsertKeymap(keymap2)
 

@@ -121,7 +121,7 @@ For power users, you can edit collections directly in the JSON store:
 
 ```bash
 # Location
-~/.config/keypath/collections.json
+~/.config/keypath/RuleCollections.json
 ```
 
 ## Best Practices

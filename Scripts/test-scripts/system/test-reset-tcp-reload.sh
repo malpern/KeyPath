@@ -10,6 +10,10 @@ echo "🔄 Testing reset to default with TCP reload..."
 # Configuration
 CONFIG_PATH="/Users/malpern/.config/keypath/keypath.kbd"
 BACKUP_PATH="${CONFIG_PATH}.backup"
+KANATA_LOG="/var/log/com.keypath.kanata.stdout.log"
+if [ ! -f "$KANATA_LOG" ] && [ -f "/var/log/kanata.log" ]; then
+    KANATA_LOG="/var/log/kanata.log"
+fi
 
 cleanup() {
     echo "🧹 Cleaning up test..."
@@ -72,7 +76,7 @@ echo "✅ Custom test configuration written"
 
 # Step 5: Get baseline log position
 echo "🔍 Step 5: Getting baseline log position..."
-BASELINE_LOG_SIZE=$(wc -c < /var/log/kanata.log 2>/dev/null || echo "0")
+BASELINE_LOG_SIZE=$(wc -c < "$KANATA_LOG" 2>/dev/null || echo "0")
 echo "📊 Baseline log size: $BASELINE_LOG_SIZE bytes"
 
 # Step 6: Simulate reset to default via Swift test
@@ -147,7 +151,7 @@ for i in {1..5}; do
     sleep 1
     
     # Check if log size increased (indicates reload activity)
-    CURRENT_LOG_SIZE=$(wc -c < /var/log/kanata.log 2>/dev/null || echo "0")
+    CURRENT_LOG_SIZE=$(wc -c < "$KANATA_LOG" 2>/dev/null || echo "0")
     if [ "$CURRENT_LOG_SIZE" -gt "$BASELINE_LOG_SIZE" ]; then
         echo "📈 Log activity detected (size: $CURRENT_LOG_SIZE bytes)"
         RELOAD_DETECTED=true

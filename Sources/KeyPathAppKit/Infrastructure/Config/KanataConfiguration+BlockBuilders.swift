@@ -37,7 +37,8 @@ extension KanataConfiguration {
 
     static func buildCollectionBlocks(
         from collections: [RuleCollection],
-        leaderKeyPreference: LeaderKeyPreference?
+        leaderKeyPreference: LeaderKeyPreference?,
+        navActivationMode: ContextHUDTriggerMode = .tapToToggle
     ) -> ([CollectionBlock], [AliasDefinition], [RuleCollectionLayer], [ChordMapping]) {
         var blocks: [CollectionBlock] = []
         var aliasDefinitions: [AliasDefinition] = []
@@ -67,8 +68,14 @@ extension KanataConfiguration {
             seenActivators.insert(aliasName)
 
             let definition = if pref.targetLayer == .navigation {
-                // Tap-hold enters nav, then keep it active until next key (one-shot)
-                "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (one-shot-pause-processing \(oneShotPauseMs))\n      (one-shot-press \(oneShotTimeoutMs) (layer-while-held \(layerName)))))"
+                switch navActivationMode {
+                case .holdToShow:
+                    // Hold-to-show: layer deactivates on key release (standard layer-while-held)
+                    "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+                case .tapToToggle:
+                    // Tap-to-toggle: layer stays active until next key (one-shot)
+                    "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (one-shot-pause-processing \(oneShotPauseMs))\n      (one-shot-press \(oneShotTimeoutMs) (layer-while-held \(layerName)))))"
+                }
             } else {
                 // Standard tap-hold for primary leader key (always from base layer)
                 "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
@@ -92,7 +99,8 @@ extension KanataConfiguration {
 
         let activationPlan = makeLayerActivationPlan(
             collections: collections,
-            leaderKeyPreference: leaderKeyPreference
+            leaderKeyPreference: leaderKeyPreference,
+            navActivationMode: navActivationMode
         )
         let activatorKeysBySourceLayer = activationPlan.activatorKeysBySourceLayer
         let hyperLinkedLayerInfos = activationPlan.hyperLinkedLayerInfos
@@ -107,7 +115,9 @@ extension KanataConfiguration {
             guard layer != .base, oneShotLayers.contains(layer) else { return output }
             guard !hasLayerBasePush else { return output }
             if activatorKeysBySourceLayer[layer]?.contains(sourceKey) == true { return output }
-            // Use release-layer to explicitly release the layer-while-held, then output, then notify UI
+            // Use release-layer to explicitly release the layer-while-held, then output, then notify UI.
+            // Modifier chords (M-v, M-S-z) work natively inside multi actions thanks to the
+            // keyberon multi_depth fix — no expansion needed.
             return "(multi (release-layer \(layer.kanataName)) \(output) (push-msg \"layer:base\"))"
         }
 
@@ -150,12 +160,16 @@ extension KanataConfiguration {
                 // This allows quick entry to nested layers without requiring hold
                 let definition = if activator.sourceLayer == .base {
                     if activator.targetLayer == .navigation {
-                        // Tap-hold enters nav, then keep it active until next key (one-shot)
-                        "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (one-shot-pause-processing \(oneShotPauseMs))\n      (one-shot-press \(oneShotTimeoutMs) (layer-while-held \(layerName)))))"
+                        switch navActivationMode {
+                        case .holdToShow:
+                            // Hold-to-show: layer deactivates on key release (standard layer-while-held)
+                            "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+                        case .tapToToggle:
+                            // Tap-to-toggle: layer stays active until next key (one-shot)
+                            "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (one-shot-pause-processing \(oneShotPauseMs))\n      (one-shot-press \(oneShotTimeoutMs) (layer-while-held \(layerName)))))"
+                        }
                     } else {
                         // Standard tap-hold for base layer activators
-                        // Use multi to combine layer-while-held with fake key triggers for TCP layer notifications.
-                        // This works around Kanata's limitation where layer-while-held doesn't broadcast LayerChange messages.
                         "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
                     }
                 } else {
@@ -269,7 +283,8 @@ extension KanataConfiguration {
 
             // For Vim collection: optionally block unmapped keys in navigation layer
             if collection.id == RuleCollectionIdentifier.vimNavigation,
-               collection.targetLayer != .base {
+               collection.targetLayer != .base
+            {
                 let mappedKeys = layerMappedKeys[collection.targetLayer] ?? Set(entries.map(\.sourceKey))
                 // Skip ALL activator keys that target this layer, not just Vim's own activator
                 // This prevents blocking layer-switch keys like "w" (Nav → Window)
@@ -324,7 +339,8 @@ extension KanataConfiguration {
 
     static func makeLayerActivationPlan(
         collections: [RuleCollection],
-        leaderKeyPreference: LeaderKeyPreference?
+        leaderKeyPreference: LeaderKeyPreference?,
+        navActivationMode: ContextHUDTriggerMode = .tapToToggle
     ) -> LayerActivationPlan {
         // Collect all activator keys for each source layer to avoid blocking them.
         var activatorKeysBySourceLayer: [RuleCollectionLayer: Set<String>] = [:]
@@ -359,14 +375,17 @@ extension KanataConfiguration {
             }
 
         // Layers that should behave as one-shot (stay active until next key press).
+        // Navigation layer is only one-shot in tapToToggle mode; holdToShow uses plain layer-while-held.
         var oneShotLayers = Set<RuleCollectionLayer>()
-        if let pref = leaderKeyPreference, pref.enabled, pref.targetLayer == .navigation {
+        if let pref = leaderKeyPreference, pref.enabled, pref.targetLayer == .navigation,
+           navActivationMode == .tapToToggle
+        {
             oneShotLayers.insert(pref.targetLayer)
         }
         for collection in collections where collection.isEnabled {
             guard let activator = collection.momentaryActivator else { continue }
             guard activator.input.lowercased() != "hyper" else { continue }
-            if activator.targetLayer == .navigation {
+            if activator.targetLayer == .navigation, navActivationMode == .tapToToggle {
                 oneShotLayers.insert(activator.targetLayer)
             }
             if activator.sourceLayer != .base {

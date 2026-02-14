@@ -22,6 +22,24 @@ struct MappingRowView: View {
         KeyboardVisualizationViewModel.extractAppLaunchIdentifier(from: mapping.output)
     }
 
+    /// Extract system action identifier from push-msg output or direct output labels.
+    private var systemActionIdentifier: String? {
+        if let extracted = KeyboardVisualizationViewModel.extractSystemActionIdentifier(from: mapping.output) {
+            return extracted
+        }
+        return SystemActionInfo.find(byOutput: mapping.output)?.id
+    }
+
+    /// Extract URL from push-msg open output.
+    private var urlIdentifier: String? {
+        KeyboardVisualizationViewModel.extractUrlIdentifier(from: mapping.output)
+    }
+
+    /// Extract target layer from layer-switch output.
+    private var layerSwitchIdentifier: String? {
+        LayerInfo.extractLayerName(from: mapping.output)
+    }
+
     private var isEditable: Bool {
         onEditMapping != nil
     }
@@ -57,9 +75,15 @@ struct MappingRowView: View {
                         .font(.body.weight(.medium))
                         .foregroundColor(.secondary)
 
-                    // Show app icon + name for launch actions, otherwise show key chip
+                    // Show rich chips for app/system/url/layer actions, otherwise show key chip
                     if let appId = appLaunchIdentifier {
                         RulesSummaryAppLaunchChip(appIdentifier: appId)
+                    } else if let actionId = systemActionIdentifier {
+                        RulesSummarySystemActionChip(actionIdentifier: actionId)
+                    } else if let urlId = urlIdentifier {
+                        RulesSummaryURLChip(urlString: urlId)
+                    } else if let layerName = layerSwitchIdentifier {
+                        RulesSummaryLayerSwitchChip(layerName: layerName)
                     } else {
                         Text(prettyKeyName(mapping.output))
                             .font(.body.monospaced().weight(.semibold))

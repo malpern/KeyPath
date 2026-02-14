@@ -30,7 +30,7 @@ enum CoordinatorPermissionType: String, CaseIterable {
 class PermissionGrantCoordinator: ObservableObject {
     static let shared = PermissionGrantCoordinator()
 
-    private let logger = WizardLogger.shared
+    private let logger = AppLogger.shared
     private let maxReturnTime: TimeInterval = 600 // 10 minutes
 
     /// Prevent double-dismiss race conditions
@@ -110,7 +110,7 @@ class PermissionGrantCoordinator: ObservableObject {
 
     private func quitApplication() {
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(500))
+            _ = await WizardSleep.ms(500)
             NSApp.terminate(nil)
         }
     }
@@ -304,7 +304,8 @@ class PermissionGrantCoordinator: ObservableObject {
 
     /// Check if permissions were successfully granted for the given permission type
     private func checkIfPermissionsGranted(for permissionType: CoordinatorPermissionType) async
-        -> Bool {
+        -> Bool
+    {
         let snapshot = await PermissionOracle.shared.currentSnapshot()
 
         switch permissionType {

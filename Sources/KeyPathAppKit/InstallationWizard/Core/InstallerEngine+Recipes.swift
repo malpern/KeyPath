@@ -11,7 +11,8 @@ extension InstallerEngine {
 
     /// Determine which actions are needed based on intent and context
     func determineActions(for intent: InstallIntent, context: SystemContext)
-        -> [AutoFixAction] {
+        -> [AutoFixAction]
+    {
         // Use shared ActionDeterminer to avoid duplication
         ActionDeterminer.determineActions(for: intent, context: context)
     }
@@ -20,7 +21,8 @@ extension InstallerEngine {
 
     /// Generate ServiceRecipes from AutoFixActions
     func generateRecipes(from actions: [AutoFixAction], context: SystemContext)
-        -> [ServiceRecipe] {
+        -> [ServiceRecipe]
+    {
         var recipes: [ServiceRecipe] = []
 
         for action in actions {

@@ -38,11 +38,13 @@ enum WizardRouter {
         //
         // Users can still navigate to the permission pages manually from Summary/status rows.
         if hasBlockingPermissionIssue(.permission(.keyPathInputMonitoring))
-            || hasBlockingPermissionIssue(.permission(.kanataInputMonitoring)) {
+            || hasBlockingPermissionIssue(.permission(.kanataInputMonitoring))
+        {
             return .inputMonitoring
         }
         if hasBlockingPermissionIssue(.permission(.keyPathAccessibility))
-            || hasBlockingPermissionIssue(.permission(.kanataAccessibility)) {
+            || hasBlockingPermissionIssue(.permission(.kanataAccessibility))
+        {
             return .accessibility
         }
 
@@ -88,7 +90,9 @@ enum WizardRouter {
         let hasKanataIssues = issues.contains {
             if $0.category == .installation {
                 switch $0.identifier {
-                case .component(.kanataBinaryMissing), .component(.kanataService):
+                case .component(.kanataBinaryMissing),
+                     .component(.kanataBinaryVersionMismatch),
+                     .component(.kanataService):
                     return true
                 default:
                     return false

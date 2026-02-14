@@ -41,7 +41,8 @@ struct StoredLayout: Codable, Identifiable {
          sourceURL: String? = nil,
          layoutJSON: Data,
          importDate: Date = Date(),
-         layoutVariant: String? = nil) {
+         layoutVariant: String? = nil)
+    {
         self.id = id
         self.name = name
         self.sourceURL = sourceURL

@@ -56,7 +56,7 @@ final class PrivilegedExecutorTests: XCTestCase {
     func testExecuteWithPrivilegesInTestMode() {
         // In test mode, behavior depends on environment:
         // - If shouldSkipAdminOperations=true: returns (true, "Skipped in test mode")
-        // - If useSudoForPrivilegedOps=true (sudoers auto-detected): actually runs sudo
+        // - If useSudoForPrivilegedOps=true (KEYPATH_USE_SUDO=1): actually runs sudo
         // - Otherwise: runs osascript (would show dialog, likely fails in headless test)
         let result = executor.executeWithPrivileges(
             command: "echo test",

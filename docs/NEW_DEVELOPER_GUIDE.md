@@ -29,8 +29,8 @@ KeyPath is a macOS application that provides keyboard remapping using Kanata as 
 cd /path/to/KeyPath
 swift build
 
-# Run tests (requires sudo password)
-./run-tests.sh
+# Run tests (may prompt for passwords depending on local setup)
+./test.sh
 
 # Build the app bundle for testing
 ./build.sh
@@ -374,7 +374,8 @@ print(snapshot.diagnosticSummary)
 sudo launchctl print system/com.keypath.kanata
 
 # View logs
-tail -f /var/log/kanata.log
+tail -f /var/log/com.keypath.kanata.stdout.log
+tail -f /var/log/com.keypath.kanata.stderr.log
 ```
 
 **Wizard won't advance:**
@@ -385,11 +386,11 @@ tail -f /var/log/kanata.log
 ### Running Tests
 
 ```bash
-# All tests (requires sudo)
-./run-tests.sh
+# All tests (may prompt for sudo depending on local setup)
+./test.sh
 
 # Core tests only
-./run-core-tests.sh
+./Scripts/archive/run-core-tests.sh
 
 # Single test
 swift test --filter TestClassName.testMethodName
@@ -463,7 +464,7 @@ In DEBUG builds (default for `swift build`), all privileged operations use direc
 # Development workflow - no certificate needed
 swift build
 swift test
-./run-tests.sh
+./test.sh
 ```
 
 ### For Release Builds
@@ -532,7 +533,8 @@ sudo ./Scripts/uninstall.sh
 
 ### Debugging Resources
 
-- `/var/log/kanata.log` - Kanata daemon logs
+- `/var/log/com.keypath.kanata.stdout.log` - Kanata daemon stdout
+- `/var/log/com.keypath.kanata.stderr.log` - Kanata daemon stderr/errors
 - `DiagnosticsView` in app - System diagnostics
 - `PermissionOracle.diagnosticSummary` - Permission state
 - `launchctl print system/com.keypath.kanata` - Service status

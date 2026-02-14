@@ -42,6 +42,8 @@ extension Notification.Name {
 
     /// Config validation
     static let configValidationFailed = Notification.Name("KeyPath.Config.ValidationFailed")
+    static let configReloadFailed = Notification.Name("KeyPath.Config.ReloadFailed")
+    static let configReloadRecovered = Notification.Name("KeyPath.Config.ReloadRecovered")
 
     /// Mapper drawer
     /// Posted when a key is clicked and should be selected in the mapper drawer
@@ -56,4 +58,7 @@ extension Notification.Name {
 
     /// Activity Logging
     static let activityLoggingChanged = Notification.Name("KeyPath.ActivityLogging.Changed")
+
+    /// Config-affecting preference changed (e.g., nav trigger mode) - triggers config regeneration
+    static let configAffectingPreferenceChanged = Notification.Name("KeyPath.Preferences.ConfigAffectingChanged")
 }

@@ -34,6 +34,11 @@ extension RuntimeCoordinator {
         // Initial status check
         await updateStatus()
 
+        // Start config file watching (must happen regardless of kanata state)
+        await MainActor.run {
+            startConfigFileWatching()
+        }
+
         // Try to start Kanata automatically on launch if environment allows
         let context = await engine.inspectSystem()
 
@@ -50,11 +55,6 @@ extension RuntimeCoordinator {
         AppLogger.shared.log(
             "🔍 [Init] System Context: installed=\(context.components.kanataBinaryInstalled), permissions=\(context.permissions.isSystemReady)"
         )
-
-        // Start config file watching
-        await MainActor.run {
-            startConfigFileWatching()
-        }
     }
 
     // MARK: - Recovery Operations (delegates to RecoveryCoordinator)

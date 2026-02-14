@@ -139,39 +139,29 @@ class HelperService: NSObject, HelperProtocol {
         )
     }
 
-    func installLogRotation(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] installLogRotation requested")
+    func installNewsyslogConfig(reply: @escaping (Bool, String?) -> Void) {
+        NSLog("[KeyPathHelper] installNewsyslogConfig requested")
         executePrivilegedOperation(
-            name: "installLogRotation",
+            name: "installNewsyslogConfig",
             operation: {
-                let scriptPath = "/usr/local/bin/keypath-logrotate.sh"
-                let plistPath = "/Library/LaunchDaemons/com.keypath.logrotate.plist"
+                let configPath = "/etc/newsyslog.d/com.keypath.conf"
+                let config = Self.generateNewsyslogConfig()
 
-                let script = Self.generateLogRotationScript()
-                let plist = Self.generateLogRotationPlist(scriptPath: scriptPath)
+                // Ensure directory exists
+                _ = Self.run("/bin/mkdir", ["-p", "/etc/newsyslog.d"])
 
-                // Write temp files then install atomically
-                let tmpDir = NSTemporaryDirectory()
-                let tmpScript = (tmpDir as NSString).appendingPathComponent("keypath-logrotate.sh")
-                let tmpPlist = (tmpDir as NSString).appendingPathComponent("com.keypath.logrotate.plist")
-                try script.write(toFile: tmpScript, atomically: true, encoding: .utf8)
-                try plist.write(toFile: tmpPlist, atomically: true, encoding: .utf8)
+                // Write config file
+                try config.write(toFile: configPath, atomically: true, encoding: .utf8)
+                _ = Self.run("/bin/chmod", ["644", configPath])
+                _ = Self.run("/usr/sbin/chown", ["root:wheel", configPath])
 
-                _ = Self.run("/bin/mkdir", ["-p", "/usr/local/bin"])
-                _ = Self.run("/bin/cp", [tmpScript, scriptPath])
-                _ = Self.run("/bin/chmod", ["755", scriptPath])
-                _ = Self.run("/usr/sbin/chown", ["root:wheel", scriptPath])
-
-                _ = Self.run("/bin/cp", [tmpPlist, plistPath])
-                _ = Self.run("/bin/chmod", ["644", plistPath])
-                _ = Self.run("/usr/sbin/chown", ["root:wheel", plistPath])
-
-                _ = Self.run("/bin/launchctl", ["bootout", "system/com.keypath.logrotate"]) // ignore failures
-                let bs = Self.run("/bin/launchctl", ["bootstrap", "system", plistPath])
-                if bs.status != 0 {
-                    throw HelperError.operationFailed(
-                        "bootstrap logrotate failed (status=\(bs.status)): \(bs.out)"
-                    )
+                // Legacy cleanup: remove old custom log rotation daemon if present
+                _ = Self.run("/bin/launchctl", ["bootout", "system/com.keypath.logrotate"])
+                if FileManager.default.fileExists(atPath: "/Library/LaunchDaemons/com.keypath.logrotate.plist") {
+                    _ = Self.run("/bin/rm", ["-f", "/Library/LaunchDaemons/com.keypath.logrotate.plist"])
+                }
+                if FileManager.default.fileExists(atPath: "/usr/local/bin/keypath-logrotate.sh") {
+                    _ = Self.run("/bin/rm", ["-f", "/usr/local/bin/keypath-logrotate.sh"])
                 }
             },
             reply: reply
@@ -502,14 +492,111 @@ class HelperService: NSObject, HelperProtocol {
                     throw HelperError.invalidArgument("Bundled kanata not found at: \(bundledKanata)")
                 }
 
+                let expectedPrefix = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/")
+                guard bundledKanata.hasPrefix(expectedPrefix) else {
+                    throw HelperError.invalidArgument(
+                        "Bundled kanata path is outside expected app bundle location"
+                    )
+                }
+
+                guard Self.verifyCodeSignatureStrict(path: appBundle) else {
+                    throw HelperError.operationFailed("App bundle signature verification failed")
+                }
+                guard Self.verifyCodeSignatureStrict(path: bundledKanata) else {
+                    throw HelperError.operationFailed("Bundled kanata signature verification failed")
+                }
+
+                guard let appTeamID = Self.teamIdentifier(for: appBundle) else {
+                    throw HelperError.operationFailed("Could not determine app TeamIdentifier")
+                }
+                guard let bundledTeamID = Self.teamIdentifier(for: bundledKanata) else {
+                    throw HelperError.operationFailed("Could not determine bundled kanata TeamIdentifier")
+                }
+                guard appTeamID == bundledTeamID else {
+                    throw HelperError.operationFailed(
+                        "TeamIdentifier mismatch (app=\(appTeamID), kanata=\(bundledTeamID))"
+                    )
+                }
+
                 let systemKanataDir = "/Library/KeyPath/bin"
                 let systemKanataPath = "\(systemKanataDir)/kanata"
+                let tempPath = "\(systemKanataDir)/.kanata.new.\(getpid())"
+                let backupPath = "\(systemKanataDir)/.kanata.backup.\(getpid())"
+                var hadBackup = false
 
-                _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
-                _ = Self.copyIfDifferent(src: bundledKanata, dst: systemKanataPath)
-                _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
-                _ = Self.run("/bin/chmod", ["755", systemKanataPath])
-                _ = Self.run("/usr/bin/xattr", ["-d", "com.apple.quarantine", systemKanataPath])
+                @discardableResult
+                func rollbackIfNeeded() -> Bool {
+                    _ = Self.run("/bin/rm", ["-f", tempPath])
+                    if hadBackup, FileManager.default.fileExists(atPath: backupPath) {
+                        _ = Self.run("/bin/rm", ["-f", systemKanataPath])
+                        let restore = Self.run("/bin/mv", ["-f", backupPath, systemKanataPath])
+                        return restore.status == 0
+                    }
+                    return true
+                }
+
+                let mkdirResult = Self.run("/bin/mkdir", ["-p", systemKanataDir])
+                guard mkdirResult.status == 0 else {
+                    throw HelperError.operationFailed(
+                        "Failed to create system kanata directory: \(mkdirResult.out)"
+                    )
+                }
+                _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataDir])
+                _ = Self.run("/bin/chmod", ["755", systemKanataDir])
+
+                let installResult = Self.run(
+                    "/usr/bin/install",
+                    ["-o", "root", "-g", "wheel", "-m", "755", bundledKanata, tempPath]
+                )
+                guard installResult.status == 0 else {
+                    throw HelperError.operationFailed("Failed to stage kanata binary: \(installResult.out)")
+                }
+
+                _ = Self.run("/usr/bin/xattr", ["-d", "com.apple.quarantine", tempPath])
+                guard Self.verifyCodeSignatureStrict(path: tempPath) else {
+                    _ = rollbackIfNeeded()
+                    throw HelperError.operationFailed("Staged kanata signature verification failed")
+                }
+
+                _ = Self.run("/bin/launchctl", ["bootout", "system/\(Self.kanataServiceID)"])
+                _ = Self.run("/usr/bin/pkill", ["-f", "kanata.*--cfg"])
+
+                if FileManager.default.fileExists(atPath: systemKanataPath) {
+                    let backupMove = Self.run("/bin/mv", ["-f", systemKanataPath, backupPath])
+                    guard backupMove.status == 0 else {
+                        _ = Self.run("/bin/rm", ["-f", tempPath])
+                        throw HelperError.operationFailed(
+                            "Failed to create backup of current kanata binary: \(backupMove.out)"
+                        )
+                    }
+                    hadBackup = true
+                }
+
+                let promoteResult = Self.run("/bin/mv", ["-f", tempPath, systemKanataPath])
+                guard promoteResult.status == 0 else {
+                    _ = rollbackIfNeeded()
+                    throw HelperError.operationFailed(
+                        "Failed to promote staged kanata binary: \(promoteResult.out)"
+                    )
+                }
+
+                guard Self.verifyCodeSignatureStrict(path: systemKanataPath) else {
+                    _ = rollbackIfNeeded()
+                    throw HelperError.operationFailed("Installed kanata signature verification failed")
+                }
+
+                guard Self.teamIdentifier(for: systemKanataPath) == appTeamID else {
+                    _ = rollbackIfNeeded()
+                    throw HelperError.operationFailed("Installed kanata TeamIdentifier mismatch")
+                }
+
+                let smoke = Self.run(systemKanataPath, ["--version"])
+                guard smoke.status == 0 else {
+                    _ = rollbackIfNeeded()
+                    throw HelperError.operationFailed("Installed kanata failed smoke test: \(smoke.out)")
+                }
+
+                _ = Self.run("/bin/rm", ["-f", backupPath])
             },
             reply: reply
         )
@@ -590,6 +677,8 @@ class HelperService: NSObject, HelperProtocol {
             _ = run("/bin/launchctl", ["bootout", "system/\(daemon)"])
             NSLog("[KeyPathHelper] Stopped/unloaded: \(daemon)")
         }
+        // Legacy log rotation daemon cleanup
+        _ = run("/bin/launchctl", ["bootout", "system/com.keypath.logrotate"])
     }
 
     private static func removeLaunchDaemonPlists() {
@@ -629,6 +718,8 @@ class HelperService: NSObject, HelperProtocol {
 
     private static func removeLogFiles() {
         let logs = [
+            "/var/log/com.keypath.kanata.stdout.log",
+            "/var/log/com.keypath.kanata.stderr.log",
             "/var/log/kanata.log",
             "/var/log/kanata.log.1",
             "/var/log/karabiner-vhid-daemon.log",
@@ -642,6 +733,16 @@ class HelperService: NSObject, HelperProtocol {
                 _ = run("/bin/rm", ["-f", log])
                 NSLog("[KeyPathHelper] Removed log: \(log)")
             }
+        }
+        // Remove newsyslog config
+        if FileManager.default.fileExists(atPath: "/etc/newsyslog.d/com.keypath.conf") {
+            _ = run("/bin/rm", ["-f", "/etc/newsyslog.d/com.keypath.conf"])
+            NSLog("[KeyPathHelper] Removed newsyslog config")
+        }
+        // Remove legacy log rotation script
+        if FileManager.default.fileExists(atPath: "/usr/local/bin/keypath-logrotate.sh") {
+            _ = run("/bin/rm", ["-f", "/usr/local/bin/keypath-logrotate.sh"])
+            NSLog("[KeyPathHelper] Removed legacy log rotation script")
         }
     }
 
@@ -822,6 +923,27 @@ extension HelperService {
         return (p.terminationStatus, s)
     }
 
+    static func verifyCodeSignatureStrict(path: String) -> Bool {
+        let result = run(
+            "/usr/bin/codesign",
+            ["--verify", "--strict", "--verbose=2", path]
+        )
+        if result.status != 0 {
+            NSLog(
+                "[KeyPathHelper] codesign verification failed for %@: %@",
+                path,
+                result.out.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+        }
+        return result.status == 0
+    }
+
+    static func teamIdentifier(for path: String) -> String? {
+        let result = run("/usr/bin/codesign", ["-d", "--verbose=4", path])
+        let output = result.out
+        return firstMatch(#"TeamIdentifier=([A-Z0-9]+)"#, in: output)
+    }
+
     /// Basic service inspection helpers (minimal parsing of `launchctl print`)
     static func isServiceLoaded(_ serviceID: String) -> Bool {
         let r = run("/bin/launchctl", ["print", "system/\(serviceID)"])
@@ -867,60 +989,14 @@ extension HelperService {
         firstMatch(pattern, in: text).flatMap { Int($0) }
     }
 
-    static func generateLogRotationScript() -> String {
+    static func generateNewsyslogConfig() -> String {
         """
-        #!/bin/bash
-        set -euo pipefail
-        LOG_DIR="/Library/Logs/KeyPath"
-        mkdir -p "$LOG_DIR"
-        MAX_SIZE_BYTES=$((10 * 1024 * 1024))
-
-        rotate_log() {
-            local logfile="$1"
-            if [[ -f "$logfile" ]]; then
-                local size=$(stat -f%z "$logfile" 2>/dev/null || echo 0)
-                if [[ $size -gt $MAX_SIZE_BYTES ]]; then
-                    echo "$(date): Rotating $logfile (size: $size bytes)"
-                    [[ -f "$logfile.1" ]] && rm -f "$logfile.1"
-                    mv "$logfile" "$logfile.1"
-                    touch "$logfile" && chmod 644 "$logfile" && chown root:wheel "$logfile" 2>/dev/null || true
-                    echo "$(date): Log rotation completed for $logfile"
-                fi
-            fi
-        }
-
-        rotate_log "$LOG_DIR/kanata.log"
-        for logfile in "$LOG_DIR"/keypath*.log; do
-            [[ -f "$logfile" ]] && rotate_log "$logfile"
-        done
-        """
-    }
-
-    static func generateLogRotationPlist(scriptPath: String) -> String {
-        """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>Label</key>
-            <string>com.keypath.logrotate</string>
-            <key>ProgramArguments</key>
-            <array>
-                <string>\(scriptPath)</string>
-            </array>
-            <key>StartCalendarInterval</key>
-            <dict>
-                <key>Minute</key>
-                <integer>0</integer>
-            </dict>
-            <key>StandardOutPath</key>
-            <string>/var/log/keypath-logrotate.log</string>
-            <key>StandardErrorPath</key>
-            <string>/var/log/keypath-logrotate.log</string>
-            <key>UserName</key>
-            <string>root</string>
-        </dict>
-        </plist>
+        # KeyPath log rotation - managed by KeyPath installer
+        # Rotate kanata logs at 10MB, keep 3 compressed archives.
+        # Keep legacy /var/log/kanata.log for older installs.
+        /var/log/com.keypath.kanata.stdout.log\t644  3\t10240  *\tNJ
+        /var/log/com.keypath.kanata.stderr.log\t644  3\t10240  *\tNJ
+        /var/log/kanata.log\t\t\t644  3\t10240  *\tNJ
         """
     }
 
@@ -983,11 +1059,12 @@ extension HelperService {
     }
 
     private static func kanataArguments(binaryPath: String, cfgPath: String, tcpPort: Int) -> [String] {
-        [binaryPath, "--cfg", cfgPath, "--port", String(tcpPort), "--debug", "--log-layer-changes"]
+        [binaryPath, "--cfg", cfgPath, "--port", String(tcpPort), "--log-layer-changes"]
     }
 
     private static func generateKanataPlist(binaryPath: String, cfgPath: String, tcpPort: Int)
-        -> String {
+        -> String
+    {
         let args = kanataArguments(binaryPath: binaryPath, cfgPath: cfgPath, tcpPort: tcpPort)
         let argsXML = args.map { "                <string>\($0)</string>" }.joined(separator: "\n")
         return """
@@ -1006,9 +1083,9 @@ extension HelperService {
             <key>KeepAlive</key>
             <false/>
             <key>StandardOutPath</key>
-            <string>/var/log/kanata.log</string>
+            <string>/var/log/com.keypath.kanata.stdout.log</string>
             <key>StandardErrorPath</key>
-            <string>/var/log/kanata.log</string>
+            <string>/var/log/com.keypath.kanata.stderr.log</string>
             <key>UserName</key>
             <string>root</string>
             <key>GroupName</key>

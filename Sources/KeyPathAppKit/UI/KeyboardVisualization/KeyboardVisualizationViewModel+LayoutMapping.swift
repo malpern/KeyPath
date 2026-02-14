@@ -31,6 +31,19 @@ extension KeyboardVisualizationViewModel {
         // (e.g., user switches layers while holding a tap-hold key)
         activeTapHoldSources.removeAll()
 
+        // When returning to base layer, clear hold state for all keys.
+        // This handles the case where KeyInput events are unavailable (older kanata)
+        // and the Release event never fires to clear holdActiveKeyCodes.
+        if targetLayerName.lowercased() == "base" {
+            for keyCode in holdActiveKeyCodes {
+                holdClearWorkItems[keyCode]?.cancel()
+                holdClearWorkItems.removeValue(forKey: keyCode)
+            }
+            holdActiveKeyCodes.removeAll()
+            holdLabels.removeAll()
+            pressedKeyCodes.removeAll()
+        }
+
         // Check if we'll be entering/exiting launcher mode
         let willBeLauncherMode = targetLayerName.lowercased() == Self.launcherLayerName
 
@@ -376,6 +389,13 @@ extension KeyboardVisualizationViewModel {
         options: [.caseInsensitive]
     )
 
+    /// Cached regex for extracting system action identifiers
+    /// Pattern: (push-msg "system:notification-center")
+    private nonisolated static let pushMsgSystemRegex = try! NSRegularExpression(
+        pattern: #"\(push-msg\s+\"system:([^\"]+)\"\)"#,
+        options: [.caseInsensitive]
+    )
+
     /// Extract LayerKeyInfo from a push-msg output string
     /// Handles: launch:, system:, and generic push-msg patterns
     nonisolated static func extractPushMsgInfo(from output: String, description: String?) -> LayerKeyInfo? {
@@ -472,6 +492,21 @@ extension KeyboardVisualizationViewModel {
         }
         let value = String(output[range])
         return URLMappingFormatter.decodeFromPushMessage(value)
+    }
+
+    /// Extract system action ID from a push-msg system output string
+    /// - Parameter output: The kanata output string (e.g., "(push-msg \"system:notification-center\")")
+    /// - Returns: The action identifier if this is a system action, nil otherwise
+    nonisolated static func extractSystemActionIdentifier(from output: String) -> String? {
+        guard let match = pushMsgSystemRegex.firstMatch(
+            in: output,
+            range: NSRange(output.startIndex..., in: output)
+        ),
+            let range = Range(match.range(at: 1), in: output)
+        else {
+            return nil
+        }
+        return String(output[range]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Invalidate cached mappings (call when config changes)

@@ -36,7 +36,8 @@ extension KanataTCPClient {
             // Check if first line indicates error
             if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
                let status = json["status"] as? String,
-               status.lowercased() == "error" {
+               status.lowercased() == "error"
+            {
                 let errorMsg = json["msg"] as? String ?? "Hello request failed"
                 throw KeyPathError.communication(.connectionFailed(reason: errorMsg))
             }
@@ -55,7 +56,7 @@ extension KanataTCPClient {
                 attempts += 1
                 lastLine = nextLine
 
-                if isUnsolicitedBroadcast(nextLine) {
+                if !isCommandResponse(nextLine) {
                     continue
                 }
 
@@ -70,7 +71,8 @@ extension KanataTCPClient {
 
                 if let json = try? JSONSerialization.jsonObject(with: nextLine) as? [String: Any],
                    let status = json["status"] as? String,
-                   status.lowercased() == "error" {
+                   status.lowercased() == "error"
+                {
                     let errorMsg = json["msg"] as? String ?? "Hello request failed"
                     throw KeyPathError.communication(.connectionFailed(reason: errorMsg))
                 }
@@ -157,11 +159,13 @@ extension KanataTCPClient {
     /// Prefer Reload(wait/timeout_ms); fall back to basic {"Reload":{}} and Ok/Error if needed.
     func reloadConfig(timeoutMs: UInt32 = 5000) async -> TCPReloadResult {
         let startTime = Date()
-        AppLogger.shared.log("⏱️ [TCP] t=0ms: Starting reload (timeoutMs=\(timeoutMs))")
+        let requestId = generateRequestId()
+        AppLogger.shared.log(
+            "⏱️ [TCP] t=0ms: Starting reload request_id=\(requestId) (port=\(port), clientTimeout=\(String(format: "%.1f", timeout))s, timeoutMs=\(timeoutMs))"
+        )
 
         do {
             // Preferred: wait contract (v2)
-            let requestId = generateRequestId()
             let req: [String: Any] = [
                 "Reload": [
                     "wait": true,
@@ -191,44 +195,126 @@ extension KanataTCPClient {
             let firstLineStr = String(data: firstLine, encoding: .utf8) ?? ""
             let connectionStateAfterFirstRead = stateString(connection?.state)
             AppLogger.shared.log("⏱️ [TCP] t=\(Int(Date().timeIntervalSince(startTime) * 1000))ms: First line received, connection state=\(connectionStateAfterFirstRead)")
-            AppLogger.shared.log("🔄 [TCP] Reload status: \(firstLineStr)")
+            AppLogger.shared.log("🔄 [TCP] Reload status (request_id=\(requestId)): \(firstLineStr)")
 
             // Check if first line indicates error
             if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
                let status = json["status"] as? String,
-               status.lowercased() == "error" {
+               status.lowercased() == "error"
+            {
                 let errorMsg = json["msg"] as? String ?? "Reload failed"
                 AppLogger.shared.log("❌ [TCP] Reload failed: \(errorMsg)")
                 return .failure(error: errorMsg, response: firstLineStr)
             }
 
+            // Kanata uses a two-line protocol for reload:
+            //   Line 1: {"status":"Ok"}\n
+            //   Line 2: {"ReloadResult":{...}}\n
+            //
+            // Some callers (wizard / comm checks) intentionally close the connection after this
+            // method returns. If we don't read the second line, Kanata may attempt to write the
+            // ReloadResult to a closed socket, producing "Broken pipe" spam in its stderr log.
+            let connection = try await ensureConnectionCore()
+            let deadline = CFAbsoluteTimeGetCurrent() + (Double(timeoutMs) / 1000.0) + 1.0
+            var attempts = 0
+            var skippedBroadcasts = 0
+
+            AppLogger.shared.debug(
+                "⏱️ [TCP] t=\(Int(Date().timeIntervalSince(startTime) * 1000))ms: Waiting for ReloadResult (request_id=\(requestId))"
+            )
+
+            while CFAbsoluteTimeGetCurrent() < deadline, attempts < 25 {
+                let remaining = max(0.1, deadline - CFAbsoluteTimeGetCurrent())
+                let nextLine = try await withTimeout(seconds: remaining) {
+                    try await self.readUntilNewline(on: connection)
+                }
+                attempts += 1
+
+                if !isCommandResponse(nextLine) {
+                    // Broadcast messages can race the command responses. Log a few samples for debugging.
+                    if skippedBroadcasts < 3,
+                       let s = String(data: nextLine, encoding: .utf8)
+                    {
+                        skippedBroadcasts += 1
+                        AppLogger.shared.debug(
+                            "🔄 [TCP] Skipping broadcast while waiting for ReloadResult (request_id=\(requestId)): \(s.prefix(120))"
+                        )
+                    }
+                    continue
+                }
+
+                if let json = try? JSONSerialization.jsonObject(with: nextLine) as? [String: Any],
+                   let status = json["status"] as? String,
+                   status.lowercased() == "error"
+                {
+                    let errorMsg = json["msg"] as? String ?? "Reload failed"
+                    AppLogger.shared.log("❌ [TCP] Reload failed (follow-up): \(errorMsg)")
+                    return .failure(error: errorMsg, response: firstLineStr)
+                }
+
+                if let reload = try extractMessage(
+                    named: "ReloadResult", into: ReloadResult.self, from: nextLine
+                ) {
+                    if reload.isSuccess {
+                        let dur = reload.duration_ms ?? 0
+                        let ep = reload.epoch ?? 0
+                        let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
+                        AppLogger.shared.log("✅ [TCP] Reload(wait) ok (request_id=\(requestId)) duration=\(dur)ms epoch=\(ep)")
+                        AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload completed successfully")
+                        return .success(response: firstLineStr)
+                    } else {
+                        let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
+                        if reload.isTimeout, let timeoutMs = reload.timeout_ms {
+                            AppLogger.shared.log("⚠️ [TCP] Reload(wait) timeout (request_id=\(requestId)) before \(timeoutMs) ms")
+                        } else if reload.ok == false {
+                            AppLogger.shared.log("❌ [TCP] Reload(wait) failed (request_id=\(requestId)) ok=false")
+                        } else {
+                            AppLogger.shared.log("❌ [TCP] Reload(wait) failed (request_id=\(requestId))")
+                        }
+                        AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload timed out")
+                        return .failure(error: "timeout", response: firstLineStr)
+                    }
+                }
+            }
+
+            AppLogger.shared.warn(
+                "⚠️ [TCP] Did not receive ReloadResult (request_id=\(requestId)) after \(attempts) reads; falling back to status-only success path"
+            )
+
             if let reload = try extractMessage(
                 named: "ReloadResult", into: ReloadResult.self, from: firstLine
             ) {
-                if reload.ready {
+                if reload.isSuccess {
                     let dur = reload.duration_ms ?? 0
                     let ep = reload.epoch ?? 0
                     let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
-                    AppLogger.shared.log("✅ [TCP] Reload(wait) ok duration=\(dur)ms epoch=\(ep)")
+                    AppLogger.shared.log("✅ [TCP] Reload(wait) ok (request_id=\(requestId)) duration=\(dur)ms epoch=\(ep)")
                     AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload completed successfully")
                     return .success(response: firstLineStr)
                 } else {
                     let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
-                    AppLogger.shared.log("⚠️ [TCP] Reload(wait) timeout before \(reload.timeout_ms) ms")
+                    if reload.isTimeout, let timeoutMs = reload.timeout_ms {
+                        AppLogger.shared.log("⚠️ [TCP] Reload(wait) timeout (request_id=\(requestId)) before \(timeoutMs) ms")
+                    } else if reload.ok == false {
+                        AppLogger.shared.log("❌ [TCP] Reload(wait) failed (request_id=\(requestId)) ok=false")
+                    } else {
+                        AppLogger.shared.log("❌ [TCP] Reload(wait) failed (request_id=\(requestId))")
+                    }
                     AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload timed out")
                     return .failure(error: "timeout", response: firstLineStr)
                 }
             }
 
-            // If we couldn't parse ReloadResult, treat status OK as success (backward compat)
+            // If we couldn't parse ReloadResult, treat status OK as success (backward compat).
+            // This should only happen if the server doesn't implement the second line.
             let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
             AppLogger.shared.log("✅ [TCP] Config reload acknowledged (status OK, no ReloadResult)")
-            AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload completed (backward compat mode)")
+            AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload completed (request_id=\(requestId), backward compat mode)")
             return .success(response: firstLineStr)
         } catch {
             let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
             let connectionState = stateString(connection?.state)
-            AppLogger.shared.log("❌ [TCP] Reload error at t=\(totalTime)ms: \(error)")
+            AppLogger.shared.log("❌ [TCP] Reload error (request_id=\(requestId)) at t=\(totalTime)ms: \(error)")
             AppLogger.shared.log("❌ [TCP] Connection state at error: \(connectionState)")
             // FIX #3: Close connection on error so next call gets fresh connection
             if shouldRetry(error) {
@@ -280,7 +366,8 @@ extension KanataTCPClient {
 
             // Parse response
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-               let status = json["status"] as? String {
+               let status = json["status"] as? String
+            {
                 if status.lowercased() == "ok" {
                     AppLogger.shared.log("✅ [TCP] ActOnFakeKey success: \(name)")
                     return .success
@@ -329,7 +416,8 @@ extension KanataTCPClient {
 
             // Parse response
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-               let status = json["status"] as? String {
+               let status = json["status"] as? String
+            {
                 if status.lowercased() == "ok" {
                     AppLogger.shared.log("✅ [TCP] ChangeLayer success: \(layerName)")
                     return .success

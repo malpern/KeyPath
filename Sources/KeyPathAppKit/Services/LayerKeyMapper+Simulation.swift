@@ -12,8 +12,7 @@ extension LayerKeyMapper {
     }
 
     /// Parse raw simulation events to extract output keys for a single key tap.
-    /// Uses JSON mode (--json) to correctly capture all outputs from multi actions,
-    /// unlike --key-mapping mode which only returns the first output.
+    /// Uses JSON mode (--json) to correctly capture all outputs from multi actions.
     /// - Parameters:
     ///   - simName: The simulator key name that was pressed
     ///   - events: The simulation events from JSON mode
@@ -97,12 +96,12 @@ extension LayerKeyMapper {
                     // Single key: press, wait 50ms, release, then wait 250ms for tap-hold to resolve.
                     // Tap-hold behaviors need time after release to determine if it was a tap (the
                     // typical threshold is 200ms, so 250ms ensures the tap fires).
-                    let simContent = "d:\(simName) t:50 u:\(simName) t:250"
+                    // Prepend ls: to switch to the target layer before simulating.
+                    let simContent = "ls:\(startLayer) d:\(simName) t:50 u:\(simName) t:250"
                     do {
                         let result = try await self.simulatorService.simulateRaw(
                             simContent: simContent,
-                            configPath: configPath,
-                            startLayer: startLayer
+                            configPath: configPath
                         )
                         return (keyCode, label, simName, result)
                     } catch {
@@ -256,7 +255,7 @@ extension LayerKeyMapper {
                 var primaryOutputKey: String?
                 var primaryOutputKeyCode: UInt16?
                 for output in parsed.outputs {
-                    if !isModifierSymbol(output) {
+                    if !isModifier(output) {
                         primaryOutputKey = output
                         primaryOutputKeyCode = kanataKeyToKeyCode(output)
                         break
@@ -317,12 +316,11 @@ extension LayerKeyMapper {
         let simName = toSimulatorKeyName(tcpName)
 
         // Long press: hold for 400ms to exceed typical tap-hold timeouts (200ms default)
-        // Use simulateRaw to specify start layer and a long press
-        let simContent = "d:\(simName) t:400 u:\(simName)"
+        // Prepend ls: to switch to the target layer before simulating.
+        let simContent = "ls:\(startLayer) d:\(simName) t:400 u:\(simName)"
         let result = try await simulatorService.simulateRaw(
             simContent: simContent,
-            configPath: configPath,
-            startLayer: startLayer
+            configPath: configPath
         )
 
         // Track net pressed output keys between the input press and its release.
@@ -419,20 +417,13 @@ extension LayerKeyMapper {
     ) -> String? {
         if outputs.isEmpty { return nil }
 
-        // Normalize modifier aliases and be tolerant of naming variants
+        // Normalize modifier aliases to canonical left-side names for Hyper/Meh detection
         let normalizedSet: Set<String> = Set(outputs.map { key in
             switch key {
-            case "cmd", "lcmd", "command", "lcommand", "meta": "lmet"
-            case "rmet": "lmet"
-            case "lctrl", "ctrl", "control", "lcontrol": "lctl"
-            case "rctl", "rctrl", "rcontrol": "lctl"
+            case "cmd", "lcmd", "command", "lcommand", "meta", "rmet": "lmet"
+            case "lctrl", "ctrl", "control", "lcontrol", "rctl", "rctrl", "rcontrol": "lctl"
             case "ralt": "lalt"
             case "rsft", "rshift", "shift": "lsft"
-            // Simulator-specific left-side modifier symbols (‹…›)
-            case "‹⎈": "lctl" // Control
-            case "‹◆": "lmet" // Command
-            case "‹⎇": "lalt" // Option
-            case "‹⇧": "lsft" // Shift
             default: key
             }
         })
@@ -450,7 +441,8 @@ extension LayerKeyMapper {
 
         // Spacebar output should render blank
         if normalizedSet.count == 1, let only = normalizedSet.first,
-           ["space", "spacebar", "spc", "sp"].contains(only) {
+           ["space", "spacebar", "spc", "sp"].contains(only)
+        {
             return ""
         }
 

@@ -39,7 +39,7 @@ struct InstallationWizardView: View {
     @State var toastManager = WizardToastManager()
 
     // UI state
-    @State var isValidating: Bool = true // Track validation state for gear icon
+    @State var isValidating: Bool = true // Track validation state for summary activity indicator
     @State var preflightStart = Date()
     @State var evaluationProgress: Double = 0.0
     // stateMachine.wizardState and stateMachine.wizardIssues now live in stateMachine (single source of truth)
@@ -63,6 +63,10 @@ struct InstallationWizardView: View {
 
     /// Focus management for reliable ESC key handling
     @FocusState private var hasKeyboardFocus: Bool
+
+    /// True when the current page is already showing a contextual/in-page progress indicator.
+    /// Used to suppress the global operation overlay to avoid duplicate progress treatments.
+    @State private var hasInlineProgressIndicator: Bool = false
 
     var currentFixDescriptionForUI: String? {
         guard let currentFixAction else { return nil }
@@ -103,9 +107,14 @@ struct InstallationWizardView: View {
                 pageContent()
                     .id(stateMachine.currentPage) // Force view recreation on page change
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .onPreferenceChange(WizardInlineProgressVisiblePreferenceKey.self) { newValue in
+                        hasInlineProgressIndicator = newValue
+                    }
                     .overlay {
-                        // Don't show overlay during validation - summary page has its own gear
-                        if asyncOperationManager.hasRunningOperations, !isValidating {
+                        // Don't show overlay during validation - summary page has its own validating indicator
+                        // Also suppress overlay when the page already shows an inline progress bar,
+                        // to avoid two simultaneous indeterminate bars.
+                        if asyncOperationManager.hasRunningOperations, !isValidating, !hasInlineProgressIndicator {
                             operationProgressOverlay()
                                 .allowsHitTesting(false) // Don't block X button interaction
                         }

@@ -9,6 +9,7 @@ import KeyPathCore
 @MainActor
 final class KanataBinaryInstaller {
     static let shared = KanataBinaryInstaller()
+    private static let kanataServiceID = "com.keypath.kanata"
 
     private init() {}
 
@@ -44,6 +45,16 @@ final class KanataBinaryInstaller {
             return false
         }
 
+        // Ensure we only install binaries with a valid, expected signature (unless explicitly
+        // overridden for local dev experiments).
+        let preflight = await signingPreflight(forBundledBinaryAt: bundledPath)
+        guard preflight.success else {
+            AppLogger.shared.error(
+                "❌ [KanataBinaryInstaller] Refusing install due to signing preflight failure: \(preflight.reason)"
+            )
+            return false
+        }
+
         AppLogger.shared.log("📂 [KanataBinaryInstaller] Copying \(bundledPath) → \(systemPath)")
 
         // Check if we should skip admin operations for testing
@@ -53,12 +64,70 @@ final class KanataBinaryInstaller {
             // In test mode, just verify the source exists and return success
             success = FileManager.default.fileExists(atPath: bundledPath)
         } else {
+            // Mark warm-up before replacement so health checks can treat launchctl "not found"
+            // transitions as transient while the daemon is being swapped.
+            ServiceBootstrapper.shared.markRestartTime(for: [Self.kanataServiceID])
+
+            let qSystemDir = shellSingleQuoted(systemDir)
+            let qBundledPath = shellSingleQuoted(bundledPath)
+            let qSystemPath = shellSingleQuoted(systemPath)
+            let qServiceID = shellSingleQuoted(Self.kanataServiceID)
             let command = """
-            mkdir -p '\(systemDir)' && \
-            cp '\(bundledPath)' '\(systemPath)' && \
-            chmod 755 '\(systemPath)' && \
-            chown root:wheel '\(systemPath)' && \
-            xattr -d com.apple.quarantine '\(systemPath)' 2>/dev/null || true
+            set -e
+            SYSTEM_DIR='\(qSystemDir)'
+            SRC='\(qBundledPath)'
+            DST='\(qSystemPath)'
+            SERVICE_ID='\(qServiceID)'
+            TMP_PATH="${SYSTEM_DIR}/.kanata.new.$$"
+            BACKUP_PATH="${SYSTEM_DIR}/.kanata.backup.$$"
+            HAD_BACKUP=0
+
+            cleanup_tmp() {
+              rm -f "${TMP_PATH}" 2>/dev/null || true
+            }
+
+            rollback_binary() {
+              if [ "${HAD_BACKUP}" -eq 1 ] && [ -f "${BACKUP_PATH}" ]; then
+                mv -f "${BACKUP_PATH}" "${DST}" 2>/dev/null || true
+              fi
+            }
+
+            trap cleanup_tmp EXIT
+
+            /bin/mkdir -p "${SYSTEM_DIR}"
+            /usr/sbin/chown root:wheel "${SYSTEM_DIR}" 2>/dev/null || true
+            /bin/chmod 755 "${SYSTEM_DIR}" 2>/dev/null || true
+
+            /usr/bin/install -o root -g wheel -m 755 "${SRC}" "${TMP_PATH}"
+            /usr/bin/xattr -d com.apple.quarantine "${TMP_PATH}" 2>/dev/null || true
+            /usr/bin/codesign --verify --strict --verbose=2 "${TMP_PATH}"
+
+            /bin/launchctl bootout "system/${SERVICE_ID}" 2>/dev/null || true
+            /usr/bin/pkill -f "kanata.*--cfg" 2>/dev/null || true
+
+            if [ -f "${DST}" ]; then
+              mv -f "${DST}" "${BACKUP_PATH}"
+              HAD_BACKUP=1
+            fi
+
+            if ! mv -f "${TMP_PATH}" "${DST}"; then
+              rollback_binary
+              exit 1
+            fi
+
+            if ! /usr/bin/codesign --verify --strict --verbose=2 "${DST}"; then
+              rm -f "${DST}" 2>/dev/null || true
+              rollback_binary
+              exit 2
+            fi
+
+            if ! "${DST}" --version >/dev/null 2>&1; then
+              rm -f "${DST}" 2>/dev/null || true
+              rollback_binary
+              exit 3
+            fi
+
+            rm -f "${BACKUP_PATH}" 2>/dev/null || true
             """
 
             let result = PrivilegedCommandRunner.execute(
@@ -73,12 +142,24 @@ final class KanataBinaryInstaller {
                 "✅ [KanataBinaryInstaller] Bundled kanata binary installed successfully to \(systemPath)"
             )
 
-            // Verify code signing and trust
-            await verifyCodeSigning(at: systemPath)
+            // Keep transition window open slightly past copy completion to absorb launchd churn.
+            ServiceBootstrapper.shared.markRestartTime(for: [Self.kanataServiceID])
 
-            // Smoke test: verify the binary can actually execute (skip in test mode)
+            // Verify code signing and trust (must pass in strict mode)
+            guard await verifyCodeSigning(
+                at: systemPath,
+                expectedTeamIdentifier: preflight.expectedTeamIdentifier
+            ) else {
+                AppLogger.shared.error("❌ [KanataBinaryInstaller] Post-install signature verification failed")
+                return false
+            }
+
+            // Smoke test: verify the binary can actually execute.
             if !TestEnvironment.shouldSkipAdminOperations {
-                await runSmokeTest(at: systemPath)
+                guard await runSmokeTest(at: systemPath) else {
+                    AppLogger.shared.error("❌ [KanataBinaryInstaller] Post-install smoke test failed")
+                    return false
+                }
             }
 
             // Verify the installation using detector
@@ -198,31 +279,109 @@ final class KanataBinaryInstaller {
 
     // MARK: - Private Helpers
 
-    /// Verify code signing and trust for the installed binary
-    private func verifyCodeSigning(at path: String) async {
-        AppLogger.shared.log("🔍 [KanataBinaryInstaller] Verifying code signing and trust...")
-        let verifyCommand = "spctl -a '\(path)' 2>&1"
+    private struct SigningPreflightResult {
+        let success: Bool
+        let reason: String
+        let expectedTeamIdentifier: String?
+    }
 
+    private func signingPreflight(forBundledBinaryAt bundledPath: String) async -> SigningPreflightResult {
+        if TestEnvironment.shouldSkipAdminOperations || allowUnsignedKanataForDevelopment {
+            return SigningPreflightResult(
+                success: true,
+                reason: "Signature preflight bypassed for test/dev override",
+                expectedTeamIdentifier: nil
+            )
+        }
+
+        let appPath = Bundle.main.bundlePath
+        let appVerify = await verifyCodeSigning(at: appPath, expectedTeamIdentifier: nil)
+        guard appVerify else {
+            return SigningPreflightResult(
+                success: false,
+                reason: "App signature verification failed at \(appPath)",
+                expectedTeamIdentifier: nil
+            )
+        }
+
+        let bundledVerify = await verifyCodeSigning(at: bundledPath, expectedTeamIdentifier: nil)
+        guard bundledVerify else {
+            return SigningPreflightResult(
+                success: false,
+                reason: "Bundled kanata signature verification failed at \(bundledPath)",
+                expectedTeamIdentifier: nil
+            )
+        }
+
+        let appTeam = await extractTeamIdentifier(at: appPath)
+        let bundledTeam = await extractTeamIdentifier(at: bundledPath)
+
+        guard let appTeam else {
+            return SigningPreflightResult(
+                success: false,
+                reason: "Could not determine app TeamIdentifier",
+                expectedTeamIdentifier: nil
+            )
+        }
+        guard let bundledTeam else {
+            return SigningPreflightResult(
+                success: false,
+                reason: "Could not determine bundled kanata TeamIdentifier",
+                expectedTeamIdentifier: nil
+            )
+        }
+
+        guard appTeam == bundledTeam else {
+            return SigningPreflightResult(
+                success: false,
+                reason: "Bundled kanata TeamIdentifier mismatch (app=\(appTeam), kanata=\(bundledTeam))",
+                expectedTeamIdentifier: appTeam
+            )
+        }
+
+        AppLogger.shared.log("✅ [KanataBinaryInstaller] Signing preflight passed (TeamIdentifier=\(appTeam))")
+        return SigningPreflightResult(
+            success: true,
+            reason: "OK",
+            expectedTeamIdentifier: appTeam
+        )
+    }
+
+    /// Verify code signing and trust for a binary or bundle path.
+    private func verifyCodeSigning(at path: String, expectedTeamIdentifier: String?) async -> Bool {
         do {
             let result = try await SubprocessRunner.shared.run(
-                "/bin/bash",
-                args: ["-c", verifyCommand],
+                "/usr/bin/codesign",
+                args: ["--verify", "--strict", "--verbose=2", path],
                 timeout: 10
             )
-
-            if result.exitCode == 0 {
-                AppLogger.shared.log("✅ [KanataBinaryInstaller] Binary passed Gatekeeper verification")
-            } else if result.stderr.contains("rejected") || result.stderr.contains("not accepted") {
-                AppLogger.shared.log("⚠️ [KanataBinaryInstaller] Binary failed Gatekeeper verification: \(result.stderr)")
-                // Continue anyway - the binary is installed and quarantine removed
+            guard result.exitCode == 0 else {
+                let output = result.stderr.isEmpty ? result.stdout : result.stderr
+                AppLogger.shared.error(
+                    "❌ [KanataBinaryInstaller] codesign verify failed for \(path): \(output.trimmingCharacters(in: .whitespacesAndNewlines))"
+                )
+                return false
             }
         } catch {
-            AppLogger.shared.log("⚠️ [KanataBinaryInstaller] Could not verify code signing: \(error)")
+            AppLogger.shared.error("❌ [KanataBinaryInstaller] codesign verify threw for \(path): \(error)")
+            return false
         }
+
+        if let expectedTeamIdentifier {
+            let teamID = await extractTeamIdentifier(at: path)
+            guard teamID == expectedTeamIdentifier else {
+                AppLogger.shared.error(
+                    "❌ [KanataBinaryInstaller] TeamIdentifier mismatch for \(path): expected \(expectedTeamIdentifier), got \(teamID ?? "nil")"
+                )
+                return false
+            }
+        }
+
+        return true
     }
 
     /// Run smoke test to verify the binary can actually execute
-    private func runSmokeTest(at path: String) async {
+    private func runSmokeTest(at path: String) async -> Bool {
         AppLogger.shared.log("🔍 [KanataBinaryInstaller] Running smoke test to verify binary execution...")
 
         do {
@@ -237,15 +396,48 @@ final class KanataBinaryInstaller {
                 AppLogger.shared.log(
                     "✅ [KanataBinaryInstaller] Kanata binary executes successfully (--version): \(smokeOutput)"
                 )
+                return true
             } else {
                 AppLogger.shared.log(
-                    "⚠️ [KanataBinaryInstaller] Kanata exec smoke test failed with exit code \(result.exitCode): \(result.stderr)"
+                    "❌ [KanataBinaryInstaller] Kanata exec smoke test failed with exit code \(result.exitCode): \(result.stderr)"
                 )
-                // Continue anyway - the binary is installed
+                return false
             }
         } catch {
-            AppLogger.shared.log("⚠️ [KanataBinaryInstaller] Kanata exec smoke test threw error: \(error)")
-            // Continue anyway - the binary is installed
+            AppLogger.shared.log("❌ [KanataBinaryInstaller] Kanata exec smoke test threw error: \(error)")
+            return false
         }
+    }
+
+    private var allowUnsignedKanataForDevelopment: Bool {
+        ProcessInfo.processInfo.environment["KEYPATH_ALLOW_UNSIGNED_KANATA"] == "1"
+    }
+
+    private func extractTeamIdentifier(at path: String) async -> String? {
+        do {
+            let result = try await SubprocessRunner.shared.run(
+                "/usr/bin/codesign",
+                args: ["-d", "--verbose=4", path],
+                timeout: 10
+            )
+            let output = "\(result.stdout)\n\(result.stderr)"
+            if let regex = try? NSRegularExpression(pattern: #"TeamIdentifier=([A-Z0-9]+)"#) {
+                let nsRange = NSRange(output.startIndex ..< output.endIndex, in: output)
+                if let match = regex.firstMatch(in: output, options: [], range: nsRange),
+                   match.numberOfRanges > 1,
+                   let teamRange = Range(match.range(at: 1), in: output)
+                {
+                    return String(output[teamRange])
+                }
+            }
+            return nil
+        } catch {
+            AppLogger.shared.warn("⚠️ [KanataBinaryInstaller] Unable to extract TeamIdentifier for \(path): \(error)")
+            return nil
+        }
+    }
+
+    private func shellSingleQuoted(_ value: String) -> String {
+        value.replacingOccurrences(of: "'", with: "'\"'\"'")
     }
 }

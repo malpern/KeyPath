@@ -39,7 +39,7 @@ struct GeneralSettingsTabView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Segmented control for section switching
-            Picker("Section", selection: $selectedSection) {
+            Picker("", selection: $selectedSection) {
                 ForEach(GeneralSettingsSection.visibleSections) { section in
                     Text(section.rawValue).tag(section)
                 }
@@ -117,7 +117,7 @@ struct GeneralSettingsTabView: View {
                                     .foregroundColor(.secondary)
 
                                 Button("Open") {
-                                    openLogFile("/var/log/kanata.log")
+                                    openLogFile(WizardSystemPaths.kanataLogFile)
                                 }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
@@ -128,8 +128,11 @@ struct GeneralSettingsTabView: View {
                     }
                     .frame(minWidth: 220)
 
-                    // Right: Recording Settings
+                    // Right column
                     VStack(alignment: .leading, spacing: 20) {
+                        // Shortcut List Settings (top of column)
+                        ContextHUDSettingsSection()
+
                         // Capture Mode
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Capture Mode")

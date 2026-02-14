@@ -33,7 +33,8 @@ final class FullDiskAccessChecker {
     func hasFullDiskAccess() -> Bool {
         if let lastCheckTime,
            let cachedValue,
-           Date().timeIntervalSince(lastCheckTime) < cacheTTL {
+           Date().timeIntervalSince(lastCheckTime) < cacheTTL
+        {
             return cachedValue
         }
         return refresh()
@@ -80,7 +81,8 @@ final class FullDiskAccessChecker {
 
         // Try a minimal read; mappedIfSafe avoids copying large files.
         if let data = try? Data(contentsOf: URL(fileURLWithPath: systemTCCPath), options: .mappedIfSafe),
-           data.count > 0 {
+           data.count > 0
+        {
             return true
         }
 

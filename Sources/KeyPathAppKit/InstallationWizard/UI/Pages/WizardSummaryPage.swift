@@ -12,7 +12,7 @@ struct WizardSummaryPage: View {
     let onStartService: () -> Void
     let onDismiss: () -> Void
     let onNavigateToPage: ((WizardPage) -> Void)?
-    let isValidating: Bool // Show spinning gear during validation
+    let isValidating: Bool // Show validating activity state during summary refresh
     @Binding var showAllItems: Bool // Lifted to parent to drive navigation sequence
     @Binding var navSequence: [WizardPage] // Ordered pages for back/next navigation
 
@@ -24,13 +24,12 @@ struct WizardSummaryPage: View {
     // MARK: - Header State
 
     private enum HeaderMode {
-        case validating // Spinning gear
+        case validating // Blue indeterminate bar
         case issues // Error icon
         case success // Green check
     }
 
     @State private var headerMode: HeaderMode = .validating
-    @State private var gearRotation: Double = 0 // For continuous spinning animation
     @State private var iconHovering: Bool = false
     @State private var fadeMaskOpacity: Double = 0.0
     @State private var visibleIssueCount: Int = 0
@@ -99,21 +98,11 @@ struct WizardSummaryPage: View {
                 }
 
                 if headerMode == .validating {
-                    // Spinning gear during validation - continuous rotation
-                    Image(systemName: "gear")
-                        .font(.system(size: WizardDesign.Layout.statusCircleSize))
-                        .foregroundColor(.secondary)
-                        .rotationEffect(.degrees(gearRotation))
-                        .onAppear {
-                            // Start continuous rotation when gear appears
-                            withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
-                                gearRotation = 360
-                            }
-                        }
-                        .onDisappear {
-                            // Stop rotation when gear disappears
-                            gearRotation = 0
-                        }
+                    WizardActivityIndicator(
+                        width: min(220, WizardDesign.Layout.statusCircleSize + 36),
+                        height: 6
+                    )
+                    .transition(.opacity)
                 } else {
                     // Final state icon (error or success) - simple fade transition
                     Image(systemName: headerIconName)
@@ -172,7 +161,7 @@ struct WizardSummaryPage: View {
             }
             .onChange(of: isValidating) { _, newValue in
                 if !newValue {
-                    // Transition from gear to final state - clear focus during transition
+                    // Transition from validating indicator to final state
                     DispatchQueue.main.async {
                         NSApp.keyWindow?.makeFirstResponder(nil)
                     }
@@ -253,7 +242,7 @@ struct WizardSummaryPage: View {
     private var headerIconName: String {
         switch headerMode {
         case .validating:
-            "gear" // Not used, but required for exhaustive switch
+            "minus" // Not used, but required for exhaustive switch
         case .issues:
             "xmark.circle.fill"
         case .success:

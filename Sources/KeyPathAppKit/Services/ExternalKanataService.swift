@@ -6,11 +6,12 @@ import KeyPathCore
 public enum ExternalKanataService {
     // MARK: - Types
 
-    public enum StopResult {
+    /// Sendable result type so wizard UI can safely bridge across Task/MainActor boundaries under Swift 6 strict concurrency.
+    public enum StopResult: Sendable {
         case success
         case processNotFound
-        case killFailed(Error)
-        case launchAgentDisableFailed(Error)
+        case killFailed(String)
+        case launchAgentDisableFailed(String)
     }
 
     // MARK: - Public API
@@ -22,6 +23,7 @@ public enum ExternalKanataService {
         AppLogger.shared.log("🛑 [ExternalKanata] Stopping external Kanata (PID: \(info.pid))")
 
         // First, disable any LaunchAgents to prevent restart
+        var launchAgentDisableError: String?
         let launchAgentPaths = WizardSystemPaths.userKanataLaunchAgentPaths
         for agentPath in launchAgentPaths {
             do {
@@ -29,6 +31,9 @@ public enum ExternalKanataService {
                 AppLogger.shared.log("✅ [ExternalKanata] Disabled LaunchAgent: \(agentPath)")
             } catch {
                 AppLogger.shared.warn("⚠️ [ExternalKanata] Failed to disable LaunchAgent: \(error)")
+                if launchAgentDisableError == nil {
+                    launchAgentDisableError = error.localizedDescription
+                }
                 // Continue anyway - we'll still try to kill the process
             }
         }
@@ -37,10 +42,13 @@ public enum ExternalKanataService {
         do {
             try await killProcess(pid: info.pid)
             AppLogger.shared.log("✅ [ExternalKanata] Successfully stopped external Kanata")
+            if let launchAgentDisableError {
+                return .launchAgentDisableFailed(launchAgentDisableError)
+            }
             return .success
         } catch {
             AppLogger.shared.error("❌ [ExternalKanata] Failed to kill process: \(error)")
-            return .killFailed(error)
+            return .killFailed(error.localizedDescription)
         }
     }
 

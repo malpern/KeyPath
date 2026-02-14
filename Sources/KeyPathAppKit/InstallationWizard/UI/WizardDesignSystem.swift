@@ -350,15 +350,7 @@ enum WizardDesign {
             }
 
             func makeBody(configuration: Configuration) -> some View {
-                ZStack {
-                    if isLoading {
-                        ProgressView()
-                            .scaleEffect(0.6)
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    } else {
-                        configuration.label
-                    }
-                }
+                configuration.label
                 .font(WizardDesign.Typography.button)
                 .foregroundColor(.white)
                 .frame(minWidth: 120, minHeight: 26) // Fixed minimum dimensions for primary buttons (20% height reduction)
@@ -366,6 +358,7 @@ enum WizardDesign {
                 .padding(.vertical, WizardDesign.Spacing.elementGap)
                 .background(WizardDesign.Colors.primaryAction)
                 .cornerRadius(8)
+                .opacity(isLoading ? 0.85 : 1.0)
                 .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
                 .animation(WizardDesign.Animation.buttonFeedback, value: configuration.isPressed)
                 .disabled(isLoading)
@@ -381,15 +374,7 @@ enum WizardDesign {
             }
 
             func makeBody(configuration: Configuration) -> some View {
-                ZStack {
-                    if isLoading {
-                        ProgressView()
-                            .scaleEffect(0.6)
-                            .progressViewStyle(CircularProgressViewStyle())
-                    } else {
-                        configuration.label
-                    }
-                }
+                configuration.label
                 .font(WizardDesign.Typography.button)
                 .foregroundColor(
                     configuration.isPressed
@@ -407,6 +392,7 @@ enum WizardDesign {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(WizardDesign.Colors.primaryAction, lineWidth: 1.5)
                 )
+                .opacity(isLoading ? 0.85 : 1.0)
                 .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
                 .animation(WizardDesign.Animation.buttonFeedback, value: configuration.isPressed)
                 .disabled(isLoading)
@@ -422,15 +408,7 @@ enum WizardDesign {
             }
 
             func makeBody(configuration: Configuration) -> some View {
-                ZStack {
-                    if isLoading {
-                        ProgressView()
-                            .scaleEffect(0.6)
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    } else {
-                        configuration.label
-                    }
-                }
+                configuration.label
                 .font(WizardDesign.Typography.button)
                 .foregroundColor(.white)
                 .frame(minWidth: 120, minHeight: 26) // Fixed minimum dimensions (20% height reduction)
@@ -438,6 +416,7 @@ enum WizardDesign {
                 .padding(.vertical, WizardDesign.Spacing.elementGap)
                 .background(WizardDesign.Colors.error)
                 .cornerRadius(8)
+                .opacity(isLoading ? 0.85 : 1.0)
                 .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
                 .animation(WizardDesign.Animation.buttonFeedback, value: configuration.isPressed)
                 .disabled(isLoading)

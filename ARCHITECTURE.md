@@ -29,7 +29,7 @@ KeyPath is a native macOS application that simplifies the usage of the powerful 
             ▼                  ▼                        ▼
 ┌─────────────────────────┐ ┌──────────────────────┐ ┌────────────────────┐
 │   com.keypath.kanata    │ │   VirtualHID Driver  │ │    MacOS TCC API   │
-│   (Root LaunchDaemon)   │ │    (Kernel Ext)      │ │ (Security Frame)   │
+│   (Root LaunchDaemon)   │ │      (DriverKit)     │ │ (Security Frame)   │
 └─────────────────────────┘ └──────────────────────┘ └────────────────────┘
 ```
 

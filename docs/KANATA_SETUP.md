@@ -91,7 +91,8 @@ sudo launchctl kill TERM system/com.keypath.kanata
 sudo launchctl print system/com.keypath.kanata
 
 # View logs
-tail -f /var/log/kanata.log
+tail -f /var/log/com.keypath.kanata.stdout.log
+tail -f /var/log/com.keypath.kanata.stderr.log
 ```
 
 ### Programmatic Control
@@ -201,7 +202,7 @@ KeyPath/
 1. **Service won't start**
    - Check Kanata installation: `which kanata`
    - Validate config: `kanata --cfg /usr/local/etc/kanata/keypath.kbd --check`
-   - Check logs: `tail -f /var/log/kanata.log`
+   - Check logs: `tail -f /var/log/com.keypath.kanata.stderr.log`
 
 2. **Config invalid**
    - Run: `./test-hot-reload.sh`

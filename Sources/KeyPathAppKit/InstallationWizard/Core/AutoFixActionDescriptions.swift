@@ -39,7 +39,7 @@ enum AutoFixActionDescriptions {
         case .restartUnhealthyServices:
             "Restart failing system services"
         case .installLogRotation:
-            "Install log rotation to keep logs under 10MB"
+            "Install newsyslog config to keep logs under 10MB"
         case .replaceKanataWithBundled:
             "Replace kanata with Developer ID signed version"
         case .enableTCPServer:

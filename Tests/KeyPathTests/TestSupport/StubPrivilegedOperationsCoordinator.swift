@@ -41,8 +41,8 @@ final class StubPrivilegedOperationsCoordinator: PrivilegedOperationsCoordinatin
         try record("installLaunchDaemonServicesWithoutLoading")
     }
 
-    func installLogRotation() async throws {
-        try record("installLogRotation")
+    func installNewsyslogConfig() async throws {
+        try record("installNewsyslogConfig")
     }
 
     func regenerateServiceConfiguration() async throws {

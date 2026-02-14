@@ -131,9 +131,9 @@ extension HelperManager {
         }
     }
 
-    func installLogRotation() async throws {
-        try await executeXPCCall("installLogRotation") { proxy, reply in
-            proxy.installLogRotation(reply: reply)
+    func installNewsyslogConfig() async throws {
+        try await executeXPCCall("installNewsyslogConfig") { proxy, reply in
+            proxy.installNewsyslogConfig(reply: reply)
         }
     }
 

@@ -142,13 +142,13 @@ struct WizardHelperPage: View {
 
     private var loadingView: some View {
         VStack(spacing: WizardDesign.Spacing.sectionGap) {
-            ProgressView()
-                .scaleEffect(1.5)
-                .frame(height: 80)
-
-            Text("Checking Helper Status")
-                .font(.system(size: 20, weight: .semibold, design: .default))
-                .foregroundColor(.primary)
+            WizardActivityIndicator(
+                message: "Checking Helper Status",
+                width: 240,
+                height: 6
+            )
+            .frame(height: 52)
+            .wizardInlineProgressVisible(true)
 
             Text("Verifying privileged helper is responding...")
                 .font(.system(size: 14, weight: .regular))
@@ -362,7 +362,8 @@ struct WizardHelperPage: View {
 
             // If approval is required, offer a quick link to System Settings
             if case let .error(message) = actionStatus,
-               message.localizedCaseInsensitiveContains("approval required") {
+               message.localizedCaseInsensitiveContains("approval required")
+            {
                 Button("Open System Settings → Login Items") {
                     openLoginItemsSettings()
                 }
@@ -402,11 +403,13 @@ struct WizardHelperPage: View {
     private var loginItemsScreenshot: NSImage? {
         let resourceName = "permissions-login-items"
         if let moduleURL = Bundle.module.url(forResource: resourceName, withExtension: "png"),
-           let image = NSImage(contentsOf: moduleURL) {
+           let image = NSImage(contentsOf: moduleURL)
+        {
             return image
         }
         if let mainURL = Bundle.main.url(forResource: resourceName, withExtension: "png"),
-           let image = NSImage(contentsOf: mainURL) {
+           let image = NSImage(contentsOf: mainURL)
+        {
             return image
         }
         return nil
@@ -449,7 +452,7 @@ struct WizardHelperPage: View {
         // After successful install, verify helper is now functional and update state
         if ok {
             // Give helper a moment to start responding
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+            _ = await WizardSleep.ms(500) // 0.5s
 
             let functional = await HelperManager.shared.testHelperFunctionality()
             let version = await HelperManager.shared.getHelperVersion()
@@ -551,7 +554,8 @@ struct WizardHelperPage: View {
 
         Task {
             if let next = await stateMachine.getNextPage(for: systemState, issues: issues),
-               next != stateMachine.currentPage {
+               next != stateMachine.currentPage
+            {
                 stateMachine.navigateToPage(next)
             } else {
                 stateMachine.navigateToPage(.summary)

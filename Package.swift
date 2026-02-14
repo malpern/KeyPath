@@ -1,11 +1,12 @@
-// swift-tools-version: 6.2
+// swift-tools-version: 6.1
 import PackageDescription
 
 let package = Package(
     name: "KeyPath",
     defaultLocalization: "en",
     platforms: [
-        .macOS(.v26)
+        // Keep CI compatible with GitHub-hosted Xcode versions while still supporting modern macOS.
+        .macOS(.v15)
     ],
     products: [
         .library(

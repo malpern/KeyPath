@@ -66,6 +66,9 @@ class MainAppStateController: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var lastKnownServiceHealthy: Bool?
     private var periodicRefreshTask: Task<Void, Never>?
+    private let definitiveStartupGracePeriod: TimeInterval = 3.0
+    private let transientStartupGracePeriod: TimeInterval = 12.0
+    private let startupCheckInterval: TimeInterval = 0.5
 
     // MARK: - Initialization
 
@@ -187,6 +190,9 @@ class MainAppStateController: ObservableObject {
         // NOTE: Kanata v1.9.0 TCP does NOT require authentication
         // No token check needed - just verify service has TCP configuration
 
+        // In tests, Bundle.main resolves to the Xcode toolchain — plist path is meaningless
+        if TestEnvironment.isRunningTests { return true }
+
         // Check SMAppService plist first if active, otherwise fall back to legacy plist
         let plistPath = KanataDaemonManager.getActivePlistPath()
 
@@ -271,7 +277,8 @@ class MainAppStateController: ObservableObject {
 
                 // Only refresh if validation is stale (>30s since last check)
                 if let lastTime = lastValidationTime,
-                   Date().timeIntervalSince(lastTime) > 30 {
+                   Date().timeIntervalSince(lastTime) > 30
+                {
                     AppLogger.shared.log("🔄 [MainAppStateController] Periodic refresh triggered (stale state)")
                     await revalidate()
                 }
@@ -294,7 +301,8 @@ class MainAppStateController: ObservableObject {
 
         // Optimization: Skip validation if recently completed (prevents redundant work on rapid restarts)
         if let lastTime = lastValidationTime,
-           Date().timeIntervalSince(lastTime) < validationCooldown {
+           Date().timeIntervalSince(lastTime) < validationCooldown
+        {
             let timeSince = Int(Date().timeIntervalSince(lastTime))
             AppLogger.shared.log(
                 "⏭️ [MainAppStateController] Skipping validation - completed \(timeSince)s ago (cooldown: \(Int(validationCooldown))s)"
@@ -410,6 +418,12 @@ class MainAppStateController: ObservableObject {
 
     // MARK: - Private Implementation
 
+    private enum KanataStartupGateResult {
+        case ready
+        case transientTimeout
+        case definitiveFailure
+    }
+
     private func performValidation() async {
         guard let validator else {
             AppLogger.shared.warn("⚠️ [MainAppStateController] Cannot validate - validator not configured")
@@ -423,32 +437,23 @@ class MainAppStateController: ObservableObject {
                 autoFixAction: nil,
                 userAction: "Quit and reopen KeyPath, then run the setup wizard."
             )]
+            // Even failed validations should update "last checked" timestamps.
+            lastValidationDate = Date()
+            lastValidationTime = Date()
             return
         }
 
-        // Check service status with startup grace period
-        // Give Kanata up to 3 seconds to finish starting before reporting an error
-        let startupGracePeriod: TimeInterval = 3.0
-        let checkInterval: TimeInterval = 0.5
-        let maxChecks = Int(startupGracePeriod / checkInterval)
-
-        var serviceStatus = await InstallerEngine().getServiceStatus()
-        var checksPerformed = 0
-
-        while !serviceStatus.kanataServiceHealthy, checksPerformed < maxChecks {
-            checksPerformed += 1
-            AppLogger.shared.debug(
-                "⏳ [MainAppStateController] Waiting for Kanata service... (\(checksPerformed)/\(maxChecks))"
-            )
-            try? await Task.sleep(nanoseconds: UInt64(checkInterval * 1_000_000_000))
-            serviceStatus = await InstallerEngine().getServiceStatus()
-        }
-
-        if !serviceStatus.kanataServiceHealthy {
+        switch await evaluateKanataStartupGate() {
+        case .ready:
+            break
+        case .transientTimeout:
             AppLogger.shared.warn(
-                "⚠️ [MainAppStateController] Kanata service not healthy after \(startupGracePeriod)s - showing error state"
+                "⚠️ [MainAppStateController] Kanata still in transient startup window after \(Int(transientStartupGracePeriod))s - continuing with full validation to avoid false failure"
             )
-            // Set failed state so System indicator shows red X instead of spinning forever
+        case .definitiveFailure:
+            AppLogger.shared.warn(
+                "⚠️ [MainAppStateController] Kanata service not healthy after \(definitiveStartupGracePeriod)s outside restart window - showing error state"
+            )
             validationState = .failed(blockingCount: 1, totalCount: 1)
             issues = [WizardIssue(
                 identifier: .component(.kanataService),
@@ -459,6 +464,9 @@ class MainAppStateController: ObservableObject {
                 autoFixAction: .restartUnhealthyServices,
                 userAction: "Click System to open the setup wizard and diagnose the issue."
             )]
+            // Even failed validations should update "last checked" timestamps.
+            lastValidationDate = Date()
+            lastValidationTime = Date()
             return
         }
 
@@ -498,6 +506,9 @@ class MainAppStateController: ObservableObject {
                 userAction: "Try restarting the keyboard service from the System menu."
             )]
             AppLogger.shared.error("⏱️ [MainAppStateController] Validation watchdog fired – marking status as failed")
+            // Even failed validations should update "last checked" timestamps.
+            lastValidationDate = Date()
+            lastValidationTime = Date()
             return
         }
 
@@ -667,6 +678,51 @@ class MainAppStateController: ObservableObject {
                 )
             }
         }
+    }
+
+    private func evaluateKanataStartupGate() async -> KanataStartupGateResult {
+        let start = Date()
+        let definitiveDeadline = start.addingTimeInterval(definitiveStartupGracePeriod)
+        let transientDeadline = start.addingTimeInterval(transientStartupGracePeriod)
+        var checks = 0
+
+        while Date() < transientDeadline {
+            let serviceStatus = await InstallerEngine().getServiceStatus()
+            if serviceStatus.kanataServiceHealthy {
+                if checks > 0 {
+                    AppLogger.shared.log(
+                        "✅ [MainAppStateController] Kanata became healthy after \(checks) startup checks"
+                    )
+                }
+                return .ready
+            }
+
+            let inTransientWindow = await isInKanataTransientStartupWindow()
+            if !inTransientWindow, Date() >= definitiveDeadline {
+                return .definitiveFailure
+            }
+
+            checks += 1
+            AppLogger.shared.debug(
+                "⏳ [MainAppStateController] Waiting for Kanata service (\(checks)) transient=\(inTransientWindow)"
+            )
+            try? await Task.sleep(nanoseconds: UInt64(startupCheckInterval * 1_000_000_000))
+        }
+
+        return .transientTimeout
+    }
+
+    private func isInKanataTransientStartupWindow() async -> Bool {
+        let recentlyRestarted = ServiceBootstrapper.wasRecentlyRestarted(
+            ServiceHealthChecker.kanataServiceID,
+            within: transientStartupGracePeriod
+        )
+        if recentlyRestarted {
+            return true
+        }
+
+        let managementState = await KanataDaemonManager.shared.refreshManagementState()
+        return managementState == .smappservicePending
     }
 
     // MARK: - Public Accessors (Compatible with StartupValidator)

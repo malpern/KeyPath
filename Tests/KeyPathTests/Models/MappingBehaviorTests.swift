@@ -137,7 +137,8 @@ struct MappingBehaviorTests {
         let decoded = try JSONDecoder().decode(MappingBehavior.self, from: data)
 
         if case let .tapOrTapDance(tapBehavior) = decoded,
-           case let .tapDance(td) = tapBehavior {
+           case let .tapDance(td) = tapBehavior
+        {
             #expect(td.steps.count == 2)
         } else {
             Issue.record("Expected tapDance case")
@@ -176,7 +177,8 @@ struct MappingBehaviorTests {
         let decoded = try JSONDecoder().decode(MappingBehavior.self, from: data)
 
         if case let .tapOrTapDance(tapBehavior) = decoded,
-           case let .tapDance(td) = tapBehavior {
+           case let .tapDance(td) = tapBehavior
+        {
             #expect(td.steps.count == 2)
         } else {
             Issue.record("Expected tapDance case from legacy decode")

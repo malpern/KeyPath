@@ -178,12 +178,133 @@ struct RulesSummaryAppLaunchChip: View {
 
         // Get app name from bundle
         if let bundle = Bundle(url: url),
-           let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String {
+           let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
+        {
             appName = name
         } else {
             // Use filename without extension
             appName = url.deletingPathExtension().lastPathComponent
         }
+    }
+}
+
+// MARK: - System/URL/Layer Chips
+
+/// Displays a system action icon + name in keycap style for rules summary rows.
+struct RulesSummarySystemActionChip: View {
+    let actionIdentifier: String
+
+    private var actionInfo: SystemActionInfo? {
+        SystemActionInfo.find(byOutput: actionIdentifier)
+    }
+
+    private var iconName: String {
+        actionInfo?.sfSymbol ?? "gearshape.fill"
+    }
+
+    private var displayName: String {
+        actionInfo?.name ?? actionIdentifier.capitalized
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: iconName)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(KeycapStyle.textColor)
+                .frame(width: 16, height: 16)
+
+            Text(displayName)
+                .font(.body.monospaced().weight(.semibold))
+                .foregroundColor(KeycapStyle.textColor)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: KeycapStyle.cornerRadius)
+                .fill(Color.accentColor.opacity(0.25))
+                .shadow(color: .black.opacity(0.4), radius: 1, y: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: KeycapStyle.cornerRadius)
+                .stroke(Color.accentColor.opacity(0.4), lineWidth: 0.5)
+        )
+    }
+}
+
+/// Displays a URL favicon + domain in keycap style for rules summary rows.
+struct RulesSummaryURLChip: View {
+    let urlString: String
+
+    @State private var favicon: NSImage?
+
+    private var domain: String {
+        KeyMappingFormatter.extractDomain(from: urlString)
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let favicon {
+                Image(nsImage: favicon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+            } else {
+                Image(systemName: "link")
+                    .font(.system(size: 12))
+                    .foregroundColor(KeycapStyle.textColor.opacity(0.6))
+                    .frame(width: 16, height: 16)
+            }
+
+            Text(domain)
+                .font(.body.monospaced().weight(.semibold))
+                .foregroundColor(KeycapStyle.textColor)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: KeycapStyle.cornerRadius)
+                .fill(Color.accentColor.opacity(0.2))
+                .shadow(color: .black.opacity(0.4), radius: 1, y: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: KeycapStyle.cornerRadius)
+                .stroke(Color.accentColor.opacity(0.35), lineWidth: 0.5)
+        )
+        .onAppear {
+            Task { @MainActor in
+                favicon = await FaviconFetcher.shared.fetchFavicon(for: urlString)
+            }
+        }
+    }
+}
+
+/// Displays a layer-switch icon + label in keycap style for rules summary rows.
+struct RulesSummaryLayerSwitchChip: View {
+    let layerName: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: LayerInfo.iconName(for: layerName))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(KeycapStyle.textColor)
+                .frame(width: 16, height: 16)
+
+            Text("\(LayerInfo.displayName(for: layerName)) Layer")
+                .font(.body.monospaced().weight(.semibold))
+                .foregroundColor(KeycapStyle.textColor)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: KeycapStyle.cornerRadius)
+                .fill(Color.accentColor.opacity(0.2))
+                .shadow(color: .black.opacity(0.4), radius: 1, y: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: KeycapStyle.cornerRadius)
+                .stroke(Color.accentColor.opacity(0.35), lineWidth: 0.5)
+        )
     }
 }
 
@@ -261,6 +382,25 @@ struct AppRuleRowCompact: View {
 
     @State private var isHovered = false
 
+    private var appLaunchIdentifier: String? {
+        KeyboardVisualizationViewModel.extractAppLaunchIdentifier(from: override.outputAction)
+    }
+
+    private var systemActionIdentifier: String? {
+        if let extracted = KeyboardVisualizationViewModel.extractSystemActionIdentifier(from: override.outputAction) {
+            return extracted
+        }
+        return SystemActionInfo.find(byOutput: override.outputAction)?.id
+    }
+
+    private var urlIdentifier: String? {
+        KeyboardVisualizationViewModel.extractUrlIdentifier(from: override.outputAction)
+    }
+
+    private var layerSwitchIdentifier: String? {
+        LayerInfo.extractLayerName(from: override.outputAction)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
@@ -276,11 +416,21 @@ struct AppRuleRowCompact: View {
                         .font(.body.weight(.medium))
                         .foregroundColor(.secondary)
 
-                    // Output key
-                    Text(prettyKeyName(override.outputAction))
-                        .font(.body.monospaced().weight(.semibold))
-                        .foregroundColor(KeycapStyle.textColor)
-                        .modifier(KeycapStyle())
+                    // Output action chip
+                    if let appId = appLaunchIdentifier {
+                        RulesSummaryAppLaunchChip(appIdentifier: appId)
+                    } else if let actionId = systemActionIdentifier {
+                        RulesSummarySystemActionChip(actionIdentifier: actionId)
+                    } else if let urlId = urlIdentifier {
+                        RulesSummaryURLChip(urlString: urlId)
+                    } else if let layerName = layerSwitchIdentifier {
+                        RulesSummaryLayerSwitchChip(layerName: layerName)
+                    } else {
+                        Text(prettyKeyName(override.outputAction))
+                            .font(.body.monospaced().weight(.semibold))
+                            .foregroundColor(KeycapStyle.textColor)
+                            .modifier(KeycapStyle())
+                    }
 
                     Spacer(minLength: 0)
                 }

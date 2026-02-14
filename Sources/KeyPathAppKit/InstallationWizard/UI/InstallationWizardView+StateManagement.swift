@@ -125,7 +125,7 @@ extension InstallationWizardView {
 
             // Transition to results immediately when validation completes
             Task { @MainActor in
-                // Mark validation as complete - this will transition gear to final icon
+                // Mark validation as complete - this transitions validating state to final icon
                 withAnimation(.easeInOut(duration: 0.25)) {
                     isValidating = false
                 }
@@ -147,7 +147,8 @@ extension InstallationWizardView {
                     AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
                     stateMachine.navigateToPage(.summary)
                 } else if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
-                          stateMachine.currentPage != preferred {
+                          stateMachine.currentPage != preferred
+                {
                     AppLogger.shared.log("🔍 [Wizard] Deterministic routing to \(preferred) (single blocker)")
                     stateMachine.navigateToPage(preferred)
                 } else if stateMachine.currentPage == .summary {

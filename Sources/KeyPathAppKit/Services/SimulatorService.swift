@@ -70,15 +70,14 @@ actor SimulatorService {
         }
     }
 
-    /// Run simulation with raw sim.txt content (for testing)
+    /// Run simulation with raw sim.txt content
     /// - Parameters:
-    ///   - simContent: Raw simulation content (e.g., "d:a t:50 u:a")
+    ///   - simContent: Raw simulation content (e.g., "d:a t:50 u:a").
+    ///     Prepend "ls:layername " to start in a specific layer.
     ///   - configPath: Path to the kanata config file
-    ///   - startLayer: Optional layer name to start simulation in (uses --start-layer flag)
     func simulateRaw(
         simContent: String,
-        configPath: String,
-        startLayer: String? = nil
+        configPath: String
     ) async throws -> SimulationResult {
         guard FeatureFlags.simulatorAndVirtualKeysEnabled else {
             throw SimulatorError.featureDisabled
@@ -94,45 +93,10 @@ actor SimulatorService {
 
         let jsonData = try await runSimulator(
             configPath: configPath,
-            simFilePath: simFile.path,
-            startLayer: startLayer
+            simFilePath: simFile.path
         )
 
         return try JSONDecoder().decode(SimulationResult.self, from: jsonData)
-    }
-
-    /// Run simulation with --key-mapping mode for direct input→output mapping
-    /// This is the preferred method for building layer key mappings as it
-    /// provides a clean structure without needing timestamp correlation.
-    /// - Parameters:
-    ///   - simContent: Raw simulation content (e.g., "d:a t:50 u:a d:b t:50 u:b")
-    ///   - configPath: Path to the kanata config file
-    ///   - startLayer: Layer name to get mappings for
-    func simulateKeyMapping(
-        simContent: String,
-        configPath: String,
-        startLayer: String
-    ) async throws -> SimulatorKeyMappingResult {
-        guard FeatureFlags.simulatorAndVirtualKeysEnabled else {
-            throw SimulatorError.featureDisabled
-        }
-        guard fileManager.fileExists(atPath: simulatorPath) else {
-            throw SimulatorError.simulatorNotFound
-        }
-
-        let tempDir = fileManager.temporaryDirectory
-        let simFile = tempDir.appendingPathComponent("keypath-sim-\(UUID().uuidString).txt")
-        try simContent.write(to: simFile, atomically: true, encoding: .utf8)
-        defer { try? fileManager.removeItem(at: simFile) }
-
-        let jsonData = try await runSimulator(
-            configPath: configPath,
-            simFilePath: simFile.path,
-            startLayer: startLayer,
-            keyMappingMode: true
-        )
-
-        return try JSONDecoder().decode(SimulatorKeyMappingResult.self, from: jsonData)
     }
 
     // MARK: - Sim Content Generation
@@ -150,23 +114,12 @@ actor SimulatorService {
 
     private func runSimulator(
         configPath: String,
-        simFilePath: String,
-        startLayer: String? = nil,
-        keyMappingMode: Bool = false
+        simFilePath: String
     ) async throws -> Data {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: simulatorPath)
 
-        var args = ["-c", configPath, "-s", simFilePath]
-        // Use --key-mapping for direct input→output mapping, otherwise --json for event timeline
-        if keyMappingMode {
-            args.append("--key-mapping")
-        } else {
-            args.append("--json")
-        }
-        if let layer = startLayer {
-            args.append(contentsOf: ["--start-layer", layer])
-        }
+        let args = ["-c", configPath, "-s", simFilePath, "--json"]
         process.arguments = args
 
         let stdout = Pipe()

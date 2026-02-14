@@ -42,6 +42,11 @@ enum ActionDeterminer {
             actions.append(.fixDriverVersionMismatch)
         }
 
+        // Check for kanata binary version mismatch (bundled differs from installed)
+        if context.components.kanataBinaryVersionMismatch {
+            actions.append(.replaceKanataWithBundled)
+        }
+
         // Check missing components
         if !context.components.hasAllRequired {
             if !context.components.kanataBinaryInstalled {
@@ -97,6 +102,11 @@ enum ActionDeterminer {
         // Check for driver version mismatch (highest priority for driver issues)
         if context.components.vhidVersionMismatch {
             actions.append(.fixDriverVersionMismatch)
+        }
+
+        // Check for kanata binary version mismatch (bundled differs from installed)
+        if context.components.kanataBinaryVersionMismatch {
+            actions.append(.replaceKanataWithBundled)
         }
 
         // Check missing components

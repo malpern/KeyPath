@@ -101,7 +101,8 @@ extension InstallationWizardView {
 
         // Short-circuit service installs when Login Items approval is pending
         if action == .installLaunchDaemonServices || action == .restartUnhealthyServices,
-           await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending {
+           await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending
+        {
             if !suppressToast {
                 await MainActor.run {
                     toastManager.showError(
@@ -198,7 +199,8 @@ extension InstallationWizardView {
                 )
                 AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
                 if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon ||
-                    action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices {
+                    action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices
+                {
                     let smStatePost = await KanataDaemonManager.shared.refreshManagementState()
                     // IMPORTANT: Run off MainActor to avoid blocking UI - detectConnectionHealth spawns pgrep subprocesses
                     let vhidHealthy = await Task.detached {

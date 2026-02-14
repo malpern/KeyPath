@@ -195,7 +195,7 @@ final class TapDanceStepManagementTests: XCTestCase {
     }
 
     func testClearTapDanceStepAction() {
-        var steps: [(label: String, action: String)] = [
+        var steps = [
             (label: "Triple Tap", action: "lmet")
         ]
 
@@ -206,7 +206,7 @@ final class TapDanceStepManagementTests: XCTestCase {
     }
 
     func testSetTapDanceStepAction() {
-        var steps: [(label: String, action: String)] = [
+        var steps = [
             (label: "Triple Tap", action: "")
         ]
 

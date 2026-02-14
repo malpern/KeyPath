@@ -68,12 +68,14 @@ class SystemValidator {
     ///
     /// - Parameter progressCallback: Optional callback that receives progress updates (0.0 to 1.0)
     func checkSystem(progressCallback: @escaping @Sendable (Double) -> Void = { _ in }) async
-        -> SystemSnapshot {
+        -> SystemSnapshot
+    {
         // Fast path for tests - return stub immediately without any system calls
         // This dramatically speeds up tests that don't need real system state
         // Use KEYPATH_FORCE_REAL_VALIDATION=1 to override in specific tests
         if TestEnvironment.isRunningTests,
-           ProcessInfo.processInfo.environment["KEYPATH_FORCE_REAL_VALIDATION"] != "1" {
+           ProcessInfo.processInfo.environment["KEYPATH_FORCE_REAL_VALIDATION"] != "1"
+        {
             AppLogger.shared.log("🧪 [SystemValidator] Test mode - returning stub snapshot")
             progressCallback(1.0)
             return Self.makeTestSnapshot()
@@ -101,7 +103,8 @@ class SystemValidator {
     /// Perform the actual validation work
     /// This is called by checkSystem() and should not be called directly
     private func performValidation(progressCallback: @escaping @Sendable (Double) -> Void = { _ in })
-        async -> SystemSnapshot {
+        async -> SystemSnapshot
+    {
         // Run validations in parallel - safe for concurrent execution
         await performValidationBody(progressCallback: progressCallback)
     }
@@ -395,6 +398,7 @@ class SystemValidator {
         // and all mechanisms (daemon, wizard instructions, diagnostics) agree on a single executable path.
         let kanataBinaryDetector = KanataBinaryDetector.shared
         let kanataBinaryInstalled = kanataBinaryDetector.isInstalled()
+        let kanataBinaryVersionMismatch = kanataBinaryDetector.hasVersionMismatch()
 
         // Check VirtualHID Device installation (fast sync check)
         let vhidInstalled = vhidDeviceManager.detectInstallation()
@@ -423,7 +427,7 @@ class SystemValidator {
 
         AppLogger.shared
             .log(
-                "🔍 [SystemValidator] Components: kanata=\(kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidServices=\(vhidServicesHealthy), vhidVersionMismatch=\(vhidVersionMismatch)"
+                "🔍 [SystemValidator] Components: kanata=\(kanataBinaryInstalled), kanataMismatch=\(kanataBinaryVersionMismatch), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidServices=\(vhidServicesHealthy), vhidVersionMismatch=\(vhidVersionMismatch)"
             )
 
         return ComponentStatus(
@@ -434,7 +438,8 @@ class SystemValidator {
             vhidDeviceHealthy: vhidHealthy,
             launchDaemonServicesHealthy: launchDaemonServicesHealthy,
             vhidServicesHealthy: vhidServicesHealthy,
-            vhidVersionMismatch: vhidVersionMismatch
+            vhidVersionMismatch: vhidVersionMismatch,
+            kanataBinaryVersionMismatch: kanataBinaryVersionMismatch
         )
     }
 
@@ -601,7 +606,8 @@ class SystemValidator {
                 vhidDeviceHealthy: true,
                 launchDaemonServicesHealthy: true,
                 vhidServicesHealthy: true,
-                vhidVersionMismatch: false
+                vhidVersionMismatch: false,
+                kanataBinaryVersionMismatch: false
             ),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
             health: HealthStatus(kanataRunning: true, karabinerDaemonRunning: true, vhidHealthy: true),
@@ -632,7 +638,8 @@ class SystemValidator {
                 vhidDeviceHealthy: false,
                 launchDaemonServicesHealthy: false,
                 vhidServicesHealthy: false,
-                vhidVersionMismatch: false
+                vhidVersionMismatch: false,
+                kanataBinaryVersionMismatch: false
             ),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
             health: HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: false),

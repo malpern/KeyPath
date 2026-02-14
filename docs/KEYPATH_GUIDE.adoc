@@ -787,7 +787,7 @@ KeyPath stores configuration at:
 
 [source]
 ----
-~/Library/Application Support/KeyPath/keypath.kbd
+~/.config/keypath/keypath.kbd
 ----
 
 This is a standard Kanata configuration file. You can edit it directly if needed, and KeyPath will hot-reload changes via TCP.
@@ -844,7 +844,7 @@ KeyPath supports hot-reloading configuration changes:
 1. **Check status indicator** - Look for green checkmarks in the app
 2. **Verify permissions** - Ensure permissions granted in System Settings
 3. **Use Fix Issues** - Click "Fix Issues" button in the app for automated fixes
-4. **Check logs** - View system logs: `tail -f /var/log/kanata.log`
+4. **Check logs** - View system logs: `tail -f /var/log/com.keypath.kanata.stderr.log`
 
 [[app-wont-start]]
 ==== KeyPath Won't Start?
@@ -893,7 +893,7 @@ keypath-cli repair
 ==== Log Files
 
 KeyPath logs to:
-- **System logs**: `/var/log/kanata.log` (if running as LaunchDaemon)
+- **System logs**: `/var/log/com.keypath.kanata.stdout.log` and `/var/log/com.keypath.kanata.stderr.log` (if running as LaunchDaemon)
 - **Console.app**: Filter for "KeyPath" or "kanata"
 - **App logs**: Check Console.app → KeyPath process
 
@@ -902,7 +902,7 @@ KeyPath logs to:
 
 If you need to edit the Kanata config directly:
 
-1. **Backup first**: Copy `~/Library/Application Support/KeyPath/keypath.kbd`
+1. **Backup first**: Copy `~/.config/keypath/keypath.kbd`
 2. **Edit with text editor**: Use any text editor
 3. **Validate syntax**: KeyPath will show errors if syntax is invalid
 4. **Hot reload**: Changes apply automatically when saved
@@ -1040,12 +1040,18 @@ KeyPath supports modifier prefixes in output:
 [cols="2,4"]
 |===
 | Path | Description
-| `~/Library/Application Support/KeyPath/keypath.kbd` | Main configuration file
-| `~/Library/Application Support/KeyPath/RuleCollections.json` | Rule collections state
-| `~/Library/Application Support/KeyPath/CustomRules.json` | Custom rules
+| `~/.config/keypath/` | Main KeyPath configuration directory (user-owned config + rule state)
+| `~/.config/keypath/keypath.kbd` | Main configuration file
+| `~/.config/keypath/RuleCollections.json` | Rule collections state
+| `~/.config/keypath/CustomRules.json` | Custom rules
+| `~/.config/keypath/AppKeymaps.json` | App-specific keymaps (if configured)
 | `/Library/KeyPath/bin/kanata` | System-installed Kanata binary
 | `/Library/LaunchDaemons/com.keypath.kanata.plist` | LaunchDaemon plist (SMAppService-managed)
-| `/var/log/kanata.log` | System logs (if running as LaunchDaemon)
+| `/var/log/com.keypath.kanata.stdout.log` | Kanata stdout log (if running as LaunchDaemon)
+| `/var/log/com.keypath.kanata.stderr.log` | Kanata stderr/error log (if running as LaunchDaemon)
+| `~/Library/Application Support/KeyPath/Favicons/` | Cached website icons (Quick Launch)
+| `~/Library/Application Support/KeyPath/ActivityLog/` | Encrypted activity logs (if enabled)
+| `~/Library/Logs/KeyPath/keypath-debug.log` | KeyPath application log
 |===
 
 [[tcp-port]]
@@ -1087,7 +1093,9 @@ No. KeyPath's UI handles all configuration. However, you can edit the generated 
 [[faq-multiple-computers]]
 === Can I sync settings across computers?
 
-KeyPath stores configuration in `~/Library/Application Support/KeyPath/`. You can sync these files using iCloud, Dropbox, or any file sync service.
+KeyPath stores your Kanata config and related rule state under `~/.config/keypath/`. You can sync that directory using iCloud, Dropbox, or any file sync service.
+
+If you also use optional features like Quick Launch or Activity Logging, those feature caches/logs live under `~/Library/Application Support/KeyPath/` and can be synced separately.
 
 [[faq-performance]]
 === Does KeyPath affect performance?

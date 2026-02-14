@@ -26,6 +26,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-026](adr-026-validation-ordering.md) | System Validation Ordering | Accepted |
 | [ADR-027](adr-027-app-specific-keymaps.md) | App-Specific Keymaps | Accepted |
 | [ADR-028](adr-028-unified-sf-symbols.md) | Unified SF Symbol Resolution via SystemActionInfo | Accepted |
+| [ADR-029](adr-029-eliminate-fake-key-layer-notifications.md) | Eliminate Fake Key Layer Notifications via Native LayerChange | Proposed |
 
 ## Key Decisions Summary
 

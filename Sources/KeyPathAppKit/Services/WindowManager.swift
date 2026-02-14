@@ -541,7 +541,8 @@ public final class WindowManager {
         for screen in NSScreen.screens {
             let screenFrame = screen.frame
             if screenFrame.contains(windowCenter) ||
-                isWindowOnScreen(frame: frame, screen: screen) {
+                isWindowOnScreen(frame: frame, screen: screen)
+            {
                 return screen
             }
         }
@@ -556,7 +557,8 @@ public final class WindowManager {
             let screenFrame = screen.frame
             let appKitFrame = convertAXToScreen(axFrame, in: screen)
             if screenFrame.contains(CGPoint(x: appKitFrame.midX, y: appKitFrame.midY)) ||
-                isWindowOnScreen(frame: appKitFrame, screen: screen) {
+                isWindowOnScreen(frame: appKitFrame, screen: screen)
+            {
                 return screen
             }
         }

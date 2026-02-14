@@ -285,6 +285,13 @@ class MapperViewModel: ObservableObject {
             self.outputLabel = systemAction.name
             outputSequence = nil
             AppLogger.shared.log("🖱️ [MapperViewModel] Key click - system action: \(inputLabel) -> \(systemAction.name)")
+        } else if let systemAction = SystemActionInfo.find(byOutput: outputLabel) {
+            // Fallback path: some callers pass only a display label (e.g., "Notification Center")
+            // before the layer metadata has a concrete systemActionIdentifier.
+            selectedSystemAction = systemAction
+            self.outputLabel = systemAction.name
+            outputSequence = nil
+            AppLogger.shared.log("🖱️ [MapperViewModel] Key click - system action (fallback): \(inputLabel) -> \(systemAction.name)")
         } else {
             // Regular key mapping
             self.outputLabel = formatKeyForDisplay(outputLabel)
@@ -444,7 +451,8 @@ class MapperViewModel: ObservableObject {
             outputSequence = nil
             AppLogger.shared.log("🗺️ [MapperViewModel] Preset output is URL: \(urlIdentifier)")
         } else if let systemActionIdentifier,
-                  let systemAction = SystemActionInfo.find(byOutput: systemActionIdentifier) {
+                  let systemAction = SystemActionInfo.find(byOutput: systemActionIdentifier)
+        {
             // It's a system action/media key - set selectedSystemAction for SF Symbol rendering
             selectedSystemAction = systemAction
             outputLabel = systemAction.name

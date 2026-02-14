@@ -36,9 +36,9 @@ import Foundation
     /// - Parameter reply: Completion handler with (success, errorMessage)
     func regenerateServiceConfiguration(reply: @escaping (Bool, String?) -> Void)
 
-    /// Install log rotation service for Kanata logs
+    /// Install newsyslog config for Kanata log rotation
     /// - Parameter reply: Completion handler with (success, errorMessage)
-    func installLogRotation(reply: @escaping (Bool, String?) -> Void)
+    func installNewsyslogConfig(reply: @escaping (Bool, String?) -> Void)
 
     /// Repair VirtualHID daemon services
     /// - Parameter reply: Completion handler with (success, errorMessage)

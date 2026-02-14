@@ -87,7 +87,8 @@ private struct LocalStatusItem {
 }
 
 private func filteredDisplayItems(_ items: [LocalStatusItem], showAllItems: Bool)
-    -> [LocalStatusItem] {
+    -> [LocalStatusItem]
+{
     if showAllItems { return items }
     return items.filter { $0.status != .completed }
 }

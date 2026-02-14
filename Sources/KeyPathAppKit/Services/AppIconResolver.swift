@@ -26,7 +26,8 @@ enum AppIconResolver {
     private static func appIcon(name: String, bundleId: String?) -> NSImage? {
         // Try bundle ID first (most reliable)
         if let bundleId,
-           let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+           let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId)
+        {
             return NSWorkspace.shared.icon(forFile: appURL.path)
         }
 

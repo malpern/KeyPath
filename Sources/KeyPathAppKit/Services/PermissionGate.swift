@@ -56,7 +56,8 @@ final class PermissionGate {
     /// Pure evaluator so unit tests can cover semantics:
     /// - Kanata `.unknown` is "not verified" (often no FDA) and should not be treated as "required/denied".
     static func evaluate(_ snapshot: PermissionOracle.Snapshot, for feature: PermissionGatedFeature)
-        -> Evaluation {
+        -> Evaluation
+    {
         var missingKeyPath: Set<PGPermissionType> = []
         var kanataBlocking: Set<PGPermissionType> = []
         var kanataNotVerified: Set<PGPermissionType> = []

@@ -255,27 +255,20 @@ final class ServiceBootstrapperTests: XCTestCase {
         XCTAssertEqual(bootstrapper.lastVHIDRepairOutput, "Skipped in test mode")
     }
 
-    func testLogRotationServiceInstalledChecksPlistInOverrideDirectory() {
+    func testNewsyslogConfigInstalledChecksConfigFile() {
         let bootstrapper = ServiceBootstrapper.shared
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ServiceBootstrapperTests-\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        // isNewsyslogConfigInstalled checks /etc/newsyslog.d/com.keypath.conf
+        // In test environment this file won't exist, so we just verify the method runs
+        let result = bootstrapper.isNewsyslogConfigInstalled()
+        // The file won't exist in test environment
+        XCTAssertFalse(result)
+    }
 
-        let original = ProcessInfo.processInfo.environment["KEYPATH_LAUNCH_DAEMONS_DIR"]
-        setenv("KEYPATH_LAUNCH_DAEMONS_DIR", tempDir.path, 1)
-        defer {
-            if let original {
-                setenv("KEYPATH_LAUNCH_DAEMONS_DIR", original, 1)
-            } else {
-                unsetenv("KEYPATH_LAUNCH_DAEMONS_DIR")
-            }
-        }
+    func testGenerateNewsyslogConfigIncludesCurrentAndLegacyKanataLogs() {
+        let config = ServiceBootstrapper.generateNewsyslogConfig()
 
-        let expectedPath = tempDir.appendingPathComponent("\(ServiceBootstrapper.logRotationServiceID).plist")
-        XCTAssertFalse(bootstrapper.isLogRotationServiceInstalled())
-
-        FileManager.default.createFile(atPath: expectedPath.path, contents: Data(), attributes: nil)
-        XCTAssertTrue(bootstrapper.isLogRotationServiceInstalled())
+        XCTAssertTrue(config.contains("/var/log/com.keypath.kanata.stdout.log"))
+        XCTAssertTrue(config.contains("/var/log/com.keypath.kanata.stderr.log"))
+        XCTAssertTrue(config.contains("/var/log/kanata.log"))
     }
 }

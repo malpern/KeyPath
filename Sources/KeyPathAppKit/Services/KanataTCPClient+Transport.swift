@@ -176,19 +176,27 @@ extension KanataTCPClient {
                     Task {
                         do {
                             var responseData: Data
-                            var attempts = 0
-                            let maxDrainAttempts = 50 // Prevent infinite loop - increased for high load scenarios
+                            let start = CFAbsoluteTimeGetCurrent()
+                            let deadline = start + self.timeout
 
                             // If we sent a request_id, match responses by request_id
                             // Otherwise fall back to old broadcast draining behavior
-                            repeat {
-                                responseData = try await withTimeout(seconds: 5.0) {
+                            while true {
+                                // Time-bound drain: under heavy broadcast load (typing), the response can be
+                                // queued behind lots of KeyInput events. A fixed read-count limit causes
+                                // false "invalidResponse" errors, so we drain until we get a real response
+                                // or hit the overall timeout.
+                                let now = CFAbsoluteTimeGetCurrent()
+                                if now >= deadline {
+                                    throw KeyPathError.communication(.timeout)
+                                }
+                                let remaining = max(0.05, deadline - now)
+                                responseData = try await withTimeout(seconds: remaining) {
                                     try await self.readUntilNewline(on: connection)
                                 }
-                                attempts += 1
 
-                                // First check: is this an unsolicited broadcast?
-                                if self.isUnsolicitedBroadcast(responseData) {
+                                // First check: is this a command response?
+                                if !self.isCommandResponse(responseData) {
                                     if let msgStr = String(data: responseData, encoding: .utf8) {
                                         AppLogger.shared.log("🔄 [TCP] Skipping broadcast: \(msgStr.prefix(100))")
                                     }
@@ -212,24 +220,20 @@ extension KanataTCPClient {
                                             continue
                                         }
                                     } else {
-                                        // We sent request_id but response doesn't have one
-                                        // This is likely a broadcast that slipped through - skip it
-                                        // Modern Kanata versions support request_id, so rejecting is safer
+                                        // We sent request_id but response doesn't have one.
+                                        // Since it already passed isCommandResponse(), accept it —
+                                        // the server just doesn't echo request_id for this command type.
                                         if let msgStr = String(data: responseData, encoding: .utf8) {
-                                            AppLogger.shared.warn(
-                                                "⚠️ [TCP] Response missing request_id when we sent \(sentId) - likely broadcast, skipping: \(msgStr.prefix(100))"
+                                            AppLogger.shared.debug(
+                                                "✅ [TCP] Accepting command response without request_id (sent=\(sentId)): \(msgStr.prefix(100))"
                                             )
                                         }
-                                        continue // Skip and read next line
+                                        break // Accept as our response
                                     }
                                 }
 
                                 // No request_id matching - got a response that's not a broadcast
                                 break
-                            } while attempts < maxDrainAttempts
-
-                            if attempts >= maxDrainAttempts {
-                                throw KeyPathError.communication(.invalidResponse)
                             }
 
                             if completionFlag.markCompleted() {

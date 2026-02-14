@@ -1,5 +1,6 @@
 import AppKit
 import KeyPathCore
+import KeyPathWizardCore
 import SwiftUI
 
 /// The main live keyboard overlay view.
@@ -77,6 +78,20 @@ struct LiveKeyboardOverlayView: View {
     @AppStorage("launcherWelcomeSeenForBuild") private var launcherWelcomeSeenForBuild: String = ""
     @State private var pendingLauncherConfig: LauncherGridConfig?
 
+    // MARK: - Service Stopped Alert (Overlay)
+
+    /// Legacy main-window alert (from ContentView) re-homed onto the overlay so the
+    /// main window can remain minimal without losing the "restart service" affordance.
+    @State private var showingKanataServiceStoppedAlert = false
+    @State private var lastKanataServiceIssuePresent = false
+    @State private var hasSeenHealthyKanataService = false
+    @State private var overlayLaunchTime = Date()
+    @State private var toastManager = WizardToastManager()
+    @State private var lastReloadFailureToastAt: Date?
+
+    @State private var showingValidationFailureModal = false
+    @State private var validationFailureErrors: [String] = []
+
     /// Check if welcome should be shown for current build
     private var hasSeenLauncherWelcomeForCurrentBuild: Bool {
         let currentBuild = BuildInfo.current().date
@@ -136,6 +151,48 @@ struct LiveKeyboardOverlayView: View {
                 inspectorSection = settingsSection
             }
         }
+    }
+
+    private func handleKanataServiceIssueChange(_ issues: [WizardIssue]) {
+        let serviceIssue = issues.first { issue in
+            if case .component(.kanataService) = issue.identifier {
+                return true
+            }
+            return false
+        }
+        let hasServiceIssue = serviceIssue != nil
+
+        if !hasServiceIssue {
+            if let state = MainAppStateController.shared.validationState, state != .checking {
+                hasSeenHealthyKanataService = true
+            }
+        }
+
+        // Grace period: don't show alert within 10s of launch (service may bounce during startup/deploy)
+        let timeSinceLaunch = Date().timeIntervalSince(overlayLaunchTime)
+        let wizardOpen = WizardWindowController.shared.isVisible
+
+        if hasServiceIssue,
+           !lastKanataServiceIssuePresent,
+           hasSeenHealthyKanataService,
+           !wizardOpen,
+           timeSinceLaunch > 10
+        {
+            showingKanataServiceStoppedAlert = true
+        }
+
+        lastKanataServiceIssuePresent = hasServiceIssue
+    }
+
+    private func openSystemStatusSettings() {
+        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        NotificationCenter.default.post(name: .openSettingsSystemStatus, object: nil)
+    }
+
+    private func copyValidationErrorsToClipboard() {
+        let text = validationFailureErrors.joined(separator: "\n")
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     var body: some View {
@@ -288,15 +345,21 @@ struct LiveKeyboardOverlayView: View {
         })
         content = AnyView(content.onChange(of: uiState.isInspectorOpen) { _, isOpen in
             if isOpen {
-                // When drawer opens, select appropriate default tab
-                if !isSettingsShelfActive {
-                    if hasCustomRules {
-                        // Rules tab is default when rules exist
-                        inspectorSection = .customRules
-                    } else {
-                        // Otherwise default to mapper
-                        inspectorSection = .mapper
-                    }
+                // When the drawer opens, always ensure we're not in the settings shelf by default.
+                // Users should land in the remapper flow (or a sensible fallback if mapper is unavailable),
+                // not a settings panel.
+                if isSettingsShelfActive || inspectorSection.isSettingsShelf {
+                    isSettingsShelfActive = false
+                }
+
+                // Select appropriate default tab
+                if !isMapperAvailable {
+                    inspectorSection = hasCustomRules ? .customRules : .launchers
+                } else if hasCustomRules, !isSettingsShelfActive {
+                    // Preserve existing behavior: default to Rules when they exist.
+                    inspectorSection = .customRules
+                } else {
+                    inspectorSection = .mapper
                 }
                 // Load launcher mappings if that's the active section
                 if inspectorSection == .launchers {
@@ -312,11 +375,13 @@ struct LiveKeyboardOverlayView: View {
             uiState.keyboardAspectRatio = keyboardAspectRatio
             inputSourceDetector.startMonitoring()
             if !isMapperAvailable, inspectorSection == .mapper {
-                inspectorSection = .keyboard
+                inspectorSection = hasCustomRules ? .customRules : .launchers
             }
+            // Defensive: avoid landing in settings shelf on first open (fresh installs should start on Remapper).
             if inspectorSection.isSettingsShelf {
                 settingsSection = inspectorSection
-                isSettingsShelfActive = true
+                isSettingsShelfActive = false
+                inspectorSection = .mapper
             }
             // Initialize ViewModel with user's selected layout
             if viewModel.layout.id != activeLayout.id {
@@ -335,6 +400,34 @@ struct LiveKeyboardOverlayView: View {
         content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .ruleCollectionsChanged)) { _ in
             loadCustomRulesState()
         })
+        // Keep overlay behavior aligned with legacy main-window alerts.
+        content = AnyView(content.onReceive(MainAppStateController.shared.$issues) { newIssues in
+            handleKanataServiceIssueChange(newIssues)
+        })
+        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .configValidationFailed)) { notification in
+            let errors = notification.userInfo?["errors"] as? [String] ?? []
+            guard !errors.isEmpty else { return }
+            validationFailureErrors = errors
+            showingValidationFailureModal = true
+        })
+        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .configReloadFailed)) { notification in
+            // Subtle, non-modal feedback for background reload failures. Rate-limit to avoid spam.
+            let now = Date()
+            if let last = lastReloadFailureToastAt, now.timeIntervalSince(last) < 10 {
+                return
+            }
+            lastReloadFailureToastAt = now
+
+            let message = (notification.userInfo?["message"] as? String) ?? "Config reload failed"
+            toastManager.showError("Reload delayed: \(message)")
+            SoundManager.shared.playErrorSound()
+        })
+        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .configReloadRecovered)) { _ in
+            guard lastReloadFailureToastAt != nil else { return }
+            lastReloadFailureToastAt = nil
+            toastManager.showSuccess("Reload recovered")
+            SoundManager.shared.playGlassSound()
+        })
         content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .switchToAppRulesTab)) { _ in
             // Switch to Custom Rules tab after saving a rule
             loadCustomRulesState()
@@ -351,7 +444,8 @@ struct LiveKeyboardOverlayView: View {
             // If preset values are provided, forward them to the mapper
             if let userInfo = notification.userInfo,
                let inputKey = userInfo["inputKey"] as? String,
-               let outputKey = userInfo["outputKey"] as? String {
+               let outputKey = userInfo["outputKey"] as? String
+            {
                 var mapperUserInfo: [String: Any] = [
                     "inputKey": inputKey,
                     "outputKey": outputKey,
@@ -359,7 +453,8 @@ struct LiveKeyboardOverlayView: View {
                 ]
                 // Include app condition if present (for app-specific rule editing)
                 if let appBundleId = userInfo["appBundleId"] as? String,
-                   let appDisplayName = userInfo["appDisplayName"] as? String {
+                   let appDisplayName = userInfo["appDisplayName"] as? String
+                {
                     mapperUserInfo["appBundleId"] = appBundleId
                     mapperUserInfo["appDisplayName"] = appDisplayName
                 }
@@ -437,6 +532,7 @@ struct LiveKeyboardOverlayView: View {
         content = AnyView(content.accessibilityElement(children: .contain))
         content = AnyView(content.accessibilityIdentifier("keyboard-overlay"))
         content = AnyView(content.accessibilityLabel("KeyPath keyboard overlay"))
+        content = AnyView(content.withToasts(toastManager))
         // Confirmation dialog for deleting app rules
         content = AnyView(content.confirmationDialog(
             "Delete Rule?",
@@ -482,6 +578,55 @@ struct LiveKeyboardOverlayView: View {
                 }
             }
         ))
+        // Alert when Kanata stops unexpectedly (presented on top of the overlay).
+        content = AnyView(content.alert(
+            "Kanata Service Stopped",
+            isPresented: $showingKanataServiceStoppedAlert,
+            actions: {
+                Button("Restart Service") {
+                    showingKanataServiceStoppedAlert = false
+                    Task { @MainActor in
+                        guard let kanataViewModel else { return }
+                        _ = await kanataViewModel.restartKanata(
+                            reason: "Service stopped alert (overlay)"
+                        )
+                    }
+                }
+                .accessibilityIdentifier("overlay-kanata-service-stopped-restart-button")
+                Button("Cancel", role: .cancel) {}
+                    .accessibilityIdentifier("overlay-kanata-service-stopped-cancel-button")
+            },
+            message: {
+                Text("The remapping service stopped unexpectedly.")
+            }
+        ))
+        // Config validation failure UI (used to be on the historic main window).
+        content = AnyView(content.sheet(isPresented: $showingValidationFailureModal, onDismiss: {
+            validationFailureErrors = []
+        }) {
+            ValidationFailureDialog(
+                errors: validationFailureErrors,
+                configPath: kanataViewModel?.configPath ?? "",
+                onCopyErrors: { copyValidationErrorsToClipboard() },
+                onOpenConfig: {
+                    guard let kanataViewModel else { return }
+                    kanataViewModel.openFileInZed(kanataViewModel.configPath)
+                    showingValidationFailureModal = false
+                },
+                onOpenDiagnostics: {
+                    openSystemStatusSettings()
+                    showingValidationFailureModal = false
+                },
+                onDismiss: {
+                    showingValidationFailureModal = false
+                },
+                onRepairWithAI: nil,
+                isRepairing: .constant(false),
+                repairError: nil,
+                backupPath: nil
+            )
+            .customizeSheetWindow()
+        })
         // Confirmation dialog for resetting all custom rules
         content = AnyView(content.confirmationDialog(
             "Reset All Custom Rules?",
@@ -755,7 +900,8 @@ struct LiveKeyboardOverlayView: View {
             // Load the launcher config to pass to welcome dialog
             let collections = await RuleCollectionStore.shared.loadCollections()
             if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
-               let config = launcherCollection.configuration.launcherGridConfig {
+               let config = launcherCollection.configuration.launcherGridConfig
+            {
                 await MainActor.run {
                     pendingLauncherConfig = config
                     showLauncherWelcomeWindow()

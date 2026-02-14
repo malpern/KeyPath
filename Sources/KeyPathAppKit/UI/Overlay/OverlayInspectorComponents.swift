@@ -584,13 +584,25 @@ struct OverlayGlassButtonStyleModifier: ViewModifier {
     let reduceTransparency: Bool
 
     func body(content: Content) -> some View {
-        if reduceTransparency {
-            content.buttonStyle(PlainButtonStyle())
-        } else if #available(macOS 26.0, *) {
-            content.buttonStyle(GlassButtonStyle())
-        } else {
-            content.buttonStyle(PlainButtonStyle())
-        }
+        content
+            .buttonStyle(.plain)
+            .background(
+                Group {
+                    if reduceTransparency {
+                        Color.clear
+                    } else {
+                        ZStack {
+                            VisualEffectRepresentable(material: .menu, blending: .withinWindow)
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color.white.opacity(0.06))
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(Color.white.opacity(0.18), lineWidth: 0.5)
+                                .blendMode(.overlay)
+                        }
+                    }
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
@@ -600,15 +612,29 @@ struct OverlayGlassEffectModifier: ViewModifier {
     let fallbackFill: Color
 
     func body(content: Content) -> some View {
-        if isEnabled, #available(macOS 26.0, *) {
-            content.glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
-        } else {
-            content
-                .background(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(fallbackFill)
-                )
-        }
+        content
+            .background(
+                Group {
+                    if isEnabled {
+                        if reduceTransparencyFallback {
+                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                                .fill(fallbackFill)
+                        } else {
+                            AppGlassBackground(style: .chipBold, cornerRadius: cornerRadius)
+                        }
+                    } else {
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .fill(fallbackFill)
+                    }
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+
+    private var reduceTransparencyFallback: Bool {
+        // `OverlayGlassEffectModifier` is used for subtle pill backgrounds.
+        // When transparency is reduced, keep it solid/tinted instead of blur.
+        NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
     }
 }
 
@@ -809,9 +835,17 @@ struct TapHoldMiniKeycap: View {
         if isRecording {
             Color.accentColor
         } else if isHovered {
-            isDark ? Color(white: 0.18) : Color(white: 0.92)
+            if isDark {
+                Color(white: 0.18)
+            } else {
+                Color(white: 0.92)
+            }
         } else {
-            isDark ? Color(white: 0.12) : Color(white: 0.96)
+            if isDark {
+                Color(white: 0.12)
+            } else {
+                Color(white: 0.96)
+            }
         }
     }
 
@@ -819,9 +853,17 @@ struct TapHoldMiniKeycap: View {
         if isRecording {
             Color.accentColor.opacity(0.8)
         } else if isHovered {
-            isDark ? Color.white.opacity(0.3) : Color.black.opacity(0.15)
+            if isDark {
+                Color.white.opacity(0.3)
+            } else {
+                Color.black.opacity(0.15)
+            }
         } else {
-            isDark ? Color.white.opacity(0.15) : Color.black.opacity(0.1)
+            if isDark {
+                Color.white.opacity(0.15)
+            } else {
+                Color.black.opacity(0.1)
+            }
         }
     }
 

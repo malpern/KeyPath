@@ -92,6 +92,9 @@ public final class KanataService: ObservableObject {
 
     /// Polling task for status updates
     private var statusTask: Task<Void, Never>?
+    /// Debounce transient "enabled but no PID" samples to avoid false failure reports.
+    private var enabledWithoutProcessSampleCount = 0
+    private let enabledWithoutProcessFailureThreshold = 3
 
     // MARK: - Initialization
 
@@ -408,14 +411,34 @@ public final class KanataService: ObservableObject {
 
         switch smStatus {
         case .requiresApproval:
+            enabledWithoutProcessSampleCount = 0
             return .requiresApproval
         case .enabled:
-            return processState.isRunning
-                ? .running(pid: processState.pid ?? 0)
-                : .failed(reason: "Service enabled but process not running")
+            if processState.isRunning {
+                enabledWithoutProcessSampleCount = 0
+                return .running(pid: processState.pid ?? 0)
+            }
+
+            // Guard against transient process-detection misses (observed in the field):
+            // require several consecutive misses before reporting a hard failure.
+            enabledWithoutProcessSampleCount += 1
+            if enabledWithoutProcessSampleCount < enabledWithoutProcessFailureThreshold {
+                AppLogger.shared.debug(
+                    "⏳ [KanataService] SMAppService is enabled but process sample is missing (\(enabledWithoutProcessSampleCount)/\(enabledWithoutProcessFailureThreshold)); holding prior state"
+                )
+
+                if case let .running(previousPID) = state {
+                    return .running(pid: previousPID)
+                }
+                return .unknown
+            }
+
+            return .failed(reason: "Service enabled but process not running")
         case .notRegistered, .notFound:
+            enabledWithoutProcessSampleCount = 0
             return processState.isRunning ? .running(pid: processState.pid ?? 0) : .stopped
         @unknown default:
+            enabledWithoutProcessSampleCount = 0
             return .unknown
         }
     }
@@ -426,9 +449,16 @@ public final class KanataService: ObservableObject {
         let oldState = state
         state = newStatus
 
-        // Log service failures for crash analysis
+        // Log service failures for crash analysis only when a running service drops to failed.
+        // This avoids noisy false positives from startup/probe states (e.g. unknown -> failed).
         if case let .failed(reason) = newStatus {
-            logServiceFailure(from: oldState, reason: reason)
+            if oldState.isRunning {
+                logServiceFailure(from: oldState, reason: reason)
+            } else {
+                AppLogger.shared.debug(
+                    "ℹ️ [KanataService] Skipping crash-log entry for non-running transition: \(oldState.description) -> failed(\(reason))"
+                )
+            }
         }
 
         // Track PID for crash loop detection

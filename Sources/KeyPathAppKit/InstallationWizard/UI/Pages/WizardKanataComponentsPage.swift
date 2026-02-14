@@ -85,7 +85,8 @@ struct WizardKanataComponentsPage: View {
 
             if let pendingId = pendingIssueFixId,
                let pendingAction = pendingIssueFixAction,
-               let pendingTitle = pendingIssueFixTitle {
+               let pendingTitle = pendingIssueFixTitle
+            {
                 pendingIssueFixId = nil
                 pendingIssueFixAction = nil
                 pendingIssueFixTitle = nil
@@ -121,6 +122,7 @@ struct WizardKanataComponentsPage: View {
             if issue.category == .installation {
                 switch issue.identifier {
                 case .component(.kanataBinaryMissing),
+                     .component(.kanataBinaryVersionMismatch),
                      .component(.kanataService),
                      .component(.launchDaemonServices),
                      .component(.launchDaemonServicesUnhealthy):
@@ -141,6 +143,7 @@ struct WizardKanataComponentsPage: View {
             let hasIssue = issues.contains { issue in
                 if case let .component(component) = issue.identifier {
                     return component == .kanataBinaryMissing
+                        || component == .kanataBinaryVersionMismatch
                 }
                 return false
             }
@@ -172,6 +175,8 @@ struct WizardKanataComponentsPage: View {
             switch component {
             case .kanataBinaryMissing:
                 return "Kanata Binary"
+            case .kanataBinaryVersionMismatch:
+                return "Kanata Binary Update"
             case .kanataService:
                 return "Kanata Service Configuration"
             default:
@@ -187,6 +192,9 @@ struct WizardKanataComponentsPage: View {
             switch component {
             case .kanataBinaryMissing:
                 return "Kanata is required for remapping. Click Fix to install it."
+            case .kanataBinaryVersionMismatch:
+                return
+                    "A newer version of Kanata is bundled with KeyPath. Click Fix to update."
             case .kanataService:
                 return "Background service configuration required for Kanata."
             default:
@@ -203,6 +211,11 @@ struct WizardKanataComponentsPage: View {
     private var primaryFixIssue: WizardIssue? {
         if let binaryIssue = kanataIssues.first(where: { $0.identifier == .component(.kanataBinaryMissing) }) {
             return binaryIssue
+        }
+        if let mismatchIssue = kanataIssues
+            .first(where: { $0.identifier == .component(.kanataBinaryVersionMismatch) })
+        {
+            return mismatchIssue
         }
         if let serviceIssue = kanataIssues.first(where: {
             switch $0.identifier {
@@ -231,6 +244,12 @@ struct WizardKanataComponentsPage: View {
 
         if issue.autoFixAction == .installBundledKanata {
             installBundledKanata()
+            return
+        }
+
+        if issue.autoFixAction == .replaceKanataWithBundled {
+            let componentTitle = getComponentTitle(for: issue)
+            requestIssueFix(issueId: issue.id, action: .replaceKanataWithBundled, title: componentTitle)
             return
         }
 
@@ -349,6 +368,19 @@ struct WizardKanataComponentsPage: View {
 
             let ok = await onAutoFix(action, true) // suppressToast=true
 
+            // After binary replacement, restart the service immediately so the user
+            // doesn't see a confusing "Kanata service stopped" message.
+            if ok, action == .replaceKanataWithBundled {
+                await MainActor.run {
+                    actionStatus = .inProgress(message: "Restarting Kanata service…")
+                }
+                _ = await kanataManager.restartServiceWithFallback(
+                    reason: "Kanata binary updated"
+                )
+                await kanataManager.updateStatus()
+                PermissionGrantCoordinator.shared.clearServiceBounceFlag()
+            }
+
             await MainActor.run {
                 fixingIssues.remove(issueId)
                 if ok {
@@ -373,7 +405,8 @@ struct WizardKanataComponentsPage: View {
 
         Task {
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
-               nextPage != stateMachine.currentPage {
+               nextPage != stateMachine.currentPage
+            {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)

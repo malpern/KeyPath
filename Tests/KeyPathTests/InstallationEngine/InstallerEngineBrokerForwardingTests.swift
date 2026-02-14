@@ -60,7 +60,7 @@ private final class PrivilegedCoordinatorStub: PrivilegedOperationsCoordinating 
     }
 
     func installLaunchDaemonServicesWithoutLoading() async throws {}
-    func installLogRotation() async throws {}
+    func installNewsyslogConfig() async throws {}
     func regenerateServiceConfiguration() async throws {}
     func repairVHIDDaemonServices() async throws {}
     func downloadAndInstallCorrectVHIDDriver() async throws {}

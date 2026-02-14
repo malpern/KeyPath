@@ -29,7 +29,8 @@ public enum WizardSystemPaths {
 
     private static func resolvedHomeDirectory() -> String {
         if let override = ProcessInfo.processInfo.environment["KEYPATH_HOME_DIR_OVERRIDE"],
-           !override.isEmpty {
+           !override.isEmpty
+        {
             return override
         }
         return NSHomeDirectory()
@@ -75,7 +76,8 @@ public enum WizardSystemPaths {
             return override
         }
         if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_KANATA_OVERRIDE"],
-           !override.isEmpty {
+           !override.isEmpty
+        {
             return override
         }
         return "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
@@ -85,7 +87,8 @@ public enum WizardSystemPaths {
     /// This binary outputs structured JSON instead of sending real HID events
     public static var bundledSimulatorPath: String {
         if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_SIMULATOR_OVERRIDE"],
-           !override.isEmpty {
+           !override.isEmpty
+        {
             return override
         }
         return "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata-simulator"
@@ -143,10 +146,11 @@ public enum WizardSystemPaths {
 
     // MARK: - Log Files
 
-    /// Candidate Kanata log files (SMAppService stdout first, legacy launchctl second)
+    /// Candidate Kanata log files (SMAppService stdout/stderr first, legacy launchctl second)
     public static var kanataLogFileCandidates: [String] {
         [
             remapSystemPath("/var/log/com.keypath.kanata.stdout.log"),
+            remapSystemPath("/var/log/com.keypath.kanata.stderr.log"),
             remapSystemPath("/var/log/kanata.log")
         ]
     }
@@ -321,17 +325,19 @@ public enum WizardSystemPaths {
         return foundConfigs
     }
 
-    /// KeyPath's expected config directory (Application Support)
+    /// Legacy KeyPath config directory (Application Support).
+    ///
+    /// KeyPath's canonical user-owned config directory is `~/.config/keypath`.
     public static var keyPathConfigDirectory: String {
         "\(userHomeDirectory)/Library/Application Support/KeyPath"
     }
 
-    /// KeyPath's expected config path (Application Support)
+    /// Legacy KeyPath config path (Application Support).
     public static var keyPathConfigPath: String {
         "\(keyPathConfigDirectory)/keypath.kbd"
     }
 
-    /// KeyPath's generated apps config file
+    /// Legacy KeyPath-generated apps config file (Application Support).
     public static var keyPathAppsConfigPath: String {
         "\(keyPathConfigDirectory)/keypath-apps.kbd"
     }

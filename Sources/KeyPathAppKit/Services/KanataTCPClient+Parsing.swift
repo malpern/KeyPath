@@ -4,15 +4,24 @@ import KeyPathCore
 // MARK: - Message Parsing and Broadcast Detection
 
 extension KanataTCPClient {
-    /// Check if a JSON message is an unsolicited broadcast event (not a command response)
-    nonisolated func isUnsolicitedBroadcast(_ data: Data) -> Bool {
+    /// Check if a JSON message looks like a valid command response (not a broadcast).
+    /// Uses an allowlist approach: only known response patterns are accepted.
+    /// Everything else (broadcasts, new event types) is automatically filtered.
+    nonisolated func isCommandResponse(_ data: Data) -> Bool {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return false
         }
 
-        // These are broadcast events that Kanata sends to all clients
-        let broadcastKeys = ["LayerChange", "ConfigFileReload", "MessagePush", "Ready", "ConfigError"]
-        return broadcastKeys.contains(where: { json[$0] != nil })
+        // Status responses: {"status":"Ok"} or {"status":"Error","msg":"..."}
+        if json["status"] != nil { return true }
+
+        // Named command response objects
+        let responseKeys: Set<String> = [
+            "HelloOk", "StatusInfo", "ReloadResult",
+            "LayerNames", "FakeKeyNames",
+            "CurrentLayerName", "CurrentLayerInfo",
+        ]
+        return json.keys.contains(where: { responseKeys.contains($0) })
     }
 
     /// Helper to extract request_id from a JSON response
@@ -39,7 +48,8 @@ extension KanataTCPClient {
         for (_, value) in json {
             if let dict = value as? [String: Any],
                let nested = dict["request_id"],
-               let requestId = parseRequestIdValue(nested) {
+               let requestId = parseRequestIdValue(nested)
+            {
                 return requestId
             }
         }
@@ -61,9 +71,11 @@ extension KanataTCPClient {
             // Check if it's a single-line response
             let lines = response.split(separator: "\n")
             if let firstLine = lines.first,
-               let lineData = String(firstLine).data(using: .utf8) {
+               let lineData = String(firstLine).data(using: .utf8)
+            {
                 if let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData),
-                   serverResponse.isError {
+                   serverResponse.isError
+                {
                     return serverResponse.msg ?? "Unknown error"
                 }
             }
@@ -83,7 +95,8 @@ extension KanataTCPClient {
 
     /// Extract a named server message (second line) from a newline-delimited response
     func extractMessage<T: Decodable>(named name: String, into _: T.Type, from data: Data)
-        throws -> T? {
+        throws -> T?
+    {
         guard let s = String(data: data, encoding: .utf8) else {
             AppLogger.shared.log("🔍 [TCP extractMessage] Failed to decode data as UTF-8")
             return nil

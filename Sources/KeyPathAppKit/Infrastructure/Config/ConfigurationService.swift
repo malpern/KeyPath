@@ -109,7 +109,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     }
 
     public func observe(_ onChange: @Sendable @escaping (Config) async -> Void)
-        -> ConfigurationObservationToken {
+        -> ConfigurationObservationToken
+    {
         let id = UUID()
         stateLock.lock()
         observers[id] = onChange
@@ -246,14 +247,16 @@ public final class ConfigurationService: FileConfigurationProviding {
         let preservedChordGroups = loadPreservedChordGroups()
         let preservedSequences = loadPreservedSequences()
 
-        // Get leader key preference from PreferencesService on MainActor
-        let leaderKeyPref = await MainActor.run {
-            PreferencesService.shared.leaderKeyPreference
+        // Get leader key preference and trigger mode from PreferencesService on MainActor
+        let (leaderKeyPref, triggerMode) = await MainActor.run {
+            (PreferencesService.shared.leaderKeyPreference,
+             PreferencesService.shared.contextHUDTriggerMode)
         }
 
         let configContent = KanataConfiguration.generateFromCollections(
             combinedCollections,
             leaderKeyPreference: leaderKeyPref,
+            navActivationMode: triggerMode,
             chordGroups: preservedChordGroups,
             sequences: preservedSequences
         )
@@ -325,7 +328,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Backs up a failed config and applies safe default, returning backup path
     public func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping])
         async throws
-        -> String {
+        -> String
+    {
         AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
         // Create backup directory if it doesn't exist
@@ -377,7 +381,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Repair configuration using rule-based strategies (keeps output Kanata-compatible).
     public func repairConfiguration(config: String, errors: [String], mappings: [KeyMapping])
         async throws
-        -> String {
+        -> String
+    {
         AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
 
         // Common repair strategies
@@ -522,7 +527,8 @@ extension ConfigurationService {
         if let current = withLockedCurrentConfig(), !current.sequences.isEmpty {
             sequences = current.sequences
         } else if FileManager.default.fileExists(atPath: configurationPath),
-                  let content = try? String(contentsOfFile: configurationPath, encoding: .utf8) {
+                  let content = try? String(contentsOfFile: configurationPath, encoding: .utf8)
+        {
             sequences = KanataDefseqParser.parseSequences(from: content)
         } else {
             return []

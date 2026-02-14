@@ -140,6 +140,48 @@ final class KanataBinaryDetector {
         }
     }
 
+    /// Check if the installed kanata binary differs from the bundled one.
+    /// Catches: outdated KeyPath fork, upstream kanata, any binary mismatch.
+    func hasVersionMismatch() -> Bool {
+        let systemPath = WizardSystemPaths.kanataSystemInstallPath
+        let bundledPath = WizardSystemPaths.bundledKanataPath
+        let fm = FileManager.default
+
+        let sysExists = fm.fileExists(atPath: systemPath)
+        let bunExists = fm.fileExists(atPath: bundledPath)
+
+        AppLogger.shared.log("🔍 [KanataBinaryDetector] hasVersionMismatch: system=\(systemPath) exists=\(sysExists), bundled=\(bundledPath) exists=\(bunExists)")
+
+        guard sysExists, bunExists else {
+            return false // Can't compare if one is missing
+        }
+
+        // Quick check: file size
+        guard let sysAttrs = try? fm.attributesOfItem(atPath: systemPath),
+              let bunAttrs = try? fm.attributesOfItem(atPath: bundledPath),
+              let sysSize = sysAttrs[.size] as? UInt64,
+              let bunSize = bunAttrs[.size] as? UInt64
+        else {
+            AppLogger.shared.log("🔍 [KanataBinaryDetector] hasVersionMismatch: can't read attributes → true")
+            return true // Can't determine attributes → assume mismatch
+        }
+
+        if sysSize != bunSize {
+            AppLogger.shared.log("🔍 [KanataBinaryDetector] hasVersionMismatch: size differs (system=\(sysSize), bundled=\(bunSize)) → true")
+            return true
+        }
+
+        // Same size → compare bytes
+        guard let sysData = fm.contents(atPath: systemPath),
+              let bunData = fm.contents(atPath: bundledPath)
+        else {
+            return true
+        }
+        let differs = sysData != bunData
+        AppLogger.shared.log("🔍 [KanataBinaryDetector] hasVersionMismatch: same size (\(sysSize)), bytes differ=\(differs)")
+        return differs
+    }
+
     // MARK: - Private Detection Logic
 
     private func checkSystemInstallation() -> DetectionResult? {

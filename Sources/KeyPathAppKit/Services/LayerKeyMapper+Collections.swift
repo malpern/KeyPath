@@ -32,7 +32,8 @@ extension LayerKeyMapper {
 
             // Map momentary activator keys (e.g., "w" for Window Snapping in Nav layer)
             if let activator = collection.momentaryActivator,
-               activator.sourceLayer == targetLayer {
+               activator.sourceLayer == targetLayer
+            {
                 let kanataKey = KanataKeyConverter.convertToKanataKey(activator.input)
                 map[kanataKey] = collection.id
             }

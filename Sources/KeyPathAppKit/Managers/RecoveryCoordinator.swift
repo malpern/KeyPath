@@ -237,7 +237,8 @@ final class RecoveryCoordinator {
         // Check for zombie keyboard capture bug (exit code 6 with VirtualHID connection failure)
         if exitCode == 6,
            output.contains("connect_failed asio.system:61")
-           || output.contains("connect_failed asio.system:2") {
+           || output.contains("connect_failed asio.system:2")
+        {
             // This is the "zombie keyboard capture" bug - automatically attempt recovery
             Task {
                 AppLogger.shared.log(

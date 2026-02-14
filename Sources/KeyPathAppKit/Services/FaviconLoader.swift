@@ -1,11 +1,13 @@
 import AppKit
+import Foundation
 
 /// Loads favicons for websites using Google's favicon service.
 ///
 /// Caches loaded favicons to avoid repeated network requests.
 /// Uses LRU eviction to limit memory usage.
 /// Falls back to a globe icon if favicon cannot be loaded.
-actor FaviconLoader {
+@MainActor
+final class FaviconLoader {
     /// Shared instance for favicon loading
     static let shared = FaviconLoader()
 
@@ -84,12 +86,9 @@ actor FaviconLoader {
 
     /// Preload favicons for multiple domains (e.g., on collection load)
     func preload(domains: [String]) async {
-        await withTaskGroup(of: Void.self) { group in
-            for domain in domains {
-                group.addTask {
-                    _ = await self.favicon(for: domain)
-                }
-            }
+        // This is a main-actor service (NSImage is non-Sendable). Keep preloading simple and safe.
+        for domain in domains {
+            _ = await favicon(for: domain)
         }
     }
 

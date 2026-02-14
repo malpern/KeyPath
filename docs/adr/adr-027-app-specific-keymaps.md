@@ -55,9 +55,10 @@ Each app gets its own virtual key. No grouping/profiles in v1—users define per
 ### File Structure
 
 ```
-~/Library/Application Support/KeyPath/
+~/.config/keypath/
   keypath-apps.kbd    ← KeyPath owns (regenerated freely)
   keypath.kbd         ← User owns (optional, for power users)
+  AppKeymaps.json     ← KeyPath-owned store (per-app keymaps)
 ```
 
 **keypath-apps.kbd** (KeyPath-generated, valid Kanata):
