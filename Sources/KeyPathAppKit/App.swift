@@ -207,6 +207,12 @@ public struct KeyPathApp: App {
                 )
                 .keyboardShortcut("o", modifiers: .command)
 
+                Button("Simple Key Mappings…") {
+                    // Present as a sheet from the (splash) main window.
+                    appDelegate.showMainWindow()
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowSimpleMods"), object: nil)
+                }
+
                 Divider()
 
                 Button(

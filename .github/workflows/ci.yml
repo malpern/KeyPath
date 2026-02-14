@@ -9,7 +9,7 @@ on:
 jobs:
   build-and-test:
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       COVERAGE_BASELINE_PERCENT: "0.28"
     

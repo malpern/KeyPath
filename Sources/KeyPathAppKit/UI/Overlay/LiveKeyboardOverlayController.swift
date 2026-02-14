@@ -562,7 +562,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     func handleHealthIndicatorTap() {
         AppLogger.shared.log("🔘 [Controller] handleHealthIndicatorTap - bringing main window to front and opening wizard")
 
-        // Bring the main app window to front first (wizard is a sheet on ContentView)
+        // Bring the main app window to front first.
         NSApp.activate(ignoringOtherApps: true)
 
         // Find the main window (not the floating overlay)
@@ -570,7 +570,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             mainWindow.makeKeyAndOrderFront(nil)
         }
 
-        // Post notification to show wizard (handled by ContentView)
+        // Post notification to show wizard (handled by AppDelegate wiring).
         NotificationCenter.default.post(name: .showWizard, object: nil)
 
         withAnimation {

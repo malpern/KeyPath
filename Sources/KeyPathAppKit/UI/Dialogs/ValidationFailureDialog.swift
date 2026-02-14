@@ -1,131 +1,4 @@
-import AppKit
-import KeyPathCore
 import SwiftUI
-
-// MARK: - ContentView Subviews
-
-struct ContentViewMainTab: View {
-    @ObservedObject var stateController: MainAppStateController
-    @ObservedObject var recordingCoordinator: RecordingCoordinator
-    @ObservedObject var kanataManager: KanataViewModel
-    @Binding var showSetupBanner: Bool
-    @Binding var showingInstallationWizard: Bool
-    let onInputRecord: () -> Void
-    let onOutputRecord: () -> Void
-    let onSave: () -> Void
-    let onOpenSystemStatus: () -> Void
-    let onShowMessage: (String) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            if FeatureFlags.allowOptionalWizard, showSetupBanner {
-                SetupBanner {
-                    showingInstallationWizard = true
-                }
-                .padding(.horizontal, 8)
-            }
-            // Header
-            let hasLayeredCollections = kanataManager.ruleCollections.contains {
-                $0.isEnabled && $0.targetLayer != .base
-            }
-            ContentViewHeader(
-                validator: stateController, // 🎯 Phase 3: New controller
-                showingInstallationWizard: $showingInstallationWizard,
-                onWizardRequest: { showingInstallationWizard = true },
-                layerIndicatorVisible: hasLayeredCollections,
-                currentLayerName: kanataManager.currentLayerName
-            )
-
-            // Recording Section (no solid wrapper; let glass show through)
-            RecordingSection(
-                coordinator: recordingCoordinator,
-                onInputRecord: onInputRecord,
-                onOutputRecord: onOutputRecord,
-                onShowMessage: onShowMessage
-            )
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-
-            saveButtonSection
-
-            // Emergency Stop Pause Card (similar to low battery pause)
-            if kanataManager.emergencyStopActivated {
-                EmergencyStopPauseCard(
-                    onRestart: {
-                        Task { @MainActor in
-                            kanataManager.emergencyStopActivated = false
-                            let restarted = await kanataManager.restartKanata(
-                                reason: "Emergency stop recovery"
-                            )
-                            if !restarted {
-                                onShowMessage("❌ Failed to restart Kanata after emergency stop")
-                            }
-                            await kanataManager.updateStatus()
-                        }
-                    }
-                )
-            }
-
-            diagnosticSummarySection
-
-            Spacer()
-        }
-    }
-
-    @ViewBuilder
-    private var saveButtonSection: some View {
-        // Save button - only visible when input OR output has content
-        if recordingCoordinator.capturedInputSequence() != nil
-            || recordingCoordinator.capturedOutputSequence() != nil
-        {
-            HStack {
-                Spacer()
-                Button(
-                    action: onSave,
-                    label: {
-                        HStack {
-                            if kanataManager.saveStatus.isActive {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                    .frame(width: 16, height: 16)
-                                Text(kanataManager.saveStatus.message)
-                                    .font(.caption)
-                            } else {
-                                Text("Save")
-                            }
-                        }
-                        .frame(minWidth: 100)
-                    }
-                )
-                .buttonStyle(.borderedProminent)
-                .focusable(false) // Prevent keyboard activation on main page
-                .disabled(
-                    recordingCoordinator.capturedInputSequence() == nil
-                        || recordingCoordinator.capturedOutputSequence() == nil
-                        || kanataManager.saveStatus.isActive
-                )
-                .accessibilityIdentifier("save-mapping-button")
-                .accessibilityLabel("Save key mapping")
-                .accessibilityHint("Save the input and output key mapping to your configuration")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var diagnosticSummarySection: some View {
-        // Diagnostic Summary (show critical issues)
-        if !kanataManager.diagnostics.isEmpty {
-            let criticalIssues = kanataManager.diagnostics.filter {
-                $0.severity == .critical || $0.severity == .error
-            }
-            if !criticalIssues.isEmpty {
-                DiagnosticSummaryView(criticalIssues: criticalIssues) {
-                    onOpenSystemStatus()
-                }
-            }
-        }
-    }
-}
 
 struct ValidationFailureDialog: View {
     let errors: [String]
@@ -134,6 +7,7 @@ struct ValidationFailureDialog: View {
     let onOpenConfig: () -> Void
     let onOpenDiagnostics: () -> Void
     let onDismiss: () -> Void
+
     // AI Repair support
     let onRepairWithAI: (() -> Void)?
     @Binding var isRepairing: Bool
@@ -152,9 +26,11 @@ struct ValidationFailureDialog: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Configuration Validation Failed")
                         .font(.title2.weight(.semibold))
-                    Text("Kanata refused to load the generated config. KeyPath left the previous configuration in place until you fix the issues below.")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
+                    Text(
+                        "Kanata refused to load the generated config. KeyPath left the previous configuration in place until you fix the issues below."
+                    )
+                    .font(.body)
+                    .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button {
@@ -193,7 +69,6 @@ struct ValidationFailureDialog: View {
             }
             .frame(minHeight: 180, maxHeight: 260)
 
-            // AI Repair status messages
             if let repairError {
                 HStack(spacing: 10) {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -267,13 +142,13 @@ struct ValidationFailureDialog: View {
                 }
                 .accessibilityIdentifier("validation-copy-errors-button")
                 .accessibilityLabel("Copy Errors")
+
                 Button("Open Config in Zed") {
                     onOpenConfig()
                 }
                 .accessibilityIdentifier("validation-open-config-button")
                 .accessibilityLabel("Open Config in Zed")
 
-                // AI Repair button (only shown if API key is configured)
                 if let onRepairWithAI {
                     Button {
                         onRepairWithAI()
@@ -295,11 +170,13 @@ struct ValidationFailureDialog: View {
                 }
 
                 Spacer()
+
                 Button("Diagnostics") {
                     onOpenDiagnostics()
                 }
                 .accessibilityIdentifier("validation-diagnostics-button")
                 .accessibilityLabel("View Diagnostics")
+
                 Button("Done") {
                     onDismiss()
                 }
@@ -313,9 +190,22 @@ struct ValidationFailureDialog: View {
     }
 }
 
-#Preview {
-    let manager = RuntimeCoordinator()
-    let viewModel = KanataViewModel(manager: manager)
-    ContentView()
-        .environmentObject(viewModel)
+#Preview("ValidationFailureDialog") {
+    ValidationFailureDialog(
+        errors: [
+            "Line 12: expected ')'",
+            "Line 34: unknown key 'foo_bar'",
+        ],
+        configPath: "/Users/example/.config/kanata/kanata.kbd",
+        onCopyErrors: {},
+        onOpenConfig: {},
+        onOpenDiagnostics: {},
+        onDismiss: {},
+        onRepairWithAI: {},
+        isRepairing: .constant(false),
+        repairError: nil,
+        backupPath: "/Users/example/.config/kanata/kanata.kbd.backup"
+    )
+    .customizeSheetWindow()
 }
+
