@@ -393,6 +393,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarController: MenuBarController?
     private var initialMainWindowShown = false
     private var pendingReopenShow = false
+    private var suppressLaunchSplashAutoHide = false
     private var keyboardCapture: KeyboardCapture?
 
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
@@ -416,8 +417,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "🔍 [AppDelegate] applicationDidBecomeActive called (initialShown=\(initialMainWindowShown))"
         )
 
-        // One-shot first activation: show overlay (drawer starts closed)
+        // One-shot first activation:
+        // Show a brief splash window, then bring up the overlay as the primary surface.
         if !initialMainWindowShown {
+            let suppressAutoHideBecauseReopen = pendingReopenShow
+
             // Log diagnostic state at first activation for future debugging
             let appActive = NSApp.isActive
             let appHidden = NSApp.isHidden
@@ -431,12 +435,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.shared.debug("🪟 [AppDelegate] App was hidden, unhiding")
             }
 
-            // Show overlay on first activation - drawer starts closed
-            // User can open drawer by clicking the toggle button
-            AppLogger.shared.debug("🪟 [AppDelegate] First activation - overlay shown")
-
             initialMainWindowShown = true
-            AppLogger.shared.debug("🪟 [AppDelegate] First activation complete (main window hidden)")
+
+            // Show splash quickly (Adobe-style launch splash). It also provides a stable
+            // anchor for any sheets triggered from menu actions.
+            suppressLaunchSplashAutoHide = false
+            mainWindowController?.show(focus: true)
+
+            Task { @MainActor in
+                // Let the splash be visible for a brief moment before showing the overlay.
+                try? await Task.sleep(for: .milliseconds(420))
+
+                LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+                AppLogger.shared.debug("🪟 [AppDelegate] First activation - overlay shown")
+
+                // Auto-hide splash (do not close) unless the user explicitly requested the window.
+                if !self.suppressLaunchSplashAutoHide, !suppressAutoHideBecauseReopen {
+                    self.mainWindowController?.window?.orderOut(nil)
+                    AppLogger.shared.debug("🪟 [AppDelegate] Auto-hid launch splash window")
+                }
+            }
+
+            AppLogger.shared.debug("🪟 [AppDelegate] First activation complete (splash shown briefly)")
 
             if pendingReopenShow {
                 AppLogger.shared.debug(
@@ -604,10 +624,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 "🪟 [AppDelegate] Main window controller created (deferring show until activation)"
             )
 
-            // Show overlay with startup sizing (30% larger, centered bottom)
-            // This also starts health state observation for the health indicator
-            // First launch bypasses hidden check - we always show on initial launch
-            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+            // Overlay is shown on the first application activation (after the brief splash),
+            // so launch reads as "splash -> overlay" instead of two windows at once.
 
             // Configure overlay controller with viewModel for Mapper integration and keymap changes
             LiveKeyboardOverlayController.shared.configure(
@@ -798,6 +816,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
         }
+
+        // If the user explicitly shows the main window, don't auto-hide it as part of launch splash.
+        suppressLaunchSplashAutoHide = true
 
         if NSApp.isHidden {
             NSApp.unhide(nil)
