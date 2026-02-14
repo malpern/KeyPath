@@ -4,7 +4,7 @@
 final class FDADetectionTests: XCTestCase {
     // MARK: - FDA Detection Method Tests
 
-    func testFDADetectionWithoutAccess() {
+    func testFDADetectionWithoutAccess() throws {
         // When FDA is not granted, all methods should return false
         // Note: This test assumes we're running without FDA
 
@@ -13,6 +13,11 @@ final class FDADetectionTests: XCTestCase {
 
         // Check if we already have FDA access first
         let bookmarksPath = "\(NSHomeDirectory())/Library/Safari/Bookmarks.plist"
+        // CI runners and fresh user accounts often don't have Safari state at all, which makes
+        // the "has FDA" inference unreliable. Skip rather than assert on platform privacy state.
+        if !FileManager.default.fileExists(atPath: bookmarksPath) {
+            throw XCTSkip("Safari Bookmarks.plist not present; FDA inference is not deterministic in this environment.")
+        }
         let hasExistingFDA =
             FileManager.default.isReadableFile(atPath: bookmarksPath)
                 && (try? Data(contentsOf: URL(fileURLWithPath: bookmarksPath))) != nil

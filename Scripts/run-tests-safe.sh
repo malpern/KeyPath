@@ -20,7 +20,13 @@ export NSUnbufferedIO=YES
 # Set KEYPATH_USE_SUDO=1 to use sudo instead of osascript admin prompts
 # Requires: sudo ./Scripts/dev-setup-sudoers.sh (one-time setup)
 # Auto-detect if sudoers are configured and enable automatically
-if [ -z "${KEYPATH_USE_SUDO:-}" ]; then
+#
+# IMPORTANT: In CI we must keep tests hermetic and avoid privileged system modifications.
+# CI-safe tests should exercise "test mode" code paths (TestEnvironment.shouldSkipAdminOperations == true).
+if [ "${CI_ENVIRONMENT}" = "true" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
+    export KEYPATH_USE_SUDO=${KEYPATH_USE_SUDO:-0}
+    echo "🔒 CI mode - forcing KEYPATH_USE_SUDO=$KEYPATH_USE_SUDO"
+elif [ -z "${KEYPATH_USE_SUDO:-}" ]; then
     # Check if sudo -n works (NOPASSWD configured)
     if sudo -n launchctl list com.keypath.kanata >/dev/null 2>&1 || \
        sudo -n true >/dev/null 2>&1; then

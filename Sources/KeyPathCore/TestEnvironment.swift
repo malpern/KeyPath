@@ -87,17 +87,11 @@ public enum TestEnvironment {
         return isRunningTests
     }
 
-    /// Cached result of sudo auto-detection (to avoid repeated checks)
-    private static let _sudoDetectionLock = NSLock()
-    private nonisolated(unsafe) static var _cachedSudoAvailable: Bool?
-    private nonisolated(unsafe) static var _hasCheckedSudo: Bool = false
-
     /// Check if we should use sudo instead of osascript for privileged operations.
     ///
     /// **Enabled when:**
     /// - `KEYPATH_USE_SUDO=1` environment variable is set, AND
     /// - Either running tests OR in a DEBUG build
-    /// - OR (in test mode only) auto-detects if sudoers are configured
     ///
     /// When enabled:
     /// - Privileged operations use `sudo -n` (non-interactive) instead of osascript admin prompts
@@ -124,61 +118,8 @@ public enum TestEnvironment {
             }
         }
 
-        // No env var set - auto-detect sudoers in test mode only
-        if isRunningTests {
-            // Cache the result to avoid repeated sudo checks
-            _sudoDetectionLock.lock()
-            defer { _sudoDetectionLock.unlock() }
-
-            if !_hasCheckedSudo {
-                _cachedSudoAvailable = verifySudoConfigured()
-                _hasCheckedSudo = true
-                if _cachedSudoAvailable == true {
-                    AppLogger.shared.log("🔐 [TestEnvironment] Auto-detected sudoers config - enabling sudo mode")
-                }
-            }
-
-            return _cachedSudoAvailable ?? false
-        }
-
         // Not in tests and no env var - never use sudo
         return false
-    }
-
-    /// Check if sudo NOPASSWD is configured and working for launchctl
-    /// Returns true if we can run `sudo -n launchctl list` without a password prompt
-    public static func verifySudoConfigured() -> Bool {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        task.arguments = ["-n", "/bin/launchctl", "list", "com.keypath.kanata"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            // Any exit code other than 1 means sudo worked without password
-            // Exit code 0 = success
-            // Exit code 113 = service not found (but sudo worked)
-            // Exit code 1 = sudo: a password is required (NOPASSWD not configured)
-            // Exit code 126/127 = command/file not found (launchctl issue, but sudo still worked)
-
-            // If exit code is 1, check stderr to confirm it's a password prompt
-            if task.terminationStatus == 1 {
-                let errorData = pipe.fileHandleForReading.readDataToEndOfFile()
-                let stderr = String(data: errorData, encoding: .utf8) ?? ""
-                // Only return false if it's specifically asking for password
-                return !stderr.contains("password is required")
-            }
-
-            // Any other exit code means sudo worked (even if the command itself failed)
-            return true
-        } catch {
-            return false
-        }
     }
 
     /// Check if we should use mock data instead of real system calls

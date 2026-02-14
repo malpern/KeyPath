@@ -437,6 +437,9 @@ class MainAppStateController: ObservableObject {
                 autoFixAction: nil,
                 userAction: "Quit and reopen KeyPath, then run the setup wizard."
             )]
+            // Even failed validations should update "last checked" timestamps.
+            lastValidationDate = Date()
+            lastValidationTime = Date()
             return
         }
 
@@ -461,6 +464,9 @@ class MainAppStateController: ObservableObject {
                 autoFixAction: .restartUnhealthyServices,
                 userAction: "Click System to open the setup wizard and diagnose the issue."
             )]
+            // Even failed validations should update "last checked" timestamps.
+            lastValidationDate = Date()
+            lastValidationTime = Date()
             return
         }
 
@@ -500,6 +506,9 @@ class MainAppStateController: ObservableObject {
                 userAction: "Try restarting the keyboard service from the System menu."
             )]
             AppLogger.shared.error("⏱️ [MainAppStateController] Validation watchdog fired – marking status as failed")
+            // Even failed validations should update "last checked" timestamps.
+            lastValidationDate = Date()
+            lastValidationTime = Date()
             return
         }
 

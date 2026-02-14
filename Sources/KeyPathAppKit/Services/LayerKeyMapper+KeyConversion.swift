@@ -127,9 +127,15 @@ extension LayerKeyMapper {
 
     /// Normalize key names to canonical form for transparent key detection.
     /// Maps aliases to their base key names. The simulator outputs canonical
-    /// names (lmet, left, etc.) so no Unicode symbol handling is needed here.
+    /// names (lmet, left, etc.) but some UI surfaces use Unicode glyphs.
     nonisolated static func normalizeKeyName(_ key: String) -> String {
         switch key.lowercased() {
+        // Common UI glyphs (e.g., simulator / keycap UI)
+        case "␠", "␣": "space"
+        case "⏎": "enter"
+        case "␈": "backspace"
+        case "⭾": "tab"
+        case "−": "minus"
         // Modifier aliases
         case "lmet", "rmet", "cmd", "lcmd", "command", "meta": "lmet"
         case "lalt", "ralt", "opt", "option": "lalt"
