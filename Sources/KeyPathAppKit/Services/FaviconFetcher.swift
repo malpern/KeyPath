@@ -13,6 +13,11 @@ import KeyPathCore
 final class FaviconFetcher {
     static let shared = FaviconFetcher()
 
+    /// Wrapper to satisfy Swift 6 `Task` sendability requirements when the result contains `NSImage`.
+    private struct FaviconResult: @unchecked Sendable {
+        let image: NSImage?
+    }
+
     // MARK: - Cache Configuration
 
     /// Directory where favicons are cached on disk
@@ -30,7 +35,7 @@ final class FaviconFetcher {
     private var memoryCache: [String: NSImage] = [:]
 
     /// Track in-progress fetches to prevent duplicates
-    private var pendingFetches: [String: Task<NSImage?, Never>] = [:]
+    private var pendingFetches: [String: Task<FaviconResult, Never>] = [:]
 
     /// Timeout for network requests (3 seconds)
     private let networkTimeout: TimeInterval = 3.0
@@ -59,16 +64,16 @@ final class FaviconFetcher {
         // 3. Check if fetch is already in progress
         if let existingTask = pendingFetches[domain] {
             AppLogger.shared.debug("🖼️ [FaviconFetcher] Waiting for existing fetch of \(domain)")
-            return await existingTask.value
+            return await existingTask.value.image
         }
 
         // 4. Start new fetch
-        let fetchTask = Task<NSImage?, Never> {
-            await performFetch(for: domain, fullURL: url)
+        let fetchTask = Task<FaviconResult, Never> {
+            FaviconResult(image: await performFetch(for: domain, fullURL: url))
         }
 
         pendingFetches[domain] = fetchTask
-        let result = await fetchTask.value
+        let result = await fetchTask.value.image
         pendingFetches[domain] = nil
 
         return result
