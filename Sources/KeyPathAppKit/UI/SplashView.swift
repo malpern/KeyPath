@@ -1,42 +1,34 @@
+import AppKit
 import SwiftUI
 
-/// Splash screen shown on app launch before transitioning to Create Rule dialog
+/// Minimal main-window surface. KeyPath’s primary UI is the live overlay.
 struct SplashView: View {
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 18) {
             Spacer()
 
-            // Poster image
-            if let posterImage = NSImage(named: "keypath-poster") {
-                Image(nsImage: posterImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 500)
-            } else {
-                // Fallback if image not found
-                Image(systemName: "keyboard.badge.ellipsis")
-                    .font(.system(size: 80, weight: .ultraLight))
-                    .foregroundStyle(.primary.opacity(0.6))
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 156, height: 156)
+                .shadow(color: .black.opacity(0.18), radius: 18, x: 0, y: 10)
 
-                Text("KeyPath")
-                    .font(.system(size: 36, weight: .semibold))
-                    .foregroundStyle(.primary)
-
-                Text("Keyboard Remapping")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-            }
+            Text("KeyPath")
+                .font(.system(size: 44, weight: .semibold, design: .rounded))
+                .tracking(0.2)
 
             Spacer()
 
-            // Subtle loading indicator
-            ProgressView()
-                .scaleEffect(0.8)
-                .opacity(0.6)
+            // Keep the surface minimal; primary controls live in the menu bar + Settings.
+            Text("Live keyboard overlay is running.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .opacity(0.85)
 
-            Spacer()
-                .frame(height: 40)
+            Spacer().frame(height: 28)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityIdentifier("main-window-splash")
     }
 }

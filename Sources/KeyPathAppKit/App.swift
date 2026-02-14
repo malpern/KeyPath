@@ -1,6 +1,7 @@
 import AppKit
 import KeyPathCore
 import KeyPathPermissions
+import KeyPathWizardCore
 import ServiceManagement
 import Sparkle
 import SwiftUI
@@ -241,7 +242,8 @@ public struct KeyPathApp: App {
                 Divider()
 
                 Button("How to Emergency Stop") {
-                    // Emergency stop dialog will be handled by main window controller
+                    // Present as a sheet from the (splash) main window.
+                    appDelegate.showMainWindow()
                     NotificationCenter.default.post(
                         name: NSNotification.Name("ShowEmergencyStop"), object: nil
                     )
@@ -253,6 +255,8 @@ public struct KeyPathApp: App {
                 Button(
                     role: .destructive,
                     action: {
+                        // Present as a sheet from the (splash) main window.
+                        appDelegate.showMainWindow()
                         NotificationCenter.default.post(name: NSNotification.Name("ShowUninstall"), object: nil)
                     },
                     label: {
@@ -383,6 +387,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarController: MenuBarController?
     private var initialMainWindowShown = false
     private var pendingReopenShow = false
+    private var keyboardCapture: KeyboardCapture?
 
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminate called")
@@ -523,6 +528,62 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         // Note: In normal mode, kanata is already started in RuntimeCoordinator.init() if requirements are met
+
+        // MARK: - Notification Wiring (moved out of legacy ContentView)
+
+        // Show the installation wizard regardless of whether the main window is visible.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleShowWizardNotification(_:)),
+            name: .showWizard,
+            object: nil
+        )
+
+        // Unified “open wizard” action used by permission notifications.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleOpenInstallationWizardNotification(_:)),
+            name: .openInstallationWizard,
+            object: nil
+        )
+
+        // Startup + post-wizard validation trigger.
+        NotificationCenter.default.addObserver(
+            forName: .kp_startupRevalidate, object: nil, queue: .main
+        ) { _ in
+            Task { @MainActor in
+                await MainAppStateController.shared.performInitialValidation()
+            }
+        }
+
+        // Settings/permission flows sometimes post a “toast” message; show as a user notification now that
+        // the main window is a splash.
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ShowUserFeedback"), object: nil, queue: .main
+        ) { notification in
+            if let message = notification.userInfo?["message"] as? String {
+                Task { @MainActor in
+                    UserNotificationService.shared.notifyRecoverySucceeded(message)
+                }
+            }
+        }
+
+        // Reset-to-safe config action (used by notification buttons).
+        NotificationCenter.default.addObserver(
+            forName: .resetToSafeConfig, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                _ = await self?.viewModel?.createDefaultUserConfigIfMissing()
+                await MainAppStateController.shared.revalidate()
+                UserNotificationService.shared.notifyRecoverySucceeded("Configuration reset to safe defaults.")
+            }
+        }
+
+        // Start emergency-stop monitoring once permissions are already granted (no prompts at launch).
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            await self.startEmergencyMonitoringIfPermitted()
+        }
 
         // Create main window controller (defer fronting until first activation)
         if !isHeadlessMode {
@@ -713,6 +774,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.shared.debug("☰ [MenuBar] Status item initialized")
     }
 
+    /// Bring the main window (splash) to the front. Used by menu actions that present sheets.
+    @MainActor
+    func showMainWindow() {
+        showKeyPathFromStatusItem()
+    }
+
     private func showKeyPathFromStatusItem() {
         AppLogger.shared.debug("☰ [MenuBar] Show KeyPath requested from status item")
 
@@ -834,6 +901,135 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         return true
+    }
+
+    // MARK: - Wizard Presentation
+
+    @MainActor
+    private func showWizard(targetPage: WizardPage?) {
+        guard let vm = viewModel else {
+            AppLogger.shared.error("❌ [AppDelegate] Cannot show wizard: ViewModel unavailable")
+            return
+        }
+
+        let initialPage = targetPage ?? resolveWizardInitialPage()
+        WizardWindowController.shared.showWindow(
+            initialPage: initialPage,
+            kanataViewModel: vm,
+            onDismiss: { [weak self] in
+                Task { @MainActor in
+                    // Wizard actions can change permissions + service state; refresh both.
+                    await self?.viewModel?.updateStatus()
+                    await MainAppStateController.shared.revalidate()
+                }
+            }
+        )
+    }
+
+    // MARK: - Notification Handlers
+
+    @objc private func handleShowWizardNotification(_ notification: Notification) {
+        // Avoid capturing non-Sendable values across actor hops by reducing to raw types first.
+        let targetRaw = (notification.userInfo?["targetPage"] as? WizardPage)?.rawValue
+        Task { @MainActor in
+            let targetPage = targetRaw.flatMap(WizardPage.init(rawValue:))
+            self.showWizard(targetPage: targetPage)
+        }
+    }
+
+    @objc private func handleOpenInstallationWizardNotification(_: Notification) {
+        Task { @MainActor in
+            self.showWizard(targetPage: nil)
+        }
+    }
+
+    /// Mirrors the legacy ContentView logic so permission-grant return flows still reopen
+    /// the wizard at the most relevant page after an app restart.
+    @MainActor
+    private func resolveWizardInitialPage() -> WizardPage? {
+        // Check for FDA restart restore point (used when app restarts for Full Disk Access)
+        if let restorePoint = UserDefaults.standard.string(forKey: "KeyPath.WizardRestorePoint") {
+            let restoreTime = UserDefaults.standard.double(forKey: "KeyPath.WizardRestoreTime")
+            let timeSinceRestore = Date().timeIntervalSince1970 - restoreTime
+
+            // Clear the restore point immediately
+            UserDefaults.standard.removeObject(forKey: "KeyPath.WizardRestorePoint")
+            UserDefaults.standard.removeObject(forKey: "KeyPath.WizardRestoreTime")
+
+            // Only restore if within 5 minutes
+            if timeSinceRestore < 300 {
+                let page = WizardPage.allCases.first { $0.rawValue == restorePoint }
+                    ?? WizardPage.allCases.first { String(describing: $0) == restorePoint }
+                if let page {
+                    AppLogger.shared.log("🔄 [AppDelegate] Restoring wizard to \(page.displayName) after app restart")
+                    return page
+                }
+            } else {
+                AppLogger.shared.log("⏱️ [AppDelegate] Wizard restore point expired (\(Int(timeSinceRestore))s old)")
+            }
+        }
+
+        if UserDefaults.standard.bool(forKey: "wizard_return_to_summary") {
+            UserDefaults.standard.removeObject(forKey: "wizard_return_to_summary")
+            AppLogger.shared.log("✅ [AppDelegate] Permissions granted - returning to Summary")
+            return .summary
+        } else if UserDefaults.standard.bool(forKey: "wizard_return_to_input_monitoring") {
+            UserDefaults.standard.removeObject(forKey: "wizard_return_to_input_monitoring")
+            return .inputMonitoring
+        } else if UserDefaults.standard.bool(forKey: "wizard_return_to_accessibility") {
+            UserDefaults.standard.removeObject(forKey: "wizard_return_to_accessibility")
+            return .accessibility
+        }
+
+        return nil
+    }
+
+    // MARK: - Emergency Stop Monitoring
+
+    /// Starts emergency stop monitoring if Accessibility permission is already granted.
+    /// This preserves the safety feature without prompting users during app launch.
+    @MainActor
+    private func startEmergencyMonitoringIfPermitted() async {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        guard snapshot.keyPath.accessibility.isReady else {
+            AppLogger.shared.debug("🛑 [EmergencyStop] Skipping monitor start (Accessibility not granted)")
+            return
+        }
+
+        if keyboardCapture == nil {
+            keyboardCapture = KeyboardCapture()
+            AppLogger.shared.log("🎹 [AppDelegate] KeyboardCapture initialized for emergency monitoring")
+        }
+
+        guard let capture = keyboardCapture else { return }
+
+        capture.startEmergencyMonitoring {
+            Task { @MainActor in
+                let stopped = await self.viewModel?.stopKanata(reason: "Emergency stop hotkey") ?? false
+                if stopped {
+                    AppLogger.shared.log("🛑 [EmergencyStop] Kanata service stopped via façade")
+                } else {
+                    AppLogger.shared.warn("⚠️ [EmergencyStop] Failed to stop Kanata service via façade")
+                }
+
+                self.viewModel?.emergencyStopActivated = true
+
+                UserNotificationService.shared.notifyConfigEvent(
+                    "Emergency stop activated",
+                    body: "Remapping paused. Open Settings → Status to start the service again.",
+                    key: "emergency.stop.activated"
+                )
+
+                // If the user is already in-app, show the help dialog immediately.
+                if NSApp.isActive, !NSApp.isHidden {
+                    self.showMainWindow()
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("ShowEmergencyStop"),
+                        object: nil
+                    )
+                }
+            }
+        }
     }
 }
 

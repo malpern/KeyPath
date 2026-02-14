@@ -2,6 +2,11 @@ import SwiftUI
 
 struct RootView: View {
     @State private var showingWhatsNew = false
+    // Keep lightweight “modal” affordances for menu actions even though the main window is now a splash.
+    @State private var showingEmergencyStopDialog = false
+    @State private var showingUninstallDialog = false
+
+    @EnvironmentObject private var kanataVM: KanataViewModel
 
     var body: some View {
         ZStack {
@@ -10,13 +15,7 @@ struct RootView: View {
                 .ignoresSafeArea()
 
             // Foreground content places solid surfaces where needed for text
-            ContentView()
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear
-                            .preference(key: WindowHeightPreferenceKey.self, value: proxy.size.height)
-                    }
-                )
+            SplashView()
         }
         .sheet(isPresented: $showingWhatsNew) {
             WhatsNewView()
@@ -24,13 +23,18 @@ struct RootView: View {
                     WhatsNewTracker.markAsSeen()
                 }
         }
-        .onPreferenceChange(WindowHeightPreferenceKey.self) { newHeight in
-            guard newHeight > 0 else { return }
-            NotificationCenter.default.post(
-                name: .mainWindowHeightChanged,
-                object: nil,
-                userInfo: ["height": newHeight]
-            )
+        .sheet(isPresented: $showingEmergencyStopDialog) {
+            EmergencyStopDialog(isActivated: kanataVM.emergencyStopActivated)
+        }
+        .sheet(isPresented: $showingUninstallDialog) {
+            UninstallKeyPathDialog()
+                .environmentObject(kanataVM)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowEmergencyStop"))) { _ in
+            showingEmergencyStopDialog = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUninstall"))) { _ in
+            showingUninstallDialog = true
         }
         .task {
             if WhatsNewTracker.shouldShowWhatsNew() {

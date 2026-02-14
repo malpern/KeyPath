@@ -54,7 +54,7 @@ struct EmergencyStopDialog: View {
                             .font(.title3)
                             .foregroundColor(.blue)
                         Text(
-                            "You can restart the service when ready by clicking the restart button in the main window"
+                            "You can restart the service when ready from Settings → Status (Start) or by restarting KeyPath."
                         )
                         .font(.body)
                         Spacer()
@@ -166,7 +166,7 @@ struct EmergencyStopDialog: View {
                             Image(systemName: "arrow.clockwise.circle.fill")
                                 .font(.title3)
                                 .foregroundColor(.orange)
-                            Text("Restart KeyPath to re-enable remapping")
+                            Text("Restart the Kanata service to re-enable remapping")
                                 .font(.body)
                             Spacer()
                         }
