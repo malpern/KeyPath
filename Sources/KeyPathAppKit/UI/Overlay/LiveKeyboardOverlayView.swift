@@ -288,15 +288,21 @@ struct LiveKeyboardOverlayView: View {
         })
         content = AnyView(content.onChange(of: uiState.isInspectorOpen) { _, isOpen in
             if isOpen {
-                // When drawer opens, select appropriate default tab
-                if !isSettingsShelfActive {
-                    if hasCustomRules {
-                        // Rules tab is default when rules exist
-                        inspectorSection = .customRules
-                    } else {
-                        // Otherwise default to mapper
-                        inspectorSection = .mapper
-                    }
+                // When the drawer opens, always ensure we're not in the settings shelf by default.
+                // Users should land in the remapper flow (or a sensible fallback if mapper is unavailable),
+                // not a settings panel.
+                if isSettingsShelfActive || inspectorSection.isSettingsShelf {
+                    isSettingsShelfActive = false
+                }
+
+                // Select appropriate default tab
+                if !isMapperAvailable {
+                    inspectorSection = hasCustomRules ? .customRules : .launchers
+                } else if hasCustomRules, !isSettingsShelfActive {
+                    // Preserve existing behavior: default to Rules when they exist.
+                    inspectorSection = .customRules
+                } else {
+                    inspectorSection = .mapper
                 }
                 // Load launcher mappings if that's the active section
                 if inspectorSection == .launchers {
@@ -314,9 +320,11 @@ struct LiveKeyboardOverlayView: View {
             if !isMapperAvailable, inspectorSection == .mapper {
                 inspectorSection = hasCustomRules ? .customRules : .launchers
             }
+            // Defensive: avoid landing in settings shelf on first open (fresh installs should start on Remapper).
             if inspectorSection.isSettingsShelf {
                 settingsSection = inspectorSection
-                isSettingsShelfActive = true
+                isSettingsShelfActive = false
+                inspectorSection = .mapper
             }
             // Initialize ViewModel with user's selected layout
             if viewModel.layout.id != activeLayout.id {

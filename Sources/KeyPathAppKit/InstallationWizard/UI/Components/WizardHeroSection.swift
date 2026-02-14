@@ -284,5 +284,6 @@ private struct WizardInlineProgressBar: View {
                 .clipShape(RoundedRectangle(cornerRadius: height / 2))
         }
         .frame(width: width, height: height)
+        .wizardInlineProgressVisible(true)
     }
 }

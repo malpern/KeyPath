@@ -148,6 +148,7 @@ struct WizardHelperPage: View {
                 height: 6
             )
             .frame(height: 52)
+            .wizardInlineProgressVisible(true)
 
             Text("Verifying privileged helper is responding...")
                 .font(.system(size: 14, weight: .regular))
