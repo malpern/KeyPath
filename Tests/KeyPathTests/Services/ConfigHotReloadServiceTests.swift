@@ -42,6 +42,8 @@ final class ConfigHotReloadServiceTests: XCTestCase {
     override func tearDown() async throws {
         // Reset delay to default
         service?.statusResetDelay = 2.0
+        // Avoid cross-test leakage since the service is a singleton.
+        service?.callbacks = .init()
         service = nil
         configService = nil
         reloadHandlerCalled = nil
@@ -186,22 +188,20 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         var detectedCalled = false
         var validatingCalled = false
         var successCalled = false
-        var resetCalled = false
+        let resetExpectation = expectation(description: "onReset called")
 
         service.callbacks.onDetected = { detectedCalled = true }
         service.callbacks.onValidating = { validatingCalled = true }
         service.callbacks.onSuccess = { _ in successCalled = true }
-        service.callbacks.onReset = { resetCalled = true }
+        service.callbacks.onReset = { resetExpectation.fulfill() }
 
         _ = await service.handleExternalChange(configPath: tempFile.path)
 
-        // Wait for reset callback (using short test delay set in setUp)
-        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        await fulfillment(of: [resetExpectation], timeout: 1.0)
 
         XCTAssertTrue(detectedCalled, "onDetected should be called")
         XCTAssertTrue(validatingCalled, "onValidating should be called")
         XCTAssertTrue(successCalled, "onSuccess should be called")
-        XCTAssertTrue(resetCalled, "onReset should be called after delay")
     }
 
     func testCallbacksInvokedOnServiceUnavailable() async {
@@ -216,21 +216,19 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         let tempFile = createTempConfigFile(content: validConfig)
 
         var detectedCalled = false
-        var resetCalled = false
+        let resetExpectation = expectation(description: "onReset called")
 
         service.callbacks.onDetected = { detectedCalled = true }
-        service.callbacks.onReset = { resetCalled = true }
+        service.callbacks.onReset = { resetExpectation.fulfill() }
 
         let result = await service.handleExternalChange(configPath: tempFile.path)
 
-        // Wait for reset callback (using short test delay set in setUp)
-        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        await fulfillment(of: [resetExpectation], timeout: 1.0)
 
         XCTAssertTrue(detectedCalled, "onDetected should be called")
         // In test environment, service is unavailable (process not running)
         // so result is success (config valid) and onReset is called
         XCTAssertTrue(result.success, "Should succeed when service unavailable")
-        XCTAssertTrue(resetCalled, "onReset should be called for service unavailable")
     }
 
     // MARK: - Parser Tests

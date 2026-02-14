@@ -207,11 +207,15 @@ final class ConfigHotReloadService {
     }
 
     // MARK: - Private Helpers
-
+    
     private func scheduleStatusReset() {
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(self?.statusResetDelay ?? 2.0))
-            self?.callbacks.onReset?()
+        // Capture the callback at scheduling time so callers (and tests) don't get flakiness if
+        // the callbacks struct is mutated before the delay expires.
+        let onReset = callbacks.onReset
+        let delay = statusResetDelay
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(delay))
+            onReset?()
         }
     }
 
