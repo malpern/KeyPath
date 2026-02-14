@@ -22,6 +22,8 @@ struct LiveKeyboardOverlayView: View {
     /// Callback when health indicator is tapped (to launch wizard)
     var onHealthIndicatorTap: (() -> Void)?
 
+    // MARK: - Environment
+
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -29,11 +31,13 @@ struct LiveKeyboardOverlayView: View {
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var keymapIncludePunctuationStore: String = "{}"
 
+    // MARK: - Inspector State
+
     @State private var escKeyLeftInset: CGFloat = 0
     @State private var keyboardWidth: CGFloat = 0
     @State private var inspectorSectionRaw: String = InspectorSection.mapper.rawValue
     @AppStorage("inspectorSettingsSection") private var settingsSectionRaw: String = InspectorSection.keyboard.rawValue
-    private var inspectorSection: InspectorSection {
+    var inspectorSection: InspectorSection {
         get { InspectorSection(rawValue: inspectorSectionRaw) ?? .mapper }
         nonmutating set { inspectorSectionRaw = newValue.rawValue }
     }
@@ -46,62 +50,60 @@ struct LiveKeyboardOverlayView: View {
         nonmutating set { settingsSectionRaw = newValue.rawValue }
     }
 
+    // MARK: - Rule & Custom Rules State
+
     /// Whether custom rules exist (for showing Custom Rules tab)
-    @State private var hasCustomRules = false
+    @State var hasCustomRules = false
     /// Cached global custom rules for Custom Rules tab content
-    @State private var cachedCustomRules: [CustomRule] = []
+    @State var cachedCustomRules: [CustomRule] = []
     /// Cached app keymaps for Custom Rules tab content
-    @State private var appKeymaps: [AppKeymap] = []
+    @State var appKeymaps: [AppKeymap] = []
     /// Whether to show reset all rules confirmation dialog
-    @State private var showResetAllRulesConfirmation = false
+    @State var showResetAllRulesConfirmation = false
     /// Pending app rule deletion (for confirmation dialog)
-    @State private var pendingDeleteRule: (keymap: AppKeymap, override: AppKeyOverride)?
+    @State var pendingDeleteRule: (keymap: AppKeymap, override: AppKeyOverride)?
     /// Error message for failed app rule deletion
-    @State private var appRuleDeleteError: String?
+    @State var appRuleDeleteError: String?
+
+    // MARK: - Input & Settings State
+
     /// Japanese input mode detector for showing mode indicator
     @ObservedObject private var inputSourceDetector = InputSourceDetector.shared
     /// Whether the settings shelf is active (gear mode)
     @State private var isSettingsShelfActive = false
-    /// Window drag tracking for keyboard area
+
+    // MARK: - Drag State
+
     @State private var keyboardDragInitialFrame: NSRect = .zero
     @State private var keyboardDragInitialMouseLocation: NSPoint = .zero
     @State private var isKeyboardDragging = false
     @State private var isHeaderDragging = false
+
+    // MARK: - Hover State
 
     /// Whether the mouse is currently hovering over the overlay (for focus indicator)
     @State private var isOverlayHovered = false
     /// Whether the mouse is hovering over a clickable header button (drawer/hide)
     @State private var isHoveringHeaderButton = false
 
-    /// Launcher welcome dialog state (shown once per install/build)
-    /// We store the build date when welcome was last shown, so it shows again on new installs
-    @AppStorage("launcherWelcomeSeenForBuild") private var launcherWelcomeSeenForBuild: String = ""
-    @State private var pendingLauncherConfig: LauncherGridConfig?
+    // MARK: - Launcher Welcome State
+
+    @AppStorage("launcherWelcomeSeenForBuild") var launcherWelcomeSeenForBuild: String = ""
+    @State var pendingLauncherConfig: LauncherGridConfig?
 
     // MARK: - Service Stopped Alert (Overlay)
 
-    /// Legacy main-window alert (from ContentView) re-homed onto the overlay so the
-    /// main window can remain minimal without losing the "restart service" affordance.
-    @State private var showingKanataServiceStoppedAlert = false
+    @State var showingKanataServiceStoppedAlert = false
     @State private var lastKanataServiceIssuePresent = false
     @State private var hasSeenHealthyKanataService = false
     @State private var overlayLaunchTime = Date()
     @State private var toastManager = WizardToastManager()
     @State private var lastReloadFailureToastAt: Date?
 
-    @State private var showingValidationFailureModal = false
-    @State private var validationFailureErrors: [String] = []
+    @State var showingValidationFailureModal = false
+    @State var validationFailureErrors: [String] = []
 
-    /// Check if welcome should be shown for current build
-    private var hasSeenLauncherWelcomeForCurrentBuild: Bool {
-        let currentBuild = BuildInfo.current().date
-        return launcherWelcomeSeenForBuild == currentBuild
-    }
-
-    /// Mark welcome as seen for current build
-    private func markLauncherWelcomeAsSeen() {
-        launcherWelcomeSeenForBuild = BuildInfo.current().date
-    }
+    // MARK: - Computed Properties
 
     /// The currently selected physical keyboard layout
     private var activeLayout: PhysicalLayout {
@@ -124,6 +126,8 @@ struct LiveKeyboardOverlayView: View {
     private var settingsShelfAnimation: Animation {
         .spring(response: 0.5, dampingFraction: 0.72, blendDuration: 0.12)
     }
+
+    // MARK: - Actions
 
     private func selectInspectorSection(_ section: InspectorSection) {
         if section.isSettingsShelf {
@@ -176,8 +180,7 @@ struct LiveKeyboardOverlayView: View {
            !lastKanataServiceIssuePresent,
            hasSeenHealthyKanataService,
            !wizardOpen,
-           timeSinceLaunch > 10
-        {
+           timeSinceLaunch > 10 {
             showingKanataServiceStoppedAlert = true
         }
 
@@ -195,8 +198,10 @@ struct LiveKeyboardOverlayView: View {
         NSPasteboard.general.setString(text, forType: .string)
     }
 
+    // MARK: - Body
+
     var body: some View {
-        let cornerRadius: CGFloat = 10 // Fixed corner radius for glass container
+        let cornerRadius: CGFloat = 10
         let fadeAmount: CGFloat = viewModel.fadeAmount
         let headerHeight = OverlayLayoutMetrics.headerHeight
         let keyboardPadding = OverlayLayoutMetrics.keyboardPadding
@@ -204,7 +209,6 @@ struct LiveKeyboardOverlayView: View {
         let headerBottomSpacing = OverlayLayoutMetrics.headerBottomSpacing
         let outerHorizontalPadding = OverlayLayoutMetrics.outerHorizontalPadding
         let inspectorReveal = uiState.inspectorReveal
-        // Inspector is visible during animation or when reveal > 0 (includes fully open state)
         let inspectorVisible = uiState.isInspectorAnimating || inspectorReveal > 0
         let allowKeyboardDrag = !uiState.isInspectorOpen
             && !uiState.isInspectorAnimating
@@ -220,432 +224,284 @@ struct LiveKeyboardOverlayView: View {
         let inspectorTotalWidth = inspectorPanelWidth + inspectorLeadingGap
         let inspectorChrome = inspectorVisible ? inspectorTotalWidth : 0
         let verticalChrome = OverlayLayoutMetrics.verticalChrome
-        // Freeze keyboard width when inspector is visible or animating to prevent shrinking
-        // This ensures the keyboard maintains its size when the drawer opens
         let shouldFreezeKeyboard = uiState.isInspectorAnimating || inspectorVisible || uiState.isInspectorOpen
         let fixedKeyboardWidth: CGFloat? = keyboardWidth > 0 ? keyboardWidth : nil
         let fixedKeyboardHeight: CGFloat? = fixedKeyboardWidth.map { $0 / keyboardAspectRatio }
 
-        var content = AnyView(
-            VStack(spacing: 0) {
-                OverlayDragHeader(
-                    isDark: isDark,
-                    fadeAmount: fadeAmount,
-                    height: headerHeight,
-                    inspectorWidth: inspectorTotalWidth,
-                    reduceTransparency: reduceTransparency,
-                    isInspectorOpen: uiState.isInspectorOpen,
-                    isDragging: $isHeaderDragging,
-                    isHoveringButton: $isHoveringHeaderButton,
-                    inputModeIndicator: inputSourceDetector.modeIndicator,
-                    currentLayerName: viewModel.currentLayerName,
-                    isLauncherMode: viewModel.isLauncherModeActive || (uiState.isInspectorOpen && inspectorSection == .launchers),
-                    isKanataConnected: viewModel.isKanataConnected,
-                    healthIndicatorState: uiState.healthIndicatorState,
-                    drawerButtonHighlighted: uiState.drawerButtonHighlighted,
-                    onClose: { onClose?() },
-                    onToggleInspector: { onToggleInspector?() },
-                    onHealthTap: { onHealthIndicatorTap?() },
-                    onLayerSelected: { layerName in
-                        Task {
-                            _ = await kanataViewModel?.changeLayer(layerName)
-                        }
-                    },
-                    onCreateLayer: { layerName in
-                        Task {
-                            await kanataViewModel?.underlyingManager.rulesManager.createLayer(layerName)
-                            _ = await kanataViewModel?.changeLayer(layerName)
-                        }
-                    },
-                    onDeleteLayer: { layerName in
-                        Task {
-                            // Switch to base if we're on this layer
-                            if kanataViewModel?.currentLayerName.lowercased() == layerName.lowercased() {
-                                _ = await kanataViewModel?.changeLayer("base")
-                            }
-                            await kanataViewModel?.underlyingManager.rulesManager.removeLayer(layerName)
-                        }
-                    }
-                )
-                .frame(maxWidth: .infinity)
-
-                overlayMainContent(
-                    fadeAmount: fadeAmount,
-                    inspectorVisible: inspectorVisible,
-                    inspectorReveal: inspectorReveal,
-                    inspectorPanelWidth: inspectorPanelWidth,
-                    inspectorTotalWidth: inspectorTotalWidth,
-                    inspectorLeadingGap: inspectorLeadingGap,
-                    inspectorDebugEnabled: inspectorDebugEnabled,
-                    fixedKeyboardWidth: fixedKeyboardWidth,
-                    fixedKeyboardHeight: fixedKeyboardHeight,
-                    headerBottomSpacing: headerBottomSpacing,
-                    keyboardPadding: keyboardPadding,
-                    keyboardTrailingPadding: keyboardTrailingPadding,
-                    allowKeyboardDrag: allowKeyboardDrag,
-                    inspectorSection: inspectorSection
-                )
-            }
+        overlayContent(
+            fadeAmount: fadeAmount,
+            headerHeight: headerHeight,
+            inspectorVisible: inspectorVisible,
+            inspectorReveal: inspectorReveal,
+            inspectorPanelWidth: inspectorPanelWidth,
+            inspectorTotalWidth: inspectorTotalWidth,
+            inspectorLeadingGap: inspectorLeadingGap,
+            inspectorDebugEnabled: inspectorDebugEnabled,
+            fixedKeyboardWidth: fixedKeyboardWidth,
+            fixedKeyboardHeight: fixedKeyboardHeight,
+            headerBottomSpacing: headerBottomSpacing,
+            keyboardPadding: keyboardPadding,
+            keyboardTrailingPadding: keyboardTrailingPadding,
+            allowKeyboardDrag: allowKeyboardDrag
         )
-        content = AnyView(content.onPreferenceChange(OverlayAvailableWidthPreferenceKey.self) { newValue in
-            guard newValue > 0 else { return }
-            let availableKeyboardWidth = max(0, newValue - keyboardPadding - keyboardTrailingPadding - inspectorChrome)
-            let canUpdateWidth = keyboardWidth == 0 || !shouldFreezeKeyboard
-            let targetWidth = canUpdateWidth ? availableKeyboardWidth : keyboardWidth
-            if canUpdateWidth {
-                keyboardWidth = availableKeyboardWidth
-            }
-            guard targetWidth > 0 else { return }
-            let desiredHeight = verticalChrome + (targetWidth / keyboardAspectRatio)
-            if uiState.desiredContentHeight != desiredHeight {
-                uiState.desiredContentHeight = desiredHeight
-            }
-        })
-        content = AnyView(content.onChange(of: selectedLayoutId) { _, _ in
-            // Update ViewModel with new layout for correct layer mapping
-            viewModel.setLayout(activeLayout)
-
-            uiState.keyboardAspectRatio = keyboardAspectRatio
-            guard keyboardWidth > 0 else { return }
-            let desiredHeight = verticalChrome + (keyboardWidth / keyboardAspectRatio)
-            if uiState.desiredContentHeight != desiredHeight {
-                uiState.desiredContentHeight = desiredHeight
-            }
-            // When inspector is open and layout changes, request window resize to fit
-            // keyboard + inspector without overlap
-            if inspectorVisible {
-                let totalWidth = keyboardPadding + keyboardWidth + keyboardTrailingPadding + inspectorChrome
-                if uiState.desiredContentWidth != totalWidth {
-                    uiState.desiredContentWidth = totalWidth
-                }
-            }
-        })
-        content = AnyView(content.onChange(of: inspectorSection) { _, newSection in
-            if newSection.isSettingsShelf {
-                settingsSection = newSection
-                if !isSettingsShelfActive {
-                    isSettingsShelfActive = true
-                }
-            } else if isSettingsShelfActive {
-                isSettingsShelfActive = false
-            }
-            // Load launcher mappings when viewing launchers section
-            if newSection == .launchers {
-                viewModel.loadLauncherMappings()
-                checkLauncherWelcome()
-            }
-            // Clear selected key when leaving mapper section
-            if newSection != .mapper {
-                viewModel.selectedKeyCode = nil
-            }
-            // Clear hovered rule key when leaving custom rules or launchers section
-            if newSection != .customRules, newSection != .launchers {
-                viewModel.hoveredRuleKeyCode = nil
-            }
-        })
-        content = AnyView(content.onChange(of: uiState.isInspectorOpen) { _, isOpen in
-            if isOpen {
-                // When the drawer opens, always ensure we're not in the settings shelf by default.
-                // Users should land in the remapper flow (or a sensible fallback if mapper is unavailable),
-                // not a settings panel.
-                if isSettingsShelfActive || inspectorSection.isSettingsShelf {
-                    isSettingsShelfActive = false
-                }
-
-                // Select appropriate default tab
-                if !isMapperAvailable {
+        .overlayLayoutHandlers(
+            keyboardPadding: keyboardPadding,
+            keyboardTrailingPadding: keyboardTrailingPadding,
+            inspectorChrome: inspectorChrome,
+            shouldFreezeKeyboard: shouldFreezeKeyboard,
+            keyboardAspectRatio: keyboardAspectRatio,
+            verticalChrome: verticalChrome,
+            inspectorVisible: inspectorVisible,
+            keyboardWidth: $keyboardWidth,
+            uiState: uiState,
+            viewModel: viewModel,
+            activeLayout: activeLayout,
+            selectedLayoutId: selectedLayoutId,
+            isMapperAvailable: isMapperAvailable,
+            hasCustomRules: hasCustomRules,
+            inspectorSection: inspectorSection,
+            setInspectorSection: { inspectorSection = $0 },
+            setSettingsSection: { settingsSection = $0 },
+            isSettingsShelfActive: isSettingsShelfActive,
+            setIsSettingsShelfActive: { isSettingsShelfActive = $0 },
+            checkLauncherWelcome: { checkLauncherWelcome() }
+        )
+        .modifier(OverlayNotificationsModifier(
+            onAppearAction: {
+                uiState.keyboardAspectRatio = keyboardAspectRatio
+                inputSourceDetector.startMonitoring()
+                if !isMapperAvailable, inspectorSection == .mapper {
                     inspectorSection = hasCustomRules ? .customRules : .launchers
-                } else if hasCustomRules, !isSettingsShelfActive {
-                    // Preserve existing behavior: default to Rules when they exist.
-                    inspectorSection = .customRules
-                } else {
+                }
+                if inspectorSection.isSettingsShelf {
+                    settingsSection = inspectorSection
+                    isSettingsShelfActive = false
                     inspectorSection = .mapper
                 }
-                // Load launcher mappings if that's the active section
-                if inspectorSection == .launchers {
-                    viewModel.loadLauncherMappings()
+                if viewModel.layout.id != activeLayout.id {
+                    viewModel.setLayout(activeLayout)
                 }
-            } else {
-                // Clear selected key and hovered rule key when closing
-                viewModel.selectedKeyCode = nil
-                viewModel.hoveredRuleKeyCode = nil
-            }
-        })
-        content = AnyView(content.onAppear {
-            uiState.keyboardAspectRatio = keyboardAspectRatio
-            inputSourceDetector.startMonitoring()
-            if !isMapperAvailable, inspectorSection == .mapper {
-                inspectorSection = hasCustomRules ? .customRules : .launchers
-            }
-            // Defensive: avoid landing in settings shelf on first open (fresh installs should start on Remapper).
-            if inspectorSection.isSettingsShelf {
-                settingsSection = inspectorSection
+                loadCustomRulesState()
+            },
+            onDisappearAction: {
+                inputSourceDetector.stopMonitoring()
+            },
+            onLoadCustomRulesState: { loadCustomRulesState() },
+            onServiceIssueChange: { handleKanataServiceIssueChange($0) },
+            onConfigValidationFailed: { notification in
+                let errors = notification.userInfo?["errors"] as? [String] ?? []
+                guard !errors.isEmpty else { return }
+                validationFailureErrors = errors
+                showingValidationFailureModal = true
+            },
+            onConfigReloadFailed: { notification in
+                let now = Date()
+                if let last = lastReloadFailureToastAt, now.timeIntervalSince(last) < 10 {
+                    return
+                }
+                lastReloadFailureToastAt = now
+                let message = (notification.userInfo?["message"] as? String) ?? "Config reload failed"
+                toastManager.showError("Reload delayed: \(message)")
+                SoundManager.shared.playErrorSound()
+            },
+            onConfigReloadRecovered: {
+                guard lastReloadFailureToastAt != nil else { return }
+                lastReloadFailureToastAt = nil
+                toastManager.showSuccess("Reload recovered")
+                SoundManager.shared.playGlassSound()
+            },
+            onSwitchToAppRulesTab: {
+                loadCustomRulesState()
+                isSettingsShelfActive = false
+                if hasCustomRules {
+                    inspectorSection = .customRules
+                }
+            },
+            onSwitchToMapperTab: { notification in
                 isSettingsShelfActive = false
                 inspectorSection = .mapper
-            }
-            // Initialize ViewModel with user's selected layout
-            if viewModel.layout.id != activeLayout.id {
-                viewModel.setLayout(activeLayout)
-            }
-            // Load custom rules for Custom Rules tab
-            loadCustomRulesState()
-        })
-        content = AnyView(content.onDisappear {
-            inputSourceDetector.stopMonitoring()
-        })
-        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .appKeymapsDidChange)) { _ in
-            loadCustomRulesState()
-        })
-        // Also reload when global rules change (e.g., via mapper saving an "Everywhere" rule)
-        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .ruleCollectionsChanged)) { _ in
-            loadCustomRulesState()
-        })
-        // Keep overlay behavior aligned with legacy main-window alerts.
-        content = AnyView(content.onReceive(MainAppStateController.shared.$issues) { newIssues in
-            handleKanataServiceIssueChange(newIssues)
-        })
-        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .configValidationFailed)) { notification in
-            let errors = notification.userInfo?["errors"] as? [String] ?? []
-            guard !errors.isEmpty else { return }
-            validationFailureErrors = errors
-            showingValidationFailureModal = true
-        })
-        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .configReloadFailed)) { notification in
-            // Subtle, non-modal feedback for background reload failures. Rate-limit to avoid spam.
-            let now = Date()
-            if let last = lastReloadFailureToastAt, now.timeIntervalSince(last) < 10 {
-                return
-            }
-            lastReloadFailureToastAt = now
-
-            let message = (notification.userInfo?["message"] as? String) ?? "Config reload failed"
-            toastManager.showError("Reload delayed: \(message)")
-            SoundManager.shared.playErrorSound()
-        })
-        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .configReloadRecovered)) { _ in
-            guard lastReloadFailureToastAt != nil else { return }
-            lastReloadFailureToastAt = nil
-            toastManager.showSuccess("Reload recovered")
-            SoundManager.shared.playGlassSound()
-        })
-        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .switchToAppRulesTab)) { _ in
-            // Switch to Custom Rules tab after saving a rule
-            loadCustomRulesState()
-            isSettingsShelfActive = false
-            if hasCustomRules {
-                inspectorSection = .customRules
-            }
-        })
-        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .switchToMapperTab)) { notification in
-            // Switch to Mapper tab (from Settings "Create Rule" button)
-            isSettingsShelfActive = false
-            inspectorSection = .mapper
-
-            // If preset values are provided, forward them to the mapper
-            if let userInfo = notification.userInfo,
-               let inputKey = userInfo["inputKey"] as? String,
-               let outputKey = userInfo["outputKey"] as? String
-            {
-                var mapperUserInfo: [String: Any] = [
-                    "inputKey": inputKey,
-                    "outputKey": outputKey,
-                    "keyCode": UInt16(0) // Default keyCode since we don't have it
-                ]
-                // Include app condition if present (for app-specific rule editing)
-                if let appBundleId = userInfo["appBundleId"] as? String,
-                   let appDisplayName = userInfo["appDisplayName"] as? String
-                {
-                    mapperUserInfo["appBundleId"] = appBundleId
-                    mapperUserInfo["appDisplayName"] = appDisplayName
-                }
-                // Post after a small delay to ensure mapper is visible
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    NotificationCenter.default.post(
-                        name: .mapperDrawerKeySelected,
-                        object: nil,
-                        userInfo: mapperUserInfo
-                    )
-                }
-            }
-        })
-        // Switch to Mapper tab when a key is clicked while in Rules tab
-        // Re-post notification after tab switch so mapper section receives it after mounting
-        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .mapperDrawerKeySelected)) { notification in
-            if inspectorSection == .customRules {
-                inspectorSection = .mapper
-                // Re-post notification after a small delay to allow mapper to mount
-                if let userInfo = notification.userInfo {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                if let userInfo = notification.userInfo,
+                   let inputKey = userInfo["inputKey"] as? String,
+                   let outputKey = userInfo["outputKey"] as? String {
+                    var mapperUserInfo: [String: Any] = [
+                        "inputKey": inputKey,
+                        "outputKey": outputKey,
+                        "keyCode": UInt16(0)
+                    ]
+                    if let appBundleId = userInfo["appBundleId"] as? String,
+                       let appDisplayName = userInfo["appDisplayName"] as? String {
+                        mapperUserInfo["appBundleId"] = appBundleId
+                        mapperUserInfo["appDisplayName"] = appDisplayName
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                         NotificationCenter.default.post(
                             name: .mapperDrawerKeySelected,
                             object: nil,
-                            userInfo: userInfo
+                            userInfo: mapperUserInfo
                         )
                     }
                 }
+            },
+            onMapperKeySelected: { notification in
+                if inspectorSection == .customRules {
+                    inspectorSection = .mapper
+                    if let userInfo = notification.userInfo {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                            NotificationCenter.default.post(
+                                name: .mapperDrawerKeySelected,
+                                object: nil,
+                                userInfo: userInfo
+                            )
+                        }
+                    }
+                }
             }
-        })
-        content = AnyView(content.background(
+        ))
+        .background(
             glassBackground(
                 cornerRadius: cornerRadius,
                 fadeAmount: fadeAmount,
                 isHovered: isOverlayHovered,
                 isDragging: isOverlayDragging
             )
-        ))
-        content = AnyView(content.clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)))
-        content = AnyView(content.environmentObject(viewModel))
-        // Minimal padding for shadow (keep horizontal only)
-        content = AnyView(content.padding(.leading, outerHorizontalPadding))
-        content = AnyView(content.padding(.trailing, trailingOuterPadding))
-        content = AnyView(content.onHover { hovering in
-            isOverlayHovered = hovering
-            if hovering { viewModel.noteInteraction() }
-            refreshOverlayCursor(allowDragCursor: allowKeyboardDrag)
-        })
-        content = AnyView(content.onChange(of: isKeyboardDragging) { _, _ in
-            refreshOverlayCursor(allowDragCursor: allowKeyboardDrag)
-        })
-        content = AnyView(content.onChange(of: isHeaderDragging) { _, _ in
-            refreshOverlayCursor(allowDragCursor: allowKeyboardDrag)
-        })
-        content = AnyView(content.onChange(of: isHoveringHeaderButton) { _, _ in
-            refreshOverlayCursor(allowDragCursor: allowKeyboardDrag)
-        })
-        content = AnyView(content.onChange(of: uiState.inspectorReveal) { _, _ in
-            refreshOverlayCursor(allowDragCursor: allowKeyboardDrag)
-        })
-        content = AnyView(content.onChange(of: uiState.isInspectorOpen) { _, _ in
-            refreshOverlayCursor(allowDragCursor: allowKeyboardDrag)
-        })
-        content = AnyView(content.onChange(of: uiState.isInspectorAnimating) { _, _ in
-            refreshOverlayCursor(allowDragCursor: allowKeyboardDrag)
-        })
-        content = AnyView(content.background(MouseMoveMonitor { viewModel.noteInteraction() }))
-        content = AnyView(content.opacity(0.11 + 0.89 * (1 - viewModel.deepFadeAmount)))
-        // Animate deep fade smoothly; fade-in is instant
-        content = AnyView(content.animation(
-            reduceMotion ? nil : (viewModel.deepFadeAmount > 0 ? .easeOut(duration: 0.3) : nil),
-            value: viewModel.deepFadeAmount
-        ))
-        // Accessibility: Make the entire overlay discoverable
-        content = AnyView(content.accessibilityElement(children: .contain))
-        content = AnyView(content.accessibilityIdentifier("keyboard-overlay"))
-        content = AnyView(content.accessibilityLabel("KeyPath keyboard overlay"))
-        content = AnyView(content.withToasts(toastManager))
-        // Confirmation dialog for deleting app rules
-        content = AnyView(content.confirmationDialog(
-            "Delete Rule?",
-            isPresented: Binding(
-                get: { pendingDeleteRule != nil },
-                set: { if !$0 { pendingDeleteRule = nil } }
-            ),
-            titleVisibility: .visible,
-            actions: {
-                if let pending = pendingDeleteRule {
-                    Button("Delete", role: .destructive) {
-                        deleteAppRule(keymap: pending.keymap, override: pending.override)
-                        pendingDeleteRule = nil
-                    }
-                    .accessibilityIdentifier("overlay-delete-app-rule-confirm-button")
-                    Button("Cancel", role: .cancel) {
-                        pendingDeleteRule = nil
-                    }
-                    .accessibilityIdentifier("overlay-delete-app-rule-cancel-button")
-                }
+        )
+        .overlayAppearance(
+            cornerRadius: cornerRadius,
+            outerHorizontalPadding: outerHorizontalPadding,
+            trailingOuterPadding: trailingOuterPadding,
+            deepFadeAmount: viewModel.deepFadeAmount,
+            reduceMotion: reduceMotion,
+            onMouseMove: { viewModel.noteInteraction() }
+        )
+        .environmentObject(viewModel)
+        .overlayCursorTracking(
+            isOverlayHovered: $isOverlayHovered,
+            isKeyboardDragging: isKeyboardDragging,
+            isHeaderDragging: isHeaderDragging,
+            isHoveringHeaderButton: isHoveringHeaderButton,
+            inspectorReveal: uiState.inspectorReveal,
+            isInspectorOpen: uiState.isInspectorOpen,
+            isInspectorAnimating: uiState.isInspectorAnimating,
+            allowKeyboardDrag: allowKeyboardDrag,
+            noteInteraction: { viewModel.noteInteraction() },
+            refreshCursor: { refreshOverlayCursor(allowDragCursor: allowKeyboardDrag) }
+        )
+        .modifier(OverlayDialogsModifier(
+            pendingDeleteRule: $pendingDeleteRule,
+            appRuleDeleteError: $appRuleDeleteError,
+            showingKanataServiceStoppedAlert: $showingKanataServiceStoppedAlert,
+            showingValidationFailureModal: $showingValidationFailureModal,
+            validationFailureErrors: $validationFailureErrors,
+            showResetAllRulesConfirmation: $showResetAllRulesConfirmation,
+            onDeleteAppRule: { keymap, override in
+                deleteAppRule(keymap: keymap, override: override)
             },
-            message: {
-                if let pending = pendingDeleteRule {
-                    Text("Delete \(pending.override.inputKey) → \(pending.override.outputAction) for \(pending.keymap.mapping.displayName)?")
-                }
-            }
-        ))
-        // Error alert for failed deletions
-        content = AnyView(content.alert(
-            "Delete Failed",
-            isPresented: Binding(
-                get: { appRuleDeleteError != nil },
-                set: { if !$0 { appRuleDeleteError = nil } }
-            ),
-            actions: {
-                Button("OK") {
-                    appRuleDeleteError = nil
-                }
-            },
-            message: {
-                if let error = appRuleDeleteError {
-                    Text(error)
-                }
-            }
-        ))
-        // Alert when Kanata stops unexpectedly (presented on top of the overlay).
-        content = AnyView(content.alert(
-            "Kanata Service Stopped",
-            isPresented: $showingKanataServiceStoppedAlert,
-            actions: {
-                Button("Restart Service") {
-                    showingKanataServiceStoppedAlert = false
-                    Task { @MainActor in
-                        guard let kanataViewModel else { return }
-                        _ = await kanataViewModel.restartKanata(
-                            reason: "Service stopped alert (overlay)"
-                        )
-                    }
-                }
-                .accessibilityIdentifier("overlay-kanata-service-stopped-restart-button")
-                Button("Cancel", role: .cancel) {}
-                    .accessibilityIdentifier("overlay-kanata-service-stopped-cancel-button")
-            },
-            message: {
-                Text("The remapping service stopped unexpectedly.")
-            }
-        ))
-        // Config validation failure UI (used to be on the historic main window).
-        content = AnyView(content.sheet(isPresented: $showingValidationFailureModal, onDismiss: {
-            validationFailureErrors = []
-        }) {
-            ValidationFailureDialog(
-                errors: validationFailureErrors,
-                configPath: kanataViewModel?.configPath ?? "",
-                onCopyErrors: { copyValidationErrorsToClipboard() },
-                onOpenConfig: {
+            onRestartKanataService: {
+                Task { @MainActor in
                     guard let kanataViewModel else { return }
-                    kanataViewModel.openFileInZed(kanataViewModel.configPath)
-                    showingValidationFailureModal = false
-                },
-                onOpenDiagnostics: {
-                    openSystemStatusSettings()
-                    showingValidationFailureModal = false
-                },
-                onDismiss: {
-                    showingValidationFailureModal = false
-                },
-                onRepairWithAI: nil,
-                isRepairing: .constant(false),
-                repairError: nil,
-                backupPath: nil
-            )
-            .customizeSheetWindow()
-        })
-        // Confirmation dialog for resetting all custom rules
-        content = AnyView(content.confirmationDialog(
-            "Reset All Custom Rules?",
-            isPresented: $showResetAllRulesConfirmation,
-            titleVisibility: .visible,
-            actions: {
-                Button("Reset All", role: .destructive) {
-                    resetAllCustomRules()
+                    _ = await kanataViewModel.restartKanata(
+                        reason: "Service stopped alert (overlay)"
+                    )
                 }
-                .accessibilityIdentifier("overlay-reset-all-custom-rules-confirm-button")
-                Button("Cancel", role: .cancel) {}
-                    .accessibilityIdentifier("overlay-reset-all-custom-rules-cancel-button")
             },
-            message: {
-                Text("This will remove all custom rules (both global and app-specific). This action cannot be undone.")
-            }
+            onCopyValidationErrors: { copyValidationErrorsToClipboard() },
+            onOpenConfig: {
+                guard let kanataViewModel else { return }
+                kanataViewModel.openFileInZed(kanataViewModel.configPath)
+                showingValidationFailureModal = false
+            },
+            onOpenDiagnostics: {
+                openSystemStatusSettings()
+                showingValidationFailureModal = false
+            },
+            onResetAllRules: { resetAllCustomRules() },
+            configPath: kanataViewModel?.configPath ?? ""
         ))
-        return content
+        .withToasts(toastManager)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("keyboard-overlay")
+        .accessibilityLabel("KeyPath keyboard overlay")
     }
+
+    // MARK: - Overlay Content
+
+    private func overlayContent(
+        fadeAmount: CGFloat,
+        headerHeight: CGFloat,
+        inspectorVisible: Bool,
+        inspectorReveal: CGFloat,
+        inspectorPanelWidth: CGFloat,
+        inspectorTotalWidth: CGFloat,
+        inspectorLeadingGap: CGFloat,
+        inspectorDebugEnabled: Bool,
+        fixedKeyboardWidth: CGFloat?,
+        fixedKeyboardHeight: CGFloat?,
+        headerBottomSpacing: CGFloat,
+        keyboardPadding: CGFloat,
+        keyboardTrailingPadding: CGFloat,
+        allowKeyboardDrag: Bool
+    ) -> some View {
+        VStack(spacing: 0) {
+            OverlayDragHeader(
+                isDark: isDark,
+                fadeAmount: fadeAmount,
+                height: headerHeight,
+                inspectorWidth: inspectorTotalWidth,
+                reduceTransparency: reduceTransparency,
+                isInspectorOpen: uiState.isInspectorOpen,
+                isDragging: $isHeaderDragging,
+                isHoveringButton: $isHoveringHeaderButton,
+                inputModeIndicator: inputSourceDetector.modeIndicator,
+                currentLayerName: viewModel.currentLayerName,
+                isLauncherMode: viewModel.isLauncherModeActive || (uiState.isInspectorOpen && inspectorSection == .launchers),
+                isKanataConnected: viewModel.isKanataConnected,
+                healthIndicatorState: uiState.healthIndicatorState,
+                drawerButtonHighlighted: uiState.drawerButtonHighlighted,
+                onClose: { onClose?() },
+                onToggleInspector: { onToggleInspector?() },
+                onHealthTap: { onHealthIndicatorTap?() },
+                onLayerSelected: { layerName in
+                    Task {
+                        _ = await kanataViewModel?.changeLayer(layerName)
+                    }
+                },
+                onCreateLayer: { layerName in
+                    Task {
+                        await kanataViewModel?.underlyingManager.rulesManager.createLayer(layerName)
+                        _ = await kanataViewModel?.changeLayer(layerName)
+                    }
+                },
+                onDeleteLayer: { layerName in
+                    Task {
+                        if kanataViewModel?.currentLayerName.lowercased() == layerName.lowercased() {
+                            _ = await kanataViewModel?.changeLayer("base")
+                        }
+                        await kanataViewModel?.underlyingManager.rulesManager.removeLayer(layerName)
+                    }
+                }
+            )
+            .frame(maxWidth: .infinity)
+
+            overlayMainContent(
+                fadeAmount: fadeAmount,
+                inspectorVisible: inspectorVisible,
+                inspectorReveal: inspectorReveal,
+                inspectorPanelWidth: inspectorPanelWidth,
+                inspectorTotalWidth: inspectorTotalWidth,
+                inspectorLeadingGap: inspectorLeadingGap,
+                inspectorDebugEnabled: inspectorDebugEnabled,
+                fixedKeyboardWidth: fixedKeyboardWidth,
+                fixedKeyboardHeight: fixedKeyboardHeight,
+                headerBottomSpacing: headerBottomSpacing,
+                keyboardPadding: keyboardPadding,
+                keyboardTrailingPadding: keyboardTrailingPadding,
+                allowKeyboardDrag: allowKeyboardDrag,
+                inspectorSection: inspectorSection
+            )
+        }
+    }
+
+    // MARK: - Main Content
 
     private func overlayMainContent(
         fadeAmount: CGFloat,
@@ -680,10 +536,8 @@ struct LiveKeyboardOverlayView: View {
                         viewModel.selectedKeyCode = keyCode
                     },
                     onRuleHover: { inputKey in
-                        // Convert input key name to keyCode for keyboard highlighting
                         if let key = inputKey {
                             viewModel.hoveredRuleKeyCode = LogicalKeymap.keyCode(forQwertyLabel: key)
-                            // Clear any selected key to avoid confusion between selection and hover
                             viewModel.selectedKeyCode = nil
                         } else {
                             viewModel.hoveredRuleKeyCode = nil
@@ -706,8 +560,6 @@ struct LiveKeyboardOverlayView: View {
             }
 
             // 2. Opaque blocker SECOND = blocks inspector behind keyboard area
-            // This ensures inspector doesn't show through the transparent keyboard
-            // Uses solid color matching the glass appearance (opaque, not window background)
             if inspectorVisible, let kbWidth = fixedKeyboardWidth, let kbHeight = fixedKeyboardHeight {
                 Rectangle()
                     .fill(Color(white: isDark ? 0.1 : 0.92))
@@ -718,7 +570,6 @@ struct LiveKeyboardOverlayView: View {
 
             // 3. Keyboard THIRD = renders on top with transparent glass
             HStack(alignment: .top, spacing: 0) {
-                // Main keyboard with directional shadow (light from above)
                 let keyboardView = OverlayKeyboardView(
                     layout: activeLayout,
                     keymap: activeKeymap,
@@ -807,150 +658,154 @@ struct LiveKeyboardOverlayView: View {
             }
         )
     }
+}
 
-    /// Load custom rules state (both global and app-specific)
-    private func loadCustomRulesState() {
-        Task {
-            let keymaps = await AppKeymapStore.shared.loadKeymaps()
-            await MainActor.run {
-                appKeymaps = keymaps
-                // Show custom rules tab if either global rules or app-specific rules exist
-                // NOTE: We read underlyingManager.customRules directly to avoid race condition
-                // where the notification arrives before KanataViewModel's async state update
-                let globalRules = kanataViewModel?.underlyingManager.customRules ?? []
-                cachedCustomRules = globalRules
-                let hasGlobalRules = !globalRules.isEmpty
-                let hasAppSpecificRules = !keymaps.isEmpty
-                hasCustomRules = hasGlobalRules || hasAppSpecificRules
-                // If we were on customRules tab but rules are gone, switch to mapper
-                if !hasCustomRules, inspectorSection == .customRules {
-                    inspectorSection = .mapper
+// MARK: - Layout Handlers
+
+private extension View {
+    func overlayLayoutHandlers(
+        keyboardPadding: CGFloat,
+        keyboardTrailingPadding: CGFloat,
+        inspectorChrome: CGFloat,
+        shouldFreezeKeyboard: Bool,
+        keyboardAspectRatio: CGFloat,
+        verticalChrome: CGFloat,
+        inspectorVisible: Bool,
+        keyboardWidth: Binding<CGFloat>,
+        uiState: LiveKeyboardOverlayUIState,
+        viewModel: KeyboardVisualizationViewModel,
+        activeLayout: PhysicalLayout,
+        selectedLayoutId: String,
+        isMapperAvailable: Bool,
+        hasCustomRules: Bool,
+        inspectorSection: InspectorSection,
+        setInspectorSection: @escaping (InspectorSection) -> Void,
+        setSettingsSection: @escaping (InspectorSection) -> Void,
+        isSettingsShelfActive: Bool,
+        setIsSettingsShelfActive: @escaping (Bool) -> Void,
+        checkLauncherWelcome: @escaping () -> Void
+    ) -> some View {
+        onPreferenceChange(OverlayAvailableWidthPreferenceKey.self) { newValue in
+            guard newValue > 0 else { return }
+            let availableKeyboardWidth = max(0, newValue - keyboardPadding - keyboardTrailingPadding - inspectorChrome)
+            let canUpdateWidth = keyboardWidth.wrappedValue == 0 || !shouldFreezeKeyboard
+            let targetWidth = canUpdateWidth ? availableKeyboardWidth : keyboardWidth.wrappedValue
+            if canUpdateWidth {
+                keyboardWidth.wrappedValue = availableKeyboardWidth
+            }
+            guard targetWidth > 0 else { return }
+            let desiredHeight = verticalChrome + (targetWidth / keyboardAspectRatio)
+            if uiState.desiredContentHeight != desiredHeight {
+                uiState.desiredContentHeight = desiredHeight
+            }
+        }
+        .onChange(of: selectedLayoutId) { _, _ in
+            viewModel.setLayout(activeLayout)
+            uiState.keyboardAspectRatio = keyboardAspectRatio
+            guard keyboardWidth.wrappedValue > 0 else { return }
+            let desiredHeight = verticalChrome + (keyboardWidth.wrappedValue / keyboardAspectRatio)
+            if uiState.desiredContentHeight != desiredHeight {
+                uiState.desiredContentHeight = desiredHeight
+            }
+            if inspectorVisible {
+                let totalWidth = keyboardPadding + keyboardWidth.wrappedValue + keyboardTrailingPadding + inspectorChrome
+                if uiState.desiredContentWidth != totalWidth {
+                    uiState.desiredContentWidth = totalWidth
                 }
             }
         }
-    }
-
-    /// Delete an app-specific rule override
-    private func deleteAppRule(keymap: AppKeymap, override: AppKeyOverride) {
-        Task {
-            // Remove the override from the keymap
-            var updatedKeymap = keymap
-            updatedKeymap.overrides.removeAll { $0.id == override.id }
-
-            do {
-                if updatedKeymap.overrides.isEmpty {
-                    // No more overrides - remove entire keymap
-                    try await AppKeymapStore.shared.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
+        .onChange(of: uiState.isInspectorOpen) { _, isOpen in
+            if isOpen {
+                if isSettingsShelfActive || inspectorSection.isSettingsShelf {
+                    setIsSettingsShelfActive(false)
+                }
+                if !isMapperAvailable {
+                    setInspectorSection(hasCustomRules ? .customRules : .launchers)
+                } else if hasCustomRules, !isSettingsShelfActive {
+                    setInspectorSection(.customRules)
                 } else {
-                    // Update keymap with remaining overrides
-                    try await AppKeymapStore.shared.upsertKeymap(updatedKeymap)
+                    setInspectorSection(.mapper)
                 }
-
-                // Regenerate config and reload
-                try await AppConfigGenerator.regenerateFromStore()
-                await AppContextService.shared.reloadMappings()
-
-                // Restart Kanata to pick up changes
-                if let kanataVM = kanataViewModel {
-                    _ = await kanataVM.underlyingManager.restartKanata(reason: "App rule deleted")
+                if inspectorSection == .launchers {
+                    viewModel.loadLauncherMappings()
                 }
-            } catch {
-                AppLogger.shared.log("⚠️ [Overlay] Failed to delete app rule: \(error)")
-                await MainActor.run {
-                    appRuleDeleteError = "Failed to delete rule: \(error.localizedDescription)"
+            } else {
+                viewModel.selectedKeyCode = nil
+                viewModel.hoveredRuleKeyCode = nil
+            }
+        }
+        .onChange(of: inspectorSection) { _, newSection in
+            if newSection.isSettingsShelf {
+                setSettingsSection(newSection)
+                if !isSettingsShelfActive {
+                    setIsSettingsShelfActive(true)
                 }
+            } else if isSettingsShelfActive {
+                setIsSettingsShelfActive(false)
+            }
+            if newSection == .launchers {
+                viewModel.loadLauncherMappings()
+                checkLauncherWelcome()
+            }
+            if newSection != .mapper {
+                viewModel.selectedKeyCode = nil
+            }
+            if newSection != .customRules, newSection != .launchers {
+                viewModel.hoveredRuleKeyCode = nil
             }
         }
     }
+}
 
-    /// Reset all custom rules (global and app-specific)
-    private func resetAllCustomRules() {
-        Task {
-            guard let manager = kanataViewModel?.underlyingManager else { return }
+// MARK: - Appearance
 
-            // Clear all global custom rules atomically (uses clearAllCustomRules which saves to disk)
-            await manager.clearAllCustomRules()
-
-            // Remove all app-specific keymaps
-            let keymapsToRemove = appKeymaps
-            for keymap in keymapsToRemove {
-                try? await AppKeymapStore.shared.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
-            }
-
-            // Regenerate app config and restart Kanata to apply all changes
-            do {
-                try await AppConfigGenerator.regenerateFromStore()
-                await AppContextService.shared.reloadMappings()
-                _ = await manager.restartKanata(reason: "All custom rules reset")
-            } catch {
-                AppLogger.shared.log("⚠️ [LiveKeyboardOverlay] Failed to regenerate config after reset: \(error)")
-            }
-
-            // Reload UI state
-            loadCustomRulesState()
-            SoundPlayer.shared.playSuccessSound()
-        }
+private extension View {
+    func overlayAppearance(
+        cornerRadius: CGFloat,
+        outerHorizontalPadding: CGFloat,
+        trailingOuterPadding: CGFloat,
+        deepFadeAmount: CGFloat,
+        reduceMotion: Bool,
+        onMouseMove: @escaping () -> Void
+    ) -> some View {
+        clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .padding(.leading, outerHorizontalPadding)
+            .padding(.trailing, trailingOuterPadding)
+            .background(MouseMoveMonitor(onMove: onMouseMove))
+            .opacity(0.11 + 0.89 * (1 - deepFadeAmount))
+            .animation(
+                reduceMotion ? nil : (deepFadeAmount > 0 ? .easeOut(duration: 0.3) : nil),
+                value: deepFadeAmount
+            )
     }
+}
 
-    /// Check if launcher welcome dialog should be shown
-    private func checkLauncherWelcome() {
-        guard !hasSeenLauncherWelcomeForCurrentBuild else { return }
+// MARK: - Cursor Tracking
 
-        Task {
-            // Load the launcher config to pass to welcome dialog
-            let collections = await RuleCollectionStore.shared.loadCollections()
-            if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
-               let config = launcherCollection.configuration.launcherGridConfig
-            {
-                await MainActor.run {
-                    pendingLauncherConfig = config
-                    showLauncherWelcomeWindow()
-                }
-            }
+private extension View {
+    func overlayCursorTracking(
+        isOverlayHovered: Binding<Bool>,
+        isKeyboardDragging: Bool,
+        isHeaderDragging: Bool,
+        isHoveringHeaderButton: Bool,
+        inspectorReveal: CGFloat,
+        isInspectorOpen: Bool,
+        isInspectorAnimating: Bool,
+        allowKeyboardDrag _: Bool,
+        noteInteraction: @escaping () -> Void,
+        refreshCursor: @escaping () -> Void
+    ) -> some View {
+        onHover { hovering in
+            isOverlayHovered.wrappedValue = hovering
+            if hovering { noteInteraction() }
+            refreshCursor()
         }
-    }
-
-    /// Show the launcher welcome dialog as an independent centered window
-    private func showLauncherWelcomeWindow() {
-        guard let config = pendingLauncherConfig else { return }
-
-        LauncherWelcomeWindowController.show(
-            config: Binding(
-                get: { [self] in pendingLauncherConfig ?? config },
-                set: { [self] in pendingLauncherConfig = $0 }
-            ),
-            onComplete: { [self] finalConfig, _ in
-                handleLauncherWelcomeComplete(finalConfig)
-            },
-            onDismiss: { [self] in
-                // User closed without completing - still mark as seen for this build
-                markLauncherWelcomeAsSeen()
-                pendingLauncherConfig = nil
-            }
-        )
-    }
-
-    /// Handle launcher welcome dialog completion
-    private func handleLauncherWelcomeComplete(_ finalConfig: LauncherGridConfig) {
-        var updatedConfig = finalConfig
-        updatedConfig.hasSeenWelcome = true
-        markLauncherWelcomeAsSeen()
-
-        // Save the updated config
-        Task {
-            let collections = await RuleCollectionStore.shared.loadCollections()
-            if var launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }) {
-                launcherCollection.configuration = .launcherGrid(updatedConfig)
-                // Update the collections array and save
-                var allCollections = collections
-                if let index = allCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
-                    allCollections[index] = launcherCollection
-                    try? await RuleCollectionStore.shared.saveCollections(allCollections)
-                }
-            }
-        }
-
-        pendingLauncherConfig = nil
+        .onChange(of: isKeyboardDragging) { _, _ in refreshCursor() }
+        .onChange(of: isHeaderDragging) { _, _ in refreshCursor() }
+        .onChange(of: isHoveringHeaderButton) { _, _ in refreshCursor() }
+        .onChange(of: inspectorReveal) { _, _ in refreshCursor() }
+        .onChange(of: isInspectorOpen) { _, _ in refreshCursor() }
+        .onChange(of: isInspectorAnimating) { _, _ in refreshCursor() }
     }
 }
 
@@ -972,7 +827,6 @@ extension LiveKeyboardOverlayView {
         isHovered: Bool,
         isDragging: Bool
     ) -> some View {
-        // Simulated "liquid glass" backdrop: adaptive material + tint + softened shadows.
         let dragBoost: CGFloat = isDragging ? 0.06 : 0
         let tint = isDark
             ? Color.white.opacity(0.12 - 0.07 * fadeAmount + dragBoost)
@@ -980,7 +834,6 @@ extension LiveKeyboardOverlayView {
 
         let contactShadow = Color.black.opacity((isDark ? 0.12 : 0.08) * (1 - fadeAmount))
 
-        // Subtle focus border when hovering - very light so it's not distracting
         let focusBorderOpacity: CGFloat = {
             if isDragging {
                 return isDark ? 0.45 : 0.5
@@ -997,7 +850,6 @@ extension LiveKeyboardOverlayView {
                 .overlay(
                     baseShape.stroke(Color.white.opacity(isDark ? 0.08 : 0.25), lineWidth: 0.5)
                 )
-                // Focus indicator border
                 .overlay(
                     baseShape.stroke(focusBorderColor.opacity(focusBorderOpacity), lineWidth: 1)
                 )
@@ -1009,16 +861,12 @@ extension LiveKeyboardOverlayView {
                 .overlay(
                     baseShape.fill(tint)
                 )
-                // Fade overlay: animating material .opacity() directly causes discrete jumps,
-                // so we overlay a semi-transparent wash that fades in smoothly instead
                 .overlay(
                     baseShape.fill(Color(white: isDark ? 0.1 : 0.9).opacity(0.25 * fadeAmount))
                 )
-                // Focus indicator border - subtle inner glow effect
                 .overlay(
                     baseShape.strokeBorder(focusBorderColor.opacity(focusBorderOpacity), lineWidth: 1)
                 )
-                // y >= radius ensures shadow only renders below (light from above)
                 .shadow(color: contactShadow, radius: 4, x: 0, y: 4)
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: fadeAmount)
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: isHovered)
@@ -1036,7 +884,6 @@ extension LiveKeyboardOverlayView {
             NSCursor.closedHand.set()
             return
         }
-        // Pointing hand for clickable buttons (drawer, hide)
         if isOverButton {
             NSCursor.pointingHand.set()
             return
@@ -1092,11 +939,9 @@ extension LiveKeyboardOverlayView {
                 customRules: cachedCustomRules,
                 appKeymaps: appKeymaps,
                 onDeleteAppRule: { keymap, override in
-                    // Delete immediately (no confirmation for single rule)
                     deleteAppRule(keymap: keymap, override: override)
                 },
                 onDeleteGlobalRule: { rule in
-                    // Delete global rule through KanataViewModel
                     Task {
                         await kanataViewModel?.removeCustomRule(rule.id)
                         loadCustomRulesState()
@@ -1106,9 +951,7 @@ extension LiveKeyboardOverlayView {
                     showResetAllRulesConfirmation = true
                 },
                 onCreateNewAppRule: {
-                    // Switch to mapper tab and trigger app picker to open
                     inspectorSection = .mapper
-                    // Delay notification to allow mapper view to render and subscribe
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         NotificationCenter.default.post(name: .openMapperAppConditionPicker, object: nil)
                     }
