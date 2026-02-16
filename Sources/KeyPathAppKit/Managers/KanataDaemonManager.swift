@@ -23,7 +23,7 @@ class KanataDaemonManager {
             NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
         }
     #else
-        static let smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
+        nonisolated(unsafe) static let smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
             NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
         }
     #endif
