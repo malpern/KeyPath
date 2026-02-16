@@ -131,14 +131,16 @@ pb_click() {
     # Peekaboo's click [query] searches text, labels, AND accessibility identifiers.
     local identifier="$1"
     log_debug "pb_click: $identifier"
-    peekaboo click "$identifier" --app KeyPath --wait-for 5000 >/dev/null 2>&1
+    _pb_activate_app
+    peekaboo click "$identifier" --app KeyPath >/dev/null 2>&1
 }
 
 pb_click_label() {
     # Click element by visible label text (same mechanism as pb_click).
     local label="$1"
     log_debug "pb_click_label: $label"
-    peekaboo click "$label" --app KeyPath --wait-for 5000 >/dev/null 2>&1
+    _pb_activate_app
+    peekaboo click "$label" --app KeyPath >/dev/null 2>&1
 }
 
 pb_type() {
@@ -159,10 +161,8 @@ pb_screenshot() {
     local filepath="$RESULTS_DIR/$filename"
 
     log_debug "pb_screenshot: $filepath"
-    # Try overlay window first, fall back to any KeyPath window
-    peekaboo image --app KeyPath --window-title "KeyPath Keyboard Overlay" --path "$filepath" 2>/dev/null \
-        || peekaboo image --app KeyPath --path "$filepath" 2>/dev/null \
-        || true
+    _pb_activate_app
+    peekaboo image --app KeyPath --path "$filepath" 2>/dev/null || true
     if [[ -f "$filepath" ]]; then
         log_info "Screenshot saved: $filename"
     fi
@@ -172,35 +172,32 @@ pb_screenshot() {
 # These use `peekaboo see --json` to check for accessibility identifiers
 # WITHOUT clicking or otherwise interacting with the element.
 
+_pb_activate_app() {
+    # Ensure KeyPath is the frontmost app so its AX tree is accessible.
+    # The overlay window requires KeyPath to be active for AX enumeration
+    # (even with .ignoresCycle removed, floating windows need activation).
+    osascript -e 'tell application "KeyPath" to activate' 2>/dev/null || true
+    sleep 0.3
+}
+
 _pb_element_exists() {
     # Internal: check if accessibility identifier exists in current UI snapshot.
     # Returns 0 if found, 1 if not found.
-    #
-    # Uses --window-title to target the overlay window specifically, since
-    # --app KeyPath alone may capture the wrong window (KeyPath has multiple
-    # windows at different levels, and the overlay is at windowLevel 3).
+    # Pipes directly from peekaboo to python to avoid bash variable corruption.
     local identifier="$1"
-    local json_output
 
-    # Try overlay window first (most common target)
-    json_output=$(peekaboo see --app KeyPath --window-title "KeyPath Keyboard Overlay" --json 2>/dev/null) || true
-    if echo "$json_output" | python3 -c "
+    # Activate KeyPath so its AX tree is discoverable
+    _pb_activate_app
+
+    # Query all KeyPath windows — pipe directly to avoid bash variable mangling
+    peekaboo see --app KeyPath --json 2>/dev/null | python3 -c "
 import json, sys
 identifier = sys.argv[1]
-data = json.load(sys.stdin)
-elements = data.get('data', {}).get('ui_elements', [])
-found = any(e.get('identifier') == identifier for e in elements)
-sys.exit(0 if found else 1)
-" "$identifier" 2>/dev/null; then
-        return 0
-    fi
-
-    # Fall back to any KeyPath window (for settings window, wizard, etc.)
-    json_output=$(peekaboo see --app KeyPath --json 2>/dev/null) || return 1
-    echo "$json_output" | python3 -c "
-import json, sys
-identifier = sys.argv[1]
-data = json.load(sys.stdin)
+raw = sys.stdin.buffer.read().decode('utf-8', errors='replace')
+try:
+    data = json.loads(raw)
+except json.JSONDecodeError:
+    sys.exit(1)
 elements = data.get('data', {}).get('ui_elements', [])
 found = any(e.get('identifier') == identifier for e in elements)
 sys.exit(0 if found else 1)
@@ -303,6 +300,8 @@ ensure_app_running() {
     while [[ $attempts -lt 15 ]]; do
         if _pb_element_exists "keyboard-overlay" 2>/dev/null; then
             log_info "KeyPath overlay is visible"
+            # Health gate: wait for validation to finish and verify system is green
+            _require_system_healthy
             return 0
         fi
         sleep 1
@@ -317,6 +316,7 @@ ensure_app_running() {
     # One more check
     if _pb_element_exists "keyboard-overlay" 2>/dev/null; then
         log_info "KeyPath overlay is now visible"
+        _require_system_healthy
         return 0
     fi
 
@@ -341,6 +341,85 @@ _dismiss_wizard_if_present() {
         sleep 1
         wait_attempts=$(( wait_attempts + 1 ))
     done
+}
+
+_require_system_healthy() {
+    # Wait for KeyPath's startup health check to finish, then verify the
+    # system is green. The health indicator transitions through:
+    #   .checking → .healthy ("Ready", briefly) → .dismissed   (green)
+    #   .checking → .unhealthy("N Issues")                     (not green)
+    #
+    # If the system has issues, abort the entire test run with a clear
+    # message — tests cannot pass against a broken system.
+
+    log_info "Waiting for health check to complete..."
+
+    # Give the health check time to finish (checking → healthy/unhealthy).
+    # Poll for up to 20 seconds: either the indicator shows issues, or
+    # the health indicator disappears (dismissed = healthy).
+    local elapsed=0
+    while [[ $elapsed -lt 20 ]]; do
+        if _pb_element_exists "overlay-health-indicator" 2>/dev/null; then
+            # Check the label to determine state
+            local label
+            label=$(_pb_get_label "overlay-health-indicator" 2>/dev/null) || label=""
+
+            # Unhealthy: label contains "issue" (e.g., "System has 3 issues. Click to fix.")
+            if echo "$label" | grep -qi "issue"; then
+                echo ""
+                echo -e "${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                echo -e "${RED}${BOLD}  SYSTEM NOT READY — Tests cannot proceed${NC}"
+                echo -e "${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                echo ""
+                echo -e "  KeyPath is reporting: ${YELLOW}${label}${NC}"
+                echo ""
+                echo -e "  Please fix all issues before running UI tests:"
+                echo -e "    1. Click the orange health indicator in the overlay"
+                echo -e "    2. Follow the wizard to resolve all issues"
+                echo -e "    3. Verify the overlay shows a green ${GREEN}Ready${NC} checkmark"
+                echo -e "    4. Re-run the tests"
+                echo ""
+                echo -e "${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                echo ""
+                exit 2
+            fi
+
+            # Still checking — wait for it to finish
+            sleep 1
+            elapsed=$(( elapsed + 1 ))
+            continue
+        fi
+
+        # Health indicator gone (dismissed) — system is green
+        log_info "System is healthy (Ready)"
+        return 0
+    done
+
+    # Timeout: health check didn't complete in 20s — warn but continue
+    log_info "Warning: Health check did not complete within 20s, proceeding anyway"
+}
+
+_pb_get_label() {
+    # Extract the accessibility label for an element by identifier.
+    # Pipes directly from peekaboo to python to avoid bash variable corruption.
+    local identifier="$1"
+
+    _pb_activate_app
+    peekaboo see --app KeyPath --json 2>/dev/null | python3 -c "
+import json, sys
+identifier = sys.argv[1]
+raw = sys.stdin.buffer.read().decode('utf-8', errors='replace')
+try:
+    data = json.loads(raw)
+except json.JSONDecodeError:
+    sys.exit(1)
+elements = data.get('data', {}).get('ui_elements', [])
+for e in elements:
+    if e.get('identifier') == identifier:
+        print(e.get('label', ''))
+        sys.exit(0)
+sys.exit(1)
+" "$identifier" 2>/dev/null
 }
 
 quit_app() {
