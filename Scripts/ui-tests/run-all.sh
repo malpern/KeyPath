@@ -37,14 +37,18 @@ fi
 
 # ── 2. Reset to clean state ───────────────────────────────────────────────────
 echo -e "${BOLD}=== Resetting to clean state ===${NC}"
-quit_app 2>/dev/null || true
+quit_app
+# Verify KeyPath is fully stopped before resetting
+if pgrep -x "KeyPath" > /dev/null 2>&1; then
+    log_fail "KeyPath still running after quit — forcing kill"
+    killall -9 "KeyPath" 2>/dev/null || true
+    sleep 2
+fi
 bash "$SCRIPT_DIR/lib/reset-defaults.sh"
 echo ""
 
 # ── 3. Launch app in test mode ─────────────────────────────────────────────────
 echo -e "${BOLD}=== Launching KeyPath in test mode ===${NC}"
-KEYPATH_ACCESSIBILITY_TEST_MODE=1 open -a KeyPath
-sleep 4
 ensure_app_running
 echo ""
 
@@ -67,10 +71,10 @@ run_suite() {
         log_pass "Suite $suite_name completed successfully"
     else
         log_fail "Suite $suite_name had failures"
-        ((SUITES_WITH_FAILURES++))
+        SUITES_WITH_FAILURES=$(( SUITES_WITH_FAILURES + 1 ))
         FAILED_SUITES+=("$suite_name")
     fi
-    ((SUITES_RUN++))
+    SUITES_RUN=$(( SUITES_RUN + 1 ))
     echo ""
 }
 

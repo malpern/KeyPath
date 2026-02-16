@@ -58,7 +58,7 @@ for ctrl in \
     "overlay-hide-button" \
 ; do
     if pb_assert_exists "$ctrl" 3; then
-        ((controls_found++))
+        controls_found=$(( controls_found + 1 ))
     fi
 done
 if [[ $controls_found -ge 3 ]]; then
