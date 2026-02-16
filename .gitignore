@@ -74,3 +74,6 @@ run-tests-automated.sh
 .tmp/
 output/
 test-results/
+
+# UI test screenshots and logs
+Scripts/ui-tests/results/
