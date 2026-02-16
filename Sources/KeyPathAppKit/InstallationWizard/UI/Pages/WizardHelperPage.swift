@@ -164,7 +164,7 @@ struct WizardHelperPage: View {
             // Green shield icon with check overlay
             ZStack {
                 Image(systemName: "shield.checkered")
-                    .font(.system(size: 115, weight: .light))
+                    .font(.system(size: 90, weight: .light))
                     .foregroundColor(WizardDesign.Colors.success)
                     .symbolRenderingMode(.hierarchical)
                     .modifier(AvailabilitySymbolBounce())
@@ -182,7 +182,7 @@ struct WizardHelperPage: View {
                     }
                     Spacer()
                 }
-                .frame(width: 115, height: 115)
+                .frame(width: 90, height: 90)
             }
 
             // Contextual Headline

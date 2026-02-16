@@ -3,6 +3,15 @@ import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
 
+/// Preference key that tracks the content height of the wizard page,
+/// enabling auto-resize on any content change (not just page transitions).
+struct WizardContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 /// Main installation wizard view using clean architecture
 struct InstallationWizardView: View {
     @Environment(\.dismiss) var dismiss
@@ -107,6 +116,12 @@ struct InstallationWizardView: View {
                 pageContent()
                     .id(stateMachine.currentPage) // Force view recreation on page change
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(key: WizardContentHeightKey.self, value: geo.size.height)
+                    })
+                    .onPreferenceChange(WizardContentHeightKey.self) { _ in
+                        NotificationCenter.default.post(name: .wizardContentSizeChanged, object: nil)
+                    }
                     .onPreferenceChange(WizardInlineProgressVisiblePreferenceKey.self) { newValue in
                         hasInlineProgressIndicator = newValue
                     }
@@ -181,10 +196,6 @@ struct InstallationWizardView: View {
             AppLogger.shared.log("🧭 [Wizard] View detected page change: \(oldPage) → \(newPage)")
             if newPage == .summary, !isValidating {
                 refreshSystemState(showSpinner: true, previousPage: oldPage)
-            }
-            // Notify window to resize for new content
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                NotificationCenter.default.post(name: .wizardContentSizeChanged, object: nil)
             }
         }
         .onChange(of: navSequence) { _, newSeq in

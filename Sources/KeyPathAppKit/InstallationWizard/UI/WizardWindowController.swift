@@ -60,7 +60,7 @@ final class WizardWindowController {
         }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 700, height: 400),
+            contentRect: NSRect(x: 0, y: 0, width: 700, height: 500),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -68,7 +68,7 @@ final class WizardWindowController {
         window.title = "KeyPath Setup"
 
         // Allow flexible height but fixed width
-        let minContentSize = NSSize(width: 700, height: 250)
+        let minContentSize = NSSize(width: 700, height: 400)
         let maxContentSize = NSSize(width: 700, height: 800)
         window.contentMinSize = minContentSize
         window.contentMaxSize = maxContentSize
@@ -138,7 +138,7 @@ final class WizardWindowController {
         guard idealSize.height > 0 else { return }
 
         // Clamp to min/max
-        let clampedHeight = max(250, min(800, idealSize.height))
+        let clampedHeight = max(400, min(800, idealSize.height))
         resizeWindowToHeight(clampedHeight, animated: true)
     }
 

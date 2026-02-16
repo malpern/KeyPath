@@ -286,8 +286,8 @@ enum WizardDesign {
     struct HeroSectionContainer: ViewModifier {
         func body(content: Content) -> some View {
             content
-                .padding(.top, 64)
-                .padding(.bottom, 32)
+                .padding(.top, 48)
+                .padding(.bottom, 24)
         }
     }
 
