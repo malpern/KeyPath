@@ -11,6 +11,10 @@ extension KeyboardVisualizationViewModel {
         idleMonitorTask?.cancel()
         lastInteraction = Date()
 
+        // In accessibility test mode, disable idle fade so automation screenshots
+        // always show a fully visible keyboard.
+        let isTestMode = ProcessInfo.processInfo.environment["KEYPATH_ACCESSIBILITY_TEST_MODE"] != nil
+
         idleMonitorTask = Task { @MainActor [weak self] in
             guard let self else { return }
             while !Task.isCancelled {
@@ -18,6 +22,9 @@ extension KeyboardVisualizationViewModel {
 
                 // Check TCP connection state (detects disconnection via timeout)
                 checkTcpConnectionState()
+
+                // Skip fade logic in test mode — keep overlay fully visible
+                if isTestMode { continue }
 
                 // Don't fade while holding a momentary layer key (non-base layer active)
                 let isOnMomentaryLayer = currentLayerName.lowercased() != "base"

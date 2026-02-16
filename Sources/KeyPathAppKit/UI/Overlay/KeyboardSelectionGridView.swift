@@ -209,6 +209,11 @@ struct KeyboardSelectionGridView: View {
                     }
                 }
             }
+            .onChange(of: selectedLayoutId) { _, newId in
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo("layout-\(newId)", anchor: .center)
+                }
+            }
             .onAppear {
                 // Scroll to selected layout only on initial appear (not on re-renders)
                 guard !hasScrolledToInitialSelection else { return }
