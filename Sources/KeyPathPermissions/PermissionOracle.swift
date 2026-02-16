@@ -136,6 +136,11 @@ public actor PermissionOracle {
     private var lastSnapshot: Snapshot?
     private var lastSnapshotTime: Date?
 
+    /// In-flight snapshot task for request coalescing.
+    /// Prevents concurrent callers from spawning duplicate sqlite3 processes,
+    /// which can exhaust the cooperative thread pool and cause deadlock.
+    private var inFlightSnapshot: Task<Snapshot, Never>?
+
     /// Cache TTL for sub-2-second goal
     private let cacheTTL: TimeInterval = 1.5
 
@@ -156,14 +161,17 @@ public actor PermissionOracle {
     ///
     /// This is the ONLY method other components should call.
     /// No more direct PermissionService calls, no more guessing from logs.
+    ///
+    /// Concurrent callers are coalesced: if a snapshot is already being computed,
+    /// subsequent callers wait for the same result instead of spawning parallel
+    /// sqlite3 processes (which can exhaust the cooperative thread pool).
     public func currentSnapshot() async -> Snapshot {
         // Fast-path for unit tests: avoid heavy OS calls and network timeouts
         if TestEnvironment.isRunningTests {
             // Honor cache semantics in tests to keep behavior deterministic
             if let cachedTime = lastSnapshotTime,
                let cached = lastSnapshot,
-               Date().timeIntervalSince(cachedTime) < cacheTTL
-            {
+               Date().timeIntervalSince(cachedTime) < cacheTTL {
                 AppLogger.shared.log("🔮 [Oracle] (Test) Returning cached snapshot")
                 return cached
             }
@@ -186,14 +194,30 @@ public actor PermissionOracle {
         // Return cached result if fresh
         if let cachedTime = lastSnapshotTime,
            let cached = lastSnapshot,
-           Date().timeIntervalSince(cachedTime) < cacheTTL
-        {
+           Date().timeIntervalSince(cachedTime) < cacheTTL {
             AppLogger.shared.log(
                 "🔮 [Oracle] Returning cached snapshot (age: \(String(format: "%.3f", Date().timeIntervalSince(cachedTime)))s)"
             )
             return cached
         }
 
+        // Coalesce: reuse in-flight computation instead of starting a parallel one
+        if let inflight = inFlightSnapshot {
+            AppLogger.shared.log("🔮 [Oracle] Coalescing with in-flight snapshot request")
+            return await inflight.value
+        }
+
+        // Start new computation
+        let task = Task { await self.generateSnapshot() }
+        inFlightSnapshot = task
+        let result = await task.value
+        inFlightSnapshot = nil
+        return result
+    }
+
+    /// Generate a fresh permission snapshot. Called by `currentSnapshot()` when
+    /// the cache is stale and no in-flight computation exists.
+    private func generateSnapshot() async -> Snapshot {
         AppLogger.shared.log("🔮 [Oracle] Generating fresh permission snapshot")
         let start = Date()
 
@@ -540,8 +564,7 @@ public actor PermissionOracle {
     /// Approved read-only TCC lookup (see ADR-016). This must remain
     /// best-effort, side-effect free, and resilient to failure (no FDA).
     private func queryTCCDatabase(dbPath: String, service: String, executablePath: String) async
-        -> Int?
-    {
+        -> Int? {
         // The 'access' table schema varies. We try auth_value first, then allowed.
         // We check for client_type=1 (path) because Kanata is a CLI binary.
         let escService = escapeSQLiteLiteral(service)
@@ -591,11 +614,9 @@ public actor PermissionOracle {
         s.replacingOccurrences(of: "'", with: "''")
     }
 
-    /// Execute sqlite3 query with timeout protection
-    /// This is a minimal, defensive implementation that avoids external dependencies
+    /// Execute sqlite3 query with timeout protection.
+    /// Uses Process.terminationHandler to avoid blocking cooperative threads.
     private func runSQLiteQuery(dbPath: String, sql: String, timeout: Double) async -> String? {
-        // Use structured concurrency: run the process on a detached task and race
-        // it against a cancellable timeout, avoiding fire-and-forget GCD dispatches.
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
         task.arguments = [dbPath, sql]
@@ -611,21 +632,40 @@ public actor PermissionOracle {
             return nil
         }
 
-        // Schedule a cancellable timeout that terminates the process if it runs too long
-        let timeoutTask = Task.detached {
-            try await Task.sleep(for: .seconds(timeout))
-            if task.isRunning {
-                task.terminate() // best-effort timeout protection
+        // Use a class to safely bridge the continuation across @Sendable boundaries.
+        // Both the terminationHandler and the timeout closure race to resume it exactly once.
+        final class OnceResumer: @unchecked Sendable {
+            private let lock = NSLock()
+            private var continuation: CheckedContinuation<String?, Never>?
+
+            init(_ continuation: CheckedContinuation<String?, Never>) {
+                self.continuation = continuation
+            }
+
+            func resume(with value: String?) {
+                lock.lock()
+                let cont = continuation
+                continuation = nil
+                lock.unlock()
+                cont?.resume(returning: value)
             }
         }
 
-        // Wait for the process on a detached task to avoid blocking the caller's actor
-        return await Task.detached {
-            task.waitUntilExit()
-            timeoutTask.cancel() // Process finished; cancel the timeout
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            return String(data: data, encoding: .utf8)
-        }.value
+        return await withCheckedContinuation { continuation in
+            let resumer = OnceResumer(continuation)
+
+            task.terminationHandler = { _ in
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                resumer.resume(with: String(data: data, encoding: .utf8))
+            }
+
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+                if task.isRunning {
+                    task.terminate()
+                }
+                resumer.resume(with: nil)
+            }
+        }
     }
 }
 
