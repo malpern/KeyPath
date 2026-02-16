@@ -1127,6 +1127,82 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertEqual(upgraded.mappings.first?.input, "lsft rsft", "Mappings should come from catalog")
     }
 
+    // MARK: - Navigation Key Conversion Regression Tests
+
+    /// REGRESSION TEST: pageup/pagedown must map to pgup/pgdn, not pass through
+    /// as-is. Kanata rejects "pageup"/"pagedown" and crashes on live reload.
+    func testConvertToKanataKey_NavigationKeys() {
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("pageup"), "pgup",
+                       "pageup must convert to pgup for kanata")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("pagedown"), "pgdn",
+                       "pagedown must convert to pgdn for kanata")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("home"), "home")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("end"), "end")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("help"), "help")
+    }
+
+    /// REGRESSION TEST: Modifier names from keyCodeToKanataName must convert
+    /// to kanata's abbreviated forms (lsft, lmet, etc.)
+    func testConvertToKanataKey_ModifierNamesFromKeyCode() {
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("leftshift"), "lsft")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("rightshift"), "rsft")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("leftctrl"), "lctl")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("rightctrl"), "rctl")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("leftalt"), "lalt")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("rightalt"), "ralt")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("leftmeta"), "lmet")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("rightmeta"), "rmet")
+    }
+
+    /// PIPELINE TEST: Every key name returned by keyCodeToKanataName must produce
+    /// a valid kanata key when passed through convertToKanataKey. This catches
+    /// mismatches between the two functions that cause kanata config rejections.
+    func testAllKeyCodeNames_ProduceValidKanataKeys() {
+        // All keycodes that keyCodeToKanataName handles (0-126 + extended)
+        let allKeyCodes: [UInt16] = Array(0 ... 126) + [200, 255]
+
+        // Valid kanata key names (single chars, function keys, and known abbreviations)
+        let validKanataKeys: Set<String> = [
+            // Single character keys (a-z, 0-9, punctuation)
+            "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+            "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+            "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+            "'", ";", ",", ".", "/", "\\", "[", "]", "-",
+            // Kanata abbreviated names
+            "caps", "spc", "ret", "tab", "esc", "bspc", "del",
+            "lmet", "rmet", "lsft", "rsft", "lctl", "rctl", "lalt", "ralt",
+            "fn", "grv", "min", "eql",
+            // Arrow keys
+            "up", "down", "left", "right",
+            // Navigation
+            "home", "end", "pgup", "pgdn", "help",
+            // International
+            "nubs", "ro", "kana", "eisu",
+            // Function keys
+            "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10",
+            "f11", "f12", "f13", "f14", "f15", "f16", "f17", "f18", "f19"
+        ]
+
+        var failures: [String] = []
+
+        for keyCode in allKeyCodes {
+            let name = OverlayKeyboardView.keyCodeToKanataName(keyCode)
+
+            // Skip unknown keycodes - those are expected to be unhandled
+            if name.hasPrefix("unknown-") { continue }
+
+            let kanataKey = KanataKeyConverter.convertToKanataKey(name)
+
+            if !validKanataKeys.contains(kanataKey) {
+                failures.append("keyCode \(keyCode): '\(name)' → '\(kanataKey)' (not a valid kanata key)")
+            }
+        }
+
+        XCTAssertTrue(failures.isEmpty,
+                       "These keyCodeToKanataName outputs don't convert to valid kanata keys:\n" +
+                       failures.joined(separator: "\n"))
+    }
+
     // MARK: - Integration Tests
 
     /// CRITICAL: This test validates that the default RuleCollectionCatalog generates

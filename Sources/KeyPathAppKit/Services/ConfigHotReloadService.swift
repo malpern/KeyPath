@@ -19,13 +19,20 @@ final class ConfigHotReloadService {
         let success: Bool
         let message: String
         let newContent: String?
+        /// Config is valid but was not applied because the service isn't running.
+        /// Callers should show "Config saved, will apply when service starts" instead of a green checkmark.
+        let pendingReload: Bool
 
         static func success(content: String) -> ReloadResult {
-            ReloadResult(success: true, message: "Configuration reloaded", newContent: content)
+            ReloadResult(success: true, message: "Configuration reloaded", newContent: content, pendingReload: false)
         }
 
         static func failure(_ message: String) -> ReloadResult {
-            ReloadResult(success: false, message: message, newContent: nil)
+            ReloadResult(success: false, message: message, newContent: nil, pendingReload: false)
+        }
+
+        static func pendingReload(content: String) -> ReloadResult {
+            ReloadResult(success: false, message: "Config saved, will apply when service starts", newContent: content, pendingReload: true)
         }
     }
 
@@ -177,7 +184,7 @@ final class ConfigHotReloadService {
                 // Don't call onFailure - this isn't a real error, just service unavailability
                 // Reset status after a brief delay so UI doesn't show stale "validating" state
                 callbacks.onReset?()
-                return ReloadResult(success: true, message: "Config valid (service starting)", newContent: configContent)
+                return .pendingReload(content: configContent)
             }
 
             AppLogger.shared.error("❌ [ConfigHotReload] Hot reload failed")

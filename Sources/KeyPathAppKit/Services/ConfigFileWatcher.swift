@@ -11,11 +11,11 @@ import KeyPathCore
 /// - Uses proper file descriptor management with cleanup
 ///
 /// Thread safety: All public API is called from `@MainActor` coordinators, and all
-/// DispatchSource event handlers hop back to MainActor via `Task { @MainActor in }`.
+/// DispatchSource event handlers hop back to MainActor via `DispatchQueue.main.async`.
 /// The class is intentionally NOT `@MainActor`-isolated because DispatchSource event
-/// handlers fire on a background queue, and Swift 6's runtime isolation checker crashes
-/// (dispatch_assert_queue_fail) when any reference to a `@MainActor`-isolated type is
-/// resolved on a non-MainActor queue — even weak references created on MainActor.
+/// handlers fire on a background queue. We use `DispatchQueue.main.async` (not
+/// `Task { @MainActor in }`) to avoid Swift 6's runtime dispatch_assert_queue_fail
+/// crash that occurs when Task inherits the background executor context.
 class ConfigFileWatcher: @unchecked Sendable {
     // MARK: - Properties
 
@@ -36,10 +36,11 @@ class ConfigFileWatcher: @unchecked Sendable {
     // Suppression to prevent self-initiated reload loops
     private var suppressUntil: Date?
     private var inFlightProcessing = false
+    private var rebindTask: Task<Void, Never>?
 
     /// Dedicated queue for file system events (avoid main thread contention)
     /// The DispatchSource fires events on this queue, but handlers immediately
-    /// hop to MainActor via Task { @MainActor in ... }
+    /// hop to MainActor via Task.detached { @MainActor in ... }
     private let queue = DispatchQueue(label: "com.keypath.configwatcher", qos: .utility)
 
     /// Callback for when file changes are detected
@@ -55,6 +56,7 @@ class ConfigFileWatcher: @unchecked Sendable {
         fileMonitorSource?.cancel()
         directoryMonitorSource?.cancel()
         debounceTask?.cancel()
+        rebindTask?.cancel()
         AppLogger.shared.log("📁 [FileWatcher] ConfigFileWatcher deinitialized")
     }
 
@@ -141,8 +143,13 @@ class ConfigFileWatcher: @unchecked Sendable {
         source.setEventHandler { [weak self] in
             let flags = DispatchSource.FileSystemEvent(rawValue: source.data)
             AppLogger.shared.log("📁 [FileWatcher] File system event received - flags: \(flags)")
-            Task { @MainActor [weak self] in
-                await self?.handleFileEvent(flags: flags)
+            // Hop to main thread via GCD first, then create Task.
+            // This avoids Swift 6's dispatch_assert_queue_fail crash that occurs when
+            // Task { @MainActor in } is created on a non-main dispatch queue.
+            DispatchQueue.main.async { [weak self] in
+                Task { [weak self] in
+                    await self?.handleFileEvent(flags: flags)
+                }
             }
         }
 
@@ -198,8 +205,10 @@ class ConfigFileWatcher: @unchecked Sendable {
             AppLogger.shared.log(
                 "📁 [FileWatcher] Directory event received - checking if target file was created"
             )
-            Task { @MainActor [weak self] in
-                await self?.handleDirectoryChangeEvent()
+            DispatchQueue.main.async { [weak self] in
+                Task { [weak self] in
+                    await self?.handleDirectoryChangeEvent()
+                }
             }
         }
 
@@ -223,9 +232,11 @@ class ConfigFileWatcher: @unchecked Sendable {
     func stopWatching() {
         AppLogger.shared.log("📁 [FileWatcher] Stopping all monitoring...")
 
-        // Stop debounce timer
+        // Stop debounce and rebind timers
         debounceTask?.cancel()
         debounceTask = nil
+        rebindTask?.cancel()
+        rebindTask = nil
 
         // Stop file monitoring
         if isWatching {
@@ -282,6 +293,7 @@ class ConfigFileWatcher: @unchecked Sendable {
         // Check for suppression — skip the callback but descriptor is already rebound above
         if isSuppressedNow() {
             AppLogger.shared.log("🔇 [FileWatcher] Event suppressed - skipping processing")
+            pendingAtomicWriteEvent = false
             return
         }
 
@@ -301,15 +313,25 @@ class ConfigFileWatcher: @unchecked Sendable {
     private func rebindFileMonitor(to path: String) {
         AppLogger.shared.log("🔄 [FileWatcher] Rebinding file monitor to: \(path)")
 
+        // Cancel any previous in-flight rebind to prevent monitor leaks from rapid atomic writes
+        rebindTask?.cancel()
+
         // Cancel current file monitor
         fileMonitorSource?.cancel()
         fileMonitorSource = nil
         isWatching = false
 
         // Wait a brief moment for atomic write to complete, then re-setup
-        Task { @MainActor [weak self] in
+        rebindTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(50)) // 50ms
-            self?.setupFileMonitoring()
+            guard !Task.isCancelled, let self else { return }
+            setupFileMonitoring()
+
+            // Check if file content changed during the rebind blind spot
+            if hasFileActuallyChanged() {
+                AppLogger.shared.log("📁 [FileWatcher] File changed during rebind - ensuring event is processed")
+                pendingAtomicWriteEvent = true
+            }
         }
     }
 

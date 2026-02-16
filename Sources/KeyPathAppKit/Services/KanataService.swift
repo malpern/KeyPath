@@ -276,8 +276,10 @@ public final class KanataService {
         await healthMonitor.recordStartAttempt(timestamp: Date())
 
         // 6. Wait for launchd
-        // Give it up to 1.5 seconds to appear, checking every 0.3s
-        for _ in 0 ..< 5 {
+        // Give it up to 4.5 seconds to appear, checking every 0.3s.
+        // Kanata takes ~6s to fully start (2s launcher sleep + VHD reconnect),
+        // so a short window incorrectly marks good starts as "failed".
+        for _ in 0 ..< 15 {
             try? await Task.sleep(for: .milliseconds(300)) // 0.3s
             await refreshStatus()
             if case .running = state { break }

@@ -122,10 +122,10 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         }
     }
 
-    func testHandleExternalChangeSucceedsWhenReloadHandlerFailsButServiceUnavailable() async {
+    func testHandleExternalChangeReturnsPendingReloadWhenServiceUnavailable() async {
         // When reload handler fails but service is unavailable (process not running),
-        // we should return success because the config is valid - just can't reload yet.
-        // This is the expected behavior during wizard fix operations.
+        // we should return success:false + pendingReload:true because the config is valid
+        // but was never applied to kanata.
         reloadHandlerResult = false
         let validConfig = """
         (defcfg)
@@ -137,10 +137,12 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         let result = await service.handleExternalChange(configPath: tempFile.path)
 
         // In test environment, Kanata process is never running, so reload failure
-        // is treated as "service unavailable" (soft success - config is valid)
+        // is treated as "service unavailable" (pendingReload - config valid but not applied)
         if reloadHandlerCalled {
-            XCTAssertTrue(result.success, "Should succeed when service is unavailable (process not running)")
-            XCTAssertEqual(result.message, "Config valid (service starting)")
+            XCTAssertFalse(result.success, "Should not report success when config was not applied")
+            XCTAssertTrue(result.pendingReload, "Should indicate pending reload")
+            XCTAssertEqual(result.message, "Config saved, will apply when service starts")
+            XCTAssertNotNil(result.newContent, "Should still include config content")
         }
     }
 
@@ -227,8 +229,9 @@ final class ConfigHotReloadServiceTests: XCTestCase {
 
         XCTAssertTrue(detectedCalled, "onDetected should be called")
         // In test environment, service is unavailable (process not running)
-        // so result is success (config valid) and onReset is called
-        XCTAssertTrue(result.success, "Should succeed when service unavailable")
+        // so result is pendingReload (config valid but not applied) and onReset is called
+        XCTAssertFalse(result.success, "Should not report success when service unavailable")
+        XCTAssertTrue(result.pendingReload, "Should indicate pending reload")
     }
 
     // MARK: - Parser Tests

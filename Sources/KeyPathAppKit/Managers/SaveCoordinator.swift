@@ -138,7 +138,11 @@ final class SaveCoordinator {
                 AppLogger.shared.error("❌ [SaveCoordinator] Restoring backup")
 
                 playErrorSound()
-                try await restoreLastGoodConfig()
+                do {
+                    try await restoreLastGoodConfig()
+                } catch {
+                    AppLogger.shared.error("❌ [SaveCoordinator] Rollback also failed: \(error)")
+                }
 
                 saveStatus = .failed("TCP server reload failed: \(errorMessage)")
                 return .failure(
@@ -235,7 +239,11 @@ final class SaveCoordinator {
                 AppLogger.shared.error("❌ [SaveCoordinator] TCP reload FAILED: \(errorMessage)")
 
                 playErrorSound()
-                try await restoreLastGoodConfig()
+                do {
+                    try await restoreLastGoodConfig()
+                } catch {
+                    AppLogger.shared.error("❌ [SaveCoordinator] Rollback also failed: \(error)")
+                }
 
                 saveStatus = .failed("Config reload failed: \(errorMessage)")
                 return .failure(
@@ -260,12 +268,49 @@ final class SaveCoordinator {
         AppLogger.shared.log("💾 [SaveCoordinator] Current config backed up to memory")
     }
 
+    /// Ensure we have a backup by loading the current config if none exists.
+    /// Call this early in the app lifecycle so rollback always has a fallback.
+    func ensureBackupExists() async {
+        guard lastGoodConfig == nil else { return }
+        let current = await configurationService.current()
+        if !current.content.isEmpty {
+            lastGoodConfig = current.content
+            AppLogger.shared.log("💾 [SaveCoordinator] Initialized backup from current config on disk")
+        }
+    }
+
     func restoreLastGoodConfig() async throws {
         guard let backup = lastGoodConfig else {
-            throw KeyPathError.configuration(.backupNotFound)
+            AppLogger.shared.warn("⚠️ [SaveCoordinator] No backup available - writing minimal safe config")
+            try await writeMinimalSafeConfig()
+            return
         }
         AppLogger.shared.info("🔄 [SaveCoordinator] Restoring last good config")
-        try await configurationService.writeConfigurationContent(backup)
+        do {
+            try await configurationService.writeConfigurationContent(backup)
+        } catch {
+            AppLogger.shared.error("❌ [SaveCoordinator] Failed to restore backup: \(error) - writing minimal safe config")
+            try await writeMinimalSafeConfig()
+        }
+    }
+
+    /// Write a minimal safe config that kanata can load without crashing.
+    /// This prevents persistent crash loops when both the broken config and the backup fail.
+    private func writeMinimalSafeConfig() async throws {
+        let safeConfig = """
+        ;; Minimal safe config written by SaveCoordinator after rollback failure
+        (defcfg
+          process-unmapped-keys yes
+        )
+        (defsrc)
+        (deflayer base)
+        """
+        let configPath = configurationService.configurationPath
+        let configURL = URL(fileURLWithPath: configPath)
+        let configDir = URL(fileURLWithPath: configurationService.configDirectory)
+        try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+        try safeConfig.write(to: configURL, atomically: true, encoding: .utf8)
+        AppLogger.shared.warn("🛡️ [SaveCoordinator] Wrote minimal safe config to \(configPath)")
     }
 
     func hasBackup() -> Bool {

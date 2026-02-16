@@ -720,7 +720,22 @@ public enum KanataKeyConverter {
             "intlro": "ro", // ABNT2/JIS Ro key (extra key between slash and right shift)
             // JIS keys (already have native Kanata names, but add aliases)
             "eisu": "eisu", // Japanese alphanumeric key
-            "kana": "kana" // Japanese kana key
+            "kana": "kana", // Japanese kana key
+            // Modifier names from keyCodeToKanataName (concatenated form without space)
+            "leftshift": "lsft",
+            "rightshift": "rsft",
+            "leftctrl": "lctl",
+            "rightctrl": "rctl",
+            "leftalt": "lalt",
+            "rightalt": "ralt",
+            "leftmeta": "lmet",
+            "rightmeta": "rmet",
+            // Navigation keys (keyCodeToKanataName returns long names, kanata expects short)
+            "pageup": "pgup",
+            "pagedown": "pgdn",
+            "home": "home",
+            "end": "end",
+            "help": "help"
         ]
 
         let lowercased = input.lowercased()
@@ -739,7 +754,42 @@ public enum KanataKeyConverter {
         if lowercased.contains("(") { return "lpar" }
         if lowercased.contains(")") { return "rpar" }
 
-        // For function keys and others, return as-is but lowercased
+        // Function keys (f1-f24) are valid kanata names
+        if lowercased.hasPrefix("f"), let num = Int(lowercased.dropFirst()), (1 ... 24).contains(num) {
+            return lowercased
+        }
+
+        // Known valid kanata key names that need no conversion (pass-through is safe)
+        let validKanataPassthrough: Set<String> = [
+            // Arrow keys
+            "up", "down", "left", "right",
+            // Navigation
+            "home", "end", "pgup", "pgdn", "del", "ins",
+            // Media/system
+            "brdn", "brup", "prev", "pp", "next", "mute", "vold", "volu",
+            // Modifiers (kanata native names)
+            "lsft", "rsft", "lctl", "rctl", "lalt", "ralt", "lmet", "rmet",
+            "caps", "esc", "ret", "spc", "tab", "bspc", "grv", "min", "eql",
+            // International
+            "nubs", "ro", "eisu", "kana", "help",
+            // Numpad
+            "kp0", "kp1", "kp2", "kp3", "kp4", "kp5", "kp6", "kp7", "kp8", "kp9",
+            "kprt", "kp+", "kp-", "kp*", "kp/", "kp.", "nlck",
+            // Other
+            "prtsc", "slck", "pause", "menu", "comp", "fn",
+            "ssrq", "102d"
+        ]
+
+        if validKanataPassthrough.contains(lowercased) {
+            return lowercased
+        }
+
+        // Unknown key name - log warning and return as-is to avoid silent breakage.
+        // The downstream CLI validation (kanata --check) will catch this before save.
+        AppLogger.shared.log(
+            "⚠️ [KanataKeyConverter] Unknown key name '\(input)' - may not be valid kanata key",
+            level: .warn
+        )
         return lowercased
     }
 

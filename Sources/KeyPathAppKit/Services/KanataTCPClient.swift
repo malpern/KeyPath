@@ -79,7 +79,7 @@ actor KanataTCPClient {
     let host: String
     let port: Int
     let timeout: TimeInterval
-    let retryBackoffSeconds: TimeInterval = 0.15
+    let retryBackoffSeconds: TimeInterval = 0.5
 
     // Connection management
     var connection: NWConnection?

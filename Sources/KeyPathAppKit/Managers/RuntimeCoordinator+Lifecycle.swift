@@ -34,6 +34,9 @@ extension RuntimeCoordinator {
         // Initial status check
         await updateStatus()
 
+        // Ensure SaveCoordinator has a backup of the current config for rollback safety
+        await saveCoordinator.ensureBackupExists()
+
         // Start config file watching (must happen regardless of kanata state)
         await MainActor.run {
             startConfigFileWatching()

@@ -138,8 +138,9 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
     /// Tracks recent PID observations for crash loop detection
     private var recentPIDObservations: [(pid: Int, timestamp: Date)] = []
 
-    /// Time window for crash loop detection (multiple PID changes within this window = crash loop)
-    private let crashLoopWindowSeconds: TimeInterval = 15.0
+    /// Time window for crash loop detection (multiple PID changes within this window = crash loop).
+    /// Must be >= 3x launchd ThrottleInterval (10s) to catch 3 crashes at 0s, 10s, 20s.
+    private let crashLoopWindowSeconds: TimeInterval = 45.0
 
     /// Minimum PID changes within window to declare a crash loop
     private let crashLoopThreshold = 3
@@ -323,8 +324,12 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
         startAttemptCount = 0
         retryAttemptCount = 0
         connectionFailureCount = 0
+        // Clear crash loop observations: a successful start means the new PID is intentional,
+        // not a crash. Without this, 3 user-initiated restarts within the window would
+        // falsely trigger crash loop detection.
+        recentPIDObservations.removeAll()
         AppLogger.shared.info(
-            "[HealthMonitor] Recorded start success - reset counters (was at \(previousAttempts) attempts)"
+            "[HealthMonitor] Recorded start success - reset counters and crash loop state (was at \(previousAttempts) attempts)"
         )
     }
 

@@ -43,6 +43,16 @@ extension RuntimeCoordinator {
             reloadHandler: { [weak self] in
                 guard let self else { return (false, "Coordinator deallocated") }
                 let reloadResult = await triggerConfigReload()
+                // triggerConfigReload() already checks service health and returns failure
+                // when service is unavailable. Don't trigger rollback for that case -
+                // the config passed our validation, it just can't be applied yet.
+                if !reloadResult.isSuccess,
+                   let reason = reloadResult.errorMessage,
+                   reason.contains("not healthy") || reason.contains("requires approval") || reason.contains("starting")
+                {
+                    AppLogger.shared.info("ℹ️ [SaveCoordinator] Service unavailable - config saved but not validated by kanata")
+                    return (true, nil)
+                }
                 return (reloadResult.isSuccess, reloadResult.errorMessage)
             }
         )
@@ -70,6 +80,12 @@ extension RuntimeCoordinator {
             reloadHandler: { [weak self] in
                 guard let self else { return (false, "Coordinator deallocated") }
                 let tcpResult = await triggerTCPReload()
+                // Distinguish "TCP unreachable" (service down) from "kanata rejected config".
+                // Only trigger rollback for actual config rejections, not network errors.
+                if case .networkError = tcpResult {
+                    AppLogger.shared.info("ℹ️ [SaveCoordinator] TCP unreachable - config saved but not validated (service may be starting)")
+                    return (true, nil)
+                }
                 return (tcpResult.isSuccess, tcpResult.errorMessage)
             }
         )
