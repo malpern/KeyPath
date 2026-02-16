@@ -88,6 +88,23 @@ final class InspectorMaskedHostingView<Content: View>: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    // MARK: - Accessibility
+
+    // The CALayer mask used for the drawer slide-in animation blocks macOS
+    // accessibility tree traversal. Override to always expose the hosted
+    // SwiftUI content to assistive technologies and UI automation tools.
+    override func accessibilityRole() -> NSAccessibility.Role? {
+        .group
+    }
+
+    override func accessibilityChildren() -> [Any]? {
+        [hostingView]
+    }
+
+    override func isAccessibilityElement() -> Bool {
+        false
+    }
+
     func update(
         content: Content,
         reveal: CGFloat,

@@ -294,6 +294,10 @@ ensure_app_running() {
         log_info "KeyPath is already running"
     fi
 
+    # If the wizard auto-launched (helper XPC check failed on fresh boot),
+    # dismiss it so the overlay is accessible for non-wizard test suites.
+    _dismiss_wizard_if_present
+
     # Wait for the overlay window to appear in Peekaboo
     local attempts=0
     while [[ $attempts -lt 15 ]]; do
@@ -318,6 +322,25 @@ ensure_app_running() {
 
     log_info "Warning: KeyPath overlay may not be accessible to Peekaboo"
     return 0
+}
+
+_dismiss_wizard_if_present() {
+    # The wizard auto-launches ~1s after startup if the helper XPC check
+    # fails. It opens on top of the overlay and blocks test interaction.
+    # Close it via the close button or Cmd+W fallback.
+    local wait_attempts=0
+    while [[ $wait_attempts -lt 3 ]]; do
+        if _pb_element_exists "wizard-close-button" 2>/dev/null; then
+            log_info "Wizard detected — dismissing..."
+            peekaboo click "wizard-close-button" --app KeyPath --wait-for 3000 >/dev/null 2>&1 \
+                || peekaboo hotkey "cmd,w" --app KeyPath >/dev/null 2>&1 || true
+            sleep 1
+            log_info "Wizard dismissed"
+            return 0
+        fi
+        sleep 1
+        wait_attempts=$(( wait_attempts + 1 ))
+    done
 }
 
 quit_app() {

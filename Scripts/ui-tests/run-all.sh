@@ -36,7 +36,9 @@ if [[ $SKIP_BUILD -eq 0 ]]; then
 fi
 
 # ── 2. Reset to clean state ───────────────────────────────────────────────────
-echo -e "${BOLD}=== Resetting to clean state ===${NC}"
+# Use UI-only reset to preserve helper/wizard/permission state (keeps system "green").
+# Full reset (reset-defaults.sh) is only needed for wizard suite (12).
+echo -e "${BOLD}=== Resetting UI preferences ===${NC}"
 quit_app
 # Verify KeyPath is fully stopped before resetting
 if pgrep -x "KeyPath" > /dev/null 2>&1; then
@@ -44,7 +46,7 @@ if pgrep -x "KeyPath" > /dev/null 2>&1; then
     killall -9 "KeyPath" 2>/dev/null || true
     sleep 2
 fi
-bash "$SCRIPT_DIR/lib/reset-defaults.sh"
+bash "$SCRIPT_DIR/lib/reset-ui-prefs.sh"
 echo ""
 
 # ── 3. Launch app in test mode ─────────────────────────────────────────────────
@@ -100,10 +102,10 @@ else
     done
 fi
 
-# ── 5. Reset to defaults ──────────────────────────────────────────────────────
-echo -e "${BOLD}=== Resetting to defaults ===${NC}"
+# ── 5. Reset UI preferences ──────────────────────────────────────────────────
+echo -e "${BOLD}=== Resetting UI preferences ===${NC}"
 quit_app
-bash "$SCRIPT_DIR/lib/reset-defaults.sh"
+bash "$SCRIPT_DIR/lib/reset-ui-prefs.sh"
 echo ""
 
 # ── 6. Restart app in normal mode ─────────────────────────────────────────────
