@@ -269,9 +269,9 @@ struct SystemContextAdapter {
                     identifier: .component(.kanataBinaryVersionMismatch),
                     severity: .error,
                     category: .installation,
-                    title: "Kanata Binary Outdated",
+                    title: "Kanata Binary Trust Mismatch",
                     description:
-                    "The installed kanata binary differs from the version bundled with KeyPath. Click Fix to update.",
+                    "The installed /Library/KeyPath/bin/kanata does not match KeyPath's trusted signing identity. Click Fix to reinstall the trusted bundled binary.",
                     autoFixAction: .replaceKanataWithBundled,
                     userAction: nil
                 )

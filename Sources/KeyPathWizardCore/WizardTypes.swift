@@ -162,7 +162,7 @@ public enum ComponentRequirement: Equatable, Sendable {
     case launchDaemonServicesUnhealthy // Services loaded but crashed/failing
     case vhidDaemonMisconfigured
     case vhidDriverVersionMismatch // Karabiner driver version incompatible with kanata version
-    case kanataBinaryVersionMismatch // Installed kanata binary differs from bundled version
+    case kanataBinaryVersionMismatch // Installed kanata binary fails trusted identity checks
     case kanataTCPServer // TCP server for Kanata communication and config validation
     case orphanedKanataProcess // Kanata running but not managed by LaunchDaemon
     case communicationServerConfiguration // Communication server enabled but not configured in service

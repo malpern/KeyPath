@@ -189,6 +189,12 @@ extension UpdateService: SPUUpdaterDelegate {
 // MARK: - Post-Relaunch Handler (separate extension to silence spurious warning)
 
 extension UpdateService {
+    enum UpdateRepairDecision: Equatable {
+        case silentContinue(reason: String)
+        case softRepair(reason: String)
+        case hardRepair(reason: String)
+    }
+
     /// Called after the app relaunches following an update
     /// We use this to re-register and restart services
     public nonisolated func updaterDidRelaunchApplication(_: SPUUpdater) {
@@ -203,41 +209,77 @@ extension UpdateService {
     private func prepareForUpdate(version: String) async {
         AppLogger.shared.log("⏸️ [UpdateService] Preparing for update to v\(version) - stopping services")
 
-        // Stop kanata + helper via InstallerEngine (per AGENTS.md)
         let engine = InstallerEngine()
         let broker = PrivilegeBroker()
 
-        // Inspect current state
         let context = await engine.inspectSystem()
         AppLogger.shared.log(
             "📊 [UpdateService] Current state - kanata: \(context.services.kanataRunning), helper: \(context.helper.isInstalled)"
         )
 
-        // Run repair intent which will stop services cleanly
-        let report = await engine.run(intent: .repair, using: broker)
-        AppLogger.shared.log(
-            "✅ [UpdateService] Services prepared for update - success: \(report.success)"
-        )
+        switch Self.preUpdateDecision(for: context) {
+        case let .silentContinue(reason):
+            AppLogger.shared.log("✅ [UpdateService] Pre-update: no preparation needed (\(reason))")
+        case let .softRepair(reason), let .hardRepair(reason):
+            AppLogger.shared.log("🔧 [UpdateService] Pre-update: running repair (\(reason))")
+            let report = await engine.run(intent: .repair, using: broker)
+            AppLogger.shared.log(
+                "✅ [UpdateService] Services prepared for update - success: \(report.success)"
+            )
+        }
     }
 
     @MainActor
     private func finalizeUpdate() async {
-        AppLogger.shared.log("🔄 [UpdateService] Post-update - repairing services")
-
-        // Re-install/repair services after update
         let engine = InstallerEngine()
         let broker = PrivilegeBroker()
+        let context = await engine.inspectSystem()
 
-        // Run repair to re-register helper and restart kanata
-        let report = await engine.run(intent: .repair, using: broker)
-
-        if report.success {
-            AppLogger.shared.log("✅ [UpdateService] Services repaired after update")
-        } else {
+        switch Self.postUpdateDecision(for: context) {
+        case let .silentContinue(reason):
+            AppLogger.shared.log("✅ [UpdateService] Post-update: system healthy, skipping repair (\(reason))")
+        case let .softRepair(reason):
+            AppLogger.shared.log("🔄 [UpdateService] Post-update: running targeted repair (\(reason))")
+            let report = await engine.run(intent: .repair, using: broker)
+            if report.success {
+                AppLogger.shared.log("✅ [UpdateService] Services repaired after update")
+            } else {
+                AppLogger.shared.error(
+                    "⚠️ [UpdateService] Service repair had issues - user may see wizard"
+                )
+            }
+        case let .hardRepair(reason):
             AppLogger.shared.error(
-                "⚠️ [UpdateService] Service repair had issues - user may see wizard"
+                "⚠️ [UpdateService] Post-update requires manual attention (\(reason)); skipping automatic repair"
             )
-            // User will see wizard on next interaction if services need attention
         }
+    }
+
+    nonisolated static func preUpdateDecision(for context: SystemContext) -> UpdateRepairDecision {
+        if context.services.kanataRunning || context.services.karabinerDaemonRunning || context.helper.isInstalled {
+            return .softRepair(reason: "reason_code=services_or_helper_present")
+        }
+        return .silentContinue(reason: "reason_code=nothing_running")
+    }
+
+    nonisolated static func postUpdateDecision(for context: SystemContext) -> UpdateRepairDecision {
+        if context.permissions.keyPath.inputMonitoring.isBlocking || context.permissions.keyPath.accessibility.isBlocking {
+            return .hardRepair(reason: "reason_code=keypath_permissions_blocking")
+        }
+        if context.permissions.kanata.inputMonitoring.isBlocking || context.permissions.kanata.accessibility.isBlocking {
+            return .hardRepair(reason: "reason_code=kanata_permissions_blocking")
+        }
+
+        if !context.helper.isReady {
+            return .softRepair(reason: "reason_code=helper_not_ready")
+        }
+        if !context.components.hasAllRequired {
+            return .softRepair(reason: "reason_code=components_not_ready")
+        }
+        if !context.services.backgroundServicesHealthy || !context.services.kanataRunning {
+            return .softRepair(reason: "reason_code=services_not_ready")
+        }
+
+        return .silentContinue(reason: "reason_code=healthy")
     }
 }

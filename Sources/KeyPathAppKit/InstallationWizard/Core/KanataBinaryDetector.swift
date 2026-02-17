@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import KeyPathWizardCore
+import Security
 
 /// Centralized service for detecting kanata binary status across all UI components
 ///
@@ -139,8 +140,10 @@ final class KanataBinaryDetector: Sendable {
         }
     }
 
-    /// Check if the installed kanata binary differs from the bundled one.
-    /// Catches: outdated KeyPath fork, upstream kanata, any binary mismatch.
+    /// Check if the installed kanata binary does not satisfy the expected trust identity.
+    ///
+    /// This intentionally avoids byte-for-byte comparisons so routine app upgrades
+    /// (same signer/team identity) do not force unnecessary reinstalls.
     func hasVersionMismatch() -> Bool {
         let systemPath = WizardSystemPaths.kanataSystemInstallPath
         let bundledPath = WizardSystemPaths.bundledKanataPath
@@ -155,30 +158,18 @@ final class KanataBinaryDetector: Sendable {
             return false // Can't compare if one is missing
         }
 
-        // Quick check: file size
-        guard let sysAttrs = try? fm.attributesOfItem(atPath: systemPath),
-              let bunAttrs = try? fm.attributesOfItem(atPath: bundledPath),
-              let sysSize = sysAttrs[.size] as? UInt64,
-              let bunSize = bunAttrs[.size] as? UInt64
-        else {
-            AppLogger.shared.log("🔍 [KanataBinaryDetector] hasVersionMismatch: can't read attributes → true")
-            return true // Can't determine attributes → assume mismatch
-        }
-
-        if sysSize != bunSize {
-            AppLogger.shared.log("🔍 [KanataBinaryDetector] hasVersionMismatch: size differs (system=\(sysSize), bundled=\(bunSize)) → true")
+        switch evaluateTrust(systemPath: systemPath, bundledPath: bundledPath) {
+        case .trusted:
+            AppLogger.shared.log("🔍 [KanataBinaryDetector] hasVersionMismatch: trust check passed → false")
+            return false
+        case let .untrusted(reason):
+            AppLogger.shared.log("🔍 [KanataBinaryDetector] hasVersionMismatch: untrusted (\(reason)) → true")
             return true
+        case let .unknown(reason):
+            // Prefer avoiding false-positive reinstall loops when trust cannot be determined.
+            AppLogger.shared.log("⚠️ [KanataBinaryDetector] hasVersionMismatch: unknown trust (\(reason)) → false")
+            return false
         }
-
-        // Same size → compare bytes
-        guard let sysData = fm.contents(atPath: systemPath),
-              let bunData = fm.contents(atPath: bundledPath)
-        else {
-            return true
-        }
-        let differs = sysData != bunData
-        AppLogger.shared.log("🔍 [KanataBinaryDetector] hasVersionMismatch: same size (\(sysSize)), bytes differ=\(differs)")
-        return differs
     }
 
     // MARK: - Private Detection Logic
@@ -260,5 +251,81 @@ final class KanataBinaryDetector: Sendable {
         case .bundledAvailable, .bundledUnsigned, .missing, .bundledMissing:
             return []
         }
+    }
+
+    // MARK: - Trust Evaluation
+
+    private enum TrustResult {
+        case trusted
+        case untrusted(reason: String)
+        case unknown(reason: String)
+    }
+
+    private struct SigningIdentity {
+        let identifier: String?
+        let teamIdentifier: String?
+    }
+
+    private func evaluateTrust(systemPath: String, bundledPath: String) -> TrustResult {
+        let packageManager = PackageManager()
+        let systemSigning = packageManager.getCodeSigningStatus(at: systemPath)
+        let bundledSigning = packageManager.getCodeSigningStatus(at: bundledPath)
+
+        guard systemSigning.isDeveloperID else {
+            return .untrusted(reason: "reason_code=system_not_developer_id")
+        }
+        guard bundledSigning.isDeveloperID else {
+            return .untrusted(reason: "reason_code=bundled_not_developer_id")
+        }
+
+        let systemIdentity = signingIdentity(forPath: systemPath)
+        let bundledIdentity = signingIdentity(forPath: bundledPath)
+
+        guard let systemIdentity, let bundledIdentity else {
+            return .unknown(reason: "reason_code=identity_unreadable")
+        }
+
+        if let systemTeam = systemIdentity.teamIdentifier,
+           let bundledTeam = bundledIdentity.teamIdentifier,
+           systemTeam != bundledTeam
+        {
+            return .untrusted(reason: "reason_code=team_mismatch")
+        }
+
+        if let systemIdentifier = systemIdentity.identifier,
+           let bundledIdentifier = bundledIdentity.identifier,
+           systemIdentifier != bundledIdentifier
+        {
+            return .untrusted(reason: "reason_code=identifier_mismatch")
+        }
+
+        return .trusted
+    }
+
+    private func signingIdentity(forPath path: String) -> SigningIdentity? {
+        var staticCode: SecStaticCode?
+        let url = URL(fileURLWithPath: path) as CFURL
+        let createStatus = SecStaticCodeCreateWithPath(url, [], &staticCode)
+
+        guard createStatus == errSecSuccess, let staticCode else {
+            return nil
+        }
+
+        var infoDict: CFDictionary?
+        let infoStatus = SecCodeCopySigningInformation(
+            staticCode,
+            SecCSFlags(rawValue: kSecCSSigningInformation),
+            &infoDict
+        )
+        guard infoStatus == errSecSuccess,
+              let info = infoDict as? [String: Any]
+        else {
+            return nil
+        }
+
+        return SigningIdentity(
+            identifier: info[kSecCodeInfoIdentifier as String] as? String,
+            teamIdentifier: info[kSecCodeInfoTeamIdentifier as String] as? String
+        )
     }
 }

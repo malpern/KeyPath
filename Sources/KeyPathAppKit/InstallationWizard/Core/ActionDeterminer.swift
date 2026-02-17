@@ -42,7 +42,7 @@ enum ActionDeterminer {
             actions.append(.fixDriverVersionMismatch)
         }
 
-        // Check for kanata binary version mismatch (bundled differs from installed)
+        // Check for kanata binary trust mismatch (installed binary is not trusted identity)
         if context.components.kanataBinaryVersionMismatch {
             actions.append(.replaceKanataWithBundled)
         }
@@ -104,7 +104,7 @@ enum ActionDeterminer {
             actions.append(.fixDriverVersionMismatch)
         }
 
-        // Check for kanata binary version mismatch (bundled differs from installed)
+        // Check for kanata binary trust mismatch (installed binary is not trusted identity)
         if context.components.kanataBinaryVersionMismatch {
             actions.append(.replaceKanataWithBundled)
         }
