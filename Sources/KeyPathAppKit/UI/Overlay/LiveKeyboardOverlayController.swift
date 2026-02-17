@@ -50,6 +50,13 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         set { UserDefaults.standard.set(newValue, forKey: DefaultsKey.userExplicitlyHidden) }
     }
 
+    /// Title bar height for the overlay window. Returns 0 for borderless, ~28 for titled.
+    /// Used to convert between frame and content dimensions in sizing calculations.
+    var windowTitleBarHeight: CGFloat {
+        guard let window else { return 0 }
+        return window.frame.height - window.contentRect(forFrameRect: window.frame).height
+    }
+
     let inspectorPanelWidth: CGFloat = 240
     let inspectorAnimationDuration: TimeInterval = 0.35
     let minKeyboardHeight: CGFloat = 180
@@ -486,10 +493,12 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
 
         let screenFrame = screen.visibleFrame
+        // startupSize is content-based; for titled windows, frame height must include title bar
+        let frameHeight = startupSize.height + windowTitleBarHeight
         let x = screenFrame.midX - (startupSize.width / 2)
         let y = screenFrame.minY + bottomMargin
 
-        let startupFrame = NSRect(x: x, y: y, width: startupSize.width, height: startupSize.height)
+        let startupFrame = NSRect(x: x, y: y, width: startupSize.width, height: frameHeight)
         window?.setFrame(startupFrame, display: true)
 
         viewModel.startCapturing()
@@ -697,15 +706,16 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             closeInspector(animated: true)
         } else {
             if let window {
-                let minInspectorHeight = OverlayLayoutMetrics.verticalChrome + minInspectorKeyboardHeight
-                if window.frame.height < minInspectorHeight {
+                // For titled windows, frame includes title bar — add it so comparison is frame-based
+                let minInspectorFrameHeight = OverlayLayoutMetrics.verticalChrome + minInspectorKeyboardHeight + windowTitleBarHeight
+                if window.frame.height < minInspectorFrameHeight {
                     // Auto-resize window to minimum height required for inspector
                     // Do this synchronously (no animation) to prevent keyboard movement before drawer opens
-                    AppLogger.shared.log("📐 [OverlayController] Auto-resizing window from \(window.frame.height.rounded())pt to \(minInspectorHeight)pt for inspector")
+                    AppLogger.shared.log("📐 [OverlayController] Auto-resizing window from \(window.frame.height.rounded())pt to \(minInspectorFrameHeight)pt for inspector")
                     var newFrame = window.frame
-                    newFrame.size.height = minInspectorHeight
+                    newFrame.size.height = minInspectorFrameHeight
                     // Adjust width to maintain aspect ratio
-                    let keyboardHeight = minInspectorHeight - OverlayLayoutMetrics.verticalChrome
+                    let keyboardHeight = minInspectorKeyboardHeight
                     let keyboardWidth = keyboardHeight * currentKeyboardAspectRatio
                     let horizontalChrome = OverlayLayoutMetrics.keyboardPadding
                         + OverlayLayoutMetrics.keyboardTrailingPadding
@@ -994,11 +1004,19 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     private func defaultCenteredFrame(on screen: NSScreen?) -> NSRect {
-        OverlaySizingDefaults.resetCenteredFrame(
+        var frame = OverlaySizingDefaults.resetCenteredFrame(
             visibleFrame: screen?.visibleFrame,
             aspectRatio: currentKeyboardAspectRatio,
             inspectorWidth: inspectorPanelWidth
         )
+        // resetCenteredFrame returns content-based dimensions; for titled windows,
+        // the frame height must include the title bar.
+        let titleBar = windowTitleBarHeight
+        if titleBar > 0 {
+            frame.size.height += titleBar
+            frame.origin.y -= titleBar / 2 // Keep vertically centered
+        }
+        return frame
     }
 
     private func restoreWindowFrame() -> NSRect? {
@@ -1034,7 +1052,10 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
         let aspect = max(uiState.keyboardAspectRatio, 0.1)
-        let verticalChrome = OverlayLayoutMetrics.verticalChrome
+        // For titled windows, the frame includes the title bar. Add it to verticalChrome
+        // so the resizer correctly computes keyboard area from frame dimensions.
+        let titleBarHeight = sender.frame.height - sender.contentRect(forFrameRect: sender.frame).height
+        let verticalChrome = OverlayLayoutMetrics.verticalChrome + titleBarHeight
         let horizontalChrome = OverlayLayoutMetrics.horizontalChrome(
             inspectorVisible: uiState.isInspectorOpen,
             inspectorWidth: inspectorPanelWidth
@@ -1084,6 +1105,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Borderless, resizable window
         // In accessibility test mode, use titled window for automation tools like Peekaboo
         let useAccessibilityTestMode = ProcessInfo.processInfo.environment["KEYPATH_ACCESSIBILITY_TEST_MODE"] != nil
+            || PreferencesService.shared.accessibilityTestMode
         let windowStyle = OverlayWindowFactory.windowStyle(useAccessibilityTestMode: useAccessibilityTestMode)
 
         let window = OverlayWindow(
@@ -1102,8 +1124,10 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
         // Allow resize - constrain to keyboard aspect ratio
         // Max: 500pt height -> keyboard area = 446pt -> width = 446 * 2.53 + 28 = 1156
-        window.minSize = NSSize(width: minWindowWidth, height: minWindowHeight)
-        window.maxSize = NSSize(width: 1160 + inspectorTotalWidth, height: 500)
+        // For titled windows, min/max are frame sizes and must include the title bar height.
+        let titleBarHeight = window.frame.height - window.contentRect(forFrameRect: window.frame).height
+        window.minSize = NSSize(width: minWindowWidth, height: minWindowHeight + titleBarHeight)
+        window.maxSize = NSSize(width: 1160 + inspectorTotalWidth, height: 500 + titleBarHeight)
 
         // Restore saved position or default to bottom-right corner
         if let savedFrame {

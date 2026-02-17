@@ -108,6 +108,10 @@ quit_app
 bash "$SCRIPT_DIR/lib/reset-ui-prefs.sh"
 echo ""
 
+# ── 5b. Turn off accessibility test mode ─────────────────────────────────────
+defaults write com.keypath.KeyPath "KeyPath.Testing.AccessibilityTestMode" -bool false
+launchctl unsetenv KEYPATH_ACCESSIBILITY_TEST_MODE 2>/dev/null || true
+
 # ── 6. Restart app in normal mode ─────────────────────────────────────────────
 echo -e "${BOLD}=== Restarting KeyPath in normal mode ===${NC}"
 open -a KeyPath

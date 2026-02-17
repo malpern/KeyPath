@@ -57,6 +57,7 @@ done
 echo "Clearing preferences service keys..."
 
 for key in \
+    "KeyPath.Testing.AccessibilityTestMode" \
     "KeyPath.Notifications.Enabled" \
     "KeyPath.Recording.ApplyMappingsDuringRecording" \
     "KeyPath.Recording.IsSequenceMode" \

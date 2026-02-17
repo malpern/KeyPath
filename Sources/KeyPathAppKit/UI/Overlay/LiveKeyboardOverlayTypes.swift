@@ -70,7 +70,11 @@ final class OverlayWindow: NSWindow {
 
     /// In accessibility test mode, allow the window to become key so automation tools (Peekaboo) can interact with it.
     /// In production, prevent the window from becoming key (so it doesn't steal keyboard focus from other apps).
-    private static let isAccessibilityTestMode = ProcessInfo.processInfo.environment["KEYPATH_ACCESSIBILITY_TEST_MODE"] != nil
+    /// Checks env var (set by test harness) OR UserDefaults preference (set in Settings UI).
+    private static let isAccessibilityTestMode: Bool = {
+        ProcessInfo.processInfo.environment["KEYPATH_ACCESSIBILITY_TEST_MODE"] != nil
+            || UserDefaults.standard.bool(forKey: "KeyPath.Testing.AccessibilityTestMode")
+    }()
 
     override var canBecomeKey: Bool {
         Self.isAccessibilityTestMode

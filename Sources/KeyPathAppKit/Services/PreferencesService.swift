@@ -134,6 +134,17 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    // MARK: - Testing
+
+    /// When true, makes the overlay window discoverable by automation tools (Peekaboo).
+    /// Requires app restart to take effect (window style is set during creation).
+    var accessibilityTestMode: Bool {
+        didSet {
+            UserDefaults.standard.set(accessibilityTestMode, forKey: Keys.accessibilityTestMode)
+            AppLogger.shared.log("🧪 [Preferences] accessibilityTestMode = \(accessibilityTestMode)")
+        }
+    }
+
     // MARK: - Activity Logging
 
     /// Whether activity logging is enabled (requires double opt-in)
@@ -213,6 +224,7 @@ final class PreferencesService: @unchecked Sendable {
         static let applyMappingsDuringRecording = "KeyPath.Recording.ApplyMappingsDuringRecording"
         static let isSequenceMode = "KeyPath.Recording.IsSequenceMode"
         static let verboseKanataLogging = "KeyPath.Diagnostics.VerboseKanataLogging"
+        static let accessibilityTestMode = "KeyPath.Testing.AccessibilityTestMode"
         static let activityLoggingEnabled = "KeyPath.ActivityLogging.Enabled"
         static let activityLoggingConsentDate = "KeyPath.ActivityLogging.ConsentDate"
         static let leaderKeyPreference = "KeyPath.LeaderKey.Preference"
@@ -234,6 +246,7 @@ final class PreferencesService: @unchecked Sendable {
         #else
             static let verboseKanataLogging = false // Release builds favor smaller logs
         #endif
+        static let accessibilityTestMode = false
         static let activityLoggingEnabled = false // Requires explicit opt-in
         static let contextHUDDisplayMode = ContextHUDDisplayMode.both
         static let contextHUDTriggerMode = ContextHUDTriggerMode.holdToShow
@@ -269,6 +282,11 @@ final class PreferencesService: @unchecked Sendable {
         verboseKanataLogging =
             UserDefaults.standard.object(forKey: Keys.verboseKanataLogging) as? Bool
                 ?? Defaults.verboseKanataLogging
+
+        // Testing preferences
+        accessibilityTestMode =
+            UserDefaults.standard.object(forKey: Keys.accessibilityTestMode) as? Bool
+                ?? Defaults.accessibilityTestMode
 
         // Activity logging preferences
         activityLoggingEnabled =

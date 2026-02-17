@@ -11,6 +11,7 @@ struct ExperimentalSettingsSection: View {
     @State private var learningTipsMode = FeatureFlags.learningTipsMode
     @State private var contextHUDListEnabled = FeatureFlags.contextHUDListEnabled
     @State private var qmkSearchEnabled = UserDefaults.standard.bool(forKey: LayoutPreferences.qmkSearchEnabledKey)
+    @State private var accessibilityTestMode = PreferencesService.shared.accessibilityTestMode
 
     var body: some View {
         ScrollView {
@@ -43,6 +44,40 @@ struct ExperimentalSettingsSection: View {
                 // Activity Logging Section
                 SettingsCard {
                     ActivityLoggingSettingsSection()
+                }
+
+                // Testing Section
+                SettingsCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        SectionHeader(icon: "ant.fill", title: "Testing", color: .green)
+
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Accessibility Test Mode")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Text("Makes overlay discoverable by automation tools (Peekaboo). Requires app restart.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+
+                            Spacer()
+
+                            Toggle("", isOn: Binding(
+                                get: { accessibilityTestMode },
+                                set: { newValue in
+                                    accessibilityTestMode = newValue
+                                    PreferencesService.shared.accessibilityTestMode = newValue
+                                }
+                            ))
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                            .controlSize(.small)
+                            .accessibilityIdentifier("settings-accessibility-test-mode")
+                            .accessibilityLabel("Accessibility test mode")
+                        }
+                        .padding(.vertical, 4)
+                    }
                 }
 
                 // Developer Feature Flags Section

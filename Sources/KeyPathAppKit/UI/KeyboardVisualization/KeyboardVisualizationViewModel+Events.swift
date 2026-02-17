@@ -14,6 +14,7 @@ extension KeyboardVisualizationViewModel {
         // In accessibility test mode, disable idle fade so automation screenshots
         // always show a fully visible keyboard.
         let isTestMode = ProcessInfo.processInfo.environment["KEYPATH_ACCESSIBILITY_TEST_MODE"] != nil
+            || PreferencesService.shared.accessibilityTestMode
 
         idleMonitorTask = Task { @MainActor [weak self] in
             guard let self else { return }

@@ -314,7 +314,8 @@ extension LiveKeyboardOverlayController {
         guard let window else { return }
         guard !isAdjustingHeight, !isAdjustingWidth else { return }
 
-        let verticalChrome = OverlayLayoutMetrics.verticalChrome
+        // Include title bar height so frame→keyboard conversion is correct for titled windows
+        let verticalChrome = OverlayLayoutMetrics.verticalChrome + windowTitleBarHeight
         let currentFrame = window.frame
 
         // Calculate new keyboard width based on new aspect ratio
@@ -352,15 +353,17 @@ extension LiveKeyboardOverlayController {
         guard height > 0 else { return }
         guard !isAdjustingHeight else { return }
 
+        // desiredContentHeight is content-based; for titled windows, add title bar for frame height
+        let frameHeight = height + windowTitleBarHeight
         let currentFrame = window.frame
-        if abs(currentFrame.height - height) < 0.5 {
+        if abs(currentFrame.height - frameHeight) < 0.5 {
             return
         }
 
         isAdjustingHeight = true
         var newFrame = currentFrame
-        newFrame.size.height = height
-        newFrame.origin.y = currentFrame.maxY - height
+        newFrame.size.height = frameHeight
+        newFrame.origin.y = currentFrame.maxY - frameHeight
         let constrained = window.constrainFrameRect(newFrame, to: window.screen)
         window.setFrame(constrained, display: true, animate: false)
         isAdjustingHeight = false
