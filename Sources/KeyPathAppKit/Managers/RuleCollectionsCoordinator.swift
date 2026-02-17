@@ -49,6 +49,14 @@ final class RuleCollectionsCoordinator {
         notifyStateChanged()
     }
 
+    /// Enable multiple collections in a single batch (one config regeneration)
+    func batchEnableCollections(ids: [UUID]) async {
+        AppLogger.shared.log("🎚️ [RuleCollectionsCoordinator] batchEnableCollections: \(ids.count) collections")
+        await ruleCollectionsManager.batchEnableCollections(ids: ids)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+    }
+
     /// Add a new rule collection
     func addRuleCollection(_ collection: RuleCollection) async {
         await ruleCollectionsManager.addCollection(collection)

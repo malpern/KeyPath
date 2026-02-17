@@ -24,6 +24,10 @@ extension RuntimeCoordinator {
         AppLogger.shared.log("🎚️ [RuntimeCoordinator] toggleRuleCollection completed")
     }
 
+    func batchEnableCollections(ids: [UUID]) async {
+        await ruleCollectionsCoordinator.batchEnableCollections(ids: ids)
+    }
+
     func addRuleCollection(_ collection: RuleCollection) async {
         await ruleCollectionsCoordinator.addRuleCollection(collection)
     }

@@ -202,6 +202,10 @@ class KanataViewModel {
 
     // Note: Removed manual syncFromManager() calls - AsyncStream automatically updates UI
 
+    func batchEnableCollections(_ ids: [UUID]) async {
+        await manager.batchEnableCollections(ids: ids)
+    }
+
     func toggleRuleCollection(_ id: UUID, enabled: Bool) async {
         AppLogger.shared.log("🎚️ [KanataViewModel] toggleRuleCollection called: id=\(id), enabled=\(enabled)")
         await manager.toggleRuleCollection(id: id, isEnabled: enabled)

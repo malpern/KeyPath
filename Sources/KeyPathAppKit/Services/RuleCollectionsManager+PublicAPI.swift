@@ -99,6 +99,29 @@ extension RuleCollectionsManager {
         }
     }
 
+    /// Enable multiple collections in a single batch, regenerating config only once.
+    /// Used when a mode switch (e.g., home row mods → layers) needs to enable several
+    /// layer collections at once without 4 separate save/validate/reload cycles.
+    func batchEnableCollections(ids: [UUID]) async {
+        let catalog = RuleCollectionCatalog().defaultCollections()
+
+        for id in ids {
+            let catalogMatch = catalog.first { $0.id == id }
+            let candidate = ruleCollections.first(where: { $0.id == id }) ?? catalogMatch
+
+            if let index = ruleCollections.firstIndex(where: { $0.id == id }) {
+                ruleCollections[index].isEnabled = true
+            } else if var newCollection = candidate {
+                newCollection.isEnabled = true
+                ruleCollections.append(newCollection)
+            }
+        }
+
+        dedupeRuleCollectionsInPlace()
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+    }
+
     /// Add or update a rule collection
     func addCollection(_ collection: RuleCollection) async {
         if collection.isEnabled, let conflict = conflictInfo(for: collection) {
