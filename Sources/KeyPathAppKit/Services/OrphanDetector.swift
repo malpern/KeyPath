@@ -148,12 +148,13 @@ final class OrphanDetector {
     private func performCleanup(cleanFiles: Bool, cleanDaemons: Bool) async {
         var userFilesCleaned = 0
         var userFilesFailed: [(name: String, reason: String)] = []
+        var deferredForNextUninstall = false
         var daemonsCleaned = false
         var daemonsError: String?
 
         // Clean user files (no privileges needed)
-        // Note: Application Support is skipped because the running app uses it.
-        // Only clean logs and preferences which are safe to remove while running.
+        // Note: Application Support can't be removed while the app is running —
+        // it's silently deferred to next uninstall rather than shown as a failure.
         if cleanFiles {
             let pathsToClean: [(url: URL, canCleanWhileRunning: Bool)] = [
                 (FileManager.default.homeDirectoryForCurrentUser
@@ -169,8 +170,8 @@ final class OrphanDetector {
                 guard FileManager.default.fileExists(atPath: path.path) else { continue }
 
                 if !canCleanWhileRunning {
-                    AppLogger.shared.log("⏭️ [OrphanDetector] Skipping \(path.lastPathComponent) - in use by running app")
-                    userFilesFailed.append((path.lastPathComponent, "in use by running app"))
+                    AppLogger.shared.log("⏭️ [OrphanDetector] Deferring \(path.lastPathComponent) - will be cleaned on next uninstall")
+                    deferredForNextUninstall = true
                     continue
                 }
 
@@ -206,6 +207,7 @@ final class OrphanDetector {
             showCleanupResult(
                 userFilesCleaned: userFilesCleaned,
                 userFilesFailed: userFilesFailed,
+                deferredForNextUninstall: deferredForNextUninstall,
                 daemonsCleaned: daemonsCleaned,
                 daemonsError: daemonsError
             )
@@ -215,19 +217,38 @@ final class OrphanDetector {
     private func showCleanupResult(
         userFilesCleaned: Int,
         userFilesFailed: [(name: String, reason: String)],
+        deferredForNextUninstall: Bool,
         daemonsCleaned: Bool,
         daemonsError: String?
     ) {
-        let hasUserFileFailures = !userFilesFailed.isEmpty
-        let hasDaemonFailure = daemonsError != nil
-        let allSuccess = !hasUserFileFailures && !hasDaemonFailure
+        let hasRealFailures = !userFilesFailed.isEmpty || daemonsError != nil
+        let didAnything = userFilesCleaned > 0 || daemonsCleaned
 
-        // Only show dialog if there were failures - success is silent
-        guard !allSuccess else {
-            AppLogger.shared.info("🧹 [OrphanDetector] Cleanup complete: \(userFilesCleaned) user files, daemons: \(daemonsCleaned)")
+        // If everything succeeded (possibly with deferred items), show clean success
+        if !hasRealFailures {
+            AppLogger.shared.info("🧹 [OrphanDetector] Cleanup complete: \(userFilesCleaned) user files, daemons: \(daemonsCleaned), deferred: \(deferredForNextUninstall)")
+            if didAnything {
+                let resultAlert = NSAlert()
+                resultAlert.messageText = "Cleanup Complete"
+                var details: [String] = []
+                if userFilesCleaned > 0 {
+                    details.append("✅ Removed \(userFilesCleaned) user file(s)")
+                }
+                if daemonsCleaned {
+                    details.append("✅ Removed system keyboard services")
+                }
+                if deferredForNextUninstall {
+                    details.append("")
+                    details.append("Application Support data will be cleaned automatically on next uninstall.")
+                }
+                resultAlert.informativeText = details.joined(separator: "\n")
+                resultAlert.alertStyle = .informational
+                resultAlert.runModal()
+            }
             return
         }
 
+        // There were real failures — show partial result
         let resultAlert = NSAlert()
         resultAlert.messageText = "Cleanup Partially Complete"
         var details: [String] = []
@@ -246,13 +267,11 @@ final class OrphanDetector {
             details.append("❌ Failed to remove system services:")
             details.append("  \(error)")
         }
-
-        // Add helpful hint if files are in use
-        let hasInUseFiles = userFilesFailed.contains { $0.reason == "in use by running app" }
-        if hasInUseFiles {
+        if deferredForNextUninstall {
             details.append("")
-            details.append("Tip: Quit KeyPath and delete ~/Library/Application Support/KeyPath manually, or these files will be cleaned on next uninstall.")
-        } else if !userFilesFailed.isEmpty {
+            details.append("Application Support data will be cleaned automatically on next uninstall.")
+        }
+        if !userFilesFailed.isEmpty {
             details.append("")
             details.append("You may need to remove failed items manually.")
         }

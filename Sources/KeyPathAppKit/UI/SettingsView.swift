@@ -39,6 +39,13 @@ struct StatusSettingsTabView: View {
         overallHealthLevel == .success
     }
 
+    /// True when the only permission issue is unverified kanata (no FDA to check)
+    private var isOnlyKanataUnverified: Bool {
+        guard let snapshot = permissionSnapshot, !hasFullDiskAccess else { return false }
+        let evaluation = permissionGaps(in: snapshot)
+        return evaluation.missingOrDenied.isEmpty && !evaluation.unknown.isEmpty
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if FeatureFlags.allowOptionalWizard, showSetupBanner {
@@ -98,17 +105,29 @@ struct StatusSettingsTabView: View {
                         }
                     }
 
-                    // Wizard button when there are problems
+                    // Action button when there are problems
                     if !isSystemHealthy {
-                        Button(action: { wizardInitialPage = .summary }) {
-                            Label("Fix it", systemImage: "wand.and.stars")
-                                .font(.body.weight(.semibold))
+                        if isOnlyKanataUnverified {
+                            // Only issue is unverified kanata — lead with FDA
+                            Button(action: { SystemDiagnostics.open(.fullDiskAccess) }) {
+                                Label("Enable Enhanced Diagnostics", systemImage: "checkmark.shield")
+                                    .font(.body.weight(.semibold))
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
+                            .tint(.blue)
+                            .accessibilityIdentifier("status-enable-fda-button")
+                        } else {
+                            Button(action: { wizardInitialPage = .summary }) {
+                                Label("Fix it", systemImage: "wand.and.stars")
+                                    .font(.body.weight(.semibold))
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
+                            .tint(overallHealthLevel == .critical ? .red : .orange)
+                            .accessibilityIdentifier("status-fix-it-button")
+                            .accessibilityLabel("Fix system issues")
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .tint(overallHealthLevel == .critical ? .red : .orange)
-                        .accessibilityIdentifier("status-fix-it-button")
-                        .accessibilityLabel("Fix system issues")
                     }
 
                     // Centered toggle

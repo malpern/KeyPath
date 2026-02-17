@@ -33,15 +33,21 @@ final class WizardNavigationEngine: WizardNavigating {
 
     /// Skip all green pages (including one-time offerings) to find the first page
     /// that actually needs user attention. Used for auto-navigation after validation.
+    ///
+    /// NOTE: FDA (.fullDiskAccess) is never auto-skipped here. It's a one-time offering
+    /// that the user must see and explicitly dismiss. Only the FDA page itself marks it
+    /// as shown when the user makes a choice.
     func firstPageNeedingAttention(for state: WizardSystemState, issues: [WizardIssue]) async -> WizardPage {
         var page = await determineCurrentPage(for: state, issues: issues)
-        // Loop past one-time offering pages that have no issues
+        // Loop past one-time offering pages that have no issues — but NOT FDA
         var iterations = 0
         while !pageHasRelevantIssues(page, issues: issues, state: state) && page != .summary && iterations < 5 {
-            // Mark one-time pages as "shown" so determineCurrentPage advances past them
+            // FDA is an offering page that the user must explicitly dismiss
+            if page == .fullDiskAccess {
+                return page
+            }
+            // Mark other one-time pages as "shown" so determineCurrentPage advances past them
             switch page {
-            case .fullDiskAccess:
-                markFDAPageShown()
             case .kanataMigration:
                 hasShownKanataMigrationPage = true
             default:

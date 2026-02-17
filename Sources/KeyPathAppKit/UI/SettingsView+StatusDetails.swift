@@ -71,6 +71,13 @@ extension StatusSettingsTabView {
             return "TCP Communication Required"
         }
         if !(permissionSnapshot?.isSystemReady ?? false) {
+            // Distinguish "not verified" (no FDA) from actual missing permissions
+            if let snapshot = permissionSnapshot {
+                let evaluation = permissionGaps(in: snapshot)
+                if evaluation.missingOrDenied.isEmpty, !evaluation.unknown.isEmpty {
+                    return "Permissions Unverified"
+                }
+            }
             return "Permissions Required"
         }
         return overallHealthLevel == .success ? "Everything's Working" : "Setup Needed"
@@ -197,24 +204,31 @@ extension StatusSettingsTabView {
         }
         if !evaluation.unknown.isEmpty {
             if hasFullDiskAccess {
-                lines.append("Not verified: \(evaluation.unknown.joined(separator: ", "))")
+                lines.append("Cannot verify: \(evaluation.unknown.joined(separator: ", "))")
             } else {
                 lines.append(
-                    "Not verified (grant Full Disk Access to verify): \(evaluation.unknown.joined(separator: ", "))"
+                    "Cannot verify \(evaluation.unknown.joined(separator: ", ")) without Enhanced Diagnostics"
                 )
             }
         }
 
-        var actions: [StatusDetailAction] = [
-            StatusDetailAction(title: "Fix", icon: "wand.and.stars") {
-                showingPermissionAlert = true
-            }
-        ]
+        var actions: [StatusDetailAction] = []
 
-        if !hasFullDiskAccess, snapshot.kanata.accessibility == .unknown || snapshot.kanata.inputMonitoring == .unknown {
+        // When kanata permissions are unknown due to missing FDA, lead with the FDA action
+        let hasUnverifiedKanata = !hasFullDiskAccess
+            && (snapshot.kanata.accessibility == .unknown || snapshot.kanata.inputMonitoring == .unknown)
+        if hasUnverifiedKanata {
             actions.append(
-                StatusDetailAction(title: "Grant Full Disk Access", icon: "folder") {
+                StatusDetailAction(title: "Enable Enhanced Diagnostics", icon: "checkmark.shield") {
                     SystemDiagnostics.open(.fullDiskAccess)
+                }
+            )
+        }
+
+        if evaluation.hasErrors || !evaluation.missingOrDenied.isEmpty {
+            actions.append(
+                StatusDetailAction(title: "Fix", icon: "wand.and.stars") {
+                    showingPermissionAlert = true
                 }
             )
         }

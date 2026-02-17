@@ -36,7 +36,7 @@ enum WizardRouter {
         //   into permission pages.
         // - KeyPath `.unknown` during startup mode is "checking" and should not route.
         //
-        // Users can still navigate to the permission pages manually from Summary/status rows.
+        // The Settings Status page handles the "not verified" UX separately.
         if hasBlockingPermissionIssue(.permission(.keyPathInputMonitoring))
             || hasBlockingPermissionIssue(.permission(.kanataInputMonitoring))
         {
