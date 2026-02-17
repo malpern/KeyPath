@@ -42,6 +42,7 @@ public struct KanataConfiguration: Sendable {
         _ collections: [RuleCollection],
         leaderKeyPreference: LeaderKeyPreference? = nil,
         navActivationMode: ContextHUDTriggerMode = .tapToToggle,
+        navHoldDelayMs: Int = 200,
         chordGroups: [ChordGroupConfig] = [],
         sequences: [KanataDefseqParser.ParsedSequence] = []
     ) -> String {
@@ -63,7 +64,8 @@ public struct KanataConfiguration: Sendable {
         let (rawBlocks, aliasDefinitions, extraLayers, chordMappings) = buildCollectionBlocks(
             from: enabledCollections,
             leaderKeyPreference: leaderKeyPreference,
-            navActivationMode: navActivationMode
+            navActivationMode: navActivationMode,
+            navHoldDelayMs: navHoldDelayMs
         )
         let mergedAliasDefinitions = aliasDefinitions
         AppLogger.shared.log("📚 [KanataConfig] Total alias definitions: \(mergedAliasDefinitions.count), first 5: \(mergedAliasDefinitions.prefix(5).map(\.aliasName).joined(separator: ", "))")

@@ -15,6 +15,7 @@ struct WizardHeroSection: View {
     let actionButtonTitle: String?
     let actionButtonAction: (() -> Void)?
     let iconTapAction: (() -> Void)?
+    let animated: Bool
 
     // MARK: - State
 
@@ -37,7 +38,8 @@ struct WizardHeroSection: View {
         subtitle: String,
         actionButtonTitle: String? = nil,
         actionButtonAction: (() -> Void)? = nil,
-        iconTapAction: (() -> Void)? = nil
+        iconTapAction: (() -> Void)? = nil,
+        animated: Bool = true
     ) {
         self.icon = icon
         self.iconColor = iconColor
@@ -49,6 +51,7 @@ struct WizardHeroSection: View {
         self.actionButtonTitle = actionButtonTitle
         self.actionButtonAction = actionButtonAction
         self.iconTapAction = iconTapAction
+        self.animated = animated
     }
 
     // MARK: - Body
@@ -105,7 +108,7 @@ struct WizardHeroSection: View {
                 .font(.system(size: 115, weight: .light))
                 .foregroundColor(iconColor)
                 .symbolRenderingMode(.hierarchical)
-                .modifier(AvailabilitySymbolBounce())
+                .if(animated) { $0.modifier(AvailabilitySymbolBounce()) }
 
             // Overlay icon (if provided)
             if let overlayIcon, let overlayColor {
@@ -154,6 +157,7 @@ extension WizardHeroSection {
         icon: String,
         title: String,
         subtitle: String,
+        animated: Bool = true,
         actionButtonTitle: String? = nil,
         actionButtonAction: (() -> Void)? = nil,
         iconTapAction: (() -> Void)? = nil
@@ -168,7 +172,8 @@ extension WizardHeroSection {
             subtitle: subtitle,
             actionButtonTitle: actionButtonTitle,
             actionButtonAction: actionButtonAction,
-            iconTapAction: iconTapAction
+            iconTapAction: iconTapAction,
+            animated: animated
         )
     }
 
@@ -177,6 +182,7 @@ extension WizardHeroSection {
         icon: String,
         title: String,
         subtitle: String,
+        animated: Bool = true,
         actionButtonTitle: String? = nil,
         actionButtonAction: (() -> Void)? = nil,
         iconTapAction: (() -> Void)? = nil
@@ -191,7 +197,8 @@ extension WizardHeroSection {
             subtitle: subtitle,
             actionButtonTitle: actionButtonTitle,
             actionButtonAction: actionButtonAction,
-            iconTapAction: iconTapAction
+            iconTapAction: iconTapAction,
+            animated: animated
         )
     }
 
@@ -200,6 +207,7 @@ extension WizardHeroSection {
         icon: String,
         title: String,
         subtitle: String,
+        animated: Bool = true,
         actionButtonTitle: String? = nil,
         actionButtonAction: (() -> Void)? = nil,
         iconTapAction: (() -> Void)? = nil
@@ -214,7 +222,8 @@ extension WizardHeroSection {
             subtitle: subtitle,
             actionButtonTitle: actionButtonTitle,
             actionButtonAction: actionButtonAction,
-            iconTapAction: iconTapAction
+            iconTapAction: iconTapAction,
+            animated: animated
         )
     }
 }

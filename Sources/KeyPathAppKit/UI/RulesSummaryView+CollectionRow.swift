@@ -279,8 +279,10 @@ struct ExpandableCollectionRow: View {
                 } else if displayStyle == .homeRowMods, let coll = collection {
                     // Home Row Mods: show summary with current config, click to customize
                     let config = coll.configuration.homeRowModsConfig ?? HomeRowModsConfig()
+                    let assignmentMap = config.holdMode == .modifiers ? config.modifierAssignments : config.layerAssignments
+                    let modeDescription = config.holdMode == .modifiers ? "modifiers" : "layers"
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Tap keys for letters, hold for modifiers")
+                        Text("Tap keys for letters, hold for \(modeDescription)")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
@@ -297,7 +299,7 @@ struct ExpandableCollectionRow: View {
                                             HStack(spacing: 6) {
                                                 ForEach(HomeRowModsConfig.leftHandKeys, id: \.self) { key in
                                                     if config.enabledKeys.contains(key) {
-                                                        let modSymbol = config.modifierAssignments[key].map { formatModifierForDisplay($0) } ?? ""
+                                                        let modSymbol = assignmentMap[key].map { formatModifierForDisplay($0) } ?? ""
                                                         HomeRowKeyButton(
                                                             key: key,
                                                             modSymbol: modSymbol,
@@ -318,7 +320,7 @@ struct ExpandableCollectionRow: View {
                                             HStack(spacing: 6) {
                                                 ForEach(HomeRowModsConfig.rightHandKeys, id: \.self) { key in
                                                     if config.enabledKeys.contains(key) {
-                                                        let modSymbol = config.modifierAssignments[key].map { formatModifierForDisplay($0) } ?? ""
+                                                        let modSymbol = assignmentMap[key].map { formatModifierForDisplay($0) } ?? ""
                                                         HomeRowKeyButton(
                                                             key: key,
                                                             modSymbol: modSymbol,
@@ -353,6 +355,21 @@ struct ExpandableCollectionRow: View {
                         .accessibilityIdentifier("rules-summary-home-row-mods-customize-button")
                         .accessibilityLabel("Customize home row mods")
                     }
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
+                } else if displayStyle == .homeRowLayerToggles, let coll = collection {
+                    // Home Row Layer Toggles: visual keyboard with progressive disclosure customization
+                    let config = coll.configuration.homeRowLayerTogglesConfig ?? HomeRowLayerTogglesConfig()
+                    HomeRowLayerTogglesCollectionView(
+                        config: Binding(
+                            get: { config },
+                            set: { _ in }
+                        ),
+                        onConfigChanged: { newConfig in
+                            onUpdateHomeRowLayerTogglesConfig?(newConfig)
+                        }
+                    )
                     .padding(.top, 8)
                     .padding(.bottom, 12)
                     .padding(.horizontal, 16)

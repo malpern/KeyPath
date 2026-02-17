@@ -92,43 +92,40 @@ struct TapHoldPickerContent: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             // TAP section
             VStack(alignment: .leading, spacing: 8) {
-                Text("TAP")
-                    .font(.caption.weight(.semibold))
+                Text("Tap")
+                    .font(.subheadline.weight(.medium))
                     .foregroundColor(.secondary)
 
-                HStack(spacing: 0) {
+                FlowLayout(spacing: 6) {
                     ForEach(tapOptions) { preset in
                         PickerSegment(
                             label: preset.label,
                             isSelected: selectedTap == preset.output,
-                            isFirst: preset.id == tapOptions.first?.id,
-                            isLast: preset.id == tapOptions.last?.id && !isCustomTapSelection
+                            isFirst: false,
+                            isLast: false
                         ) {
                             selectedTap = preset.output
                             onSelectTapOutput(preset.output)
                         }
                     }
 
-                    // Show custom selection as a segment when one is selected
                     if isCustomTapSelection {
                         CustomValueSegment(
                             label: customTapDisplayLabel,
                             sfSymbol: sfSymbolFor(selectedTap),
                             isSelected: true,
                             isLast: false
-                        ) {
-                            // Already selected, do nothing
-                        }
+                        ) {}
                     }
 
                     PickerSegment(
                         label: isCustomTapSelection ? "Edit" : "Custom",
                         isSelected: false,
                         isFirst: false,
-                        isLast: true
+                        isLast: false
                     ) {
                         customTapInput = isCustomTapSelection ? selectedTap : ""
                         showingCustomTapPopover = true
@@ -137,7 +134,6 @@ struct TapHoldPickerContent: View {
                         CustomKeyPopover(
                             keyInput: $customTapInput,
                             onConfirm: {
-                                // For system action outputs, use the value directly
                                 if CustomRuleValidator.isSystemActionOutput(customTapInput) {
                                     selectedTap = customTapInput
                                     onSelectTapOutput(customTapInput)
@@ -156,52 +152,50 @@ struct TapHoldPickerContent: View {
                         )
                     }
                 }
-                .padding(.horizontal, 4)
 
                 if let preset = selectedTapPreset {
                     Text(preset.description)
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 4)
+                        .foregroundStyle(.tertiary)
                 }
             }
 
+            Divider()
+                .padding(.vertical, 14)
+
             // HOLD section
             VStack(alignment: .leading, spacing: 8) {
-                Text("HOLD")
-                    .font(.caption.weight(.semibold))
+                Text("Hold")
+                    .font(.subheadline.weight(.medium))
                     .foregroundColor(.secondary)
 
-                HStack(spacing: 0) {
+                FlowLayout(spacing: 6) {
                     ForEach(holdOptions) { preset in
                         PickerSegment(
                             label: preset.label,
                             isSelected: selectedHold == preset.output,
-                            isFirst: preset.id == holdOptions.first?.id,
-                            isLast: preset.id == holdOptions.last?.id && !isCustomHoldSelection
+                            isFirst: false,
+                            isLast: false
                         ) {
                             selectedHold = preset.output
                             onSelectHoldOutput(preset.output)
                         }
                     }
 
-                    // Show custom selection as a segment when one is selected
                     if isCustomHoldSelection {
                         CustomValueSegment(
                             label: customHoldDisplayLabel,
                             sfSymbol: sfSymbolFor(selectedHold),
                             isSelected: true,
                             isLast: false
-                        ) {
-                            // Already selected, do nothing
-                        }
+                        ) {}
                     }
 
                     PickerSegment(
                         label: isCustomHoldSelection ? "Edit" : "Custom",
                         isSelected: false,
                         isFirst: false,
-                        isLast: true
+                        isLast: false
                     ) {
                         customHoldInput = isCustomHoldSelection ? selectedHold : ""
                         showingCustomHoldPopover = true
@@ -210,7 +204,6 @@ struct TapHoldPickerContent: View {
                         CustomKeyPopover(
                             keyInput: $customHoldInput,
                             onConfirm: {
-                                // For system action outputs, use the value directly
                                 if CustomRuleValidator.isSystemActionOutput(customHoldInput) {
                                     selectedHold = customHoldInput
                                     onSelectHoldOutput(customHoldInput)
@@ -229,13 +222,11 @@ struct TapHoldPickerContent: View {
                         )
                     }
                 }
-                .padding(.horizontal, 4)
 
                 if let preset = selectedHoldPreset {
                     Text(preset.description)
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 4)
+                        .foregroundStyle(.tertiary)
                 }
             }
 
@@ -250,14 +241,15 @@ struct TapHoldPickerContent: View {
                         .foregroundColor(.secondary)
                 }
                 .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.yellow.opacity(0.1))
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.yellow.opacity(0.08))
                 )
-                .padding(.top, 4)
+                .padding(.top, 16)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 12)
         .animation(.easeInOut(duration: 0.15), value: selectedTap)
         .animation(.easeInOut(duration: 0.15), value: selectedHold)
     }

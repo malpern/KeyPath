@@ -30,12 +30,14 @@ final class ContextHUDViewModel {
     ///   - keyMap: Key code to LayerKeyInfo mapping from LayerKeyMapper
     ///   - collections: All enabled rule collections (for name/color lookup)
     ///   - style: The content style to use
+    ///   - launcherKeyMap: Optional launcher layer keyMap to show alongside the main layer
     func update(
         layerName: String,
         keyMap: [UInt16: LayerKeyInfo],
         collections: [RuleCollection],
         style: HUDContentStyle,
-        holdLabels: [UInt16: String] = [:]
+        holdLabels: [UInt16: String] = [:],
+        launcherKeyMap: [UInt16: LayerKeyInfo]? = nil
     ) {
         self.layerName = layerName
         self.style = style
@@ -91,7 +93,24 @@ final class ContextHUDViewModel {
             )
         }.sorted { $0.keyCode < $1.keyCode }
 
-        allEntries = entries
+        // Build launcher entries as a separate list (all app/URL shortcuts)
+        let launcherEntries: [HUDKeyEntry] = launcherKeyMap?.compactMap { keyCode, info in
+            guard info.appLaunchIdentifier != nil || info.urlIdentifier != nil else { return nil }
+            let keycap = keycapLabel(for: keyCode)
+            let color = collectionColor(for: info.collectionId)
+            return HUDKeyEntry(
+                keycap: keycap,
+                action: info.displayLabel,
+                sfSymbol: nil,
+                appIdentifier: info.appLaunchIdentifier,
+                urlIdentifier: info.urlIdentifier,
+                holdAction: nil,
+                color: color,
+                keyCode: keyCode
+            )
+        }.sorted { $0.keyCode < $1.keyCode } ?? []
+
+        allEntries = entries + launcherEntries
 
         // Group by collection
         var groupMap: [UUID: (name: String, color: Color, entries: [HUDKeyEntry])] = [:]
@@ -103,6 +122,18 @@ final class ContextHUDViewModel {
             if groupMap[collectionId] == nil {
                 let collection = collectionLookup[collectionId]
                 let name = collection?.name ?? "Keys"
+                let color = collectionColor(for: collectionId == defaultGroupId ? nil : collectionId)
+                groupMap[collectionId] = (name: name, color: color, entries: [])
+            }
+            groupMap[collectionId]?.entries.append(entry)
+        }
+
+        // Add launcher entries as their own group
+        for entry in launcherEntries {
+            let collectionId = launcherKeyMap?[entry.keyCode]?.collectionId ?? defaultGroupId
+            if groupMap[collectionId] == nil {
+                let collection = collectionLookup[collectionId]
+                let name = collection?.name ?? "Quick Launch"
                 let color = collectionColor(for: collectionId == defaultGroupId ? nil : collectionId)
                 groupMap[collectionId] = (name: name, color: color, entries: [])
             }

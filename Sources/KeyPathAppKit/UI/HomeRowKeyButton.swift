@@ -11,12 +11,24 @@ struct HomeRowKeyButton: View {
     let modSymbol: String
     let action: () -> Void
 
+    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
+
+    private var displayLabel: String {
+        guard let keyCode = LogicalKeymap.keyCode(forQwertyLabel: key),
+              let label = (LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS)
+                  .label(for: keyCode, includeExtraKeys: false)
+        else {
+            return key.uppercased()
+        }
+        return label.uppercased()
+    }
+
     var body: some View {
         Button(action: action) {
-            HomeRowKeyChipSmall(letter: key.uppercased(), symbol: modSymbol)
+            HomeRowKeyChipSmall(letter: displayLabel, symbol: modSymbol)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("rules-summary-home-row-key-button-\(key)")
-        .accessibilityLabel("Customize \(key.uppercased()) key")
+        .accessibilityLabel("Customize \(displayLabel) key")
     }
 }

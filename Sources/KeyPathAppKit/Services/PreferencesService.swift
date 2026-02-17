@@ -53,6 +53,32 @@ public enum ContextHUDTriggerMode: String, CaseIterable, Sendable {
     }
 }
 
+/// Hold-duration presets for triggering the Shortcut List/navigation layer.
+public enum ContextHUDHoldDelayPreset: String, CaseIterable, Sendable {
+    case short
+    case medium
+    case long
+    case custom
+
+    public var displayName: String {
+        switch self {
+        case .short: "Short"
+        case .medium: "Medium"
+        case .long: "Long"
+        case .custom: "Custom"
+        }
+    }
+
+    var milliseconds: Int? {
+        switch self {
+        case .short: 150
+        case .medium: 200
+        case .long: 300
+        case .custom: nil
+        }
+    }
+}
+
 /// Manages KeyPath application preferences and settings
 // SAFETY: @unchecked Sendable — all mutable state is backed by UserDefaults (thread-safe)
 // and the shared instance is confined to @MainActor. @Observable macro prevents conforming
@@ -215,6 +241,34 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    /// Preset hold duration for triggering Shortcut List/navigation layer.
+    var contextHUDHoldDelayPreset: ContextHUDHoldDelayPreset {
+        didSet {
+            UserDefaults.standard.set(contextHUDHoldDelayPreset.rawValue, forKey: Keys.contextHUDHoldDelayPreset)
+            AppLogger.shared.log("🎯 [Preferences] contextHUDHoldDelayPreset = \(contextHUDHoldDelayPreset.rawValue)")
+            NotificationCenter.default.post(name: .configAffectingPreferenceChanged, object: nil)
+        }
+    }
+
+    /// Custom hold duration in milliseconds (used when preset is `.custom`).
+    var contextHUDHoldDelayCustomMs: Int {
+        didSet {
+            let clamped = min(max(contextHUDHoldDelayCustomMs, 100), 2000)
+            if clamped != contextHUDHoldDelayCustomMs {
+                contextHUDHoldDelayCustomMs = clamped
+            } else {
+                UserDefaults.standard.set(contextHUDHoldDelayCustomMs, forKey: Keys.contextHUDHoldDelayCustomMs)
+                AppLogger.shared.log("🎯 [Preferences] contextHUDHoldDelayCustomMs = \(contextHUDHoldDelayCustomMs)")
+                NotificationCenter.default.post(name: .configAffectingPreferenceChanged, object: nil)
+            }
+        }
+    }
+
+    /// Effective hold duration in milliseconds used by generated config.
+    var contextHUDHoldDelayMs: Int {
+        contextHUDHoldDelayPreset.milliseconds ?? contextHUDHoldDelayCustomMs
+    }
+
     // MARK: - Keys
 
     private enum Keys {
@@ -231,6 +285,8 @@ final class PreferencesService: @unchecked Sendable {
         static let contextHUDDisplayMode = "KeyPath.ContextHUD.DisplayMode"
         static let contextHUDTriggerMode = "KeyPath.ContextHUD.TriggerMode"
         static let contextHUDTimeout = "KeyPath.ContextHUD.Timeout"
+        static let contextHUDHoldDelayPreset = "KeyPath.ContextHUD.HoldDelayPreset"
+        static let contextHUDHoldDelayCustomMs = "KeyPath.ContextHUD.HoldDelayCustomMs"
     }
 
     // MARK: - Defaults
@@ -251,6 +307,8 @@ final class PreferencesService: @unchecked Sendable {
         static let contextHUDDisplayMode = ContextHUDDisplayMode.both
         static let contextHUDTriggerMode = ContextHUDTriggerMode.holdToShow
         static let contextHUDTimeout: TimeInterval = 3.0
+        static let contextHUDHoldDelayPreset = ContextHUDHoldDelayPreset.long
+        static let contextHUDHoldDelayCustomMs = 200
     }
 
     // MARK: - Initialization
@@ -321,6 +379,15 @@ final class PreferencesService: @unchecked Sendable {
 
         contextHUDTimeout = UserDefaults.standard.object(forKey: Keys.contextHUDTimeout) as? TimeInterval
             ?? Defaults.contextHUDTimeout
+
+        let holdDelayPresetString = UserDefaults.standard.string(forKey: Keys.contextHUDHoldDelayPreset)
+            ?? Defaults.contextHUDHoldDelayPreset.rawValue
+        contextHUDHoldDelayPreset = ContextHUDHoldDelayPreset(rawValue: holdDelayPresetString)
+            ?? Defaults.contextHUDHoldDelayPreset
+
+        contextHUDHoldDelayCustomMs =
+            UserDefaults.standard.object(forKey: Keys.contextHUDHoldDelayCustomMs) as? Int
+                ?? Defaults.contextHUDHoldDelayCustomMs
 
         AppLogger.shared.log(
             "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), TCP port: \(tcpServerPort), Verbose logging: \(verboseKanataLogging), Activity logging: \(activityLoggingEnabled)"

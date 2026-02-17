@@ -57,6 +57,7 @@ struct WizardAccessibilityPage: View {
                             icon: "accessibility",
                             title: "Accessibility",
                             subtitle: "KeyPath has system-level access for keyboard monitoring & safety controls",
+                            animated: false,
                             iconTapAction: {
                                 Task {
                                     await onRefresh()

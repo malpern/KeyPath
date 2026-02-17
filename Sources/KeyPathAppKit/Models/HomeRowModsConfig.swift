@@ -8,6 +8,15 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
     /// Modifier assignment for each key
     public var modifierAssignments: [String: String]
 
+    /// Layer assignment for each key when hold mode is `.layers`
+    public var layerAssignments: [String: String]
+
+    /// Hold behavior mode
+    public var holdMode: HomeRowHoldMode
+
+    /// Layer activation mode used when `holdMode == .layers`
+    public var layerToggleMode: LayerToggleMode
+
     /// Timing configuration
     public var timing: TimingConfig
 
@@ -20,12 +29,18 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
     public init(
         enabledKeys: Set<String> = ["a", "s", "d", "f", "j", "k", "l", ";"],
         modifierAssignments: [String: String] = HomeRowModsConfig.cagsMacDefault,
+        layerAssignments: [String: String] = HomeRowModsConfig.defaultLayerAssignments,
+        holdMode: HomeRowHoldMode = .modifiers,
+        layerToggleMode: LayerToggleMode = .whileHeld,
         timing: TimingConfig = .default,
         keySelection: KeySelection = .both,
         showAdvanced: Bool = false
     ) {
         self.enabledKeys = enabledKeys
         self.modifierAssignments = modifierAssignments
+        self.layerAssignments = layerAssignments
+        self.holdMode = holdMode
+        self.layerToggleMode = layerToggleMode
         self.timing = timing
         self.keySelection = keySelection
         self.showAdvanced = showAdvanced
@@ -45,6 +60,12 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         "j": "rsft", "k": "rctl", "l": "ralt", ";": "rmet"
     ]
 
+    /// Default layer assignments (Ben Vallack-inspired mirror setup)
+    public static let defaultLayerAssignments: [String: String] = [
+        "a": "num", "s": "sys1", "d": "sys2", "f": "nav",
+        "j": "nav", "k": "sys2", "l": "sys1", ";": "num"
+    ]
+
     /// Left hand keys
     public static let leftHandKeys = ["a", "s", "d", "f"]
 
@@ -53,6 +74,54 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
 
     /// All home row keys
     public static let allKeys = leftHandKeys + rightHandKeys
+
+    private enum CodingKeys: String, CodingKey {
+        case enabledKeys
+        case modifierAssignments
+        case layerAssignments
+        case holdMode
+        case layerToggleMode
+        case timing
+        case keySelection
+        case showAdvanced
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabledKeys = try container.decodeIfPresent(Set<String>.self, forKey: .enabledKeys) ?? Set(Self.allKeys)
+        modifierAssignments = try container.decodeIfPresent([String: String].self, forKey: .modifierAssignments) ?? Self.cagsMacDefault
+        layerAssignments = try container.decodeIfPresent([String: String].self, forKey: .layerAssignments) ?? Self.defaultLayerAssignments
+        holdMode = try container.decodeIfPresent(HomeRowHoldMode.self, forKey: .holdMode) ?? .modifiers
+        layerToggleMode = try container.decodeIfPresent(LayerToggleMode.self, forKey: .layerToggleMode) ?? .whileHeld
+        timing = try container.decodeIfPresent(TimingConfig.self, forKey: .timing) ?? .default
+        keySelection = try container.decodeIfPresent(KeySelection.self, forKey: .keySelection) ?? .both
+        showAdvanced = try container.decodeIfPresent(Bool.self, forKey: .showAdvanced) ?? false
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(enabledKeys, forKey: .enabledKeys)
+        try container.encode(modifierAssignments, forKey: .modifierAssignments)
+        try container.encode(layerAssignments, forKey: .layerAssignments)
+        try container.encode(holdMode, forKey: .holdMode)
+        try container.encode(layerToggleMode, forKey: .layerToggleMode)
+        try container.encode(timing, forKey: .timing)
+        try container.encode(keySelection, forKey: .keySelection)
+        try container.encode(showAdvanced, forKey: .showAdvanced)
+    }
+}
+
+/// Hold behavior for Home Row Mods
+public enum HomeRowHoldMode: String, Codable, Sendable {
+    case modifiers
+    case layers
+
+    public var displayName: String {
+        switch self {
+        case .modifiers: "Modifiers"
+        case .layers: "Layers"
+        }
+    }
 }
 
 /// Key selection mode for home row mods

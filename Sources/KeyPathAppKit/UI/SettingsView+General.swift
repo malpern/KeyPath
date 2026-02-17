@@ -4,262 +4,147 @@ import SwiftUI
 
 // MARK: - General Settings Tab
 
-private enum GeneralSettingsSection: String, CaseIterable, Identifiable {
-    case settings = "Settings"
-    case virtualKeys = "Virtual Keys"
-    #if DEBUG
-        case experimental = "Experimental"
-    #endif
-
-    var id: String {
-        rawValue
-    }
-
-    /// Sections to show based on feature flags and build configuration
-    static var visibleSections: [GeneralSettingsSection] {
-        var sections: [GeneralSettingsSection] = [.settings]
-        if FeatureFlags.simulatorAndVirtualKeysEnabled {
-            sections.append(.virtualKeys)
-        }
-        #if DEBUG
-            sections.append(.experimental)
-        #endif
-        return sections
-    }
-}
-
 struct GeneralSettingsTabView: View {
     @Environment(KanataViewModel.self) var kanataManager
     @State private var settingsToastManager = WizardToastManager()
-    @State private var selectedSection: GeneralSettingsSection = .settings
-    @AppStorage(LayoutPreferences.layoutIdKey) private var selectedLayoutId: String = LayoutPreferences.defaultLayoutId
-    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
-    @State private var showingKeymapInfo = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Segmented control for section switching
-            Picker("", selection: $selectedSection) {
-                ForEach(GeneralSettingsSection.visibleSections) { section in
-                    Text(section.rawValue).tag(section)
-                }
-            }
-            .pickerStyle(.segmented)
-            .controlSize(.large)
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 12)
-            .accessibilityIdentifier("settings-general-section-picker")
-
-            // Content based on selected section
-            Group {
-                switch selectedSection {
-                case .settings:
-                    generalSettingsContent
-                case .virtualKeys:
-                    if FeatureFlags.simulatorAndVirtualKeysEnabled {
-                        VirtualKeysInspectorView()
-                            .padding(.horizontal, 20)
-                            .padding(.top, 8)
-                    }
-                #if DEBUG
-                    case .experimental:
-                        ExperimentalSettingsSection()
-                #endif
-                }
-            }
+        generalSettingsContent
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .settingsBackground()
-        .withToasts(settingsToastManager)
+            .settingsBackground()
+            .withToasts(settingsToastManager)
     }
 
     // MARK: - General Settings Content
 
     private var generalSettingsContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .top, spacing: 40) {
-                    // Left: Logs
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Logs")
+            VStack(alignment: .leading, spacing: 24) {
+                // Shortcut List
+                ContextHUDSettingsSection()
+
+                // Capture Mode
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Capture Mode")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    HStack(spacing: 10) {
+                        SettingsOptionCard(
+                            icon: "arrow.right",
+                            title: "Sequences",
+                            subtitle: "Keys one after another",
+                            isSelected: PreferencesService.shared.isSequenceMode
+                        ) {
+                            PreferencesService.shared.isSequenceMode = true
+                        }
+                        .accessibilityLabel("Sequences capture mode")
+
+                        SettingsOptionCard(
+                            icon: "command",
+                            title: "Combos",
+                            subtitle: "Keys pressed together",
+                            isSelected: !PreferencesService.shared.isSequenceMode
+                        ) {
+                            PreferencesService.shared.isSequenceMode = false
+                        }
+                        .accessibilityLabel("Combos capture mode")
+                    }
+                    .accessibilityIdentifier("settings-capture-mode-picker")
+                }
+
+                // Recording Behavior
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Recording Behavior")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    HStack(spacing: 10) {
+                        SettingsOptionCard(
+                            icon: "keyboard",
+                            title: "Physical Keys",
+                            subtitle: "Pause mappings",
+                            isSelected: !PreferencesService.shared.applyMappingsDuringRecording
+                        ) {
+                            PreferencesService.shared.applyMappingsDuringRecording = false
+                        }
+                        .accessibilityLabel("Physical Keys recording behavior")
+
+                        SettingsOptionCard(
+                            icon: "wand.and.stars",
+                            title: "With Mappings",
+                            subtitle: "Include KeyPath",
+                            isSelected: PreferencesService.shared.applyMappingsDuringRecording
+                        ) {
+                            PreferencesService.shared.applyMappingsDuringRecording = true
+                        }
+                        .accessibilityLabel("With Mappings recording behavior")
+                    }
+                    .accessibilityIdentifier("settings-recording-behavior-picker")
+                }
+
+                Divider()
+
+                // Logs
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Logs")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    HStack(spacing: 12) {
+                        Button {
+                            openLogFile(NSHomeDirectory() + "/Library/Logs/KeyPath/keypath-debug.log")
+                        } label: {
+                            Label("KeyPath Log", systemImage: "doc.text")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.regular)
+                        .accessibilityIdentifier("settings-open-keypath-log-button")
+                        .accessibilityLabel("Open KeyPath log")
+
+                        Button {
+                            openLogFile(WizardSystemPaths.kanataLogFile)
+                        } label: {
+                            Label("Kanata Log", systemImage: "doc.text")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.regular)
+                        .accessibilityIdentifier("settings-open-kanata-log-button")
+                        .accessibilityLabel("Open Kanata log")
+                    }
+
+                    VerboseLoggingToggle()
+                        .padding(.top, 4)
+                }
+
+                if FeatureFlags.simulatorAndVirtualKeysEnabled {
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Virtual Keys")
                             .font(.headline)
                             .foregroundColor(.secondary)
 
-                        HStack(spacing: 30) {
-                            // KeyPath Log
-                            VStack(spacing: 8) {
-                                Image(systemName: "doc.text.fill")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.blue)
+                        VirtualKeysInspectorView()
+                    }
+                    .accessibilityIdentifier("settings-virtual-keys-section")
+                }
 
-                                Text("KeyPath log")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                #if DEBUG
+                    Divider()
 
-                                Button("Open") {
-                                    openLogFile(NSHomeDirectory() + "/Library/Logs/KeyPath/keypath-debug.log")
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .accessibilityIdentifier("settings-open-keypath-log-button")
-                                .accessibilityLabel("Open KeyPath log")
-                            }
-
-                            // Kanata Log
-                            VStack(spacing: 8) {
-                                Image(systemName: "doc.text.fill")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.green)
-
-                                Text("Kanata log")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-
-                                Button("Open") {
-                                    openLogFile(WizardSystemPaths.kanataLogFile)
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .accessibilityIdentifier("settings-open-kanata-log-button")
-                                .accessibilityLabel("Open Kanata log")
-                            }
-                        }
-                        VerboseLoggingToggle()
+                    DisclosureGroup("Experimental") {
+                        ExperimentalSettingsSection()
                             .padding(.top, 8)
                     }
-                    .frame(minWidth: 220)
-
-                    // Right column
-                    VStack(alignment: .leading, spacing: 20) {
-                        // Shortcut List Settings (top of column)
-                        ContextHUDSettingsSection()
-
-                        // Capture Mode
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Capture Mode")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-
-                            Picker(
-                                "",
-                                selection: Binding(
-                                    get: { PreferencesService.shared.isSequenceMode },
-                                    set: { PreferencesService.shared.isSequenceMode = $0 }
-                                )
-                            ) {
-                                Label {
-                                    Text("Sequences - Keys one after another")
-                                } icon: {
-                                    Image(systemName: "arrow.right")
-                                        .foregroundColor(.secondary)
-                                }
-                                .tag(true)
-
-                                Label {
-                                    Text("Combos - Keys together")
-                                } icon: {
-                                    Image(systemName: "command")
-                                        .foregroundColor(.secondary)
-                                }
-                                .tag(false)
-                            }
-                            .pickerStyle(.radioGroup)
-                            .labelsHidden()
-                            .accessibilityIdentifier("settings-capture-mode-picker")
-                            .accessibilityLabel("Capture Mode")
-                        }
-
-                        // Recording Behavior
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Recording Behavior")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-
-                            Picker(
-                                "",
-                                selection: Binding(
-                                    get: { PreferencesService.shared.applyMappingsDuringRecording },
-                                    set: { PreferencesService.shared.applyMappingsDuringRecording = $0 }
-                                )
-                            ) {
-                                Label {
-                                    Text("Physical keys only (pause mappings)")
-                                } icon: {
-                                    Image(systemName: "keyboard")
-                                        .foregroundColor(.secondary)
-                                }
-                                .tag(false)
-
-                                Label {
-                                    Text("Include KeyPath mappings")
-                                } icon: {
-                                    Image(systemName: "wand.and.stars")
-                                        .foregroundColor(.blue)
-                                }
-                                .tag(true)
-                            }
-                            .pickerStyle(.radioGroup)
-                            .labelsHidden()
-                            .accessibilityIdentifier("settings-recording-behavior-picker")
-                            .accessibilityLabel("Recording Behavior")
-                        }
-
-                        // Overlay Settings
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Keyboard Overlay")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-
-                            Picker("Layout", selection: $selectedLayoutId) {
-                                ForEach(PhysicalLayout.all) { layout in
-                                    Text(layout.name).tag(layout.id)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .frame(maxWidth: 200)
-                            .accessibilityIdentifier("settings-overlay-layout-picker")
-                            .accessibilityLabel("Keyboard Overlay Layout")
-
-                            HStack(spacing: 6) {
-                                Picker("Keymap", selection: $selectedKeymapId) {
-                                    ForEach(LogicalKeymap.all) { keymap in
-                                        Text(keymap.name).tag(keymap.id)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                                .frame(maxWidth: 200)
-                                .accessibilityIdentifier("settings-overlay-keymap-picker")
-                                .accessibilityLabel("Keyboard Overlay Keymap")
-
-                                Button {
-                                    showingKeymapInfo.toggle()
-                                } label: {
-                                    Image(systemName: "info.circle")
-                                }
-                                .buttonStyle(.borderless)
-                                .help("Keymap details")
-                                .popover(isPresented: $showingKeymapInfo) {
-                                    KeymapInfoPopover(keymap: selectedKeymap)
-                                }
-                            }
-
-                            Button("Reset Overlay Size") {
-                                LiveKeyboardOverlayController.shared.resetWindowFrame()
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            .help("Reset the keyboard overlay to its default size and position")
-                            .accessibilityIdentifier("settings-reset-overlay-size-button")
-                            .accessibilityLabel("Reset Overlay Size")
-                        }
-                    }
-
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                    .accessibilityIdentifier("settings-experimental-disclosure")
+                #endif
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
         }
     }
 
@@ -291,27 +176,6 @@ struct GeneralSettingsTabView: View {
         }
     }
 
-    private var selectedKeymap: LogicalKeymap {
-        LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
-    }
-}
-
-private struct KeymapInfoPopover: View {
-    let keymap: LogicalKeymap
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(keymap.name)
-                .font(.headline)
-            Text(keymap.description)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Link("Learn more", destination: keymap.learnMoreURL)
-        }
-        .padding(12)
-        .frame(maxWidth: 260)
-    }
 }
 
 // MARK: - Verbose Logging Toggle
@@ -323,8 +187,24 @@ struct VerboseLoggingToggle: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle("Verbose Kanata Logging", isOn: $verboseLogging)
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Verbose Logging")
+                        .font(.headline)
+                    Text("Detailed Kanata trace logs for debugging")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Toggle(
+                    "",
+                    isOn: $verboseLogging
+                )
+                .labelsHidden()
                 .toggleStyle(.switch)
+                .tint(.blue)
                 .accessibilityIdentifier("settings-verbose-logging-toggle")
                 .accessibilityLabel("Verbose Kanata Logging")
                 .onChange(of: verboseLogging) { _, newValue in
@@ -333,6 +213,7 @@ struct VerboseLoggingToggle: View {
                         showingRestartAlert = true
                     }
                 }
+            }
 
             if verboseLogging {
                 HStack(spacing: 8) {
@@ -341,16 +222,22 @@ struct VerboseLoggingToggle: View {
                         .font(.caption)
 
                     Text(
-                        "Trace logging generates large log files. Use for debugging key repeat or performance issues only."
+                        "Generates large log files. Use for debugging only."
                     )
                     .font(.caption)
                     .foregroundColor(.secondary)
                 }
-                .padding(12)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.orange.opacity(0.1))
                 .clipShape(.rect(cornerRadius: 8))
             }
         }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(nsColor: NSColor.windowBackgroundColor))
+        )
         .alert("Service Restart Required", isPresented: $showingRestartAlert) {
             Button("Later", role: .cancel) {}
             Button("Restart Now") {

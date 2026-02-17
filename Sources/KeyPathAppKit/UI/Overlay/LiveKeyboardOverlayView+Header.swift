@@ -187,7 +187,7 @@ struct OverlayDragHeader: View {
                     onToggleInspector()
                 } label: {
                     Image(systemName: isInspectorOpen ? "xmark.circle" : "slider.horizontal.3")
-                        .font(.system(size: buttonSize * 0.6, weight: .semibold))
+                        .font(.system(size: buttonSize * 0.72, weight: .semibold))
                         .foregroundStyle(drawerButtonHighlighted ? Color.accentColor : headerIconColor)
                         .frame(width: buttonSize, height: buttonSize)
                         .scaleEffect(drawerButtonHighlighted ? 1.2 : 1.0)
@@ -206,7 +206,7 @@ struct OverlayDragHeader: View {
                     onClose()
                 } label: {
                     Image(systemName: "eye.slash")
-                        .font(.system(size: buttonSize * 0.6, weight: .semibold))
+                        .font(.system(size: buttonSize * 0.72, weight: .semibold))
                         .foregroundStyle(headerIconColor)
                         .frame(width: buttonSize, height: buttonSize)
                 }
@@ -428,7 +428,7 @@ struct OverlayDragHeader: View {
                     toggleLayerMenu()
                 } label: {
                     Image(systemName: iconName)
-                        .font(.system(size: buttonSize * 0.6, weight: .semibold))
+                        .font(.system(size: buttonSize * 0.72, weight: .semibold))
                         .foregroundStyle(headerIconColor)
                         .frame(width: buttonSize, height: buttonSize)
                 }

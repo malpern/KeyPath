@@ -84,11 +84,6 @@ struct WizardDetailPageModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .overlay(alignment: .topLeading) {
-                WizardNavigationControl()
-                    .padding(.top, WizardDesign.Spacing.navigationControlTop + 4) // Extra padding from edge
-                    .padding(.leading, WizardDesign.Spacing.navigationControlLeading + 4) // Extra padding from edge
-            }
             .accessibilityIdentifier("wizard-page-\(stateMachine.currentPage.rawValue)")
     }
 }

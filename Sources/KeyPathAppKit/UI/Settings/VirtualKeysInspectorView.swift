@@ -54,7 +54,7 @@ struct VirtualKeysInspectorView: View {
                 .accessibilityLabel("Refresh virtual keys")
             }
 
-            Text("Virtual keys defined in your config can be triggered via deep links")
+            Text("Run these actions from Shortcuts, Raycast, scripts, or `keypath://` URLs when you need to trigger Kanata behavior outside normal typing.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -101,7 +101,7 @@ struct VirtualKeysInspectorView: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
 
-            Text("Add `defvirtualkeys` or `deffakekeys` blocks to your config to define triggerable macros.")
+            Text("Add `defvirtualkeys` or `deffakekeys` when you want reusable actions you can trigger from URLs, scripts, or automations.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

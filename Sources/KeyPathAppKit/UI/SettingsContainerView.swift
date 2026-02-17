@@ -42,6 +42,9 @@ struct SettingsContainerView: View {
     @Environment(KanataViewModel.self) var kanataManager
     @State private var selection: SettingsTab = .status
     @State private var canManageRules: Bool = true
+    private var requiredSettingsWidth: CGFloat {
+        SettingsTabLayout.requiredWidth(forTabCount: SettingsTab.visibleTabs.count)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -68,7 +71,13 @@ struct SettingsContainerView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(minWidth: 680, maxWidth: 680, minHeight: 550, idealHeight: 700)
+        .frame(
+            minWidth: requiredSettingsWidth,
+            idealWidth: requiredSettingsWidth,
+            maxWidth: requiredSettingsWidth,
+            minHeight: 550,
+            idealHeight: 700
+        )
         .task { await refreshCanManageRules() }
         .onAppear {
             if !FeatureFlags.simulatorAndVirtualKeysEnabled, selection == .simulator {
@@ -128,7 +137,7 @@ private struct SettingsTabPicker: View {
     let rulesEnabled: Bool
 
     var body: some View {
-        HStack(spacing: 24) {
+        HStack(spacing: SettingsTabLayout.spacing) {
             ForEach(SettingsTab.visibleTabs, id: \.self) { tab in
                 let disabled = (tab == .rules && !rulesEnabled)
                 SettingsTabButton(
@@ -147,8 +156,8 @@ private struct SettingsTabPicker: View {
                 )
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 16)
+        .padding(.horizontal, SettingsTabLayout.horizontalPadding)
+        .padding(.top, SettingsTabLayout.topPadding)
     }
 }
 
@@ -184,7 +193,7 @@ private struct SettingsTabButton: View {
                     .foregroundColor(disabled ? .secondary.opacity(0.6)
                         : (isSelected ? .primary : .secondary))
             }
-            .frame(width: 120)
+            .frame(width: SettingsTabLayout.buttonWidth)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -192,6 +201,22 @@ private struct SettingsTabButton: View {
         .disabled(disabled)
         .accessibilityIdentifier("settings-tab-\(tab.accessibilityId)")
         .accessibilityLabel(tab.title)
+    }
+}
+
+private enum SettingsTabLayout {
+    static let buttonWidth: CGFloat = 120
+    static let spacing: CGFloat = 24
+    static let horizontalPadding: CGFloat = 24
+    static let topPadding: CGFloat = 28
+    static let minimumWindowWidth: CGFloat = 680
+
+    static func requiredWidth(forTabCount tabCount: Int) -> CGFloat {
+        guard tabCount > 0 else { return minimumWindowWidth }
+        let totalButtonWidth = CGFloat(tabCount) * buttonWidth
+        let totalSpacing = CGFloat(max(0, tabCount - 1)) * spacing
+        let totalPadding = horizontalPadding * 2
+        return max(minimumWindowWidth, totalButtonWidth + totalSpacing + totalPadding)
     }
 }
 

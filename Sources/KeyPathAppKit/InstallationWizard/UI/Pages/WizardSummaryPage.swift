@@ -35,6 +35,90 @@ struct WizardSummaryPage: View {
     @State private var visibleIssueCount: Int = 0
 
     var body: some View {
+        Group {
+            if headerMode == .success {
+                successCenteredView
+            } else {
+                issuesAndValidatingContent
+            }
+        }
+        .modifier(WizardDesign.DisableFocusEffects())
+        .background(WizardDesign.Colors.wizardBackground)
+        .accessibilityIdentifier("wizard-page-summary")
+        .overlay {
+            WizardDesign.Colors.wizardBackground
+                .opacity(fadeMaskOpacity)
+                .allowsHitTesting(false)
+                .animation(.easeInOut(duration: 0.2), value: fadeMaskOpacity)
+        }
+        .onAppear {
+            if isValidating {
+                headerMode = .validating
+            } else {
+                headerMode = isEverythingComplete ? .success : .issues
+            }
+            Task { @MainActor in
+                NSApp.keyWindow?.makeFirstResponder(nil)
+                if let window = NSApp.keyWindow {
+                    window.contentView?.subviews.forEach { view in
+                        view.focusRingType = .none
+                    }
+                }
+            }
+        }
+        .onChange(of: isValidating) { _, newValue in
+            if !newValue {
+                Task { @MainActor in
+                    NSApp.keyWindow?.makeFirstResponder(nil)
+                }
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    headerMode = isEverythingComplete ? .success : .issues
+                }
+            }
+        }
+        .onChange(of: isEverythingComplete) { _, newValue in
+            if !isValidating {
+                withAnimation(WizardDesign.Animation.statusTransition) {
+                    headerMode = newValue ? .success : .issues
+                }
+            }
+        }
+    }
+
+    // MARK: - Success Centered View
+
+    private var successCenteredView: some View {
+        VStack(spacing: WizardDesign.Spacing.sectionGap) {
+            Spacer()
+
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: WizardDesign.Layout.heroIconSize, weight: .light))
+                .foregroundColor(WizardDesign.Colors.success)
+                .symbolRenderingMode(.hierarchical)
+                .modifier(AvailabilitySymbolBounce())
+
+            Text("KeyPath Ready")
+                .font(.title2.weight(.semibold))
+                .foregroundColor(.primary)
+
+            Button("Close Setup") {
+                onDismiss()
+            }
+            .buttonStyle(WizardDesign.Component.PrimaryButton())
+            .keyboardShortcut(.defaultAction)
+            .padding(.top, WizardDesign.Spacing.elementGap)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .transition(.opacity)
+        .accessibilityIdentifier("wizard-summary-status-success")
+        .accessibilityLabel("KeyPath Ready")
+    }
+
+    // MARK: - Issues and Validating Content
+
+    private var issuesAndValidatingContent: some View {
         ZStack(alignment: .top) {
             // Content area (issues list and actions) - positioned below fixed header
             VStack(spacing: 0) {
@@ -141,44 +225,6 @@ struct WizardSummaryPage: View {
             .transition(.opacity) // Simple opacity transition, no scaling
             .accessibilityIdentifier("wizard-summary-status-\(headerMode == .validating ? "validating" : (headerMode == .success ? "success" : "issues"))")
             .accessibilityLabel(headerTitle)
-            .onAppear {
-                // Initialize header mode based on validation state
-                if isValidating {
-                    headerMode = .validating
-                } else {
-                    headerMode = isEverythingComplete ? .success : .issues
-                }
-                // Aggressively clear focus to avoid blue focus ring artifacts (deferred for AppKit interop)
-                Task { @MainActor in
-                    NSApp.keyWindow?.makeFirstResponder(nil)
-                    // Also disable focus rings on the window itself
-                    if let window = NSApp.keyWindow {
-                        window.contentView?.subviews.forEach { view in
-                            view.focusRingType = .none
-                        }
-                    }
-                }
-            }
-            .onChange(of: isValidating) { _, newValue in
-                if !newValue {
-                    // Transition from validating indicator to final state
-                    Task { @MainActor in
-                        NSApp.keyWindow?.makeFirstResponder(nil)
-                    }
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        headerMode = isEverythingComplete ? .success : .issues
-                    }
-                    // Instant reveal - no cross-fade delay
-                }
-            }
-            .onChange(of: isEverythingComplete) { _, newValue in
-                // Update header mode if validation is complete
-                if !isValidating {
-                    withAnimation(WizardDesign.Animation.statusTransition) {
-                        headerMode = newValue ? .success : .issues
-                    }
-                }
-            }
 
             // Title text - positioned below icon, independent
             Text(headerTitle)
@@ -190,16 +236,6 @@ struct WizardSummaryPage: View {
                 .zIndex(1)
                 .animation(nil, value: showAllItems) // Prevent headline motion on toggle
             // Eye icon removed - error icon toggles list filtering
-        }
-        .modifier(WizardDesign.DisableFocusEffects())
-        .background(WizardDesign.Colors.wizardBackground)
-        .accessibilityIdentifier("wizard-page-summary")
-        // Full-surface fade to simplify transitions (uses wizardBackground for dark mode support)
-        .overlay {
-            WizardDesign.Colors.wizardBackground
-                .opacity(fadeMaskOpacity)
-                .allowsHitTesting(false)
-                .animation(.easeInOut(duration: 0.2), value: fadeMaskOpacity)
         }
     }
 

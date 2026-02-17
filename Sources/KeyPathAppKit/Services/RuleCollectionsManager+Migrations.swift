@@ -8,6 +8,7 @@ extension RuleCollectionsManager {
     private enum MigrationKey {
         static let launcherEnabledByDefault = "RuleCollections.Migration.LauncherEnabledByDefault"
         static let vimEnabledByDefault = "RuleCollections.Migration.VimEnabledByDefault"
+        static let unifiedHomeRowMods = "RuleCollections.Migration.UnifiedHomeRowMods"
     }
 
     /// Run one-time migrations for collection state changes
@@ -35,6 +36,54 @@ extension RuleCollectionsManager {
             }
             UserDefaults.standard.set(true, forKey: MigrationKey.vimEnabledByDefault)
         }
+
+        // Migration: Collapse Home Row Layer Toggles into unified Home Row Mods (hold mode = layers).
+        if !UserDefaults.standard.bool(forKey: MigrationKey.unifiedHomeRowMods) {
+            migrateHomeRowLayerTogglesIntoHomeRowMods()
+            UserDefaults.standard.set(true, forKey: MigrationKey.unifiedHomeRowMods)
+        }
+    }
+
+    private func migrateHomeRowLayerTogglesIntoHomeRowMods() {
+        guard let layerIndex = ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowLayerToggles }),
+              let layerConfig = ruleCollections[layerIndex].configuration.homeRowLayerTogglesConfig
+        else {
+            return
+        }
+
+        var unifiedConfig = HomeRowModsConfig(
+            enabledKeys: layerConfig.enabledKeys,
+            modifierAssignments: HomeRowModsConfig.cagsMacDefault,
+            layerAssignments: layerConfig.layerAssignments,
+            holdMode: .layers,
+            layerToggleMode: layerConfig.toggleMode,
+            timing: layerConfig.timing,
+            keySelection: layerConfig.keySelection,
+            showAdvanced: layerConfig.showAdvanced
+        )
+
+        let layerWasEnabled = ruleCollections[layerIndex].isEnabled
+        ruleCollections.remove(at: layerIndex)
+
+        if let modsIndex = ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowMods }) {
+            if let existing = ruleCollections[modsIndex].configuration.homeRowModsConfig {
+                unifiedConfig.modifierAssignments = existing.modifierAssignments
+            }
+            ruleCollections[modsIndex].configuration = .homeRowMods(unifiedConfig)
+            if layerWasEnabled {
+                ruleCollections[modsIndex].isEnabled = true
+            }
+        } else {
+            var homeRowMods = RuleCollectionCatalog().defaultCollections()
+                .first(where: { $0.id == RuleCollectionIdentifier.homeRowMods })
+            if var homeRowMods {
+                homeRowMods.configuration = .homeRowMods(unifiedConfig)
+                homeRowMods.isEnabled = layerWasEnabled
+                ruleCollections.append(homeRowMods)
+            }
+        }
+
+        AppLogger.shared.log("♻️ [RuleCollections] Migration: Unified Home Row Layer Toggles into Home Row Mods")
     }
 
     func dedupeRuleCollectionsInPlace() {

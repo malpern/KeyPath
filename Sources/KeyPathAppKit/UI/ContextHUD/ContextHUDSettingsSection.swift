@@ -4,6 +4,9 @@ import SwiftUI
 struct ContextHUDSettingsSection: View {
     @State private var displayMode = PreferencesService.shared.contextHUDDisplayMode
     @State private var triggerMode = PreferencesService.shared.contextHUDTriggerMode
+    @State private var holdDelayPreset = PreferencesService.shared.contextHUDHoldDelayPreset
+    @State private var customHoldDelayMs = PreferencesService.shared.contextHUDHoldDelayCustomMs
+    @State private var advancedExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -48,20 +51,88 @@ struct ContextHUDSettingsSection: View {
                     .foregroundColor(.secondary)
 
                 HStack(spacing: 10) {
-                    triggerModeCard(
-                        mode: .holdToShow,
+                    SettingsOptionCard(
                         icon: "hand.tap",
                         title: "Hold",
-                        subtitle: "Show while held"
-                    )
-                    triggerModeCard(
-                        mode: .tapToToggle,
+                        subtitle: "Show while held",
+                        isSelected: triggerMode == .holdToShow
+                    ) {
+                        triggerMode = .holdToShow
+                        PreferencesService.shared.contextHUDTriggerMode = .holdToShow
+                    }
+                    .accessibilityIdentifier("settings-context-hud-trigger-holdToShow")
+                    .accessibilityLabel("Hold trigger mode")
+
+                    SettingsOptionCard(
                         icon: "hand.point.up",
                         title: "Tap",
-                        subtitle: "Toggle on/off"
-                    )
+                        subtitle: "Toggle on/off",
+                        isSelected: triggerMode == .tapToToggle
+                    ) {
+                        triggerMode = .tapToToggle
+                        PreferencesService.shared.contextHUDTriggerMode = .tapToToggle
+                    }
+                    .accessibilityIdentifier("settings-context-hud-trigger-tapToToggle")
+                    .accessibilityLabel("Tap trigger mode")
                 }
             }
+
+            DisclosureGroup("Advanced", isExpanded: $advancedExpanded) {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("Hold Delay")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        Spacer()
+
+                        Picker("Hold Delay", selection: $holdDelayPreset) {
+                            ForEach(ContextHUDHoldDelayPreset.allCases, id: \.self) { preset in
+                                Text(preset.displayName).tag(preset)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .frame(width: 140)
+                        .onChange(of: holdDelayPreset) { _, newValue in
+                            PreferencesService.shared.contextHUDHoldDelayPreset = newValue
+                            customHoldDelayMs = PreferencesService.shared.contextHUDHoldDelayCustomMs
+                        }
+                        .accessibilityIdentifier("settings-context-hud-hold-delay-preset")
+                        .accessibilityLabel("Shortcut List hold delay preset")
+                    }
+
+                    if holdDelayPreset == .custom {
+                        HStack {
+                            Text("Custom (ms)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+
+                            Spacer()
+
+                            TextField(
+                                "Milliseconds",
+                                value: $customHoldDelayMs,
+                                format: .number
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 100)
+                            .onChange(of: customHoldDelayMs) { _, newValue in
+                                PreferencesService.shared.contextHUDHoldDelayCustomMs = newValue
+                                customHoldDelayMs = PreferencesService.shared.contextHUDHoldDelayCustomMs
+                            }
+                            .accessibilityIdentifier("settings-context-hud-hold-delay-custom")
+                            .accessibilityLabel("Custom Shortcut List hold delay in milliseconds")
+                        }
+                    }
+
+                    Text("Default is Long. Medium matches previous behavior.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, 2)
+            }
+            .accessibilityIdentifier("settings-context-hud-advanced")
         }
     }
 
@@ -121,55 +192,4 @@ struct ContextHUDSettingsSection: View {
         .accessibilityLabel("\(title) display mode")
     }
 
-    // MARK: - Trigger Mode Card
-
-    private func triggerModeCard(
-        mode: ContextHUDTriggerMode,
-        icon: String,
-        title: String,
-        subtitle: String
-    ) -> some View {
-        let isSelected = triggerMode == mode
-
-        return Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                triggerMode = mode
-                PreferencesService.shared.contextHUDTriggerMode = mode
-            }
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.headline)
-                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-                    .frame(width: 24)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                        .foregroundStyle(isSelected ? .primary : .secondary)
-                    Text(subtitle)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 10)
-            .padding(.horizontal, 12)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? Color.accentColor.opacity(0.06) : .clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(
-                        isSelected ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.08),
-                        lineWidth: isSelected ? 1.5 : 0.5
-                    )
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("settings-context-hud-trigger-\(mode.rawValue)")
-        .accessibilityLabel("\(title) trigger mode")
-    }
 }

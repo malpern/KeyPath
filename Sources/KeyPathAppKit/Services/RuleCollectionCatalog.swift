@@ -58,7 +58,6 @@ struct RuleCollectionCatalog {
             escapeRemap,
             deleteRemap,
             homeRowMods,
-            homeRowLayerToggles,
             chordGroups,
             sequences,
             numpadLayer,
@@ -553,7 +552,7 @@ struct RuleCollectionCatalog {
         RuleCollection(
             id: RuleCollectionIdentifier.homeRowMods,
             name: "Home Row Mods",
-            summary: "Home row keys act as modifiers when held",
+            summary: "Tap for letters, hold for modifiers or layers",
             category: .productivity,
             mappings: [], // Generated from homeRowModsConfig
             isEnabled: false,

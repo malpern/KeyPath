@@ -8,6 +8,8 @@ struct HomeRowKeyboardView: View {
     let enabledKeys: Set<String>
     let modifierAssignments: [String: String]
     let selectedKey: String?
+    let keyDisplayLabels: [String: String]
+    let helperText: String
     let onKeySelected: (String) -> Void
 
     @State private var hoveredKey: String?
@@ -15,26 +17,48 @@ struct HomeRowKeyboardView: View {
     private let leftHandKeys = ["a", "s", "d", "f"]
     private let rightHandKeys = ["j", "k", "l", ";"]
 
+    init(
+        enabledKeys: Set<String>,
+        modifierAssignments: [String: String],
+        selectedKey: String?,
+        keyDisplayLabels: [String: String] = [:],
+        helperText: String = "Tap for letter, hold for modifier",
+        onKeySelected: @escaping (String) -> Void
+    ) {
+        self.enabledKeys = enabledKeys
+        self.modifierAssignments = modifierAssignments
+        self.selectedKey = selectedKey
+        self.keyDisplayLabels = keyDisplayLabels
+        self.helperText = helperText
+        self.onKeySelected = onKeySelected
+    }
+
     var body: some View {
         VStack(spacing: 16) {
             // Visual keyboard layout
             HStack(spacing: 12) {
                 // Left hand
-                HStack(spacing: 8) {
-                    ForEach(leftHandKeys, id: \.self) { key in
-                        HomeRowKeyChip(
-                            key: key,
-                            modifier: modifierAssignments[key],
-                            isEnabled: enabledKeys.contains(key),
-                            isSelected: selectedKey == key,
-                            isHovered: hoveredKey == key,
-                            onTap: { onKeySelected(key) },
-                            onHover: { hovering in
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    hoveredKey = hovering ? key : nil
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("\u{1FAF2} Left")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    HStack(spacing: 8) {
+                        ForEach(leftHandKeys, id: \.self) { key in
+                            HomeRowKeyChip(
+                                key: key,
+                                keyDisplayLabel: keyDisplayLabel(for: key),
+                                modifier: modifierAssignments[key],
+                                isEnabled: enabledKeys.contains(key),
+                                isSelected: selectedKey == key,
+                                isHovered: hoveredKey == key,
+                                onTap: { onKeySelected(key) },
+                                onHover: { hovering in
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        hoveredKey = hovering ? key : nil
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
 
@@ -43,28 +67,34 @@ struct HomeRowKeyboardView: View {
                     .frame(width: 32)
 
                 // Right hand
-                HStack(spacing: 8) {
-                    ForEach(rightHandKeys, id: \.self) { key in
-                        HomeRowKeyChip(
-                            key: key,
-                            modifier: modifierAssignments[key],
-                            isEnabled: enabledKeys.contains(key),
-                            isSelected: selectedKey == key,
-                            isHovered: hoveredKey == key,
-                            onTap: { onKeySelected(key) },
-                            onHover: { hovering in
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    hoveredKey = hovering ? key : nil
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("\u{1FAF1} Right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    HStack(spacing: 8) {
+                        ForEach(rightHandKeys, id: \.self) { key in
+                            HomeRowKeyChip(
+                                key: key,
+                                keyDisplayLabel: keyDisplayLabel(for: key),
+                                modifier: modifierAssignments[key],
+                                isEnabled: enabledKeys.contains(key),
+                                isSelected: selectedKey == key,
+                                isHovered: hoveredKey == key,
+                                onTap: { onKeySelected(key) },
+                                onHover: { hovering in
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        hoveredKey = hovering ? key : nil
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
             .padding(.vertical, 8)
 
             // Helper text
-            Text("Tap for letter, hold for modifier")
+            Text(helperText)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -74,11 +104,16 @@ struct HomeRowKeyboardView: View {
                 .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
         )
     }
+
+    private func keyDisplayLabel(for key: String) -> String {
+        keyDisplayLabels[key] ?? key.uppercased()
+    }
 }
 
 /// Interactive key chip for home row mods
 struct HomeRowKeyChip: View {
     let key: String
+    let keyDisplayLabel: String
     let modifier: String?
     let isEnabled: Bool
     let isSelected: Bool
@@ -87,10 +122,6 @@ struct HomeRowKeyChip: View {
     let onHover: (Bool) -> Void
 
     @State private var isPressed = false
-
-    private var keyDisplay: String {
-        key.uppercased()
-    }
 
     private var modifierDisplay: String {
         guard let modifier else { return "" }
@@ -117,7 +148,7 @@ struct HomeRowKeyChip: View {
         }) {
             VStack(spacing: 4) {
                 // Key label
-                Text(keyDisplay)
+                Text(keyDisplayLabel)
                     .font(.system(size: 18, weight: .medium))
                     .foregroundColor(textColor)
 

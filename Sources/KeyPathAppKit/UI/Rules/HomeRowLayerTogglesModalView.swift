@@ -10,9 +10,20 @@ struct HomeRowLayerTogglesModalView: View {
     let onCancel: () -> Void
     let initialSelectedKey: String?
 
+    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @State private var localConfig: HomeRowLayerTogglesConfig
     @State private var selectedKey: String?
     @State private var showLayerPicker = false
+
+    private var activeKeymap: LogicalKeymap {
+        LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
+    }
+
+    private var homeRowDisplayLabels: [String: String] {
+        Dictionary(uniqueKeysWithValues: HomeRowLayerTogglesConfig.allKeys.map { key in
+            (key, displayLabel(forCanonicalKey: key))
+        })
+    }
 
     init(config: Binding<HomeRowLayerTogglesConfig>, onSave: @escaping (HomeRowLayerTogglesConfig) -> Void, onCancel: @escaping () -> Void, initialSelectedKey: String? = nil) {
         _config = config
@@ -52,6 +63,8 @@ struct HomeRowLayerTogglesModalView: View {
                         enabledKeys: localConfig.enabledKeys,
                         modifierAssignments: localConfig.layerAssignments,
                         selectedKey: selectedKey,
+                        keyDisplayLabels: homeRowDisplayLabels,
+                        helperText: "Tap for letter, hold for layer",
                         onKeySelected: { key in
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 selectedKey = selectedKey == key ? nil : key
@@ -218,7 +231,7 @@ struct HomeRowLayerTogglesModalView: View {
                                     HStack(spacing: 12) {
                                         ForEach(row, id: \.self) { key in
                                             VStack(alignment: .leading, spacing: 4) {
-                                                Text(key.uppercased())
+                                                Text(displayLabel(forCanonicalKey: key))
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
                                                 TextField("0", value: Binding(
@@ -252,7 +265,7 @@ struct HomeRowLayerTogglesModalView: View {
                                     HStack(spacing: 12) {
                                         ForEach(row, id: \.self) { key in
                                             VStack(alignment: .leading, spacing: 4) {
-                                                Text(key.uppercased())
+                                                Text(displayLabel(forCanonicalKey: key))
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
                                                 TextField("0", value: Binding(
@@ -339,7 +352,7 @@ struct HomeRowLayerTogglesModalView: View {
                             localConfig.enabledKeys.insert(key)
                         }
                     } label: {
-                        Text(key.uppercased())
+                        Text(displayLabel(forCanonicalKey: key))
                             .font(.caption)
                             .fontWeight(.medium)
                             .foregroundColor(localConfig.enabledKeys.contains(key) ? .white : .primary)
@@ -355,7 +368,7 @@ struct HomeRowLayerTogglesModalView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("home-row-layer-toggles-modal-key-button-\(key)")
-                    .accessibilityLabel("Toggle key \(key.uppercased())")
+                    .accessibilityLabel("Toggle key \(displayLabel(forCanonicalKey: key))")
                 }
             }
         }
@@ -366,7 +379,7 @@ struct HomeRowLayerTogglesModalView: View {
     private func layerPickerSection(for key: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Layer for \"\(key.uppercased())\":")
+                Text("Layer for \"\(displayLabel(forCanonicalKey: key))\":")
                     .font(.headline)
                 Spacer()
                 Button {
@@ -435,6 +448,15 @@ struct HomeRowLayerTogglesModalView: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier("home-row-layer-toggles-modal-layer-button-\(label.lowercased())")
         .accessibilityLabel("Select \(label) layer")
+    }
+
+    private func displayLabel(forCanonicalKey key: String) -> String {
+        guard let keyCode = LogicalKeymap.keyCode(forQwertyLabel: key),
+              let label = activeKeymap.label(for: keyCode, includeExtraKeys: false)
+        else {
+            return key.uppercased()
+        }
+        return label.uppercased()
     }
 }
 

@@ -9,7 +9,15 @@ extension KanataConfiguration {
         var mappings: [KeyMapping] = []
 
         for key in config.enabledKeys {
-            guard let modifier = config.modifierAssignments[key] else { continue }
+            let holdAction: String
+            switch config.holdMode {
+            case .modifiers:
+                guard let modifier = config.modifierAssignments[key] else { continue }
+                holdAction = modifier
+            case .layers:
+                guard let layerName = config.layerAssignments[key] else { continue }
+                holdAction = "(\(config.layerToggleMode.kanataAction) \(layerName))"
+            }
 
             let tapTimeout = max(
                 1,
@@ -22,7 +30,7 @@ extension KanataConfiguration {
             // Create dual-role behavior: tap = letter, hold = modifier
             let behavior = DualRoleBehavior(
                 tapAction: key,
-                holdAction: modifier,
+                holdAction: holdAction,
                 tapTimeout: tapTimeout,
                 holdTimeout: holdTimeout,
                 activateHoldOnOtherKey: true, // Best for home-row mods

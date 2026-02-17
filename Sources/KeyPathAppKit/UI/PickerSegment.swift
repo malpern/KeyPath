@@ -18,14 +18,19 @@ struct PickerSegment: View {
         Button(action: action) {
             Text(label)
                 .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                .foregroundColor(isSelected ? .white : .primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .frame(minWidth: 70)
+                .foregroundColor(isSelected ? .white : (isHovered ? .primary : .secondary))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
                 .background(
-                    RoundedRectangle(cornerRadius: isFirst ? 6 : (isLast ? 6 : 0))
-                        .fill(isSelected ? Color.accentColor : (isHovered ? Color.primary.opacity(0.08) : Color.clear))
-                        .clipShape(SegmentShape(isFirst: isFirst, isLast: isLast))
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(isSelected ? Color.accentColor : (isHovered ? Color.primary.opacity(0.08) : Color.primary.opacity(0.04)))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(
+                            isSelected ? Color.clear : Color.primary.opacity(isHovered ? 0.15 : 0.08),
+                            lineWidth: 0.5
+                        )
                 )
         }
         .buttonStyle(.plain)

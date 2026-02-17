@@ -162,15 +162,18 @@ struct InstallationWizardView: View {
                 stateMachine.customSequence = showAllSummaryItems ? nil : navSequence
             }
         }
-        // Global Close button overlay for all detail pages
-        .overlay(alignment: .topTrailing) {
+        // Global navigation + close button overlay for all detail pages
+        .overlay(alignment: .top) {
             if stateMachine.currentPage != .summary {
-                CloseButton()
-                    .environment(stateMachine)
-                    .padding(.top, 8 + 4) // Extra padding from edge
-                    .padding(.trailing, 8 + 4) // Extra padding from edge
-                    // Prevent close button from animating during page transitions
-                    .animation(nil, value: stateMachine.currentPage)
+                HStack {
+                    WizardNavigationControl()
+                    Spacer()
+                    CloseButton()
+                }
+                .environment(stateMachine)
+                .padding(.top, 12)
+                .padding(.horizontal, 12)
+                .animation(nil, value: stateMachine.currentPage)
             }
         }
         .onAppear {

@@ -99,7 +99,23 @@ struct RulesTabView: View {
     private func computeSortOrder() -> [UUID] {
         let enabled = allCollections.filter(\.isEnabled).map(\.id)
         let disabled = allCollections.filter { !$0.isEnabled }.map(\.id)
-        return enabled + disabled
+        var order = enabled + disabled
+
+        let capsLockRemapId = RuleCollectionIdentifier.capsLockRemap
+        let backupCapsLockId = RuleCollectionIdentifier.backupCapsLock
+
+        // Keep Backup Caps Lock directly after Caps Lock Remap for discoverability
+        // when users are adjusting tap/hold behavior.
+        if let capsIndex = order.firstIndex(of: capsLockRemapId),
+           let backupIndex = order.firstIndex(of: backupCapsLockId),
+           backupIndex != capsIndex + 1
+        {
+            order.remove(at: backupIndex)
+            let insertIndex = min(capsIndex + 1, order.count)
+            order.insert(backupCapsLockId, at: insertIndex)
+        }
+
+        return order
     }
 
     private var customRulesTitle: String {
@@ -116,7 +132,7 @@ struct RulesTabView: View {
                 collection.id == RuleCollectionIdentifier.windowSnapping ||
                 collection.id == RuleCollectionIdentifier.macFunctionKeys
         )
-        let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .tapHoldPicker || style == .layerPresetPicker || style == .launcherGrid || style == .chordGroups ||
+        let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .homeRowLayerToggles || style == .tapHoldPicker || style == .layerPresetPicker || style == .launcherGrid || style == .chordGroups ||
             style ==
             .sequences || isSpecializedTable
 

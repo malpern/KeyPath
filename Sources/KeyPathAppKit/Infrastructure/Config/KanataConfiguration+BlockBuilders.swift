@@ -38,7 +38,8 @@ extension KanataConfiguration {
     static func buildCollectionBlocks(
         from collections: [RuleCollection],
         leaderKeyPreference: LeaderKeyPreference?,
-        navActivationMode: ContextHUDTriggerMode = .tapToToggle
+        navActivationMode: ContextHUDTriggerMode = .tapToToggle,
+        navHoldDelayMs: Int = 200
     ) -> ([CollectionBlock], [AliasDefinition], [RuleCollectionLayer], [ChordMapping]) {
         var blocks: [CollectionBlock] = []
         var aliasDefinitions: [AliasDefinition] = []
@@ -49,6 +50,7 @@ extension KanataConfiguration {
         var seenActivators: Set<String> = []
         let oneShotTimeoutMs = 65000 // Max-safe timeout (Kanata limit 65535)
         let oneShotPauseMs = 10
+        let navHoldTimeoutToken = navHoldDelayMs == 200 ? "$hold-timeout" : "\(navHoldDelayMs)"
 
         // Generate primary leader key alias from system preference (independent of collections)
         if let pref = leaderKeyPreference, pref.enabled {
@@ -71,10 +73,10 @@ extension KanataConfiguration {
                 switch navActivationMode {
                 case .holdToShow:
                     // Hold-to-show: layer deactivates on key release (standard layer-while-held)
-                    "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+                    "(tap-hold $tap-timeout \(navHoldTimeoutToken) \(tapOutput)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
                 case .tapToToggle:
                     // Tap-to-toggle: layer stays active until next key (one-shot)
-                    "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (one-shot-pause-processing \(oneShotPauseMs))\n      (one-shot-press \(oneShotTimeoutMs) (layer-while-held \(layerName)))))"
+                    "(tap-hold $tap-timeout \(navHoldTimeoutToken) \(tapOutput)\n    (multi\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (one-shot-pause-processing \(oneShotPauseMs))\n      (one-shot-press \(oneShotTimeoutMs) (layer-while-held \(layerName)))))"
                 }
             } else {
                 // Standard tap-hold for primary leader key (always from base layer)
@@ -163,10 +165,10 @@ extension KanataConfiguration {
                         switch navActivationMode {
                         case .holdToShow:
                             // Hold-to-show: layer deactivates on key release (standard layer-while-held)
-                            "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+                            "(tap-hold $tap-timeout \(navHoldTimeoutToken) \(tapOutput)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
                         case .tapToToggle:
                             // Tap-to-toggle: layer stays active until next key (one-shot)
-                            "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (one-shot-pause-processing \(oneShotPauseMs))\n      (one-shot-press \(oneShotTimeoutMs) (layer-while-held \(layerName)))))"
+                            "(tap-hold $tap-timeout \(navHoldTimeoutToken) \(tapOutput)\n    (multi\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (one-shot-pause-processing \(oneShotPauseMs))\n      (one-shot-press \(oneShotTimeoutMs) (layer-while-held \(layerName)))))"
                         }
                     } else {
                         // Standard tap-hold for base layer activators

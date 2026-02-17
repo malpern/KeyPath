@@ -248,15 +248,17 @@ public final class ConfigurationService: FileConfigurationProviding {
         let preservedSequences = loadPreservedSequences()
 
         // Get leader key preference and trigger mode from PreferencesService on MainActor
-        let (leaderKeyPref, triggerMode) = await MainActor.run {
+        let (leaderKeyPref, triggerMode, holdDelayMs) = await MainActor.run {
             (PreferencesService.shared.leaderKeyPreference,
-             PreferencesService.shared.contextHUDTriggerMode)
+             PreferencesService.shared.contextHUDTriggerMode,
+             PreferencesService.shared.contextHUDHoldDelayMs)
         }
 
         let configContent = KanataConfiguration.generateFromCollections(
             combinedCollections,
             leaderKeyPreference: leaderKeyPref,
             navActivationMode: triggerMode,
+            navHoldDelayMs: holdDelayMs,
             chordGroups: preservedChordGroups,
             sequences: preservedSequences
         )

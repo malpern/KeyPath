@@ -8,9 +8,20 @@ struct HomeRowLayerTogglesCollectionView: View {
     @Binding var config: HomeRowLayerTogglesConfig
     let onConfigChanged: (HomeRowLayerTogglesConfig) -> Void
 
+    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @State private var showCustomize = false
     @State private var selectedKey: String?
     @State private var showLayerPicker = false
+
+    private var activeKeymap: LogicalKeymap {
+        LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
+    }
+
+    private var homeRowDisplayLabels: [String: String] {
+        Dictionary(uniqueKeysWithValues: HomeRowLayerTogglesConfig.allKeys.map { key in
+            (key, displayLabel(forCanonicalKey: key))
+        })
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,6 +30,8 @@ struct HomeRowLayerTogglesCollectionView: View {
                 enabledKeys: config.enabledKeys,
                 modifierAssignments: config.layerAssignments,
                 selectedKey: selectedKey,
+                keyDisplayLabels: homeRowDisplayLabels,
+                helperText: "Tap for letter, hold for layer",
                 onKeySelected: { key in
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedKey = selectedKey == key ? nil : key
@@ -239,7 +252,7 @@ struct HomeRowLayerTogglesCollectionView: View {
                             HStack(spacing: 12) {
                                 ForEach(row, id: \.self) { key in
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(key.uppercased())
+                                        Text(displayLabel(forCanonicalKey: key))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                         TextField("0", value: Binding(
@@ -313,7 +326,7 @@ struct HomeRowLayerTogglesCollectionView: View {
                         }
                         updateConfig()
                     } label: {
-                        Text(key.uppercased())
+                        Text(displayLabel(forCanonicalKey: key))
                             .font(.caption)
                             .fontWeight(.medium)
                             .foregroundColor(config.enabledKeys.contains(key) ? .white : .primary)
@@ -329,7 +342,7 @@ struct HomeRowLayerTogglesCollectionView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("home-row-layer-toggles-key-button-\(key)")
-                    .accessibilityLabel("Toggle key \(key.uppercased())")
+                    .accessibilityLabel("Toggle key \(displayLabel(forCanonicalKey: key))")
                 }
             }
         }
@@ -340,7 +353,7 @@ struct HomeRowLayerTogglesCollectionView: View {
     private func layerPickerSection(for key: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Layer for \"\(key.uppercased())\":")
+                Text("Layer for \"\(displayLabel(forCanonicalKey: key))\":")
                     .font(.body)
                 Spacer()
                 Button {
@@ -416,6 +429,15 @@ struct HomeRowLayerTogglesCollectionView: View {
 
     private func updateConfig() {
         onConfigChanged(config)
+    }
+
+    private func displayLabel(forCanonicalKey key: String) -> String {
+        guard let keyCode = LogicalKeymap.keyCode(forQwertyLabel: key),
+              let label = activeKeymap.label(for: keyCode, includeExtraKeys: false)
+        else {
+            return key.uppercased()
+        }
+        return label.uppercased()
     }
 
     private enum HomeRowLayerPreset: Hashable {

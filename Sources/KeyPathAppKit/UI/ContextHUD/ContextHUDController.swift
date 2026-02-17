@@ -57,6 +57,24 @@ final class ContextHUDController {
             }
         }
 
+        // Also handle "layer:" push-msg messages (e.g., from fakekey layer broadcasts)
+        // These arrive via .kanataMessagePush when layer-while-held doesn't generate
+        // a LayerChange TCP event. Mirrors KeyboardVisualizationViewModel+TCP handling.
+        NotificationCenter.default.addObserver(
+            forName: .kanataMessagePush,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let message = notification.userInfo?["message"] as? String,
+                  message.hasPrefix("layer:")
+            else { return }
+            let layerName = String(message.dropFirst(6)).trimmingCharacters(in: .whitespaces)
+            Task { @MainActor in
+                guard let self else { return }
+                self.handleLayerChange(layerName, source: "push")
+            }
+        }
+
         NotificationCenter.default.addObserver(
             forName: .kanataKeyInput,
             object: nil,
@@ -240,19 +258,35 @@ final class ContextHUDController {
 
                 guard !Task.isCancelled else { return }
 
-                // Resolve content style
+                // Resolve content style based on the layer's own content
                 let style = HUDContentResolver.resolve(
                     layerName: layerName,
                     keyMap: keyMap,
                     collections: enabledCollections
                 )
 
+                // Fetch launcher entries separately for non-base, non-launcher layers
+                // so ALL app launch shortcuts appear in their own group
+                var launcherKeyMap: [UInt16: LayerKeyInfo]?
+                let normalizedLayerName = layerName.lowercased()
+                if normalizedLayerName != "base" && normalizedLayerName != "launcher" {
+                    launcherKeyMap = try? await layerKeyMapper.getMapping(
+                        for: "launcher",
+                        configPath: configPath,
+                        layout: layout,
+                        collections: enabledCollections
+                    )
+                }
+
+                guard !Task.isCancelled else { return }
+
                 // Phase 1: show HUD immediately with tap-only labels
                 viewModel.update(
                     layerName: layerName,
                     keyMap: keyMap,
                     collections: enabledCollections,
-                    style: style
+                    style: style,
+                    launcherKeyMap: launcherKeyMap
                 )
 
                 // Show the window — dismissal is driven by layer→base change,
@@ -272,7 +306,8 @@ final class ContextHUDController {
                         keyMap: keyMap,
                         collections: enabledCollections,
                         style: style,
-                        holdLabels: holdLabels
+                        holdLabels: holdLabels,
+                        launcherKeyMap: launcherKeyMap
                     )
                 }
             } catch {
