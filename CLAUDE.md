@@ -134,10 +134,14 @@ peekaboo type "search query"
 ./Scripts/build-and-sign.sh    # Release (signed + notarized, legacy entry)
 ```
 
-### Quick Deploy Shortcut
+### Quick Deploy Shortcuts
 When the user says **"dd"**, immediately:
 1. Run `SKIP_NOTARIZE=1 ./build.sh` to build, sign, and deploy to `/Applications`
 2. Respond with **"Eye eye Captain!"**
+
+When the user says **"df"**, immediately:
+1. Run `./Scripts/quick-deploy.sh` for a fast debug deploy to `/Applications`
+2. Respond with **"Eye eye Cap, fast deploying!"**
 
 ## Linear Workspace Management
 
