@@ -175,7 +175,7 @@ struct SystemContextAdapter {
                 return deniedDescription
             }()
             let userActionText: String = (status == .unknown)
-                ? "Grant Full Disk Access to verify (optional)"
+                ? "Add kanata manually in System Settings, or enable Enhanced Diagnostics to verify"
                 : userAction
             issues.append(
                 WizardIssue(

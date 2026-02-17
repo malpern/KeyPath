@@ -202,6 +202,31 @@ extension WizardHeroSection {
         )
     }
 
+    /// Convenience initializer for info state with question mark overlay
+    static func info(
+        icon: String,
+        title: String,
+        subtitle: String,
+        animated: Bool = true,
+        actionButtonTitle: String? = nil,
+        actionButtonAction: (() -> Void)? = nil,
+        iconTapAction: (() -> Void)? = nil
+    ) -> WizardHeroSection {
+        WizardHeroSection(
+            icon: icon,
+            iconColor: WizardDesign.Colors.info,
+            overlayIcon: "questionmark.circle.fill",
+            overlayColor: WizardDesign.Colors.info,
+            overlaySize: .large,
+            title: title,
+            subtitle: subtitle,
+            actionButtonTitle: actionButtonTitle,
+            actionButtonAction: actionButtonAction,
+            iconTapAction: iconTapAction,
+            animated: animated
+        )
+    }
+
     /// Convenience initializer for error state with small error overlay
     static func error(
         icon: String,

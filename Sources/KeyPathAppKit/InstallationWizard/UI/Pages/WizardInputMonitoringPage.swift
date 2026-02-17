@@ -113,6 +113,67 @@ struct WizardInputMonitoringPage: View {
                     }
                     .heroSectionContainer()
                     .frame(maxWidth: .infinity)
+                } else if isOnlyKanataUnverified {
+                    // KeyPath has Input Monitoring, but kanata is "not verified" (no FDA)
+                    // Show blue info hero with guidance card instead of alarming orange warning
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        WizardHeroSection.info(
+                            icon: "eye",
+                            title: "Input Monitoring",
+                            subtitle: "KeyPath has permission. Verify kanata below.",
+                            iconTapAction: {
+                                Task {
+                                    await onRefresh()
+                                }
+                            }
+                        )
+
+                        // KeyPath.app row (granted)
+                        HStack {
+                            Spacer()
+                            VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    HStack(spacing: 0) {
+                                        Text("KeyPath.app")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Main application captures keyboard input")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+
+                        // Kanata guidance card
+                        KanataUnverifiedGuidanceCard(
+                            permissionType: "Input Monitoring",
+                            onOpenSettings: {
+                                openInputMonitoringPreferencesPanel()
+                            },
+                            onRevealInFinder: {
+                                revealKanataInFinder()
+                            },
+                            onEnableFDA: {
+                                stateMachine.navigateToPage(.fullDiskAccess)
+                            }
+                        )
+                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+
+                        Button("Continue") {
+                            navigateToNextStep()
+                        }
+                        .accessibilityIdentifier("wizard_input_monitoring_continue")
+                        .buttonStyle(WizardDesign.Component.PrimaryButton())
+                        .keyboardShortcut(.defaultAction)
+                        .padding(.top, WizardDesign.Spacing.sectionGap)
+                    }
+                    .heroSectionContainer()
+                    .frame(maxWidth: .infinity)
                 } else {
                     // Use hero design for error state too, with blue links below
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
@@ -231,6 +292,11 @@ struct WizardInputMonitoringPage: View {
 
     private var nextStepButtonTitle: String {
         allIssues.isEmpty ? "Return to Summary" : "Next Issue"
+    }
+
+    /// True when KeyPath has Input Monitoring but kanata is only "not verified" (unknown/warning)
+    private var isOnlyKanataUnverified: Bool {
+        keyPathInputMonitoringStatus == .completed && kanataInputMonitoringStatus == .warning
     }
 
     private var keyPathInputMonitoringStatus: InstallationStatus {
