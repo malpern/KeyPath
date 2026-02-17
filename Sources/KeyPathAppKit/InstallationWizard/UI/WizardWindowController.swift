@@ -19,6 +19,7 @@ final class WizardWindowController {
     private var windowDelegate: WizardWindowDelegate?
     private var onDismiss: (() -> Void)?
     private var sizeObserver: NSObjectProtocol?
+    private var resizeDebounceTask: Task<Void, Never>?
 
     private init() {}
 
@@ -100,14 +101,20 @@ final class WizardWindowController {
 
         self.window = window
 
-        // Observe content size changes to resize window dynamically
+        // Observe content size changes to resize window dynamically (debounced)
         sizeObserver = NotificationCenter.default.addObserver(
             forName: .wizardContentSizeChanged,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.updateWindowSizeToFitContent()
+                // Debounce rapid size changes during page skipping
+                self?.resizeDebounceTask?.cancel()
+                self?.resizeDebounceTask = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(100))
+                    guard !Task.isCancelled else { return }
+                    self?.updateWindowSizeToFitContent()
+                }
             }
         }
 

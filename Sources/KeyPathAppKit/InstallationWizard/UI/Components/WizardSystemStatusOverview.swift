@@ -19,9 +19,6 @@ struct WizardSystemStatusOverview: View {
     /// Number of visible items that are not completed (used by summary header)
     @Binding var visibleIssueCount: Int
 
-    @State private var scrollOffset: CGFloat = 0
-    @State private var contentHeight: CGFloat = 0
-    @State private var containerHeight: CGFloat = 0
     @State private var duplicateCopies: [String] = []
     /// Cache heavy probes so SwiftUI re-renders don’t hammer the filesystem/network
     private static var cache = ProbeCache()
@@ -72,26 +69,12 @@ struct WizardSystemStatusOverview: View {
                     .transition(.opacity)
                 }
             }
-            // Track content geometry to compute scroll affordance
-            .background(
-                GeometryReader { proxy in
-                    Color.clear
-                        .preference(
-                            key: ContentGeometryKey.self,
-                            value: ContentGeometry(
-                                minY: proxy.frame(in: .named("WizardOverviewScroll")).minY,
-                                height: proxy.size.height
-                            )
-                        )
-                }
-            )
             // Center to 50% of window width (window width is fixed by layout)
             .frame(width: WizardDesign.Layout.pageWidth * 0.5)
             .padding(.vertical, WizardDesign.Spacing.sectionGap)
             .frame(maxWidth: .infinity, alignment: .center)
         }
-        .coordinateSpace(name: "WizardOverviewScroll")
-        .scrollIndicators(.hidden) // Hide scroll indicators to avoid visual clutter
+        .scrollIndicators(.hidden)
         .focusable(false)
         .modifier(WizardDesign.DisableFocusEffects())
         .background(Color.clear)
@@ -105,28 +88,6 @@ struct WizardSystemStatusOverview: View {
                 }
             }
         }
-        // Track container height for fade logic
-        .background(
-            GeometryReader { proxy in
-                if #available(macOS 14.0, *) {
-                    Color.clear
-                        .onAppear { containerHeight = proxy.size.height }
-                        .onChange(of: proxy.size.height) { _, newValue in
-                            containerHeight = newValue
-                        }
-                } else {
-                    Color.clear
-                        .onAppear { containerHeight = proxy.size.height }
-                        .onChange(of: proxy.size.height) { newValue in
-                            containerHeight = newValue
-                        }
-                }
-            }
-        )
-        .onPreferenceChange(ContentGeometryKey.self) { value in
-            scrollOffset = value.minY
-            contentHeight = value.height
-        }
         .onAppear {
             duplicateCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
             updateNavSequence()
@@ -134,36 +95,7 @@ struct WizardSystemStatusOverview: View {
         .onChange(of: showAllItems) { _, _ in updateNavSequence() }
         .onChange(of: issues.count) { _, _ in updateNavSequence() }
         .onChange(of: systemState) { _, _ in updateNavSequence() }
-        .overlay(alignment: .top) {
-            if canShowTopFade {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        WizardDesign.Colors.wizardBackground,
-                        WizardDesign.Colors.wizardBackground.opacity(0.0)
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 14)
-                .allowsHitTesting(false)
-                .transition(.opacity)
-            }
-        }
-        .overlay(alignment: .bottom) {
-            if canShowBottomFade {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        WizardDesign.Colors.wizardBackground.opacity(0.0),
-                        WizardDesign.Colors.wizardBackground
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 14)
-                .allowsHitTesting(false)
-                .transition(.opacity)
-            }
-        }
+        // Scroll fade overlays removed — they created visible grey stripe artifacts
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(Color.clear)
     }
@@ -176,33 +108,10 @@ struct WizardSystemStatusOverview: View {
         }
     }
 
-    private var canShowTopFade: Bool {
-        // Negative minY means scrolled down; show top fade when there is content above
-        scrollOffset < -1
-    }
-
-    private var canShowBottomFade: Bool {
-        // Remaining content below container?
-        (contentHeight + scrollOffset) - containerHeight > 1
-    }
 
     /// Items to render given the current toggle state
     private var displayItems: [StatusItemModel] {
         Self.filteredDisplayItems(statusItems, showAllItems: showAllItems)
-    }
-
-    // MARK: - Geometry Preference
-
-    private struct ContentGeometry: Equatable {
-        let minY: CGFloat
-        let height: CGFloat
-    }
-
-    private struct ContentGeometryKey: PreferenceKey {
-        static let defaultValue: ContentGeometry = .init(minY: 0, height: 0)
-        static func reduce(value: inout ContentGeometry, nextValue: () -> ContentGeometry) {
-            value = nextValue()
-        }
     }
 
     // MARK: - Animation Helpers

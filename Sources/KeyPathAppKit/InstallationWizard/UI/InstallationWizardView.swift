@@ -136,7 +136,7 @@ struct InstallationWizardView: View {
                     }
             }
             .frame(width: WizardDesign.Layout.pageWidth)
-            .frame(maxHeight: (stateMachine.currentPage == .summary) ? 540 : .infinity) // Grow up to cap, then scroll
+            .frame(minHeight: 480, maxHeight: .infinity) // Consistent min height prevents size jumps between pages
             .fixedSize(horizontal: true, vertical: false) // Allow vertical growth; keep width fixed
             .animation(.easeInOut(duration: 0.25), value: isValidating)
             // Prevent vertical position animation during page transitions

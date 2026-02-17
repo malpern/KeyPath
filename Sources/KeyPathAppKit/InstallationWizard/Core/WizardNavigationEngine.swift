@@ -21,9 +21,36 @@ final class WizardNavigationEngine: WizardNavigating {
         hasShownFullDiskAccessPage = true
     }
 
+    /// Mark migration page as shown
+    func markMigrationPageShown() {
+        hasShownKanataMigrationPage = true
+    }
+
     /// Check if FDA page has been shown
     var hasFDABeenShown: Bool {
         hasShownFullDiskAccessPage
+    }
+
+    /// Skip all green pages (including one-time offerings) to find the first page
+    /// that actually needs user attention. Used for auto-navigation after validation.
+    func firstPageNeedingAttention(for state: WizardSystemState, issues: [WizardIssue]) async -> WizardPage {
+        var page = await determineCurrentPage(for: state, issues: issues)
+        // Loop past one-time offering pages that have no issues
+        var iterations = 0
+        while !pageHasRelevantIssues(page, issues: issues, state: state) && page != .summary && iterations < 5 {
+            // Mark one-time pages as "shown" so determineCurrentPage advances past them
+            switch page {
+            case .fullDiskAccess:
+                markFDAPageShown()
+            case .kanataMigration:
+                hasShownKanataMigrationPage = true
+            default:
+                break
+            }
+            page = await determineCurrentPage(for: state, issues: issues)
+            iterations += 1
+        }
+        return page
     }
 
     // MARK: - Main Navigation Logic
@@ -115,15 +142,18 @@ final class WizardNavigationEngine: WizardNavigating {
             return targetPage
         }
 
-        // Otherwise, continue forward in the sequential flow
-        // This handles: no issues, non-blocking issues resolved, or optional pages
-        let nextIndex = currentIndex + 1
-        if nextIndex < pageOrder.count {
-            return pageOrder[nextIndex]
+        // Otherwise, continue forward in the sequential flow, skipping green pages
+        var candidateIndex = currentIndex + 1
+        while candidateIndex < pageOrder.count {
+            let candidate = pageOrder[candidateIndex]
+            if candidate == .summary || pageHasRelevantIssues(candidate, issues: issues, state: state) {
+                return candidate
+            }
+            candidateIndex += 1
         }
 
-        // We're at the end of the flow
-        return nil
+        // All remaining pages are green — go to summary
+        return .summary
     }
 
     // MARK: - Navigation State Creation
@@ -157,6 +187,89 @@ final class WizardNavigationEngine: WizardNavigating {
     func pageIndex(_ page: WizardPage) -> Int {
         let order = getPageOrder()
         return order.firstIndex(of: page) ?? 0
+    }
+
+    /// Determines if a page has relevant issues that need user attention.
+    /// Pages with no relevant issues are considered "green" and can be skipped during navigation.
+    func pageHasRelevantIssues(_ page: WizardPage, issues: [WizardIssue], state: WizardSystemState) -> Bool {
+        switch page {
+        case .summary:
+            return true // Summary is always a valid destination
+        case .conflicts:
+            return issues.contains { $0.category == .conflicts }
+        case .helper:
+            return issues.contains { issue in
+                if case let .component(req) = issue.identifier {
+                    return req == .privilegedHelper || req == .privilegedHelperUnhealthy
+                }
+                return false
+            }
+        case .inputMonitoring:
+            return issues.contains { issue in
+                if case let .permission(perm) = issue.identifier {
+                    return perm == .keyPathInputMonitoring || perm == .kanataInputMonitoring
+                }
+                return false
+            }
+        case .accessibility:
+            return issues.contains { issue in
+                if case let .permission(perm) = issue.identifier {
+                    return perm == .keyPathAccessibility || perm == .kanataAccessibility
+                }
+                return false
+            }
+        case .communication:
+            return issues.contains { issue in
+                if case let .component(comp) = issue.identifier {
+                    switch comp {
+                    case .communicationServerConfiguration,
+                         .communicationServerNotResponding,
+                         .tcpServerConfiguration,
+                         .tcpServerNotResponding:
+                        return true
+                    default:
+                        return false
+                    }
+                }
+                return false
+            }
+        case .karabinerComponents:
+            return issues.contains { issue in
+                if case let .component(comp) = issue.identifier {
+                    switch comp {
+                    case .karabinerDriver, .karabinerDaemon,
+                         .vhidDeviceManager, .vhidDeviceActivation,
+                         .vhidDeviceRunning, .launchDaemonServices,
+                         .vhidDaemonMisconfigured, .vhidDriverVersionMismatch:
+                        return true
+                    default:
+                        return false
+                    }
+                }
+                return false
+            }
+        case .kanataComponents:
+            return issues.contains { issue in
+                if case let .component(comp) = issue.identifier {
+                    switch comp {
+                    case .kanataBinaryMissing, .kanataBinaryVersionMismatch, .kanataService:
+                        return true
+                    default:
+                        return false
+                    }
+                }
+                return false
+            }
+        case .service:
+            switch state {
+            case .serviceNotRunning, .ready, .daemonNotRunning:
+                return true
+            default:
+                return false
+            }
+        case .fullDiskAccess, .kanataMigration, .stopExternalKanata:
+            return false // Optional/offering pages — not issue-based
+        }
     }
 
     /// Determines if a page represents a "blocking" issue that must be resolved

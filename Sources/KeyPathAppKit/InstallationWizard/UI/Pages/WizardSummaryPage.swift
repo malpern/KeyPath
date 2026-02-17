@@ -194,9 +194,9 @@ struct WizardSummaryPage: View {
         .modifier(WizardDesign.DisableFocusEffects())
         .background(WizardDesign.Colors.wizardBackground)
         .accessibilityIdentifier("wizard-page-summary")
-        // Full-surface white fade to simplify transitions
+        // Full-surface fade to simplify transitions (uses wizardBackground for dark mode support)
         .overlay {
-            Color.white
+            WizardDesign.Colors.wizardBackground
                 .opacity(fadeMaskOpacity)
                 .allowsHitTesting(false)
                 .animation(.easeInOut(duration: 0.2), value: fadeMaskOpacity)

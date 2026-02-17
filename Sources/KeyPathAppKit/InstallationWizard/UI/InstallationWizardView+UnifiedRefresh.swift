@@ -125,52 +125,13 @@ extension InstallationWizardView {
         }
     }
 
-    @MainActor
-    func autoNavigateIfSingleIssue(in issues: [WizardIssue], state _: WizardSystemState) {
-        AppLogger.shared.log("🔍 [AutoNav] ===== autoNavigateIfSingleIssue CALLED =====")
-        AppLogger.shared.log("🔍 [AutoNav] Current page: \(stateMachine.currentPage)")
-        AppLogger.shared.log("🔍 [AutoNav] Issues count: \(issues.count)")
-        AppLogger.shared.log("🔍 [AutoNav] navSequence count: \(navSequence.count)")
-        AppLogger.shared.log("🔍 [AutoNav] navSequence pages: \(navSequence.map(\.displayName))")
-
-        guard stateMachine.currentPage == .summary else {
-            AppLogger.shared.log("🔍 [AutoNav] SKIP: Not on summary page")
-            return
-        }
-
-        // If there's exactly 1 item in the summary list, navigate to it directly
-        // navSequence represents what's actually displayed, so trust it
-        guard navSequence.count == 1, let targetPage = navSequence.first else {
-            AppLogger.shared.log(
-                "🔍 [AutoNav] ❌ NOT AUTO-NAVIGATING: navSequence has \(navSequence.count) items"
-            )
-            return
-        }
-
-        AppLogger.shared.log("🔍 [AutoNav] ✅ AUTO-NAVIGATING to \(targetPage) (single item in summary)")
-        stateMachine.navigateToPage(targetPage)
-        AppLogger.shared.log("🔍 [AutoNav] Navigation command sent")
-    }
-
-    func preferredDetailPage(for state: WizardSystemState, issues: [WizardIssue])
-        async -> WizardPage?
-    {
-        let page = await stateMachine.navigationEngine.determineCurrentPage(
-            for: state, issues: issues
-        )
-        guard page != .summary else { return nil }
-
-        let hasExactlyOneIssue = issues.count == 1
-        let serviceOnly = issues.isEmpty && page == .service
-        return (hasExactlyOneIssue || serviceOnly) ? page : nil
-    }
-
     func cachedPreferredPage() async -> WizardPage? {
         // Use last known system state from WizardStateMachine if available
         guard let cachedState = stateMachine.lastWizardSnapshot else { return nil }
-        let adaptedIssues = cachedState.issues
-        let adaptedState = cachedState.state
-        return await preferredDetailPage(for: adaptedState, issues: adaptedIssues)
+        let page = await stateMachine.navigationEngine.firstPageNeedingAttention(
+            for: cachedState.state, issues: cachedState.issues
+        )
+        return page != .summary ? page : nil
     }
 
     func sanitizedIssues(from issues: [WizardIssue], for state: WizardSystemState)
@@ -206,19 +167,21 @@ extension InstallationWizardView {
             AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
             stateMachine.navigateToPage(.summary)
         } else if shouldAutoNavigate {
-            Task {
-                if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
-                   stateMachine.currentPage != preferred
-                {
-                    AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
-                    stateMachine.navigateToPage(preferred)
+            // Skip green pages: if current page has no relevant issues, navigate to one that does
+            let currentPageHasIssues = stateMachine.navigationEngine.pageHasRelevantIssues(
+                stateMachine.currentPage,
+                issues: filteredIssues,
+                state: result.state
+            )
+            if !currentPageHasIssues {
+                Task {
+                    let recommended = await stateMachine.navigationEngine
+                        .firstPageNeedingAttention(for: result.state, issues: filteredIssues)
+                    if recommended != stateMachine.currentPage {
+                        AppLogger.shared.log("🔄 [Wizard] Skipping green page \(stateMachine.currentPage) → \(recommended)")
+                        stateMachine.navigateToPage(recommended)
+                    }
                 }
-            }
-        }
-        if stateMachine.currentPage == .summary, shouldAutoNavigate {
-            Task { @MainActor in
-                _ = await WizardSleep.ms(50) // 50ms
-                autoNavigateIfSingleIssue(in: filteredIssues, state: result.state)
             }
         }
 

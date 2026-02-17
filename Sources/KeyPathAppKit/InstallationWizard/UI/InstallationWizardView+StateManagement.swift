@@ -138,6 +138,9 @@ extension InstallationWizardView {
                 "🔍 [Wizard] Issue details: \(filteredIssues.map { "\($0.category)-\($0.title)" })"
             )
 
+            // Auto-navigate to the first page that needs attention, skipping all green pages
+            let recommended = await stateMachine.navigationEngine
+                .firstPageNeedingAttention(for: result.state, issues: filteredIssues)
             Task { @MainActor in
                 if shouldNavigateToSummary(
                     currentPage: stateMachine.currentPage,
@@ -146,24 +149,10 @@ extension InstallationWizardView {
                 ) {
                     AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
                     stateMachine.navigateToPage(.summary)
-                } else if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
-                          stateMachine.currentPage != preferred
-                {
-                    AppLogger.shared.log("🔍 [Wizard] Deterministic routing to \(preferred) (single blocker)")
-                    stateMachine.navigateToPage(preferred)
-                } else if stateMachine.currentPage == .summary {
-                    // Wait a tick for navSequence to be updated by WizardSystemStatusOverview's onChange handlers
-                    _ = await WizardSleep.ms(50) // 50ms
-                    autoNavigateIfSingleIssue(in: filteredIssues, state: result.state)
+                } else if recommended != stateMachine.currentPage {
+                    AppLogger.shared.log("🔍 [Wizard] Auto-navigating to \(recommended) (skipping green pages)")
+                    stateMachine.navigateToPage(recommended)
                 }
-            }
-
-            // Targeted auto-navigation: if helper isn't installed, go to Helper page first
-            let recommended = await stateMachine.navigationEngine
-                .determineCurrentPage(for: result.state, issues: filteredIssues)
-            if recommended == .helper, stateMachine.currentPage == .summary {
-                AppLogger.shared.log("🔍 [Wizard] Auto-navigating to Helper page (helper missing)")
-                stateMachine.navigateToPage(.helper)
             }
         }
     }

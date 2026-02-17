@@ -218,6 +218,7 @@ struct WizardAccessibilityPage: View {
                 }
             }
             .frame(maxWidth: .infinity)
+            .fixedSize(horizontal: false, vertical: true)
             .background(WizardDesign.Colors.wizardBackground)
             .wizardDetailPage()
 

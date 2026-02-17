@@ -127,7 +127,6 @@ struct WizardCommunicationPage: View {
 
             // Bottom buttons - HIG compliant button order
         }
-        .padding(.bottom, 32)
         .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)

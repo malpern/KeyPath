@@ -63,7 +63,7 @@ struct WizardKanataServicePage: View {
     }
 
     var body: some View {
-        VStack(spacing: WizardDesign.Spacing.sectionGap) {
+        VStack(spacing: 0) {
             WizardHeroSection(
                 icon: "gearshape.2",
                 iconColor: serviceStatus.color,
@@ -100,7 +100,6 @@ struct WizardKanataServicePage: View {
                 .padding(.top, WizardDesign.Spacing.sectionGap)
             }
         }
-        .padding(.bottom, 32)
         .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)
