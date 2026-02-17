@@ -133,6 +133,11 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
     /// FIX #2: Shared TCP client for health checks to avoid creating new connections repeatedly
     private var healthCheckClient: KanataTCPClient?
 
+    /// Track EventListener heartbeat to avoid redundant TCP connections
+    private var lastHeartbeatTime: Date?
+    private var heartbeatObserver: NSObjectProtocol?
+    private let heartbeatFreshnessThreshold: TimeInterval = 5.0
+
     // MARK: - Crash Loop Detection
 
     /// Tracks recent PID observations for crash loop detection
@@ -152,6 +157,13 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
 
     init(processLifecycle: ProcessLifecycleManager) {
         self.processLifecycle = processLifecycle
+        heartbeatObserver = NotificationCenter.default.addObserver(
+            forName: .kanataTcpHeartbeat, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.lastHeartbeatTime = Date()
+            }
+        }
         AppLogger.shared.info("[HealthMonitor] Initialized with process lifecycle manager")
     }
 
@@ -222,6 +234,18 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
             AppLogger.shared.debug("[HealthMonitor] TCP health check skipped in test environment")
             return true // Assume healthy in tests
         }
+
+        // Fast path: if EventListener recently received data, TCP is healthy.
+        // This avoids opening a redundant TCP connection that can disrupt EventListener's stream.
+        if let lastBeat = lastHeartbeatTime,
+           Date().timeIntervalSince(lastBeat) < heartbeatFreshnessThreshold
+        {
+            AppLogger.shared.debug("[HealthMonitor] TCP healthy (recent EventListener heartbeat)")
+            return true
+        }
+
+        // Slow path: no recent heartbeat, fall back to direct TCP check
+        // (e.g., during startup before EventListener connects)
 
         // FIX #2: Use shared client instead of creating new one for each health check
         // This avoids creating hundreds of TCP connections over app lifetime
@@ -481,6 +505,13 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
         retryAttemptCount = 0
         lastHealthCheckResult = nil
         recentPIDObservations.removeAll()
+
+        // Clean up heartbeat observer
+        if let observer = heartbeatObserver {
+            NotificationCenter.default.removeObserver(observer)
+            heartbeatObserver = nil
+        }
+        lastHeartbeatTime = nil
 
         // FIX #2: Clean up shared health check client
         if let client = healthCheckClient {

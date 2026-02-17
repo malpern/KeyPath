@@ -390,7 +390,7 @@ actor KanataEventListener {
             do {
                 try await connectAndStream(port: port)
             } catch {
-                AppLogger.shared.debug("🌐 [EventListener] stream ended: \(error.localizedDescription)")
+                AppLogger.shared.log("🌐 [EventListener] Stream ended: \(error.localizedDescription), reconnecting in 1s...")
                 try? await Task.sleep(for: .seconds(1))
             }
         }
@@ -403,8 +403,28 @@ actor KanataEventListener {
             using: .tcp
         )
 
+        // Bug 1 fix: ensure cleanup on both normal and error exits
+        defer {
+            connection.cancel()
+            pollTask?.cancel()
+            pollTask = nil
+        }
+
         try await waitForReady(connection)
         AppLogger.shared.log("🌐 [EventListener] Connected to kanata TCP server")
+
+        // Bug 2 fix: monitor for post-handshake connection failures.
+        // waitForReady() nils out stateUpdateHandler after .ready, so we install a new one
+        // that cancels the connection on failure, causing receiveChunk to throw.
+        connection.stateUpdateHandler = { [weak connection] state in
+            switch state {
+            case .failed, .cancelled, .waiting:
+                AppLogger.shared.log("🌐 [EventListener] Connection state → \(state), cancelling")
+                connection?.cancel()
+            default:
+                break
+            }
+        }
 
         AppLogger.shared.log("🌐 [EventListener] Sending Hello message")
         try await send(jsonObject: ["Hello": [:] as [String: String]], over: connection)
@@ -419,9 +439,18 @@ actor KanataEventListener {
             guard let self, let connection else { return }
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(500))
-                try? await send(
-                    jsonObject: ["RequestCurrentLayerName": [:] as [String: String]], over: connection
-                )
+                // Bug 3 fix: propagate send errors instead of silently swallowing them.
+                // On a dead connection, send() throws — cancel the connection to trigger reconnect.
+                do {
+                    try await send(
+                        jsonObject: ["RequestCurrentLayerName": [:] as [String: String]],
+                        over: connection
+                    )
+                } catch {
+                    AppLogger.shared.log("🌐 [EventListener] Poll send failed: \(error.localizedDescription)")
+                    connection.cancel()
+                    return
+                }
             }
         }
 
@@ -446,10 +475,6 @@ actor KanataEventListener {
                 }
             }
         }
-
-        connection.cancel()
-        pollTask?.cancel()
-        pollTask = nil
     }
 
     private func waitForReady(_ connection: NWConnection) async throws {
@@ -461,6 +486,12 @@ actor KanataEventListener {
                     continuation.resume()
                 case let .failed(error):
                     connection?.stateUpdateHandler = nil
+                    continuation.resume(throwing: error)
+                case let .waiting(error):
+                    // Server not reachable (e.g. Kanata restarting). Fail fast so
+                    // listenLoop can retry after a delay instead of hanging forever.
+                    connection?.stateUpdateHandler = nil
+                    connection?.cancel()
                     continuation.resume(throwing: error)
                 case .cancelled:
                     connection?.stateUpdateHandler = nil
