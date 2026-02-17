@@ -7,6 +7,13 @@ import SwiftUI
 
 // MARK: - Animated Keyboard Transform Grid (with magic move)
 
+struct TransformDisplayKey: Identifiable, Hashable {
+    let keyCode: UInt16
+    let canonical: String
+    let label: String
+    var id: UInt16 { keyCode }
+}
+
 /// A keyboard visualization where symbols animate ("magic move") between positions
 /// when switching presets. Symbols are rendered in an overlay layer and animate
 /// to their target keycap positions, creating a playful shuffling effect.
@@ -14,27 +21,63 @@ struct AnimatedKeyboardTransformGrid: View {
     let mappings: [KeyMapping]
     var namespace: Namespace.ID
     var enableAnimation: Bool = false // Only animate after user interaction
+    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
+    @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
 
-    /// Standard QWERTY layout rows (including number row for Mirrored preset)
-    private static let keyboardRows: [[String]] = [
-        ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
-        ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
-        ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"],
-        ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"]
+    private static let keyboardRowKeyCodes: [[UInt16]] = [
+        [18, 19, 20, 21, 23, 22, 26, 28, 25, 29],
+        [12, 13, 14, 15, 17, 16, 32, 34, 31, 35],
+        [0, 1, 2, 3, 5, 4, 38, 40, 37, 41],
+        [6, 7, 8, 9, 11, 45, 46, 43, 47, 44]
     ]
 
-    /// All keys as flat array for position calculation
-    private static let allKeys: [String] = keyboardRows.flatMap { $0 }
+    private var activeKeymap: LogicalKeymap {
+        LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
+    }
 
-    private func outputFor(_ input: String) -> String? {
-        mappings.first { $0.input.lowercased() == input.lowercased() }?.description
+    private var includePunctuation: Bool {
+        KeymapPreferences.includePunctuation(for: selectedKeymapId, store: includePunctuationStore)
+    }
+
+    private var keyboardRows: [[TransformDisplayKey]] {
+        Self.keyboardRowKeyCodes.map { row in
+            row.map(displayKey(for:))
+        }
+    }
+
+    private var allKeys: [TransformDisplayKey] {
+        keyboardRows.flatMap { $0 }
+    }
+
+    private func displayKey(for keyCode: UInt16) -> TransformDisplayKey {
+        let canonical = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
+        let fallback: [String: String] = [
+            "minus": "-",
+            "equal": "=",
+            "semicolon": ";",
+            "comma": ",",
+            "dot": ".",
+            "slash": "/"
+        ]
+        let label = activeKeymap.label(for: keyCode, includeExtraKeys: includePunctuation)
+            ?? fallback[canonical]
+            ?? canonical
+        return TransformDisplayKey(keyCode: keyCode, canonical: canonical, label: label)
+    }
+
+    private func keycapLabel(_ label: String) -> String {
+        label.count == 1 ? label.uppercased() : label
+    }
+
+    private func outputFor(_ canonicalInput: String) -> String? {
+        mappings.first { $0.input.lowercased() == canonicalInput.lowercased() }?.description
     }
 
     /// Get all unique symbols and their target key positions
     private var symbolPositions: [(symbol: String, keyIndex: Int)] {
         var result: [(String, Int)] = []
-        for (index, key) in Self.allKeys.enumerated() {
-            if let symbol = outputFor(key) {
+        for (index, key) in allKeys.enumerated() {
+            if let symbol = outputFor(key.canonical) {
                 result.append((symbol, index))
             }
         }
@@ -42,10 +85,15 @@ struct AnimatedKeyboardTransformGrid: View {
     }
 
     var body: some View {
+        let _ = symbolPositions // Keep computed for future layout tuning
         VStack(spacing: 8) {
             HStack(alignment: .center, spacing: 16) {
                 // Input keyboard (static)
-                InputKeyboardGrid(keyboardRows: Self.keyboardRows, outputFor: outputFor)
+                InputKeyboardGrid(
+                    keyboardRows: keyboardRows,
+                    outputFor: outputFor,
+                    keycapLabel: keycapLabel
+                )
 
                 // Arrow
                 Image(systemName: "arrow.right")
@@ -54,15 +102,16 @@ struct AnimatedKeyboardTransformGrid: View {
 
                 // Output keyboard with animated symbols overlay
                 OutputKeyboardWithAnimatedSymbols(
-                    keyboardRows: Self.keyboardRows,
+                    keyboardRows: keyboardRows,
                     mappings: mappings,
                     namespace: namespace,
-                    enableAnimation: enableAnimation
+                    enableAnimation: enableAnimation,
+                    keycapLabel: keycapLabel
                 )
             }
 
             // Physical position note
-            Text("Keys labeled by physical position (QWERTY). Works with any keyboard layout.")
+            Text("Keys are shown by physical position using the selected keymap labels.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
@@ -77,8 +126,9 @@ struct AnimatedKeyboardTransformGrid: View {
 // MARK: - Input Keyboard Grid (static)
 
 struct InputKeyboardGrid: View {
-    let keyboardRows: [[String]]
+    let keyboardRows: [[TransformDisplayKey]]
     let outputFor: (String) -> String?
+    let keycapLabel: (String) -> String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -93,10 +143,10 @@ struct InputKeyboardGrid: View {
                     // Keyboard stagger: number=0, qwerty=0, home=8, bottom=16
                     if rowIndex == 2 { Spacer().frame(width: 8) } else if rowIndex == 3 { Spacer().frame(width: 16) }
 
-                    ForEach(row, id: \.self) { key in
-                        let hasMapping = outputFor(key) != nil
+                    ForEach(row) { key in
+                        let hasMapping = outputFor(key.canonical) != nil
                         TransformKeycap(
-                            label: key.uppercased(),
+                            label: keycapLabel(key.label),
                             isHighlighted: hasMapping,
                             isInput: true
                         )
@@ -112,10 +162,11 @@ struct InputKeyboardGrid: View {
 /// The output keyboard renders keycap backgrounds, then overlays animated symbols.
 /// Symbols track their target position and animate when it changes.
 struct OutputKeyboardWithAnimatedSymbols: View {
-    let keyboardRows: [[String]]
+    let keyboardRows: [[TransformDisplayKey]]
     let mappings: [KeyMapping]
     var namespace: Namespace.ID
     var enableAnimation: Bool = false // Only animate after user interaction
+    let keycapLabel: (String) -> String
 
     /// Track keycap positions using preference key
     @State private var keycapFrames: [String: CGRect] = [:]
@@ -175,17 +226,21 @@ struct OutputKeyboardWithAnimatedSymbols: View {
                             // Keyboard stagger: number=0, qwerty=0, home=8, bottom=16
                             if rowIndex == 2 { Spacer().frame(width: 8) } else if rowIndex == 3 { Spacer().frame(width: 16) }
 
-                            ForEach(row, id: \.self) { key in
-                                let hasMapping = outputFor(key) != nil
-                                KeycapSlot(key: key, hasMapping: hasMapping)
-                                    .background(
-                                        GeometryReader { geo in
-                                            Color.clear.preference(
-                                                key: KeycapFramePreference.self,
-                                                value: [key: geo.frame(in: .named("outputKeyboard"))]
-                                            )
-                                        }
-                                    )
+                            ForEach(row) { key in
+                                let hasMapping = outputFor(key.canonical) != nil
+                                KeycapSlot(
+                                    key: key.canonical,
+                                    displayLabel: keycapLabel(key.label),
+                                    hasMapping: hasMapping
+                                )
+                                .background(
+                                    GeometryReader { geo in
+                                        Color.clear.preference(
+                                            key: KeycapFramePreference.self,
+                                            value: [key.canonical: geo.frame(in: .named("outputKeyboard"))]
+                                        )
+                                    }
+                                )
                             }
                         }
                     }
@@ -216,6 +271,7 @@ struct OutputKeyboardWithAnimatedSymbols: View {
 
 struct KeycapSlot: View {
     let key: String
+    let displayLabel: String
     let hasMapping: Bool
 
     var body: some View {
@@ -227,7 +283,7 @@ struct KeycapSlot: View {
 
             // Show key label only if no mapping (symbols rendered in overlay)
             if !hasMapping {
-                Text(key.uppercased())
+                Text(displayLabel)
                     .font(.caption.monospaced())
                     .foregroundColor(.secondary)
             }

@@ -63,36 +63,51 @@ final class LauncherStore {
         }
     }
 
-    /// Mappings sorted by proximity to home row (ASDF JKL; are closest)
+    /// Mappings sorted by proximity to the physical home row.
     var sortedMappings: [QuickLaunchMapping] {
         mappings.sorted { Self.homeRowProximity(for: $0.key) < Self.homeRowProximity(for: $1.key) }
     }
 
     /// Home row proximity score (lower = closer to home row)
-    /// Home row keys (ASDFGHJKL;) = 0
-    /// Adjacent rows = 1, 2, etc.
-    /// Number row = 3
     private static func homeRowProximity(for key: String) -> Int {
-        let k = key.lowercased()
+        let normalized = normalizeCanonicalKey(key)
+        return rowPriorityByCanonicalKey[normalized] ?? 4
+    }
 
-        // Home row - priority 0
-        let homeRow: Set<String> = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"]
-        if homeRow.contains(k) { return 0 }
+    private static let rowPriorityByCanonicalKey: [String: Int] = {
+        let rows: [(priority: Int, keyCodes: [UInt16])] = [
+            (0, [0, 1, 2, 3, 5, 4, 38, 40, 37, 41]), // home row
+            (1, [12, 13, 14, 15, 17, 16, 32, 34, 31, 35, 33, 30]), // top row + brackets
+            (2, [6, 7, 8, 9, 11, 45, 46, 43, 47, 44]), // bottom row + punctuation
+            (3, [18, 19, 20, 21, 23, 22, 26, 28, 25, 29, 27, 24, 50]) // number row + grave
+        ]
 
-        // Top row (QWERTY) - priority 1
-        let topRow: Set<String> = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]"]
-        if topRow.contains(k) { return 1 }
+        var map: [String: Int] = [:]
+        for row in rows {
+            for keyCode in row.keyCodes {
+                let canonical = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
+                map[canonical] = row.priority
+            }
+        }
+        return map
+    }()
 
-        // Bottom row (ZXCV) - priority 2
-        let bottomRow: Set<String> = ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"]
-        if bottomRow.contains(k) { return 2 }
-
-        // Number row - priority 3
-        let numberRow: Set<String> = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="]
-        if numberRow.contains(k) { return 3 }
-
-        // Function keys and others - priority 4
-        return 4
+    private static func normalizeCanonicalKey(_ key: String) -> String {
+        let normalized = key.lowercased()
+        let aliases: [String: String] = [
+            ";": "semicolon",
+            "'": "apostrophe",
+            ",": "comma",
+            ".": "dot",
+            "/": "slash",
+            "-": "minus",
+            "=": "equal",
+            "`": "grave",
+            "[": "leftbrace",
+            "]": "rightbrace",
+            "\\": "backslash"
+        ]
+        return aliases[normalized] ?? normalized
     }
 
     /// Check if an app is installed on the system
