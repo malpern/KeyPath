@@ -133,6 +133,8 @@ struct OverlayDragHeader: View {
     @State private var hoveredLayer: String?
     /// Computed arrow edge for layer picker (up by default, down near screen top)
     @State private var layerPickerArrowEdge: Edge = .top
+    /// When the health indicator dismissed — used to suppress "No TCP" briefly at startup
+    @State private var healthDismissedAt: Date?
 
     /// System layers that cannot be deleted
     private static let systemLayers: Set<String> = ["base", "nav", "navigation", "launcher"]
@@ -255,6 +257,11 @@ struct OverlayDragHeader: View {
             // in their old position during animation
             TooltipWindowController.shared.dismissImmediately()
         }
+        .onChange(of: healthIndicatorState) { _, newValue in
+            if newValue == .dismissed {
+                healthDismissedAt = Date()
+            }
+        }
     }
 
     /// Refresh available layers from rule collections
@@ -301,6 +308,13 @@ struct OverlayDragHeader: View {
         Color.white.opacity(isDark ? 0.7 : 0.6)
     }
 
+    /// Whether the "No TCP" pill should be suppressed (grace period after health dismissal).
+    /// The EventListener takes a moment to connect after startup; avoid a brief flash of "No TCP".
+    private var isTcpGracePeriodActive: Bool {
+        guard let dismissedAt = healthDismissedAt else { return false }
+        return Date().timeIntervalSince(dismissedAt) < 5.0
+    }
+
     private func statusSlot(indicatorCornerRadius: CGFloat, buttonSize: CGFloat) -> some View {
         ZStack(alignment: .leading) {
             if healthIndicatorState != .dismissed {
@@ -312,7 +326,7 @@ struct OverlayDragHeader: View {
                 )
             } else {
                 HStack(spacing: 6) {
-                    if !isKanataConnected {
+                    if !isKanataConnected, !isTcpGracePeriodActive {
                         kanataDisconnectedPill(indicatorCornerRadius: indicatorCornerRadius)
                     }
 
