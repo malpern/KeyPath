@@ -18,6 +18,7 @@ struct HomeRowModsCollectionView: View {
     @State private var newLayerName = ""
     @State private var locallyCreatedLayers: Set<String> = []
     @State private var hoveredHoldBehavior: HomeRowHoldMode?
+    @State private var pendingLayerModeChoice: LayerModeDialogChoice = .useLayersRecommended
 
     private var activeKeymap: LogicalKeymap {
         LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
@@ -53,12 +54,16 @@ struct HomeRowModsCollectionView: View {
             }
             .padding(.bottom, 16)
 
-            Button("Settings") {
-                showingCustomizeWindow = true
+            HStack {
+                Spacer()
+
+                Button("Settings...") {
+                    showingCustomizeWindow = true
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("home-row-mods-customize-button")
+                .accessibilityLabel("Home row mods settings")
             }
-            .buttonStyle(.bordered)
-            .accessibilityIdentifier("home-row-mods-customize-button")
-            .accessibilityLabel("Home row mods settings")
 
         }
         .animation(.easeInOut(duration: 0.2), value: selectedKey)
@@ -222,49 +227,76 @@ struct HomeRowModsCollectionView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
-                    Text("Recommended assigns symmetric layers to both hands (good default).")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Layer Preset")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
 
-                    Picker("Layer Preset", selection: Binding(
-                        get: { layerPresetSelection(from: config.layerAssignments) },
-                        set: { preset in
-                            switch preset {
-                            case .default:
-                                config.layerAssignments = recommendedLayerAssignments
-                                config.enabledKeys = Set(HomeRowModsConfig.allKeys)
-                            case .custom:
-                                break
+                        HStack(spacing: 10) {
+                            SettingsOptionCard(
+                                icon: "sparkles",
+                                title: "Recommended",
+                                subtitle: "Balanced left/right defaults",
+                                isSelected: layerPresetSelection(from: config.layerAssignments) == .default
+                            ) {
+                                applyLayerPreset(.default)
                             }
-                            updateConfig()
+                            .accessibilityIdentifier("home-row-mods-layer-preset-recommended")
+
+                            SettingsOptionCard(
+                                icon: "slider.horizontal.3",
+                                title: "Custom",
+                                subtitle: "Use your current assignments",
+                                isSelected: layerPresetSelection(from: config.layerAssignments) == .custom
+                            ) {
+                                applyLayerPreset(.custom)
+                            }
+                            .accessibilityIdentifier("home-row-mods-layer-preset-custom")
                         }
-                    )) {
-                        Text("Recommended").tag(HomeRowLayerPreset.default)
-                        Text("Custom").tag(HomeRowLayerPreset.custom)
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("home-row-mods-layer-preset-picker")
+                        .accessibilityLabel("Layer preset selection")
+
+                        Text(layerPresetExplanationText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .accessibilityIdentifier("home-row-mods-layer-preset-picker")
-                    .accessibilityLabel("Layer preset selection")
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Layer Activation")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        Picker("Layer Mode", selection: Binding(
-                            get: { config.layerToggleMode },
-                            set: { newValue in
-                                config.layerToggleMode = newValue
+
+                        HStack(spacing: 10) {
+                            SettingsOptionCard(
+                                icon: "hand.raised",
+                                title: "While Held",
+                                subtitle: "Active only while holding",
+                                isSelected: config.layerToggleMode == .whileHeld
+                            ) {
+                                config.layerToggleMode = .whileHeld
                                 updateConfig()
                             }
-                        )) {
-                            Text(LayerToggleMode.whileHeld.displayName).tag(LayerToggleMode.whileHeld)
-                            Text(LayerToggleMode.toggle.displayName).tag(LayerToggleMode.toggle)
+                            .accessibilityIdentifier("home-row-mods-layer-toggle-while-held")
+
+                            SettingsOptionCard(
+                                icon: "switch.2",
+                                title: "Toggle",
+                                subtitle: "Press once to stay on",
+                                isSelected: config.layerToggleMode == .toggle
+                            ) {
+                                config.layerToggleMode = .toggle
+                                updateConfig()
+                            }
+                            .accessibilityIdentifier("home-row-mods-layer-toggle-mode")
                         }
-                        .pickerStyle(.radioGroup)
-                        .horizontalRadioGroupLayout()
+                        .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("home-row-mods-layer-toggle-mode-picker")
                         .accessibilityLabel("Layer activation mode")
+
+                        Text(layerActivationExplanationText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -768,88 +800,96 @@ struct HomeRowModsCollectionView: View {
     }
 
     private var layerModeSetupSheet: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Use Home Row Layers?")
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Home Row Layer Mode")
                 .font(.title3.weight(.semibold))
 
-            Text("Home Row Layers keep tap behavior the same, but a hold temporarily switches to another layer (like Nav, Symbols, or Numpad).")
+            Text("Tap still types letters. Hold temporarily switches to a layer for navigation, symbols, or numpad.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Why some people use this")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                Text("It gives fast access to many keys without moving hands far from home row. If you mostly want shortcuts like Cmd/Opt/Ctrl/Shift, stick with Modifiers.")
+            Text("Use Modifiers for shortcut-heavy workflows. Use Layers for larger key layouts.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 2)
+
+            if !missingRecommendedLayers.isEmpty {
+                Text("Recommended layers that will be created: \(missingRecommendedLayers.joined(separator: ", "))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            if !missingRecommendedLayers.isEmpty {
-                Text("Recommended layers to create: \(missingRecommendedLayers.joined(separator: ", "))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Divider()
 
             VStack(alignment: .leading, spacing: 10) {
                 SettingsOptionCard(
                     icon: "command",
                     title: "Keep Modifiers",
-                    subtitle: "Simple and familiar home-row mods",
-                    isSelected: false
+                    subtitle: "Best for shortcuts",
+                    isSelected: pendingLayerModeChoice == .keepModifiers
                 ) {
-                    config.holdMode = .modifiers
-                    config.hasUserSelectedHoldMode = true
-                    selectedKey = nil
-                    updateConfig()
-                    showingLayerModeSetup = false
+                    pendingLayerModeChoice = .keepModifiers
                 }
                 .accessibilityIdentifier("home-row-mods-layer-setup-keep-modifiers")
 
                 SettingsOptionCard(
                     icon: "sparkles",
-                    title: "Use Layers (Recommended Setup)",
-                    subtitle: "Auto-create recommended layers and assignments",
-                    isSelected: false
+                    title: "Use Layers (Recommended)",
+                    subtitle: "Best for expanded layouts",
+                    isSelected: pendingLayerModeChoice == .useLayersRecommended
                 ) {
-                    Task {
-                        if !missingRecommendedLayers.isEmpty {
-                            await onEnsureLayersExist(missingRecommendedLayers)
-                            locallyCreatedLayers.formUnion(missingRecommendedLayers.map { $0.lowercased() })
-                        }
-                        config.layerAssignments = recommendedLayerAssignments
-                        applyHoldMode(.layers)
-                        showingLayerModeSetup = false
-                    }
+                    pendingLayerModeChoice = .useLayersRecommended
                 }
                 .accessibilityIdentifier("home-row-mods-layer-setup-use-layers-recommended")
 
                 SettingsOptionCard(
                     icon: "slider.horizontal.3",
-                    title: "Use Layers (Manual Setup)",
-                    subtitle: "Keep your existing layers and configure keys yourself",
-                    isSelected: false
+                    title: "Use Layers (Manual)",
+                    subtitle: "Keep existing layers",
+                    isSelected: pendingLayerModeChoice == .useLayersManual
                 ) {
-                    applyManualLayerModeWithoutCreating()
-                    showingLayerModeSetup = false
+                    pendingLayerModeChoice = .useLayersManual
                 }
                 .accessibilityIdentifier("home-row-mods-layer-setup-use-layers-manual")
             }
+            .padding(.top, 2)
 
             HStack {
                 Spacer()
-                Button("Not Now") {
-                    config.holdMode = .modifiers
-                    config.hasUserSelectedHoldMode = true
-                    updateConfig()
+                Button("Cancel") {
                     showingLayerModeSetup = false
                 }
                 .keyboardShortcut(.cancelAction)
-                .accessibilityIdentifier("home-row-mods-layer-setup-not-now-button")
+                .accessibilityIdentifier("home-row-mods-layer-setup-cancel-button")
+
+                Button("OK") {
+                    switch pendingLayerModeChoice {
+                    case .keepModifiers:
+                        applyHoldMode(.modifiers)
+                        showingLayerModeSetup = false
+                    case .useLayersRecommended:
+                        Task {
+                            if !missingRecommendedLayers.isEmpty {
+                                await onEnsureLayersExist(missingRecommendedLayers)
+                                locallyCreatedLayers.formUnion(missingRecommendedLayers.map { $0.lowercased() })
+                            }
+                            config.layerAssignments = recommendedLayerAssignments
+                            applyHoldMode(.layers)
+                            showingLayerModeSetup = false
+                        }
+                    case .useLayersManual:
+                        applyManualLayerModeWithoutCreating()
+                        showingLayerModeSetup = false
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("home-row-mods-layer-setup-ok-button")
             }
+            .padding(.top, 6)
         }
         .padding(20)
-        .frame(width: 540)
+        .frame(width: 560)
         .settingsBackground()
     }
 
@@ -862,6 +902,12 @@ struct HomeRowModsCollectionView: View {
     private enum HomeRowLayerPreset: Hashable {
         case `default`
         case custom
+    }
+
+    private enum LayerModeDialogChoice {
+        case keepModifiers
+        case useLayersRecommended
+        case useLayersManual
     }
 
     private func modifierPresetSelection(from assignments: [String: String]) -> HomeRowModifierPreset {
@@ -884,6 +930,16 @@ struct HomeRowModsCollectionView: View {
         updateConfig()
     }
 
+    private func openLayerModeDialog() {
+        if config.holdMode == .layers {
+            pendingLayerModeChoice = layerPresetSelection(from: config.layerAssignments) == .default
+                ? .useLayersRecommended : .useLayersManual
+        } else {
+            pendingLayerModeChoice = .useLayersRecommended
+        }
+        showingLayerModeSetup = true
+    }
+
     private func applyKeySelection(_ selection: KeySelection) {
         config.keySelection = selection
         if selection == .custom {
@@ -892,6 +948,17 @@ struct HomeRowModsCollectionView: View {
             }
         } else {
             config.enabledKeys = selection.enabledKeys
+        }
+        updateConfig()
+    }
+
+    private func applyLayerPreset(_ preset: HomeRowLayerPreset) {
+        switch preset {
+        case .default:
+            config.layerAssignments = recommendedLayerAssignments
+            config.enabledKeys = Set(HomeRowModsConfig.allKeys)
+        case .custom:
+            break
         }
         updateConfig()
     }
@@ -907,8 +974,8 @@ struct HomeRowModsCollectionView: View {
         let isHovered = hoveredHoldBehavior == mode
 
         Button {
-            if mode == .layers, config.holdMode != .layers, !config.hasUserSelectedHoldMode {
-                showingLayerModeSetup = true
+            if mode == .layers {
+                openLayerModeDialog()
                 return
             }
             applyHoldMode(mode)
@@ -984,6 +1051,24 @@ struct HomeRowModsCollectionView: View {
             "Only right-hand home-row keys use tap-hold behavior."
         case .custom:
             "Choose exactly which keys are active below."
+        }
+    }
+
+    private var layerPresetExplanationText: String {
+        switch layerPresetSelection(from: config.layerAssignments) {
+        case .default:
+            "Recommended preset is active. Home-row keys map to a symmetric layer layout."
+        case .custom:
+            "Custom preset is active. Click a key in the keyboard preview to choose its layer."
+        }
+    }
+
+    private var layerActivationExplanationText: String {
+        switch config.layerToggleMode {
+        case .whileHeld:
+            "Momentary mode: layer turns off when you release the key."
+        case .toggle:
+            "Latch mode: layer stays active until you switch it off."
         }
     }
 
