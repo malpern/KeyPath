@@ -19,6 +19,7 @@ struct HomeRowModsCollectionView: View {
     @State private var locallyCreatedLayers: Set<String> = []
     @State private var hoveredHoldBehavior: HomeRowHoldMode?
     @State private var pendingLayerModeChoice: LayerModeDialogChoice = .useLayersRecommended
+    @State private var showPerKeyTimingControls = false
 
     private var activeKeymap: LogicalKeymap {
         LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
@@ -107,6 +108,9 @@ struct HomeRowModsCollectionView: View {
         }
         .sheet(isPresented: $showingNewLayerSheet) {
             newLayerSheet
+        }
+        .onAppear {
+            showPerKeyTimingControls = hasAnyPerKeyOffsets
         }
     }
 
@@ -469,95 +473,101 @@ struct HomeRowModsCollectionView: View {
                             .foregroundStyle(.secondary)
                             .padding(.bottom, 2)
 
-                        Text("Per-finger tap offsets (ms)")
+                        Text("Hold timing profile")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
-                        ForEach(chunks(of: HomeRowModsConfig.allKeys, size: 4), id: \.self) { row in
-                            HStack(spacing: 12) {
-                                ForEach(row, id: \.self) { key in
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(displayLabel(forCanonicalKey: key))
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        TextField("0", value: Binding(
-                                            get: { config.timing.tapOffsets[key] ?? 0 },
-                                            set: { newValue in
-                                                if newValue == 0 {
-                                                    config.timing.tapOffsets.removeValue(forKey: key)
-                                                } else {
-                                                    config.timing.tapOffsets[key] = newValue
-                                                }
-                                                updateConfig()
-                                            }
-                                        ), format: .number)
-                                            .textFieldStyle(.roundedBorder)
-                                            .frame(width: 70)
-                                    }
-                                }
-                                Spacer()
-                            }
+                        Picker("Hold timing profile", selection: holdTimingProfileBinding) {
+                            Text("Standard").tag(HoldTimingProfile.standard)
+                            Text("Pinky-friendly").tag(HoldTimingProfile.pinkyFriendly)
                         }
-                        Text("Positive values extend tap window for that finger/key.")
+                        .pickerStyle(.segmented)
+                        .accessibilityIdentifier("home-row-mods-hold-timing-profile-picker")
+                        .accessibilityLabel("Hold timing profile")
+
+                        Text(holdTimingProfileHelpText)
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        Divider()
-                            .padding(.vertical, 4)
-
-                        Text("Per-finger hold offsets (ms)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-
-                        Toggle("Use pinky-friendly hold defaults", isOn: pinkyDefaultsBinding)
+                        Toggle("Customize per-key offsets", isOn: $showPerKeyTimingControls)
                             .toggleStyle(.checkbox)
-                            .disabled(isCustomHoldOffsets)
-                            .accessibilityIdentifier("home-row-mods-pinky-defaults-toggle")
-                            .accessibilityLabel("Use pinky-friendly hold defaults")
+                            .accessibilityIdentifier("home-row-mods-customize-per-key-timing-toggle")
+                            .accessibilityLabel("Customize per-key offsets")
 
-                        if isCustomHoldOffsets {
-                            HStack(spacing: 8) {
-                                Text("Manual per-key overrides are active.")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Button("Reset to standard") {
-                                    config.timing.holdOffsets = [:]
-                                    updateConfig()
-                                }
-                                .buttonStyle(.link)
-                                .accessibilityIdentifier("home-row-mods-reset-hold-offsets-button")
-                                .accessibilityLabel("Reset per-key hold offsets to standard")
-                            }
-                        }
+                        if showPerKeyTimingControls {
+                            Text("Per-finger tap offsets (ms)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
 
-                        ForEach(chunks(of: HomeRowModsConfig.allKeys, size: 4), id: \.self) { row in
-                            HStack(spacing: 12) {
-                                ForEach(row, id: \.self) { key in
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(displayLabel(forCanonicalKey: key))
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        TextField("0", value: Binding(
-                                            get: { config.timing.holdOffsets[key] ?? 0 },
-                                            set: { newValue in
-                                                if newValue == 0 {
-                                                    config.timing.holdOffsets.removeValue(forKey: key)
-                                                } else {
-                                                    config.timing.holdOffsets[key] = newValue
+                            ForEach(chunks(of: HomeRowModsConfig.allKeys, size: 4), id: \.self) { row in
+                                HStack(spacing: 12) {
+                                    ForEach(row, id: \.self) { key in
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(displayLabel(forCanonicalKey: key))
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            TextField("0", value: Binding(
+                                                get: { config.timing.tapOffsets[key] ?? 0 },
+                                                set: { newValue in
+                                                    if newValue == 0 {
+                                                        config.timing.tapOffsets.removeValue(forKey: key)
+                                                    } else {
+                                                        config.timing.tapOffsets[key] = newValue
+                                                    }
+                                                    updateConfig()
                                                 }
-                                                updateConfig()
-                                            }
-                                        ), format: .number)
-                                            .textFieldStyle(.roundedBorder)
-                                            .frame(width: 70)
+                                            ), format: .number)
+                                                .textFieldStyle(.roundedBorder)
+                                                .frame(width: 70)
+                                        }
                                     }
+                                    Spacer()
                                 }
-                                Spacer()
                             }
+                            Text("Positive values extend tap window for that finger/key.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            Divider()
+                                .padding(.vertical, 4)
+
+                            Text("Per-finger hold offsets (ms)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+
+                            ForEach(chunks(of: HomeRowModsConfig.allKeys, size: 4), id: \.self) { row in
+                                HStack(spacing: 12) {
+                                    ForEach(row, id: \.self) { key in
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(displayLabel(forCanonicalKey: key))
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            TextField("0", value: Binding(
+                                                get: { config.timing.holdOffsets[key] ?? 0 },
+                                                set: { newValue in
+                                                    if newValue == 0 {
+                                                        config.timing.holdOffsets.removeValue(forKey: key)
+                                                    } else {
+                                                        config.timing.holdOffsets[key] = newValue
+                                                    }
+                                                    updateConfig()
+                                                }
+                                            ), format: .number)
+                                                .textFieldStyle(.roundedBorder)
+                                                .frame(width: 70)
+                                        }
+                                    }
+                                    Spacer()
+                                }
+                            }
+                            Text("Positive values extend hold delay for that finger/key.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else if hasAnyPerKeyOffsets {
+                            Text("Custom per-key offsets are active. Enable customization to edit or clear them.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
-                        Text("Positive values extend hold delay for that finger/key.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
@@ -983,13 +993,13 @@ struct HomeRowModsCollectionView: View {
             HStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.headline)
-                    .foregroundStyle((isSelected || isHovered) ? Color.accentColor : .secondary)
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.subheadline.weight((isSelected || isHovered) ? .semibold : .regular))
-                        .foregroundStyle((isSelected || isHovered) ? .primary : .secondary)
+                        .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                        .foregroundStyle(isSelected ? .primary : .secondary)
                     Text(subtitle)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
@@ -1001,13 +1011,15 @@ struct HomeRowModsCollectionView: View {
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill((isSelected || isHovered) ? Color.accentColor.opacity(0.08) : .clear)
+                    .fill(isSelected ? Color.accentColor.opacity(0.08) : .clear)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .strokeBorder(
-                        (isSelected || isHovered) ? Color.accentColor.opacity(0.35) : Color.primary.opacity(0.08),
-                        lineWidth: (isSelected || isHovered) ? 1.5 : 0.5
+                        isSelected
+                            ? Color.accentColor.opacity(0.35)
+                            : (isHovered ? Color.accentColor.opacity(0.35) : Color.primary.opacity(0.08)),
+                        lineWidth: isSelected ? 1.5 : (isHovered ? 1.5 : 0.5)
                     )
             )
         }
@@ -1145,21 +1157,51 @@ struct HomeRowModsCollectionView: View {
         return "Modifier holds are sensitive to finger speed too. People often add extra hold delay on pinkies/ring fingers to avoid accidental modifiers during normal typing."
     }
 
-    private var pinkyDefaultsBinding: Binding<Bool> {
+    private enum HoldTimingProfile {
+        case standard
+        case pinkyFriendly
+    }
+
+    private var holdTimingProfileBinding: Binding<HoldTimingProfile> {
         Binding(
-            get: { config.timing.holdOffsets == ["a": 50, ";": 50] },
-            set: { isEnabled in
-                if isEnabled {
-                    config.timing.holdOffsets = ["a": 50, ";": 50]
-                } else {
-                    config.timing.holdOffsets = [:]
+            get: {
+                switch config.timing.holdOffsets {
+                case ["a": 50, ";": 50]:
+                    return .pinkyFriendly
+                default:
+                    return .standard
                 }
-                updateConfig()
+            },
+            set: { profile in
+                switch profile {
+                case .standard:
+                    config.timing.holdOffsets = [:]
+                    updateConfig()
+                case .pinkyFriendly:
+                    config.timing.holdOffsets = ["a": 50, ";": 50]
+                    updateConfig()
+                }
             }
         )
     }
 
-    private var isCustomHoldOffsets: Bool {
+    private var holdTimingProfileHelpText: String {
+        if hasCustomHoldOffsets {
+            return "Manual per-key hold offsets are active. Choose Standard or Pinky-friendly to replace them."
+        }
+        switch holdTimingProfileBinding.wrappedValue {
+        case .pinkyFriendly:
+            return "Adds 50ms hold delay on pinky keys (A and ;) to reduce accidental holds."
+        case .standard:
+            return "Uses only global hold timing."
+        }
+    }
+
+    private var hasAnyPerKeyOffsets: Bool {
+        !config.timing.tapOffsets.isEmpty || !config.timing.holdOffsets.isEmpty
+    }
+
+    private var hasCustomHoldOffsets: Bool {
         let offsets = config.timing.holdOffsets
         return !offsets.isEmpty && offsets != ["a": 50, ";": 50]
     }

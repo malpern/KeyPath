@@ -106,37 +106,59 @@ struct RuleConflictResolutionDialog: View {
     // MARK: - Header Section
 
     private var headerSection: some View {
-        VStack(spacing: 12) {
-            // Icons with VS
-            HStack(spacing: 20) {
-                ruleIcon(for: context.newRule)
-                    .foregroundColor(.blue)
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 12) {
+                // Icons with VS
+                HStack(spacing: 20) {
+                    ruleIcon(for: context.newRule)
+                        .foregroundColor(.blue)
 
-                Text("VS")
-                    .font(.caption.weight(.bold))
+                    Text("VS")
+                        .font(.caption.weight(.bold))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.secondary.opacity(0.15))
+                        )
+
+                    ruleIcon(for: context.existingRule)
+                        .foregroundColor(.orange)
+                }
+
+                Text("Rule Conflict")
+                    .font(.title2.weight(.semibold))
+
+                Text("Both rules want to control the same keys. Choose which rule to keep enabled.")
+                    .font(.body)
                     .foregroundColor(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.secondary.opacity(0.15))
-                    )
-
-                ruleIcon(for: context.existingRule)
-                    .foregroundColor(.orange)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 20)
             }
 
-            Text("Rule Conflict")
-                .font(.title2.weight(.semibold))
-
-            Text("Both rules want to control the same keys. Choose which rule to keep enabled.")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 20)
+            Button {
+                onCancel()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.secondary)
+                    .frame(width: 22, height: 22)
+                    .background(
+                        Circle()
+                            .fill(Color.secondary.opacity(0.16))
+                    )
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.cancelAction)
+            .accessibilityIdentifier("rule-conflict-close-button")
+            .accessibilityLabel("Close")
+            .padding(.top, 2)
+            .padding(.trailing, 2)
         }
         .padding(.vertical, 20)
+        .padding(.horizontal, 20)
     }
 
     private func ruleIcon(for source: RuleConflictSourceSnapshot) -> some View {
@@ -187,7 +209,8 @@ struct RuleConflictResolutionDialog: View {
                 source: context.newRule,
                 label: "Enable This",
                 accentColor: .blue,
-                isNew: true
+                isNew: true,
+                isPrimaryAction: false
             ) {
                 onChoice(.keepNew)
             }
@@ -197,7 +220,8 @@ struct RuleConflictResolutionDialog: View {
                 source: context.existingRule,
                 label: "Keep This",
                 accentColor: .orange,
-                isNew: false
+                isNew: false,
+                isPrimaryAction: true
             ) {
                 onChoice(.keepExisting)
             }
@@ -210,80 +234,28 @@ struct RuleConflictResolutionDialog: View {
         label: String,
         accentColor: Color,
         isNew: Bool,
+        isPrimaryAction: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header with icon and name
-            HStack(spacing: 10) {
-                Image(systemName: source.icon)
-                    .font(.title3)
-                    .foregroundColor(accentColor)
+        let mappings = relevantMappings(from: source, for: context.conflictingKeys)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(source.name)
-                        .font(.headline)
-                        .lineLimit(1)
+        return VStack(alignment: .leading, spacing: 12) {
+            ruleCardHeader(source: source, accentColor: accentColor, isNew: isNew)
+            ruleCardSummary(source: source)
 
-                    Text(isNew ? "New" : "Currently Enabled")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-            }
-
-            // Summary
-            Text(source.summary)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-
-            // Affected mappings (only show conflicting ones)
-            let mappings = relevantMappings(from: source, for: context.conflictingKeys)
             if !mappings.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(mappings.prefix(4))) { mapping in
-                        HStack(spacing: 4) {
-                            Text(KeyDisplayName.display(for: mapping.input))
-                                .font(.system(.caption, design: .monospaced))
-                            Text("→")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(KeyDisplayName.display(for: mapping.output))
-                                .font(.system(.caption, design: .monospaced))
-                        }
-                    }
-
-                    if mappings.count > 4 {
-                        Text("... and \(mappings.count - 4) more")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(8)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(accentColor.opacity(0.05))
-                )
+                ruleCardMappings(mappings: mappings, accentColor: accentColor)
             }
 
             Spacer()
 
-            // Action button
-            Button(action: action) {
-                HStack {
-                    Spacer()
-                    Text(label)
-                        .font(.body.weight(.medium))
-                    Spacer()
-                }
-                .padding(.vertical, 8)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(accentColor)
-            .accessibilityIdentifier("rule-conflict-\(isNew ? "enable-new" : "keep-existing")-button")
-            .accessibilityLabel(label)
+            ruleCardActionButton(
+                label: label,
+                accentColor: accentColor,
+                isNew: isNew,
+                isPrimaryAction: isPrimaryAction,
+                action: action
+            )
         }
         .padding(16)
         .frame(maxWidth: .infinity, minHeight: 200)
@@ -295,6 +267,94 @@ struct RuleConflictResolutionDialog: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(accentColor.opacity(0.3), lineWidth: 1)
         )
+    }
+
+    private func ruleCardHeader(
+        source: RuleConflictSourceSnapshot,
+        accentColor: Color,
+        isNew: Bool
+    ) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: source.icon)
+                .font(.title3)
+                .foregroundColor(accentColor)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(source.name)
+                    .font(.headline)
+                    .lineLimit(1)
+
+                Text(isNew ? "New" : "Currently Enabled")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+        }
+    }
+
+    private func ruleCardSummary(source: RuleConflictSourceSnapshot) -> some View {
+        Text(source.summary)
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func ruleCardMappings(mappings: [ConflictMapping], accentColor: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(mappings.prefix(4))) { mapping in
+                HStack(spacing: 4) {
+                    Text(KeyDisplayName.display(for: mapping.input))
+                        .font(.system(.caption, design: .monospaced))
+                    Text("→")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(KeyDisplayName.display(for: mapping.output))
+                        .font(.system(.caption, design: .monospaced))
+                }
+            }
+
+            if mappings.count > 4 {
+                Text("... and \(mappings.count - 4) more")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(accentColor.opacity(0.05))
+        )
+    }
+
+    @ViewBuilder
+    private func ruleCardActionButton(
+        label: String,
+        accentColor: Color,
+        isNew: Bool,
+        isPrimaryAction: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        let button = Button(action: action) {
+            HStack {
+                Spacer()
+                Text(label)
+                    .font(.body.weight(.medium))
+                Spacer()
+            }
+            .padding(.vertical, 8)
+        }
+        .tint(accentColor)
+        .keyboardShortcut(isPrimaryAction ? .defaultAction : nil)
+        .accessibilityIdentifier("rule-conflict-\(isNew ? "enable-new" : "keep-existing")-button")
+        .accessibilityLabel(label)
+
+        if isPrimaryAction {
+            button.buttonStyle(.borderedProminent)
+        } else {
+            button.buttonStyle(.bordered)
+        }
     }
 
     /// Get mappings that are relevant to the given conflicting keys
@@ -312,15 +372,7 @@ struct RuleConflictResolutionDialog: View {
 
     private var actionButtons: some View {
         HStack {
-            Button("Cancel") {
-                onCancel()
-            }
-            .keyboardShortcut(.cancelAction)
-            .accessibilityIdentifier("rule-conflict-cancel-button")
-            .accessibilityLabel("Cancel")
-
             Spacer()
-
             Text("The disabled rule can be re-enabled later")
                 .font(.caption)
                 .foregroundColor(.secondary)

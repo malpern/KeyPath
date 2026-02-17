@@ -33,6 +33,8 @@ struct SequencesEditState: Identifiable {
 
 struct RulesTabView: View {
     @Environment(KanataViewModel.self) var kanataManager
+    @State private var searchQuery = ""
+    @State private var recommendationFocusCollectionId: UUID?
     @State private var showingResetConfirmation = false
     @State private var showingNewRuleSheet = false
     @State private var settingsToastManager = WizardToastManager()
@@ -93,6 +95,73 @@ struct RulesTabView: View {
             }
             return indexA < indexB
         }
+    }
+
+    private var trimmedSearchQuery: String {
+        searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var isSearching: Bool {
+        !trimmedSearchQuery.isEmpty
+    }
+
+    private var filteredCollections: [RuleCollection] {
+        guard isSearching else { return sortedCollections }
+        return sortedCollections.filter(collectionMatchesSearch)
+    }
+
+    private var filteredCustomRules: [CustomRule] {
+        guard isSearching else { return kanataManager.customRules }
+        let query = trimmedSearchQuery.lowercased()
+        return kanataManager.customRules.filter { rule in
+            [rule.title, rule.notes ?? "", rule.input, rule.output]
+                .joined(separator: " ")
+                .lowercased()
+                .contains(query)
+        }
+    }
+
+    private var filteredAppKeymaps: [AppKeymap] {
+        guard isSearching else { return appKeymaps }
+        let query = trimmedSearchQuery.lowercased()
+        return appKeymaps
+            .map { keymap in
+                var filtered = keymap
+                filtered.overrides = keymap.overrides.filter { override in
+                    [keymap.mapping.displayName, keymap.mapping.bundleIdentifier, override.inputKey, override.outputAction]
+                        .joined(separator: " ")
+                        .lowercased()
+                        .contains(query)
+                }
+                return filtered
+            }
+            .filter { !$0.overrides.isEmpty }
+    }
+
+    private var hasSearchResults: Bool {
+        !filteredCollections.isEmpty || !filteredCustomRules.isEmpty || !filteredAppKeymaps.isEmpty
+    }
+
+    private var recommendationCollections: [(collection: RuleCollection, reason: String)] {
+        guard !isSearching else { return [] }
+
+        let effectiveCollections = allCollections.map { collection in
+            var updated = collection
+            if let pendingToggle = pendingToggles[collection.id] {
+                updated.isEnabled = pendingToggle
+            }
+            return updated
+        }
+
+        return RulesRecommendationEngine.recommendations(from: effectiveCollections)
+            .compactMap { recommendation in
+                guard let collection = effectiveCollections.first(where: { $0.id == recommendation.collectionId }) else {
+                    return nil
+                }
+                return (collection: collection, reason: recommendation.reason)
+            }
+            .prefix(3)
+            .map { $0 }
     }
 
     /// Compute sort order: enabled collections first, then disabled
@@ -160,6 +229,7 @@ struct RulesTabView: View {
             layerActivator: collection.momentaryActivator,
             leaderKeyDisplay: currentLeaderKeyDisplay,
             activationHint: dynamicActivationHint(for: collection),
+            defaultExpanded: recommendationFocusCollectionId == collection.id,
             displayStyle: style,
             collection: needsCollection ? collection : nil,
             onSelectOutput: style == .singleKeyPicker ? { output in
@@ -272,6 +342,11 @@ struct RulesTabView: View {
                 .tint(.red)
                 .accessibilityIdentifier("rules-reset-button")
                 .accessibilityLabel("Reset Rules")
+
+                MacSearchField(text: $searchQuery)
+                    .accessibilityIdentifier("rules-search-field")
+                    .accessibilityLabel("Search rules")
+                    .frame(width: 128)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -283,71 +358,111 @@ struct RulesTabView: View {
             ScrollViewReader { scrollProxy in
                 ScrollView {
                     VStack(spacing: 0) {
-                        // Custom Rules Section (toggleable, expanded when has rules)
-                        ExpandableCollectionRow(
-                            collectionId: "custom-rules",
-                            name: customRulesTitle,
-                            icon: "square.and.pencil",
-                            count: totalCustomRulesCount,
-                            isEnabled: kanataManager.customRules.isEmpty
-                                || kanataManager.customRules.allSatisfy(\.isEnabled),
-                            mappings: kanataManager.customRules.map { ($0.input, $0.output, nil, nil, $0.title.isEmpty ? nil : $0.title, false, $0.isEnabled, $0.id, $0.behavior) },
-                            appKeymaps: appKeymaps,
-                            onToggle: { isOn in
-                                Task {
-                                    for rule in kanataManager.customRules {
-                                        await kanataManager.toggleCustomRule(rule.id, enabled: isOn)
+                        if !recommendationCollections.isEmpty {
+                            RecommendedRulesSection(
+                                recommendations: recommendationCollections,
+                                onReview: { collection in
+                                    recommendationFocusCollectionId = collection.id
+                                    withAnimation(.easeInOut(duration: 0.25)) {
+                                        scrollProxy.scrollTo("collection-\(collection.id.uuidString)", anchor: .top)
                                     }
                                 }
-                            },
-                            onEditMapping: { id in
-                                // Open overlay with mapper tab and preset values for editing
-                                if let rule = kanataManager.customRules.first(where: { $0.id == id }) {
+                            )
+                            .padding(.vertical, 4)
+                        }
+
+                        if !isSearching || !filteredCustomRules.isEmpty || !filteredAppKeymaps.isEmpty {
+                            // Custom Rules Section (toggleable, expanded when has rules)
+                            ExpandableCollectionRow(
+                                collectionId: "custom-rules",
+                                name: customRulesTitle,
+                                icon: "square.and.pencil",
+                                count: isSearching ? (filteredCustomRules.count + filteredAppKeymaps.flatMap(\.overrides).count) : totalCustomRulesCount,
+                                isEnabled: filteredCustomRules.isEmpty
+                                    || filteredCustomRules.allSatisfy(\.isEnabled),
+                                mappings: filteredCustomRules.map { ($0.input, $0.output, nil, nil, $0.title.isEmpty ? nil : $0.title, false, $0.isEnabled, $0.id, $0.behavior) },
+                                appKeymaps: filteredAppKeymaps,
+                                onToggle: { isOn in
+                                    Task {
+                                        for rule in kanataManager.customRules {
+                                            await kanataManager.toggleCustomRule(rule.id, enabled: isOn)
+                                        }
+                                    }
+                                },
+                                onEditMapping: { id in
+                                    // Open overlay with mapper tab and preset values for editing
+                                    if let rule = kanataManager.customRules.first(where: { $0.id == id }) {
+                                        NotificationCenter.default.post(
+                                            name: .openOverlayWithMapperPreset,
+                                            object: nil,
+                                            userInfo: ["inputKey": rule.input, "outputKey": rule.output]
+                                        )
+                                    }
+                                },
+                                onDeleteMapping: { id in
+                                    Task { await kanataManager.removeCustomRule(id) }
+                                },
+                                onDeleteAppRule: { keymap, override in
+                                    deleteAppRule(keymap: keymap, override: override)
+                                },
+                                onEditAppRule: { keymap, override in
+                                    // Open overlay with mapper tab and preset values for editing app-specific rule
                                     NotificationCenter.default.post(
                                         name: .openOverlayWithMapperPreset,
                                         object: nil,
-                                        userInfo: ["inputKey": rule.input, "outputKey": rule.output]
+                                        userInfo: [
+                                            "inputKey": override.inputKey,
+                                            "outputKey": override.outputAction,
+                                            "appBundleId": keymap.mapping.bundleIdentifier,
+                                            "appDisplayName": keymap.mapping.displayName
+                                        ]
                                     )
-                                }
-                            },
-                            onDeleteMapping: { id in
-                                Task { await kanataManager.removeCustomRule(id) }
-                            },
-                            onDeleteAppRule: { keymap, override in
-                                deleteAppRule(keymap: keymap, override: override)
-                            },
-                            onEditAppRule: { keymap, override in
-                                // Open overlay with mapper tab and preset values for editing app-specific rule
-                                NotificationCenter.default.post(
-                                    name: .openOverlayWithMapperPreset,
-                                    object: nil,
-                                    userInfo: [
-                                        "inputKey": override.inputKey,
-                                        "outputKey": override.outputAction,
-                                        "appBundleId": keymap.mapping.bundleIdentifier,
-                                        "appDisplayName": keymap.mapping.displayName
-                                    ]
-                                )
-                            },
-                            showZeroState: !hasAnyCustomRules,
-                            onCreateFirstRule: {
-                                // Close settings and open overlay with mapper tab
-                                NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
-                            },
-                            description: "Remap any key combination or sequence",
-                            defaultExpanded: false,
-                            scrollID: "custom-rules",
-                            scrollProxy: scrollProxy
-                        )
-                        // Force SwiftUI to re-render when customRules or appKeymaps change
-                        .id(customRulesViewId)
-                        .padding(.vertical, 4)
+                                },
+                                showZeroState: !hasAnyCustomRules,
+                                onCreateFirstRule: {
+                                    // Close settings and open overlay with mapper tab
+                                    NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
+                                },
+                                description: isSearching ? "Filtered custom rules" : "Remap any key combination or sequence",
+                                defaultExpanded: false,
+                                scrollID: "custom-rules",
+                                scrollProxy: scrollProxy
+                            )
+                            // Force SwiftUI to re-render when customRules or appKeymaps change
+                            .id(customRulesViewId)
+                            .padding(.vertical, 4)
+                        }
 
                         // Collection Rows (sorted: enabled first, order stable during session)
-                        ForEach(sortedCollections) { collection in
+                        ForEach(filteredCollections) { collection in
                             collectionRow(for: collection, scrollProxy: scrollProxy)
                                 .id("collection-\(collection.id.uuidString)")
+                                .onAppear {
+                                    if recommendationFocusCollectionId == collection.id {
+                                        recommendationFocusCollectionId = nil
+                                    }
+                                }
                                 .padding(.vertical, 4)
+                        }
+
+                        if isSearching, !hasSearchResults {
+                            VStack(spacing: 10) {
+                                Text("No matching rules")
+                                    .font(.headline)
+                                Text("Try a different search term or clear the filter.")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                Button("Clear Search") {
+                                    searchQuery = ""
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                                .accessibilityIdentifier("rules-search-empty-clear-button")
+                                .accessibilityLabel("Clear rules search from empty state")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 24)
+                            .padding(.bottom, 12)
                         }
                     }
                     .padding(.vertical, 12)
@@ -690,6 +805,28 @@ struct RulesTabView: View {
         return keySymbols[key.lowercased()] ?? key.capitalized
     }
 
+    private func collectionMatchesSearch(_ collection: RuleCollection) -> Bool {
+        let query = trimmedSearchQuery.lowercased()
+
+        let mappingText = collection.mappings
+            .flatMap { mapping in
+                [mapping.input, mapping.output, mapping.shiftedOutput ?? "", mapping.ctrlOutput ?? "", mapping.description ?? ""]
+            }
+            .joined(separator: " ")
+
+        let searchable = [
+            collection.name,
+            collection.summary,
+            collection.activationHint ?? "",
+            collection.tags.joined(separator: " "),
+            mappingText
+        ]
+        .joined(separator: " ")
+        .lowercased()
+
+        return searchable.contains(query)
+    }
+
     private func openConfigInEditor() {
         let url = URL(fileURLWithPath: kanataManager.configPath)
         openFileInPreferredEditor(url)
@@ -745,6 +882,92 @@ struct RulesTabView: View {
             } catch {
                 AppLogger.shared.log("⚠️ [RulesTabView] Failed to delete app rule: \(error)")
             }
+        }
+    }
+}
+
+private struct RecommendedRulesSection: View {
+    let recommendations: [(collection: RuleCollection, reason: String)]
+    let onReview: (RuleCollection) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Recommended for you", systemImage: "sparkles")
+                .font(.headline)
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 8)
+
+            ForEach(recommendations, id: \.collection.id) { item in
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: item.collection.icon ?? "lightbulb")
+                        .foregroundColor(.accentColor)
+                        .frame(width: 20)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.collection.name)
+                            .font(.subheadline.weight(.semibold))
+                        Text(item.reason)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    Button("Review") {
+                        onReview(item.collection)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("rules-recommendation-review-\(item.collection.id)")
+                    .accessibilityLabel("Review recommended rule \(item.collection.name)")
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(NSColor.controlBackgroundColor).opacity(0.35))
+                )
+                .accessibilityIdentifier("rules-recommendation-row-\(item.collection.id)")
+            }
+        }
+    }
+}
+
+private struct MacSearchField: NSViewRepresentable {
+    @Binding var text: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text)
+    }
+
+    func makeNSView(context: Context) -> NSSearchField {
+        let searchField = NSSearchField()
+        searchField.placeholderString = nil
+        searchField.sendsSearchStringImmediately = true
+        searchField.sendsWholeSearchString = false
+        searchField.delegate = context.coordinator
+        searchField.stringValue = text
+        searchField.setAccessibilityIdentifier("rules-search-field")
+        searchField.setAccessibilityLabel("Search rules")
+        return searchField
+    }
+
+    func updateNSView(_ nsView: NSSearchField, context _: Context) {
+        if nsView.stringValue != text {
+            nsView.stringValue = text
+        }
+    }
+
+    final class Coordinator: NSObject, NSSearchFieldDelegate {
+        @Binding var text: String
+
+        init(text: Binding<String>) {
+            _text = text
+        }
+
+        func controlTextDidChange(_ obj: Notification) {
+            guard let searchField = obj.object as? NSSearchField else { return }
+            text = searchField.stringValue
         }
     }
 }

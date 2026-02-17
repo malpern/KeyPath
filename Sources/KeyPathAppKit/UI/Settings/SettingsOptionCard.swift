@@ -8,6 +8,7 @@ struct SettingsOptionCard: View {
     let subtitle: String
     let isSelected: Bool
     let action: () -> Void
+    @State private var isHovered = false
 
     var body: some View {
         Button {
@@ -41,11 +42,16 @@ struct SettingsOptionCard: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .strokeBorder(
-                        isSelected ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.08),
-                        lineWidth: isSelected ? 1.5 : 0.5
+                        isSelected
+                            ? Color.accentColor.opacity(0.3)
+                            : (isHovered ? Color.accentColor.opacity(0.35) : Color.primary.opacity(0.08)),
+                        lineWidth: isSelected ? 1.5 : (isHovered ? 1.5 : 0.5)
                     )
             )
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
     }
 }
