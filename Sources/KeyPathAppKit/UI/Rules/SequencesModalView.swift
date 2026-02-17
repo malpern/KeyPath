@@ -543,8 +543,9 @@ private struct LayerPicker: View {
         .navigation,
         .custom("window"),
         .custom("launcher"),
-        .custom("numpad"),
-        .custom("sym")
+        .custom("num"),
+        .custom("sym"),
+        .custom("fun")
     ]
 
     var body: some View {

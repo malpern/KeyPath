@@ -115,7 +115,7 @@ struct HomeRowLayerTogglesModalView: View {
                                 }
                             }
                         )) {
-                            Text("Default (num, sys1, sys2, nav)").tag(HomeRowLayerPreset.default)
+                            Text("Default (fun, num, sym, nav)").tag(HomeRowLayerPreset.default)
                             Text("Custom").tag(HomeRowLayerPreset.custom)
                         }
                         .pickerStyle(.segmented)
@@ -419,9 +419,9 @@ struct HomeRowLayerTogglesModalView: View {
 
     private var layerOptions: [(key: String, label: String, icon: String)] {
         [
-            ("num", "Numpad", "keyboard"),
-            ("sys1", "System 1", "command"),
-            ("sys2", "System 2", "option"),
+            ("fun", "Function", "f.cursive"),
+            ("num", "Numpad", "number"),
+            ("sym", "Symbol", "character"),
             ("nav", "Navigation", "arrow.up.arrow.down")
         ]
     }

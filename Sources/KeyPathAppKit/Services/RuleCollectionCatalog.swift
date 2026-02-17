@@ -62,6 +62,7 @@ struct RuleCollectionCatalog {
             sequences,
             numpadLayer,
             symbolLayer,
+            funLayer,
             launcher
         ]
     }
@@ -640,10 +641,10 @@ struct RuleCollectionCatalog {
             isSystemDefault: false,
             icon: "number.square",
             tags: ["numpad", "numbers", "data entry", "calculator"],
-            targetLayer: .custom("numpad"),
+            targetLayer: .custom("num"),
             momentaryActivator: MomentaryActivator(
                 input: ";",
-                targetLayer: .custom("numpad"),
+                targetLayer: .custom("num"),
                 sourceLayer: .navigation // Two-step: Leader → ; → numpad layer
             ),
             activationHint: "Leader → ; → numpad keys",
@@ -803,6 +804,48 @@ struct RuleCollectionCatalog {
                 ]
             )
         ]
+    }
+
+    // MARK: - Function Layer
+
+    private var funLayer: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.funLayer,
+            name: "Function Layer",
+            summary: "F-keys on right hand (numpad grid), media controls on left hand.",
+            category: .productivity,
+            mappings: [
+                // Right hand F-keys (numpad grid layout)
+                KeyMapping(input: "u", output: "f7", description: "F7"),
+                KeyMapping(input: "i", output: "f8", description: "F8"),
+                KeyMapping(input: "o", output: "f9", description: "F9"),
+                KeyMapping(input: "j", output: "f4", description: "F4"),
+                KeyMapping(input: "k", output: "f5", description: "F5"),
+                KeyMapping(input: "l", output: "f6", description: "F6"),
+                KeyMapping(input: "m", output: "f1", description: "F1"),
+                KeyMapping(input: ",", output: "f2", description: "F2"),
+                KeyMapping(input: ".", output: "f3", description: "F3"),
+                KeyMapping(input: "n", output: "f10", description: "F10"),
+                KeyMapping(input: "/", output: "f11", description: "F11"),
+                KeyMapping(input: ";", output: "f12", description: "F12"),
+                // Left hand media controls
+                KeyMapping(input: "f", output: "pp", description: "Play/Pause", sectionBreak: true),
+                KeyMapping(input: "d", output: "prev", description: "Previous"),
+                KeyMapping(input: "s", output: "next", description: "Next"),
+                KeyMapping(input: "a", output: "mute", description: "Mute"),
+                KeyMapping(input: "g", output: "volu", description: "Volume Up"),
+                KeyMapping(input: "r", output: "vold", description: "Volume Down"),
+                KeyMapping(input: "v", output: "brup", description: "Brightness Up"),
+                KeyMapping(input: "c", output: "brdn", description: "Brightness Down")
+            ],
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "f.cursive",
+            tags: ["function", "f-keys", "media", "brightness"],
+            targetLayer: .custom("fun"),
+            activationHint: "Hold home row key for function layer",
+            configuration: .table
+        )
     }
 
     // MARK: - Launcher

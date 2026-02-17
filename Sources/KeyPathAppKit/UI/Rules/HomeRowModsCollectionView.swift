@@ -9,16 +9,15 @@ struct HomeRowModsCollectionView: View {
     let availableLayers: [String]
     let onConfigChanged: (HomeRowModsConfig) -> Void
     let onEnsureLayersExist: ([String]) async -> Void
+    let onEnableLayerCollections: (([UUID]) async -> Void)?
 
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @State private var showingCustomizeWindow = false
     @State private var selectedKey: String?
-    @State private var showingLayerModeSetup = false
     @State private var showingNewLayerSheet = false
     @State private var newLayerName = ""
     @State private var locallyCreatedLayers: Set<String> = []
     @State private var hoveredHoldBehavior: HomeRowHoldMode?
-    @State private var pendingLayerModeChoice: LayerModeDialogChoice = .useLayersRecommended
     @State private var showPerKeyTimingControls = false
 
     private var activeKeymap: LogicalKeymap {
@@ -103,9 +102,6 @@ struct HomeRowModsCollectionView: View {
         }
         .frame(minWidth: 560, minHeight: 520)
         .settingsBackground()
-        .sheet(isPresented: $showingLayerModeSetup) {
-            layerModeSetupSheet
-        }
         .sheet(isPresented: $showingNewLayerSheet) {
             newLayerSheet
         }
@@ -792,7 +788,7 @@ struct HomeRowModsCollectionView: View {
     }
 
     private var recommendedLayerNames: [String] {
-        ["num", "sys1", "sys2", "nav"]
+        ["fun", "num", "sym", "nav"]
     }
 
     private var recommendedLayerAssignments: [String: String] {
@@ -809,100 +805,6 @@ struct HomeRowModsCollectionView: View {
         return needed.filter { !existing.contains($0) }.sorted()
     }
 
-    private var layerModeSetupSheet: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Home Row Layer Mode")
-                .font(.title3.weight(.semibold))
-
-            Text("Tap still types letters. Hold temporarily switches to a layer for navigation, symbols, or numpad.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            Text("Use Modifiers for shortcut-heavy workflows. Use Layers for larger key layouts.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.bottom, 2)
-
-            if !missingRecommendedLayers.isEmpty {
-                Text("Recommended layers that will be created: \(missingRecommendedLayers.joined(separator: ", "))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 10) {
-                SettingsOptionCard(
-                    icon: "command",
-                    title: "Keep Modifiers",
-                    subtitle: "Best for shortcuts",
-                    isSelected: pendingLayerModeChoice == .keepModifiers
-                ) {
-                    pendingLayerModeChoice = .keepModifiers
-                }
-                .accessibilityIdentifier("home-row-mods-layer-setup-keep-modifiers")
-
-                SettingsOptionCard(
-                    icon: "sparkles",
-                    title: "Use Layers (Recommended)",
-                    subtitle: "Best for expanded layouts",
-                    isSelected: pendingLayerModeChoice == .useLayersRecommended
-                ) {
-                    pendingLayerModeChoice = .useLayersRecommended
-                }
-                .accessibilityIdentifier("home-row-mods-layer-setup-use-layers-recommended")
-
-                SettingsOptionCard(
-                    icon: "slider.horizontal.3",
-                    title: "Use Layers (Manual)",
-                    subtitle: "Keep existing layers",
-                    isSelected: pendingLayerModeChoice == .useLayersManual
-                ) {
-                    pendingLayerModeChoice = .useLayersManual
-                }
-                .accessibilityIdentifier("home-row-mods-layer-setup-use-layers-manual")
-            }
-            .padding(.top, 2)
-
-            HStack {
-                Spacer()
-                Button("Cancel") {
-                    showingLayerModeSetup = false
-                }
-                .keyboardShortcut(.cancelAction)
-                .accessibilityIdentifier("home-row-mods-layer-setup-cancel-button")
-
-                Button("OK") {
-                    switch pendingLayerModeChoice {
-                    case .keepModifiers:
-                        applyHoldMode(.modifiers)
-                        showingLayerModeSetup = false
-                    case .useLayersRecommended:
-                        Task {
-                            if !missingRecommendedLayers.isEmpty {
-                                await onEnsureLayersExist(missingRecommendedLayers)
-                                locallyCreatedLayers.formUnion(missingRecommendedLayers.map { $0.lowercased() })
-                            }
-                            config.layerAssignments = recommendedLayerAssignments
-                            applyHoldMode(.layers)
-                            showingLayerModeSetup = false
-                        }
-                    case .useLayersManual:
-                        applyManualLayerModeWithoutCreating()
-                        showingLayerModeSetup = false
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .accessibilityIdentifier("home-row-mods-layer-setup-ok-button")
-            }
-            .padding(.top, 6)
-        }
-        .padding(20)
-        .frame(width: 560)
-        .settingsBackground()
-    }
-
     private enum HomeRowModifierPreset: Hashable {
         case macCAGS
         case winGACS
@@ -912,12 +814,6 @@ struct HomeRowModsCollectionView: View {
     private enum HomeRowLayerPreset: Hashable {
         case `default`
         case custom
-    }
-
-    private enum LayerModeDialogChoice {
-        case keepModifiers
-        case useLayersRecommended
-        case useLayersManual
     }
 
     private func modifierPresetSelection(from assignments: [String: String]) -> HomeRowModifierPreset {
@@ -938,16 +834,6 @@ struct HomeRowModsCollectionView: View {
         config.hasUserSelectedHoldMode = true
         selectedKey = nil
         updateConfig()
-    }
-
-    private func openLayerModeDialog() {
-        if config.holdMode == .layers {
-            pendingLayerModeChoice = layerPresetSelection(from: config.layerAssignments) == .default
-                ? .useLayersRecommended : .useLayersManual
-        } else {
-            pendingLayerModeChoice = .useLayersRecommended
-        }
-        showingLayerModeSetup = true
     }
 
     private func applyKeySelection(_ selection: KeySelection) {
@@ -985,7 +871,17 @@ struct HomeRowModsCollectionView: View {
 
         Button {
             if mode == .layers {
-                openLayerModeDialog()
+                Task {
+                    let ids = [
+                        RuleCollectionIdentifier.vimNavigation,
+                        RuleCollectionIdentifier.symbolLayer,
+                        RuleCollectionIdentifier.numpadLayer,
+                        RuleCollectionIdentifier.funLayer
+                    ]
+                    await onEnableLayerCollections?(ids)
+                    config.layerAssignments = recommendedLayerAssignments
+                    applyHoldMode(.layers)
+                }
                 return
             }
             applyHoldMode(mode)
@@ -1087,25 +983,6 @@ struct HomeRowModsCollectionView: View {
     private func layerPresetSelection(from assignments: [String: String]) -> HomeRowLayerPreset {
         if assignments == recommendedLayerAssignments { return .default }
         return .custom
-    }
-
-    private func applyManualLayerModeWithoutCreating() {
-        let existing = Set(availableLayerNames.map { $0.lowercased() })
-        var sanitized: [String: String] = [:]
-
-        for key in HomeRowModsConfig.allKeys {
-            guard let assigned = config.layerAssignments[key], existing.contains(assigned.lowercased()) else { continue }
-            sanitized[key] = assigned
-        }
-
-        if sanitized.isEmpty, let fallback = availableLayerNames.first {
-            for key in HomeRowModsConfig.allKeys {
-                sanitized[key] = fallback
-            }
-        }
-
-        config.layerAssignments = sanitized
-        applyHoldMode(.layers)
     }
 
     private var newLayerSheet: some View {

@@ -136,7 +136,7 @@ struct HomeRowModsModalView: View {
                         }
                     }
                 )) {
-                    Text("Default (num, sys1, sys2, nav)").tag(HomeRowLayerPreset.default)
+                    Text("Default (fun, num, sym, nav)").tag(HomeRowLayerPreset.default)
                     Text("Custom").tag(HomeRowLayerPreset.custom)
                 }
                 .pickerStyle(.segmented)

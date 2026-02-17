@@ -36,12 +36,12 @@ public struct HomeRowLayerTogglesConfig: Codable, Equatable, Sendable {
         self.showAdvanced = showAdvanced
     }
 
-    /// Default layer assignments (commonly used layers from Ben Vallack's config)
-    /// Left hand: num, sys1, sys2, nav
-    /// Right hand: nav, sys2, sys1, num (mirrored)
+    /// Default layer assignments (community standard mirror setup)
+    /// Left hand: fun, num, sym, nav
+    /// Right hand: nav, sym, num, fun (mirrored)
     public static let defaultLayerAssignments: [String: String] = [
-        "a": "num", "s": "sys1", "d": "sys2", "f": "nav",
-        "j": "nav", "k": "sys2", "l": "sys1", ";": "num"
+        "a": "fun", "s": "num", "d": "sym", "f": "nav",
+        "j": "nav", "k": "sym", "l": "num", ";": "fun"
     ]
 
     /// Left hand keys

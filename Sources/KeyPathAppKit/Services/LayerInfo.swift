@@ -25,6 +25,8 @@ enum LayerInfo {
             return "number"
         case "sym", "symbol", "sys1", "sys2":
             return "character"
+        case "fun":
+            return "f.cursive"
         case "launcher", "quick launcher":
             return "app.badge"
         case "fn", "function":
@@ -59,6 +61,8 @@ enum LayerInfo {
             return "Num"
         case "sym", "symbol":
             return "Symbol"
+        case "fun":
+            return "Fun"
         case "sys1":
             return "System 1"
         case "sys2":

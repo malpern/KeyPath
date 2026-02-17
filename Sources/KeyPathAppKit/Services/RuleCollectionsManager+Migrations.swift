@@ -10,6 +10,7 @@ extension RuleCollectionsManager {
         static let vimEnabledByDefault = "RuleCollections.Migration.VimEnabledByDefault"
         static let unifiedHomeRowMods = "RuleCollections.Migration.UnifiedHomeRowMods"
         static let homeRowModsDefaultToModifiers = "RuleCollections.Migration.HomeRowModsDefaultToModifiers"
+        static let layerNamesCommunityStandard = "RuleCollections.Migration.LayerNamesCommunityStandard"
     }
 
     /// Run one-time migrations for collection state changes
@@ -48,6 +49,12 @@ extension RuleCollectionsManager {
         if !UserDefaults.standard.bool(forKey: MigrationKey.homeRowModsDefaultToModifiers) {
             normalizeHomeRowModsDefaultHoldMode()
             UserDefaults.standard.set(true, forKey: MigrationKey.homeRowModsDefaultToModifiers)
+        }
+
+        // Migration: Rename legacy layer names to community standard (sys1→num, sys2→sym).
+        if !UserDefaults.standard.bool(forKey: MigrationKey.layerNamesCommunityStandard) {
+            migrateLayerNamesToCommunityStandard()
+            UserDefaults.standard.set(true, forKey: MigrationKey.layerNamesCommunityStandard)
         }
     }
 
@@ -108,6 +115,47 @@ extension RuleCollectionsManager {
 
         if updated > 0 {
             AppLogger.shared.log("♻️ [RuleCollections] Migration: Reset \(updated) Home Row Mods collection(s) to modifiers mode by default")
+        }
+    }
+
+    private func migrateLayerNamesToCommunityStandard() {
+        let renameMap = ["sys1": "num", "sys2": "sym"]
+        var updated = 0
+
+        for index in ruleCollections.indices {
+            // Migrate HomeRowModsConfig layer assignments
+            if var config = ruleCollections[index].configuration.homeRowModsConfig {
+                var changed = false
+                for (key, value) in config.layerAssignments {
+                    if let newName = renameMap[value] {
+                        config.layerAssignments[key] = newName
+                        changed = true
+                    }
+                }
+                if changed {
+                    ruleCollections[index].configuration = .homeRowMods(config)
+                    updated += 1
+                }
+            }
+
+            // Migrate HomeRowLayerTogglesConfig layer assignments
+            if var config = ruleCollections[index].configuration.homeRowLayerTogglesConfig {
+                var changed = false
+                for (key, value) in config.layerAssignments {
+                    if let newName = renameMap[value] {
+                        config.layerAssignments[key] = newName
+                        changed = true
+                    }
+                }
+                if changed {
+                    ruleCollections[index].configuration = .homeRowLayerToggles(config)
+                    updated += 1
+                }
+            }
+        }
+
+        if updated > 0 {
+            AppLogger.shared.log("♻️ [RuleCollections] Migration: Renamed layer assignments in \(updated) collection(s) to community standard names")
         }
     }
 

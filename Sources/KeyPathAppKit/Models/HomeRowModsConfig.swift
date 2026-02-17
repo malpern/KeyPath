@@ -66,10 +66,10 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         "j": "rsft", "k": "rctl", "l": "ralt", ";": "rmet"
     ]
 
-    /// Default layer assignments (Ben Vallack-inspired mirror setup)
+    /// Default layer assignments (community standard mirror setup)
     public static let defaultLayerAssignments: [String: String] = [
-        "a": "num", "s": "sys1", "d": "sys2", "f": "nav",
-        "j": "nav", "k": "sys2", "l": "sys1", ";": "num"
+        "a": "fun", "s": "num", "d": "sym", "f": "nav",
+        "j": "nav", "k": "sym", "l": "num", ";": "fun"
     ]
 
     /// Left hand keys
@@ -97,7 +97,16 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         enabledKeys = try container.decodeIfPresent(Set<String>.self, forKey: .enabledKeys) ?? Set(Self.allKeys)
         modifierAssignments = try container.decodeIfPresent([String: String].self, forKey: .modifierAssignments) ?? Self.cagsMacDefault
-        layerAssignments = try container.decodeIfPresent([String: String].self, forKey: .layerAssignments) ?? Self.defaultLayerAssignments
+        var decoded = try container.decodeIfPresent([String: String].self, forKey: .layerAssignments) ?? Self.defaultLayerAssignments
+        // Migrate legacy layer names to community standard names
+        for (key, value) in decoded {
+            switch value {
+            case "sys1": decoded[key] = "num"
+            case "sys2": decoded[key] = "sym"
+            default: break
+            }
+        }
+        layerAssignments = decoded
         holdMode = try container.decodeIfPresent(HomeRowHoldMode.self, forKey: .holdMode) ?? .modifiers
         hasUserSelectedHoldMode = try container.decodeIfPresent(Bool.self, forKey: .hasUserSelectedHoldMode) ?? false
         layerToggleMode = try container.decodeIfPresent(LayerToggleMode.self, forKey: .layerToggleMode) ?? .whileHeld

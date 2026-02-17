@@ -251,6 +251,11 @@ struct RulesTabView: View {
                     await kanataManager.underlyingManager.rulesManager.createLayer(layerName)
                 }
             } : nil,
+            onEnableLayerCollections: style == .homeRowMods ? { collectionIds in
+                for id in collectionIds {
+                    await kanataManager.toggleRuleCollection(id, enabled: true)
+                }
+            } : nil,
             onOpenHomeRowModsModal: style == .homeRowMods ? {
                 homeRowModsEditState = HomeRowModsEditState(collection: collection, selectedKey: nil)
             } : nil,

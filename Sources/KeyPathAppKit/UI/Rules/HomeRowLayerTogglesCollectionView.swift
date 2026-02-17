@@ -394,9 +394,9 @@ struct HomeRowLayerTogglesCollectionView: View {
 
     private var layerOptions: [(key: String, label: String, icon: String)] {
         [
-            ("num", "Numpad", "keyboard"),
-            ("sys1", "System 1", "command"),
-            ("sys2", "System 2", "option"),
+            ("fun", "Function", "f.cursive"),
+            ("num", "Numpad", "number"),
+            ("sym", "Symbol", "character"),
             ("nav", "Navigation", "arrow.up.arrow.down")
         ]
     }
