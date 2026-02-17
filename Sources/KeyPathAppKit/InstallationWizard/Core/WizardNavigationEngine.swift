@@ -99,10 +99,16 @@ final class WizardNavigationEngine: WizardNavigating {
 
         // 3. FDA: Show Enhanced Diagnostics decision (one-time, after helper is ready)
         // This MUST come before permissions so user can decide on FDA first
+        // Skip automatically if user already has Full Disk Access
         if !hasShownFullDiskAccessPage {
-            AppLogger.shared.log("🔍 [NavigationEngine] → .fullDiskAccess (offering enhanced diagnostics)")
-            // Don't mark as shown here - let the FDA page mark it when user makes a choice
-            return .fullDiskAccess
+            if FullDiskAccessChecker.shared.hasFullDiskAccess() {
+                AppLogger.shared.log("🔍 [NavigationEngine] Skipping FDA page - already granted")
+                hasShownFullDiskAccessPage = true
+            } else {
+                AppLogger.shared.log("🔍 [NavigationEngine] → .fullDiskAccess (offering enhanced diagnostics)")
+                // Don't mark as shown here - let the FDA page mark it when user makes a choice
+                return .fullDiskAccess
+            }
         }
 
         // 4. Use the router for remaining navigation (permissions, components, service)

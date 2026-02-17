@@ -799,6 +799,11 @@ public enum KanataKeyConverter {
     public static func convertToKanataSequence(_ output: String) -> String {
         let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        // Already a Kanata S-expression (e.g., "(layer-while-held nav)", "(multi ...)") — pass through unchanged
+        if trimmed.hasPrefix("("), trimmed.hasSuffix(")") {
+            return trimmed
+        }
+
         // Split on any whitespace
         let tokens = trimmed.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
 
@@ -862,7 +867,14 @@ public enum KanataKeyConverter {
             "f16", "f17", "f18", "f19", "f20",
             // Kanata media/system outputs
             "brdn", "brup", "mission_control", "launchpad",
-            "prev", "pp", "next", "mute", "vold", "volu"
+            "prev", "pp", "next", "mute", "vold", "volu",
+            // Numpad keys
+            "kp0", "kp1", "kp2", "kp3", "kp4", "kp5", "kp6", "kp7", "kp8", "kp9",
+            "kprt", "kp+", "kp-", "kp*", "kp/", "kp.", "nlck",
+            // Other hardware keys
+            "prtsc", "slck", "pause", "menu", "comp", "fn", "ins",
+            "ssrq", "102d", "nubs", "ro", "eisu", "kana", "help",
+            "grv", "min", "eql"
         ]
 
         // If it's a known key name, don't convert to macro

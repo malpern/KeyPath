@@ -608,6 +608,68 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertEqual(spaceResult, "spc", "space should convert to spc")
     }
 
+    // MARK: - Numpad Key Conversion (shouldConvertToMacro regression)
+
+    func testConvertToKanataSequence_NumpadKeysNotSplitIntoMacro() {
+        // REGRESSION: "kp*" was being split into "(macro k p *)" causing
+        // "Unknown key/action: *" kanata validation error and error beeps
+        let numpadKeys = ["kp*", "kp+", "kp-", "kp/", "kp.", "kprt",
+                          "kp0", "kp1", "kp2", "kp3", "kp4", "kp5",
+                          "kp6", "kp7", "kp8", "kp9", "nlck"]
+
+        for key in numpadKeys {
+            let result = KanataKeyConverter.convertToKanataSequence(key)
+            XCTAssertEqual(result, key, "\(key) should pass through as-is, not become a macro")
+            XCTAssertFalse(result.contains("macro"), "\(key) should NOT be split into a macro")
+        }
+    }
+
+    func testConvertToKanataKey_NumpadKeys() {
+        // Verify convertToKanataKey recognizes numpad keys
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("kp*"), "kp*")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("kp+"), "kp+")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("kp-"), "kp-")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("kp/"), "kp/")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("kprt"), "kprt")
+    }
+
+    func testConvertToKanataSequence_HardwareKeysNotSplitIntoMacro() {
+        // Hardware keys that should pass through, not become macros
+        let hardwareKeys = ["prtsc", "slck", "pause", "menu", "grv", "min", "eql", "ins"]
+
+        for key in hardwareKeys {
+            let result = KanataKeyConverter.convertToKanataSequence(key)
+            XCTAssertFalse(result.contains("macro"), "\(key) should NOT be split into a macro")
+        }
+    }
+
+    // MARK: - S-Expression Passthrough
+
+    func testConvertToKanataSequence_SExpressionPassthrough() {
+        // S-expressions should pass through unchanged, not be split and mangled
+        let sExpressions = [
+            "(layer-while-held nav)",
+            "(layer-toggle sym)",
+            "(multi XX (push-msg \"layer:base\"))",
+            "(one-shot-press 5000 (layer-while-held nav))",
+            "(chord mygroup a)"
+        ]
+
+        for expr in sExpressions {
+            let result = KanataKeyConverter.convertToKanataSequence(expr)
+            XCTAssertEqual(result, expr, "S-expression '\(expr)' should pass through unchanged")
+        }
+    }
+
+    func testConvertToKanataSequence_SExpressionNotMangled() {
+        // REGRESSION: "(layer-while-held nav)" was being split by whitespace and
+        // each token converted through convertToKanataKey, mangling it into "(multi lpar rpar)"
+        let result = KanataKeyConverter.convertToKanataSequence("(layer-while-held nav)")
+        XCTAssertFalse(result.contains("lpar"), "S-expression should not be mangled into lpar")
+        XCTAssertFalse(result.contains("rpar"), "S-expression should not be mangled into rpar")
+        XCTAssertEqual(result, "(layer-while-held nav)")
+    }
+
     func testGeneratedConfigWithTextMacro() {
         // Test that a mapping with text output generates correct macro in config
         let mappings = [

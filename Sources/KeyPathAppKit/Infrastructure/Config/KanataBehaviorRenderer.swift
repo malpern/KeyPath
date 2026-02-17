@@ -169,7 +169,14 @@ public enum KanataBehaviorRenderer {
     /// Convert an action string to Kanata syntax.
     /// Handles special keywords (hyper, meh) and multi-key combinations.
     private static func convertAction(_ action: String, hyperLinkedLayerInfos: [HyperLinkedLayerInfo]) -> String {
-        let trimmed = action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let stripped = action.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Already a Kanata S-expression (e.g., "(layer-while-held nav)") — pass through unchanged
+        if stripped.hasPrefix("("), stripped.hasSuffix(")") {
+            return stripped
+        }
+
+        let trimmed = stripped.lowercased()
 
         // Special keyword: "hyper" = Cmd+Ctrl+Alt+Shift
         // If hyperLinkedLayerInfos is set, also activate those layers during hyper hold/tap

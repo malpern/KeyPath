@@ -236,7 +236,9 @@ struct StatusSettingsTabView: View {
         }
         .settingsBackground()
         .withToasts(settingsToastManager)
-        .sheet(item: $wizardInitialPage) { page in
+        .sheet(item: $wizardInitialPage, onDismiss: {
+            Task { await refreshStatus() }
+        }) { page in
             InstallationWizardView(initialPage: page)
                 .customizeSheetWindow()
                 .environment(kanataManager)

@@ -378,4 +378,122 @@ struct KanataBehaviorRendererTests {
         let result = KanataBehaviorRenderer.render(mapping)
         #expect(result == "(tap-dance 200 (esc (multi lctl lmet lalt lsft)))")
     }
+
+    // MARK: - S-Expression Passthrough (Layer Actions)
+
+    @Test("S-expression holdAction passes through unchanged (layer-while-held)")
+    func sExpressionLayerWhileHeld() {
+        let mapping = KeyMapping(
+            input: "a",
+            output: "a",
+            behavior: .dualRole(DualRoleBehavior(
+                tapAction: "a",
+                holdAction: "(layer-while-held nav)",
+                activateHoldOnOtherKey: true
+            ))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result == "(tap-hold-press $tap-timeout $hold-timeout a (layer-while-held nav))")
+    }
+
+    @Test("S-expression holdAction passes through unchanged (layer-toggle)")
+    func sExpressionLayerToggle() {
+        let mapping = KeyMapping(
+            input: "a",
+            output: "a",
+            behavior: .dualRole(DualRoleBehavior(
+                tapAction: "a",
+                holdAction: "(layer-toggle nav)",
+                activateHoldOnOtherKey: true
+            ))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result == "(tap-hold-press $tap-timeout $hold-timeout a (layer-toggle nav))")
+    }
+
+    @Test("S-expression holdAction is not mangled into (multi lpar rpar)")
+    func sExpressionNotMangled() {
+        let mapping = KeyMapping(
+            input: "s",
+            output: "s",
+            behavior: .dualRole(DualRoleBehavior(
+                tapAction: "s",
+                holdAction: "(layer-while-held sym)",
+                activateHoldOnOtherKey: true
+            ))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(!result.contains("lpar"), "S-expression should not be converted to lpar")
+        #expect(!result.contains("rpar"), "S-expression should not be converted to rpar")
+        #expect(result.contains("(layer-while-held sym)"), "Layer action should be preserved intact")
+    }
+
+    @Test("S-expression tapAction passes through unchanged")
+    func sExpressionTapAction() {
+        let mapping = KeyMapping(
+            input: "a",
+            output: "a",
+            behavior: .dualRole(DualRoleBehavior(
+                tapAction: "(one-shot-press 5000 (layer-while-held nav))",
+                holdAction: "lctl"
+            ))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result.contains("(one-shot-press 5000 (layer-while-held nav))"))
+    }
+
+    // MARK: - Simple Output S-Expression Passthrough
+
+    @Test("Simple mapping with S-expression output passes through")
+    func simpleOutputSExpression() {
+        let mapping = KeyMapping(input: "s", output: "(multi XX (push-msg \"layer:base\"))")
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result == "(multi XX (push-msg \"layer:base\"))")
+    }
+
+    // MARK: - Home Row Mods Layers Mode End-to-End
+
+    @Test("Home row mods layers mode generates valid tap-hold with layer action")
+    func homeRowModsLayersMode() {
+        let config = HomeRowModsConfig(
+            enabledKeys: ["a", "s"],
+            modifierAssignments: ["a": "lmet", "s": "lalt"],
+            layerAssignments: ["a": "nav", "s": "sym"],
+            holdMode: .layers,
+            layerToggleMode: .whileHeld
+        )
+
+        let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
+        #expect(mappings.count == 2)
+
+        let allRendered = mappings.map { KanataBehaviorRenderer.render($0) }
+
+        // Every rendered mapping should use tap-hold-press with layer-while-held
+        for rendered in allRendered {
+            #expect(rendered.contains("tap-hold-press"), "Should use tap-hold-press for home row mods")
+            #expect(rendered.contains("layer-while-held"), "Should use layer-while-held action")
+            #expect(!rendered.contains("lpar"), "Should not mangle S-expressions")
+            #expect(!rendered.contains("rpar"), "Should not mangle S-expressions")
+        }
+
+        // Both layer assignments should appear (order may vary)
+        let joined = allRendered.joined(separator: " ")
+        #expect(joined.contains("(layer-while-held nav)"))
+        #expect(joined.contains("(layer-while-held sym)"))
+    }
+
+    @Test("Home row mods layers mode with toggle generates layer-toggle")
+    func homeRowModsLayersModeToggle() {
+        let config = HomeRowModsConfig(
+            enabledKeys: ["a"],
+            modifierAssignments: ["a": "lmet"],
+            layerAssignments: ["a": "nav"],
+            holdMode: .layers,
+            layerToggleMode: .toggle
+        )
+
+        let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
+        let rendered = KanataBehaviorRenderer.render(mappings[0])
+        #expect(rendered.contains("(layer-toggle nav)"))
+    }
 }
