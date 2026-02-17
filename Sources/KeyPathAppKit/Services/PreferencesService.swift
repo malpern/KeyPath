@@ -208,6 +208,15 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    // MARK: - Education Hints
+
+    /// How many times the "Overlay Hidden" education message has been shown
+    var overlayHiddenHintShowCount: Int {
+        didSet {
+            UserDefaults.standard.set(overlayHiddenHintShowCount, forKey: Keys.overlayHiddenHintShowCount)
+        }
+    }
+
     // MARK: - Context HUD Configuration
 
     /// Display mode for the Context HUD (overlay only, HUD only, or both)
@@ -287,6 +296,7 @@ final class PreferencesService: @unchecked Sendable {
         static let contextHUDTimeout = "KeyPath.ContextHUD.Timeout"
         static let contextHUDHoldDelayPreset = "KeyPath.ContextHUD.HoldDelayPreset"
         static let contextHUDHoldDelayCustomMs = "KeyPath.ContextHUD.HoldDelayCustomMs"
+        static let overlayHiddenHintShowCount = "KeyPath.Education.OverlayHiddenHintShowCount"
     }
 
     // MARK: - Defaults
@@ -365,6 +375,10 @@ final class PreferencesService: @unchecked Sendable {
         } else {
             leaderKeyPreference = .default
         }
+
+        // Education hints
+        overlayHiddenHintShowCount =
+            UserDefaults.standard.object(forKey: Keys.overlayHiddenHintShowCount) as? Int ?? 0
 
         // Context HUD preferences
         let hudModeString = UserDefaults.standard.string(forKey: Keys.contextHUDDisplayMode)

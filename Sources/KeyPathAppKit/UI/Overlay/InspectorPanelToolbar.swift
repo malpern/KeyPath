@@ -145,6 +145,7 @@ struct InspectorPanelToolbar: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("inspector-tab-settings-gear-button")
         .accessibilityLabel(isSelected ? "Close settings shelf" : "Open settings shelf")
         .help("Settings")
         .onHover { isHoveringSettings = $0 }

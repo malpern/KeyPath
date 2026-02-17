@@ -98,7 +98,7 @@ struct HideHintBubble: View {
 }
 
 /// A modifier key chip with bright blue styling that responds to press state
-private struct ModifierKeyChip: View {
+struct ModifierKeyChip: View {
     let symbol: String
     var isPressed: Bool = false
 

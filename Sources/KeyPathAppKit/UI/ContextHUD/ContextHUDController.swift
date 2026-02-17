@@ -248,13 +248,33 @@ final class ContextHUDController {
                 let layoutId = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey) ?? LayoutPreferences.defaultLayoutId
                 let layout = PhysicalLayout.find(id: layoutId) ?? .macBookUS
 
-                // Build key mapping for this layer
-                let keyMap = try await layerKeyMapper.getMapping(
-                    for: layerName,
-                    configPath: configPath,
-                    layout: layout,
-                    collections: enabledCollections
-                )
+                let normalizedLayerName = layerName.lowercased()
+
+                // Build launcher keyMap from collections (not simulator).
+                // The kanata simulator cannot capture push-msg events, so launcher
+                // keys appear transparent when simulated. Build from config directly.
+                let collectionLauncherKeyMap = self.buildLauncherKeyMap(from: enabledCollections)
+
+                let keyMap: [UInt16: LayerKeyInfo]
+                var launcherKeyMap: [UInt16: LayerKeyInfo]?
+
+                if normalizedLayerName == "launcher" {
+                    // Launcher layer: use collection-built keyMap as primary
+                    keyMap = collectionLauncherKeyMap
+                } else {
+                    // Other layers: use simulator for primary keyMap
+                    keyMap = try await layerKeyMapper.getMapping(
+                        for: layerName,
+                        configPath: configPath,
+                        layout: layout,
+                        collections: enabledCollections
+                    )
+
+                    // Pass launcher entries separately so they show as their own group
+                    if normalizedLayerName != "base" && !collectionLauncherKeyMap.isEmpty {
+                        launcherKeyMap = collectionLauncherKeyMap
+                    }
+                }
 
                 guard !Task.isCancelled else { return }
 
@@ -264,19 +284,6 @@ final class ContextHUDController {
                     keyMap: keyMap,
                     collections: enabledCollections
                 )
-
-                // Fetch launcher entries separately for non-base, non-launcher layers
-                // so ALL app launch shortcuts appear in their own group
-                var launcherKeyMap: [UInt16: LayerKeyInfo]?
-                let normalizedLayerName = layerName.lowercased()
-                if normalizedLayerName != "base" && normalizedLayerName != "launcher" {
-                    launcherKeyMap = try? await layerKeyMapper.getMapping(
-                        for: "launcher",
-                        configPath: configPath,
-                        layout: layout,
-                        collections: enabledCollections
-                    )
-                }
 
                 guard !Task.isCancelled else { return }
 
@@ -438,6 +445,42 @@ final class ContextHUDController {
             guard !Task.isCancelled else { return }
             self?.dismiss()
         }
+    }
+
+    // MARK: - Launcher KeyMap from Collections
+
+    /// Build a launcher keyMap directly from LauncherGridConfig in rule collections.
+    /// The kanata simulator cannot capture push-msg events, so launcher keys appear
+    /// transparent when simulated. This bypasses the simulator entirely.
+    private func buildLauncherKeyMap(from collections: [RuleCollection]) -> [UInt16: LayerKeyInfo] {
+        guard let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
+              let config = launcherCollection.configuration.launcherGridConfig
+        else {
+            return [:]
+        }
+
+        var keyMap: [UInt16: LayerKeyInfo] = [:]
+        let collectionId = launcherCollection.id
+
+        for mapping in config.mappings where mapping.isEnabled {
+            guard let keyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(mapping.key) else {
+                continue
+            }
+
+            let info: LayerKeyInfo
+            switch mapping.target {
+            case let .app(name, bundleId):
+                info = .appLaunch(appIdentifier: bundleId ?? name, collectionId: collectionId)
+            case let .url(urlString):
+                info = .webURL(url: urlString, collectionId: collectionId)
+            case .folder, .script:
+                info = .pushMsg(message: mapping.target.displayName, collectionId: collectionId)
+            }
+
+            keyMap[keyCode] = info
+        }
+
+        return keyMap
     }
 
     // MARK: - Window Creation & Positioning

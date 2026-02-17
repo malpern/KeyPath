@@ -133,13 +133,15 @@ struct GeneralSettingsTabView: View {
                 #if DEBUG
                     Divider()
 
-                    DisclosureGroup("Experimental") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Experimental")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+
                         ExperimentalSettingsSection()
                             .padding(.top, 8)
                     }
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-                    .accessibilityIdentifier("settings-experimental-disclosure")
+                    .accessibilityIdentifier("settings-experimental-section")
                 #endif
             }
             .padding(.horizontal, 20)

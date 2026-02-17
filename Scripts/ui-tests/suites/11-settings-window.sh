@@ -1,9 +1,8 @@
 #!/bin/bash
-# 11-settings-window.sh — All settings tabs: status, rules, general, repair
+# 11-settings-window.sh — Settings tabs: status, rules, general, repair
 #
 # Settings tab IDs from SettingsContainerView.swift:
-#   settings-tab-status, settings-tab-rules, settings-tab-simulator,
-#   settings-tab-general, settings-tab-repair
+#   settings-tab-status, settings-tab-rules, settings-tab-general, settings-tab-repair
 #
 # Status tab IDs:
 #   status-system-health-button, status-active-rules-button,
@@ -75,17 +74,7 @@ else
     fail_test "Could not click settings-tab-rules"
 fi
 
-# ── Test 6: Simulator tab ────────────────────────────────────────────────────
-begin_test "Simulator tab"
-if pb_click "settings-tab-simulator"; then
-    sleep 1
-    pb_screenshot "settings-simulator"
-    pass_test
-else
-    skip_test "Could not click settings-tab-simulator"
-fi
-
-# ── Test 7: General tab ──────────────────────────────────────────────────────
+# ── Test 6: General tab ──────────────────────────────────────────────────────
 begin_test "General tab"
 if pb_click "settings-tab-general"; then
     sleep 1
@@ -95,7 +84,7 @@ else
     fail_test "Could not click settings-tab-general"
 fi
 
-# ── Test 8: General tab — capture mode picker ─────────────────────────────────
+# ── Test 7: General tab — capture mode picker ─────────────────────────────────
 begin_test "General tab capture mode picker"
 if pb_assert_exists "settings-capture-mode-picker" 3; then
     pass_test
@@ -103,7 +92,7 @@ else
     skip_test "settings-capture-mode-picker not found"
 fi
 
-# ── Test 9: General tab — overlay layout picker ───────────────────────────────
+# ── Test 8: General tab — overlay layout picker ───────────────────────────────
 begin_test "General tab overlay layout picker"
 if pb_assert_exists "settings-overlay-layout-picker" 3; then
     pass_test
@@ -111,7 +100,7 @@ else
     skip_test "settings-overlay-layout-picker not found"
 fi
 
-# ── Test 10: General tab — overlay keymap picker ──────────────────────────────
+# ── Test 9: General tab — overlay keymap picker ──────────────────────────────
 begin_test "General tab overlay keymap picker"
 if pb_assert_exists "settings-overlay-keymap-picker" 3; then
     pass_test
@@ -119,7 +108,7 @@ else
     skip_test "settings-overlay-keymap-picker not found"
 fi
 
-# ── Test 11: General tab — reset overlay size button ──────────────────────────
+# ── Test 10: General tab — reset overlay size button ──────────────────────────
 begin_test "General tab reset overlay size button"
 if pb_assert_exists "settings-reset-overlay-size-button" 3; then
     pass_test
@@ -127,7 +116,7 @@ else
     skip_test "settings-reset-overlay-size-button not found"
 fi
 
-# ── Test 12: General tab — global hotkey toggle ───────────────────────────────
+# ── Test 11: General tab — global hotkey toggle ───────────────────────────────
 begin_test "General tab global hotkey toggle"
 if pb_assert_exists "settings-global-hotkey-toggle" 3; then
     pass_test
@@ -135,7 +124,7 @@ else
     skip_test "settings-global-hotkey-toggle not found"
 fi
 
-# ── Test 13: Repair tab ──────────────────────────────────────────────────────
+# ── Test 12: Repair tab ──────────────────────────────────────────────────────
 begin_test "Repair tab"
 if pb_click "settings-tab-repair"; then
     sleep 1
@@ -145,7 +134,7 @@ else
     fail_test "Could not click settings-tab-repair"
 fi
 
-# ── Test 14: Repair tab — uninstall button exists (don't click!) ──────────────
+# ── Test 13: Repair tab — uninstall button exists (don't click!) ──────────────
 begin_test "Repair tab uninstall button exists"
 if pb_assert_exists "settings-uninstall-button" 3; then
     pass_test
@@ -153,7 +142,7 @@ else
     skip_test "settings-uninstall-button not found"
 fi
 
-# ── Test 15: Repair tab — reset everything button exists (don't click!) ───────
+# ── Test 14: Repair tab — reset everything button exists (don't click!) ───────
 begin_test "Repair tab reset everything button exists"
 if pb_assert_exists "settings-reset-everything-button" 3; then
     pass_test
@@ -161,7 +150,7 @@ else
     skip_test "settings-reset-everything-button not found"
 fi
 
-# ── Test 16: Repair tab — remove duplicates button ────────────────────────────
+# ── Test 15: Repair tab — remove duplicates button ────────────────────────────
 begin_test "Repair tab remove duplicates button"
 if pb_assert_exists "settings-remove-duplicates-button" 3; then
     pass_test
@@ -169,7 +158,7 @@ else
     skip_test "settings-remove-duplicates-button not found"
 fi
 
-# ── Test 17: Close settings window ────────────────────────────────────────────
+# ── Test 16: Close settings window ────────────────────────────────────────────
 begin_test "Close settings window"
 pb_hotkey "cmd+w"
 sleep 1

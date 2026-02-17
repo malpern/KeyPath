@@ -21,126 +21,150 @@ struct AdvancedSettingsTabView: View {
     @State private var settingsToastManager = WizardToastManager()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Hero Section with Uninstall
-            HStack(alignment: .top, spacing: 40) {
-                // Left: Uninstall section
-                VStack(spacing: 16) {
-                    VStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.red.opacity(0.15))
-                                .frame(width: 80, height: 80)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                // Hero Section with Uninstall
+                HStack(alignment: .top, spacing: 40) {
+                    // Left: Uninstall section
+                    VStack(spacing: 16) {
+                        VStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.red.opacity(0.15))
+                                    .frame(width: 80, height: 80)
 
-                            Image(systemName: "trash.circle.fill")
-                                .font(.largeTitle)
-                                .foregroundColor(.red)
-                        }
-
-                        VStack(spacing: 4) {
-                            Text("Uninstall KeyPath")
-                                .font(.title3.weight(.semibold))
-                                .multilineTextAlignment(.center)
-                        }
-                    }
-
-                    // Uninstall button (primary - Enter key triggers)
-                    Button(role: .destructive) {
-                        showingUninstallDialog = true
-                    } label: {
-                        Text("Uninstall")
-                            .frame(minWidth: 100)
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .accessibilityIdentifier("settings-uninstall-button")
-                    .accessibilityLabel("Uninstall KeyPath")
-                }
-                .frame(minWidth: 220)
-
-                // Right: Helper and Recovery Tools
-                VStack(alignment: .leading, spacing: 20) {
-                    // Privileged Helper
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Privileged Helper")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-
-                        HStack(spacing: 10) {
-                            HelperStatusDot(color: helperInstalled ? .green : .orange)
-                            VStack(alignment: .leading, spacing: 2) {
-                                if helperInstalled {
-                                    Text("Installed\(helperVersion.map { " (v\($0))" } ?? "")")
-                                        .font(.body)
-                                        .fontWeight(.medium)
-                                } else {
-                                    Text("Not Installed")
-                                        .font(.body)
-                                        .fontWeight(.medium)
-                                }
+                                Image(systemName: "trash.circle.fill")
+                                    .font(.largeTitle)
+                                    .foregroundColor(.red)
                             }
-                            Spacer()
+
+                            VStack(spacing: 4) {
+                                Text("Uninstall KeyPath")
+                                    .font(.title3.weight(.semibold))
+                                    .multilineTextAlignment(.center)
+                            }
                         }
 
-                        HStack(spacing: 10) {
-                            Button(role: .destructive) {
-                                showingHelperUninstallConfirm = true
+                        // Uninstall button (primary - Enter key triggers)
+                        Button(role: .destructive) {
+                            showingUninstallDialog = true
+                        } label: {
+                            Text("Uninstall")
+                                .frame(minWidth: 100)
+                        }
+                        .keyboardShortcut(.defaultAction)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .accessibilityIdentifier("settings-uninstall-button")
+                        .accessibilityLabel("Uninstall KeyPath")
+                    }
+                    .frame(minWidth: 220)
+
+                    // Right: Repair tools in priority order
+                    VStack(alignment: .leading, spacing: 20) {
+                        // Emergency Helper
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Emergency Helper")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+
+                            Text("Use when service is wedged and won't respond.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            Button {
+                                showingResetEverythingConfirmation = true
                             } label: {
-                                Label("Uninstall Helper", systemImage: "trash")
+                                Label("Reset Everything", systemImage: "exclamationmark.triangle")
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.red)
+                            .controlSize(.small)
+                            .accessibilityIdentifier("settings-reset-everything-button")
+                            .accessibilityLabel("Reset Everything")
+                        }
+
+                        // Privileged Helper
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Privileged Helper")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+
+                            Text("Handles admin-only install and repair tasks without repeated password prompts.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            HStack(spacing: 10) {
+                                HelperStatusDot(color: helperInstalled ? .green : .orange)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    if helperInstalled {
+                                        Text("Installed\(helperVersion.map { " (v\($0))" } ?? "")")
+                                            .font(.body)
+                                            .fontWeight(.medium)
+                                    } else {
+                                        Text("Not Installed")
+                                            .font(.body)
+                                            .fontWeight(.medium)
+                                    }
+                                }
+                                Spacer()
+                            }
+
+                            HStack(spacing: 10) {
+                                Button(role: .destructive) {
+                                    showingHelperUninstallConfirm = true
+                                } label: {
+                                    Label("Uninstall Helper", systemImage: "trash")
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .disabled(helperInProgress || !helperInstalled)
+                                .accessibilityIdentifier("settings-uninstall-helper-button")
+                                .accessibilityLabel("Uninstall Privileged Helper")
+                            }
+                        }
+
+                        // Simulator
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Simulator")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+
+                            Text("Advanced virtual keyboard testing for key behaviors, app context, and timing.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            Button {
+                                SimulatorWindowController.shared.showWindow()
+                            } label: {
+                                Label("Open Simulator", systemImage: "keyboard")
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.small)
-                            .disabled(helperInProgress || !helperInstalled)
-                            .accessibilityIdentifier("settings-uninstall-helper-button")
-                            .accessibilityLabel("Uninstall Privileged Helper")
+                            .accessibilityIdentifier("settings-open-simulator-button")
+                            .accessibilityLabel("Open Simulator")
                         }
                     }
 
-                    // Reset Everything
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Emergency Recovery")
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+
+                // Duplicate apps warning
+                if duplicateAppCopies.count > 1 {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("\u{26A0}\u{FE0F} Multiple Installations")
                             .font(.headline)
                             .foregroundColor(.secondary)
 
-                        Text("Use when service is wedged and won't respond")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        Button {
-                            showingResetEverythingConfirmation = true
-                        } label: {
-                            Label("Reset Everything", systemImage: "exclamationmark.triangle")
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.red)
-                        .controlSize(.small)
-                        .accessibilityIdentifier("settings-reset-everything-button")
-                        .accessibilityLabel("Reset Everything")
+                        duplicateAppsSection
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
                 }
-
-                Spacer()
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 24)
-
-            // Duplicate apps warning
-            if duplicateAppCopies.count > 1 {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("\u{26A0}\u{FE0F} Multiple Installations")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-
-                    duplicateAppsSection
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-            }
-
-            Spacer()
         }
-        .frame(maxHeight: 350)
         .settingsBackground()
         .withToasts(settingsToastManager)
         .sheet(isPresented: $showingUninstallDialog) {

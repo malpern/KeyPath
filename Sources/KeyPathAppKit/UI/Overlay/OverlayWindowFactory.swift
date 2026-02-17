@@ -2,7 +2,8 @@ import AppKit
 import CoreGraphics
 
 enum OverlayWindowFactory {
-    static let overlayWindowTitle = "KeyPath Keyboard Overlay"
+    static let overlayWindowTitle = "Keypath"
+    static let overlayAccessibilityLabel = "KeyPath Keyboard Overlay"
 
     static func windowStyle(useAccessibilityTestMode: Bool) -> NSWindow.StyleMask {
         useAccessibilityTestMode ? [.titled, .resizable, .closable] : [.borderless, .resizable]
@@ -23,7 +24,7 @@ enum OverlayWindowFactory {
         window.hasShadow = false
         window.title = overlayWindowTitle
         window.setAccessibilityIdentifier("keypath-keyboard-overlay-window")
-        window.setAccessibilityLabel(overlayWindowTitle)
+        window.setAccessibilityLabel(overlayAccessibilityLabel)
 
         // Always on top but not activating - prevents window from becoming key/main
         window.level = .floating

@@ -161,10 +161,10 @@ public struct KeyPathApp: App {
 
                 Button(
                     action: {
-                        openPreferencesTab(.openSettingsSimulator)
+                        openPreferencesTab(.openSettingsAdvanced)
                     },
                     label: {
-                        Label("Simulator…", systemImage: "keyboard")
+                        Label("Simulator (Repair/Remove)…", systemImage: "keyboard")
                     }
                 )
 
@@ -299,22 +299,6 @@ public struct KeyPathApp: App {
                 .hidden() // Hide from menu but keep keyboard shortcut active
             }
 
-            #if DEBUG
-                CommandMenu("Developer • SMAppService") {
-                    Button("Helper: Show SMAppService Status") {
-                        showSMAppServiceStatus(plistName: "com.keypath.helper.plist")
-                    }
-
-                    Button("Helper: Register via SMAppService") {
-                        registerSMAppService(plistName: "com.keypath.helper.plist")
-                    }
-
-                    Button("Helper: Unregister via SMAppService") {
-                        unregisterSMAppService(plistName: "com.keypath.helper.plist")
-                    }
-                }
-
-            #endif
         }
     }
 }

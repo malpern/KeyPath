@@ -394,7 +394,7 @@ struct OverlayDragHeader: View {
 
     @ViewBuilder
     private func layerPill(layerDisplayName: String, indicatorCornerRadius: CGFloat, buttonSize: CGFloat) -> some View {
-        let iconName = layerIconName(for: layerDisplayName)
+        let iconName = LayerInfo.iconName(for: layerDisplayName)
 
         Group {
             if shouldShowLayerName {
@@ -587,15 +587,11 @@ struct OverlayDragHeader: View {
                 layerPickerRow(layer: layer, index: index)
 
                 if index < availableLayers.count - 1 {
-                    Divider()
-                        .opacity(0.2)
-                        .padding(.horizontal, 8)
+                    PopoverListDivider()
                 }
             }
 
-            Divider()
-                .opacity(0.2)
-                .padding(.horizontal, 8)
+            PopoverListDivider()
 
             // New Layer option - styled same as layer rows
             Button {
@@ -622,21 +618,15 @@ struct OverlayDragHeader: View {
         }
         .padding(.vertical, 6)
         .frame(minWidth: 200)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5)
-        )
-        .padding(4)
+        .pickerPopoverChrome()
     }
 
     /// Individual layer row in the picker
     @ViewBuilder
     private func layerPickerRow(layer: String, index _: Int) -> some View {
-        let displayName = layer.lowercased() == "base" ? "Base" : layer.capitalized
+        let displayName = LayerInfo.displayName(for: layer)
         let isCurrentLayer = currentLayerName.lowercased() == layer.lowercased()
-        let layerIcon = layerIconName(for: displayName)
+        let layerIcon = LayerInfo.iconName(for: layer)
         let canDelete = !isSystemLayer(layer)
         let isHovered = hoveredLayer == layer
 
@@ -702,27 +692,6 @@ struct OverlayDragHeader: View {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(Color.primary.opacity(configuration.isPressed ? 0.08 : 0))
                 )
-        }
-    }
-
-    private func layerIconName(for layerDisplayName: String) -> String {
-        let lower = layerDisplayName.lowercased()
-
-        switch lower {
-        case "base":
-            return "keyboard"
-        case "nav", "navigation", "vim":
-            return "arrow.up.and.down.and.arrow.left.and.right"
-        case "window", "window-mgmt":
-            return "macwindow"
-        case "numpad", "num":
-            return "number"
-        case "sym", "symbol":
-            return "character"
-        case "launcher", "quick launcher":
-            return "app.badge"
-        default:
-            return "square.3.layers.3d"
         }
     }
 

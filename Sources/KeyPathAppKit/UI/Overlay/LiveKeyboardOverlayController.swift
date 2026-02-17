@@ -29,6 +29,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private let frameStore = OverlayWindowFrameStore()
     var hintWindowController: HideHintWindowController?
     var hintBubbleObserver: Task<Void, Never>?
+    private var hiddenHintController: OverlayHiddenHintWindowController?
 
     /// Reference to KanataViewModel for opening Mapper window
     private weak var kanataViewModel: KanataViewModel?
@@ -1161,6 +1162,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             },
             onClose: { [weak self] in
                 self?.isVisible = false
+                self?.showOverlayHiddenHint()
             },
             onToggleInspector: { [weak self] in
                 self?.toggleInspectorPanel()
@@ -1179,5 +1181,20 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private func refreshOverlayContent() {
         guard let hostingView else { return }
         hostingView.rootView = buildRootView()
+    }
+
+    // MARK: - Overlay Hidden Hint
+
+    /// Show the "Overlay Hidden — press ⌥⌘K to bring it back" education message.
+    /// Only shows up to 4 times total across app restarts.
+    private func showOverlayHiddenHint() {
+        let prefs = PreferencesService.shared
+        guard prefs.overlayHiddenHintShowCount < 4 else { return }
+
+        prefs.overlayHiddenHintShowCount += 1
+
+        let controller = OverlayHiddenHintWindowController()
+        hiddenHintController = controller
+        controller.show()
     }
 }
