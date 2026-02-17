@@ -18,3 +18,23 @@ struct LayerPickerItemButtonStyle: ButtonStyle {
             }
     }
 }
+
+// MARK: - Shared Popover List Styling
+
+/// Standard row divider used in picker-style popovers.
+struct PopoverListDivider: View {
+    var body: some View {
+        Divider()
+            .opacity(0.2)
+            .padding(.horizontal, 8)
+    }
+}
+
+extension View {
+    /// Shared material/border chrome for picker-style popovers.
+    func pickerPopoverChrome(cornerRadius: CGFloat = 8, outerPadding: CGFloat = 0) -> some View {
+        background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .padding(outerPadding)
+    }
+}

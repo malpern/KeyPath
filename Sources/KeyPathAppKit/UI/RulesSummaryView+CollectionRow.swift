@@ -39,6 +39,10 @@ struct ExpandableCollectionRow: View {
     var onSelectHoldOutput: ((String) -> Void)?
     /// For homeRowMods style: callback to update config
     var onUpdateHomeRowModsConfig: ((HomeRowModsConfig) -> Void)?
+    /// For homeRowMods style: existing layer names to offer in layer-mode popover
+    var homeRowAvailableLayers: [String] = []
+    /// For homeRowMods style: create any missing layers before enabling layer mode
+    var onEnsureHomeRowLayersExist: (([String]) async -> Void)?
     /// For homeRowMods style: callback to open modal
     var onOpenHomeRowModsModal: (() -> Void)?
     /// For homeRowMods style: callback to open modal with a specific key selected
@@ -74,10 +78,20 @@ struct ExpandableCollectionRow: View {
     @State private var isHovered = false
     @State private var hasInitialized = false
     @State private var localEnabled: Bool? // Optimistic local state for instant toggle feedback
+    @State private var localHomeRowModsConfig: HomeRowModsConfig?
+    @State private var localHomeRowLayerConfig: HomeRowLayerTogglesConfig?
 
     /// Effective enabled state: use local optimistic value if set, otherwise parent value
     private var effectiveEnabled: Bool {
         localEnabled ?? isEnabled
+    }
+
+    private var effectiveHomeRowModsConfig: HomeRowModsConfig {
+        localHomeRowModsConfig ?? collection?.configuration.homeRowModsConfig ?? HomeRowModsConfig()
+    }
+
+    private var effectiveHomeRowLayerConfig: HomeRowLayerTogglesConfig {
+        localHomeRowLayerConfig ?? collection?.configuration.homeRowLayerTogglesConfig ?? HomeRowLayerTogglesConfig()
     }
 
     /// Format a modifier key for display
@@ -134,6 +148,16 @@ struct ExpandableCollectionRow: View {
         }
         .onChange(of: isEnabled) { _, _ in
             localEnabled = nil
+        }
+        .onChange(of: collection?.configuration.homeRowModsConfig) { _, newValue in
+            if localHomeRowModsConfig == newValue {
+                localHomeRowModsConfig = nil
+            }
+        }
+        .onChange(of: collection?.configuration.homeRowLayerTogglesConfig) { _, newValue in
+            if localHomeRowLayerConfig == newValue {
+                localHomeRowLayerConfig = nil
+            }
         }
     }
 
@@ -199,12 +223,15 @@ struct ExpandableCollectionRow: View {
                                 .foregroundColor(.accentColor)
                         }
                     }
+
+                    Spacer(minLength: 0)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("rules-summary-expand-button-\(collectionId)")
+            .accessibilityLabel(isExpanded ? "Collapse \(name)" : "Expand \(name)")
 
             // Right side: Toggle (NOT inside button, so it receives taps)
             Toggle(
@@ -276,97 +303,40 @@ struct ExpandableCollectionRow: View {
                     .padding(.top, 8)
                     .padding(.bottom, 12)
                     .padding(.horizontal, 16)
-                } else if displayStyle == .homeRowMods, let coll = collection {
-                    // Home Row Mods: show summary with current config, click to customize
-                    let config = coll.configuration.homeRowModsConfig ?? HomeRowModsConfig()
-                    let assignmentMap = config.holdMode == .modifiers ? config.modifierAssignments : config.layerAssignments
-                    let modeDescription = config.holdMode == .modifiers ? "modifiers" : "layers"
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Tap keys for letters, hold for \(modeDescription)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-
-                        // Summary of current configuration
-                        if !config.enabledKeys.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack(spacing: 16) {
-                                    // Left hand
-                                    if config.enabledKeys.contains(where: { HomeRowModsConfig.leftHandKeys.contains($0) }) {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text("Left hand")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                            HStack(spacing: 6) {
-                                                ForEach(HomeRowModsConfig.leftHandKeys, id: \.self) { key in
-                                                    if config.enabledKeys.contains(key) {
-                                                        let modSymbol = assignmentMap[key].map { formatModifierForDisplay($0) } ?? ""
-                                                        HomeRowKeyButton(
-                                                            key: key,
-                                                            modSymbol: modSymbol,
-                                                            action: { onOpenHomeRowModsModalWithKey?(key) }
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // Right hand
-                                    if config.enabledKeys.contains(where: { HomeRowModsConfig.rightHandKeys.contains($0) }) {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text("Right hand")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                            HStack(spacing: 6) {
-                                                ForEach(HomeRowModsConfig.rightHandKeys, id: \.self) { key in
-                                                    if config.enabledKeys.contains(key) {
-                                                        let modSymbol = assignmentMap[key].map { formatModifierForDisplay($0) } ?? ""
-                                                        HomeRowKeyButton(
-                                                            key: key,
-                                                            modSymbol: modSymbol,
-                                                            action: { onOpenHomeRowModsModalWithKey?(key) }
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                let hasOffsets = !config.timing.tapOffsets.isEmpty
-                                let quickTapText = config.timing.quickTapEnabled ? "Quick tap on" : "Quick tap off"
-                                let quickTapTerm = config.timing.quickTapEnabled && config.timing.quickTapTermMs > 0 ? " + \(config.timing.quickTapTermMs)ms" : ""
-                                Text("Timing: \(config.timing.tapWindow)ms tap\(quickTapTerm)\(hasOffsets ? " (+ per-key offsets)" : ""), \(config.timing.holdDelay)ms hold · \(quickTapText)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                } else if displayStyle == .homeRowMods, collection != nil {
+                    // Home Row Mods: interactive keyboard + preferences
+                    HomeRowModsCollectionView(
+                        config: Binding(
+                            get: { effectiveHomeRowModsConfig },
+                            set: { newConfig in
+                                localHomeRowModsConfig = newConfig
+                                onUpdateHomeRowModsConfig?(newConfig)
                             }
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
-                            )
+                        ),
+                        availableLayers: homeRowAvailableLayers,
+                        onConfigChanged: { newConfig in
+                            localHomeRowModsConfig = newConfig
+                            onUpdateHomeRowModsConfig?(newConfig)
+                        },
+                        onEnsureLayersExist: { layerNames in
+                            await onEnsureHomeRowLayersExist?(layerNames)
                         }
-
-                        Button("Customize...") {
-                            onOpenHomeRowModsModal?()
-                        }
-                        .buttonStyle(.bordered)
-                        .accessibilityIdentifier("rules-summary-home-row-mods-customize-button")
-                        .accessibilityLabel("Customize home row mods")
-                    }
+                    )
                     .padding(.top, 8)
                     .padding(.bottom, 12)
                     .padding(.horizontal, 16)
-                } else if displayStyle == .homeRowLayerToggles, let coll = collection {
+                } else if displayStyle == .homeRowLayerToggles, collection != nil {
                     // Home Row Layer Toggles: visual keyboard with progressive disclosure customization
-                    let config = coll.configuration.homeRowLayerTogglesConfig ?? HomeRowLayerTogglesConfig()
                     HomeRowLayerTogglesCollectionView(
                         config: Binding(
-                            get: { config },
-                            set: { _ in }
+                            get: { effectiveHomeRowLayerConfig },
+                            set: { newConfig in
+                                localHomeRowLayerConfig = newConfig
+                                onUpdateHomeRowLayerTogglesConfig?(newConfig)
+                            }
                         ),
                         onConfigChanged: { newConfig in
+                            localHomeRowLayerConfig = newConfig
                             onUpdateHomeRowLayerTogglesConfig?(newConfig)
                         }
                     )

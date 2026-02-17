@@ -7,47 +7,66 @@ import SwiftUI
 struct HomeRowKeyboardView: View {
     let enabledKeys: Set<String>
     let modifierAssignments: [String: String]
+    let holdMode: HomeRowHoldMode
     let selectedKey: String?
     let keyDisplayLabels: [String: String]
     let helperText: String
+    let keyPopoverContent: ((String) -> AnyView)?
+    let onPopoverDismiss: (() -> Void)?
     let onKeySelected: (String) -> Void
+    let keyChipSize: CGFloat
 
     @State private var hoveredKey: String?
 
     private let leftHandKeys = ["a", "s", "d", "f"]
     private let rightHandKeys = ["j", "k", "l", ";"]
+    private var keySpacing: CGFloat { max(4, keyChipSize * 0.1) }
+    private var handSpacing: CGFloat { max(14, keyChipSize * 0.3) }
+    private var sectionSpacing: CGFloat { max(10, keyChipSize * 0.2) }
+    private var verticalPadding: CGFloat { max(4, keyChipSize * 0.08) }
+    private var outerPadding: CGFloat { max(8, keyChipSize * 0.15) }
+    private var helperFontSize: CGFloat { max(11, keyChipSize * 0.18) }
+    private var handLabelFont: Font { .caption }
 
     init(
         enabledKeys: Set<String>,
         modifierAssignments: [String: String],
+        holdMode: HomeRowHoldMode = .modifiers,
         selectedKey: String?,
         keyDisplayLabels: [String: String] = [:],
         helperText: String = "Tap for letter, hold for modifier",
+        keyChipSize: CGFloat = 78,
+        keyPopoverContent: ((String) -> AnyView)? = nil,
+        onPopoverDismiss: (() -> Void)? = nil,
         onKeySelected: @escaping (String) -> Void
     ) {
         self.enabledKeys = enabledKeys
         self.modifierAssignments = modifierAssignments
+        self.holdMode = holdMode
         self.selectedKey = selectedKey
         self.keyDisplayLabels = keyDisplayLabels
         self.helperText = helperText
+        self.keyChipSize = keyChipSize
+        self.keyPopoverContent = keyPopoverContent
+        self.onPopoverDismiss = onPopoverDismiss
         self.onKeySelected = onKeySelected
     }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: sectionSpacing) {
             // Visual keyboard layout
-            HStack(spacing: 12) {
+            HStack(spacing: keySpacing) {
                 // Left hand
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("\u{1FAF2} Left")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: keySpacing) {
+                    handHeader(emoji: "\u{1FAF2}", title: "Left", isActive: hasEnabledKey(in: leftHandKeys))
+                    HStack(spacing: keySpacing) {
                         ForEach(leftHandKeys, id: \.self) { key in
                             HomeRowKeyChip(
                                 key: key,
                                 keyDisplayLabel: keyDisplayLabel(for: key),
-                                modifier: modifierAssignments[key],
+                                holdAssignment: modifierAssignments[key],
+                                holdMode: holdMode,
+                                size: keyChipSize,
                                 isEnabled: enabledKeys.contains(key),
                                 isSelected: selectedKey == key,
                                 isHovered: hoveredKey == key,
@@ -58,25 +77,33 @@ struct HomeRowKeyboardView: View {
                                     }
                                 }
                             )
+                            .popover(isPresented: popoverBinding(for: key), arrowEdge: .top) {
+                                if let keyPopoverContent {
+                                    keyPopoverContent(key)
+                                } else {
+                                    EmptyView()
+                                }
+                            }
                         }
                     }
                 }
+                .opacity(hasEnabledKey(in: leftHandKeys) ? 1.0 : 0.45)
 
                 // Spacer between hands
                 Spacer()
-                    .frame(width: 32)
+                    .frame(width: handSpacing)
 
                 // Right hand
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("\u{1FAF1} Right")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: keySpacing) {
+                    handHeader(emoji: "\u{1FAF1}", title: "Right", isActive: hasEnabledKey(in: rightHandKeys))
+                    HStack(spacing: keySpacing) {
                         ForEach(rightHandKeys, id: \.self) { key in
                             HomeRowKeyChip(
                                 key: key,
                                 keyDisplayLabel: keyDisplayLabel(for: key),
-                                modifier: modifierAssignments[key],
+                                holdAssignment: modifierAssignments[key],
+                                holdMode: holdMode,
+                                size: keyChipSize,
                                 isEnabled: enabledKeys.contains(key),
                                 isSelected: selectedKey == key,
                                 isHovered: hoveredKey == key,
@@ -87,18 +114,29 @@ struct HomeRowKeyboardView: View {
                                     }
                                 }
                             )
+                            .popover(isPresented: popoverBinding(for: key), arrowEdge: .top) {
+                                if let keyPopoverContent {
+                                    keyPopoverContent(key)
+                                } else {
+                                    EmptyView()
+                                }
+                            }
                         }
                     }
                 }
+                .opacity(hasEnabledKey(in: rightHandKeys) ? 1.0 : 0.45)
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, verticalPadding)
+            .frame(maxWidth: .infinity)
 
             // Helper text
             Text(helperText)
-                .font(.subheadline)
+                .font(.system(size: helperFontSize))
                 .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
         }
-        .padding()
+        .padding(outerPadding)
+        .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
@@ -108,13 +146,47 @@ struct HomeRowKeyboardView: View {
     private func keyDisplayLabel(for key: String) -> String {
         keyDisplayLabels[key] ?? key.uppercased()
     }
+
+    @ViewBuilder
+    private func handHeader(emoji: String, title: String, isActive: Bool) -> some View {
+        HStack(spacing: 6) {
+            Text("\(emoji) \(title)")
+                .font(handLabelFont)
+                .foregroundColor(.secondary)
+            if !isActive {
+                Text("Disabled")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color(NSColor.controlBackgroundColor)))
+            }
+        }
+    }
+
+    private func hasEnabledKey(in handKeys: [String]) -> Bool {
+        handKeys.contains(where: { enabledKeys.contains($0) })
+    }
+
+    private func popoverBinding(for key: String) -> Binding<Bool> {
+        Binding(
+            get: { selectedKey == key && keyPopoverContent != nil },
+            set: { isPresented in
+                if !isPresented {
+                    onPopoverDismiss?()
+                }
+            }
+        )
+    }
 }
 
 /// Interactive key chip for home row mods
 struct HomeRowKeyChip: View {
     let key: String
     let keyDisplayLabel: String
-    let modifier: String?
+    let holdAssignment: String?
+    let holdMode: HomeRowHoldMode
+    let size: CGFloat
     let isEnabled: Bool
     let isSelected: Bool
     let isHovered: Bool
@@ -122,9 +194,10 @@ struct HomeRowKeyChip: View {
     let onHover: (Bool) -> Void
 
     @State private var isPressed = false
+    private var letterFontSize: CGFloat { max(15, size * 0.27) }
+    private var assignmentFontSize: CGFloat { max(12, size * 0.22) }
 
-    private var modifierDisplay: String {
-        guard let modifier else { return "" }
+    private func modifierDisplay(for modifier: String) -> String {
         let displayNames: [String: String] = [
             "lmet": "⌘", "rmet": "⌘",
             "lalt": "⌥", "ralt": "⌥",
@@ -149,21 +222,25 @@ struct HomeRowKeyChip: View {
             VStack(spacing: 4) {
                 // Key label
                 Text(keyDisplayLabel)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: letterFontSize, weight: .semibold))
                     .foregroundColor(textColor)
 
-                // Modifier symbol
-                if modifier != nil, isEnabled {
-                    Text(modifierDisplay)
-                        .font(.system(size: 14, weight: .regular))
-                        .foregroundColor(textColor.opacity(0.8))
+                // Hold assignment
+                if let holdAssignment, isEnabled {
+                    if holdMode == .layers {
+                        HomeRowLayerTargetChip(layerName: holdAssignment)
+                    } else {
+                        Text(modifierDisplay(for: holdAssignment))
+                            .font(.system(size: assignmentFontSize, weight: .medium))
+                            .foregroundColor(textColor.opacity(0.8))
+                    }
                 } else if !isEnabled {
                     Text("—")
-                        .font(.system(size: 14))
+                        .font(.system(size: max(11, size * 0.2)))
                         .foregroundColor(.secondary.opacity(0.5))
                 }
             }
-            .frame(width: 64, height: 64)
+            .frame(width: size, height: size)
             .background(
                 RoundedRectangle(cornerRadius: 10)
                     .fill(backgroundColor)
@@ -177,6 +254,9 @@ struct HomeRowKeyChip: View {
             .animation(.easeInOut(duration: 0.1), value: isPressed)
         }
         .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .accessibilityIdentifier("home-row-key-chip-\(key)")
+        .accessibilityLabel("Configure home row key \(keyDisplayLabel)")
         .onHover { hovering in
             onHover(hovering)
             #if os(macOS)
@@ -223,5 +303,31 @@ struct HomeRowKeyChip: View {
 
     private var borderWidth: CGFloat {
         isSelected ? 2 : 1
+    }
+}
+
+private struct HomeRowLayerTargetChip: View {
+    let layerName: String
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: LayerInfo.iconName(for: layerName))
+                .font(.system(size: 9, weight: .semibold))
+            Text(LayerInfo.displayName(for: layerName))
+                .font(.system(size: 9, weight: .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .foregroundStyle(Color.accentColor)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .background(
+            Capsule()
+                .fill(Color.accentColor.opacity(0.14))
+        )
+        .overlay(
+            Capsule()
+                .stroke(Color.accentColor.opacity(0.28), lineWidth: 0.6)
+        )
     }
 }

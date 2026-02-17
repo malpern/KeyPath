@@ -12,17 +12,9 @@ struct HomeRowModsModalView: View {
 
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @State private var localConfig: HomeRowModsConfig
-    @State private var selectedKey: String?
-    @State private var showModifierPicker = false
 
     private var activeKeymap: LogicalKeymap {
         LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
-    }
-
-    private var homeRowDisplayLabels: [String: String] {
-        Dictionary(uniqueKeysWithValues: HomeRowModsConfig.allKeys.map { key in
-            (key, displayLabel(forCanonicalKey: key))
-        })
     }
 
     init(config: Binding<HomeRowModsConfig>, onSave: @escaping (HomeRowModsConfig) -> Void, onCancel: @escaping () -> Void, initialSelectedKey: String? = nil) {
@@ -31,8 +23,6 @@ struct HomeRowModsModalView: View {
         self.onCancel = onCancel
         self.initialSelectedKey = initialSelectedKey
         _localConfig = State(initialValue: config.wrappedValue)
-        _selectedKey = State(initialValue: initialSelectedKey)
-        _showModifierPicker = State(initialValue: initialSelectedKey != nil)
     }
 
     var body: some View {
@@ -58,12 +48,11 @@ struct HomeRowModsModalView: View {
 
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: 24) {
-                    // Visual keyboard
-                    keyboardSection
-                    holdAndKeySelectionSection
+                    holdModeSection
+                    preferencesSection
                     timingSection
-                    contextualActionSection
                 }
+                .padding(.top, 16)
                 .padding(.bottom, 24)
             }
 
@@ -88,35 +77,9 @@ struct HomeRowModsModalView: View {
         }
         .frame(width: 750, height: 700)
         .background(Color(NSColor.windowBackgroundColor))
-        .animation(.easeInOut(duration: 0.2), value: showModifierPicker)
-        .onAppear {
-            // Set initial selection when view appears (State init doesn't always work in SwiftUI)
-            if let key = initialSelectedKey {
-                selectedKey = key
-                showModifierPicker = true
-            }
-        }
     }
 
-    private var keyboardSection: some View {
-        HomeRowKeyboardView(
-            enabledKeys: localConfig.enabledKeys,
-            modifierAssignments: activeHoldAssignments,
-            selectedKey: selectedKey,
-            keyDisplayLabels: homeRowDisplayLabels,
-            helperText: localConfig.holdMode == .modifiers ? "Tap for letter, hold for modifier" : "Tap for letter, hold for layer",
-            onKeySelected: { key in
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    selectedKey = selectedKey == key ? nil : key
-                    showModifierPicker = selectedKey != nil
-                }
-            }
-        )
-        .padding(.top, 16)
-        .padding(.horizontal)
-    }
-
-    private var holdAndKeySelectionSection: some View {
+    private var holdModeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Hold Action")
                 .font(.headline)
@@ -131,8 +94,13 @@ struct HomeRowModsModalView: View {
             .pickerStyle(.segmented)
             .accessibilityIdentifier("home-row-mods-modal-hold-mode-picker")
             .accessibilityLabel("Hold action mode")
+        }
+        .padding(.horizontal)
+    }
 
-            Text("Which keys?")
+    private var preferencesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Defaults")
                 .font(.headline)
 
             if localConfig.holdMode == .modifiers {
@@ -186,29 +154,6 @@ struct HomeRowModsModalView: View {
                 .horizontalRadioGroupLayout()
                 .accessibilityIdentifier("home-row-mods-modal-layer-toggle-mode-picker")
                 .accessibilityLabel("Layer activation mode")
-            }
-
-            Picker("Key Selection", selection: Binding(
-                get: { localConfig.keySelection },
-                set: { newValue in
-                    localConfig.keySelection = newValue
-                    localConfig.enabledKeys = newValue.enabledKeys
-                }
-            )) {
-                Text("Both hands").tag(KeySelection.both)
-                Text("Left hand only").tag(KeySelection.leftOnly)
-                Text("Right hand only").tag(KeySelection.rightOnly)
-                Text("Custom").tag(KeySelection.custom)
-            }
-            .pickerStyle(.radioGroup)
-            .horizontalRadioGroupLayout()
-            .accessibilityIdentifier("home-row-mods-modal-key-selection-picker")
-            .accessibilityLabel("Key selection")
-
-            if localConfig.keySelection == .custom {
-                customKeyPicker
-                    .padding(.top, 8)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .padding(.horizontal)
@@ -372,185 +317,6 @@ struct HomeRowModsModalView: View {
         .padding(.horizontal)
     }
 
-    @ViewBuilder
-    private var contextualActionSection: some View {
-        if showModifierPicker, let selectedKey {
-            Group {
-                if localConfig.holdMode == .modifiers {
-                    modifierPickerSection(for: selectedKey)
-                } else {
-                    layerPickerSection(for: selectedKey)
-                }
-            }
-            .padding(.horizontal)
-            .transition(.opacity.combined(with: .move(edge: .top)))
-        }
-    }
-
-    // MARK: - Custom Key Picker
-
-    private var customKeyPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Select keys:")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-
-            HStack(spacing: 8) {
-                ForEach(HomeRowModsConfig.allKeys, id: \.self) { key in
-                    Button(action: {
-                        if localConfig.enabledKeys.contains(key) {
-                            localConfig.enabledKeys.remove(key)
-                        } else {
-                            localConfig.enabledKeys.insert(key)
-                        }
-                    }) {
-                        Text(displayLabel(forCanonicalKey: key))
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(localConfig.enabledKeys.contains(key) ? .white : .primary)
-                            .frame(width: 40, height: 40)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(localConfig.enabledKeys.contains(key) ? .accentColor : Color(NSColor.controlBackgroundColor))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("home-row-mods-modal-key-button-\(key)")
-                    .accessibilityLabel("Toggle key \(displayLabel(forCanonicalKey: key))")
-                }
-            }
-        }
-    }
-
-    // MARK: - Modifier Picker
-
-    private func modifierPickerSection(for key: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Modifier for \"\(displayLabel(forCanonicalKey: key))\":")
-                    .font(.headline)
-                Spacer()
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedKey = nil
-                        showModifierPicker = false
-                    }
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("home-row-mods-modal-modifier-picker-close-button")
-                .accessibilityLabel("Close modifier picker")
-            }
-
-            HStack(spacing: 12) {
-                ForEach(modifierOptions, id: \.key) { option in
-                    modifierButton(
-                        label: option.label,
-                        symbol: option.symbol,
-                        isSelected: localConfig.modifierAssignments[key] == option.key,
-                        action: {
-                            localConfig.modifierAssignments[key] = option.key
-                        }
-                    )
-                }
-            }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
-        )
-    }
-
-    private func layerPickerSection(for key: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Layer for \"\(displayLabel(forCanonicalKey: key))\":")
-                    .font(.headline)
-                Spacer()
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedKey = nil
-                        showModifierPicker = false
-                    }
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("home-row-mods-modal-layer-picker-close-button")
-                .accessibilityLabel("Close layer picker")
-            }
-
-            HStack(spacing: 12) {
-                ForEach(layerOptions, id: \.key) { option in
-                    modifierButton(
-                        label: option.label,
-                        symbol: option.short,
-                        isSelected: localConfig.layerAssignments[key] == option.key,
-                        action: {
-                            localConfig.layerAssignments[key] = option.key
-                        }
-                    )
-                }
-            }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
-        )
-    }
-
-    private var layerOptions: [(key: String, label: String, short: String)] {
-        [
-            ("num", "Numpad", "123"),
-            ("sys1", "System 1", "S1"),
-            ("sys2", "System 2", "S2"),
-            ("nav", "Navigation", "NAV")
-        ]
-    }
-
-    private var modifierOptions: [(key: String, label: String, symbol: String)] {
-        [
-            ("lmet", "Command", "⌘"),
-            ("lalt", "Option", "⌥"),
-            ("lctl", "Control", "⌃"),
-            ("lsft", "Shift", "⇧")
-        ]
-    }
-
-    private func modifierButton(label: String, symbol: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Text(symbol)
-                    .font(.title2)
-                Text(label)
-                    .font(.caption)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? .accentColor : Color(NSColor.controlBackgroundColor))
-            )
-            .foregroundColor(isSelected ? .white : .primary)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? .accentColor : Color.secondary.opacity(0.2), lineWidth: isSelected ? 2 : 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("home-row-mods-modal-modifier-button-\(label.lowercased())")
-        .accessibilityLabel("Select \(label) modifier")
-    }
-
     private enum HoldPreset {
         case standard, slowPinkies, custom
     }
@@ -579,10 +345,6 @@ struct HomeRowModsModalView: View {
                 }
             }
         )
-    }
-
-    private var activeHoldAssignments: [String: String] {
-        localConfig.holdMode == .modifiers ? localConfig.modifierAssignments : localConfig.layerAssignments
     }
 
     private func displayLabel(forCanonicalKey key: String) -> String {

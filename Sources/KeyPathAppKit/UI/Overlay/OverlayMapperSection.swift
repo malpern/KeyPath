@@ -581,21 +581,15 @@ struct OverlayMapperSection: View {
         ScrollView {
             VStack(spacing: 0) {
                 everywhereOption
-                Divider().opacity(0.2).padding(.horizontal, 8)
+                PopoverListDivider()
                 onlyInHeader
                 runningAppsList
-                Divider().opacity(0.2).padding(.horizontal, 8)
+                PopoverListDivider()
                 chooseAppOption
             }
             .padding(.vertical, 6)
         }
         .frame(minWidth: 240, maxHeight: 350)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5)
-        )
-        .padding(4)
+        .pickerPopoverChrome()
     }
 }

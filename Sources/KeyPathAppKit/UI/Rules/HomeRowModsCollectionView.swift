@@ -6,12 +6,18 @@ import SwiftUI
 /// Main view for Home Row Mods collection with progressive disclosure
 struct HomeRowModsCollectionView: View {
     @Binding var config: HomeRowModsConfig
+    let availableLayers: [String]
     let onConfigChanged: (HomeRowModsConfig) -> Void
+    let onEnsureLayersExist: ([String]) async -> Void
 
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
-    @State private var showCustomize = false
+    @State private var showingCustomizeWindow = false
     @State private var selectedKey: String?
-    @State private var showModifierPicker = false
+    @State private var showingLayerModeSetup = false
+    @State private var showingNewLayerSheet = false
+    @State private var newLayerName = ""
+    @State private var locallyCreatedLayers: Set<String> = []
+    @State private var hoveredHoldBehavior: HomeRowHoldMode?
 
     private var activeKeymap: LogicalKeymap {
         LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
@@ -25,120 +31,207 @@ struct HomeRowModsCollectionView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Key Mapping")
+                    .font(.body.weight(.semibold))
+                Text(keyMappingInstructionText)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 10)
+
             // Visual keyboard (always visible when expanded)
-            HomeRowKeyboardView(
-                enabledKeys: config.enabledKeys,
-                modifierAssignments: activeHoldAssignments,
-                selectedKey: selectedKey,
-                keyDisplayLabels: homeRowDisplayLabels,
-                helperText: config.holdMode == .modifiers ? "Tap for letter, hold for modifier" : "Tap for letter, hold for layer",
-                onKeySelected: { key in
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedKey = selectedKey == key ? nil : key
-                        showModifierPicker = selectedKey != nil
-                    }
-                }
-            )
+            ViewThatFits(in: .horizontal) {
+                homeRowKeyboard(size: 72)
+                homeRowKeyboard(size: 68)
+                homeRowKeyboard(size: 64)
+                homeRowKeyboard(size: 60)
+                homeRowKeyboard(size: 56)
+                homeRowKeyboard(size: 52)
+                homeRowKeyboard(size: 48)
+            }
             .padding(.bottom, 16)
 
-            // Progressive disclosure: Customize section
-            if showCustomize {
-                customizeSection
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            } else {
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        showCustomize = true
-                    }
-                }) {
-                    HStack {
-                        Text("Customize...")
-                            .font(.body)
-                        Spacer()
-                    }
-                    .padding(.vertical, 8)
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.accentColor)
-                .accessibilityIdentifier("home-row-mods-customize-button")
-                .accessibilityLabel("Customize home row mods")
+            Button("Settings") {
+                showingCustomizeWindow = true
             }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("home-row-mods-customize-button")
+            .accessibilityLabel("Home row mods settings")
 
-            // Modifier picker (contextual, appears when key is selected)
-            if showModifierPicker, let selectedKey {
-                Group {
-                    if config.holdMode == .modifiers {
-                        modifierPickerSection(for: selectedKey)
-                    } else {
-                        layerPickerSection(for: selectedKey)
-                    }
-                }
-                    .padding(.top, 12)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
         }
-        .animation(.easeInOut(duration: 0.25), value: showCustomize)
-        .animation(.easeInOut(duration: 0.2), value: showModifierPicker)
+        .animation(.easeInOut(duration: 0.2), value: selectedKey)
+        .onAppear {
+            normalizeLegacyLayerModeIfNeeded()
+        }
+        .sheet(isPresented: $showingCustomizeWindow) {
+            customizeWindowContent
+        }
     }
 
     // MARK: - Customize Section
 
-    private var customizeSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Hold Action")
-                    .font(.body)
-                Picker("Hold Action", selection: Binding(
-                    get: { config.holdMode },
-                    set: { newValue in
-                        config.holdMode = newValue
-                        updateConfig()
-                    }
-                )) {
-                    Text("Modifiers").tag(HomeRowHoldMode.modifiers)
-                    Text("Layers").tag(HomeRowHoldMode.layers)
+    private var customizeWindowContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Home Row Preferences")
+                    .font(.title3.weight(.semibold))
+                Spacer()
+                Button("Done") {
+                    showingCustomizeWindow = false
                 }
-                .pickerStyle(.segmented)
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 10)
+
+            Divider()
+
+            ScrollView {
+                customizeSection
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
+            }
+        }
+        .frame(minWidth: 560, minHeight: 520)
+        .settingsBackground()
+        .sheet(isPresented: $showingLayerModeSetup) {
+            layerModeSetupSheet
+        }
+        .sheet(isPresented: $showingNewLayerSheet) {
+            newLayerSheet
+        }
+    }
+
+    @ViewBuilder
+    private func homeRowKeyboard(size: CGFloat) -> some View {
+        HomeRowKeyboardView(
+            enabledKeys: config.enabledKeys,
+            modifierAssignments: activeHoldAssignments,
+            holdMode: config.holdMode,
+            selectedKey: selectedKey,
+            keyDisplayLabels: homeRowDisplayLabels,
+            helperText: config.holdMode == .modifiers ? "Tap for letter, hold for modifier" : "Tap for letter, hold for layer",
+            keyChipSize: size,
+            keyPopoverContent: { key in
+                AnyView(
+                    Group {
+                        if config.holdMode == .layers {
+                            layerPopoverContent(for: key)
+                        } else {
+                            modifierPopoverContent(for: key)
+                        }
+                    }
+                )
+            },
+            onPopoverDismiss: {
+                selectedKey = nil
+            },
+            onKeySelected: { key in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    selectedKey = selectedKey == key ? nil : key
+                }
+            }
+        )
+    }
+
+    private var customizeSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("These settings control what your home-row keys do when you hold them. Tap still types letters.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Hold Behavior")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    holdBehaviorOptionCard(
+                        mode: .modifiers,
+                        icon: "command",
+                        title: "Modifiers",
+                        subtitle: "Recommended"
+                    )
+
+                    holdBehaviorOptionCard(
+                        mode: .layers,
+                        icon: "square.stack.3d.up",
+                        title: "Layers",
+                        subtitle: "Advanced"
+                    )
+                }
                 .accessibilityIdentifier("home-row-mods-hold-mode-picker")
                 .accessibilityLabel("Hold action mode")
+
+                Text(holdBehaviorExplanationText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
-            // Key selection
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Which keys?")
-                    .font(.body)
+            Divider()
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(config.holdMode == .modifiers ? "Modifier Preset" : "Layer Preset")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
 
                 if config.holdMode == .modifiers {
-                    Picker("Preset", selection: Binding(
-                        get: { modifierPresetSelection(from: config.modifierAssignments) },
-                        set: { preset in
-                            switch preset {
-                            case .macCAGS:
-                                config.modifierAssignments = HomeRowModsConfig.cagsMacDefault
-                                config.enabledKeys = Set(HomeRowModsConfig.allKeys)
-                            case .winGACS:
-                                config.modifierAssignments = HomeRowModsConfig.gacsWindows
-                                config.enabledKeys = Set(HomeRowModsConfig.allKeys)
-                            case .custom:
-                                break
-                            }
+                    HStack(spacing: 10) {
+                        SettingsOptionCard(
+                            icon: "applelogo",
+                            title: "Mac (CAGS)",
+                            subtitle: "Command on index keys",
+                            isSelected: modifierPresetSelection(from: config.modifierAssignments) == .macCAGS
+                        ) {
+                            config.modifierAssignments = HomeRowModsConfig.cagsMacDefault
+                            config.enabledKeys = Set(HomeRowModsConfig.allKeys)
                             updateConfig()
                         }
-                    )) {
-                        Text("Mac (CAGS: Cmd on index)").tag(HomeRowModifierPreset.macCAGS)
-                        Text("Windows/Linux (GACS)").tag(HomeRowModifierPreset.winGACS)
-                        Text("Custom").tag(HomeRowModifierPreset.custom)
+                        .accessibilityIdentifier("home-row-mods-preset-mac-cags")
+
+                        SettingsOptionCard(
+                            icon: "desktopcomputer",
+                            title: "Windows (GACS)",
+                            subtitle: "GUI on pinky keys",
+                            isSelected: modifierPresetSelection(from: config.modifierAssignments) == .winGACS
+                        ) {
+                            config.modifierAssignments = HomeRowModsConfig.gacsWindows
+                            config.enabledKeys = Set(HomeRowModsConfig.allKeys)
+                            updateConfig()
+                        }
+                        .accessibilityIdentifier("home-row-mods-preset-windows-gacs")
+
+                        SettingsOptionCard(
+                            icon: "slider.horizontal.3",
+                            title: "Custom",
+                            subtitle: "Choose per-key manually",
+                            isSelected: modifierPresetSelection(from: config.modifierAssignments) == .custom
+                        ) {
+                            // Keep existing assignments; user edits per key on the keyboard.
+                        }
+                        .accessibilityIdentifier("home-row-mods-preset-custom")
                     }
-                    .pickerStyle(.segmented)
+                    .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("home-row-mods-preset-picker")
                     .accessibilityLabel("Modifier preset selection")
+
+                    Text(modifierPresetExplanationText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 } else {
+                    Text("Recommended assigns symmetric layers to both hands (good default).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
                     Picker("Layer Preset", selection: Binding(
                         get: { layerPresetSelection(from: config.layerAssignments) },
                         set: { preset in
                             switch preset {
                             case .default:
-                                config.layerAssignments = HomeRowModsConfig.defaultLayerAssignments
+                                config.layerAssignments = recommendedLayerAssignments
                                 config.enabledKeys = Set(HomeRowModsConfig.allKeys)
                             case .custom:
                                 break
@@ -146,48 +239,95 @@ struct HomeRowModsCollectionView: View {
                             updateConfig()
                         }
                     )) {
-                        Text("Default (num, sys1, sys2, nav)").tag(HomeRowLayerPreset.default)
+                        Text("Recommended").tag(HomeRowLayerPreset.default)
                         Text("Custom").tag(HomeRowLayerPreset.custom)
                     }
                     .pickerStyle(.segmented)
+                    .labelsHidden()
                     .accessibilityIdentifier("home-row-mods-layer-preset-picker")
                     .accessibilityLabel("Layer preset selection")
 
-                    Picker("Layer Mode", selection: Binding(
-                        get: { config.layerToggleMode },
-                        set: { newValue in
-                            config.layerToggleMode = newValue
-                            updateConfig()
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Layer Activation")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Picker("Layer Mode", selection: Binding(
+                            get: { config.layerToggleMode },
+                            set: { newValue in
+                                config.layerToggleMode = newValue
+                                updateConfig()
+                            }
+                        )) {
+                            Text(LayerToggleMode.whileHeld.displayName).tag(LayerToggleMode.whileHeld)
+                            Text(LayerToggleMode.toggle.displayName).tag(LayerToggleMode.toggle)
                         }
-                    )) {
-                        Text(LayerToggleMode.whileHeld.displayName).tag(LayerToggleMode.whileHeld)
-                        Text(LayerToggleMode.toggle.displayName).tag(LayerToggleMode.toggle)
+                        .pickerStyle(.radioGroup)
+                        .horizontalRadioGroupLayout()
+                        .accessibilityIdentifier("home-row-mods-layer-toggle-mode-picker")
+                        .accessibilityLabel("Layer activation mode")
                     }
-                    .pickerStyle(.radioGroup)
-                    .horizontalRadioGroupLayout()
-                    .accessibilityIdentifier("home-row-mods-layer-toggle-mode-picker")
-                    .accessibilityLabel("Layer activation mode")
                 }
+            }
 
-                Picker("Key Selection", selection: Binding(
-                    get: { config.keySelection },
-                    set: { newValue in
-                        config.keySelection = newValue
-                        config.enabledKeys = newValue.enabledKeys
-                        updateConfig()
+            Divider()
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Active Keys")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                Text("Choose which home-row keys use tap-hold behavior.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    SettingsOptionCard(
+                        icon: "hands.sparkles",
+                        title: "Both Hands",
+                        subtitle: "All 8 home-row keys",
+                        isSelected: config.keySelection == .both
+                    ) {
+                        applyKeySelection(.both)
                     }
-                )) {
-                    Text("Both hands").tag(KeySelection.both)
-                    Text("Left hand only").tag(KeySelection.leftOnly)
-                    Text("Right hand only").tag(KeySelection.rightOnly)
-                    Text("Custom").tag(KeySelection.custom)
+                    .accessibilityIdentifier("home-row-mods-key-selection-both")
+
+                    SettingsOptionCard(
+                        icon: "hand.point.left.fill",
+                        title: "Left Only",
+                        subtitle: "A S D F",
+                        isSelected: config.keySelection == .leftOnly
+                    ) {
+                        applyKeySelection(.leftOnly)
+                    }
+                    .accessibilityIdentifier("home-row-mods-key-selection-left")
+
+                    SettingsOptionCard(
+                        icon: "hand.point.right.fill",
+                        title: "Right Only",
+                        subtitle: "J K L ;",
+                        isSelected: config.keySelection == .rightOnly
+                    ) {
+                        applyKeySelection(.rightOnly)
+                    }
+                    .accessibilityIdentifier("home-row-mods-key-selection-right")
+
+                    SettingsOptionCard(
+                        icon: "slider.horizontal.3",
+                        title: "Custom",
+                        subtitle: "Pick individual keys",
+                        isSelected: config.keySelection == .custom
+                    ) {
+                        applyKeySelection(.custom)
+                    }
+                    .accessibilityIdentifier("home-row-mods-key-selection-custom")
                 }
-                .pickerStyle(.radioGroup)
-                .horizontalRadioGroupLayout()
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("home-row-mods-key-selection-picker")
                 .accessibilityLabel("Key selection")
 
-                // Custom key picker (appears contextually)
+                Text(keySelectionExplanationText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 if config.keySelection == .custom {
                     customKeyPicker
                         .padding(.top, 8)
@@ -195,10 +335,15 @@ struct HomeRowModsCollectionView: View {
                 }
             }
 
-            // Timing controls
-            VStack(alignment: .leading, spacing: 8) {
+            Divider()
+
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Timing")
-                    .font(.body)
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                Text("Defaults usually work. Adjust only if you get accidental holds or missed holds.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 HStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
@@ -271,7 +416,7 @@ struct HomeRowModsCollectionView: View {
                 }
                 .disabled(!config.timing.quickTapEnabled)
 
-                Toggle("Show per-key tap offsets", isOn: Binding(
+                Toggle("Show advanced per-finger timing", isOn: Binding(
                     get: { config.showAdvanced },
                     set: { newValue in
                         config.showAdvanced = newValue
@@ -280,11 +425,19 @@ struct HomeRowModsCollectionView: View {
                 ))
                 .toggleStyle(.checkbox)
                 .accessibilityIdentifier("home-row-mods-show-advanced-toggle")
-                .accessibilityLabel("Show per-key tap offsets")
+                .accessibilityLabel("Show advanced per-finger timing")
 
                 if config.showAdvanced {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Per-key tap offsets (ms)")
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(timingEducationText)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("Use small values first (10-30ms). Set 0 to use global timing.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.bottom, 2)
+
+                        Text("Per-finger tap offsets (ms)")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
@@ -313,39 +466,71 @@ struct HomeRowModsCollectionView: View {
                                 Spacer()
                             }
                         }
-                        Text("Positive values extend the tap window per key; leave 0 for default.")
+                        Text("Positive values extend tap window for that finger/key.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Divider()
+                            .padding(.vertical, 4)
+
+                        Text("Per-finger hold offsets (ms)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        Toggle("Use pinky-friendly hold defaults", isOn: pinkyDefaultsBinding)
+                            .toggleStyle(.checkbox)
+                            .disabled(isCustomHoldOffsets)
+                            .accessibilityIdentifier("home-row-mods-pinky-defaults-toggle")
+                            .accessibilityLabel("Use pinky-friendly hold defaults")
+
+                        if isCustomHoldOffsets {
+                            HStack(spacing: 8) {
+                                Text("Manual per-key overrides are active.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Button("Reset to standard") {
+                                    config.timing.holdOffsets = [:]
+                                    updateConfig()
+                                }
+                                .buttonStyle(.link)
+                                .accessibilityIdentifier("home-row-mods-reset-hold-offsets-button")
+                                .accessibilityLabel("Reset per-key hold offsets to standard")
+                            }
+                        }
+
+                        ForEach(chunks(of: HomeRowModsConfig.allKeys, size: 4), id: \.self) { row in
+                            HStack(spacing: 12) {
+                                ForEach(row, id: \.self) { key in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(displayLabel(forCanonicalKey: key))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        TextField("0", value: Binding(
+                                            get: { config.timing.holdOffsets[key] ?? 0 },
+                                            set: { newValue in
+                                                if newValue == 0 {
+                                                    config.timing.holdOffsets.removeValue(forKey: key)
+                                                } else {
+                                                    config.timing.holdOffsets[key] = newValue
+                                                }
+                                                updateConfig()
+                                            }
+                                        ), format: .number)
+                                            .textFieldStyle(.roundedBorder)
+                                            .frame(width: 70)
+                                    }
+                                }
+                                Spacer()
+                            }
+                        }
+                        Text("Positive values extend hold delay for that finger/key.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-
-            // Fewer Options button
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    showCustomize = false
-                    selectedKey = nil
-                    showModifierPicker = false
-                }
-            }) {
-                HStack {
-                    Text("Fewer Options")
-                        .font(.body)
-                    Spacer()
-                }
-                .padding(.vertical, 8)
-            }
-            .buttonStyle(.plain)
-            .foregroundColor(.secondary)
-            .accessibilityIdentifier("home-row-mods-fewer-options-button")
-            .accessibilityLabel("Fewer options")
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.3))
-        )
     }
 
     // MARK: - Custom Key Picker
@@ -388,131 +573,136 @@ struct HomeRowModsCollectionView: View {
         }
     }
 
-    // MARK: - Modifier Picker
+    // MARK: - Assignment Popovers
 
-    private func modifierPickerSection(for key: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Modifier for \"\(displayLabel(forCanonicalKey: key))\":")
-                    .font(.body)
-                Spacer()
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedKey = nil
-                        showModifierPicker = false
-                    }
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("home-row-mods-modifier-picker-close-button")
-                .accessibilityLabel("Close modifier picker")
-            }
-
-            HStack(spacing: 12) {
-                ForEach(modifierOptions, id: \.key) { option in
-                    modifierButton(
-                        label: option.label,
-                        symbol: option.symbol,
-                        isSelected: config.modifierAssignments[key] == option.key,
-                        action: {
-                            config.modifierAssignments[key] = option.key
-                            updateConfig()
-                        }
-                    )
-                }
-            }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
-        )
-    }
-
-    private var modifierOptions: [(key: String, label: String, symbol: String)] {
+    private var modifierOptions: [(kind: String, label: String, symbol: String)] {
         [
-            ("lmet", "Command", "⌘"),
-            ("lalt", "Option", "⌥"),
-            ("lctl", "Control", "⌃"),
-            ("lsft", "Shift", "⇧")
+            ("met", "Command", "⌘"),
+            ("alt", "Option", "⌥"),
+            ("ctl", "Control", "⌃"),
+            ("sft", "Shift", "⇧")
         ]
     }
 
-    private func layerPickerSection(for key: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Layer for \"\(displayLabel(forCanonicalKey: key))\":")
-                    .font(.body)
-                Spacer()
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedKey = nil
-                        showModifierPicker = false
-                    }
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("home-row-mods-layer-picker-close-button")
-                .accessibilityLabel("Close layer picker")
-            }
-
-            HStack(spacing: 12) {
-                ForEach(layerOptions, id: \.key) { option in
-                    modifierButton(
-                        label: option.label,
-                        symbol: option.short,
-                        isSelected: config.layerAssignments[key] == option.key,
-                        action: {
-                            config.layerAssignments[key] = option.key
-                            updateConfig()
+    private func modifierPopoverContent(for key: String) -> some View {
+        VStack(spacing: 0) {
+            ForEach(modifierOptions.indices, id: \.self) { index in
+                let option = modifierOptions[index]
+                Button {
+                    config.modifierAssignments[key] = sidedModifierAssignment(for: key, kind: option.kind)
+                    updateConfig()
+                    selectedKey = nil
+                } label: {
+                    HStack(spacing: 10) {
+                        Text(option.symbol)
+                            .font(.body.weight(.semibold))
+                            .frame(width: 20)
+                            .foregroundStyle(isModifierOptionSelected(option.kind, for: key) ? Color.accentColor : .secondary)
+                        Text(option.label)
+                            .font(.body)
+                        Spacer()
+                        if isModifierOptionSelected(option.kind, for: key) {
+                            Image(systemName: "checkmark")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(Color.accentColor)
                         }
-                    )
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(LayerPickerItemButtonStyle())
+                .focusable(false)
+                .accessibilityIdentifier("home-row-mods-modifier-option-\(option.kind)")
+                .accessibilityLabel("Set \(displayLabel(forCanonicalKey: key)) to \(option.symbol) \(option.label)")
+
+                if index < modifierOptions.count - 1 {
+                    PopoverListDivider()
                 }
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
-        )
+        .padding(.vertical, 6)
+        .frame(minWidth: 210)
+        .pickerPopoverChrome()
     }
 
-    private var layerOptions: [(key: String, label: String, short: String)] {
-        [
-            ("num", "Numpad", "123"),
-            ("sys1", "System 1", "S1"),
-            ("sys2", "System 2", "S2"),
-            ("nav", "Navigation", "NAV")
-        ]
-    }
+    private func layerPopoverContent(for key: String) -> some View {
+        VStack(spacing: 0) {
+            ForEach(layerOptions.indices, id: \.self) { index in
+                let option = layerOptions[index]
+                Button {
+                    config.layerAssignments[key] = option.key
+                    updateConfig()
+                    selectedKey = nil
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: option.icon)
+                            .font(.body)
+                            .frame(width: 20)
+                            .foregroundStyle(config.layerAssignments[key] == option.key ? Color.accentColor : .secondary)
+                        Text(option.label)
+                            .font(.body)
+                        Spacer()
+                        if config.layerAssignments[key] == option.key {
+                            Image(systemName: "checkmark")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(LayerPickerItemButtonStyle())
+                .focusable(false)
+                .accessibilityIdentifier("home-row-mods-layer-option-\(option.key)")
+                .accessibilityLabel("Set \(displayLabel(forCanonicalKey: key)) to \(option.label) layer")
 
-    private func modifierButton(label: String, symbol: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Text(symbol)
-                    .font(.title2)
-                Text(label)
-                    .font(.caption)
+                if index < layerOptions.count - 1 {
+                    PopoverListDivider()
+                }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? .accentColor : Color(NSColor.controlBackgroundColor))
-            )
-            .foregroundColor(isSelected ? .white : .primary)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? .accentColor : Color.secondary.opacity(0.2), lineWidth: isSelected ? 2 : 1)
-            )
+
+            PopoverListDivider()
+
+            Button {
+                showingNewLayerSheet = true
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "plus")
+                        .font(.body)
+                        .frame(width: 20)
+                        .foregroundStyle(.secondary)
+                    Text("New Layer...")
+                        .font(.body)
+                    Spacer()
+                }
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(LayerPickerItemButtonStyle())
+            .focusable(false)
+            .accessibilityIdentifier("home-row-mods-layer-option-new")
+            .accessibilityLabel("Create a new layer")
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("home-row-mods-modifier-button-\(label.lowercased())")
-        .accessibilityLabel("Select \(label) modifier")
+        .padding(.vertical, 6)
+        .frame(minWidth: 210)
+        .pickerPopoverChrome()
+    }
+
+    private var layerOptions: [(key: String, label: String, icon: String)] {
+        let options = availableLayerNames.map { layer in
+            (key: layer, label: LayerInfo.displayName(for: layer), icon: LayerInfo.iconName(for: layer))
+        }
+        assert(
+            options.allSatisfy { knownAvailableLayerNames.contains($0.key.lowercased()) },
+            "Home row layer options must only include existing (or just-created) layers."
+        )
+        return options
     }
 
     // MARK: - Helpers
@@ -534,6 +724,135 @@ struct HomeRowModsCollectionView: View {
         return label.uppercased()
     }
 
+    private var keyMappingInstructionText: String {
+        if config.holdMode == .layers {
+            return "Click a key to choose its layer."
+        }
+        return "Click a key to choose its modifier."
+    }
+
+    private var knownAvailableLayerNames: Set<String> {
+        Set(
+            availableLayers
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                .filter { !$0.isEmpty }
+        ).union(
+            locallyCreatedLayers
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                .filter { !$0.isEmpty }
+        )
+    }
+
+    private var availableLayerNames: [String] {
+        let names = Array(knownAvailableLayerNames).sorted()
+        assert(Set(names.map { $0.lowercased() }) == knownAvailableLayerNames, "Layer names should be normalized.")
+        return names
+    }
+
+    private var recommendedLayerNames: [String] {
+        ["num", "sys1", "sys2", "nav"]
+    }
+
+    private var recommendedLayerAssignments: [String: String] {
+        let left = recommendedLayerNames
+        return [
+            "a": left[0], "s": left[1], "d": left[2], "f": left[3],
+            "j": left[3], "k": left[2], "l": left[1], ";": left[0]
+        ]
+    }
+
+    private var missingRecommendedLayers: [String] {
+        let existing = Set(availableLayerNames.map { $0.lowercased() })
+        let needed = Set(recommendedLayerNames.map { $0.lowercased() })
+        return needed.filter { !existing.contains($0) }.sorted()
+    }
+
+    private var layerModeSetupSheet: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Use Home Row Layers?")
+                .font(.title3.weight(.semibold))
+
+            Text("Home Row Layers keep tap behavior the same, but a hold temporarily switches to another layer (like Nav, Symbols, or Numpad).")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Why some people use this")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                Text("It gives fast access to many keys without moving hands far from home row. If you mostly want shortcuts like Cmd/Opt/Ctrl/Shift, stick with Modifiers.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !missingRecommendedLayers.isEmpty {
+                Text("Recommended layers to create: \(missingRecommendedLayers.joined(separator: ", "))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                SettingsOptionCard(
+                    icon: "command",
+                    title: "Keep Modifiers",
+                    subtitle: "Simple and familiar home-row mods",
+                    isSelected: false
+                ) {
+                    config.holdMode = .modifiers
+                    config.hasUserSelectedHoldMode = true
+                    selectedKey = nil
+                    updateConfig()
+                    showingLayerModeSetup = false
+                }
+                .accessibilityIdentifier("home-row-mods-layer-setup-keep-modifiers")
+
+                SettingsOptionCard(
+                    icon: "sparkles",
+                    title: "Use Layers (Recommended Setup)",
+                    subtitle: "Auto-create recommended layers and assignments",
+                    isSelected: false
+                ) {
+                    Task {
+                        if !missingRecommendedLayers.isEmpty {
+                            await onEnsureLayersExist(missingRecommendedLayers)
+                            locallyCreatedLayers.formUnion(missingRecommendedLayers.map { $0.lowercased() })
+                        }
+                        config.layerAssignments = recommendedLayerAssignments
+                        applyHoldMode(.layers)
+                        showingLayerModeSetup = false
+                    }
+                }
+                .accessibilityIdentifier("home-row-mods-layer-setup-use-layers-recommended")
+
+                SettingsOptionCard(
+                    icon: "slider.horizontal.3",
+                    title: "Use Layers (Manual Setup)",
+                    subtitle: "Keep your existing layers and configure keys yourself",
+                    isSelected: false
+                ) {
+                    applyManualLayerModeWithoutCreating()
+                    showingLayerModeSetup = false
+                }
+                .accessibilityIdentifier("home-row-mods-layer-setup-use-layers-manual")
+            }
+
+            HStack {
+                Spacer()
+                Button("Not Now") {
+                    config.holdMode = .modifiers
+                    config.hasUserSelectedHoldMode = true
+                    updateConfig()
+                    showingLayerModeSetup = false
+                }
+                .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("home-row-mods-layer-setup-not-now-button")
+            }
+        }
+        .padding(20)
+        .frame(width: 540)
+        .settingsBackground()
+    }
+
     private enum HomeRowModifierPreset: Hashable {
         case macCAGS
         case winGACS
@@ -551,9 +870,231 @@ struct HomeRowModsCollectionView: View {
         return .custom
     }
 
+    private func normalizeLegacyLayerModeIfNeeded() {
+        guard config.holdMode == .layers, config.hasUserSelectedHoldMode == false else { return }
+        config.holdMode = .modifiers
+        selectedKey = nil
+        updateConfig()
+    }
+
+    private func applyHoldMode(_ mode: HomeRowHoldMode) {
+        config.holdMode = mode
+        config.hasUserSelectedHoldMode = true
+        selectedKey = nil
+        updateConfig()
+    }
+
+    private func applyKeySelection(_ selection: KeySelection) {
+        config.keySelection = selection
+        if selection == .custom {
+            if config.enabledKeys.isEmpty {
+                config.enabledKeys = Set(HomeRowModsConfig.allKeys)
+            }
+        } else {
+            config.enabledKeys = selection.enabledKeys
+        }
+        updateConfig()
+    }
+
+    @ViewBuilder
+    private func holdBehaviorOptionCard(
+        mode: HomeRowHoldMode,
+        icon: String,
+        title: String,
+        subtitle: String
+    ) -> some View {
+        let isSelected = config.holdMode == mode
+        let isHovered = hoveredHoldBehavior == mode
+
+        Button {
+            if mode == .layers, config.holdMode != .layers, !config.hasUserSelectedHoldMode {
+                showingLayerModeSetup = true
+                return
+            }
+            applyHoldMode(mode)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.headline)
+                    .foregroundStyle((isSelected || isHovered) ? Color.accentColor : .secondary)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight((isSelected || isHovered) ? .semibold : .regular))
+                        .foregroundStyle((isSelected || isHovered) ? .primary : .secondary)
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill((isSelected || isHovered) ? Color.accentColor.opacity(0.08) : .clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(
+                        (isSelected || isHovered) ? Color.accentColor.opacity(0.35) : Color.primary.opacity(0.08),
+                        lineWidth: (isSelected || isHovered) ? 1.5 : 0.5
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .onHover { hovering in
+            hoveredHoldBehavior = hovering ? mode : (hoveredHoldBehavior == mode ? nil : hoveredHoldBehavior)
+        }
+        .accessibilityIdentifier(
+            mode == .modifiers ? "home-row-mods-hold-mode-modifiers" : "home-row-mods-hold-mode-layers"
+        )
+    }
+
+    private var holdBehaviorExplanationText: String {
+        switch hoveredHoldBehavior ?? config.holdMode {
+        case .modifiers:
+            "Best for shortcuts and general app use. Hold a home-row key to get Cmd/Opt/Ctrl/Shift."
+        case .layers:
+            "Best for advanced layouts. Hold a home-row key to temporarily access another key layer."
+        }
+    }
+
+    private var modifierPresetExplanationText: String {
+        switch modifierPresetSelection(from: config.modifierAssignments) {
+        case .macCAGS:
+            "Mac default: index fingers get Command for common shortcuts."
+        case .winGACS:
+            "Windows/Linux default: pinkies get GUI/Super to match common workflows."
+        case .custom:
+            "Custom preset active. Click keys in the keyboard preview to assign modifiers."
+        }
+    }
+
+    private var keySelectionExplanationText: String {
+        switch config.keySelection {
+        case .both:
+            "Uses all home-row keys on both hands."
+        case .leftOnly:
+            "Only left-hand home-row keys use tap-hold behavior."
+        case .rightOnly:
+            "Only right-hand home-row keys use tap-hold behavior."
+        case .custom:
+            "Choose exactly which keys are active below."
+        }
+    }
+
     private func layerPresetSelection(from assignments: [String: String]) -> HomeRowLayerPreset {
-        if assignments == HomeRowModsConfig.defaultLayerAssignments { return .default }
+        if assignments == recommendedLayerAssignments { return .default }
         return .custom
+    }
+
+    private func applyManualLayerModeWithoutCreating() {
+        let existing = Set(availableLayerNames.map { $0.lowercased() })
+        var sanitized: [String: String] = [:]
+
+        for key in HomeRowModsConfig.allKeys {
+            guard let assigned = config.layerAssignments[key], existing.contains(assigned.lowercased()) else { continue }
+            sanitized[key] = assigned
+        }
+
+        if sanitized.isEmpty, let fallback = availableLayerNames.first {
+            for key in HomeRowModsConfig.allKeys {
+                sanitized[key] = fallback
+            }
+        }
+
+        config.layerAssignments = sanitized
+        applyHoldMode(.layers)
+    }
+
+    private var newLayerSheet: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Create New Layer")
+                .font(.title3.weight(.semibold))
+
+            TextField("Layer name", text: $newLayerName)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("home-row-mods-new-layer-name")
+
+            HStack {
+                Spacer()
+                Button("Cancel") {
+                    newLayerName = ""
+                    showingNewLayerSheet = false
+                }
+                .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("home-row-mods-new-layer-cancel-button")
+
+                Button("Create") {
+                    Task {
+                        let raw = newLayerName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                        guard !raw.isEmpty else { return }
+                        await onEnsureLayersExist([raw])
+                        locallyCreatedLayers.insert(raw)
+                        if let selectedKey {
+                            config.layerAssignments[selectedKey] = raw
+                            updateConfig()
+                        }
+                        newLayerName = ""
+                        showingNewLayerSheet = false
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .disabled(newLayerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityIdentifier("home-row-mods-new-layer-create-button")
+            }
+        }
+        .padding(20)
+        .frame(width: 360)
+    }
+
+    private var timingEducationText: String {
+        if config.holdMode == .layers {
+            return "Layer holds are sensitive to finger roll speed. People often add extra hold delay on pinkies/ring fingers to avoid accidental layer switches while typing."
+        }
+        return "Modifier holds are sensitive to finger speed too. People often add extra hold delay on pinkies/ring fingers to avoid accidental modifiers during normal typing."
+    }
+
+    private var pinkyDefaultsBinding: Binding<Bool> {
+        Binding(
+            get: { config.timing.holdOffsets == ["a": 50, ";": 50] },
+            set: { isEnabled in
+                if isEnabled {
+                    config.timing.holdOffsets = ["a": 50, ";": 50]
+                } else {
+                    config.timing.holdOffsets = [:]
+                }
+                updateConfig()
+            }
+        )
+    }
+
+    private var isCustomHoldOffsets: Bool {
+        let offsets = config.timing.holdOffsets
+        return !offsets.isEmpty && offsets != ["a": 50, ";": 50]
+    }
+
+    private func isModifierOptionSelected(_ kind: String, for key: String) -> Bool {
+        guard let assignment = config.modifierAssignments[key] else { return false }
+        return canonicalModifierKind(from: assignment) == kind
+    }
+
+    private func sidedModifierAssignment(for key: String, kind: String) -> String {
+        let isRightHand = HomeRowModsConfig.rightHandKeys.contains(key)
+        return (isRightHand ? "r" : "l") + kind
+    }
+
+    private func canonicalModifierKind(from assignment: String) -> String {
+        guard assignment.count == 4 else { return assignment }
+        if assignment.hasPrefix("l") || assignment.hasPrefix("r") {
+            return String(assignment.dropFirst())
+        }
+        return assignment
     }
 }
 

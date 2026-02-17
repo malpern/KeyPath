@@ -62,6 +62,7 @@ struct HomeRowLayerTogglesModalView: View {
                     HomeRowKeyboardView(
                         enabledKeys: localConfig.enabledKeys,
                         modifierAssignments: localConfig.layerAssignments,
+                        holdMode: .layers,
                         selectedKey: selectedKey,
                         keyDisplayLabels: homeRowDisplayLabels,
                         helperText: "Tap for letter, hold for layer",

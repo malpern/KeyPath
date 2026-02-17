@@ -86,24 +86,36 @@ private struct RuleCollectionRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 12) {
-                if let icon = collection.icon {
-                    iconView(for: icon)
-                }
+                Button(action: { isExpanded.toggle() }) {
+                    HStack(alignment: .top, spacing: 12) {
+                        if let icon = collection.icon {
+                            iconView(for: icon)
+                        }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(collection.name)
-                        .font(.headline)
-                    Text(collection.summary)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    if let activationDescription {
-                        Label(activationDescription, systemImage: "hand.point.up.left")
-                            .font(.caption)
-                            .foregroundColor(.accentColor)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(collection.name)
+                                .font(.headline)
+                            Text(collection.summary)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            if let activationDescription {
+                                Label(activationDescription, systemImage: "hand.point.up.left")
+                                    .font(.caption)
+                                    .foregroundColor(.accentColor)
+                            }
+                        }
+
+                        Spacer(minLength: 0)
+
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .foregroundColor(.secondary)
                     }
                 }
-
-                Spacer()
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("active-rules-expand-button-\(collection.id)")
+                .accessibilityLabel(isExpanded ? "Collapse \(collection.name)" : "Expand \(collection.name)")
 
                 Toggle(
                     "",
@@ -120,14 +132,6 @@ private struct RuleCollectionRow: View {
                 .tint(.blue)
                 .accessibilityIdentifier("active-rules-toggle-\(collection.id)")
                 .accessibilityLabel("Toggle \(collection.name)")
-
-                Button(action: { isExpanded.toggle() }) {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("active-rules-expand-button-\(collection.id)")
-                .accessibilityLabel(isExpanded ? "Collapse \(collection.name)" : "Expand \(collection.name)")
             }
 
             if isExpanded {

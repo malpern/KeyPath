@@ -9,6 +9,7 @@ extension RuleCollectionsManager {
         static let launcherEnabledByDefault = "RuleCollections.Migration.LauncherEnabledByDefault"
         static let vimEnabledByDefault = "RuleCollections.Migration.VimEnabledByDefault"
         static let unifiedHomeRowMods = "RuleCollections.Migration.UnifiedHomeRowMods"
+        static let homeRowModsDefaultToModifiers = "RuleCollections.Migration.HomeRowModsDefaultToModifiers"
     }
 
     /// Run one-time migrations for collection state changes
@@ -42,6 +43,12 @@ extension RuleCollectionsManager {
             migrateHomeRowLayerTogglesIntoHomeRowMods()
             UserDefaults.standard.set(true, forKey: MigrationKey.unifiedHomeRowMods)
         }
+
+        // Migration: Ensure Home Row Mods defaults to modifiers unless user explicitly opted into layers.
+        if !UserDefaults.standard.bool(forKey: MigrationKey.homeRowModsDefaultToModifiers) {
+            normalizeHomeRowModsDefaultHoldMode()
+            UserDefaults.standard.set(true, forKey: MigrationKey.homeRowModsDefaultToModifiers)
+        }
     }
 
     private func migrateHomeRowLayerTogglesIntoHomeRowMods() {
@@ -55,7 +62,8 @@ extension RuleCollectionsManager {
             enabledKeys: layerConfig.enabledKeys,
             modifierAssignments: HomeRowModsConfig.cagsMacDefault,
             layerAssignments: layerConfig.layerAssignments,
-            holdMode: .layers,
+            holdMode: .modifiers,
+            hasUserSelectedHoldMode: false,
             layerToggleMode: layerConfig.toggleMode,
             timing: layerConfig.timing,
             keySelection: layerConfig.keySelection,
@@ -74,7 +82,7 @@ extension RuleCollectionsManager {
                 ruleCollections[modsIndex].isEnabled = true
             }
         } else {
-            var homeRowMods = RuleCollectionCatalog().defaultCollections()
+            let homeRowMods = RuleCollectionCatalog().defaultCollections()
                 .first(where: { $0.id == RuleCollectionIdentifier.homeRowMods })
             if var homeRowMods {
                 homeRowMods.configuration = .homeRowMods(unifiedConfig)
@@ -84,6 +92,23 @@ extension RuleCollectionsManager {
         }
 
         AppLogger.shared.log("♻️ [RuleCollections] Migration: Unified Home Row Layer Toggles into Home Row Mods")
+    }
+
+    private func normalizeHomeRowModsDefaultHoldMode() {
+        var updated = 0
+
+        for index in ruleCollections.indices {
+            guard var config = ruleCollections[index].configuration.homeRowModsConfig else { continue }
+            guard config.holdMode == .layers, config.hasUserSelectedHoldMode == false else { continue }
+
+            config.holdMode = .modifiers
+            ruleCollections[index].configuration = .homeRowMods(config)
+            updated += 1
+        }
+
+        if updated > 0 {
+            AppLogger.shared.log("♻️ [RuleCollections] Migration: Reset \(updated) Home Row Mods collection(s) to modifiers mode by default")
+        }
     }
 
     func dedupeRuleCollectionsInPlace() {

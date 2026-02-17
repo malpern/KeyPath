@@ -29,6 +29,7 @@ struct HomeRowLayerTogglesCollectionView: View {
             HomeRowKeyboardView(
                 enabledKeys: config.enabledKeys,
                 modifierAssignments: config.layerAssignments,
+                holdMode: .layers,
                 selectedKey: selectedKey,
                 keyDisplayLabels: homeRowDisplayLabels,
                 helperText: "Tap for letter, hold for layer",

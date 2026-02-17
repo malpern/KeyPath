@@ -14,6 +14,10 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
     /// Hold behavior mode
     public var holdMode: HomeRowHoldMode
 
+    /// True once the user has explicitly selected a hold mode in the UI.
+    /// Used to keep new/legacy configs defaulting to modifiers until user opts into layers.
+    public var hasUserSelectedHoldMode: Bool
+
     /// Layer activation mode used when `holdMode == .layers`
     public var layerToggleMode: LayerToggleMode
 
@@ -31,6 +35,7 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         modifierAssignments: [String: String] = HomeRowModsConfig.cagsMacDefault,
         layerAssignments: [String: String] = HomeRowModsConfig.defaultLayerAssignments,
         holdMode: HomeRowHoldMode = .modifiers,
+        hasUserSelectedHoldMode: Bool = false,
         layerToggleMode: LayerToggleMode = .whileHeld,
         timing: TimingConfig = .default,
         keySelection: KeySelection = .both,
@@ -40,6 +45,7 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         self.modifierAssignments = modifierAssignments
         self.layerAssignments = layerAssignments
         self.holdMode = holdMode
+        self.hasUserSelectedHoldMode = hasUserSelectedHoldMode
         self.layerToggleMode = layerToggleMode
         self.timing = timing
         self.keySelection = keySelection
@@ -80,6 +86,7 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         case modifierAssignments
         case layerAssignments
         case holdMode
+        case hasUserSelectedHoldMode
         case layerToggleMode
         case timing
         case keySelection
@@ -92,6 +99,7 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         modifierAssignments = try container.decodeIfPresent([String: String].self, forKey: .modifierAssignments) ?? Self.cagsMacDefault
         layerAssignments = try container.decodeIfPresent([String: String].self, forKey: .layerAssignments) ?? Self.defaultLayerAssignments
         holdMode = try container.decodeIfPresent(HomeRowHoldMode.self, forKey: .holdMode) ?? .modifiers
+        hasUserSelectedHoldMode = try container.decodeIfPresent(Bool.self, forKey: .hasUserSelectedHoldMode) ?? false
         layerToggleMode = try container.decodeIfPresent(LayerToggleMode.self, forKey: .layerToggleMode) ?? .whileHeld
         timing = try container.decodeIfPresent(TimingConfig.self, forKey: .timing) ?? .default
         keySelection = try container.decodeIfPresent(KeySelection.self, forKey: .keySelection) ?? .both
@@ -104,6 +112,7 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         try container.encode(modifierAssignments, forKey: .modifierAssignments)
         try container.encode(layerAssignments, forKey: .layerAssignments)
         try container.encode(holdMode, forKey: .holdMode)
+        try container.encode(hasUserSelectedHoldMode, forKey: .hasUserSelectedHoldMode)
         try container.encode(layerToggleMode, forKey: .layerToggleMode)
         try container.encode(timing, forKey: .timing)
         try container.encode(keySelection, forKey: .keySelection)

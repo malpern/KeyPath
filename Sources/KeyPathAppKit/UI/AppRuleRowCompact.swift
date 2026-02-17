@@ -45,6 +45,7 @@ struct AppRuleRowCompact: View {
                             .font(.body.monospaced().weight(.semibold))
                             .foregroundColor(KeycapStyle.textColor)
                             .modifier(KeycapStyle())
+                            .accessibilityIdentifier("app-rule-row-compact-input-\(override.id)")
 
                         Image(systemName: "arrow.right")
                             .font(.body.weight(.medium))
@@ -112,6 +113,8 @@ struct AppRuleRowCompact: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("app-rule-row-compact-button-\(override.id)")
+        .accessibilityLabel("Edit app rule for \(prettyKeyName(override.inputKey))")
         .onHover { hovering in
             isHovered = hovering
             if hovering {

@@ -75,6 +75,7 @@ struct MappingRowView: View {
                             .font(.body.monospaced().weight(.semibold))
                             .foregroundColor(KeycapStyle.textColor)
                             .modifier(KeycapStyle())
+                            .accessibilityIdentifier("rules-summary-mapping-row-input-\(mapping.id)")
 
                         Image(systemName: "arrow.right")
                             .font(.body.weight(.medium))
@@ -160,6 +161,8 @@ struct MappingRowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("rules-summary-mapping-row-button-\(mapping.id)")
+        .accessibilityLabel("Edit mapping for \(prettyKeyName(mapping.input))")
         .onHover { hovering in
             isHovered = hovering
             if isEditable {

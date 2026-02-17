@@ -43,13 +43,13 @@ extension OverlayMapperSection {
                 holdVariantRow(variant)
 
                 if variant != HoldVariant.allCases.last {
-                    Divider().opacity(0.2).padding(.horizontal, 8)
+                    PopoverListDivider()
                 }
             }
 
             // Custom keys input (shown when Custom is selected)
             if viewModel.holdBehavior == .customKeys {
-                Divider().opacity(0.3).padding(.horizontal, 8)
+                PopoverListDivider()
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Tap-trigger keys:")
@@ -74,8 +74,7 @@ extension OverlayMapperSection {
         }
         .padding(.vertical, 6)
         .frame(width: 280)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .pickerPopoverChrome()
         .animation(.easeInOut(duration: 0.2), value: viewModel.holdBehavior)
     }
 

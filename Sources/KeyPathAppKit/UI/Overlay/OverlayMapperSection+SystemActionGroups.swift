@@ -86,7 +86,7 @@ extension OverlayMapperSection {
                 .buttonStyle(LayerPickerItemButtonStyle())
                 .focusable(false)
 
-                Divider().opacity(0.2).padding(.horizontal, 8)
+                PopoverListDivider()
 
                 // "System Action" option - clickable to expand/collapse
                 Button {
@@ -136,7 +136,7 @@ extension OverlayMapperSection {
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
-                Divider().opacity(0.2).padding(.horizontal, 8)
+                PopoverListDivider()
 
                 // "Launch App" option - clickable to expand/collapse
                 Button {
@@ -191,7 +191,7 @@ extension OverlayMapperSection {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
-                Divider().opacity(0.2).padding(.horizontal, 8)
+                PopoverListDivider()
 
                 // "Open URL" option
                 Button {
@@ -225,7 +225,7 @@ extension OverlayMapperSection {
                 .focusable(false)
                 .accessibilityIdentifier("overlay-mapper-output-url")
 
-                Divider().opacity(0.2).padding(.horizontal, 8)
+                PopoverListDivider()
 
                 // "Go to Layer" option - clickable to expand/collapse
                 Button {
@@ -279,16 +279,10 @@ extension OverlayMapperSection {
         .scrollBounceBehavior(.basedOnSize)
         .frame(width: 320)
         .frame(maxHeight: popoverMaxHeight)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5)
-        )
+        .pickerPopoverChrome()
         .animation(.easeInOut(duration: 0.25), value: isSystemActionsExpanded)
         .animation(.easeInOut(duration: 0.25), value: isLaunchAppsExpanded)
         .animation(.easeInOut(duration: 0.25), value: isLayersExpanded)
-        .padding(4)
         .onAppear {
             // Auto-expand the relevant section based on current selection
             isSystemActionsExpanded = viewModel.selectedSystemAction != nil

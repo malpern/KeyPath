@@ -128,6 +128,80 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertFalse(FunctionKeyMode.function.preferMediaKeys)
     }
 
+    func testCatalogDoesNotExposeSeparateHomeRowLayerTogglesRule() {
+        let ids = Set(RuleCollectionCatalog().defaultCollections().map(\.id))
+        XCTAssertTrue(ids.contains(RuleCollectionIdentifier.homeRowMods))
+        XCTAssertFalse(ids.contains(RuleCollectionIdentifier.homeRowLayerToggles))
+    }
+
+    @MainActor
+    func testBootstrapMigratesLegacyHomeRowLayerTogglesIntoHomeRowMods() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let migrationKey = "RuleCollections.Migration.UnifiedHomeRowMods"
+        UserDefaults.standard.removeObject(forKey: migrationKey)
+
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rule-manager-migration-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        let collectionStore = RuleCollectionStore(
+            fileURL: tempDir.appendingPathComponent("RuleCollections.json")
+        )
+        let customStore = CustomRulesStore(
+            fileURL: tempDir.appendingPathComponent("CustomRules.json")
+        )
+        let configService = ConfigurationService(configDirectory: tempDir.path)
+        let manager = RuleCollectionsManager(
+            ruleCollectionStore: collectionStore,
+            customRulesStore: customStore,
+            configurationService: configService,
+            eventListener: KanataEventListener()
+        )
+
+        let legacyLayerConfig = HomeRowLayerTogglesConfig(
+            enabledKeys: ["a", "s"],
+            layerAssignments: ["a": "nav", "s": "num"],
+            timing: TimingConfig(tapWindow: 220, holdDelay: 170, quickTapEnabled: true, quickTapTermMs: 15, tapOffsets: ["a": 10], holdOffsets: ["s": 20]),
+            keySelection: .leftOnly,
+            toggleMode: .toggle,
+            showAdvanced: true
+        )
+
+        let legacyLayerRule = RuleCollection(
+            id: RuleCollectionIdentifier.homeRowLayerToggles,
+            name: "Home Row Layer Toggles",
+            summary: "Legacy",
+            category: .productivity,
+            mappings: [],
+            isEnabled: true,
+            isSystemDefault: false,
+            icon: "square.3.layers.3d",
+            tags: [],
+            targetLayer: .base,
+            momentaryActivator: nil,
+            activationHint: nil,
+            configuration: .homeRowLayerToggles(legacyLayerConfig)
+        )
+
+        try await collectionStore.saveCollections([legacyLayerRule])
+        try await customStore.saveRules([])
+
+        await manager.bootstrap()
+
+        XCTAssertFalse(manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.homeRowLayerToggles })
+
+        let unified = try XCTUnwrap(manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.homeRowMods })
+        let unifiedConfig = try XCTUnwrap(unified.configuration.homeRowModsConfig)
+        XCTAssertEqual(unifiedConfig.holdMode, .layers)
+        XCTAssertEqual(unifiedConfig.layerToggleMode, .toggle)
+        XCTAssertEqual(unifiedConfig.layerAssignments["a"], "nav")
+        XCTAssertEqual(unifiedConfig.layerAssignments["s"], "num")
+        XCTAssertEqual(unifiedConfig.enabledKeys, ["a", "s"])
+        XCTAssertTrue(unified.isEnabled)
+    }
+
     // MARK: - Conflict Detection Tests
 
     @MainActor

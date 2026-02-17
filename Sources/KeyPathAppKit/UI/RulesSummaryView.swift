@@ -135,7 +135,6 @@ struct RulesTabView: View {
         let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .homeRowLayerToggles || style == .tapHoldPicker || style == .layerPresetPicker || style == .launcherGrid || style == .chordGroups ||
             style ==
             .sequences || isSpecializedTable
-
         ExpandableCollectionRow(
             collectionId: collection.id.uuidString,
             name: dynamicCollectionName(for: collection),
@@ -175,6 +174,12 @@ struct RulesTabView: View {
             } : nil,
             onUpdateHomeRowModsConfig: style == .homeRowMods ? { config in
                 Task { await kanataManager.updateHomeRowModsConfig(collectionId: collection.id, config: config) }
+            } : nil,
+            homeRowAvailableLayers: style == .homeRowMods ? availableHomeRowLayers(for: collection) : [],
+            onEnsureHomeRowLayersExist: style == .homeRowMods ? { layerNames in
+                for layerName in layerNames {
+                    await kanataManager.underlyingManager.rulesManager.createLayer(layerName)
+                }
             } : nil,
             onOpenHomeRowModsModal: style == .homeRowMods ? {
                 homeRowModsEditState = HomeRowModsEditState(collection: collection, selectedKey: nil)
@@ -218,6 +223,15 @@ struct RulesTabView: View {
             scrollID: "collection-\(collection.id.uuidString)",
             scrollProxy: scrollProxy
         )
+    }
+
+    private func availableHomeRowLayers(for collection: RuleCollection) -> [String] {
+        let existingLayerNames = Set(
+            kanataManager.ruleCollections
+                .map(\.targetLayer.kanataName)
+                .filter { $0.lowercased() != "base" }
+        )
+        return Array(existingLayerNames).sorted()
     }
 
     var body: some View {
