@@ -11,7 +11,15 @@ struct TransformDisplayKey: Identifiable, Hashable {
     let keyCode: UInt16
     let canonical: String
     let label: String
+    let x: Double
+    let y: Double
     var id: UInt16 { keyCode }
+}
+
+struct TransformRowModel: Identifiable, Hashable {
+    let id: Int
+    let keys: [TransformDisplayKey]
+    let indent: CGFloat
 }
 
 /// A keyboard visualization where symbols animate ("magic move") between positions
@@ -21,36 +29,58 @@ struct AnimatedKeyboardTransformGrid: View {
     let mappings: [KeyMapping]
     var namespace: Namespace.ID
     var enableAnimation: Bool = false // Only animate after user interaction
+    @AppStorage(LayoutPreferences.layoutIdKey) private var selectedLayoutId: String = LayoutPreferences.defaultLayoutId
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
 
-    private static let keyboardRowKeyCodes: [[UInt16]] = [
-        [18, 19, 20, 21, 23, 22, 26, 28, 25, 29],
-        [12, 13, 14, 15, 17, 16, 32, 34, 31, 35],
-        [0, 1, 2, 3, 5, 4, 38, 40, 37, 41],
-        [6, 7, 8, 9, 11, 45, 46, 43, 47, 44]
-    ]
-
     private var activeKeymap: LogicalKeymap {
         LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
+    }
+
+    private var activeLayout: PhysicalLayout {
+        PhysicalLayout.find(id: selectedLayoutId) ?? .macBookUS
     }
 
     private var includePunctuation: Bool {
         KeymapPreferences.includePunctuation(for: selectedKeymapId, store: includePunctuationStore)
     }
 
-    private var keyboardRows: [[TransformDisplayKey]] {
-        Self.keyboardRowKeyCodes.map { row in
-            row.map(displayKey(for:))
+    private var keyboardRows: [TransformRowModel] {
+        let desiredKeys: Set<String> = [
+            "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
+            "q", "w", "e", "r", "t", "y", "u", "i", "o", "p",
+            "a", "s", "d", "f", "g", "h", "j", "k", "l", "semicolon",
+            "z", "x", "c", "v", "b", "n", "m", "comma", "dot", "slash"
+        ]
+
+        let keys = activeLayout.keys.compactMap { key -> TransformDisplayKey? in
+            guard key.keyCode != 0xFFFF else { return nil }
+            let canonical = OverlayKeyboardView.keyCodeToKanataName(key.keyCode).lowercased()
+            guard desiredKeys.contains(canonical) else { return nil }
+            return displayKey(for: key, canonical: canonical)
+        }
+
+        let grouped = groupKeysIntoRows(keys)
+        let minRowX = grouped
+            .compactMap { $0.first?.x }
+            .min() ?? 0
+        let keyPitch: CGFloat = 25
+
+        return grouped.enumerated().map { index, row in
+            let rowMinX = row.first?.x ?? minRowX
+            return TransformRowModel(
+                id: index,
+                keys: row,
+                indent: CGFloat(max(0, rowMinX - minRowX)) * keyPitch
+            )
         }
     }
 
     private var allKeys: [TransformDisplayKey] {
-        keyboardRows.flatMap { $0 }
+        keyboardRows.flatMap(\.keys)
     }
 
-    private func displayKey(for keyCode: UInt16) -> TransformDisplayKey {
-        let canonical = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
+    private func displayKey(for key: PhysicalKey, canonical: String) -> TransformDisplayKey {
         let fallback: [String: String] = [
             "minus": "-",
             "equal": "=",
@@ -59,10 +89,42 @@ struct AnimatedKeyboardTransformGrid: View {
             "dot": ".",
             "slash": "/"
         ]
-        let label = activeKeymap.label(for: keyCode, includeExtraKeys: includePunctuation)
+        let label = activeKeymap.label(for: key.keyCode, includeExtraKeys: includePunctuation)
             ?? fallback[canonical]
             ?? canonical
-        return TransformDisplayKey(keyCode: keyCode, canonical: canonical, label: label)
+        return TransformDisplayKey(
+            keyCode: key.keyCode,
+            canonical: canonical,
+            label: label,
+            x: key.visualX,
+            y: key.visualY
+        )
+    }
+
+    private func groupKeysIntoRows(_ keys: [TransformDisplayKey]) -> [[TransformDisplayKey]] {
+        let sorted = keys.sorted {
+            if abs($0.y - $1.y) > 0.01 {
+                return $0.y < $1.y
+            }
+            return $0.x < $1.x
+        }
+
+        let rowThreshold = 0.6
+        var rows: [[TransformDisplayKey]] = []
+        var rowAnchors: [Double] = []
+
+        for key in sorted {
+            if let lastIndex = rowAnchors.indices.last, abs(key.y - rowAnchors[lastIndex]) <= rowThreshold {
+                rows[lastIndex].append(key)
+            } else {
+                rows.append([key])
+                rowAnchors.append(key.y)
+            }
+        }
+
+        return rows
+            .map { $0.sorted { $0.x < $1.x } }
+            .filter { !$0.isEmpty }
     }
 
     private func keycapLabel(_ label: String) -> String {
@@ -126,7 +188,7 @@ struct AnimatedKeyboardTransformGrid: View {
 // MARK: - Input Keyboard Grid (static)
 
 struct InputKeyboardGrid: View {
-    let keyboardRows: [[TransformDisplayKey]]
+    let keyboardRows: [TransformRowModel]
     let outputFor: (String) -> String?
     let keycapLabel: (String) -> String
 
@@ -137,13 +199,11 @@ struct InputKeyboardGrid: View {
                 .foregroundColor(.secondary)
                 .padding(.bottom, 2)
 
-            ForEach(keyboardRows.indices, id: \.self) { rowIndex in
-                let row = keyboardRows[rowIndex]
+            ForEach(keyboardRows) { row in
                 HStack(spacing: 3) {
-                    // Keyboard stagger: number=0, qwerty=0, home=8, bottom=16
-                    if rowIndex == 2 { Spacer().frame(width: 8) } else if rowIndex == 3 { Spacer().frame(width: 16) }
+                    Spacer().frame(width: row.indent)
 
-                    ForEach(row) { key in
+                    ForEach(row.keys) { key in
                         let hasMapping = outputFor(key.canonical) != nil
                         TransformKeycap(
                             label: keycapLabel(key.label),
@@ -162,7 +222,7 @@ struct InputKeyboardGrid: View {
 /// The output keyboard renders keycap backgrounds, then overlays animated symbols.
 /// Symbols track their target position and animate when it changes.
 struct OutputKeyboardWithAnimatedSymbols: View {
-    let keyboardRows: [[TransformDisplayKey]]
+    let keyboardRows: [TransformRowModel]
     let mappings: [KeyMapping]
     var namespace: Namespace.ID
     var enableAnimation: Bool = false // Only animate after user interaction
@@ -220,13 +280,11 @@ struct OutputKeyboardWithAnimatedSymbols: View {
             ZStack(alignment: .topLeading) {
                 // Layer 1: Keycap backgrounds (stable slots)
                 VStack(alignment: .leading, spacing: 2) {
-                    ForEach(keyboardRows.indices, id: \.self) { rowIndex in
-                        let row = keyboardRows[rowIndex]
+                    ForEach(keyboardRows) { row in
                         HStack(spacing: 3) {
-                            // Keyboard stagger: number=0, qwerty=0, home=8, bottom=16
-                            if rowIndex == 2 { Spacer().frame(width: 8) } else if rowIndex == 3 { Spacer().frame(width: 16) }
+                            Spacer().frame(width: row.indent)
 
-                            ForEach(row) { key in
+                            ForEach(row.keys) { key in
                                 let hasMapping = outputFor(key.canonical) != nil
                                 KeycapSlot(
                                     key: key.canonical,
