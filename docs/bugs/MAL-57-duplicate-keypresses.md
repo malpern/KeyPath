@@ -489,39 +489,44 @@ Expose via:
 
 ---
 
-## ✅ Validation Results (2026-02-18)
+## ⚠️ Validation Attempt #1 (2026-02-18) — INVALID
 
-Post-fix validation using `Scripts/run-duplicate-key-test.sh` — a two-phase test that checks
-both the notification pipeline and actual keystroke fidelity in a text editor.
+Automated validation using `Scripts/run-duplicate-key-test.sh` with osascript auto-typing.
 
-### Test Matrix
+### Results (not trustworthy)
 
 | Test | Preset | Result |
 |------|--------|--------|
-| Phase 1: Pipeline (repro harness) | baseline | **0 alerts** |
-| Phase 1: Pipeline (repro harness) | high (compile loop + 6 CPU hogs) | **0 alerts** |
-| Phase 2: Keystroke fidelity (auto-type into Zed, diff expected vs actual) | high | **575 expected, 575 actual, 0 difference** |
+| Phase 1: Pipeline (repro harness) | baseline | 0 alerts |
+| Phase 1: Pipeline (repro harness) | high (compile loop + 6 CPU hogs) | 0 alerts |
+| Phase 2: Keystroke fidelity (auto-type into Zed, diff expected vs actual) | high | 575/575 match |
 
-### Key Findings
+### Why These Results Are Invalid
 
-1. **Kanata does NOT emit duplicate HID events under CPU load.** The text typed into Zed under
-   high CPU stress matched the expected input exactly. This answers Open Question #3 — the
-   duplicates were never in Kanata's HID output, only in KeyPath's TCP notification pipeline.
+**osascript `keystroke` bypasses Kanata entirely.** osascript injects CGEvents at the
+Accessibility/Core Graphics layer, which is above Kanata's IOKit HID intercept point. Kanata
+grabs the physical keyboard device and reads raw USB HID reports — software-generated keystrokes
+never reach it.
 
-2. **The P0 fixes (100ms dedup, request_id matching, time-based drain) resolved the root cause.**
-   The duplicates originated from broadcast confusion and missing dedup in the TCP event pipeline.
+**Evidence:** Kanata CPU was **0.0% across every sample** during all test runs. If Kanata were
+processing those keystrokes, it would show non-zero CPU usage.
 
-3. **P1 (reconnection replay cache) and P2 (unified TCP connection) are not needed** for this
-   bug. They remain nice-to-have hardening items but the user-facing issue is fully resolved.
+**What the tests actually proved:**
+- Text can be typed into Zed via osascript without corruption (trivially true)
+- The system doesn't crash under CPU load
 
-### Deferred Items (backlog, not blocking)
+**What they did NOT prove:**
+- That Kanata handles physical keystrokes without duplication under load
+- That tap-hold timing is stable under CPU starvation
+- That the HID event path is clean
 
-- P1: Reconnection event cache in `KanataEventListener` — no `seenEventsCache` implemented.
-  Low risk since Kanata doesn't replay events on reconnect in practice.
-- P2: Unified TCP connection — `KanataTCPClient` and `KanataEventListener` still use independent
-  connections. Works fine; consolidation would reduce complexity but isn't required.
+### Lesson Learned
 
-### Status: **RESOLVED** ✅
+There is no userspace API on macOS to inject events at the IOKit HID device level. All
+software keystroke injection (osascript, CGEventPost, cliclick, peekaboo) enters above
+Kanata's intercept point. Valid testing requires physical keyboard input.
+
+### Status: **REOPENED** — awaiting manual typing validation (Phase 3)
 
 ---
 
