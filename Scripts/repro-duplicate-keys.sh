@@ -656,7 +656,7 @@ HEADER
         echo "   ─────────────────────"
         if [[ -f "$KANATA_FILE" ]] && [[ -s "$KANATA_FILE" ]]; then
             local kanata_missing
-            kanata_missing=$(grep -c "NO_KANATA_PROCESS" "$KANATA_FILE" 2>/dev/null || echo "0")
+            kanata_missing=$(grep -c "NO_KANATA_PROCESS" "$KANATA_FILE" 2>/dev/null || true)
             local kanata_total
             kanata_total=$(wc -l < "$KANATA_FILE" | tr -d ' ')
             kanata_total=$((kanata_total - 1)) # subtract header
@@ -679,15 +679,13 @@ HEADER
                 }' 2>/dev/null) || true
 
             if [[ -n "$cpu_vals" ]]; then
-                echo "$cpu_vals" | awk '
-                    { sum += $1; count++; vals[count] = $1; if ($1 > max) max = $1 }
+                echo "$cpu_vals" | sort -n | awk '
+                    { sum += $1; count++; sorted[count] = $1; if ($1 > max) max = $1 }
                     END {
                         if (count == 0) { print "   No CPU data available."; exit }
                         avg = sum / count
-                        # Sort for median/p95
-                        asort(vals)
-                        med = vals[int(count/2)+1]
-                        p95 = vals[int(count*0.95)+1]
+                        med = sorted[int(count/2)+1]
+                        p95 = sorted[int(count*0.95)+1]
                         printf "   Kanata CPU%%:  avg=%.1f%%  median=%.1f%%  p95=%.1f%%  max=%.1f%%\n", avg, med, p95, max
                         if (max > 80) {
                             print "   >>> HIGH CPU: Kanata itself is CPU-bound. Event processing"
