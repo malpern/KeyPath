@@ -6,7 +6,7 @@ description: App-specific keymaps and window management with KeyPath
 
 # Window Management
 
-KeyPath supports app-specific keymaps, allowing you to have different keyboard behaviors for different applications.
+KeyPath supports **app-specific keymaps** — different keyboard behaviors that activate automatically when you switch applications. Think of it like having a separate keyboard layout for each app: Vim-style navigation in your browser, custom shortcuts in your editor, different layers in Terminal. KeyPath detects which app is in front and switches your key mappings to match.
 
 ## App-Specific Keymaps
 
@@ -105,3 +105,9 @@ For power users, you can create custom layer switching logic:
 2. **Test thoroughly** - Switch between apps to verify behavior
 3. **Use descriptive names** - Name your layers clearly
 4. **Document your setup** - Keep notes on which apps use which layers
+
+## Next Steps
+
+- **[Action URI System]({{ '/guides/action-uri' | relative_url }})** — Trigger actions from Kanata config using URIs
+- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Background on layers and modifiers
+- **[Back to Docs]({{ '/docs' | relative_url }})**

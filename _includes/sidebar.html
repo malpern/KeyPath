@@ -1,44 +1,62 @@
 <nav class="sidebar-nav">
-    {% assign current_path = page.url | remove_first: '/' | split: '/' %}
-    
     <ul class="nav-tree">
-        {% if page.url == '/' %}
-        <li class="nav-item active">
-            <a href="{{ '/' | relative_url }}" class="nav-link">Overview</a>
-        </li>
-        {% endif %}
-        
-        <!-- Home -->
+        <!-- Getting Started -->
         <li class="nav-section">
-            <div class="nav-section-title">KeyPath</div>
-            <ul class="nav-section-items">
-                {% assign is_home = page.url == '/' %}
-                <li class="nav-item {% if is_home %}active{% endif %}">
-                    <a href="{{ '/' | relative_url }}" class="nav-link">Home</a>
-                </li>
-                {% assign is_kanata_migration = page.url contains '/migration/kanata-users' %}
-                <li class="nav-item {% if is_kanata_migration %}active{% endif %}">
-                    <a href="{{ '/migration/kanata-users' | relative_url }}" class="nav-link">For Kanata users</a>
-                </li>
-            </ul>
-        </li>
-
-        <!-- Install -->
-        <li class="nav-section">
-            <div class="nav-section-title">Install</div>
+            <div class="nav-section-title">Getting Started</div>
             <ul class="nav-section-items">
                 <li class="nav-item {% if page.url contains '/getting-started/installation' %}active{% endif %}">
                     <a href="{{ '/getting-started/installation' | relative_url }}" class="nav-link">Installation</a>
                 </li>
+                <li class="nav-item {% if page.url contains '/getting-started/first-mapping' %}active{% endif %}">
+                    <a href="{{ '/getting-started/first-mapping' | relative_url }}" class="nav-link">First Mapping</a>
+                </li>
             </ul>
         </li>
-        
-        <!-- FAQ -->
+
+        <!-- Concepts & Guides -->
         <li class="nav-section">
-            <div class="nav-section-title">Support</div>
+            <div class="nav-section-title">Concepts & Guides</div>
             <ul class="nav-section-items">
+                <li class="nav-item {% if page.url contains '/guides/concepts' %}active{% endif %}">
+                    <a href="{{ '/guides/concepts' | relative_url }}" class="nav-link">Keyboard Concepts</a>
+                </li>
+                <li class="nav-item {% if page.url contains '/guides/home-row-mods' %}active{% endif %}">
+                    <a href="{{ '/guides/home-row-mods' | relative_url }}" class="nav-link">Home Row Mods</a>
+                </li>
+                <li class="nav-item {% if page.url contains '/guides/tap-hold' %}active{% endif %}">
+                    <a href="{{ '/guides/tap-hold' | relative_url }}" class="nav-link">Tap-Hold & Tap-Dance</a>
+                </li>
+                <li class="nav-item {% if page.url contains '/guides/window-management' %}active{% endif %}">
+                    <a href="{{ '/guides/window-management' | relative_url }}" class="nav-link">Window Management</a>
+                </li>
+                <li class="nav-item {% if page.url contains '/guides/action-uri' %}active{% endif %}">
+                    <a href="{{ '/guides/action-uri' | relative_url }}" class="nav-link">Action URIs</a>
+                </li>
+            </ul>
+        </li>
+
+        <!-- Help -->
+        <li class="nav-section">
+            <div class="nav-section-title">Help</div>
+            <ul class="nav-section-items">
+                <li class="nav-item {% if page.url contains '/guides/debugging' %}active{% endif %}">
+                    <a href="{{ '/guides/debugging' | relative_url }}" class="nav-link">Debugging</a>
+                </li>
                 <li class="nav-item {% if page.url contains '/faq' %}active{% endif %}">
                     <a href="{{ '/faq' | relative_url }}" class="nav-link">FAQ</a>
+                </li>
+                <li class="nav-item {% if page.url contains '/guides/privacy' %}active{% endif %}">
+                    <a href="{{ '/guides/privacy' | relative_url }}" class="nav-link">Privacy & Permissions</a>
+                </li>
+            </ul>
+        </li>
+
+        <!-- Migration -->
+        <li class="nav-section">
+            <div class="nav-section-title">Migration</div>
+            <ul class="nav-section-items">
+                <li class="nav-item {% if page.url contains '/migration/kanata-users' %}active{% endif %}">
+                    <a href="{{ '/migration/kanata-users' | relative_url }}" class="nav-link">For Kanata Users</a>
                 </li>
             </ul>
         </li>

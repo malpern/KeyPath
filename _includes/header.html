@@ -10,19 +10,6 @@
                 <span>KeyPath</span>
             </a>
 
-            {% unless page.hide_sidebar %}
-            <button
-                type="button"
-                class="sidebar-toggle"
-                data-sidebar-toggle
-                aria-label="Open documentation navigation"
-                aria-controls="sidebar"
-                aria-expanded="false"
-            >
-                Docs
-            </button>
-            {% endunless %}
-            
             <div class="nav-links">
                 {% for item in site.navigation %}
                 <a href="{{ item.url | relative_url }}" class="nav-link {% if page.url contains item.url %}active{% endif %}">

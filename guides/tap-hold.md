@@ -6,6 +6,8 @@ description: Advanced key behaviors with tap-hold and tap-dance support
 
 # Tap-Hold & Tap-Dance
 
+If you've never used tap-hold before, start with the [Keyboard Concepts]({{ '/guides/concepts' | relative_url }}) page for a beginner-friendly overview of how dual-role keys work. Already familiar? Read on.
+
 KeyPath supports advanced key behaviors beyond simple remapping:
 
 - **Tap-Hold (Dual-Role)**: A key that does one thing when tapped, another when held
@@ -145,3 +147,9 @@ Ensure you've set at least a double-tap action. Single tap alone won't enable ta
 ## Advanced Configuration
 
 For power users, you can edit the generated Kanata config directly to fine-tune behavior. See the [Kanata documentation](https://github.com/jtroo/kanata) for advanced options.
+
+## Next Steps
+
+- **[Home Row Mods]({{ '/guides/home-row-mods' | relative_url }})** — The most popular use of tap-hold
+- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Background on layers, modifiers, and dual-role keys
+- **[Back to Docs]({{ '/docs' | relative_url }})**

@@ -52,6 +52,8 @@ github_url: "https://github.com/malpern/KeyPath"
 navigation:
   - title: Home
     url: /
+  - title: Docs
+    url: /docs
   - title: Install
     url: /getting-started/installation
   - title: FAQ

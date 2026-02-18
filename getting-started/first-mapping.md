@@ -90,6 +90,8 @@ After saving:
 
 ## Next Steps
 
+- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** - Learn about layers, tap-hold, and modifiers
 - **[Tap-Hold & Tap-Dance]({{ '/guides/tap-hold' | relative_url }})** - Advanced key behaviors
 - **[Action URI System]({{ '/guides/action-uri' | relative_url }})** - Trigger actions from Kanata
 - **[Window Management]({{ '/guides/window-management' | relative_url }})** - App-specific keymaps
+- **[Back to Docs]({{ '/docs' | relative_url }})** - See all available guides
