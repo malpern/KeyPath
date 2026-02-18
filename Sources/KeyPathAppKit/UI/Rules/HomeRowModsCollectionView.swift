@@ -52,7 +52,20 @@ struct HomeRowModsCollectionView: View {
                 homeRowKeyboard(size: 52)
                 homeRowKeyboard(size: 48)
             }
-            .padding(.bottom, 16)
+            .padding(.bottom, 8)
+
+            if hasCustomAssignments {
+                Button {
+                    resetAssignmentsToDefaults()
+                } label: {
+                    Label("Reset to defaults", systemImage: "arrow.counterclockwise")
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("home-row-mods-reset-defaults")
+                .padding(.bottom, 8)
+            }
 
             HStack {
                 Spacer()
@@ -176,128 +189,44 @@ struct HomeRowModsCollectionView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Divider()
+            if config.holdMode == .layers {
+                Divider()
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text(config.holdMode == .modifiers ? "Modifier Preset" : "Layer Preset")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Layer Activation")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
 
-                if config.holdMode == .modifiers {
                     HStack(spacing: 10) {
                         SettingsOptionCard(
-                            icon: "applelogo",
-                            title: "Mac (CAGS)",
-                            subtitle: "Command on index keys",
-                            isSelected: modifierPresetSelection(from: config.modifierAssignments) == .macCAGS
+                            icon: "hand.raised",
+                            title: "While Held",
+                            subtitle: "Active only while holding",
+                            isSelected: config.layerToggleMode == .whileHeld
                         ) {
-                            config.modifierAssignments = HomeRowModsConfig.cagsMacDefault
-                            config.enabledKeys = Set(HomeRowModsConfig.allKeys)
+                            config.layerToggleMode = .whileHeld
                             updateConfig()
                         }
-                        .accessibilityIdentifier("home-row-mods-preset-mac-cags")
+                        .accessibilityIdentifier("home-row-mods-layer-toggle-while-held")
 
                         SettingsOptionCard(
-                            icon: "desktopcomputer",
-                            title: "Windows (GACS)",
-                            subtitle: "GUI on pinky keys",
-                            isSelected: modifierPresetSelection(from: config.modifierAssignments) == .winGACS
+                            icon: "switch.2",
+                            title: "Toggle",
+                            subtitle: "Press once to stay on",
+                            isSelected: config.layerToggleMode == .toggle
                         ) {
-                            config.modifierAssignments = HomeRowModsConfig.gacsWindows
-                            config.enabledKeys = Set(HomeRowModsConfig.allKeys)
+                            config.layerToggleMode = .toggle
                             updateConfig()
                         }
-                        .accessibilityIdentifier("home-row-mods-preset-windows-gacs")
-
-                        SettingsOptionCard(
-                            icon: "slider.horizontal.3",
-                            title: "Custom",
-                            subtitle: "Choose per-key manually",
-                            isSelected: modifierPresetSelection(from: config.modifierAssignments) == .custom
-                        ) {
-                            // Keep existing assignments; user edits per key on the keyboard.
-                        }
-                        .accessibilityIdentifier("home-row-mods-preset-custom")
+                        .accessibilityIdentifier("home-row-mods-layer-toggle-mode")
                     }
                     .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("home-row-mods-preset-picker")
-                    .accessibilityLabel("Modifier preset selection")
+                    .accessibilityIdentifier("home-row-mods-layer-toggle-mode-picker")
+                    .accessibilityLabel("Layer activation mode")
 
-                    Text(modifierPresetExplanationText)
+                    Text(layerActivationExplanationText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                } else {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Layer Preset")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-
-                        HStack(spacing: 10) {
-                            SettingsOptionCard(
-                                icon: "sparkles",
-                                title: "Recommended",
-                                subtitle: "Balanced left/right defaults",
-                                isSelected: layerPresetSelection(from: config.layerAssignments) == .default
-                            ) {
-                                applyLayerPreset(.default)
-                            }
-                            .accessibilityIdentifier("home-row-mods-layer-preset-recommended")
-
-                            SettingsOptionCard(
-                                icon: "slider.horizontal.3",
-                                title: "Custom",
-                                subtitle: "Use your current assignments",
-                                isSelected: layerPresetSelection(from: config.layerAssignments) == .custom
-                            ) {
-                                applyLayerPreset(.custom)
-                            }
-                            .accessibilityIdentifier("home-row-mods-layer-preset-custom")
-                        }
-                        .accessibilityElement(children: .contain)
-                        .accessibilityIdentifier("home-row-mods-layer-preset-picker")
-                        .accessibilityLabel("Layer preset selection")
-
-                        Text(layerPresetExplanationText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Layer Activation")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-
-                        HStack(spacing: 10) {
-                            SettingsOptionCard(
-                                icon: "hand.raised",
-                                title: "While Held",
-                                subtitle: "Active only while holding",
-                                isSelected: config.layerToggleMode == .whileHeld
-                            ) {
-                                config.layerToggleMode = .whileHeld
-                                updateConfig()
-                            }
-                            .accessibilityIdentifier("home-row-mods-layer-toggle-while-held")
-
-                            SettingsOptionCard(
-                                icon: "switch.2",
-                                title: "Toggle",
-                                subtitle: "Press once to stay on",
-                                isSelected: config.layerToggleMode == .toggle
-                            ) {
-                                config.layerToggleMode = .toggle
-                                updateConfig()
-                            }
-                            .accessibilityIdentifier("home-row-mods-layer-toggle-mode")
-                        }
-                        .accessibilityElement(children: .contain)
-                        .accessibilityIdentifier("home-row-mods-layer-toggle-mode-picker")
-                        .accessibilityLabel("Layer activation mode")
-
-                        Text(layerActivationExplanationText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
                 }
             }
 
@@ -848,14 +777,23 @@ struct HomeRowModsCollectionView: View {
         updateConfig()
     }
 
-    private func applyLayerPreset(_ preset: HomeRowLayerPreset) {
-        switch preset {
-        case .default:
-            config.layerAssignments = recommendedLayerAssignments
-            config.enabledKeys = Set(HomeRowModsConfig.allKeys)
-        case .custom:
-            break
+    /// Whether the current assignments differ from defaults (for either mode)
+    private var hasCustomAssignments: Bool {
+        if config.holdMode == .modifiers {
+            return modifierPresetSelection(from: config.modifierAssignments) == .custom
+        } else {
+            return layerPresetSelection(from: config.layerAssignments) == .custom
         }
+    }
+
+    /// Reset assignments to the default for the current hold mode
+    private func resetAssignmentsToDefaults() {
+        if config.holdMode == .modifiers {
+            config.modifierAssignments = HomeRowModsConfig.cagsMacDefault
+        } else {
+            config.layerAssignments = recommendedLayerAssignments
+        }
+        config.enabledKeys = Set(HomeRowModsConfig.allKeys)
         updateConfig()
     }
 
@@ -938,17 +876,6 @@ struct HomeRowModsCollectionView: View {
         }
     }
 
-    private var modifierPresetExplanationText: String {
-        switch modifierPresetSelection(from: config.modifierAssignments) {
-        case .macCAGS:
-            "Mac default: index fingers get Command for common shortcuts."
-        case .winGACS:
-            "Windows/Linux default: pinkies get GUI/Super to match common workflows."
-        case .custom:
-            "Custom preset active. Click keys in the keyboard preview to assign modifiers."
-        }
-    }
-
     private var keySelectionExplanationText: String {
         switch config.keySelection {
         case .both:
@@ -959,15 +886,6 @@ struct HomeRowModsCollectionView: View {
             "Only right-hand home-row keys use tap-hold behavior."
         case .custom:
             "Choose exactly which keys are active below."
-        }
-    }
-
-    private var layerPresetExplanationText: String {
-        switch layerPresetSelection(from: config.layerAssignments) {
-        case .default:
-            "Recommended preset is active. Home-row keys map to a symmetric layer layout."
-        case .custom:
-            "Custom preset is active. Click a key in the keyboard preview to choose its layer."
         }
     }
 
