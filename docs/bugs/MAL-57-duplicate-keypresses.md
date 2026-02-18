@@ -457,8 +457,9 @@ Expose via:
 
 - **Analysis**: 2026-01-11 (completed)
 - **P0 Implementation**: 2026-01-11 (completed)
-- **Testing**: 2026-01-11 (completed - 12/12 tests passing)
+- **Unit Testing**: 2026-01-11 (completed - 12/12 tests passing)
 - **Ready for Deployment**: 2026-01-11
+- **Validation Testing**: 2026-02-18 (completed - see below)
 
 ## Implementation Status
 
@@ -485,6 +486,42 @@ Expose via:
    - Tests TCP replay scenarios
    - Tests layer changes, recording toggle, edge cases
    - All tests passing ✅
+
+---
+
+## ✅ Validation Results (2026-02-18)
+
+Post-fix validation using `Scripts/run-duplicate-key-test.sh` — a two-phase test that checks
+both the notification pipeline and actual keystroke fidelity in a text editor.
+
+### Test Matrix
+
+| Test | Preset | Result |
+|------|--------|--------|
+| Phase 1: Pipeline (repro harness) | baseline | **0 alerts** |
+| Phase 1: Pipeline (repro harness) | high (compile loop + 6 CPU hogs) | **0 alerts** |
+| Phase 2: Keystroke fidelity (auto-type into Zed, diff expected vs actual) | high | **575 expected, 575 actual, 0 difference** |
+
+### Key Findings
+
+1. **Kanata does NOT emit duplicate HID events under CPU load.** The text typed into Zed under
+   high CPU stress matched the expected input exactly. This answers Open Question #3 — the
+   duplicates were never in Kanata's HID output, only in KeyPath's TCP notification pipeline.
+
+2. **The P0 fixes (100ms dedup, request_id matching, time-based drain) resolved the root cause.**
+   The duplicates originated from broadcast confusion and missing dedup in the TCP event pipeline.
+
+3. **P1 (reconnection replay cache) and P2 (unified TCP connection) are not needed** for this
+   bug. They remain nice-to-have hardening items but the user-facing issue is fully resolved.
+
+### Deferred Items (backlog, not blocking)
+
+- P1: Reconnection event cache in `KanataEventListener` — no `seenEventsCache` implemented.
+  Low risk since Kanata doesn't replay events on reconnect in practice.
+- P2: Unified TCP connection — `KanataTCPClient` and `KanataEventListener` still use independent
+  connections. Works fine; consolidation would reduce complexity but isn't required.
+
+### Status: **RESOLVED** ✅
 
 ---
 

@@ -9,13 +9,17 @@
 
 set -euo pipefail
 
-PRESET="${1:---preset}"
-PRESET_VAL="${2:-medium}"
-if [[ "$PRESET" == "--preset" ]]; then
-    PRESET_VAL="${PRESET_VAL}"
-else
-    PRESET_VAL="$PRESET"
-fi
+SKIP_PHASE1=false
+PRESET_VAL="medium"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --phase2-only) SKIP_PHASE1=true; shift ;;
+        --preset) PRESET_VAL="${2:-medium}"; shift 2 ;;
+        baseline|medium|high) PRESET_VAL="$1"; shift ;;
+        *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+done
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 PROJECT_ROOT=$(cd "$SCRIPT_DIR/.." >/dev/null && pwd)
@@ -78,20 +82,34 @@ echo "  ✓ KeyPath log exists"
 echo
 
 # --- Phase 1: Pipeline test (existing harness) ---
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "PHASE 1: Notification Pipeline Test (repro harness)"
-echo "  Monitors KeyPath's TCP event log for duplicate notifications."
-echo "  This tests whether the 100ms dedup filter is working."
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo
+if [[ "$SKIP_PHASE1" == "false" ]]; then
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "PHASE 1: Notification Pipeline Test (repro harness)"
+    echo "  Monitors KeyPath's TCP event log for duplicate notifications."
+    echo "  This tests whether the 100ms dedup filter is working."
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo
 
-"$SCRIPT_DIR/repro-duplicate-keys.sh" \
-    --preset "$PRESET_VAL" \
-    --trials 1 \
-    --duration "$DURATION" \
-    --countdown 3 \
-    --auto-type osascript \
-    --auto-type-wpm 50 2>&1 | tee "$TEST_DIR/phase1-output.log"
+    # Run in a subshell and kill any lingering children (tail -F) on exit
+    (
+        "$SCRIPT_DIR/repro-duplicate-keys.sh" \
+            --preset "$PRESET_VAL" \
+            --trials 1 \
+            --duration "$DURATION" \
+            --countdown 3 \
+            --auto-type osascript \
+            --auto-type-wpm 50 2>&1
+        # Kill any orphaned tail/awk processes from the repro harness
+        pkill -P $$ tail 2>/dev/null || true
+    ) | tee "$TEST_DIR/phase1-output.log" || true
+
+    # Safety: kill any lingering tail -F from Phase 1
+    pkill -f "tail.*keypath-debug.log" 2>/dev/null || true
+    sleep 1
+else
+    echo "Skipping Phase 1 (--phase2-only)"
+    echo
+fi
 
 echo
 echo "Phase 1 complete. Results in $TEST_DIR/phase1-output.log"
