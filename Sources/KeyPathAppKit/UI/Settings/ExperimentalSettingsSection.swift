@@ -56,7 +56,7 @@ struct ExperimentalSettingsSection: View {
                                 Text("Accessibility Test Mode")
                                     .font(.subheadline)
                                     .fontWeight(.medium)
-                                Text("Makes overlay discoverable by automation tools (Peekaboo). Requires app restart.")
+                                Text("Makes overlay discoverable by automation tools (Peekaboo). Takes effect immediately.")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }

@@ -110,6 +110,7 @@ echo ""
 
 # ── 5b. Turn off accessibility test mode ─────────────────────────────────────
 defaults write com.keypath.KeyPath "KeyPath.Testing.AccessibilityTestMode" -bool false
+# Clean up legacy env var in case it was leaked from a previous aborted test run
 launchctl unsetenv KEYPATH_ACCESSIBILITY_TEST_MODE 2>/dev/null || true
 
 # ── 6. Restart app in normal mode ─────────────────────────────────────────────

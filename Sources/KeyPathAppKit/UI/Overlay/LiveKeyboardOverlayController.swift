@@ -119,6 +119,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         setupLayerChangeObserver()
         setupKeyInputObserver()
         setupOpenOverlayWithMapperObserver()
+        setupAccessibilityTestModeObserver()
     }
 
     /// Check if build changed and clear stale caches
@@ -175,6 +176,67 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                 )
             }
         }
+    }
+
+    /// Resolve whether accessibility test mode is active.
+    /// The explicit user preference takes priority; the env var is a fallback for
+    /// when the preference has never been set (e.g., automated test harness).
+    static func resolveAccessibilityTestMode() -> Bool {
+        let envVar = ProcessInfo.processInfo.environment["KEYPATH_ACCESSIBILITY_TEST_MODE"] != nil
+        let prefValue = PreferencesService.shared.accessibilityTestMode
+        // If user has explicitly stored a preference, honor it regardless of env var.
+        let hasExplicitPref = UserDefaults.standard.object(forKey: "KeyPath.Testing.AccessibilityTestMode") != nil
+        if hasExplicitPref {
+            return prefValue
+        }
+        return envVar || prefValue
+    }
+
+    private func setupAccessibilityTestModeObserver() {
+        NotificationCenter.default.addObserver(
+            forName: .accessibilityTestModeChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.recreateWindowForTestModeChange()
+            }
+        }
+    }
+
+    /// Recreate the overlay window when accessibility test mode changes.
+    /// NSWindow.styleMask cannot be changed after init, so we must destroy and recreate.
+    private func recreateWindowForTestModeChange() {
+        let wasVisible = window?.isVisible ?? false
+        let savedFrame = window?.frame
+
+        // Tear down existing window
+        viewModel.stopCapturing()
+        dismissHintBubble()
+        if uiState.isInspectorOpen || uiState.inspectorReveal > 0 {
+            closeInspector(animated: false)
+        }
+        window?.orderOut(nil)
+        window?.delegate = nil
+        window = nil
+        hostingView = nil
+
+        guard wasVisible else {
+            AppLogger.shared.log("🪟 [OverlayController] Test mode changed - window was hidden, will recreate on next show")
+            return
+        }
+
+        // Recreate with new style
+        createWindow()
+        if let savedFrame, let window {
+            window.setFrame(savedFrame, display: true)
+        }
+        viewModel.startCapturing()
+        viewModel.noteInteraction()
+        window?.orderFront(nil)
+
+        let mode = PreferencesService.shared.accessibilityTestMode ? "titled (test)" : "chromeless"
+        AppLogger.shared.log("🪟 [OverlayController] Recreated overlay window as \(mode)")
     }
 
     /// Opens the overlay centered on screen with drawer open and mapper tab selected
@@ -1105,8 +1167,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
         // Borderless, resizable window
         // In accessibility test mode, use titled window for automation tools like Peekaboo
-        let useAccessibilityTestMode = ProcessInfo.processInfo.environment["KEYPATH_ACCESSIBILITY_TEST_MODE"] != nil
-            || PreferencesService.shared.accessibilityTestMode
+        // Preference is authoritative; env var is only a fallback for when no explicit preference exists.
+        let useAccessibilityTestMode = Self.resolveAccessibilityTestMode()
+        AppLogger.shared.log("🪟 [OverlayController] createWindow: useAccessibilityTestMode=\(useAccessibilityTestMode)")
         let windowStyle = OverlayWindowFactory.windowStyle(useAccessibilityTestMode: useAccessibilityTestMode)
 
         let window = OverlayWindow(

@@ -70,11 +70,11 @@ final class OverlayWindow: NSWindow {
 
     /// In accessibility test mode, allow the window to become key so automation tools (Peekaboo) can interact with it.
     /// In production, prevent the window from becoming key (so it doesn't steal keyboard focus from other apps).
-    /// Checks env var (set by test harness) OR UserDefaults preference (set in Settings UI).
-    private static let isAccessibilityTestMode: Bool = {
-        ProcessInfo.processInfo.environment["KEYPATH_ACCESSIBILITY_TEST_MODE"] != nil
-            || UserDefaults.standard.bool(forKey: "KeyPath.Testing.AccessibilityTestMode")
-    }()
+    /// Uses the centralized resolution logic so explicit user preference overrides the env var.
+    /// Must be a computed property so toggling the preference takes effect after window recreation.
+    private static var isAccessibilityTestMode: Bool {
+        LiveKeyboardOverlayController.resolveAccessibilityTestMode()
+    }
 
     override var canBecomeKey: Bool {
         Self.isAccessibilityTestMode
@@ -178,6 +178,8 @@ final class OneShotLayerOverrideState {
 extension Notification.Name {
     /// Posted when the live keyboard overlay should be toggled
     static let toggleLiveKeyboardOverlay = Notification.Name("KeyPath.ToggleLiveKeyboardOverlay")
+    /// Posted when accessibility test mode preference changes (overlay must recreate its window)
+    static let accessibilityTestModeChanged = Notification.Name("KeyPath.AccessibilityTestModeChanged")
     /// Posted when the Kanata layer changes (userInfo["layerName"] = String)
     static let kanataLayerChanged = Notification.Name("KeyPath.KanataLayerChanged")
     /// Posted when the Kanata config changes (rules saved, etc.)

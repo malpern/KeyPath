@@ -283,9 +283,11 @@ ensure_app_running() {
     # Launch KeyPath in accessibility test mode if not already running.
     if ! pgrep -x "KeyPath" > /dev/null 2>&1; then
         log_info "Launching KeyPath in test mode..."
-        # Set accessibility test mode via UserDefaults (persistent setting) and env var (legacy)
+        # Set accessibility test mode via UserDefaults (persistent setting).
+        # Note: We no longer set launchctl setenv because it leaks into all processes
+        # if cleanup doesn't run (e.g., test aborted). The UserDefaults pref is sufficient
+        # and the app reads it at window creation time.
         defaults write com.keypath.KeyPath "KeyPath.Testing.AccessibilityTestMode" -bool true
-        launchctl setenv KEYPATH_ACCESSIBILITY_TEST_MODE 1 2>/dev/null || true
         open -a KeyPath
         sleep 5
     else

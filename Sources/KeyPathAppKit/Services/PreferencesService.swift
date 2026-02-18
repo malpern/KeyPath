@@ -163,11 +163,12 @@ final class PreferencesService: @unchecked Sendable {
     // MARK: - Testing
 
     /// When true, makes the overlay window discoverable by automation tools (Peekaboo).
-    /// Requires app restart to take effect (window style is set during creation).
+    /// Toggling posts a notification so the overlay controller can recreate its window with the new style.
     var accessibilityTestMode: Bool {
         didSet {
             UserDefaults.standard.set(accessibilityTestMode, forKey: Keys.accessibilityTestMode)
             AppLogger.shared.log("🧪 [Preferences] accessibilityTestMode = \(accessibilityTestMode)")
+            NotificationCenter.default.post(name: .accessibilityTestModeChanged, object: nil)
         }
     }
 
