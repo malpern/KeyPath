@@ -137,9 +137,24 @@ final class RecentKeypressesService {
         }
     }
 
+    /// Keys that are commonly held/repeated intentionally — ignore for duplicate detection
+    private static let ignoredKeysForDuplicateDetection: Set<String> = [
+        "backspace", "delete", "left", "right", "up", "down",
+        "home", "end", "pageup", "pagedown",
+        "leftshift", "rightshift", "leftctrl", "rightctrl",
+        "leftalt", "rightalt", "leftmeta", "rightmeta",
+        "tab", "escape", "caps", "numlock", "space",
+        "enter", "return",
+    ]
+
     /// Detects and logs when the same key is pressed 3+ times consecutively within a short window
     /// This helps diagnose unwanted duplicate keystrokes (driver/hardware issues)
     private func detectConsecutiveKeyPresses(key: String, action: String, timestamp: Date, layer: String) {
+        // Skip keys that are commonly held/repeated intentionally
+        if Self.ignoredKeysForDuplicateDetection.contains(key.lowercased()) {
+            return
+        }
+
         // Window for considering keys "consecutive" - 500ms between presses
         let consecutiveWindow: TimeInterval = 0.5
 

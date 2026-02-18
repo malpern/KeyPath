@@ -158,12 +158,18 @@ echo
 # --- Start live log monitor in background ---
 # Watches for duplicate detection and key events in real time
 echo "  Starting log monitor (duplicate detection alerts will appear here)..."
+echo "  (ignoring: backspace, arrows, modifiers, space, enter, tab, esc)"
 (
     tail -n 0 -F "$LOG_FILE" 2>/dev/null | while IFS= read -r line; do
         if echo "$line" | grep -q "DUPLICATE DETECTION"; then
             echo "  🔴 $line"
         elif echo "$line" | grep -q "Skipping duplicate"; then
-            echo "  🟡 $line"
+            # Filter out ignored keys from dedup skip messages too
+            if echo "$line" | grep -qiE "duplicate: (backspace|delete|left|right|up|down|home|end|pageup|pagedown|leftshift|rightshift|leftctrl|rightctrl|leftalt|rightalt|leftmeta|rightmeta|tab|escape|caps|numlock|space|enter|return) "; then
+                : # ignore
+            else
+                echo "  🟡 $line"
+            fi
         fi
     done
 ) &
@@ -187,6 +193,9 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo
 echo "  Duplicate detection alerts will appear in real time above."
 echo "  Kanata is processing every physical keystroke you type."
+echo
+echo "  Don't worry about typos — we're looking for REPEATED characters"
+echo "  (same key 3+ times in <500ms), not spelling errors."
 echo
 echo "  When you're done typing, press ENTER here to analyze results."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -239,13 +248,20 @@ fi
 echo "    Layer events: $LAYER_EVENT_COUNT"
 
 # --- Duplicate detection analysis ---
-DUPLICATE_ALERTS=$(echo "$NEW_LOG_LINES" | grep -c "DUPLICATE DETECTION" || true)
-DEDUP_SKIPS=$(echo "$NEW_LOG_LINES" | grep -c "Skipping duplicate" || true)
+# Filter out navigation/modifier keys from duplicate counts
+IGNORED_KEYS_PATTERN="(backspace|delete|left|right|up|down|home|end|pageup|pagedown|leftshift|rightshift|leftctrl|rightctrl|leftalt|rightalt|leftmeta|rightmeta|tab|escape|caps|numlock|space|enter|return)"
+DUPLICATE_ALERTS=$(echo "$NEW_LOG_LINES" | grep "DUPLICATE DETECTION" | grep -civE "Key '$IGNORED_KEYS_PATTERN'" || true)
+DEDUP_SKIPS=$(echo "$NEW_LOG_LINES" | grep "Skipping duplicate" | grep -civE "duplicate: $IGNORED_KEYS_PATTERN " || true)
+
+# Also count the ignored ones separately for transparency
+IGNORED_DUP_ALERTS=$(echo "$NEW_LOG_LINES" | grep "DUPLICATE DETECTION" | grep -ciE "Key '$IGNORED_KEYS_PATTERN'" || true)
+IGNORED_DEDUP_SKIPS=$(echo "$NEW_LOG_LINES" | grep "Skipping duplicate" | grep -ciE "duplicate: $IGNORED_KEYS_PATTERN " || true)
 
 echo
-echo "  Duplicate Detection:"
+echo "  Duplicate Detection (text keys only):"
 echo "    ⚠️  DUPLICATE DETECTION alerts: $DUPLICATE_ALERTS"
 echo "    🚫 Dedup filter skips: $DEDUP_SKIPS"
+echo "    (ignored nav/modifier repeats: $IGNORED_DUP_ALERTS alerts, $IGNORED_DEDUP_SKIPS skips)"
 
 if [[ "$DUPLICATE_ALERTS" -gt 0 ]]; then
     echo
