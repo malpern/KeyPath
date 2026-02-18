@@ -20,13 +20,33 @@ struct HomeRowKeyboardView: View {
 
     private let leftHandKeys = ["a", "s", "d", "f"]
     private let rightHandKeys = ["j", "k", "l", ";"]
-    private var keySpacing: CGFloat { max(4, keyChipSize * 0.1) }
-    private var handSpacing: CGFloat { max(14, keyChipSize * 0.3) }
-    private var sectionSpacing: CGFloat { max(10, keyChipSize * 0.2) }
-    private var verticalPadding: CGFloat { max(4, keyChipSize * 0.08) }
-    private var outerPadding: CGFloat { max(8, keyChipSize * 0.15) }
-    private var helperFontSize: CGFloat { max(11, keyChipSize * 0.18) }
-    private var handLabelFont: Font { .caption }
+    private var keySpacing: CGFloat {
+        max(4, keyChipSize * 0.1)
+    }
+
+    private var handSpacing: CGFloat {
+        max(14, keyChipSize * 0.3)
+    }
+
+    private var sectionSpacing: CGFloat {
+        max(10, keyChipSize * 0.2)
+    }
+
+    private var verticalPadding: CGFloat {
+        max(4, keyChipSize * 0.08)
+    }
+
+    private var outerPadding: CGFloat {
+        max(8, keyChipSize * 0.15)
+    }
+
+    private var helperFontSize: CGFloat {
+        max(11, keyChipSize * 0.18)
+    }
+
+    private var handLabelFont: Font {
+        .caption
+    }
 
     init(
         enabledKeys: Set<String>,
@@ -128,12 +148,6 @@ struct HomeRowKeyboardView: View {
             }
             .padding(.vertical, verticalPadding)
             .frame(maxWidth: .infinity)
-
-            // Helper text
-            Text(helperText)
-                .font(.system(size: helperFontSize))
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
         }
         .padding(outerPadding)
         .frame(maxWidth: .infinity)
@@ -147,7 +161,6 @@ struct HomeRowKeyboardView: View {
         keyDisplayLabels[key] ?? key.uppercased()
     }
 
-    @ViewBuilder
     private func handHeader(emoji: String, title: String, isActive: Bool) -> some View {
         HStack(spacing: 6) {
             Text("\(emoji) \(title)")
@@ -194,8 +207,13 @@ struct HomeRowKeyChip: View {
     let onHover: (Bool) -> Void
 
     @State private var isPressed = false
-    private var letterFontSize: CGFloat { max(15, size * 0.27) }
-    private var assignmentFontSize: CGFloat { max(12, size * 0.22) }
+    private var letterFontSize: CGFloat {
+        max(15, size * 0.27)
+    }
+
+    private var assignmentFontSize: CGFloat {
+        max(12, size * 0.22)
+    }
 
     private func modifierDisplay(for modifier: String) -> String {
         let displayNames: [String: String] = [
@@ -254,7 +272,6 @@ struct HomeRowKeyChip: View {
             .animation(.easeInOut(duration: 0.1), value: isPressed)
         }
         .buttonStyle(.plain)
-        .disabled(!isEnabled)
         .accessibilityIdentifier("home-row-key-chip-\(key)")
         .accessibilityLabel("Configure home row key \(keyDisplayLabel)")
         .onHover { hovering in

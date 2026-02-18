@@ -7,6 +7,7 @@ struct SettingsOptionCard: View {
     let title: String
     let subtitle: String
     let isSelected: Bool
+    var onHoverChanged: ((Bool) -> Void)?
     let action: () -> Void
     @State private var isHovered = false
 
@@ -52,6 +53,7 @@ struct SettingsOptionCard: View {
         .buttonStyle(.plain)
         .onHover { hovering in
             isHovered = hovering
+            onHoverChanged?(hovering)
         }
     }
 }

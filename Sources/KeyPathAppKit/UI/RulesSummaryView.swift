@@ -201,7 +201,8 @@ struct RulesTabView: View {
                 collection.id == RuleCollectionIdentifier.windowSnapping ||
                 collection.id == RuleCollectionIdentifier.macFunctionKeys
         )
-        let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .homeRowLayerToggles || style == .tapHoldPicker || style == .layerPresetPicker || style == .launcherGrid || style == .chordGroups ||
+        let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .homeRowLayerToggles || style == .tapHoldPicker || style == .layerPresetPicker || style == .launcherGrid ||
+            style == .chordGroups ||
             style ==
             .sequences || isSpecializedTable
         ExpandableCollectionRow(
@@ -243,6 +244,7 @@ struct RulesTabView: View {
                 Task { await kanataManager.updateCollectionHoldOutput(collection.id, holdOutput: hold) }
             } : nil,
             onUpdateHomeRowModsConfig: style == .homeRowMods ? { config in
+                pendingToggles[collection.id] = true
                 Task { await kanataManager.updateHomeRowModsConfig(collectionId: collection.id, config: config) }
             } : nil,
             homeRowAvailableLayers: style == .homeRowMods ? availableHomeRowLayers(for: collection) : [],
@@ -261,6 +263,7 @@ struct RulesTabView: View {
                 homeRowModsEditState = HomeRowModsEditState(collection: collection, selectedKey: key)
             } : nil,
             onUpdateHomeRowLayerTogglesConfig: style == .homeRowLayerToggles ? { config in
+                pendingToggles[collection.id] = true
                 Task { await kanataManager.updateHomeRowLayerTogglesConfig(collectionId: collection.id, config: config) }
             } : nil,
             onOpenHomeRowLayerTogglesModal: style == .homeRowLayerToggles ? {
@@ -270,12 +273,14 @@ struct RulesTabView: View {
                 homeRowLayerTogglesEditState = HomeRowLayerTogglesEditState(collection: collection, selectedKey: key)
             } : nil,
             onUpdateChordGroupsConfig: style == .chordGroups ? { config in
+                pendingToggles[collection.id] = true
                 Task { await kanataManager.updateChordGroupsConfig(collectionId: collection.id, config: config) }
             } : nil,
             onOpenChordGroupsModal: style == .chordGroups ? {
                 chordGroupsEditState = ChordGroupsEditState(collection: collection)
             } : nil,
             onUpdateSequencesConfig: style == .sequences ? { config in
+                pendingToggles[collection.id] = true
                 Task { await kanataManager.updateSequencesConfig(collectionId: collection.id, config: config) }
             } : nil,
             onOpenSequencesModal: style == .sequences ? {
@@ -298,7 +303,7 @@ struct RulesTabView: View {
         )
     }
 
-    private func availableHomeRowLayers(for collection: RuleCollection) -> [String] {
+    private func availableHomeRowLayers(for _: RuleCollection) -> [String] {
         let existingLayerNames = Set(
             kanataManager.ruleCollections
                 .map(\.targetLayer.kanataName)
@@ -328,7 +333,7 @@ struct RulesTabView: View {
                 Button {
                     openConfigInEditor()
                 } label: {
-                    Label("Edit Config", systemImage: "doc.text")
+                    Label("Config", systemImage: "square.and.pencil")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)

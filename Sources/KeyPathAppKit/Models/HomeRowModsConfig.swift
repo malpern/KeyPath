@@ -1,5 +1,11 @@
 import Foundation
 
+/// Timing UI complexity level for home row mods
+public enum TimingMode: String, Codable, Sendable {
+    case basic // Shared timing, no per-finger sliders
+    case precision // Per-finger sensitivity visible
+}
+
 /// Configuration for Home Row Mods collection
 public struct HomeRowModsConfig: Codable, Equatable, Sendable {
     /// Which keys are enabled for home row mods
@@ -30,6 +36,12 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
     /// Whether advanced options are shown
     public var showAdvanced: Bool
 
+    /// Timing UI complexity level
+    public var timingMode: TimingMode
+
+    /// Whether expert raw timing fields are expanded
+    public var showExpertTiming: Bool
+
     public init(
         enabledKeys: Set<String> = ["a", "s", "d", "f", "j", "k", "l", ";"],
         modifierAssignments: [String: String] = HomeRowModsConfig.cagsMacDefault,
@@ -39,7 +51,9 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         layerToggleMode: LayerToggleMode = .whileHeld,
         timing: TimingConfig = .default,
         keySelection: KeySelection = .both,
-        showAdvanced: Bool = false
+        showAdvanced: Bool = false,
+        timingMode: TimingMode = .basic,
+        showExpertTiming: Bool = false
     ) {
         self.enabledKeys = enabledKeys
         self.modifierAssignments = modifierAssignments
@@ -50,6 +64,8 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         self.timing = timing
         self.keySelection = keySelection
         self.showAdvanced = showAdvanced
+        self.timingMode = timingMode
+        self.showExpertTiming = showExpertTiming
     }
 
     /// Mac-first CAGS mapping
@@ -91,6 +107,8 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         case timing
         case keySelection
         case showAdvanced
+        case timingMode
+        case showExpertTiming
     }
 
     public init(from decoder: Decoder) throws {
@@ -113,6 +131,8 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         timing = try container.decodeIfPresent(TimingConfig.self, forKey: .timing) ?? .default
         keySelection = try container.decodeIfPresent(KeySelection.self, forKey: .keySelection) ?? .both
         showAdvanced = try container.decodeIfPresent(Bool.self, forKey: .showAdvanced) ?? false
+        timingMode = try container.decodeIfPresent(TimingMode.self, forKey: .timingMode) ?? .basic
+        showExpertTiming = try container.decodeIfPresent(Bool.self, forKey: .showExpertTiming) ?? false
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -126,6 +146,8 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         try container.encode(timing, forKey: .timing)
         try container.encode(keySelection, forKey: .keySelection)
         try container.encode(showAdvanced, forKey: .showAdvanced)
+        try container.encode(timingMode, forKey: .timingMode)
+        try container.encode(showExpertTiming, forKey: .showExpertTiming)
     }
 }
 
