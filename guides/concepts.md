@@ -6,7 +6,7 @@ description: Layers, tap-hold, modifiers, and more — explained for people who'
 
 # Keyboard Concepts for Mac Users
 
-If you've never customized a keyboard beyond **System Settings > Keyboard > Modifier Keys**, this page is for you. We'll explain the core ideas behind keyboard remapping using terminology you already know from macOS.
+If you've never customized a keyboard beyond **System Settings > Keyboard > Modifier Keys**, this page is for you. These are the core ideas behind keyboard remapping — they apply regardless of which tool you use.
 
 ---
 
@@ -19,7 +19,7 @@ You already know you can swap Caps Lock and Control in System Settings. Keyboard
 - Create entirely separate keyboard layouts you can switch between
 - Set up app-specific shortcuts that only activate in certain applications
 
-KeyPath uses [Kanata](https://github.com/jtroo/kanata) as its engine — a purpose-built keyboard remapping tool — and wraps it in a native Mac interface so you don't have to edit config files.
+System Settings gives you a few checkboxes. Keyboard remapping gives you a programming language for your keyboard.
 
 ---
 
@@ -84,7 +84,7 @@ For example, you could make the F key type "f" when tapped but act as Command wh
 
 This is how [home row mods]({{ '/guides/home-row-mods' | relative_url }}) work — your home row letter keys double as modifiers, so you never have to reach for Command, Option, Control, or Shift.
 
-KeyPath gives you sliders and visual controls to fine-tune the timing so the tap/hold split feels natural for your typing speed. See the [Tap-Hold guide]({{ '/guides/tap-hold' | relative_url }}) for all the details.
+The tricky part is timing — how does the system know if you meant to tap or hold? Good remapping tools give you control over the threshold, per-finger sensitivity, and what happens when you press another key during the decision window. See the [Tap-Hold guide]({{ '/guides/tap-hold' | relative_url }}) for the details.
 
 ---
 
@@ -117,15 +117,39 @@ Home row mods combine tap-hold with your home row keys (A S D F / J K L ;) to tu
 
 This is the most popular advanced keyboard technique. Your fingers never leave the home row to hit modifiers — everything is right under your fingertips.
 
-KeyPath includes built-in support for home row mods with split-hand detection and per-finger timing to make them feel reliable from day one.
+The challenge is avoiding misfires during fast typing. Good implementations use split-hand detection (same-hand = letter, cross-hand = modifier) and per-finger timing to make it reliable.
 
-Read the full [Home Row Mods guide]({{ '/guides/home-row-mods' | relative_url }}) to get started.
+Read the full [Home Row Mods guide]({{ '/guides/home-row-mods' | relative_url }}) for a deep dive.
+
+---
+
+## Hyper and Meh keys
+
+Power users often create "super modifiers" that don't exist on a standard keyboard:
+
+- **Hyper** = Control + Option + Command + Shift (all four modifiers at once)
+- **Meh** = Control + Option + Shift (three modifiers, no Command)
+
+Since no app uses these combinations, they give you a huge namespace of shortcuts that will never conflict with anything. Tap Caps Lock to get Escape, hold it for Hyper — now every letter key becomes a unique, conflict-free shortcut.
+
+---
+
+## Chords and sequences
+
+Beyond single keys, you can trigger actions from combinations:
+
+- **Chord** — press two keys simultaneously (e.g., J+K together → trigger an action)
+- **Sequence** — press keys one after another (e.g., Space then S then M → open Messages)
+- **Leader key** — press a "leader" key, then type a short sequence. Like Vim's leader key but for your whole system.
+
+These let you create memorable shortcuts without running out of modifier combinations.
 
 ---
 
 ## Where to go next
 
-- **[Your First Mapping]({{ '/getting-started/first-mapping' | relative_url }})** — Create a simple remap to see how KeyPath works
+- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — Concrete examples of what's possible with KeyPath
+- **[Your First Mapping]({{ '/getting-started/first-mapping' | relative_url }})** — Create a simple remap to get started
 - **[Home Row Mods]({{ '/guides/home-row-mods' | relative_url }})** — The most popular advanced technique
 - **[Tap-Hold & Tap-Dance]({{ '/guides/tap-hold' | relative_url }})** — All the details on dual-role keys
 - **[Back to Docs]({{ '/docs' | relative_url }})** — See all available guides

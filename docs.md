@@ -30,6 +30,7 @@ Everything you need to get started with keyboard remapping on your Mac — wheth
 <p>New to keyboard customization? Learn what layers, tap-hold, and modifiers are — explained for Mac users.</p>
 <ul class="docs-card-links">
 <li><a href="{{ '/guides/concepts' | relative_url }}">Keyboard Concepts for Mac Users</a></li>
+<li><a href="{{ '/guides/use-cases' | relative_url }}">What You Can Build</a></li>
 </ul>
 </div>
 
