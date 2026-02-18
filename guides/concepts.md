@@ -21,6 +21,18 @@ You already know you can swap Caps Lock and Control in System Settings. Keyboard
 
 System Settings gives you a few checkboxes. Keyboard remapping gives you a programming language for your keyboard.
 
+```
+  System Settings:              Keyboard Remapping:
+
+  ☐ Swap Caps Lock → Control   Any key → any key
+  ☐ Swap Option → Command      One key → two functions
+                                Layers, sequences, chords
+  That's it.                    App-specific shortcuts
+                                Tap-hold, tap-dance
+                                Launch apps, tile windows
+                                ...and much more
+```
+
 ---
 
 ## Keys, modifiers, and shortcuts
@@ -84,7 +96,26 @@ For example, you could make the F key type "f" when tapped but act as Command wh
 
 This is how [home row mods]({{ '/guides/home-row-mods' | relative_url }}) work — your home row letter keys double as modifiers, so you never have to reach for Command, Option, Control, or Shift.
 
-The tricky part is timing — how does the system know if you meant to tap or hold? Good remapping tools give you control over the threshold, per-finger sensitivity, and what happens when you press another key during the decision window. See the [Tap-Hold guide]({{ '/guides/tap-hold' | relative_url }}) for the details.
+The tricky part is timing — how does the system know if you meant to tap or hold?
+
+```
+  ── Time ──────────────────────────────→
+
+  Quick tap:   ╔══╗                       → "f" (the letter)
+               ╚══╝
+               press  release
+               < 200ms
+
+  Slow hold:   ╔══════════════╗           → Command (the modifier)
+               ╚══════════════╝
+               press           release
+               ·····200ms····→
+
+  The threshold (usually ~200ms) determines the split.
+  Too short = accidental modifiers. Too long = sluggish letters.
+```
+
+Good remapping tools give you control over the threshold, per-finger sensitivity, and what happens when you press another key during the decision window. See the [Tap-Hold guide]({{ '/guides/tap-hold' | relative_url }}) for the details.
 
 ---
 
@@ -132,6 +163,17 @@ Power users often create "super modifiers" that don't exist on a standard keyboa
 
 Since no app uses these combinations, they give you a huge namespace of shortcuts that will never conflict with anything. Tap Caps Lock to get Escape, hold it for Hyper — now every letter key becomes a unique, conflict-free shortcut.
 
+```
+  Standard modifiers:
+  ⌘A  ⌘B  ⌘C ... already taken by apps
+
+  Hyper (⌃⌥⌘⇧):
+  Hyper+A  Hyper+B  Hyper+C ... all yours!
+
+  26 letters + 10 numbers = 36 conflict-free shortcuts
+  from a single modifier key
+```
+
 ---
 
 ## Chords and sequences
@@ -143,6 +185,15 @@ Beyond single keys, you can trigger actions from combinations:
 - **Leader key** — press a "leader" key, then type a short sequence. Like Vim's leader key but for your whole system.
 
 These let you create memorable shortcuts without running out of modifier combinations.
+
+```
+  Chord (simultaneous):     Sequence (one after another):
+
+  ┌───┐ ┌───┐              ┌───┐     ┌───┐     ┌───┐
+  │ J │+│ K │ = action      │SPC│ ──→ │ G │ ──→ │ H │ = open GitHub
+  └───┘ └───┘              └───┘     └───┘     └───┘
+  pressed together          pressed in order
+```
 
 ---
 

@@ -24,6 +24,17 @@ The most popular KeyPath setup. Turn Caps Lock into a dual-role key:
   │ Caps Lock│   Tap  → Escape
   │  HYPER   │   Hold → ⌃⌥⌘⇧ (all four modifiers)
   └──────────┘
+
+  ── Time ──────────────────────────────→
+
+  Quick tap:  ╔══╗                        → Escape
+              ╚══╝
+              press  release
+
+  Hold:       ╔════════════════╗          → Hyper active
+              ╚════════════════╝
+              press             release
+              ·····200ms·····→
 ```
 
 Now hold Caps Lock and press any letter to trigger a unique shortcut that will never conflict with any app:
@@ -87,6 +98,20 @@ Use the Meh key (Control + Option + Shift) to activate a navigation layer. Hold 
 
 This is especially powerful on a MacBook where the arrow keys are small and awkward.
 
+```
+  Before (reaching):          After (home row):
+
+       ·                         ·
+      /                          |
+     / your hand               your hand stays put
+    /  travels here              |
+   ↓                             ↓
+  ┌──┬──┐                    ┌─────┬─────┬─────┬─────┐
+  │←│→│                    │  ←  │  ↓  │  ↑  │  →  │
+  └──┴──┘                    └─────┴─────┴─────┴─────┘
+  tiny arrow keys             full-size home row keys
+```
+
 **How to set it up:** Create a custom rule with a tap-hold key that activates a navigation layer on hold.
 
 ---
@@ -103,6 +128,19 @@ Put Shift, Control, Option, and Command right under your fingers:
 ```
 
 Hold F + press C = ⌘C (Copy). Hold A + press Tab = ⇧Tab. No reaching, no contortion.
+
+```
+  Before:                          After:
+  ┌─────────────────────┐          ┌─────────────────────┐
+  │                     │          │                     │
+  │    ⌃  ⌥  ⌘         │          │                     │
+  │    ↑  ↑  ↑         │          │  ⇧  ⌃  ⌥  ⌘        │
+  │    reach, reach,    │          │  A  S  D  F         │
+  │    reach            │          │  right here          │
+  │                     │          │                     │
+  └─────────────────────┘          └─────────────────────┘
+  Modifiers in the corners         Modifiers on the home row
+```
 
 KeyPath's split-hand detection and per-finger timing make this work reliably — fast typing produces letters, deliberate chords produce modifiers.
 
@@ -174,6 +212,24 @@ Or go further with app-specific keymaps — Vim-style navigation that only activ
 
 KeyPath detects which app is active and switches layers automatically via TCP.
 
+```
+  ┌─────────────────────────────────────────────┐
+  │  You switch apps — KeyPath handles the rest  │
+  │                                               │
+  │  Click Safari    ──→  Vim layer activates     │
+  │  ┌─────────┐         HJKL = arrow keys        │
+  │  │ 🧭      │                                   │
+  │  └─────────┘                                   │
+  │                                               │
+  │  Click VS Code  ──→  Base layer activates     │
+  │  ┌─────────┐         HJKL = normal letters    │
+  │  │ 📝      │                                   │
+  │  └─────────┘                                   │
+  │                                               │
+  │  No manual switching. Fully automatic.         │
+  └─────────────────────────────────────────────┘
+```
+
 **How to set it up:** Add Safari (or any app) in the App-Specific Rules tab, then configure HJKL mappings. See the [Window Management guide]({{ '/guides/window-management' | relative_url }}).
 
 ---
@@ -195,6 +251,23 @@ Press a leader key, then type a short mnemonic to trigger an action — like Vim
 ```
 
 Sequences are memorable (S for "switch app", G for "go to", W for "window") and you'll never run out of combinations.
+
+```
+  ── Time ──────────────────────────────→
+
+  ┌───┐        ┌───┐        ┌───┐
+  │SPC│  ──→   │ S │  ──→   │ M │  ──→  📱 Messages opens
+  └───┘        └───┘        └───┘
+  leader       "switch"     "messages"
+
+  ┌───┐        ┌───┐        ┌───┐
+  │SPC│  ──→   │ G │  ──→   │ H │  ──→  🐙 GitHub opens
+  └───┘        └───┘        └───┘
+  leader       "go to"      "hub"
+
+  Think of it like a keyboard command palette.
+  Type what you mean, get what you want.
+```
 
 **How to set it up:** Create sequence rules in the Custom Rules tab, or define them in your Kanata config using `defseq`.
 
@@ -238,6 +311,33 @@ The real power comes from combining these ideas. Here's a complete setup:
 ```
 
 Your fingers never leave the home row. Apps launch instantly. Windows tile with a keystroke. Every shortcut is one fluid motion.
+
+```
+  ┌─────────────────────────────────────────────────────┐
+  │               The Complete Setup                     │
+  │                                                      │
+  │   ┌─────────────┐                                    │
+  │   │  Caps Lock   │ ── tap ──→  Escape                │
+  │   │  (Hyper)     │ ── hold ─→  ⌃⌥⌘⇧ Hyper          │
+  │   └──────┬───────┘                                   │
+  │          │                                           │
+  │          ├── + letter ──→  Launch app                 │
+  │          ├── + HJKL ────→  Tile windows               │
+  │          └── + number ──→  Open URL                   │
+  │                                                      │
+  │   ┌─────────────┐                                    │
+  │   │  Home Row    │ ── tap ──→  Letters                │
+  │   │  (A S D F)   │ ── hold ─→  ⇧ ⌃ ⌥ ⌘ Modifiers   │
+  │   └──────────────┘                                   │
+  │                                                      │
+  │   ┌─────────────┐                                    │
+  │   │  Space       │ ── tap ──→  Space                  │
+  │   │  (Leader)    │ ── hold ─→  Leader → S → M = Msgs │
+  │   └──────────────┘                                   │
+  │                                                      │
+  │   Three keys. Infinite possibilities.                │
+  └─────────────────────────────────────────────────────┘
+```
 
 Start with one technique, get comfortable, then add the next. There's no rush.
 
