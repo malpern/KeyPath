@@ -298,7 +298,6 @@ public struct KeyPathApp: App {
                 .keyboardShortcut("u", modifiers: [.control, .option, .command])
                 .hidden() // Hide from menu but keep keyboard shortcut active
             }
-
         }
     }
 }

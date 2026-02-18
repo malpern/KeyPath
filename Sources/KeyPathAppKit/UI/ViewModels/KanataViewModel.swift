@@ -337,23 +337,43 @@ class KanataViewModel {
     }
 
     func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async {
-        await manager.updateHomeRowModsConfig(collectionId: collectionId, config: config)
+        let wasNewlyEnabled = await manager.updateHomeRowModsConfig(collectionId: collectionId, config: config)
+        if wasNewlyEnabled {
+            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
+            showToast("Turned on \(name)", type: .success)
+        }
     }
 
     func updateHomeRowLayerTogglesConfig(collectionId: UUID, config: HomeRowLayerTogglesConfig) async {
-        await manager.updateHomeRowLayerTogglesConfig(collectionId: collectionId, config: config)
+        let wasNewlyEnabled = await manager.updateHomeRowLayerTogglesConfig(collectionId: collectionId, config: config)
+        if wasNewlyEnabled {
+            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
+            showToast("Turned on \(name)", type: .success)
+        }
     }
 
     func updateChordGroupsConfig(collectionId: UUID, config: ChordGroupsConfig) async {
-        await manager.updateChordGroupsConfig(collectionId: collectionId, config: config)
+        let wasNewlyEnabled = await manager.updateChordGroupsConfig(collectionId: collectionId, config: config)
+        if wasNewlyEnabled {
+            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
+            showToast("Turned on \(name)", type: .success)
+        }
     }
 
     func updateSequencesConfig(collectionId: UUID, config: SequencesConfig) async {
-        await manager.updateSequencesConfig(collectionId: collectionId, config: config)
+        let wasNewlyEnabled = await manager.updateSequencesConfig(collectionId: collectionId, config: config)
+        if wasNewlyEnabled {
+            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
+            showToast("Turned on \(name)", type: .success)
+        }
     }
 
     func updateLauncherConfig(_ collectionId: UUID, config: LauncherGridConfig) async {
-        await manager.updateLauncherConfig(collectionId: collectionId, config: config)
+        let wasNewlyEnabled = await manager.updateLauncherConfig(collectionId: collectionId, config: config)
+        if wasNewlyEnabled {
+            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
+            showToast("Turned on \(name)", type: .success)
+        }
     }
 
     /// Update the leader key for all collections that use momentary activation

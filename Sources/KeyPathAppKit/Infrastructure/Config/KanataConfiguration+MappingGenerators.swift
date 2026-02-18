@@ -6,6 +6,8 @@ import Network
 extension KanataConfiguration {
     /// Generate KeyMapping instances from HomeRowModsConfig
     static func generateHomeRowModsMappings(from config: HomeRowModsConfig) -> [KeyMapping] {
+        let leftHandSet = Set(HomeRowModsConfig.leftHandAllKeys)
+
         var mappings: [KeyMapping] = []
 
         for key in config.enabledKeys {
@@ -27,15 +29,27 @@ extension KanataConfiguration {
             )
             let holdTimeout = max(1, config.timing.holdDelay + (config.timing.holdOffsets[key] ?? 0))
 
+            // Split-hand detection: same-hand keys force early tap, opposite-hand allows hold
+            let customTapKeys: [String]
+            let activateOnOther: Bool
+            if config.splitHandDetection {
+                let isLeftHand = leftHandSet.contains(key)
+                customTapKeys = isLeftHand ? HomeRowModsConfig.leftHandAllKeys : HomeRowModsConfig.rightHandAllKeys
+                activateOnOther = false
+            } else {
+                customTapKeys = []
+                activateOnOther = true
+            }
+
             // Create dual-role behavior: tap = letter, hold = modifier
             let behavior = DualRoleBehavior(
                 tapAction: key,
                 holdAction: holdAction,
                 tapTimeout: tapTimeout,
                 holdTimeout: holdTimeout,
-                activateHoldOnOtherKey: true, // Best for home-row mods
+                activateHoldOnOtherKey: activateOnOther,
                 quickTap: config.timing.quickTapEnabled,
-                customTapKeys: []
+                customTapKeys: customTapKeys
             )
 
             let mapping = KeyMapping(
@@ -51,6 +65,8 @@ extension KanataConfiguration {
 
     /// Generate KeyMapping instances from HomeRowLayerTogglesConfig
     static func generateHomeRowLayerTogglesMappings(from config: HomeRowLayerTogglesConfig) -> [KeyMapping] {
+        let leftHandSet = Set(HomeRowModsConfig.leftHandAllKeys)
+
         var mappings: [KeyMapping] = []
 
         for key in config.enabledKeys {
@@ -67,15 +83,27 @@ extension KanataConfiguration {
             // Build hold action based on toggle mode
             let holdAction = "(\(config.toggleMode.kanataAction) \(layerName))"
 
+            // Split-hand detection: same-hand keys force early tap, opposite-hand allows hold
+            let customTapKeys: [String]
+            let activateOnOther: Bool
+            if config.splitHandDetection {
+                let isLeftHand = leftHandSet.contains(key)
+                customTapKeys = isLeftHand ? HomeRowModsConfig.leftHandAllKeys : HomeRowModsConfig.rightHandAllKeys
+                activateOnOther = false
+            } else {
+                customTapKeys = []
+                activateOnOther = true
+            }
+
             // Create dual-role behavior: tap = letter, hold = layer activation
             let behavior = DualRoleBehavior(
                 tapAction: key,
                 holdAction: holdAction,
                 tapTimeout: tapTimeout,
                 holdTimeout: holdTimeout,
-                activateHoldOnOtherKey: true, // Activate layer on other key press
+                activateHoldOnOtherKey: activateOnOther,
                 quickTap: config.timing.quickTapEnabled,
-                customTapKeys: []
+                customTapKeys: customTapKeys
             )
 
             let mapping = KeyMapping(

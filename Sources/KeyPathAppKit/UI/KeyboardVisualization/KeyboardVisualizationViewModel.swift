@@ -45,6 +45,8 @@ class KeyboardVisualizationViewModel {
     /// Used to keep the key visually pressed even if tap-hold implementations
     /// emit spurious release/press events while held.
     @ObservationIgnored var holdActiveKeyCodes: Set<UInt16> = []
+    /// Keys that were hold-active when released (for orange fade-out color)
+    var holdReleaseFadeKeyCodes: Set<UInt16> = []
     /// Custom icons for keys set via push-msg (keyCode -> icon name)
     /// Example: "arrow-left", "safari", "home"
     var customIcons: [UInt16: String] = [:]

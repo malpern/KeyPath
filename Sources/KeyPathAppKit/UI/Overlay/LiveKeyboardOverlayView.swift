@@ -589,6 +589,7 @@ struct LiveKeyboardOverlayView: View {
                     oneShotKeyCodes: viewModel.oneShotHighlightedKeyCodes,
                     holdLabels: viewModel.holdLabels,
                     tapHoldIdleLabels: viewModel.tapHoldIdleLabels,
+                    holdReleaseFadeKeyCodes: viewModel.holdReleaseFadeKeyCodes,
                     customIcons: viewModel.customIcons,
                     onKeyClick: onKeyClick,
                     selectedKeyCode: viewModel.selectedKeyCode,

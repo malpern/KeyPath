@@ -31,6 +31,10 @@ struct OverlayKeycapView: View {
     var isOneShot: Bool = false
     /// Hold label to display when tap-hold key is in hold state
     var holdLabel: String?
+    /// Whether this key is currently in a hold-active state (for orange coloring)
+    var isHoldActive: Bool = false
+    /// The "from" color for release fade animation (orange when hold-active, blue otherwise)
+    var releaseFadeFromColor: Color = .accentColor
     /// Idle label to display for tap-hold inputs when not pressed
     var tapHoldIdleLabel: String?
     /// Callback when key is clicked (not dragged)

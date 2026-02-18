@@ -253,7 +253,7 @@ final class ContextHUDController {
                 // Build launcher keyMap from collections (not simulator).
                 // The kanata simulator cannot capture push-msg events, so launcher
                 // keys appear transparent when simulated. Build from config directly.
-                let collectionLauncherKeyMap = self.buildLauncherKeyMap(from: enabledCollections)
+                let collectionLauncherKeyMap = buildLauncherKeyMap(from: enabledCollections)
 
                 let keyMap: [UInt16: LayerKeyInfo]
                 var launcherKeyMap: [UInt16: LayerKeyInfo]?
@@ -271,7 +271,7 @@ final class ContextHUDController {
                     )
 
                     // Pass launcher entries separately so they show as their own group
-                    if normalizedLayerName != "base" && !collectionLauncherKeyMap.isEmpty {
+                    if normalizedLayerName != "base", !collectionLauncherKeyMap.isEmpty {
                         launcherKeyMap = collectionLauncherKeyMap
                     }
                 }
@@ -467,14 +467,13 @@ final class ContextHUDController {
                 continue
             }
 
-            let info: LayerKeyInfo
-            switch mapping.target {
+            let info: LayerKeyInfo = switch mapping.target {
             case let .app(name, bundleId):
-                info = .appLaunch(appIdentifier: bundleId ?? name, collectionId: collectionId)
+                .appLaunch(appIdentifier: bundleId ?? name, collectionId: collectionId)
             case let .url(urlString):
-                info = .webURL(url: urlString, collectionId: collectionId)
+                .webURL(url: urlString, collectionId: collectionId)
             case .folder, .script:
-                info = .pushMsg(message: mapping.target.displayName, collectionId: collectionId)
+                .pushMsg(message: mapping.target.displayName, collectionId: collectionId)
             }
 
             keyMap[keyCode] = info

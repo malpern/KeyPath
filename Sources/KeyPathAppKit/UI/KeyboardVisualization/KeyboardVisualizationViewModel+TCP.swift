@@ -585,6 +585,10 @@ extension KeyboardVisualizationViewModel {
                 return
             }
 
+            // Track if this key was hold-active for orange release fade
+            if holdActiveKeyCodes.contains(keyCode) {
+                holdReleaseFadeKeyCodes.insert(keyCode)
+            }
             pressedKeyCodes.remove(keyCode)
             startKeyFadeOut(keyCode) // Start fade-out animation
             // Defer clearing hold state briefly to tolerate tap-hold-press sequences that emit rapid releases.

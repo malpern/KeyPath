@@ -177,7 +177,6 @@ struct GeneralSettingsTabView: View {
             }
         }
     }
-
 }
 
 // MARK: - Verbose Logging Toggle

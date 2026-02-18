@@ -16,7 +16,9 @@ struct NumpadTransformGrid: View {
         let keyCode: UInt16
         let canonical: String
         let label: String
-        var id: UInt16 { keyCode }
+        var id: UInt16 {
+            keyCode
+        }
     }
 
     /// Right hand numpad keys by physical position
@@ -47,8 +49,12 @@ struct NumpadTransformGrid: View {
         Self.operatorKeyCodes.map(displayKey(for:))
     }
 
-    private var zeroKey: DisplayKey { displayKey(for: 45) } // N
-    private var decimalKey: DisplayKey { displayKey(for: 44) } // /
+    private var zeroKey: DisplayKey {
+        displayKey(for: 45)
+    } // N
+    private var decimalKey: DisplayKey {
+        displayKey(for: 44)
+    } // /
 
     private func displayKey(for keyCode: UInt16) -> DisplayKey {
         let canonical = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()

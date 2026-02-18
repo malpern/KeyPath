@@ -56,23 +56,28 @@ extension RuntimeCoordinator {
         await ruleCollectionsCoordinator.updateFunctionKeyMode(id: id, mode: mode)
     }
 
-    func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async {
+    @discardableResult
+    func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async -> Bool {
         await ruleCollectionsCoordinator.updateHomeRowModsConfig(id: collectionId, config: config)
     }
 
-    func updateHomeRowLayerTogglesConfig(collectionId: UUID, config: HomeRowLayerTogglesConfig) async {
+    @discardableResult
+    func updateHomeRowLayerTogglesConfig(collectionId: UUID, config: HomeRowLayerTogglesConfig) async -> Bool {
         await ruleCollectionsCoordinator.updateHomeRowLayerTogglesConfig(id: collectionId, config: config)
     }
 
-    func updateChordGroupsConfig(collectionId: UUID, config: ChordGroupsConfig) async {
+    @discardableResult
+    func updateChordGroupsConfig(collectionId: UUID, config: ChordGroupsConfig) async -> Bool {
         await ruleCollectionsCoordinator.updateChordGroupsConfig(id: collectionId, config: config)
     }
 
-    func updateSequencesConfig(collectionId: UUID, config: SequencesConfig) async {
+    @discardableResult
+    func updateSequencesConfig(collectionId: UUID, config: SequencesConfig) async -> Bool {
         await ruleCollectionsCoordinator.updateSequencesConfig(id: collectionId, config: config)
     }
 
-    func updateLauncherConfig(collectionId: UUID, config: LauncherGridConfig) async {
+    @discardableResult
+    func updateLauncherConfig(collectionId: UUID, config: LauncherGridConfig) async -> Bool {
         await ruleCollectionsCoordinator.updateLauncherConfig(id: collectionId, config: config)
     }
 

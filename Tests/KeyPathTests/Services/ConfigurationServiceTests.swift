@@ -1261,8 +1261,8 @@ class ConfigurationServiceTests: XCTestCase {
         }
 
         XCTAssertTrue(failures.isEmpty,
-                       "These keyCodeToKanataName outputs don't convert to valid kanata keys:\n" +
-                       failures.joined(separator: "\n"))
+                      "These keyCodeToKanataName outputs don't convert to valid kanata keys:\n" +
+                          failures.joined(separator: "\n"))
     }
 
     // MARK: - Integration Tests

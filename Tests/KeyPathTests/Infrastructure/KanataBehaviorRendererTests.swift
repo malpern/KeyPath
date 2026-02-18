@@ -126,7 +126,7 @@ struct KanataBehaviorRendererTests {
         #expect(result == "(tap-hold-release-keys $tap-timeout $hold-timeout a lctl (s d f))")
     }
 
-    @Test("Custom tap keys with flags: flags take precedence")
+    @Test("Custom tap keys with flags: customTapKeys takes precedence")
     func customTapKeysWithFlags() {
         let mapping = KeyMapping(
             input: "a",
@@ -134,13 +134,71 @@ struct KanataBehaviorRendererTests {
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "a",
                 holdAction: "lctl",
-                activateHoldOnOtherKey: true, // This takes precedence
+                activateHoldOnOtherKey: true,
                 customTapKeys: ["s", "d", "f"]
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
-        // activateHoldOnOtherKey takes precedence over customTapKeys
-        #expect(result == "(tap-hold-press $tap-timeout $hold-timeout a lctl)")
+        // customTapKeys takes precedence over activateHoldOnOtherKey
+        #expect(result == "(tap-hold-release-keys $tap-timeout $hold-timeout a lctl (s d f))")
+    }
+
+    // MARK: - Split-Hand Detection
+
+    @Test("HRM with split-hand ON produces tap-hold-release-keys with left-hand keys for 'a'")
+    func splitHandLeftKey() {
+        let config = HomeRowModsConfig(
+            enabledKeys: ["a"],
+            modifierAssignments: ["a": "lsft"],
+            holdMode: .modifiers,
+            splitHandDetection: true
+        )
+        let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
+        let rendered = KanataBehaviorRenderer.render(mappings[0])
+        // Default timing: tapWindow=200 → $tap-timeout, holdDelay=150 → literal 150
+        #expect(rendered == "(tap-hold-release-keys $tap-timeout 150 a lsft (q w e r t a s d f g z x c v b))")
+    }
+
+    @Test("HRM with split-hand ON produces tap-hold-release-keys with right-hand keys for 'j'")
+    func splitHandRightKey() {
+        let config = HomeRowModsConfig(
+            enabledKeys: ["j"],
+            modifierAssignments: ["j": "rmet"],
+            holdMode: .modifiers,
+            splitHandDetection: true
+        )
+        let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
+        let rendered = KanataBehaviorRenderer.render(mappings[0])
+        #expect(rendered == "(tap-hold-release-keys $tap-timeout 150 j rmet (y u i o p h j k l ; n m , . /))")
+    }
+
+    @Test("HRM with split-hand OFF produces tap-hold-press")
+    func splitHandOff() {
+        let config = HomeRowModsConfig(
+            enabledKeys: ["a"],
+            modifierAssignments: ["a": "lsft"],
+            holdMode: .modifiers,
+            splitHandDetection: false
+        )
+        let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
+        let rendered = KanataBehaviorRenderer.render(mappings[0])
+        #expect(rendered == "(tap-hold-press $tap-timeout 150 a lsft)")
+    }
+
+    @Test("Non-HRM dual-role (caps lock) with activateHoldOnOtherKey still produces tap-hold-press")
+    func nonHrmDualRoleStillTapHoldPress() {
+        let mapping = KeyMapping(
+            input: "caps",
+            output: "caps",
+            behavior: .dualRole(DualRoleBehavior(
+                tapAction: "esc",
+                holdAction: "lctl",
+                activateHoldOnOtherKey: true,
+                customTapKeys: []
+            ))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result == "(tap-hold-press $tap-timeout $hold-timeout esc lctl)")
     }
 
     // MARK: - Tap Dance
@@ -460,7 +518,8 @@ struct KanataBehaviorRendererTests {
             modifierAssignments: ["a": "lmet", "s": "lalt"],
             layerAssignments: ["a": "nav", "s": "sym"],
             holdMode: .layers,
-            layerToggleMode: .whileHeld
+            layerToggleMode: .whileHeld,
+            splitHandDetection: false
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -489,7 +548,8 @@ struct KanataBehaviorRendererTests {
             modifierAssignments: ["a": "lmet"],
             layerAssignments: ["a": "nav"],
             holdMode: .layers,
-            layerToggleMode: .toggle
+            layerToggleMode: .toggle,
+            splitHandDetection: false
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)

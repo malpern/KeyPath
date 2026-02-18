@@ -71,6 +71,8 @@ struct ExpandableCollectionRow: View {
     var onSelectFunctionKeyMode: ((FunctionKeyMode) -> Void)?
     /// For launcherGrid: callback to update launcher config
     var onLauncherConfigChanged: ((LauncherGridConfig) -> Void)?
+    /// Optional help button callback — when non-nil, a `?` button appears in the header
+    var onHelpTapped: (() -> Void)?
     /// Unique ID for scroll-to behavior
     var scrollID: String?
     /// Scroll proxy for auto-scrolling when expanded
@@ -234,6 +236,18 @@ struct ExpandableCollectionRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("rules-summary-expand-button-\(collectionId)")
             .accessibilityLabel(isExpanded ? "Collapse \(name)" : "Expand \(name)")
+
+            // Help button (only for collections that provide one)
+            if let onHelpTapped {
+                Button { onHelpTapped() } label: {
+                    Image(systemName: "questionmark.circle")
+                        .foregroundColor(.secondary)
+                        .font(.body)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("rules-summary-help-\(collectionId)")
+                .accessibilityLabel("\(name) help")
+            }
 
             // Right side: Toggle (NOT inside button, so it receives taps)
             Toggle(

@@ -114,38 +114,48 @@ final class RuleCollectionsCoordinator {
     }
 
     /// Update home row mods configuration
-    func updateHomeRowModsConfig(id: UUID, config: HomeRowModsConfig) async {
-        await ruleCollectionsManager.updateHomeRowModsConfig(id: id, config: config)
+    @discardableResult
+    func updateHomeRowModsConfig(id: UUID, config: HomeRowModsConfig) async -> Bool {
+        let wasNewlyEnabled = await ruleCollectionsManager.updateHomeRowModsConfig(id: id, config: config)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
+        return wasNewlyEnabled
     }
 
     /// Update home row layer toggles configuration
-    func updateHomeRowLayerTogglesConfig(id: UUID, config: HomeRowLayerTogglesConfig) async {
-        await ruleCollectionsManager.updateHomeRowLayerTogglesConfig(id: id, config: config)
+    @discardableResult
+    func updateHomeRowLayerTogglesConfig(id: UUID, config: HomeRowLayerTogglesConfig) async -> Bool {
+        let wasNewlyEnabled = await ruleCollectionsManager.updateHomeRowLayerTogglesConfig(id: id, config: config)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
+        return wasNewlyEnabled
     }
 
     /// Update chord groups configuration
-    func updateChordGroupsConfig(id: UUID, config: ChordGroupsConfig) async {
-        await ruleCollectionsManager.updateChordGroupsConfig(id: id, config: config)
+    @discardableResult
+    func updateChordGroupsConfig(id: UUID, config: ChordGroupsConfig) async -> Bool {
+        let wasNewlyEnabled = await ruleCollectionsManager.updateChordGroupsConfig(id: id, config: config)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
+        return wasNewlyEnabled
     }
 
     /// Update sequences configuration
-    func updateSequencesConfig(id: UUID, config: SequencesConfig) async {
-        await ruleCollectionsManager.updateSequencesConfig(id: id, config: config)
+    @discardableResult
+    func updateSequencesConfig(id: UUID, config: SequencesConfig) async -> Bool {
+        let wasNewlyEnabled = await ruleCollectionsManager.updateSequencesConfig(id: id, config: config)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
+        return wasNewlyEnabled
     }
 
     /// Update launcher grid configuration
-    func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async {
-        await ruleCollectionsManager.updateLauncherConfig(id: id, config: config)
+    @discardableResult
+    func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async -> Bool {
+        let wasNewlyEnabled = await ruleCollectionsManager.updateLauncherConfig(id: id, config: config)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
+        return wasNewlyEnabled
     }
 
     /// Update the leader key for all collections that use momentary activation

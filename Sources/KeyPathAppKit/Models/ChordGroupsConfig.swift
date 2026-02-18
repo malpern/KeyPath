@@ -306,8 +306,8 @@ public struct ChordDefinition: Codable, Equatable, Sendable, Identifiable {
         guard keys.count >= 2 else { return .poor }
 
         let homeRow = Set(["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"])
-        let leftHand = Set(["q", "w", "e", "r", "t", "a", "s", "d", "f", "g", "z", "x", "c", "v", "b"])
-        let rightHand = Set(["y", "u", "i", "o", "p", "h", "j", "k", "l", ";", "n", "m"])
+        let leftHand = Set(HomeRowModsConfig.leftHandAllKeys)
+        let rightHand = Set(HomeRowModsConfig.rightHandAllKeys)
 
         let keySet = Set(keys)
         let allHomeRow = keySet.isSubset(of: homeRow)

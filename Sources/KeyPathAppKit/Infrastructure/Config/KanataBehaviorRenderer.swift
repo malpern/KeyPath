@@ -95,17 +95,17 @@ public enum KanataBehaviorRenderer {
         let tapTimeoutStr = tapTimeout == 200 ? "$tap-timeout" : "\(tapTimeout)"
         let holdTimeoutStr = holdTimeout == 200 ? "$hold-timeout" : "\(holdTimeout)"
 
-        // Choose variant based on flags (priority: activateHoldOnOtherKey > quickTap > customTapKeys > basic)
-        if dr.activateHoldOnOtherKey {
+        // Choose variant based on flags (priority: customTapKeys > activateHoldOnOtherKey > quickTap > basic)
+        if !dr.customTapKeys.isEmpty {
+            // tap-hold-release-keys: early tap on specific keys (most specific — used for split-hand HRM)
+            let keys = dr.customTapKeys.map { KanataKeyConverter.convertToKanataKey($0) }.joined(separator: " ")
+            return "(tap-hold-release-keys \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction) (\(keys)))"
+        } else if dr.activateHoldOnOtherKey {
             // tap-hold-press: hold triggers on any other key press
             return "(tap-hold-press \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction))"
         } else if dr.quickTap {
             // tap-hold-release: hold triggers on release of another key
             return "(tap-hold-release \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction))"
-        } else if !dr.customTapKeys.isEmpty {
-            // tap-hold-release-keys: early tap on specific keys
-            let keys = dr.customTapKeys.map { KanataKeyConverter.convertToKanataKey($0) }.joined(separator: " ")
-            return "(tap-hold-release-keys \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction) (\(keys)))"
         } else {
             // Basic tap-hold: pure timeout-based
             return "(tap-hold \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction))"

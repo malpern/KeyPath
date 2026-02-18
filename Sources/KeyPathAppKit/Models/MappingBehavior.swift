@@ -91,9 +91,9 @@ public enum TapOrTapDanceBehavior: Codable, Equatable, Sendable {
 /// Settings for a tap-hold (dual-role) key.
 ///
 /// **Variant Priority** (renderer uses first matching condition):
-/// 1. `activateHoldOnOtherKey` → `tap-hold-press`
-/// 2. `quickTap` → `tap-hold-release`
-/// 3. `customTapKeys` (non-empty) → `tap-hold-release-keys`
+/// 1. `customTapKeys` (non-empty) → `tap-hold-release-keys` (split-hand HRM)
+/// 2. `activateHoldOnOtherKey` → `tap-hold-press`
+/// 3. `quickTap` → `tap-hold-release`
 /// 4. Otherwise → `tap-hold` (basic)
 public struct DualRoleBehavior: Codable, Equatable, Sendable {
     /// Action when tapped (e.g., "a", "esc", or a macro string).

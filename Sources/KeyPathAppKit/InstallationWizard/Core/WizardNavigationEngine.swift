@@ -41,7 +41,7 @@ final class WizardNavigationEngine: WizardNavigating {
         var page = await determineCurrentPage(for: state, issues: issues)
         // Loop past one-time offering pages that have no issues — but NOT FDA
         var iterations = 0
-        while !pageHasRelevantIssues(page, issues: issues, state: state) && page != .summary && iterations < 5 {
+        while !pageHasRelevantIssues(page, issues: issues, state: state), page != .summary, iterations < 5 {
             // FDA is an offering page that the user must explicitly dismiss
             if page == .fullDiskAccess {
                 return page
@@ -206,32 +206,32 @@ final class WizardNavigationEngine: WizardNavigating {
     func pageHasRelevantIssues(_ page: WizardPage, issues: [WizardIssue], state: WizardSystemState) -> Bool {
         switch page {
         case .summary:
-            return true // Summary is always a valid destination
+            true // Summary is always a valid destination
         case .conflicts:
-            return issues.contains { $0.category == .conflicts }
+            issues.contains { $0.category == .conflicts }
         case .helper:
-            return issues.contains { issue in
+            issues.contains { issue in
                 if case let .component(req) = issue.identifier {
                     return req == .privilegedHelper || req == .privilegedHelperUnhealthy
                 }
                 return false
             }
         case .inputMonitoring:
-            return issues.contains { issue in
+            issues.contains { issue in
                 if case let .permission(perm) = issue.identifier {
                     return perm == .keyPathInputMonitoring || perm == .kanataInputMonitoring
                 }
                 return false
             }
         case .accessibility:
-            return issues.contains { issue in
+            issues.contains { issue in
                 if case let .permission(perm) = issue.identifier {
                     return perm == .keyPathAccessibility || perm == .kanataAccessibility
                 }
                 return false
             }
         case .communication:
-            return issues.contains { issue in
+            issues.contains { issue in
                 if case let .component(comp) = issue.identifier {
                     switch comp {
                     case .communicationServerConfiguration,
@@ -246,7 +246,7 @@ final class WizardNavigationEngine: WizardNavigating {
                 return false
             }
         case .karabinerComponents:
-            return issues.contains { issue in
+            issues.contains { issue in
                 if case let .component(comp) = issue.identifier {
                     switch comp {
                     case .karabinerDriver, .karabinerDaemon,
@@ -261,7 +261,7 @@ final class WizardNavigationEngine: WizardNavigating {
                 return false
             }
         case .kanataComponents:
-            return issues.contains { issue in
+            issues.contains { issue in
                 if case let .component(comp) = issue.identifier {
                     switch comp {
                     case .kanataBinaryMissing, .kanataBinaryVersionMismatch, .kanataService:
@@ -275,12 +275,12 @@ final class WizardNavigationEngine: WizardNavigating {
         case .service:
             switch state {
             case .serviceNotRunning, .ready, .daemonNotRunning:
-                return true
+                true
             default:
-                return false
+                false
             }
         case .fullDiskAccess, .kanataMigration, .stopExternalKanata:
-            return false // Optional/offering pages — not issue-based
+            false // Optional/offering pages — not issue-based
         }
     }
 

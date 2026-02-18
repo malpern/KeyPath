@@ -108,7 +108,6 @@ struct WizardSystemStatusOverview: View {
         }
     }
 
-
     /// Items to render given the current toggle state
     private var displayItems: [StatusItemModel] {
         Self.filteredDisplayItems(statusItems, showAllItems: showAllItems)

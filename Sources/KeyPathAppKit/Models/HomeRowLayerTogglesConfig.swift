@@ -20,13 +20,17 @@ public struct HomeRowLayerTogglesConfig: Codable, Equatable, Sendable {
     /// Whether advanced options are shown
     public var showAdvanced: Bool
 
+    /// When true, same-hand key presses force an early tap during the tap-hold window.
+    public var splitHandDetection: Bool
+
     public init(
         enabledKeys: Set<String> = ["a", "s", "d", "f", "j", "k", "l", ";"],
         layerAssignments: [String: String] = HomeRowLayerTogglesConfig.defaultLayerAssignments,
         timing: TimingConfig = .default,
         keySelection: KeySelection = .both,
         toggleMode: LayerToggleMode = .whileHeld,
-        showAdvanced: Bool = false
+        showAdvanced: Bool = false,
+        splitHandDetection: Bool = true
     ) {
         self.enabledKeys = enabledKeys
         self.layerAssignments = layerAssignments
@@ -34,6 +38,7 @@ public struct HomeRowLayerTogglesConfig: Codable, Equatable, Sendable {
         self.keySelection = keySelection
         self.toggleMode = toggleMode
         self.showAdvanced = showAdvanced
+        self.splitHandDetection = splitHandDetection
     }
 
     /// Default layer assignments (community standard mirror setup)

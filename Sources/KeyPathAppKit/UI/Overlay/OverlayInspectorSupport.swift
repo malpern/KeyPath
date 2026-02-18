@@ -90,9 +90,9 @@ final class InspectorMaskedHostingView<Content: View>: NSView {
 
     // MARK: - Accessibility
 
-    // The CALayer mask used for the drawer slide-in animation blocks macOS
-    // accessibility tree traversal. Override to always expose the hosted
-    // SwiftUI content to assistive technologies and UI automation tools.
+    /// The CALayer mask used for the drawer slide-in animation blocks macOS
+    /// accessibility tree traversal. Override to always expose the hosted
+    /// SwiftUI content to assistive technologies and UI automation tools.
     override func accessibilityRole() -> NSAccessibility.Role? {
         .group
     }

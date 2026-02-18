@@ -34,14 +34,14 @@ extension OverlayKeycapView {
     }
 
     var keyBackground: Color {
-        // For per-key release fade: blend from blue to black
+        // For per-key release fade: blend from pressed color to base
         if isReleaseFading, fadeAmount > 0 {
-            let blue = Color.accentColor
+            let fromColor = releaseFadeFromColor
             let targetColor = backgroundColor // Use colorway's background color
             return Color(
-                red: interpolate(from: blue, to: targetColor, progress: fadeAmount).red,
-                green: interpolate(from: blue, to: targetColor, progress: fadeAmount).green,
-                blue: interpolate(from: blue, to: targetColor, progress: fadeAmount).blue
+                red: interpolate(from: fromColor, to: targetColor, progress: fadeAmount).red,
+                green: interpolate(from: fromColor, to: targetColor, progress: fadeAmount).green,
+                blue: interpolate(from: fromColor, to: targetColor, progress: fadeAmount).blue
             )
         }
         // For global overlay fade: use opacity
@@ -128,7 +128,9 @@ extension OverlayKeycapView {
     }
 
     var backgroundColor: Color {
-        if isPressed {
+        if isPressed, isHoldActive {
+            Color(red: 0.85, green: 0.45, blue: 0.15) // Orange for hold-active
+        } else if isPressed {
             Color.accentColor
         } else if isOneShot {
             // One-shot modifier active: cyan/teal glow to indicate waiting for next key

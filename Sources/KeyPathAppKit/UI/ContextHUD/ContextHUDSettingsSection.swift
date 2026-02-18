@@ -191,5 +191,4 @@ struct ContextHUDSettingsSection: View {
         .accessibilityIdentifier("settings-context-hud-display-\(mode.rawValue)")
         .accessibilityLabel("\(title) display mode")
     }
-
 }

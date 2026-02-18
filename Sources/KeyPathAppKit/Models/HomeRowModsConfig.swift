@@ -42,6 +42,11 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
     /// Whether expert raw timing fields are expanded
     public var showExpertTiming: Bool
 
+    /// When true, same-hand key presses force an early tap (letter) during the tap-hold window,
+    /// while opposite-hand presses allow the modifier/layer to activate.
+    /// Uses Kanata's `tap-hold-release-keys` with per-hand key lists.
+    public var splitHandDetection: Bool
+
     public init(
         enabledKeys: Set<String> = ["a", "s", "d", "f", "j", "k", "l", ";"],
         modifierAssignments: [String: String] = HomeRowModsConfig.cagsMacDefault,
@@ -53,7 +58,8 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         keySelection: KeySelection = .both,
         showAdvanced: Bool = false,
         timingMode: TimingMode = .basic,
-        showExpertTiming: Bool = false
+        showExpertTiming: Bool = false,
+        splitHandDetection: Bool = true
     ) {
         self.enabledKeys = enabledKeys
         self.modifierAssignments = modifierAssignments
@@ -66,6 +72,7 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         self.showAdvanced = showAdvanced
         self.timingMode = timingMode
         self.showExpertTiming = showExpertTiming
+        self.splitHandDetection = splitHandDetection
     }
 
     /// Mac-first CAGS mapping
@@ -88,14 +95,28 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         "j": "nav", "k": "sym", "l": "num", ";": "fun"
     ]
 
-    /// Left hand keys
+    /// Left hand home row keys
     public static let leftHandKeys = ["a", "s", "d", "f"]
 
-    /// Right hand keys
+    /// Right hand home row keys
     public static let rightHandKeys = ["j", "k", "l", ";"]
 
     /// All home row keys
     public static let allKeys = leftHandKeys + rightHandKeys
+
+    /// Full left-hand key set (all 3 rows) for split-hand detection
+    public static let leftHandAllKeys = [
+        "q", "w", "e", "r", "t",
+        "a", "s", "d", "f", "g",
+        "z", "x", "c", "v", "b",
+    ]
+
+    /// Full right-hand key set (all 3 rows) for split-hand detection
+    public static let rightHandAllKeys = [
+        "y", "u", "i", "o", "p",
+        "h", "j", "k", "l", ";",
+        "n", "m", ",", ".", "/",
+    ]
 
     private enum CodingKeys: String, CodingKey {
         case enabledKeys
@@ -109,6 +130,7 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         case showAdvanced
         case timingMode
         case showExpertTiming
+        case splitHandDetection
     }
 
     public init(from decoder: Decoder) throws {
@@ -133,6 +155,7 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         showAdvanced = try container.decodeIfPresent(Bool.self, forKey: .showAdvanced) ?? false
         timingMode = try container.decodeIfPresent(TimingMode.self, forKey: .timingMode) ?? .basic
         showExpertTiming = try container.decodeIfPresent(Bool.self, forKey: .showExpertTiming) ?? false
+        splitHandDetection = try container.decodeIfPresent(Bool.self, forKey: .splitHandDetection) ?? true
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -148,6 +171,7 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         try container.encode(showAdvanced, forKey: .showAdvanced)
         try container.encode(timingMode, forKey: .timingMode)
         try container.encode(showExpertTiming, forKey: .showExpertTiming)
+        try container.encode(splitHandDetection, forKey: .splitHandDetection)
     }
 }
 

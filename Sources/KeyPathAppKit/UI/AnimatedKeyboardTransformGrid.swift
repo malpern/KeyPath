@@ -13,7 +13,9 @@ struct TransformDisplayKey: Identifiable, Hashable {
     let label: String
     let x: Double
     let y: Double
-    var id: UInt16 { keyCode }
+    var id: UInt16 {
+        keyCode
+    }
 }
 
 struct TransformRowModel: Identifiable, Hashable {

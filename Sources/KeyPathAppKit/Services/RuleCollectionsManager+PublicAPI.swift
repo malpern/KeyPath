@@ -414,7 +414,9 @@ extension RuleCollectionsManager {
     }
 
     /// Update home row mods configuration
-    func updateHomeRowModsConfig(id: UUID, config: HomeRowModsConfig) async {
+    /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
+    @discardableResult
+    func updateHomeRowModsConfig(id: UUID, config: HomeRowModsConfig) async -> Bool {
         guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
             // Try to find in catalog and add it
             let catalog = RuleCollectionCatalog()
@@ -425,20 +427,25 @@ extension RuleCollectionsManager {
                 dedupeRuleCollectionsInPlace()
                 refreshLayerIndicatorState()
                 await regenerateConfigFromCollections()
+                return true
             }
-            return
+            return false
         }
 
+        let wasNewlyEnabled = !ruleCollections[index].isEnabled
         ruleCollections[index].configuration.updateHomeRowModsConfig(config)
         ruleCollections[index].isEnabled = true
 
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
+        return wasNewlyEnabled
     }
 
     /// Update home row layer toggles configuration
-    func updateHomeRowLayerTogglesConfig(id: UUID, config: HomeRowLayerTogglesConfig) async {
+    /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
+    @discardableResult
+    func updateHomeRowLayerTogglesConfig(id: UUID, config: HomeRowLayerTogglesConfig) async -> Bool {
         guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
             // Try to find in catalog and add it
             let catalog = RuleCollectionCatalog()
@@ -449,20 +456,25 @@ extension RuleCollectionsManager {
                 dedupeRuleCollectionsInPlace()
                 refreshLayerIndicatorState()
                 await regenerateConfigFromCollections()
+                return true
             }
-            return
+            return false
         }
 
+        let wasNewlyEnabled = !ruleCollections[index].isEnabled
         ruleCollections[index].configuration.updateHomeRowLayerTogglesConfig(config)
         ruleCollections[index].isEnabled = true
 
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
+        return wasNewlyEnabled
     }
 
     /// Update chord groups configuration
-    func updateChordGroupsConfig(id: UUID, config: ChordGroupsConfig) async {
+    /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
+    @discardableResult
+    func updateChordGroupsConfig(id: UUID, config: ChordGroupsConfig) async -> Bool {
         guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
             // Try to find in catalog and add it
             let catalog = RuleCollectionCatalog()
@@ -473,20 +485,25 @@ extension RuleCollectionsManager {
                 dedupeRuleCollectionsInPlace()
                 refreshLayerIndicatorState()
                 await regenerateConfigFromCollections()
+                return true
             }
-            return
+            return false
         }
 
+        let wasNewlyEnabled = !ruleCollections[index].isEnabled
         ruleCollections[index].configuration.updateChordGroupsConfig(config)
         ruleCollections[index].isEnabled = true
 
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
+        return wasNewlyEnabled
     }
 
     /// Update sequences configuration
-    func updateSequencesConfig(id: UUID, config: SequencesConfig) async {
+    /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
+    @discardableResult
+    func updateSequencesConfig(id: UUID, config: SequencesConfig) async -> Bool {
         guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
             // Try to find in catalog and add it
             let catalog = RuleCollectionCatalog()
@@ -497,20 +514,25 @@ extension RuleCollectionsManager {
                 dedupeRuleCollectionsInPlace()
                 refreshLayerIndicatorState()
                 await regenerateConfigFromCollections()
+                return true
             }
-            return
+            return false
         }
 
+        let wasNewlyEnabled = !ruleCollections[index].isEnabled
         ruleCollections[index].configuration.updateSequencesConfig(config)
         ruleCollections[index].isEnabled = true
 
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
+        return wasNewlyEnabled
     }
 
     /// Update launcher grid configuration
-    func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async {
+    /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
+    @discardableResult
+    func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async -> Bool {
         guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
             // Try to find in catalog and add it
             let catalog = RuleCollectionCatalog()
@@ -523,10 +545,12 @@ extension RuleCollectionsManager {
                 await regenerateConfigFromCollections()
                 // Cache warm new launcher icons
                 await warmLauncherIconCache(for: config)
+                return true
             }
-            return
+            return false
         }
 
+        let wasNewlyEnabled = !ruleCollections[index].isEnabled
         ruleCollections[index].configuration.updateLauncherGridConfig(config)
         ruleCollections[index].isEnabled = true
 
@@ -536,6 +560,7 @@ extension RuleCollectionsManager {
 
         // Cache warm new launcher icons
         await warmLauncherIconCache(for: config)
+        return wasNewlyEnabled
     }
 
     /// Pre-cache icons for launcher mappings (called when config changes)

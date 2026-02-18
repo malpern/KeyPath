@@ -19,8 +19,11 @@ struct KeyboardTransformGrid: View {
         let label: String
         let x: Double
         let y: Double
-        var id: UInt16 { keyCode }
+        var id: UInt16 {
+            keyCode
+        }
     }
+
     private struct RowModel: Identifiable {
         let id: Int
         let keys: [DisplayKey]

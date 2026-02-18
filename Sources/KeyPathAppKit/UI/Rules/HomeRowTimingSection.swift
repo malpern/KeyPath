@@ -186,9 +186,27 @@ struct HomeRowTimingSection: View {
                 }
             }
 
+            // MARK: - Split-Hand Detection
+
+            Toggle("Favor tap for same-hand keys", isOn: Binding(
+                get: { config.splitHandDetection },
+                set: { newValue in
+                    config.splitHandDetection = newValue
+                    updateConfig()
+                }
+            ))
+            .toggleStyle(.checkbox)
+            .accessibilityIdentifier("home-row-mods-split-hand-toggle")
+            .accessibilityLabel("Favor tap for same-hand keys")
+
+            Text("Same-hand key presses produce the letter immediately; opposite-hand presses allow the modifier.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.leading, 18)
+
             // MARK: - Quick Tap
 
-            Toggle("Favor tap when another key is pressed", isOn: Binding(
+            Toggle("Favor tap when another key is pressed (quick tap)", isOn: Binding(
                 get: { config.timing.quickTapEnabled },
                 set: { newValue in
                     config.timing.quickTapEnabled = newValue
@@ -197,7 +215,7 @@ struct HomeRowTimingSection: View {
             ))
             .toggleStyle(.checkbox)
             .accessibilityIdentifier("home-row-mods-quick-tap-toggle")
-            .accessibilityLabel("Favor tap when another key is pressed")
+            .accessibilityLabel("Favor tap when another key is pressed (quick tap)")
 
             if config.timing.quickTapEnabled {
                 HStack(spacing: 8) {

@@ -34,6 +34,8 @@ struct OverlayKeyboardView: View {
     var holdLabels: [UInt16: String] = [:]
     /// Idle labels for tap-hold inputs (show tap output when not pressed)
     var tapHoldIdleLabels: [UInt16: String] = [:]
+    /// Keys that were hold-active when released (for orange fade-out color)
+    var holdReleaseFadeKeyCodes: Set<UInt16> = []
     /// Custom icons for keys set via push-msg: keyCode -> icon name
     var customIcons: [UInt16: String] = [:]
     /// Callback when a key is clicked (not dragged) - selects key in drawer mapper when visible
@@ -356,6 +358,9 @@ struct OverlayKeyboardView: View {
             isEmphasized: emphasizedKeyCodes.contains(key.keyCode),
             isOneShot: oneShotKeyCodes.contains(key.keyCode),
             holdLabel: holdLabels[key.keyCode],
+            isHoldActive: holdLabels[key.keyCode] != nil,
+            releaseFadeFromColor: holdReleaseFadeKeyCodes.contains(key.keyCode)
+                ? Color(red: 0.85, green: 0.45, blue: 0.15) : .accentColor,
             tapHoldIdleLabel: tapHoldIdleLabels[key.keyCode],
             onKeyClick: onKeyClick,
             colorway: activeColorway,
