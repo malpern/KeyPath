@@ -19,6 +19,7 @@ struct HomeRowModsCollectionView: View {
     @State private var locallyCreatedLayers: Set<String> = []
     @State private var hoveredHoldBehavior: HomeRowHoldMode?
     @State private var hoveredLayerToggleMode: LayerToggleMode?
+    @State private var showingHelp = false
 
     private var activeKeymap: LogicalKeymap {
         LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
@@ -85,7 +86,17 @@ struct HomeRowModsCollectionView: View {
             HStack {
                 Text("Home Row Preferences")
                     .font(.title3.weight(.semibold))
+
+                Button { showingHelp = true } label: {
+                    Image(systemName: "questionmark.circle")
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("home-row-mods-prefs-help-button")
+                .accessibilityLabel("Home row mods help")
+
                 Spacer()
+
                 Button("Done") {
                     showingCustomizeWindow = false
                 }
@@ -107,6 +118,9 @@ struct HomeRowModsCollectionView: View {
         .settingsBackground()
         .sheet(isPresented: $showingNewLayerSheet) {
             newLayerSheet
+        }
+        .sheet(isPresented: $showingHelp) {
+            MarkdownHelpSheet(resource: "home-row-mods-guide", title: "Home Row Mods Guide")
         }
     }
 

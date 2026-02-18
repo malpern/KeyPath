@@ -45,6 +45,7 @@ struct RulesTabView: View {
     @State private var pendingSelections: [UUID: String] = [:]
     /// Track pending toggle states for immediate UI feedback
     @State private var pendingToggles: [UUID: Bool] = [:]
+    @State private var showingHomeRowModsHelp = false
     @State private var homeRowModsEditState: HomeRowModsEditState?
     @State private var homeRowLayerTogglesEditState: HomeRowLayerTogglesEditState?
     @State private var chordGroupsEditState: ChordGroupsEditState?
@@ -298,6 +299,9 @@ struct RulesTabView: View {
             onLauncherConfigChanged: collection.id == RuleCollectionIdentifier.launcher ? { config in
                 Task { await kanataManager.updateLauncherConfig(collection.id, config: config) }
             } : nil,
+            onHelpTapped: collection.id == RuleCollectionIdentifier.homeRowMods ? {
+                showingHomeRowModsHelp = true
+            } : nil,
             scrollID: "collection-\(collection.id.uuidString)",
             scrollProxy: scrollProxy
         )
@@ -333,7 +337,7 @@ struct RulesTabView: View {
                 Button {
                     openConfigInEditor()
                 } label: {
-                    Label("Config", systemImage: "square.and.pencil")
+                    Label("Edit config", systemImage: "square.and.pencil")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
@@ -585,6 +589,9 @@ struct RulesTabView: View {
                     sequencesEditState = nil
                 }
             )
+        }
+        .sheet(isPresented: $showingHomeRowModsHelp) {
+            MarkdownHelpSheet(resource: "home-row-mods-guide", title: "Home Row Mods Guide")
         }
         .sheet(isPresented: $kanataManager.showRuleConflictDialog) {
             if let context = kanataManager.pendingRuleConflict {
