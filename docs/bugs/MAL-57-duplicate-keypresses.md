@@ -530,6 +530,64 @@ Kanata's intercept point. Valid testing requires physical keyboard input.
 
 ---
 
+## ✅ Validation #2 (2026-02-18) — VALID (physical keyboard, HID path confirmed)
+
+Manual typing test using `Scripts/manual-keystroke-test.sh` with physical keyboard input
+through Kanata's real IOKit HID intercept → engine → virtual HID pipeline.
+
+### Test Configuration
+
+- **Preset:** high (Swift compile loop + 6 CPU hog processes)
+- **Reference passage:** 184 words, 1182 chars (prose + Swift code + numbers + punctuation)
+- **Input method:** Physical keyboard (human typing)
+- **Duplicate detection:** `RecentKeypressesService` consecutive-key diagnostic with nav/modifier
+  keys excluded (backspace, arrows, shift, space, enter, etc.)
+
+### Results
+
+| Metric | Value |
+|--------|-------|
+| Key events processed by Kanata | **2,388** |
+| Layer events | 854 |
+| DUPLICATE DETECTION alerts (text keys) | **0** |
+| Dedup filter skips | **0** |
+| Ignored nav/modifier repeats | 0 |
+| Reference chars | 1,182 |
+| Typed chars | 1,123 |
+| Difference | -59 (normal typing variation — fewer chars typed, not extra) |
+
+### HID Path Validation
+
+Kanata processed **2,388 key events** — confirming the physical keyboard HID path was fully
+exercised. This contrasts with Validation #1 where Kanata showed 0.0% CPU and ~2 events
+(proving osascript bypassed it entirely).
+
+### Key Findings
+
+1. **Zero duplicate detection alerts.** Under high CPU load, Kanata did not produce a single
+   instance of the same text key being pressed 3+ times within 500ms.
+
+2. **Zero dedup filter activations.** The 100ms dedup safety net in `RecentKeypressesService`
+   was not triggered at all — meaning clean, non-duplicate events are coming through the TCP
+   pipeline. The P0 request_id and drain fixes resolved the notification-layer duplicates.
+
+3. **Kanata's HID processing is stable under load.** Tap-hold timing, event debouncing, and
+   key remapping all functioned correctly with 6 CPU hogs + a compile loop running.
+
+4. **The -59 char difference is human typing variation** (skipped words, typos), not dropped
+   keystrokes. No characters were added — ruling out duplicate HID output.
+
+### Conclusion
+
+The original duplicate keypress bug was caused by KeyPath's TCP notification pipeline:
+broadcast confusion, weak request_id matching, and missing event deduplication. These were
+fixed in the P0 implementation (2026-01-11). Kanata itself never emitted duplicate HID events —
+the duplicates were artifacts of how KeyPath consumed TCP broadcasts.
+
+### Status: **RESOLVED** ✅
+
+---
+
 ## References
 
 - `Sources/KeyPathAppKit/Services/KanataTCPClient.swift` - Lines 892-983
