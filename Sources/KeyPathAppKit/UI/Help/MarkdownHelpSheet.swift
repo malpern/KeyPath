@@ -23,6 +23,7 @@ struct MarkdownHelpSheet: View {
                         .font(.title3)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("markdown-help-close-button")
                 .accessibilityLabel("Close")
             }
             .padding()
