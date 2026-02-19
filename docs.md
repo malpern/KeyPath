@@ -82,10 +82,11 @@ permalink: /docs
 </div>
 
 <div class="docs-card">
-<h3><a href="{{ '/guides/privacy' | relative_url }}">Privacy & Permissions</a></h3>
-<p>Why KeyPath needs the permissions it asks for, what we do (and don't do) with your data, and how we compare to alternatives.</p>
+<h3><a href="{{ '/guides/privacy' | relative_url }}">Privacy & Plugins</a></h3>
+<p>Why KeyPath needs the permissions it asks for, what we do (and don't do) with your data, and how the plugin model keeps analytics separate.</p>
 <ul class="docs-card-links">
 <li><a href="{{ '/guides/privacy' | relative_url }}">Privacy & Permissions</a></li>
+<li><a href="{{ '/guides/activity-insights' | relative_url }}">Activity Insights Plugin</a></li>
 </ul>
 </div>
 

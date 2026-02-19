@@ -157,7 +157,7 @@ The `InstallerEngine` is a unified façade for all install/repair/uninstall oper
 
 ### Does KeyPath collect data?
 
-No. KeyPath works completely offline and collects no telemetry or user data. The only network request is an optional update check, which you can disable.
+No. KeyPath itself contains zero tracking code — no analytics, no telemetry, no usage metrics. The only network request is an optional update check, which you can disable. Usage analytics are available as a [separate plugin]({{ '/guides/activity-insights' | relative_url }}) that you install explicitly; if you don't install it, the code isn't there.
 
 ### What permissions does KeyPath need?
 
@@ -182,15 +182,23 @@ KeyPath uses Full Disk Access to read the system TCC (Transparency, Consent, and
 
 Yes. Official releases are notarized by Apple, ensuring they work with macOS security features.
 
-## KeyPath Insights
+## Activity Insights Plugin
 
-### What is KeyPath Insights?
+### What is Activity Insights?
 
-KeyPath Insights is an optional companion app for power users. It provides keyboard usage analytics (shortcut frequency, app switching patterns) and AI-assisted config repair. It's a separate download with its own permissions — KeyPath itself does not include these features.
+[Activity Insights]({{ '/guides/activity-insights' | relative_url }}) is an optional plugin for KeyPath that tracks keyboard usage patterns — which shortcuts you use, how often you switch apps, and which action URIs fire. It's not compiled into KeyPath. You install it separately from Settings > Experimental, and the install act is the consent act. All data is encrypted and stored locally on your Mac.
 
-### Do I need KeyPath Insights?
+### Do I need the Activity Insights plugin?
 
-No. KeyPath works fully on its own. Insights is for people who want to analyze their keyboard habits or use AI tools to debug configurations.
+No. KeyPath works fully on its own with zero data collection. The Insights plugin is for people who want to understand their keyboard habits — like discovering which shortcuts they actually use or which apps would benefit from a dedicated layer.
+
+### How do I install or remove it?
+
+Install from **Settings > Experimental > Activity Insights > Download & Install**. Remove from the same panel by clicking **Remove Plugin**. No restart needed either way. See the [Activity Insights]({{ '/guides/activity-insights' | relative_url }}) page for details.
+
+### Does the plugin send data anywhere?
+
+No. All data stays on your Mac in AES-256-GCM encrypted files. The encryption key is bound to your device via the macOS Keychain. Nothing is ever transmitted.
 
 ## Still Have Questions?
 
@@ -198,6 +206,7 @@ No. KeyPath works fully on its own. Insights is for people who want to analyze t
 - **[Discussions]({{ site.github_url }}/discussions)** — Community discussions
 - **[Debugging Guide]({{ '/guides/debugging' | relative_url }})** — Advanced troubleshooting
 - **[Privacy & Permissions]({{ '/guides/privacy' | relative_url }})** — What KeyPath accesses and why
+- **[Activity Insights]({{ '/guides/activity-insights' | relative_url }})** — Optional usage analytics plugin
 - **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Layers, tap-hold, modifiers explained
 - **[Home Row Mods]({{ '/guides/home-row-mods' | relative_url }})** — The most popular advanced technique
 - **[Tap-Hold & Tap-Dance]({{ '/guides/tap-hold' | relative_url }})** — All tap-hold options explained

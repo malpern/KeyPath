@@ -15,6 +15,7 @@ KeyPath needs deep access to your Mac to do its job. We know that's a lot to ask
 - **No telemetry.** KeyPath collects no analytics, usage metrics, or crash reports. Zero.
 - **No phoning home.** The only network request KeyPath makes is checking for updates. You can disable that too.
 - **No logging.** KeyPath does not record, store, or transmit your keystrokes.
+- **No tracking code in the app.** Usage analytics are available only via [Activity Insights]({{ '/guides/activity-insights' | relative_url }}), an optional plugin you install separately. If you don't install it, the code literally isn't there.
 - **Open source.** Every claim on this page is verifiable in [the source code](https://github.com/malpern/KeyPath).
 - **Everything stays on your Mac.** Configuration and logs are local files you own and control.
 
@@ -240,9 +241,39 @@ Open KeyPath, choose **File > Uninstall KeyPath**, and confirm. This removes all
 
 KeyPath installs the [Karabiner VirtualHIDDevice driver](https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice) to create a virtual keyboard for sending remapped keystrokes. This is a well-established open-source driver also used by Karabiner-Elements. It requires system approval on first install and can be removed via KeyPath's uninstaller.
 
-### What about keyboard analytics or AI features?
+### What about keyboard analytics?
 
-Keyboard usage analytics and AI-assisted configuration are available in **KeyPath Insights**, a separate companion app. They are not part of KeyPath itself. KeyPath remaps your keyboard — that's the whole app.
+Usage analytics are available via **[Activity Insights]({{ '/guides/activity-insights' | relative_url }})**, an optional plugin that you install separately from within Settings. It is not part of KeyPath itself — the tracking code is not compiled into the app. If you don't install the plugin, there is zero data collection. If you do install it, all data is encrypted and stored locally on your Mac. You can remove the plugin at any time and KeyPath returns to having no tracking code at all. See the [Activity Insights]({{ '/guides/activity-insights' | relative_url }}) page for full details.
+
+---
+
+## Plugins and data collection
+
+KeyPath uses a plugin architecture to keep optional features — like usage analytics — completely separate from the core app. This is a deliberate privacy decision, not just an engineering choice.
+
+```
+  ┌─────────────────────────────────────────────────┐
+  │           Plugin privacy model                   │
+  │                                                  │
+  │  KeyPath.app (base):                             │
+  │  ┌────────────────────────────┐                  │
+  │  │  Zero tracking code        │  Always true.    │
+  │  │  Zero data collection      │  No exceptions.  │
+  │  │  Zero analytics libraries  │                  │
+  │  └────────────────────────────┘                  │
+  │                                                  │
+  │  Activity Insights (optional plugin):            │
+  │  ┌────────────────────────────┐                  │
+  │  │  Installed by you          │  You choose.     │
+  │  │  Local encrypted storage   │  Your data.      │
+  │  │  Removable at any time     │  Your control.   │
+  │  └────────────────────────────┘                  │
+  └─────────────────────────────────────────────────┘
+```
+
+**Why this matters:** Most apps bundle analytics and then ask you to opt out. KeyPath flips this: the analytics code doesn't exist in the app until you explicitly install it. The install act is the consent act. There's no toggle to miss, no default to worry about, and no code running that you didn't ask for.
+
+Currently the only plugin available is [Activity Insights]({{ '/guides/activity-insights' | relative_url }}), which tracks app switches, shortcut usage, and action URI events. All data is AES-256-GCM encrypted with a device-bound Keychain key and never leaves your Mac.
 
 ---
 
