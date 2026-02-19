@@ -11,7 +11,7 @@ Karabiner-Elements is an excellent tool that pioneered keyboard remapping on mac
 |---|---|---|
 | **Config format** | JSON (verbose, complex) | Kanata S-expressions (concise) |
 | **Tap-hold** | `to_if_alone` + timeout | 4 tap-hold variants, per-key tuning |
-| **Home row mods** | Complex JSON rules needed | Built-in with split-hand detection |
+| **Home row mods** | Possible via complex JSON, global timeout, no misfire prevention | Built-in with split-hand detection, per-finger timing, anti-misfire |
 | **Per-finger timing** | Global timeout only | Individual finger sensitivity |
 | **Layers** | Separate rule sets | First-class `deflayer` with layer-switch |
 | **App-specific** | Per-app rules via JSON | Automatic layer switching via TCP |
