@@ -43,7 +43,7 @@ private struct MarkdownWebView: NSViewRepresentable {
     let resource: String
     let colorScheme: ColorScheme
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeCoordinator() -> Coordinator { Coordinator(colorScheme: colorScheme) }
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -51,48 +51,60 @@ private struct MarkdownWebView: NSViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.setValue(false, forKey: "drawsBackground")
 
-        loadContent(into: webView)
+        Self.loadResource(resource, into: webView, isDark: colorScheme == .dark)
         return webView
     }
 
-    func updateNSView(_ webView: WKWebView, context _: Context) {
+    func updateNSView(_ webView: WKWebView, context: Context) {
+        context.coordinator.colorScheme = colorScheme
         let className = colorScheme == .dark ? "dark" : ""
         webView.evaluateJavaScript("document.body.className = '\(className)'", completionHandler: nil)
     }
 
-    private func loadContent(into webView: WKWebView) {
+    static func loadResource(_ resource: String, into webView: WKWebView, isDark: Bool) {
         guard let url = Bundle.module.url(forResource: resource, withExtension: "md"),
               let markdown = try? String(contentsOf: url, encoding: .utf8)
         else {
             let fallback = MarkdownToHTML.wrapInHTMLDocument(
                 body: "<p>Could not load help content.</p>",
-                isDark: colorScheme == .dark
+                isDark: isDark
             )
             webView.loadHTMLString(fallback, baseURL: nil)
             return
         }
 
         let bodyHTML = MarkdownToHTML.convert(markdown)
-        let fullHTML = MarkdownToHTML.wrapInHTMLDocument(body: bodyHTML, isDark: colorScheme == .dark)
+        let fullHTML = MarkdownToHTML.wrapInHTMLDocument(body: bodyHTML, isDark: isDark)
         webView.loadHTMLString(fullHTML, baseURL: nil)
     }
 
     // MARK: - Coordinator
 
     final class Coordinator: NSObject, WKNavigationDelegate {
-        /// Intercept link clicks and open them in the default browser.
+        var colorScheme: ColorScheme
+
+        init(colorScheme: ColorScheme) {
+            self.colorScheme = colorScheme
+        }
+
         func webView(
-            _: WKWebView,
+            _ webView: WKWebView,
             decidePolicyFor navigationAction: WKNavigationAction,
-            decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+            decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
         ) {
-            if navigationAction.navigationType == .linkActivated,
-               let url = navigationAction.request.url
-            {
-                NSWorkspace.shared.open(url)
+            guard navigationAction.navigationType == .linkActivated,
+                  let url = navigationAction.request.url
+            else {
+                decisionHandler(.allow)
+                return
+            }
+
+            if url.scheme == "keypath-help", let resource = url.host {
+                MarkdownWebView.loadResource(resource, into: webView, isDark: colorScheme == .dark)
                 decisionHandler(.cancel)
             } else {
-                decisionHandler(.allow)
+                NSWorkspace.shared.open(url)
+                decisionHandler(.cancel)
             }
         }
     }

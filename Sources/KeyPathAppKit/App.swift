@@ -1,6 +1,7 @@
 import AppKit
 import KeyPathCore
 import KeyPathPermissions
+import KeyPathPluginKit
 import KeyPathWizardCore
 import ServiceManagement
 import Sparkle
@@ -86,6 +87,9 @@ public struct KeyPathApp: App {
             // Initialize Sparkle update service
             UpdateService.shared.initialize()
             AppLogger.shared.info("🔄 [App] Sparkle update service initialized")
+
+            // Discover and load plugin bundles
+            PluginManager.shared.discoverAndLoadPlugins()
 
             // Fetch Kanata version for About panel
             await BuildInfo.fetchKanataVersion()
@@ -297,6 +301,64 @@ public struct KeyPathApp: App {
                 )
                 .keyboardShortcut("u", modifiers: [.control, .option, .command])
                 .hidden() // Hide from menu but keep keyboard shortcut active
+            }
+
+            // Help menu — in-app documentation powered by synced gh-pages content
+            CommandGroup(replacing: .help) {
+                Menu("Documentation") {
+                    Button("Keyboard Concepts") {
+                        HelpWindowController.shared.show(resource: "concepts", title: "Keyboard Concepts")
+                    }
+                    Button("What You Can Build") {
+                        HelpWindowController.shared.show(resource: "use-cases", title: "What You Can Build")
+                    }
+
+                    Divider()
+
+                    Button("Home Row Mods") {
+                        HelpWindowController.shared.show(resource: "home-row-mods", title: "Home Row Mods")
+                    }
+                    Button("Tap-Hold & Tap-Dance") {
+                        HelpWindowController.shared.show(resource: "tap-hold", title: "Tap-Hold & Tap-Dance")
+                    }
+                    Button("Window Management") {
+                        HelpWindowController.shared.show(
+                            resource: "window-management", title: "Window Management"
+                        )
+                    }
+                    Button("Action URIs") {
+                        HelpWindowController.shared.show(resource: "action-uri", title: "Action URIs")
+                    }
+
+                    Divider()
+
+                    Button("Privacy & Permissions") {
+                        HelpWindowController.shared.show(resource: "privacy", title: "Privacy & Permissions")
+                    }
+                }
+
+                Menu("Switching Tools") {
+                    Button("From Karabiner-Elements") {
+                        HelpWindowController.shared.show(
+                            resource: "karabiner-users", title: "Switching from Karabiner"
+                        )
+                    }
+                    Button("From Kanata") {
+                        HelpWindowController.shared.show(
+                            resource: "kanata-users", title: "Tips for Kanata Users"
+                        )
+                    }
+                }
+
+                Divider()
+
+                Button("KeyPath Website") {
+                    NSWorkspace.shared.open(URL(string: "https://keypath-app.com/docs")!)
+                }
+
+                Button("Report an Issue…") {
+                    NSWorkspace.shared.open(URL(string: "https://github.com/malpern/KeyPath/issues")!)
+                }
             }
         }
     }

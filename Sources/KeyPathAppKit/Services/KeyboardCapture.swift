@@ -54,9 +54,6 @@ public class KeyboardCapture {
     /// Reference to RuntimeCoordinator to check if Kanata is running (to avoid tap conflicts)
     @ObservationIgnored weak var kanataManager: RuntimeCoordinator?
 
-    /// Activity observer for logging keyboard shortcuts
-    @ObservationIgnored weak var activityObserver: KeyboardActivityObserver?
-
     /// Non-blocking check for whether Kanata is running, using cached service state.
     /// Replaces the old blocking `pgrep` call that could stall the main actor.
     func fastProbeKanataRunning(timeout _: TimeInterval = 0.25) -> Bool {
@@ -86,16 +83,6 @@ public class KeyboardCapture {
     public func disableEventRouter() {
         useEventRouter = false
         AppLogger.shared.log("📋 [KeyboardCapture] Event router integration disabled")
-    }
-
-    // MARK: - Activity Logging
-
-    /// Set the activity observer for logging keyboard shortcuts
-    public func setActivityObserver(_ observer: KeyboardActivityObserver?) {
-        activityObserver = observer
-        AppLogger.shared.log(
-            "📊 [KeyboardCapture] Activity observer \(observer != nil ? "enabled" : "disabled")"
-        )
     }
 
     // Emergency stop sequence detection
@@ -464,10 +451,6 @@ public class KeyboardCapture {
             keyCode: keyCode
         )
 
-        // Notify activity observer (for logging keyboard shortcuts)
-        // This happens before dedup so all shortcuts are captured
-        activityObserver?.didReceiveKeyEvent(keyPress)
-
         // De-dup identical events arriving within a small window
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {
             if last.baseKey == keyPress.baseKey,
@@ -528,7 +511,6 @@ public class KeyboardCapture {
             keyCode: keyCode
         )
 
-        activityObserver?.didReceiveKeyEvent(keyPress)
 
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {
             if last.baseKey == keyPress.baseKey,
@@ -591,7 +573,6 @@ public class KeyboardCapture {
             keyCode: Int64(mediaKeyCode) + 1000 // Offset to avoid collision with regular keyCodes
         )
 
-        activityObserver?.didReceiveKeyEvent(keyPress)
 
         // De-dup identical events
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {

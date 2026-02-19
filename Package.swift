@@ -40,6 +40,16 @@ let package = Package(
         .executable(
             name: "smappservice-poc",
             targets: ["SMAppServicePOC"]
+        ),
+        .library(
+            name: "KeyPathPluginKit",
+            type: .dynamic,
+            targets: ["KeyPathPluginKit"]
+        ),
+        .library(
+            name: "KeyPathInsights",
+            type: .dynamic,
+            targets: ["KeyPathInsights"]
         )
     ],
     dependencies: [
@@ -82,6 +92,14 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ]
         ),
+        // Plugin protocol shared library (linked by both host and plugins)
+        .target(
+            name: "KeyPathPluginKit",
+            path: "Sources/KeyPathPluginKit",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
         // Main app library with UI and business logic
         .target(
             name: "KeyPathAppKit",
@@ -90,6 +108,7 @@ let package = Package(
                 "KeyPathPermissions",
                 "KeyPathDaemonLifecycle",
                 "KeyPathWizardCore",
+                "KeyPathPluginKit",
                 .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/KeyPathAppKit",
@@ -163,6 +182,21 @@ let package = Package(
                 "test-tcc-stability.swift"
             ],
             sources: ["smappservice-poc.swift"],
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        // KeyPath Insights plugin bundle (activity logging, analytics)
+        .target(
+            name: "KeyPathInsights",
+            dependencies: [
+                "KeyPathCore",
+                "KeyPathPluginKit"
+            ],
+            path: "Sources/KeyPathInsights",
+            exclude: [
+                "Info.plist"
+            ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]

@@ -3,16 +3,11 @@ import Foundation
 import KeyPathCore
 import Observation
 
-/// Protocol for observing keyboard events for activity logging
-public protocol KeyboardActivityObserver: AnyObject {
-    func didReceiveKeyEvent(_ keyPress: KeyPress)
-}
-
 /// Main activity logging service
 /// Coordinates event capture, buffering, and storage
 @Observable
 @MainActor
-public final class ActivityLogger: KeyboardActivityObserver {
+public final class ActivityLogger {
     // MARK: - Observable State
 
     public private(set) var isEnabled: Bool = false
@@ -31,7 +26,7 @@ public final class ActivityLogger: KeyboardActivityObserver {
     private let flushInterval: TimeInterval = 30.0
 
     private var flushTimer: Timer?
-    private let workspaceObservers = NotificationObserverManager()
+    private var workspaceObservers: [NSObjectProtocol] = []
 
     // MARK: - Initialization
 
@@ -147,28 +142,6 @@ public final class ActivityLogger: KeyboardActivityObserver {
         appendEvent(event)
     }
 
-    // MARK: - KeyboardActivityObserver
-
-    /// Called when a keyboard event is captured
-    public nonisolated func didReceiveKeyEvent(_ keyPress: KeyPress) {
-        // Only log events with modifiers (shortcuts, not typing)
-        guard keyPress.modifiers.hasModifiers else { return }
-
-        Task { @MainActor in
-            guard isEnabled else { return }
-
-            let event = ActivityEvent(
-                type: .keyboardShortcut,
-                payload: .shortcut(ShortcutEventData(
-                    modifiers: ShortcutModifiers(from: keyPress.modifiers),
-                    key: keyPress.baseKey,
-                    keyCode: keyPress.keyCode
-                ))
-            )
-            appendEvent(event)
-        }
-    }
-
     // MARK: - Private Helpers
 
     private func appendEvent(_ event: ActivityEvent) {
@@ -185,10 +158,13 @@ public final class ActivityLogger: KeyboardActivityObserver {
     }
 
     private func startObservers() {
+        let center = NSWorkspace.shared.notificationCenter
+
         // Observe app activations (switches)
-        workspaceObservers.observe(
-            NSWorkspace.didActivateApplicationNotification,
-            center: NSWorkspace.shared.notificationCenter
+        let activateToken = center.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: nil
         ) { [weak self] notification in
             guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else {
                 return
@@ -199,11 +175,13 @@ public final class ActivityLogger: KeyboardActivityObserver {
                 self?.recordAppSwitch(bundleIdentifier: bundleId, appName: appName)
             }
         }
+        workspaceObservers.append(activateToken)
 
         // Observe app launches
-        workspaceObservers.observe(
-            NSWorkspace.didLaunchApplicationNotification,
-            center: NSWorkspace.shared.notificationCenter
+        let launchToken = center.addObserver(
+            forName: NSWorkspace.didLaunchApplicationNotification,
+            object: nil,
+            queue: nil
         ) { [weak self] notification in
             guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else {
                 return
@@ -214,11 +192,16 @@ public final class ActivityLogger: KeyboardActivityObserver {
                 self?.recordAppLaunch(bundleIdentifier: bundleId, appName: appName)
             }
         }
+        workspaceObservers.append(launchToken)
 
         AppLogger.shared.log("📊 [ActivityLogger] Started workspace observers")
     }
 
     private func stopObservers() {
+        let center = NSWorkspace.shared.notificationCenter
+        for token in workspaceObservers {
+            center.removeObserver(token)
+        }
         workspaceObservers.removeAll()
         AppLogger.shared.log("📊 [ActivityLogger] Stopped workspace observers")
     }

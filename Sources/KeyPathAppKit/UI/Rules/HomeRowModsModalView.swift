@@ -82,7 +82,7 @@ struct HomeRowModsModalView: View {
         .frame(width: 750, height: 700)
         .background(Color(NSColor.windowBackgroundColor))
         .sheet(isPresented: $showHelp) {
-            MarkdownHelpSheet(resource: "home-row-mods-guide", title: "Home Row Mods Guide")
+            MarkdownHelpSheet(resource: "home-row-mods", title: "Home Row Mods")
         }
     }
 

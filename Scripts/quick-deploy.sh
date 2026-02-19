@@ -162,6 +162,27 @@ if ! otool -l "$MACOS_DIR/$APP_NAME" | grep -q "@executable_path/../Frameworks";
     install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/$APP_NAME" 2>/dev/null || true
 fi
 
+# Sync KeyPathPluginKit dylib to Frameworks
+FRAMEWORKS_DIR="$APP_BUNDLE/Contents/Frameworks"
+PLUGINKIT_DYLIB="$BIN_DIR/libKeyPathPluginKit.dylib"
+if [[ -f "$PLUGINKIT_DYLIB" ]]; then
+    mkdir -p "$FRAMEWORKS_DIR"
+    cp "$PLUGINKIT_DYLIB" "$FRAMEWORKS_DIR/libKeyPathPluginKit.dylib"
+fi
+
+# Assemble and sync Insights.bundle to PlugIns
+INSIGHTS_DYLIB="$BIN_DIR/libKeyPathInsights.dylib"
+if [[ -f "$INSIGHTS_DYLIB" ]]; then
+    INSIGHTS_BUNDLE="$APP_BUNDLE/Contents/PlugIns/Insights.bundle/Contents/MacOS"
+    mkdir -p "$INSIGHTS_BUNDLE"
+    cp "$INSIGHTS_DYLIB" "$INSIGHTS_BUNDLE/libKeyPathInsights"
+    cp "$PROJECT_DIR/Sources/KeyPathInsights/Info.plist" "$APP_BUNDLE/Contents/PlugIns/Insights.bundle/Contents/Info.plist"
+    # Fix rpath so plugin can find KeyPathPluginKit
+    if ! otool -l "$INSIGHTS_BUNDLE/libKeyPathInsights" 2>/dev/null | grep -q "@loader_path/../../../../Frameworks"; then
+        install_name_tool -add_rpath "@loader_path/../../../../Frameworks" "$INSIGHTS_BUNDLE/libKeyPathInsights" 2>/dev/null || true
+    fi
+fi
+
 # Re-sign with entitlements (prefer Developer ID if available)
 echo "✍️  Signing..."
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"

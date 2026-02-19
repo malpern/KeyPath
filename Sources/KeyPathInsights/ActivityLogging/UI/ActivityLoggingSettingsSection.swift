@@ -1,4 +1,3 @@
-import KeyPathCore
 import SwiftUI
 
 /// Settings section for activity logging configuration
@@ -11,7 +10,7 @@ struct ActivityLoggingSettingsSection: View {
 
     @MainActor
     private var isEnabled: Bool {
-        PreferencesService.shared.activityLoggingEnabled
+        InsightsPreferences.activityLoggingEnabled
     }
 
     var body: some View {
@@ -87,7 +86,7 @@ struct ActivityLoggingSettingsSection: View {
         .onAppear {
             refreshEventCount()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .activityLoggingChanged)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .insightsActivityLoggingChanged)) { _ in
             refreshEventCount()
         }
         .sheet(isPresented: $showOptInSheet) {
@@ -115,7 +114,7 @@ struct ActivityLoggingSettingsSection: View {
     private func disableLogging() {
         Task { @MainActor in
             await ActivityLogger.shared.disable()
-            PreferencesService.shared.activityLoggingEnabled = false
+            InsightsPreferences.activityLoggingEnabled = false
         }
     }
 
@@ -124,11 +123,11 @@ struct ActivityLoggingSettingsSection: View {
         Task { @MainActor in
             do {
                 try await ActivityLogger.shared.resetData()
-                PreferencesService.shared.activityLoggingConsentDate = nil
-                PreferencesService.shared.activityLoggingEnabled = false
+                InsightsPreferences.activityLoggingConsentDate = nil
+                InsightsPreferences.activityLoggingEnabled = false
                 eventCount = 0
             } catch {
-                AppLogger.shared.log("❌ [ActivityLogging] Reset failed: \(error.localizedDescription)")
+                print("❌ [ActivityLogging] Reset failed: \(error.localizedDescription)")
             }
             isResetting = false
         }

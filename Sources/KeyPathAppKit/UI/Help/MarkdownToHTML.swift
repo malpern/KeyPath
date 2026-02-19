@@ -196,6 +196,21 @@ enum MarkdownToHTML {
             color: var(--text-secondary);
         }
         strong { color: var(--text); font-weight: 600; }
+        /* External links get an arrow indicator */
+        a[href^="http"]::after { content: " ↗"; font-size: 0.85em; }
+        /* Internal cross-links styled as a nav card */
+        .cross-link {
+            display: block;
+            padding: 10px 14px;
+            margin: 12px 0;
+            border-radius: 8px;
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            text-decoration: none;
+            color: var(--link);
+        }
+        .cross-link:hover { background: var(--table-header-bg); text-decoration: none; }
+        .cross-link::after { content: " →"; }
         </style>
         </head>
         <body class="\(isDark ? "dark" : "")">
@@ -229,6 +244,13 @@ enum MarkdownToHTML {
         result = result.replacingOccurrences(
             of: "\\*(.+?)\\*",
             with: "<em>$1</em>",
+            options: .regularExpression
+        )
+
+        // Internal help links (help:resource-name → keypath-help://resource-name)
+        result = result.replacingOccurrences(
+            of: "\\[([^\\]]+)\\]\\(help:([^)]+)\\)",
+            with: "<a class=\"cross-link\" href=\"keypath-help://$2\">$1</a>",
             options: .regularExpression
         )
 

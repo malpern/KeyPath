@@ -50,9 +50,6 @@ extension KeyboardCapture {
             keyCode: tcpKeyNameToKeyCode(keyName)
         )
 
-        // Notify activity observer
-        activityObserver?.didReceiveKeyEvent(keyPress)
-
         // De-dup identical events
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {
             if last.baseKey == keyPress.baseKey,

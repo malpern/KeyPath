@@ -109,9 +109,9 @@ echo "🔐 Building privileged helper..."
 # Build and sign the helper tool
 ./Scripts/build-helper.sh
 
-echo "🏗️  Building KeyPath..."
-# Build main app (disable whole-module optimization to avoid hang)
-swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
+echo "🏗️  Building KeyPath and plugins..."
+# Build main app + plugin kit + insights plugin (disable whole-module optimization to avoid hang)
+swift build --configuration release --product KeyPath --product KeyPathPluginKit --product KeyPathInsights -Xswiftc -no-whole-module-optimization
 
 echo "📦 Creating app bundle..."
 APP_NAME="KeyPath"
@@ -154,6 +154,37 @@ MACOS="${CONTENTS}/MacOS"
 	    exit 1
 	fi
 
+	# Embed KeyPathPluginKit shared library
+	echo "🔌 Embedding KeyPathPluginKit dylib..."
+	PLUGINKIT_DYLIB="$BUILD_DIR/libKeyPathPluginKit.dylib"
+	if [ -f "$PLUGINKIT_DYLIB" ]; then
+	    ditto "$PLUGINKIT_DYLIB" "$FRAMEWORKS/libKeyPathPluginKit.dylib"
+	    echo "✅ Embedded libKeyPathPluginKit.dylib"
+	else
+	    echo "❌ ERROR: libKeyPathPluginKit.dylib not found at $PLUGINKIT_DYLIB" >&2
+	    exit 1
+	fi
+
+	# Assemble Insights plugin bundle
+	echo "🔌 Assembling Insights.bundle..."
+	PLUGINS_DIR="$CONTENTS/PlugIns"
+	INSIGHTS_BUNDLE="$PLUGINS_DIR/Insights.bundle"
+	INSIGHTS_CONTENTS="$INSIGHTS_BUNDLE/Contents"
+	INSIGHTS_MACOS="$INSIGHTS_CONTENTS/MacOS"
+	mkdir -p "$INSIGHTS_MACOS"
+
+	INSIGHTS_DYLIB="$BUILD_DIR/libKeyPathInsights.dylib"
+	if [ -f "$INSIGHTS_DYLIB" ]; then
+	    ditto "$INSIGHTS_DYLIB" "$INSIGHTS_MACOS/libKeyPathInsights"
+	    ditto "Sources/KeyPathInsights/Info.plist" "$INSIGHTS_CONTENTS/Info.plist"
+	    # Fix rpath so plugin can find KeyPathPluginKit in the app's Frameworks directory
+	    install_name_tool -add_rpath "@loader_path/../../../../Frameworks" "$INSIGHTS_MACOS/libKeyPathInsights" 2>/dev/null || true
+	    echo "✅ Assembled Insights.bundle"
+	else
+	    echo "❌ ERROR: libKeyPathInsights.dylib not found at $INSIGHTS_DYLIB" >&2
+	    exit 1
+	fi
+
 	# Copy kanata launcher script to enforce absolute config paths
 	KANATA_LAUNCHER_SRC="Scripts/kanata-launcher.sh"
 	KANATA_LAUNCHER_DST="$CONTENTS/Library/KeyPath/kanata-launcher"
@@ -182,6 +213,9 @@ ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath
 	        "$LAUNCH_DAEMONS/com.keypath.helper.plist" \
 	        "$LAUNCH_DAEMONS/com.keypath.kanata.plist" \
 	        "$FRAMEWORKS/Sparkle.framework" \
+	        "$FRAMEWORKS/libKeyPathPluginKit.dylib" \
+	        "$INSIGHTS_BUNDLE/Contents/MacOS/libKeyPathInsights" \
+	        "$INSIGHTS_BUNDLE/Contents/Info.plist" \
 	        "$KANATA_LAUNCHER_DST" \
 	        "$CONTENTS/Library/KeyPath/kanata-simulator"; do
 	        if [ ! -e "$path" ]; then
@@ -285,6 +319,12 @@ else
 
     # Sign bundled kanata simulator binary
     kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"
+
+    # Sign KeyPathPluginKit shared library
+    kp_sign "$FRAMEWORKS/libKeyPathPluginKit.dylib" --force --options=runtime --sign "$SIGNING_IDENTITY"
+
+    # Sign Insights plugin bundle
+    kp_sign "$INSIGHTS_BUNDLE" --force --options=runtime --deep --sign "$SIGNING_IDENTITY"
 
     # Sign embedded Sparkle framework (contains nested helper apps; deep signing is simplest)
     kp_sign "$FRAMEWORKS/Sparkle.framework" --force --options=runtime --deep --sign "$SIGNING_IDENTITY"

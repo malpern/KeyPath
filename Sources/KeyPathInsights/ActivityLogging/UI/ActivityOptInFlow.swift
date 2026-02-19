@@ -101,8 +101,8 @@ struct ActivityOptInFlow: View {
 
         Task { @MainActor in
             // Record consent
-            PreferencesService.shared.activityLoggingConsentDate = Date()
-            PreferencesService.shared.activityLoggingEnabled = true
+            InsightsPreferences.activityLoggingConsentDate = Date()
+            InsightsPreferences.activityLoggingEnabled = true
 
             // Enable the logger
             await ActivityLogger.shared.enable()

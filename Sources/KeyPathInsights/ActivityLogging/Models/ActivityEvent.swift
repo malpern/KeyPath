@@ -125,16 +125,6 @@ public struct ShortcutModifiers: OptionSet, Codable, Sendable, Equatable {
     public var hasModifiers: Bool {
         !isEmpty
     }
-
-    /// Create from existing ModifierSet
-    public init(from modifierSet: ModifierSet) {
-        var mods: ShortcutModifiers = []
-        if modifierSet.contains(.control) { mods.insert(.control) }
-        if modifierSet.contains(.option) { mods.insert(.option) }
-        if modifierSet.contains(.shift) { mods.insert(.shift) }
-        if modifierSet.contains(.command) { mods.insert(.command) }
-        self = mods
-    }
 }
 
 /// Data for KeyPath action events (URI-based)

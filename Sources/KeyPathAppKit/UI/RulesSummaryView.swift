@@ -591,7 +591,7 @@ struct RulesTabView: View {
             )
         }
         .sheet(isPresented: $showingHomeRowModsHelp) {
-            MarkdownHelpSheet(resource: "home-row-mods-guide", title: "Home Row Mods Guide")
+            MarkdownHelpSheet(resource: "home-row-mods", title: "Home Row Mods")
         }
         .sheet(isPresented: $kanataManager.showRuleConflictDialog) {
             if let context = kanataManager.pendingRuleConflict {

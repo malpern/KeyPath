@@ -1,4 +1,5 @@
 import KeyPathCore
+import KeyPathPluginKit
 import SwiftUI
 
 /// Settings section for experimental features and feature flags
@@ -41,9 +42,18 @@ struct ExperimentalSettingsSection: View {
                     }
                 }
 
-                // Activity Logging Section
-                SettingsCard {
-                    ActivityLoggingSettingsSection()
+                // Plugins Section
+                if !PluginManager.shared.plugins.isEmpty {
+                    ForEach(PluginManager.shared.plugins.map(PluginWrapper.init)) { wrapper in
+                        SettingsCard {
+                            InstalledPluginCard(plugin: wrapper.plugin)
+                        }
+                    }
+                }
+                ForEach(PluginManager.shared.availablePlugins) { entry in
+                    SettingsCard {
+                        PluginCatalogCard(entry: entry)
+                    }
                 }
 
                 // Testing Section

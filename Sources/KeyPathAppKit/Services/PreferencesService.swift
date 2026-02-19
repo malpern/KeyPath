@@ -172,30 +172,6 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
-    // MARK: - Activity Logging
-
-    /// Whether activity logging is enabled (requires double opt-in)
-    var activityLoggingEnabled: Bool {
-        didSet {
-            UserDefaults.standard.set(activityLoggingEnabled, forKey: Keys.activityLoggingEnabled)
-            AppLogger.shared.log("📊 [Preferences] activityLoggingEnabled = \(activityLoggingEnabled)")
-            // Post notification for ActivityLogger to start/stop
-            NotificationCenter.default.post(name: .activityLoggingChanged, object: nil)
-        }
-    }
-
-    /// Timestamp when user gave consent to activity logging (nil if never consented)
-    var activityLoggingConsentDate: Date? {
-        didSet {
-            if let date = activityLoggingConsentDate {
-                UserDefaults.standard.set(date.timeIntervalSince1970, forKey: Keys.activityLoggingConsentDate)
-            } else {
-                UserDefaults.standard.removeObject(forKey: Keys.activityLoggingConsentDate)
-            }
-            AppLogger.shared.log("📊 [Preferences] activityLoggingConsentDate = \(activityLoggingConsentDate?.description ?? "nil")")
-        }
-    }
-
     // MARK: - Leader Key Configuration
 
     /// Primary leader key preference (Space → Nav by default)
@@ -289,8 +265,6 @@ final class PreferencesService: @unchecked Sendable {
         static let isSequenceMode = "KeyPath.Recording.IsSequenceMode"
         static let verboseKanataLogging = "KeyPath.Diagnostics.VerboseKanataLogging"
         static let accessibilityTestMode = "KeyPath.Testing.AccessibilityTestMode"
-        static let activityLoggingEnabled = "KeyPath.ActivityLogging.Enabled"
-        static let activityLoggingConsentDate = "KeyPath.ActivityLogging.ConsentDate"
         static let leaderKeyPreference = "KeyPath.LeaderKey.Preference"
         static let contextHUDDisplayMode = "KeyPath.ContextHUD.DisplayMode"
         static let contextHUDTriggerMode = "KeyPath.ContextHUD.TriggerMode"
@@ -314,7 +288,6 @@ final class PreferencesService: @unchecked Sendable {
             static let verboseKanataLogging = false // Release builds favor smaller logs
         #endif
         static let accessibilityTestMode = false
-        static let activityLoggingEnabled = false // Requires explicit opt-in
         static let contextHUDDisplayMode = ContextHUDDisplayMode.both
         static let contextHUDTriggerMode = ContextHUDTriggerMode.holdToShow
         static let contextHUDTimeout: TimeInterval = 3.0
@@ -357,17 +330,6 @@ final class PreferencesService: @unchecked Sendable {
             UserDefaults.standard.object(forKey: Keys.accessibilityTestMode) as? Bool
                 ?? Defaults.accessibilityTestMode
 
-        // Activity logging preferences
-        activityLoggingEnabled =
-            UserDefaults.standard.object(forKey: Keys.activityLoggingEnabled) as? Bool
-                ?? Defaults.activityLoggingEnabled
-
-        if let consentTimestamp = UserDefaults.standard.object(forKey: Keys.activityLoggingConsentDate) as? TimeInterval {
-            activityLoggingConsentDate = Date(timeIntervalSince1970: consentTimestamp)
-        } else {
-            activityLoggingConsentDate = nil
-        }
-
         // Leader key preference
         if let data = UserDefaults.standard.data(forKey: Keys.leaderKeyPreference),
            let stored = try? JSONDecoder().decode(LeaderKeyPreference.self, from: data)
@@ -405,7 +367,7 @@ final class PreferencesService: @unchecked Sendable {
                 ?? Defaults.contextHUDHoldDelayCustomMs
 
         AppLogger.shared.log(
-            "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), TCP port: \(tcpServerPort), Verbose logging: \(verboseKanataLogging), Activity logging: \(activityLoggingEnabled)"
+            "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), TCP port: \(tcpServerPort), Verbose logging: \(verboseKanataLogging)"
         )
     }
 

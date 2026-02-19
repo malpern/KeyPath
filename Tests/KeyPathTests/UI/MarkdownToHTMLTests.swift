@@ -100,7 +100,28 @@ final class MarkdownToHTMLTests: XCTestCase {
         XCTAssertTrue(result.contains("&amp;"))
     }
 
+    // MARK: - Internal help links
+
+    func testHelpLinkRendersAsCrossLink() {
+        let result = MarkdownToHTML.convert("[Advanced Techniques](help:advanced-hrm-techniques)")
+        XCTAssertTrue(result.contains("class=\"cross-link\""))
+        XCTAssertTrue(result.contains("href=\"keypath-help://advanced-hrm-techniques\""))
+        XCTAssertTrue(result.contains("Advanced Techniques"))
+    }
+
+    func testExternalLinkNotAffectedByHelpHandling() {
+        let result = MarkdownToHTML.convert("[Example](https://example.com)")
+        XCTAssertFalse(result.contains("cross-link"))
+        XCTAssertTrue(result.contains("href=\"https://example.com\""))
+    }
+
     // MARK: - Document wrapping
+
+    func testExternalLinkIndicatorCSS() {
+        let html = MarkdownToHTML.wrapInHTMLDocument(body: "<p>test</p>", isDark: false)
+        XCTAssertTrue(html.contains("a[href^=\"http\"]::after"))
+        XCTAssertTrue(html.contains(".cross-link"))
+    }
 
     func testWrapInHTMLDocumentLight() {
         let html = MarkdownToHTML.wrapInHTMLDocument(body: "<p>Hello</p>", isDark: false)

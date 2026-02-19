@@ -120,7 +120,7 @@ struct HomeRowModsCollectionView: View {
             newLayerSheet
         }
         .sheet(isPresented: $showingHelp) {
-            MarkdownHelpSheet(resource: "home-row-mods-guide", title: "Home Row Mods Guide")
+            MarkdownHelpSheet(resource: "home-row-mods", title: "Home Row Mods")
         }
     }
 

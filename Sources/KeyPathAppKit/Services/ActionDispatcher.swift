@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathPluginKit
 
 // MARK: - Action Dispatch Result
 
@@ -62,6 +63,13 @@ public final class ActionDispatcher {
     @discardableResult
     public func dispatch(_ uri: KeyPathActionURI) -> ActionDispatchResult {
         AppLogger.shared.log("🎬 [ActionDispatcher] Dispatching: \(uri.url.absoluteString)")
+
+        // Forward to loaded plugins for analytics/side effects
+        PluginManager.shared.broadcastActionEvent(
+            action: uri.action,
+            target: uri.target,
+            uri: uri.url.absoluteString
+        )
 
         switch uri.action {
         case "launch":

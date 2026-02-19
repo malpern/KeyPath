@@ -598,14 +598,6 @@ actor KanataEventListener {
                         await handler(actionURI)
                     }
 
-                    // Record for activity logging
-                    await MainActor.run {
-                        ActivityLogger.shared.recordKeyPathAction(
-                            action: actionURI.action,
-                            target: actionURI.pathComponents.first,
-                            uri: messageString
-                        )
-                    }
                 } else {
                     // Not a keypath:// URI - report as unknown
                     AppLogger.shared.log("⚠️ [EventListener] Unknown message format: \(messageString)")
