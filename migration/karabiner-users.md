@@ -42,7 +42,7 @@ Here's how Karabiner concepts translate to KeyPath/Kanata:
 ### Simple remaps
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-<div>
+<div markdown="1">
 
 **Karabiner JSON:**
 ```json
@@ -54,7 +54,7 @@ Here's how Karabiner concepts translate to KeyPath/Kanata:
 ```
 
 </div>
-<div>
+<div markdown="1">
 
 **KeyPath/Kanata:**
 ```lisp
@@ -68,7 +68,7 @@ Here's how Karabiner concepts translate to KeyPath/Kanata:
 ### Tap-hold (dual-role keys)
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-<div>
+<div markdown="1">
 
 **Karabiner JSON:**
 ```json
@@ -84,7 +84,7 @@ Here's how Karabiner concepts translate to KeyPath/Kanata:
 ```
 
 </div>
-<div>
+<div markdown="1">
 
 **KeyPath/Kanata:**
 ```lisp
@@ -109,12 +109,12 @@ Read the [Tap-Hold guide]({{ '/guides/tap-hold' | relative_url }}) for details o
 ### Layers
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-<div>
+<div markdown="1">
 
 **Karabiner:** Uses `set_variable` and conditions to simulate layers across multiple rule sets.
 
 </div>
-<div>
+<div markdown="1">
 
 **KeyPath/Kanata:** Layers are a first-class concept:
 ```lisp
@@ -149,7 +149,7 @@ Karabiner's [Complex Modifications](https://ke-complex-modifications.pqrs.org/) 
 ### App-specific rules
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-<div>
+<div markdown="1">
 
 **Karabiner:** Per-app conditions in JSON:
 ```json
@@ -160,7 +160,7 @@ Karabiner's [Complex Modifications](https://ke-complex-modifications.pqrs.org/) 
 ```
 
 </div>
-<div>
+<div markdown="1">
 
 **KeyPath:** Automatic layer switching. Add an app in the App-Specific Rules tab, configure mappings, and KeyPath switches layers via TCP when you switch apps. See the [Window Management guide]({{ '/guides/window-management' | relative_url }}).
 
