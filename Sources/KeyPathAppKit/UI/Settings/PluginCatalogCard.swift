@@ -88,6 +88,7 @@ struct PluginCatalogCard: View {
             }
             .buttonStyle(.link)
             .font(.caption)
+            .accessibilityIdentifier("plugin-learn-more-\(entry.id)")
         }
     }
 

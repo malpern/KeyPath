@@ -256,6 +256,7 @@ struct RuleConflictResolutionDialog: View {
                 isPrimaryAction: isPrimaryAction,
                 action: action
             )
+            .accessibilityIdentifier("rule-conflict-action-\(isNew ? "new" : "existing")")
         }
         .padding(16)
         .frame(maxWidth: .infinity, minHeight: 200)

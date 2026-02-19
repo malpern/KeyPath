@@ -101,6 +101,7 @@ struct HomeRowModsCollectionView: View {
                     showingCustomizeWindow = false
                 }
                 .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("home-row-mods-done-button")
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
