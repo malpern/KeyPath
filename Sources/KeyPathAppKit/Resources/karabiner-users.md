@@ -122,7 +122,7 @@ Karabiner's [Complex Modifications](https://ke-complex-modifications.pqrs.org/) 
 
 ## What you'll lose (temporarily)
 
-- **Community rule library** — Karabiner's [importable modifications](https://ke-complex-modifications.pqrs.org/) library has thousands of user-contributed rules. KeyPath ships with 16 built-in rule collections (Vim Navigation, Home Row Mods, Window Snapping, Quick Launcher, etc.) but doesn't yet support importing community-shared packs.
+- **Community rule library** — Karabiner's [importable modifications](https://ke-complex-modifications.pqrs.org/) library has thousands of user-contributed rules. KeyPath ships with 16 built-in rule collections (Vim Navigation, Home Row Mods, Window Snapping, Quick Launcher, etc.) but doesn't yet support importing community-shared packs. Interested in a Karabiner rule import tool? Let us know in [GitHub Discussions](https://github.com/malpern/KeyPath/discussions) so we can prioritize it.
 - **Some edge-case rules** — Karabiner's JSON is extremely flexible. Some exotic conditions (mouse button combinations, device-specific vendor IDs with complex conditions) may require creative workarounds in Kanata.
 - **Track record** — Karabiner has been trusted for 10+ years. KeyPath is newer. Both are open source, so you can verify the code yourself.
 
