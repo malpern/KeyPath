@@ -511,7 +511,6 @@ public class KeyboardCapture {
             keyCode: keyCode
         )
 
-
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {
             if last.baseKey == keyPress.baseKey,
                now.timeIntervalSince(lastAt) <= dedupWindow
@@ -572,7 +571,6 @@ public class KeyboardCapture {
             timestamp: now,
             keyCode: Int64(mediaKeyCode) + 1000 // Offset to avoid collision with regular keyCodes
         )
-
 
         // De-dup identical events
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {

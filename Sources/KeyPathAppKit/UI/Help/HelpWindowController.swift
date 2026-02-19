@@ -38,7 +38,7 @@ final class HelpWindowController {
     }
 
     /// Opens a single help topic in the browser (backwards-compatible deep link).
-    func show(resource: String, title: String) {
+    func show(resource: String, title _: String) {
         let topic = HelpTopic.topic(forResource: resource)
         showBrowser(selecting: topic)
     }

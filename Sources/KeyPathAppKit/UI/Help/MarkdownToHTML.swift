@@ -3,7 +3,6 @@ import Foundation
 /// Pure markdown-to-HTML converter supporting a practical subset of markdown.
 /// No external dependencies — just string processing.
 enum MarkdownToHTML {
-
     // MARK: - Public API
 
     /// Convert a markdown string to an HTML body fragment.
@@ -38,7 +37,7 @@ enum MarkdownToHTML {
             }
 
             // Close list if the current line is not a list item
-            if inList && !line.hasPrefix("- ") {
+            if inList, !line.hasPrefix("- ") {
                 html.append("</ul>")
                 inList = false
             }
@@ -87,7 +86,7 @@ enum MarkdownToHTML {
             // Pipe tables
             if line.hasPrefix("|") {
                 var tableLines: [String] = []
-                while i < lines.count && lines[i].hasPrefix("|") {
+                while i < lines.count, lines[i].hasPrefix("|") {
                     tableLines.append(lines[i])
                     i += 1
                 }

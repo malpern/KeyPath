@@ -3,7 +3,6 @@ import Foundation
 import XCTest
 
 final class MarkdownToHTMLTests: XCTestCase {
-
     // MARK: - Headings
 
     func testH1() {
@@ -144,14 +143,14 @@ final class MarkdownToHTMLTests: XCTestCase {
 
     // MARK: - Combined elements
 
-    func testListClosesBeforeHeading() {
+    func testListClosesBeforeHeading() throws {
         let md = """
         - item
         ## Heading
         """
         let result = MarkdownToHTML.convert(md)
-        let ulClose = result.range(of: "</ul>")!.lowerBound
-        let h2Open = result.range(of: "<h2>")!.lowerBound
+        let ulClose = try XCTUnwrap(result.range(of: "</ul>")?.lowerBound)
+        let h2Open = try XCTUnwrap(result.range(of: "<h2>")?.lowerBound)
         XCTAssertTrue(ulClose < h2Open, "List should close before heading")
     }
 
