@@ -146,10 +146,21 @@ Ensure you've set at least a double-tap action. Single tap alone won't enable ta
 
 ## Advanced Configuration
 
-For power users, you can edit the generated Kanata config directly to fine-tune behavior. See the [Kanata documentation](https://github.com/jtroo/kanata) for advanced options.
+For power users, you can edit the generated Kanata config directly to fine-tune behavior. See the [Kanata tap-hold documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc#tap-hold) for all available options.
 
 ## Next Steps
 
 - **[Home Row Mods]({{ '/guides/home-row-mods' | relative_url }})** — The most popular use of tap-hold
+- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — See tap-hold in action: Hyper key, navigation layers, combined setups
 - **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Background on layers, modifiers, and dual-role keys
+- **[Action URIs]({{ '/guides/action-uri' | relative_url }})** — Trigger actions from your keyboard config
+- **[Switching from Karabiner?]({{ '/migration/karabiner-users' | relative_url }})** — See how Karabiner's `to_if_alone` maps to Kanata tap-hold
 - **[Back to Docs]({{ '/docs' | relative_url }})**
+
+## External resources
+
+- **[Kanata tap-hold documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc#tap-hold)** — Full reference for all tap-hold variants ↗
+- **[The Home Row Mods Guide (Precondition)](https://precondition.github.io/home-row-mods)** — Community deep dive on tap-hold for home row mods ↗
+- **[Pascal Getreuer's home row mods analysis](https://getreuer.info/posts/keyboards/home-row-mods/)** — Technical analysis of tap-hold timing and anti-misfire strategies ↗
+- **[QMK tap-hold documentation](https://docs.qmk.fm/tap_hold)** — Firmware perspective on the same concepts (useful for understanding the theory) ↗
+- **[Kanata GitHub Discussions](https://github.com/jtroo/kanata/discussions)** — Community Q&A on tap-hold tuning ↗

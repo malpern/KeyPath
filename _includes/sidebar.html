@@ -56,10 +56,13 @@
 
         <!-- Migration -->
         <li class="nav-section">
-            <div class="nav-section-title">Migration</div>
+            <div class="nav-section-title">Switching Tools</div>
             <ul class="nav-section-items">
+                <li class="nav-item {% if page.url contains '/migration/karabiner-users' %}active{% endif %}">
+                    <a href="{{ '/migration/karabiner-users' | relative_url }}" class="nav-link">From Karabiner-Elements</a>
+                </li>
                 <li class="nav-item {% if page.url contains '/migration/kanata-users' %}active{% endif %}">
-                    <a href="{{ '/migration/kanata-users' | relative_url }}" class="nav-link">For Kanata Users</a>
+                    <a href="{{ '/migration/kanata-users' | relative_url }}" class="nav-link">From Kanata</a>
                 </li>
             </ul>
         </li>

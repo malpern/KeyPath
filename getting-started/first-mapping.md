@@ -90,8 +90,11 @@ After saving:
 
 ## Next Steps
 
-- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** - Learn about layers, tap-hold, and modifiers
-- **[Tap-Hold & Tap-Dance]({{ '/guides/tap-hold' | relative_url }})** - Advanced key behaviors
-- **[Action URI System]({{ '/guides/action-uri' | relative_url }})** - Trigger actions from Kanata
-- **[Window Management]({{ '/guides/window-management' | relative_url }})** - App-specific keymaps
-- **[Back to Docs]({{ '/docs' | relative_url }})** - See all available guides
+- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Understand layers, tap-hold, modifiers, and more
+- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — See what's possible: Hyper key, home row mods, window tiling
+- **[Home Row Mods]({{ '/guides/home-row-mods' | relative_url }})** — The most popular advanced technique
+- **[Tap-Hold & Tap-Dance]({{ '/guides/tap-hold' | relative_url }})** — Advanced key behaviors
+- **[Action URI System]({{ '/guides/action-uri' | relative_url }})** — Launch apps, URLs, and workflows from your keyboard
+- **[Window Management]({{ '/guides/window-management' | relative_url }})** — App-specific keymaps and window tiling
+- **[Debugging Guide]({{ '/guides/debugging' | relative_url }})** — If something isn't working
+- **[Back to Docs]({{ '/docs' | relative_url }})**

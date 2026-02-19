@@ -191,9 +191,21 @@ open "keypath://notify?title=Hello%20World&body=Test%20message"
 1. Check KeyPath is running
 2. Verify URI syntax is correct
 3. Check logs: `tail -f ~/Library/Logs/KeyPath/keypath-debug.log`
+4. See the [Debugging Guide]({{ '/guides/debugging' | relative_url }}) for more troubleshooting steps
 
 ### App not launching
 
 1. Verify app name is correct (case-insensitive)
 2. Check app is in `/Applications/` or `~/Applications/`
 3. Try using bundle identifier instead
+
+---
+
+## Related guides
+
+- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — See Action URIs in context: Hyper key launchers, window tiling, leader sequences
+- **[Window Management]({{ '/guides/window-management' | relative_url }})** — App-specific keymaps and window snapping using Action URIs
+- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Background on layers, modifiers, and chords
+- **[Kanata documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc#push-msg)** — Kanata's `push-msg` reference ↗
+- **[FAQ]({{ '/faq' | relative_url }})** — Common questions about configuration and TCP
+- **[Back to Docs]({{ '/docs' | relative_url }})**

@@ -173,10 +173,21 @@ Shift is the most frequently used modifier during normal typing (capital letters
 
 ## Resources
 
+### KeyPath guides
+
 - **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Background on tap-hold, layers, and modifiers
 - **[Tap-Hold & Tap-Dance]({{ '/guides/tap-hold' | relative_url }})** — Detailed guide to all tap-hold options in KeyPath
-- **[Kanata tap-hold documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc#tap-hold)** — The engine behind KeyPath's tap-hold
-- **[The Home Row Mods Guide (precondition)](https://precondition.github.io/home-row-mods)** — The definitive community reference
-- **[Sunaku's home row mods](https://sunaku.github.io/home-row-mods.html)** — Advanced anti-misfire techniques
-- **[jtroo's Kanata config](https://github.com/jtroo/kanata/blob/main/cfg_samples/jtroo.kbd)** — Real-world advanced config from Kanata's creator
+- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — See HRM as part of a complete setup with Hyper key, window tiling, and more
+- **[Switching from Karabiner?]({{ '/migration/karabiner-users' | relative_url }})** — HRM is KeyPath's biggest advantage over Karabiner — see the comparison
 - **[Back to Docs]({{ '/docs' | relative_url }})**
+
+### External references
+
+- **[The Home Row Mods Guide (Precondition)](https://precondition.github.io/home-row-mods)** — The definitive community reference on HRM layouts and tuning ↗
+- **[Pascal Getreuer's home row mods analysis](https://getreuer.info/posts/keyboards/home-row-mods/)** — Technical deep dive on timing, anti-misfire, and Chordal Hold ↗
+- **[Sunaku's home row mods](https://sunaku.github.io/home-row-mods.html)** — Advanced anti-cascade and bilateral combinations ↗
+- **[Kanata tap-hold documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc#tap-hold)** — Full reference for the engine behind KeyPath's tap-hold ↗
+- **[jtroo's Kanata config](https://github.com/jtroo/kanata/blob/main/cfg_samples/jtroo.kbd)** — Real-world advanced config from Kanata's creator ↗
+- **[QMK Chordal Hold](https://docs.qmk.fm/features/chordal_hold)** — Firmware-level opposite-hand detection (same concept KeyPath uses) ↗
+- **[r/ErgoMechKeyboards](https://www.reddit.com/r/ErgoMechKeyboards/)** — Active community discussing HRM tuning and experiences ↗
+- **[Ben Vallack's HRM journey](https://www.youtube.com/@BenVallack)** — Practical experiences with home row mods on various layouts ↗

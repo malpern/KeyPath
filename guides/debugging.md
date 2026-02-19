@@ -258,3 +258,13 @@ If you're still stuck:
 3. **Check logs first** before asking for help
 4. **Use the setup wizard** for automated fixes
 5. **Keep KeyPath updated** to latest version
+
+---
+
+## Related pages
+
+- **[FAQ]({{ '/faq' | relative_url }})** — Answers to common questions about setup, usage, and architecture
+- **[Installation]({{ '/getting-started/installation' | relative_url }})** — Setup wizard and permission walkthrough
+- **[Privacy & Permissions]({{ '/guides/privacy' | relative_url }})** — What each permission does and why it's needed
+- **[Kanata troubleshooting](https://github.com/jtroo/kanata/wiki/Troubleshooting)** — Kanata's own debugging tips ↗
+- **[Back to Docs]({{ '/docs' | relative_url }})**

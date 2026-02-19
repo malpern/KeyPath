@@ -500,13 +500,24 @@ Beyond the core features, KeyPath offers these additional capabilities:
 
 ## Next Steps
 
-- **Read the [Architecture Overview]({{ '/architecture/overview' | relative_url }})** — Understand how KeyPath works
-- **Check [ADR-027]({{ site.github_url }}/blob/main/docs/adr/adr-027-app-specific-keymaps.md)** — Details on the two-file model
-- **See [ADR-023]({{ site.github_url }}/blob/main/docs/adr/adr-023-no-config-parsing.md)** — Why KeyPath doesn't parse configs
-- **Review [ADR-025]({{ site.github_url }}/blob/main/docs/adr/adr-025-config-management.md)** — How config preservation works
+- **[Home Row Mods]({{ '/guides/home-row-mods' | relative_url }})** — KeyPath's split-hand detection and per-finger timing make HRM more reliable
+- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — Concrete examples: Hyper key launcher, window tiling, Vim everywhere
+- **[Action URIs]({{ '/guides/action-uri' | relative_url }})** — Launch apps, open URLs, and tile windows from your Kanata config
+- **[Window Management]({{ '/guides/window-management' | relative_url }})** — App-specific keymaps that switch automatically
+- **[Tap-Hold & Tap-Dance]({{ '/guides/tap-hold' | relative_url }})** — All four tap-hold variants explained
+
+## Architecture details
+
+- **[ADR-027]({{ site.github_url }}/blob/main/docs/adr/adr-027-app-specific-keymaps.md)** — Details on the two-file model
+- **[ADR-023]({{ site.github_url }}/blob/main/docs/adr/adr-023-no-config-parsing.md)** — Why KeyPath doesn't parse configs
+- **[ADR-025]({{ site.github_url }}/blob/main/docs/adr/adr-025-config-management.md)** — How config preservation works
 
 ## Getting Help
 
-- **GitHub Issues**: [Report bugs or ask questions]({{ site.github_url }}/issues)
-- **FAQ**: [Frequently asked questions]({{ '/faq' | relative_url }})
-- **Debugging Guide**: [Advanced troubleshooting]({{ '/guides/debugging' | relative_url }})
+- **[FAQ]({{ '/faq' | relative_url }})** — Common questions about KeyPath
+- **[Debugging Guide]({{ '/guides/debugging' | relative_url }})** — Advanced troubleshooting
+- **[Privacy & Permissions]({{ '/guides/privacy' | relative_url }})** — What KeyPath accesses and why
+- **[GitHub Issues]({{ site.github_url }}/issues)** — Report bugs or ask questions
+- **[Kanata documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc)** — Full Kanata config reference ↗
+- **[Kanata GitHub](https://github.com/jtroo/kanata)** — Kanata source code and discussions ↗
+- **[Back to Docs]({{ '/docs' | relative_url }})**

@@ -122,6 +122,12 @@ This removes:
 - Configuration files
 - Application bundle
 
+## Coming from another tool?
+
+- **Already using Kanata?** KeyPath auto-detects your config. See the [Kanata migration guide]({{ '/migration/kanata-users' | relative_url }}).
+- **Switching from Karabiner-Elements?** See the [Karabiner migration guide]({{ '/migration/karabiner-users' | relative_url }}) for a concept-by-concept comparison.
+- **Curious about permissions?** Read [Privacy & Permissions]({{ '/guides/privacy' | relative_url }}) for exactly what KeyPath accesses and why.
+
 ## Next Steps
 
 After installation, see [Your First Mapping]({{ '/getting-started/first-mapping' | relative_url }}) to create your first keyboard remapping.

@@ -108,6 +108,16 @@ For power users, you can create custom layer switching logic:
 
 ## Next Steps
 
-- **[Action URI System]({{ '/guides/action-uri' | relative_url }})** — Trigger actions from Kanata config using URIs
+- **[Action URI System]({{ '/guides/action-uri' | relative_url }})** — Full reference for all URI actions including window snapping
+- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — See window tiling as part of a complete setup
 - **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Background on layers and modifiers
+- **[Tap-Hold & Tap-Dance]({{ '/guides/tap-hold' | relative_url }})** — Configure the keys that trigger your window actions
+- **[Home Row Mods]({{ '/guides/home-row-mods' | relative_url }})** — Combine window management with home row modifiers
+- **[Switching from Karabiner?]({{ '/migration/karabiner-users' | relative_url }})** — Map your existing Karabiner window rules to KeyPath
 - **[Back to Docs]({{ '/docs' | relative_url }})**
+
+## External resources
+
+- **[Rectangle](https://rectangleapp.com/)** — Dedicated window manager that pairs well with KeyPath shortcuts ↗
+- **[Raycast Window Management](https://www.raycast.com/extensions/window-management)** — Raycast's built-in window tiling ↗
+- **[Kanata push-msg reference](https://github.com/jtroo/kanata/blob/main/docs/config.adoc#push-msg)** — How Kanata sends messages to KeyPath ↗

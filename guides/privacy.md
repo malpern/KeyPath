@@ -263,4 +263,16 @@ Keyboard usage analytics and AI-assisted configuration are available in **KeyPat
 
 We take this seriously. If you have questions about KeyPath's privacy practices or find something in the source code that doesn't match what's described here, please [open an issue on GitHub](https://github.com/malpern/KeyPath/issues).
 
+- **[FAQ]({{ '/faq' | relative_url }})** — More questions and answers about KeyPath
+- **[Installation]({{ '/getting-started/installation' | relative_url }})** — Setup wizard and permission walkthrough
+- **[Debugging Guide]({{ '/guides/debugging' | relative_url }})** — Troubleshooting permission issues
 - **[Back to Docs]({{ '/docs' | relative_url }})**
+
+## External references
+
+- **[Karabiner-Elements](https://karabiner-elements.pqrs.org/)** — Alternative macOS keyboard remapper (for comparison) ↗
+- **[Kanata](https://github.com/jtroo/kanata)** — The open-source remapping engine that powers KeyPath ↗
+- **[kmonad](https://github.com/kmonad/kmonad)** — Another cross-platform keyboard remapper ↗
+- **[Karabiner VirtualHIDDevice](https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice)** — The virtual keyboard driver used by both KeyPath and Karabiner ↗
+- **[Sparkle](https://sparkle-project.org/)** — The open-source update framework KeyPath uses ↗
+- **[Apple TCC documentation](https://support.apple.com/guide/security/controlling-app-access-to-files-secddd1d86a6/web)** — How macOS manages app permissions ↗

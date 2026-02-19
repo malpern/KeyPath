@@ -7,12 +7,30 @@ content_class: content-full docs-landing
 permalink: /docs
 ---
 
-# Documentation
-{: .no_toc}
-
-<p class="docs-intro">
-Everything you need to get started with keyboard remapping on your Mac — whether you've never touched a keyboard setting or you're migrating from another tool.
-</p>
+<div class="docs-hero">
+  <div class="docs-hero-content">
+    <h1>KeyPath Documentation</h1>
+    <p class="docs-hero-subtitle">Everything you need to master keyboard remapping on your Mac</p>
+    <div class="docs-hero-cta">
+      <a href="{{ '/guides/concepts' | relative_url }}" class="docs-cta-primary">New here? Start with Keyboard Concepts</a>
+      <a href="{{ '/getting-started/installation' | relative_url }}" class="docs-cta-secondary">Jump to Installation</a>
+    </div>
+  </div>
+  <div class="docs-hero-visual">
+    <div class="docs-hero-keyboard">
+      <div class="hero-key">A<span>⇧</span></div>
+      <div class="hero-key">S<span>⌃</span></div>
+      <div class="hero-key">D<span>⌥</span></div>
+      <div class="hero-key">F<span>⌘</span></div>
+      <div class="hero-key-gap"></div>
+      <div class="hero-key">J<span>⌘</span></div>
+      <div class="hero-key">K<span>⌥</span></div>
+      <div class="hero-key">L<span>⌃</span></div>
+      <div class="hero-key">;<span>⇧</span></div>
+    </div>
+    <p class="docs-hero-caption">Tap for letters. Hold for modifiers. Your fingers never leave home.</p>
+  </div>
+</div>
 
 <div class="docs-grid">
 
@@ -55,10 +73,11 @@ Everything you need to get started with keyboard remapping on your Mac — wheth
 </div>
 
 <div class="docs-card">
-<h3><a href="{{ '/migration/kanata-users' | relative_url }}">For Kanata Users</a></h3>
-<p>Already using Kanata? KeyPath keeps your config and adds a native Mac experience on top.</p>
+<h3><a href="{{ '/migration/kanata-users' | relative_url }}">Switching Tools?</a></h3>
+<p>Coming from Karabiner-Elements, Kanata, or another remapper? We've got migration guides for you.</p>
 <ul class="docs-card-links">
-<li><a href="{{ '/migration/kanata-users' | relative_url }}">Migration Guide</a></li>
+<li><a href="{{ '/migration/karabiner-users' | relative_url }}">From Karabiner-Elements</a></li>
+<li><a href="{{ '/migration/kanata-users' | relative_url }}">From Kanata</a></li>
 </ul>
 </div>
 

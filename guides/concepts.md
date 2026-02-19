@@ -204,3 +204,15 @@ These let you create memorable shortcuts without running out of modifier combina
 - **[Home Row Mods]({{ '/guides/home-row-mods' | relative_url }})** — The most popular advanced technique
 - **[Tap-Hold & Tap-Dance]({{ '/guides/tap-hold' | relative_url }})** — All the details on dual-role keys
 - **[Back to Docs]({{ '/docs' | relative_url }})** — See all available guides
+
+## External resources
+
+These community resources go deeper into keyboard customization concepts:
+
+- **[The Home Row Mods Guide (Precondition)](https://precondition.github.io/home-row-mods)** — The definitive community reference on home row mods ↗
+- **[A guide to home row mods (Precondition)](https://precondition.github.io/home-row-mods#what-are-home-row-mods)** — Detailed explanation of modifier layouts ↗
+- **[Kanata documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc)** — Full configuration reference for the engine behind KeyPath ↗
+- **[QMK Firmware](https://docs.qmk.fm/)** — If you're interested in firmware-level remapping on custom keyboards ↗
+- **[r/ErgoMechKeyboards](https://www.reddit.com/r/ErgoMechKeyboards/)** — Active community discussing keyboard layouts, layers, and ergonomics ↗
+- **[Karabiner-Elements](https://karabiner-elements.pqrs.org/)** — Another macOS remapping tool, if you want to compare approaches ↗
+- **[Ben Vallack's keyboard videos](https://www.youtube.com/@BenVallack)** — Advanced keyboard layout exploration and experimentation ↗

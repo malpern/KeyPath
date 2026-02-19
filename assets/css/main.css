@@ -537,6 +537,182 @@ body.sidebar-open .sidebar {
     max-width: 640px;
 }
 
+/* --- Docs Hero Section --- */
+
+.docs-hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-2xl);
+    align-items: center;
+    background: linear-gradient(135deg, #001a3d 0%, #003580 40%, #0055cc 100%);
+    border-radius: 16px;
+    padding: var(--spacing-2xl) var(--spacing-2xl);
+    margin-bottom: var(--spacing-2xl);
+    overflow: hidden;
+    position: relative;
+}
+
+.docs-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(90, 200, 250, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.docs-hero-content h1 {
+    font-family: var(--font-display);
+    font-size: var(--font-size-4xl);
+    color: #FFFFFF;
+    margin-bottom: var(--spacing-sm);
+    line-height: 1.2;
+}
+
+.docs-hero-subtitle {
+    font-size: var(--font-size-lg);
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: var(--spacing-lg);
+    line-height: 1.5;
+}
+
+.docs-hero-cta {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.docs-cta-primary {
+    display: inline-block;
+    background: #FFFFFF;
+    color: #003580;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: var(--font-size-base);
+    text-decoration: none;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.docs-cta-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.docs-cta-secondary {
+    display: inline-block;
+    background: transparent;
+    color: #FFFFFF;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    font-weight: 500;
+    font-size: var(--font-size-base);
+    text-decoration: none;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.docs-cta-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.7);
+}
+
+/* Hero keyboard visual */
+
+.docs-hero-visual {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.docs-hero-keyboard {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.hero-key {
+    width: 48px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+    font-size: 16px;
+    font-weight: 600;
+    font-family: var(--font-text);
+    position: relative;
+    transition: background var(--transition-fast);
+}
+
+.hero-key:hover {
+    background: rgba(0, 122, 255, 0.4);
+}
+
+.hero-key span {
+    font-size: 10px;
+    font-weight: 400;
+    color: rgba(90, 200, 250, 0.9);
+    margin-top: 1px;
+}
+
+.hero-key-gap {
+    width: 20px;
+}
+
+.docs-hero-caption {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-md);
+    text-align: center;
+}
+
+@media (max-width: 768px) {
+    .docs-hero {
+        grid-template-columns: 1fr;
+        text-align: center;
+        padding: var(--spacing-xl) var(--spacing-lg);
+    }
+
+    .docs-hero-content h1 {
+        font-size: var(--font-size-3xl);
+    }
+
+    .docs-hero-cta {
+        justify-content: center;
+    }
+
+    .hero-key {
+        width: 40px;
+        height: 40px;
+        font-size: 14px;
+    }
+
+    .hero-key span {
+        font-size: 9px;
+    }
+
+    .hero-key-gap {
+        width: 12px;
+    }
+}
+
+/* --- External link indicator --- */
+
+.content a[href^="http"]:not([href*="keypath"]):not(.docs-cta-primary):not(.docs-cta-secondary):not(.docs-card h3 a):not(.nav-link):not(.header-nav a)::after {
+    content: ' ↗';
+    font-size: 0.8em;
+    opacity: 0.6;
+    vertical-align: super;
+    line-height: 0;
+}
+
 .docs-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);

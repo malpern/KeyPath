@@ -350,4 +350,13 @@ Start with one technique, get comfortable, then add the next. There's no rush.
 - **[Tap-Hold & Tap-Dance]({{ '/guides/tap-hold' | relative_url }})** — Fine-tune your dual-role keys
 - **[Action URIs]({{ '/guides/action-uri' | relative_url }})** — Launch apps, URLs, and workflows from your keyboard
 - **[Window Management]({{ '/guides/window-management' | relative_url }})** — App-specific keymaps and window tiling
+- **[Privacy & Permissions]({{ '/guides/privacy' | relative_url }})** — What KeyPath accesses and why
 - **[Back to Docs]({{ '/docs' | relative_url }})**
+
+## External resources
+
+- **[Kanata configuration reference](https://github.com/jtroo/kanata/blob/main/docs/config.adoc)** — Full docs for the engine behind these features ↗
+- **[Kanata example configs](https://github.com/jtroo/kanata/tree/main/cfg_samples)** — Real-world configs from the Kanata community ↗
+- **[Raycast](https://www.raycast.com/)** — Pairs well with KeyPath's Action URI system for app launching ↗
+- **[Alfred](https://www.alfredapp.com/)** — Another launcher that integrates with KeyPath deep links ↗
+- **[Rectangle](https://rectangleapp.com/)** — Dedicated window manager if you want more tiling options ↗

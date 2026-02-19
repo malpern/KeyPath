@@ -14,7 +14,7 @@ macOS 15.0 (Sequoia) or later. Currently **Apple Silicon only** (Intel support c
 
 ### Do I need an internet connection?
 
-No. KeyPath works completely offline. The only exception is the optional AI config generation feature, which requires an `ANTHROPIC_API_KEY` environment variable if you want to use it.
+No. KeyPath works completely offline. The only network request is an optional update check (via [Sparkle](https://sparkle-project.org/)), which you can disable in Settings.
 
 ### Is KeyPath free and open source?
 
@@ -64,7 +64,7 @@ Yes! KeyPath preserves your custom configuration. If you edit `~/.config/keypath
 
 When found, click "Use This Config" and you're done. KeyPath symlinks to your original file and adds the include line it needs. Your config stays where it is.
 
-See the [Migration Guide](/migration/kanata-users) for details.
+See the [Kanata Migration Guide]({{ '/migration/kanata-users' | relative_url }}) for details. Switching from Karabiner-Elements? See the [Karabiner Migration Guide]({{ '/migration/karabiner-users' | relative_url }}).
 
 ### Can I keep my config in its original location?
 
@@ -194,7 +194,13 @@ No. KeyPath works fully on its own. Insights is for people who want to analyze t
 
 ## Still Have Questions?
 
-- [GitHub Issues]({{ site.github_url }}/issues) - Report bugs or ask questions
-- [Discussions]({{ site.github_url }}/discussions) - Community discussions
-- [Debugging Guide](/guides/debugging) - Advanced troubleshooting
-- [Privacy & Permissions](/guides/privacy) - What KeyPath accesses and why
+- **[GitHub Issues]({{ site.github_url }}/issues)** — Report bugs or ask questions
+- **[Discussions]({{ site.github_url }}/discussions)** — Community discussions
+- **[Debugging Guide]({{ '/guides/debugging' | relative_url }})** — Advanced troubleshooting
+- **[Privacy & Permissions]({{ '/guides/privacy' | relative_url }})** — What KeyPath accesses and why
+- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Layers, tap-hold, modifiers explained
+- **[Home Row Mods]({{ '/guides/home-row-mods' | relative_url }})** — The most popular advanced technique
+- **[Tap-Hold & Tap-Dance]({{ '/guides/tap-hold' | relative_url }})** — All tap-hold options explained
+- **[Your First Mapping]({{ '/getting-started/first-mapping' | relative_url }})** — Step-by-step getting started
+- **[Kanata documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc)** — Full Kanata config reference ↗
+- **[Back to Docs]({{ '/docs' | relative_url }})**
