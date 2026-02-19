@@ -1,35 +1,90 @@
 ![Tap-Hold & Tap-Dance](header-tap-hold.png)
 
-# Tap-Hold & Tap-Dance
+# One Key, Multiple Actions
 
-If you've never used tap-hold before, start with the [Keyboard Concepts](help:concepts) page for a beginner-friendly overview of how dual-role keys work. Already familiar? Read on.
+A standard keyboard gives you about 80 keys, and each one does exactly one thing. That's limiting — you run out of convenient shortcuts fast, especially if you want to launch apps, navigate, and use modifiers without leaving the home row.
 
-KeyPath supports advanced key behaviors beyond simple remapping:
+KeyPath lets a single key do different things depending on *how* you press it:
 
-- **Tap-Hold (Dual-Role)**: A key that does one thing when tapped, another when held
-- **Tap-Dance**: A key that does different things based on tap count (single, double, triple, etc.)
+- **Tap-Hold**: Tap for one action, hold for another — like Caps Lock that sends Escape on tap but activates shortcuts on hold
+- **Tap-Dance**: Different actions for single tap, double tap, triple tap — like a double-click but for any key
+
+These dual-role keys are the foundation of everything else in KeyPath: [home row modifiers](help:home-row-mods), [app launching](help:action-uri), navigation layers, and more.
+
+If you're new to these ideas, start with the [Keyboard Concepts](help:concepts) page for a beginner-friendly overview.
+
+---
 
 ## Quick Start
 
 ### Creating a Tap-Hold Key
 
-1. Open **Custom Rules** tab
-2. Click **Create Rule**
-3. Set your **Start** key (e.g., `1`)
-4. Set your **Finish** key (e.g., `2`) — this is the tap action
-5. Enable **Hold, Double Tap, etc.** toggle
-6. Set **On Hold** (e.g., `3`) — this is what happens when held
-7. Choose hold behavior:
-   - **Basic**: Pure timeout-based
-   - **Trigger early**: Hold activates on other key press (best for home-row mods)
-   - **Quick tap**: Fast taps always register as tap
-   - **Custom keys**: Only specific keys trigger early tap
-8. Save
+1. Open the **Custom Rules** tab in the inspector panel
+2. Click **New Rule** (+ button)
+3. Set your **Start** key and **Finish** key (tap action)
+4. Enable the **Hold, Double Tap, etc.** toggle
+5. Set **On Hold** — this is what happens when held
+6. Choose hold behavior
+7. Save
+
+<!-- screenshot: id="tap-hold-custom-rules-tab" method="snapshot" view="CustomRulesTabView" state="rules:populated,global:expanded,app:safari" -->
+Screenshot — Custom Rules tab with new rule form:
+```
+  ┌─────────────────────────────────────────────────────┐
+  │  Custom Rules                                       │
+  │                                                     │
+  │  ┌────────────────────────────────────────────────┐ │
+  │  │  EVERYWHERE (global rules)                     │ │
+  │  │                                                │ │
+  │  │  caps_lock ──→ escape                          │ │
+  │  │  a (hold) ──→ left_shift                       │ │
+  │  │  f (hold) ──→ left_command                     │ │
+  │  └────────────────────────────────────────────────┘ │
+  │                                                     │
+  │  ┌────────────────────────────────────────────────┐ │
+  │  │  🧭 SAFARI (app-specific rules)                │ │
+  │  │                                                │ │
+  │  │  h ──→ left_arrow                              │ │
+  │  │  j ──→ down_arrow                              │ │
+  │  │  k ──→ up_arrow                                │ │
+  │  │  l ──→ right_arrow                             │ │
+  │  └────────────────────────────────────────────────┘ │
+  │                                                     │
+  │  [ ↺ Reset ]                     [ + New Rule ]     │
+  └─────────────────────────────────────────────────────┘
+```
+
+<!-- screenshot: id="tap-hold-rule-editor" method="snapshot" view="RuleEditorView" state="hold:enabled,behavior:basic,tap-timeout:200,hold-timeout:200" -->
+Screenshot — Rule editor with hold behavior options:
+```
+  ┌─────────────────────────────────────────────────────┐
+  │  New Rule                                           │
+  │                                                     │
+  │  Start key:    [ caps_lock      ▾ ]                 │
+  │  Finish key:   [ escape         ▾ ]  (tap action)   │
+  │                                                     │
+  │  ┌ Hold, Double Tap, etc. ─────────────── [ON] ──┐ │
+  │  │                                                │ │
+  │  │  On Hold:   [ left_control   ▾ ]               │ │
+  │  │                                                │ │
+  │  │  Hold Behavior:                                │ │
+  │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐       │ │
+  │  │  │  Basic   │ │ Trigger  │ │  Quick   │       │ │
+  │  │  │          │ │  early   │ │   tap    │       │ │
+  │  │  └──────────┘ └──────────┘ └──────────┘       │ │
+  │  │                                                │ │
+  │  │  Tap timeout:   [ 200 ms ]                     │ │
+  │  │  Hold timeout:  [ 200 ms ]                     │ │
+  │  └────────────────────────────────────────────────┘ │
+  │                                                     │
+  │                              [ Cancel ]  [ Save ]   │
+  └─────────────────────────────────────────────────────┘
+```
 
 ### Creating a Tap-Dance Key
 
-1. Open **Custom Rules** tab
-2. Click **Create Rule**
+1. Open the **Custom Rules** tab in the inspector panel
+2. Click **New Rule** (+ button)
 3. Set your **Start** key (e.g., `caps`)
 4. Set your **Finish** key (e.g., `esc`) — this is the single-tap action
 5. Enable **Hold, Double Tap, etc.** toggle
@@ -39,6 +94,8 @@ KeyPath supports advanced key behaviors beyond simple remapping:
 
 > **Note:** Hold and Tap-Dance cannot be used together on the same key. If you try to set one when the other is already configured, a dialog will ask which behavior you want to keep.
 
+---
+
 ## Hold Behavior Options
 
 | Option | Description | Kanata Variant |
@@ -47,6 +104,8 @@ KeyPath supports advanced key behaviors beyond simple remapping:
 | Trigger early | Hold activates when another key is pressed | `tap-hold-press` |
 | Quick tap | Fast taps always register as tap | `tap-hold-release` |
 | Custom keys | Only specific keys trigger early tap | `tap-hold-release-keys` |
+
+---
 
 ## Common Use Cases
 
@@ -92,6 +151,8 @@ spc → spc (tap) / lsft (hold)
 - Hold behavior: **Quick tap**
 - Tap timeout: 200ms
 
+---
+
 ## Tap-Dance Examples
 
 ### Escape / Caps Lock / Control
@@ -105,6 +166,8 @@ caps → esc (single tap) / caps (double tap) / lctl (triple tap)
 ```
 f1 → f1 (single tap) / layer-toggle function (double tap)
 ```
+
+---
 
 ## Technical Details
 
@@ -124,6 +187,8 @@ KeyPath generates the appropriate Kanata variant based on your settings:
 
 Default is 200ms for both, which works well for most users. Adjust based on your typing speed and preferences.
 
+---
+
 ## Troubleshooting
 
 ### Hold activates too quickly
@@ -140,16 +205,21 @@ Increase the tap timeout. Try 250ms or 300ms.
 
 Ensure you've set at least a double-tap action. Single tap alone won't enable tap-dance behavior.
 
+---
+
 ## Advanced Configuration
 
 For power users, you can edit the generated Kanata config directly to fine-tune behavior. See the [Kanata tap-hold documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc#tap-hold) for all available options.
 
+---
+
 ## Next Steps
 
-- **[Home Row Mods](help:home-row-mods)** — The most popular use of tap-hold
+- **[Shortcuts Without Reaching](help:home-row-mods)** — The most popular use of tap-hold
 - **[What You Can Build](help:use-cases)** — See tap-hold in action: Hyper key, navigation layers, combined setups
 - **[Keyboard Concepts](help:concepts)** — Background on layers, modifiers, and dual-role keys
-- **[Action URIs](help:action-uri)** — Trigger actions from your keyboard config
+- **[Launching Apps](help:action-uri)** — Trigger actions from your keyboard config
+- **[Alternative Layouts](help:alternative-layouts)** — Tap-hold works with any layout
 - **[Switching from Karabiner?](help:karabiner-users)** — See how Karabiner's `to_if_alone` maps to Kanata tap-hold
 - **[Back to Docs](https://keypath-app.com/docs)**
 

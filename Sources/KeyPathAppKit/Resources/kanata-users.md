@@ -21,6 +21,8 @@ When found, click **"Use This Config"** and you're done.
 
 **If your config isn't detected:** Click "Choose Different" to select it manually.
 
+---
+
 ## Understanding the Two-File Model
 
 KeyPath uses a two-file configuration model:
@@ -66,6 +68,8 @@ When you click "Use This Config":
 4. **Permissions** — Guides you through Input Monitoring and Accessibility
 5. **Driver** — Installs Karabiner VirtualHID if needed
 6. **Service** — Configures LaunchDaemon for boot-time remapping
+
+---
 
 ## Common Patterns & KeyPath Compatibility
 
@@ -150,55 +154,25 @@ If you use KeyPath's `script:{path}` action URI to run scripts, KeyPath applies 
 
 **Note:** These protections apply only to KeyPath's action system. If you write raw `(cmd ...)` actions in your Kanata config, those bypass KeyPath entirely and run with whatever permissions Kanata has.
 
-## KeyPath Limitations & Non-Goals
+---
 
-### What KeyPath Does NOT Do
+## Bring Your Own Config (BYOC) — what works and what doesn't
 
-1. **No config parsing/importing into UI**
-   - KeyPath does not parse your Kanata config to populate the UI
-   - The UI shows only rules created through KeyPath's interface
-   - Your BYOC (Bring Your Own Config) rules are invisible to the UI
+KeyPath doesn't parse your Kanata config — it uses TCP and a simulator to understand what's running. This means your custom rules work perfectly at the engine level, but the UI only shows rules created through KeyPath's interface.
 
-2. **UI may not reflect BYOC rules**
-   - The overlay/mapper views may show limited or approximate data
-   - KeyPath uses TCP + simulator to understand config state, not parsing
-   - Complex aliases or macros may not display correctly in the UI
+**What KeyPath handles for you (even with BYOC):**
+- Service management, permissions wizard, driver installation
+- Hot reload (config changes detected and applied via TCP)
+- Conflict detection, health monitoring, emergency stop (`Ctrl + Space + Esc`)
 
-3. **KeyPath-managed sections may be regenerated**
-   - If you use KeyPath's UI, managed sections (marked with `;; === KEYPATH MANAGED ===`) are overwritten on save
-   - Your custom sections (outside managed blocks) are always preserved
-   - See [ADR-025](https://github.com/malpern/KeyPath/blob/main/docs/adr/adr-025-config-management.md) for details
+**What the UI won't show:**
+- Rules written directly in your config file (they still work, just invisible to the UI)
+- Complex aliases or macros (use your text editor for these)
+- Managed sections (marked `;; === KEYPATH MANAGED ===`) are overwritten when you save through the UI — your custom sections are always preserved
 
-4. **No config translation**
-   - KeyPath does not convert your Kanata config into UI rules
-   - You can't "import" existing remappings into KeyPath's visual editor
-   - Use KeyPath's UI for new rules, keep existing rules in your config file
+**Bottom line:** Use KeyPath's UI for new simple rules, keep your hand-written rules in your config file. Both coexist. See [ADR-025](https://github.com/malpern/KeyPath/blob/main/docs/adr/adr-025-config-management.md) for the preservation model.
 
-### What Still Works with BYOC
-
-Even with a BYOC setup, KeyPath still provides:
-
-- ✅ **Service management** - Automatic LaunchDaemon setup and monitoring
-- ✅ **Permission handling** - Guided wizard for Input Monitoring and Accessibility
-- ✅ **Driver management** - Automatic Karabiner VirtualHID driver installation
-- ✅ **Hot reload** - Changes to your config file are detected and reloaded via TCP
-- ✅ **Conflict detection** - Detects and resolves conflicts with other remappers
-- ✅ **Health monitoring** - Service status checks and automatic recovery
-- ✅ **Emergency stop** - `Ctrl + Space + Esc` to disable all remappings
-
-### When You Might Hit Limitations
-
-**You'll notice limitations if:**
-
-- You expect KeyPath's UI to show your custom rules (it won't - BYOC rules are invisible to UI)
-- You want to edit complex aliases/macros through the UI (use your text editor instead)
-- You need KeyPath to understand your layer structure for the overlay (it uses TCP/simulator, which may miss edge cases)
-
-**You won't notice limitations if:**
-
-- You're happy editing your config file directly (KeyPath preserves it)
-- You use KeyPath primarily for service management and permissions
-- You add new simple remappings through KeyPath's UI while keeping complex rules in your config
+---
 
 ## Troubleshooting
 
@@ -232,6 +206,8 @@ If you use a custom TCP port:
 3. **Check logs** - View system logs for error messages
 4. **Use Fix button** - Wizard's Fix button resolves most issues automatically
 
+---
+
 ## Advanced: Using Symlinks
 
 If you prefer to keep your config in a dotfiles repository or custom location, you can use a symlink:
@@ -250,19 +226,15 @@ ln -s ~/.config/kanata/my-config.kbd ~/.config/keypath/keypath.kbd
 
 ---
 
-## More things KeyPath can do
-
-Beyond the core features, KeyPath offers these additional capabilities:
-
----
-
 ## Next Steps
 
-- **[Home Row Mods](help:home-row-mods)** — KeyPath's split-hand detection and per-finger timing make HRM more reliable
+- **[Shortcuts Without Reaching](help:home-row-mods)** — KeyPath's split-hand detection and per-finger timing make HRM more reliable
 - **[What You Can Build](help:use-cases)** — Concrete examples: Hyper key launcher, window tiling, Vim everywhere
-- **[Action URIs](help:action-uri)** — Launch apps, open URLs, and tile windows from your Kanata config
+- **[Launching Apps](help:action-uri)** — Launch apps, open URLs, and tile windows from your Kanata config
 - **[Window Management](help:window-management)** — App-specific keymaps that switch automatically
-- **[Tap-Hold & Tap-Dance](help:tap-hold)** — All four tap-hold variants explained
+- **[One Key, Multiple Actions](help:tap-hold)** — All four tap-hold variants explained
+- **[Alternative Layouts](help:alternative-layouts)** — Colemak, Dvorak, and other keymaps
+- **[Keyboard Layouts](help:keyboard-layouts)** — Physical keyboard support
 
 ## Architecture details
 
@@ -275,7 +247,6 @@ Beyond the core features, KeyPath offers these additional capabilities:
 - **[FAQ](https://keypath-app.com/faq)** — Common questions about KeyPath
 - **[GitHub Issues](https://github.com/malpern/KeyPath/issues)** — Report bugs or ask questions
 - **[Privacy & Permissions](help:privacy)** — What KeyPath accesses and why
-- **[GitHub Issues](https://github.com/malpern/KeyPath/issues)** — Report bugs or ask questions
 - **[Kanata documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc)** — Full Kanata config reference ↗
 - **[Kanata GitHub](https://github.com/jtroo/kanata)** — Kanata source code and discussions ↗
 - **[Back to Docs](https://keypath-app.com/docs)**

@@ -700,6 +700,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     // Small delay to ensure overlay is visible first and orphan cleanup dialog can show first
                     try? await Task.sleep(for: .seconds(1)) // 1s
                     NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
+
+                    // On first install, also open the help browser to the installation guide
+                    // so the user has context alongside the wizard
+                    if !UserDefaults.standard.bool(forKey: "KeyPath.hasShownInstallationHelp") {
+                        UserDefaults.standard.set(true, forKey: "KeyPath.hasShownInstallationHelp")
+                        try? await Task.sleep(for: .milliseconds(2500)) // Let wizard render first
+                        if let topic = HelpTopic.topic(forResource: "installation") {
+                            HelpWindowController.shared.showBrowser(
+                                selecting: topic,
+                                keepOverlayVisible: true
+                            )
+                            AppLogger.shared.info("📖 [AppDelegate] Opened installation help alongside wizard")
+                        }
+                    }
                 }
             }
         } else {

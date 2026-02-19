@@ -1,0 +1,365 @@
+# Screenshot & Image Manifest for KeyPath Help Documentation
+#
+# Generated from <!-- screenshot: --> tags embedded in markdown files.
+# Source of truth: the HTML comments in Sources/KeyPathAppKit/Resources/*.md
+#
+# To regenerate this manifest:
+#   grep -r '<!-- screenshot:' Sources/KeyPathAppKit/Resources/*.md | \
+#     sed 's/.*<!-- screenshot: //' | sed 's/ -->//'
+#
+# Methods:
+#   snapshot  — SwiftUI snapshot test (swift-snapshot-testing). Renders the
+#               named view with the given state and captures a PNG.
+#   peekaboo  — Peekaboo UI automation. Launches System Settings (or other
+#               app), navigates to the specified pane, and captures a screenshot.
+#   manual    — Requires human capture. macOS system dialogs that can't be
+#               automated (authorization prompts, etc.).
+#
+# Last updated: 2026-02-19
+
+# =============================================================================
+# SCREENSHOTS (22 total — from embedded <!-- screenshot: --> tags)
+# =============================================================================
+
+screenshots:
+
+  # ---------------------------------------------------------------------------
+  # installation.md (6 screenshots)
+  # ---------------------------------------------------------------------------
+
+  - id: install-overlay-base
+    file: installation.md
+    method: snapshot
+    view: LiveKeyboardOverlayView
+    state: "service:running,layer:base"
+    description: "The KeyPath overlay showing the active base layer layout"
+
+  - id: install-auth-prompt
+    file: installation.md
+    method: manual
+    view: macOS-auth-dialog
+    state: "helper-install-prompt"
+    description: "macOS authorization prompt for privileged helper installation"
+
+  - id: install-accessibility-settings
+    file: installation.md
+    method: peekaboo
+    view: System Settings
+    state: "privacy:accessibility,keypath:listed"
+    description: "System Settings > Privacy & Security > Accessibility with KeyPath toggled ON"
+
+  - id: install-add-kanata-binary
+    file: installation.md
+    method: peekaboo
+    view: System Settings
+    state: "privacy:accessibility,file-picker:open,path:/Library/KeyPath/bin/kanata"
+    description: "Using the + button and Go to Folder to add the kanata binary to Accessibility"
+
+  - id: install-input-monitoring-done
+    file: installation.md
+    method: peekaboo
+    view: System Settings
+    state: "privacy:input-monitoring,keypath:on,kanata:on"
+    description: "System Settings > Input Monitoring with both KeyPath.app and kanata toggled ON"
+
+  - id: install-overlay-health-green
+    file: installation.md
+    method: snapshot
+    view: LiveKeyboardOverlayView
+    state: "service:running,health:green"
+    description: "Overlay header with green health indicator showing service is running"
+
+  # ---------------------------------------------------------------------------
+  # action-uri.md (5 screenshots)
+  # ---------------------------------------------------------------------------
+
+  - id: action-uri-overlay-header
+    file: action-uri.md
+    method: snapshot
+    view: LiveKeyboardOverlayView
+    state: "service:running,layer:base,inspector:collapsed"
+    description: "Overlay header bar showing drag texture, layer pill, drawer button, and hide button"
+
+  - id: action-uri-inspector-toolbar
+    file: action-uri.md
+    method: snapshot
+    view: InspectorPanelView
+    state: "tab:launchers,settings:visible"
+    description: "Inspector panel toolbar showing Custom Rules, Key Mapper, Launchers tabs and settings tabs"
+
+  - id: action-uri-launchers-tab
+    file: action-uri.md
+    method: snapshot
+    view: LaunchersTabView
+    state: "shortcuts:populated"
+    description: "Launchers tab with populated shortcut list (Safari, Terminal, Messages, etc.)"
+
+  - id: action-uri-launcher-drawer
+    file: action-uri.md
+    method: snapshot
+    view: LauncherDrawerView
+    state: "drawer:open,shortcuts:populated"
+    description: "Launcher drawer expanded from overlay showing all bindings by type"
+
+  - id: action-uri-activation-mode
+    file: action-uri.md
+    method: snapshot
+    view: LaunchersTabView
+    state: "settings:activation-picker"
+    description: "Activation mode picker showing Hold, Tap Toggle, and Leader options"
+
+  # ---------------------------------------------------------------------------
+  # tap-hold.md (2 screenshots)
+  # ---------------------------------------------------------------------------
+
+  - id: tap-hold-custom-rules-tab
+    file: tap-hold.md
+    method: snapshot
+    view: CustomRulesTabView
+    state: "rules:populated,global:expanded,app:safari"
+    description: "Custom Rules tab showing global rules and Safari app-specific rules"
+
+  - id: tap-hold-rule-editor
+    file: tap-hold.md
+    method: snapshot
+    view: RuleEditorView
+    state: "hold:enabled,behavior:basic,tap-timeout:200,hold-timeout:200"
+    description: "Rule editor with hold behavior options (Basic, Trigger early, Quick tap)"
+
+  # ---------------------------------------------------------------------------
+  # use-cases.md (1 screenshot)
+  # ---------------------------------------------------------------------------
+
+  - id: use-cases-launchers-tab
+    file: use-cases.md
+    method: snapshot
+    view: LaunchersTabView
+    state: "shortcuts:3-items"
+    description: "Compact launchers tab with 3 items (Safari, Terminal, github.com)"
+
+  # ---------------------------------------------------------------------------
+  # home-row-mods.md (2 screenshots)
+  # ---------------------------------------------------------------------------
+
+  - id: hrm-typing-feel-slider
+    file: home-row-mods.md
+    method: snapshot
+    view: RuleSettingsView
+    state: "rule:home-row-mods,slider:200ms"
+    description: "Typing Feel slider with tap/hold timeout controls"
+
+  - id: hrm-per-finger-sliders
+    file: home-row-mods.md
+    method: snapshot
+    view: RuleSettingsView
+    state: "rule:home-row-mods,per-finger:visible"
+    description: "Per-finger sensitivity sliders (pinky +40ms, ring +25ms, etc.)"
+
+  # ---------------------------------------------------------------------------
+  # window-management.md (1 screenshot)
+  # ---------------------------------------------------------------------------
+
+  - id: window-mgmt-custom-rules
+    file: window-management.md
+    method: snapshot
+    view: CustomRulesTabView
+    state: "rules:app-specific,apps:safari+terminal"
+    description: "Custom Rules tab with global and app-specific rule cards for Safari and Terminal"
+
+  # ---------------------------------------------------------------------------
+  # concepts.md (1 screenshot)
+  # ---------------------------------------------------------------------------
+
+  - id: concepts-new-rule-dialog
+    file: concepts.md
+    method: snapshot
+    view: RuleEditorView
+    state: "start:caps_lock,finish:escape,hold:disabled"
+    description: "Simple remap dialog: Caps Lock to Escape, no hold behavior"
+
+  # ---------------------------------------------------------------------------
+  # alternative-layouts.md (2 screenshots)
+  # ---------------------------------------------------------------------------
+
+  - id: alt-layouts-settings-toolbar
+    file: alternative-layouts.md
+    method: snapshot
+    view: InspectorPanelView
+    state: "settings:visible,tab:keymap"
+    description: "Settings toolbar with Keymap tab selected"
+
+  - id: alt-layouts-keymap-picker
+    file: alternative-layouts.md
+    method: snapshot
+    view: KeymapPickerView
+    state: "selected:qwerty"
+    description: "Keymap picker grid showing QWERTY, Dvorak, Colemak, Colemak-DH, Workman, Graphite, AZERTY, QWERTZ"
+
+  # ---------------------------------------------------------------------------
+  # keyboard-layouts.md (1 screenshot)
+  # ---------------------------------------------------------------------------
+
+  - id: kb-layouts-layout-picker
+    file: keyboard-layouts.md
+    method: snapshot
+    view: LayoutPickerView
+    state: "selected:ansi-100"
+    description: "Physical Layout picker showing Standard and Split & Ergonomic categories"
+
+  # ---------------------------------------------------------------------------
+  # karabiner-users.md (1 screenshot)
+  # ---------------------------------------------------------------------------
+
+  - id: karabiner-custom-rules-comparison
+    file: karabiner-users.md
+    method: snapshot
+    view: CustomRulesTabView
+    state: "rules:populated,global:expanded,app:safari"
+    description: "Custom Rules tab (visual alternative to Karabiner JSON editing)"
+
+# =============================================================================
+# ILLUSTRATIONS (not screenshots — watercolor art, generated via AI image tools)
+# =============================================================================
+
+illustrations:
+
+  # Header images (watercolor, 21:9 aspect ratio, multiply blend mode)
+  headers:
+    - file: header-banner.png
+      used_in: HelpBrowserView.swift (welcome page)
+      description: "Welcome banner for help browser landing page"
+
+    - file: header-installation.png
+      used_in: installation.md
+      description: "Keyboard unboxing with wrench and key, 'Setting Up KeyPath' script"
+
+    - file: header-concepts.png
+      used_in: concepts.md
+      description: "Keyboard concepts watercolor header"
+
+    - file: header-use-cases.png
+      used_in: use-cases.md
+      description: "What You Can Build watercolor header"
+
+    - file: header-home-row-mods.png
+      used_in: home-row-mods.md
+      description: "Home row mods watercolor header"
+
+    - file: header-tap-hold.png
+      used_in: tap-hold.md
+      description: "Tap-hold watercolor header"
+
+    - file: header-window-management.png
+      used_in: window-management.md
+      description: "Window management watercolor header"
+
+    - file: header-action-uri.png
+      used_in: action-uri.md, action-uri-reference.md
+      description: "App launching watercolor header (shared by guide and reference)"
+
+    - file: header-privacy.png
+      used_in: privacy.md
+      description: "Privacy & permissions watercolor header"
+
+    - file: header-karabiner-users.png
+      used_in: karabiner-users.md
+      description: "Karabiner switching guide watercolor header"
+
+    - file: header-kanata-users.png
+      used_in: kanata-users.md
+      description: "Kanata switching guide watercolor header"
+
+    - file: header-keyboard-layouts.png
+      used_in: keyboard-layouts.md
+      description: "Keyboard layouts watercolor header"
+
+    # Missing headers (articles exist but no header image yet):
+    - file: header-alternative-layouts.png
+      used_in: alternative-layouts.md
+      description: "Alternative layouts watercolor header — keycaps swapping positions"
+
+  # Concept illustrations (watercolor, inline in concepts.md)
+  concept_art:
+    - file: concepts-tap-hold.png
+      used_in: concepts.md
+      description: "Tap-hold — one key, two jobs"
+
+    - file: concepts-tap-hold-timing.png
+      used_in: concepts.md
+      description: "Tap-hold timing — tap vs hold threshold"
+
+    - file: concepts-layers.png
+      used_in: concepts.md
+      description: "Layers — base and navigation stacked keyboards"
+
+    - file: concepts-home-row-mods.png
+      used_in: concepts.md
+      description: "Home row mods — modifiers on the home row"
+
+    - file: concepts-hyper-key.png
+      used_in: concepts.md
+      description: "Conflict-free shortcuts — Hyper gives you 36+ unique bindings"
+
+    - file: concepts-tap-dance.png
+      used_in: concepts.md
+      description: "Tap-dance — multiple taps, multiple actions"
+
+    - file: concepts-chords-sequences.png
+      used_in: concepts.md
+      description: "Chords and sequences illustration"
+
+    - file: concepts-settings-vs-remapping.png
+      used_in: concepts.md (unused in current text?)
+      description: "Settings vs remapping comparison illustration"
+
+  # Decorative images (dividers, flourishes)
+  decorative:
+    - file: decor-divider.png
+      used_in: MarkdownToHTML.swift (section dividers), HelpBrowserView.swift (welcome page)
+      description: "Watercolor splotch divider between sections"
+
+    - file: decor-end.png
+      description: "End-of-article decorative element"
+
+    - file: decor-keycap-flourish.png
+      description: "Keycap flourish decoration"
+
+    - file: decor-leaning-keycaps.png
+      description: "Leaning keycaps decoration"
+
+    - file: decor-spring-keycap.png
+      description: "Spring keycap decoration"
+
+    - file: decor-switch-divider.png
+      description: "Switch/keycap divider decoration"
+
+# =============================================================================
+# SUMMARY
+# =============================================================================
+#
+# Screenshots: 22 total
+#   - snapshot:  18 (SwiftUI snapshot tests)
+#   - peekaboo:   3 (System Settings UI automation)
+#   - manual:     1 (macOS auth dialog)
+#
+# Illustrations: 28 total
+#   - Headers:    12 (1 missing: alternative-layouts)
+#   - Concepts:    8 inline illustrations
+#   - Decorative:  6 dividers and flourishes
+#
+# Files with screenshot tags: 10
+#   installation.md        6 tags
+#   action-uri.md          5 tags
+#   tap-hold.md            2 tags
+#   home-row-mods.md       2 tags
+#   alternative-layouts.md 2 tags
+#   use-cases.md           1 tag
+#   window-management.md   1 tag
+#   concepts.md            1 tag
+#   keyboard-layouts.md    1 tag
+#   karabiner-users.md     1 tag
+#
+# Files without screenshot tags (no UI screenshots needed):
+#   privacy.md             (text-only reference)
+#   action-uri-reference.md (text-only reference)
+#   kanata-users.md        (text-only switching guide)

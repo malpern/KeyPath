@@ -36,6 +36,18 @@ enum MarkdownToHTML {
                 continue
             }
 
+            // Blockquotes (accumulate consecutive `> ` lines)
+            if line.hasPrefix("> ") {
+                if inList { html.append("</ul>"); inList = false }
+                var blockLines: [String] = []
+                while i < lines.count, lines[i].hasPrefix("> ") {
+                    blockLines.append(String(lines[i].dropFirst(2)))
+                    i += 1
+                }
+                html.append(renderBlockquote(blockLines))
+                continue
+            }
+
             // Close list if the current line is not a list item
             if inList, !line.hasPrefix("- ") {
                 html.append("</ul>")
@@ -48,9 +60,9 @@ enum MarkdownToHTML {
                 continue
             }
 
-            // Horizontal rule
+            // Horizontal rule — watercolor splotch divider
             if line.trimmingCharacters(in: .whitespaces) == "---" {
-                html.append("<hr>")
+                html.append("<div class=\"decor-divider\"><img src=\"decor-divider.png\" alt=\"\" class=\"decor-img\"></div>")
                 i += 1
                 continue
             }
@@ -104,6 +116,9 @@ enum MarkdownToHTML {
             html.append("<pre><code>\(codeLines.joined(separator: "\n"))</code></pre>")
         }
 
+        // End-of-page flourish
+        html.append("<div class=\"decor-end\"><img src=\"decor-end.png\" alt=\"\" class=\"decor-img decor-end-img\"></div>")
+
         return html.joined(separator: "\n")
     }
 
@@ -128,31 +143,21 @@ enum MarkdownToHTML {
             --heading: #4a3728;
             --accent: #c49a6c;
         }
-        body.dark {
-            --text: #e8ddd0;
-            --text-secondary: #b0a090;
-            --bg: #2a2420;
-            --code-bg: rgba(200, 170, 130, 0.1);
-            --border: rgba(200, 170, 130, 0.15);
-            --link: #d4a574;
-            --link-hover: #e8c098;
-            --table-header-bg: rgba(200, 170, 130, 0.08);
-            --heading: #e0cdb8;
-            --accent: #c49a6c;
-        }
+        /* Always use light parchment — warm watercolor aesthetic
+           works best on the light background regardless of system appearance. */
         body {
             font-family: "Charter", "Georgia", "Times New Roman", serif;
-            font-size: 14px;
-            line-height: 1.65;
+            font-size: 16px;
+            line-height: 1.7;
             color: var(--text);
             background: var(--bg);
             margin: 0;
-            padding: 20px 28px;
+            padding: 24px 32px;
             -webkit-font-smoothing: antialiased;
         }
         h1 {
             font-family: "Charter", "Georgia", serif;
-            font-size: 22px;
+            font-size: 26px;
             font-weight: 700;
             color: var(--heading);
             margin: 28px 0 10px;
@@ -160,7 +165,7 @@ enum MarkdownToHTML {
         }
         h2 {
             font-family: "Charter", "Georgia", serif;
-            font-size: 17px;
+            font-size: 20px;
             font-weight: 700;
             color: var(--heading);
             margin: 28px 0 8px;
@@ -169,7 +174,7 @@ enum MarkdownToHTML {
         }
         h3 {
             font-family: "Charter", "Georgia", serif;
-            font-size: 15px;
+            font-size: 17px;
             font-weight: 600;
             color: var(--heading);
             margin: 20px 0 6px;
@@ -177,11 +182,11 @@ enum MarkdownToHTML {
         p { margin: 8px 0; color: var(--text-secondary); }
         ul { margin: 8px 0; padding-left: 20px; }
         li { margin: 4px 0; color: var(--text-secondary); }
-        a { color: var(--link); text-decoration: none; border-bottom: 1px solid transparent; }
+        a { color: var(--link); text-decoration: none; border-bottom: 1px solid transparent; cursor: pointer; }
         a:hover { color: var(--link-hover); border-bottom-color: var(--link-hover); }
         code {
             font-family: "SF Mono", SFMono-Regular, Menlo, monospace;
-            font-size: 12px;
+            font-size: 13.5px;
             background: var(--code-bg);
             padding: 1px 5px;
             border-radius: 4px;
@@ -196,19 +201,63 @@ enum MarkdownToHTML {
         pre code {
             background: none;
             padding: 0;
-            font-size: 11.5px;
+            font-size: 13px;
             line-height: 1.4;
+        }
+        blockquote {
+            margin: 12px 0; padding: 10px 16px;
+            border-left: 3px solid var(--accent);
+            background: rgba(139, 109, 75, 0.04);
+            border-radius: 0 6px 6px 0;
+        }
+        .callout {
+            margin: 14px 0; padding: 12px 16px;
+            border-radius: 6px; font-size: 15px; line-height: 1.6;
+        }
+        .callout-warning {
+            background: rgba(217, 155, 40, 0.08);
+            border-left: 4px solid #d4940a; color: #7a5c00;
+        }
+        .callout-tip {
+            background: rgba(40, 140, 180, 0.08);
+            border-left: 4px solid #2889a8; color: #1a6070;
         }
         hr {
             border: none;
             border-top: 1px solid var(--border);
             margin: 20px 0;
         }
+        html, body {
+            background-color: var(--bg);
+        }
+        .decor-divider {
+            text-align: center;
+            margin: 24px 0;
+            background-color: var(--bg);
+        }
+        .decor-img {
+            max-height: 36px;
+            width: auto;
+            display: block;
+            margin: 0 auto;
+            pointer-events: none;
+            user-select: none;
+            mix-blend-mode: multiply;
+        }
+        .decor-end {
+            text-align: center;
+            margin: 40px 0 16px;
+            background-color: var(--bg);
+        }
+        .decor-end-img {
+            max-height: 48px;
+            opacity: 0.85;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
             margin: 12px 0;
-            font-size: 12.5px;
+            font-size: 14px;
         }
         th {
             text-align: left;
@@ -223,13 +272,28 @@ enum MarkdownToHTML {
             color: var(--text-secondary);
         }
         strong { color: var(--heading); font-weight: 600; }
+        /* Fade-in animation for page content */
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        body > * { animation: fadeSlideIn 0.4s ease-out both; }
+        body > *:nth-child(2) { animation-delay: 0.05s; }
+        body > *:nth-child(3) { animation-delay: 0.1s; }
+        body > *:nth-child(4) { animation-delay: 0.15s; }
+        body > *:nth-child(5) { animation-delay: 0.2s; }
+        body > *:nth-child(n+6) { animation-delay: 0.25s; }
         .help-img {
             max-width: 100%;
             height: auto;
             border-radius: 6px;
             margin: 16px 0;
             display: block;
+            animation: fadeSlideIn 0.5s ease-out both;
+            animation-delay: 0.1s;
         }
+        /* Smooth transitions on interactive elements */
+        a { transition: color 0.15s ease, border-color 0.15s ease; }
         /* External links get an arrow indicator */
         a[href^="http"]::after { content: " ↗"; font-size: 0.85em; }
         /* Internal cross-links styled as a nav card */
@@ -243,12 +307,23 @@ enum MarkdownToHTML {
             text-decoration: none;
             color: var(--link);
             border-bottom: none;
+            transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
         }
-        .cross-link:hover { background: var(--table-header-bg); border-bottom: none; }
+        .cross-link:hover {
+            background: var(--table-header-bg);
+            border-bottom: none;
+            transform: translateX(3px);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
         .cross-link::after { content: " →"; }
+        /* Table rows hover */
+        tr { transition: background 0.15s ease; }
+        tbody tr:hover { background: var(--table-header-bg); }
+        /* Code blocks subtle entrance */
+        pre { animation: fadeSlideIn 0.4s ease-out both; animation-delay: 0.15s; }
         </style>
         </head>
-        <body class="\(isDark ? "dark" : "")">
+        <body>
         \(body)
         </body>
         </html>
@@ -304,6 +379,16 @@ enum MarkdownToHTML {
         )
 
         return result
+    }
+
+    private static func renderBlockquote(_ lines: [String]) -> String {
+        let content = lines.map { inlineFormat($0) }.joined(separator: "<br>")
+        if content.hasPrefix("⚠️") || content.hasPrefix("&#x26A0;&#xFE0F;") {
+            return "<div class=\"callout callout-warning\">\(content)</div>"
+        } else if content.hasPrefix("💡") || content.hasPrefix("&#x1F4A1;") {
+            return "<div class=\"callout callout-tip\">\(content)</div>"
+        }
+        return "<blockquote>\(content)</blockquote>"
     }
 
     private static func escapeHTML(_ text: String) -> String {

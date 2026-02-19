@@ -29,92 +29,83 @@ Karabiner-Elements is an excellent tool that pioneered keyboard remapping on mac
 
 ## Concept mapping
 
-Here's how Karabiner concepts translate to KeyPath/Kanata:
+Here's how Karabiner concepts translate to KeyPath:
 
 ### Simple remaps
 
-<div>
+**In Karabiner:** Edit JSON to map one key to another.
 
-**KeyPath/Kanata:**
-```lisp
-(defsrc caps)
-(deflayer base esc)
-```
-
-</div>
+**In KeyPath:** Open the **Custom Rules** tab, set your Start key and Finish key, click Save. KeyPath generates the configuration for you.
 
 ### Tap-hold (dual-role keys)
 
-<div>
+**In Karabiner:** Write a complex JSON rule with `to_if_alone` and a timeout.
 
-**KeyPath/Kanata:**
-```lisp
-(defalias
-  caps (tap-hold 200 200 esc lctl)
-)
-(defsrc caps)
-(deflayer base @caps)
-```
-
-</div>
-
-Kanata's version is more concise and offers [4 tap-hold variants](help:tap-hold) with different activation strategies:
-- `tap-hold` — pure timeout
-- `tap-hold-press` — activates hold on other key press
-- `tap-hold-release` — permissive hold, quick tap
-- `tap-hold-release-keys` — specific keys trigger early activation
-
-Read the [Tap-Hold guide](help:tap-hold) for details on each variant.
+**In KeyPath:** Create a rule, enable the **Hold, Double Tap, etc.** toggle, and choose from four hold behavior options — Basic, Trigger Early, Quick Tap, or Custom Keys. Each offers different activation strategies. See the [One Key, Multiple Actions guide](help:tap-hold) for details.
 
 ### Layers
 
-<div>
+**In Karabiner:** Create separate rule sets and manage profiles.
 
-**KeyPath/Kanata:** Layers are a first-class concept:
-```lisp
-(deflayer base
-  @nav  a  s  d  f
-)
-(deflayer nav
-  _     ←  ↓  ↑  →
-)
-```
-
-</div>
+**In KeyPath:** Layers are a first-class concept. Create multiple layers in the UI and use tap-hold keys or dedicated layer-switch keys to move between them.
 
 ### Complex modifications
 
-Karabiner's [Complex Modifications](https://ke-complex-modifications.pqrs.org/) are powerful JSON rules. In KeyPath, equivalent functionality uses Kanata's `defalias`, `multi`, `switch`, and `defseq`:
+**In Karabiner:** Import or hand-write complex JSON rules from the [community library](https://ke-complex-modifications.pqrs.org/).
 
-```lisp
-;; Hyper key (equivalent to Karabiner complex modification)
-(defalias
-  hyp (tap-hold 200 200 esc (multi lctl lalt lmet lsft))
-)
-
-;; Leader key sequence
-(defseq
-  open-safari (spc s s)
-  open-terminal (spc s t)
-)
-```
+**In KeyPath:** Use the pre-built rule collections (Hyper Key, Home Row Mods, Quick Launcher, etc.) or create custom rules through the UI. KeyPath ships with 16 built-in rule collections that cover the most popular Karabiner complex modifications.
 
 ### App-specific rules
 
-<div>
+**In Karabiner:** Per-app conditions in JSON rules.
 
-**KeyPath:** Automatic layer switching. Add an app in the App-Specific Rules tab, configure mappings, and KeyPath switches layers via TCP when you switch apps. See the [Window Management guide](help:window-management).
+**In KeyPath:** Go to the **Custom Rules** tab, click **New Rule**, select an app, and add your mappings. KeyPath switches layers automatically when you switch apps — no manual toggling needed. See the [Window Management guide](help:window-management).
 
-</div>
+<!-- screenshot: id="karabiner-custom-rules-comparison" method="snapshot" view="CustomRulesTabView" state="rules:populated,global:expanded,app:safari" -->
+Screenshot — Custom Rules tab (what you'll see instead of JSON):
+```
+  ┌─────────────────────────────────────────────────────┐
+  │  Custom Rules                                       │
+  │                                                     │
+  │  ┌────────────────────────────────────────────────┐ │
+  │  │  EVERYWHERE (global rules)                     │ │
+  │  │  caps_lock ──→ escape                          │ │
+  │  │  a (hold) ──→ left_shift                       │ │
+  │  │  f (hold) ──→ left_command                     │ │
+  │  └────────────────────────────────────────────────┘ │
+  │                                                     │
+  │  ┌────────────────────────────────────────────────┐ │
+  │  │  🧭 SAFARI                            [✏] [🗑] │ │
+  │  │  h ──→ left_arrow                              │ │
+  │  │  j ──→ down_arrow                              │ │
+  │  └────────────────────────────────────────────────┘ │
+  │                                                     │
+  │  [ ↺ Reset ]                     [ + New Rule ]     │
+  └─────────────────────────────────────────────────────┘
+  No JSON editing — visual rule cards with edit/delete.
+```
 
 ---
 
 ## What you'll gain
 
-- **Better tap-hold** — Kanata offers four tap-hold variants with per-key timing, giving you more control over dual-role key behavior. See [Home Row Mods](help:home-row-mods).
+- **Better tap-hold** — Kanata offers four tap-hold variants with per-key timing, giving you more control over dual-role key behavior. See [Shortcuts Without Reaching](help:home-row-mods).
 - **Split-hand detection** — Cross-hand keypresses activate modifiers, same-hand keypresses produce letters. This reduces home row mod misfires significantly.
+
+### Home row mods comparison
+
+This is where the difference is most noticeable. If you use home row mods in Karabiner, you'll find KeyPath significantly more capable:
+
+| Aspect | KeyPath | Karabiner-Elements |
+|---|---|---|
+| Tap-hold variants | 4 variants, tunable per key | Single `to_if_alone` |
+| Split-hand detection | Built-in | Requires complex JSON rules |
+| Per-finger timing | Per-key offsets via sliders | Global timeout only |
+| Layer integration | Hold-activate layers | Separate rule sets |
+| Configuration | Visual UI with sliders | JSON editing |
+| Engine | Kanata (purpose-built for tap-hold) | General-purpose JSON rules |
 - **Readable config** — A typical remap takes 3 lines of Kanata vs 20+ lines of Karabiner JSON.
-- **App launching** — Built-in [Action URI system](help:action-uri) for launching apps, opening URLs, and tiling windows from your keyboard.
+- **App launching** — Built-in [app launching](help:action-uri) for launching apps, opening URLs, and tiling windows from your keyboard.
 - **Visual configuration** — KeyPath's UI lets you configure without editing JSON or config files directly.
 
 ## What you'll lose (temporarily)
@@ -190,8 +181,8 @@ KeyPath's per-finger timing and split-hand detection may mean you need less twea
 | Caps Lock → Hyper | Pre-built "Caps Lock Remap" → Hyper mode |
 | Home row mods | Pre-built "Home Row Mods" rule |
 | Vi-style arrows (HJKL) | Custom rule or [Vim Navigation](help:use-cases#vim-navigation-everywhere) |
-| App-specific shortcuts | App-Specific Rules tab |
-| Launch apps from keyboard | [Action URI system](help:action-uri) |
+| App-specific shortcuts | Custom Rules tab |
+| Launch apps from keyboard | [app launching](help:action-uri) |
 | Window snapping | [Window Management](help:window-management) |
 
 ---
@@ -223,10 +214,12 @@ We're exploring a tool that would let you paste your Karabiner JSON and see the 
 ## Further reading
 
 - **[Keyboard Concepts](help:concepts)** — If you want a refresher on the fundamentals
-- **[Home Row Mods](help:home-row-mods)** — Where KeyPath really shines
-- **[Tap-Hold & Tap-Dance](help:tap-hold)** — All four tap-hold variants explained
+- **[Shortcuts Without Reaching](help:home-row-mods)** — Where KeyPath really shines
+- **[One Key, Multiple Actions](help:tap-hold)** — All four tap-hold variants explained
 - **[What You Can Build](help:use-cases)** — Concrete examples of KeyPath setups
-- **[Action URIs](help:action-uri)** — Launch apps, URLs, and window actions
+- **[Launching Apps](help:action-uri)** — Launch apps, URLs, and window actions
+- **[Alternative Layouts](help:alternative-layouts)** — Colemak, Dvorak, and other keymaps supported by KeyPath
+- **[Keyboard Layouts](help:keyboard-layouts)** — Physical keyboard support (ANSI, split, ergonomic)
 - **[Privacy & Permissions](help:privacy)** — How KeyPath's permission model compares
 - **[Karabiner-Elements](https://karabiner-elements.pqrs.org/)** — Karabiner's official site ↗
 - **[Complex Modifications](https://ke-complex-modifications.pqrs.org/)** — Karabiner's community rule library ↗

@@ -1,8 +1,12 @@
 #!/bin/zsh
-# sync-help-docs.sh — Copy gh-pages markdown docs into the app bundle as in-app help content.
+# sync-help-docs.sh — LEGACY: Copy gh-pages markdown docs into the app bundle.
 #
-# This script is the "single source of truth" bridge: website docs (gh-pages) are
-# the canonical source, and this script transforms them for in-app use by:
+# ⚠️  DEPRECATED: The source of truth is now Sources/KeyPathAppKit/Resources/*.md
+# Use Scripts/publish-help-to-web.sh to push app content → gh-pages website.
+# This script is kept for reference but should not be used for normal workflow.
+#
+# Original purpose: website docs (gh-pages) were the canonical source, and this
+# script transformed them for in-app use by:
 #   1. Stripping Jekyll front matter (--- blocks)
 #   2. Converting Jekyll relative_url links to in-app help: links
 #   3. Converting links to website-only pages into full URLs

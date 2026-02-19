@@ -1,0 +1,45 @@
+name: Publish Help Docs to Website
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'Sources/KeyPathAppKit/Resources/*.md'
+      - 'Sources/KeyPathAppKit/Resources/*.png'
+      - 'Scripts/publish-help-to-web.sh'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for gh-pages branch
+
+      - name: Checkout gh-pages into worktree
+        run: |
+          git worktree add .worktrees/gh-pages gh-pages
+
+      - name: Run publish script
+        run: |
+          chmod +x Scripts/publish-help-to-web.sh
+          ./Scripts/publish-help-to-web.sh
+
+      - name: Commit and push gh-pages
+        run: |
+          cd .worktrees/gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to publish."
+          else
+            git commit -m "Auto-publish help docs from master $(git -C ../.. rev-parse --short HEAD)"
+            git push origin gh-pages
+          fi

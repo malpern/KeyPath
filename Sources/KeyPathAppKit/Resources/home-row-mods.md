@@ -1,6 +1,10 @@
 ![Home Row Mods](header-home-row-mods.png)
 
-# Home Row Mods
+# Shortcuts Without Reaching
+
+Every keyboard shortcut on your Mac requires a modifier — Command, Shift, Control, Option. Those keys are tucked into the bottom corners of your keyboard, forcing your fingers off the home row dozens of times an hour. Over a full workday, that's thousands of small reaches that slow you down and strain your hands.
+
+Home row mods fix this by putting modifiers right under your fingertips:
 
 ```
   ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐     ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐
@@ -10,9 +14,9 @@
               Tap for letters, hold for modifiers
 ```
 
-Home row mods turn your home row keys (A S D F / J K L ;) into dual-role keys: **tap** for the letter, **hold** for a modifier. Your fingers never leave the home row to reach Shift, Control, Option, or Command.
+Tap a key normally and you get the letter. Hold it briefly and it becomes a modifier. Your hands never move — every shortcut is one fluid motion from the home row.
 
-If you're new to keyboard customization, read [Keyboard Concepts for Mac Users](help:concepts) first for background on tap-hold and layers.
+If you're new to keyboard customization, read [Keyboard Concepts](help:concepts) first for background on dual-role keys and layers.
 
 ---
 
@@ -39,9 +43,10 @@ The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (
 
 ## Getting started with defaults
 
-1. Open KeyPath
-2. Enable **Home Row Mods** in the settings
-3. Start typing normally
+1. Open KeyPath and click the gear icon to open the inspector panel
+2. Go to the **Custom Rules** tab
+3. Enable the **Home Row Mods** pre-built rule
+4. Start typing normally
 
 The defaults use the CAGS layout shown above. Practice for a few days — occasional misfires during fast typing are normal at first and improve as you adjust.
 
@@ -56,13 +61,25 @@ The defaults use the CAGS layout shown above. Practice for a few days — occasi
 
 ## Tuning your setup
 
+Once you've enabled home row mods, you can fine-tune how they feel. Open the rule's settings to access these controls.
+
 ### Typing Feel slider
 
 KeyPath provides a slider to adjust the tap-hold threshold:
 
+<!-- screenshot: id="hrm-typing-feel-slider" method="snapshot" view="RuleSettingsView" state="rule:home-row-mods,slider:200ms" -->
+Screenshot — Typing Feel slider in rule settings:
 ```
-  ├──── Tap (letter) ────┼──── Hold (modifier) ────┤
-  0 ms                 200 ms                    ∞
+  ┌─────────────────────────────────────────────────────┐
+  │  Typing Feel                                        │
+  │                                                     │
+  │  More Letters ────────●──────────── More Modifiers   │
+  │                       ↑                             │
+  │                     200 ms                          │
+  │                                                     │
+  │  Tap timeout:  [ 200 ms ]                           │
+  │  Hold timeout: [ 200 ms ]                           │
+  └─────────────────────────────────────────────────────┘
 ```
 
 - Slide toward **"More Letters"** for a longer tap window (fewer accidental modifiers)
@@ -72,11 +89,20 @@ KeyPath provides a slider to adjust the tap-hold threshold:
 
 Pinkies are slower than index fingers. KeyPath lets you add extra tolerance for slower fingers to prevent accidental holds:
 
+<!-- screenshot: id="hrm-per-finger-sliders" method="snapshot" view="RuleSettingsView" state="rule:home-row-mods,per-finger:visible" -->
+Screenshot — Per-finger sensitivity sliders:
 ```
-  Pinky   ████████████████████░  (most tolerance)
-  Ring    █████████████░░░░░░░░
-  Middle  █████████░░░░░░░░░░░░
-  Index   ██████░░░░░░░░░░░░░░░  (least tolerance)
+  ┌─────────────────────────────────────────────────────┐
+  │  Per-Finger Tolerance                               │
+  │                                                     │
+  │  Pinky   ████████████████████░  +40 ms              │
+  │  Ring    █████████████░░░░░░░░  +25 ms              │
+  │  Middle  █████████░░░░░░░░░░░░  +15 ms              │
+  │  Index   ██████░░░░░░░░░░░░░░░  +0 ms               │
+  │                                                     │
+  │  Slower fingers get more time before                │
+  │  the hold activates.                                │
+  └─────────────────────────────────────────────────────┘
 ```
 
 ### Quick tap
@@ -118,18 +144,7 @@ Different fingers move at different speeds. KeyPath lets you give slower fingers
 
 ---
 
-## KeyPath vs. Karabiner-Elements
-
-| Aspect | KeyPath | Karabiner-Elements |
-|---|---|---|
-| Tap-hold variants | 4 variants, tunable per key | Single `to_if_alone` |
-| Split-hand detection | Built-in | Requires complex JSON rules |
-| Per-finger timing | Per-key offsets via sliders | Global timeout only |
-| Layer integration | Hold-activate layers | Separate rule sets |
-| Configuration | Visual UI with sliders | JSON editing |
-| Engine | Kanata (purpose-built for tap-hold) | General-purpose JSON rules |
-
-Karabiner-Elements can achieve home row mods, but it requires hand-crafting complex JSON rules and offers fewer anti-misfire tools. KeyPath's Kanata backend was designed with tap-hold as a first-class concept, giving you more precise control with less effort.
+**Switching from Karabiner?** See the [From Karabiner-Elements guide](help:karabiner-users) for a detailed comparison of how home row mods work in both tools.
 
 ---
 
@@ -172,8 +187,10 @@ Shift is the most frequently used modifier during normal typing (capital letters
 ### KeyPath guides
 
 - **[Keyboard Concepts](help:concepts)** — Background on tap-hold, layers, and modifiers
-- **[Tap-Hold & Tap-Dance](help:tap-hold)** — Detailed guide to all tap-hold options in KeyPath
+- **[One Key, Multiple Actions](help:tap-hold)** — Detailed guide to all tap-hold options in KeyPath
 - **[What You Can Build](help:use-cases)** — See HRM as part of a complete setup with Hyper key, window tiling, and more
+- **[Alternative Layouts](help:alternative-layouts)** — HRM works with any layout — see what's supported
+- **[Keyboard Layouts](help:keyboard-layouts)** — Split keyboards and HRM are a natural match
 - **[Switching from Karabiner?](help:karabiner-users)** — See how KeyPath's HRM compares to Karabiner's approach
 - **[Back to Docs](https://keypath-app.com/docs)**
 
