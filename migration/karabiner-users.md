@@ -33,6 +33,22 @@ Karabiner-Elements is an excellent tool that pioneered keyboard remapping on mac
 - Longer track record (10+ years, widely trusted)
 - Simpler mental model for basic remaps
 
+### What about Karabiner preprocessors?
+
+If you're a power user, you may already be using a **config generator** to tame Karabiner's verbose JSON. These tools add real programming logic — variables, functions, conditionals — on top of Karabiner:
+
+| Tool | Format | Approach |
+|------|--------|----------|
+| [GokuRakuJoudo](https://github.com/yqrashawn/GokuRakuJoudo) | EDN (Clojure-like) | Most popular preprocessor. Compact syntax — a few lines of EDN can replace hundreds of JSON lines. Watches your `karabiner.edn` and regenerates `karabiner.json` live. |
+| [karabiner.ts](https://github.com/evan-liu/karabiner.ts) | TypeScript | Strong typing with IDE autocomplete. Adds abstractions like `hyperLayer`, `duoLayer`, and `leaderMode`. Structured across multiple files. |
+| [mxstbr's config](https://github.com/mxstbr/karabiner) | TypeScript | Popular real-world example — ~400 lines of TypeScript generate ~2,500 lines of Karabiner JSON. Great reference for what's possible. |
+
+**The case for preprocessors:** They make Karabiner dramatically more usable. If raw Karabiner JSON is a 2/10 for readability, Goku brings it to a 6 and karabiner.ts to a 7.
+
+**The case against:** You're still generating Karabiner JSON underneath — with its single `to_if_alone` timeout, no split-hand detection, and global-only timing. Preprocessors improve the *authoring* experience but can't add capabilities the engine doesn't have. A 400-line TypeScript config that generates 2,500 lines of JSON is impressive engineering, but it's also a sign of how much abstraction is needed to work around the format.
+
+**KeyPath's approach is different:** Instead of a better way to write JSON for a general-purpose engine, KeyPath uses [Kanata](https://github.com/jtroo/kanata) — an engine purpose-built for tap-hold, layers, and keyboard remapping. The config is naturally concise because the engine's primitives match what you're trying to express. No preprocessor needed.
+
 ---
 
 ## Concept mapping
