@@ -443,6 +443,20 @@ public final class KanataService {
                 return .unknown
             }
 
+            // Before declaring failure, probe the Kanata TCP server as a last resort.
+            let tcpPort = PreferencesService.shared.tcpServerPort
+            let tcpAlive = await Task.detached(priority: .utility) {
+                TCPProbe.probe(port: tcpPort, timeoutMs: 300)
+            }.value
+
+            if tcpAlive {
+                AppLogger.shared.log(
+                    "🩹 [KanataService] TCP probe saved false failure — kanata responding on port \(tcpPort) despite PID miss"
+                )
+                enabledWithoutProcessSampleCount = 0
+                return .running(pid: 0)
+            }
+
             return .failed(reason: "Service enabled but process not running")
         case .notRegistered, .notFound:
             enabledWithoutProcessSampleCount = 0

@@ -138,6 +138,31 @@ final class KanataServiceIntegrationTests: KeyPathAsyncTestCase {
         }
     }
 
+    func testEvaluateStatus_WhenPIDAndTCPBothFail_ShouldReportFailed() async {
+        // Given: SMAppService reports .enabled but no process is running
+        // and no kanata TCP server is listening (default in test env)
+        KanataService.smServiceFactory = { _ in
+            MockSMAppService(status: .enabled)
+        }
+        service = KanataService()
+
+        // When: Refresh enough times to exhaust the debounce threshold (3 samples)
+        var lastStatus: KanataService.ServiceState = .unknown
+        for _ in 0 ..< 4 {
+            lastStatus = await service.refreshStatus()
+        }
+
+        // Then: Should report .failed because both PID detection AND TCP probe failed
+        if case let .failed(reason) = lastStatus {
+            XCTAssertTrue(
+                reason.contains("process not running"),
+                "Expected 'process not running' failure, got: \(reason)"
+            )
+        } else {
+            XCTFail("Expected .failed state after PID + TCP both fail, got: \(lastStatus)")
+        }
+    }
+
     func testStartService_WhenStaleRegistration_ShouldUnregisterAndReregister() async throws {
         // Given: Mock that reports .enabled but plist doesn't exist (stale registration)
         // This simulates the case where uninstall used launchctl/rm instead of SMAppService.unregister()
