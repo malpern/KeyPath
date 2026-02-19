@@ -36,57 +36,44 @@ permalink: /docs
 
 <div class="docs-card">
 <h3><a href="{{ '/getting-started/installation' | relative_url }}">Getting Started</a></h3>
-<p>Install KeyPath and create your first key remapping in under five minutes.</p>
+<p>Install KeyPath and get your keyboard remapping in two minutes flat.</p>
 <ul class="docs-card-links">
-<li><a href="{{ '/getting-started/installation' | relative_url }}">Installation</a></li>
-<li><a href="{{ '/getting-started/first-mapping' | relative_url }}">Your First Mapping</a></li>
-</ul>
-</div>
-
-<div class="docs-card">
-<h3><a href="{{ '/guides/concepts' | relative_url }}">Keyboard Concepts</a></h3>
-<p>New to keyboard customization? Learn what layers, tap-hold, and modifiers are — explained for Mac users.</p>
-<ul class="docs-card-links">
-<li><a href="{{ '/guides/concepts' | relative_url }}">Keyboard Concepts for Mac Users</a></li>
+<li><a href="{{ '/getting-started/installation' | relative_url }}">Setting Up KeyPath</a></li>
+<li><a href="{{ '/guides/concepts' | relative_url }}">Keyboard Concepts</a></li>
 <li><a href="{{ '/guides/use-cases' | relative_url }}">What You Can Build</a></li>
 </ul>
 </div>
 
 <div class="docs-card">
-<h3><a href="{{ '/guides/home-row-mods' | relative_url }}">Guides</a></h3>
-<p>Deep dives on home row mods, tap-hold, window management, and the action URI system.</p>
+<h3><a href="{{ '/guides/home-row-mods' | relative_url }}">Features</a></h3>
+<p>Deep dives on every KeyPath feature — home row mods, tap-hold, app launching, window tiling, and more.</p>
 <ul class="docs-card-links">
-<li><a href="{{ '/guides/home-row-mods' | relative_url }}">Home Row Mods</a></li>
-<li><a href="{{ '/guides/tap-hold' | relative_url }}">Tap-Hold & Tap-Dance</a></li>
-<li><a href="{{ '/guides/window-management' | relative_url }}">Window Management</a></li>
-<li><a href="{{ '/guides/action-uri' | relative_url }}">Action URIs</a></li>
+<li><a href="{{ '/guides/home-row-mods' | relative_url }}">Shortcuts Without Reaching</a></li>
+<li><a href="{{ '/guides/tap-hold' | relative_url }}">One Key, Multiple Actions</a></li>
+<li><a href="{{ '/guides/window-management' | relative_url }}">Windows & App Shortcuts</a></li>
+<li><a href="{{ '/guides/action-uri' | relative_url }}">Launching Apps & Workflows</a></li>
+<li><a href="{{ '/guides/alternative-layouts' | relative_url }}">Alternative Layouts</a></li>
+<li><a href="{{ '/guides/keyboard-layouts' | relative_url }}">Works With Your Keyboard</a></li>
 </ul>
 </div>
 
 <div class="docs-card">
-<h3><a href="{{ '/guides/debugging' | relative_url }}">Troubleshooting</a></h3>
-<p>Something not working? Start here for debugging steps and answers to common questions.</p>
+<h3><a href="{{ '/guides/action-uri-reference' | relative_url }}">Reference</a></h3>
+<p>Technical references, privacy details, and troubleshooting.</p>
 <ul class="docs-card-links">
+<li><a href="{{ '/guides/action-uri-reference' | relative_url }}">Action URI Reference</a></li>
+<li><a href="{{ '/guides/privacy' | relative_url }}">Privacy & Permissions</a></li>
 <li><a href="{{ '/guides/debugging' | relative_url }}">Debugging Guide</a></li>
 <li><a href="{{ '/faq' | relative_url }}">FAQ</a></li>
 </ul>
 </div>
 
 <div class="docs-card">
-<h3><a href="{{ '/migration/kanata-users' | relative_url }}">Switching Tools?</a></h3>
+<h3><a href="{{ '/migration/karabiner-users' | relative_url }}">Switching Tools?</a></h3>
 <p>Coming from Karabiner-Elements, Kanata, or another remapper? We've got migration guides for you.</p>
 <ul class="docs-card-links">
 <li><a href="{{ '/migration/karabiner-users' | relative_url }}">From Karabiner-Elements</a></li>
 <li><a href="{{ '/migration/kanata-users' | relative_url }}">From Kanata</a></li>
-</ul>
-</div>
-
-<div class="docs-card">
-<h3><a href="{{ '/guides/privacy' | relative_url }}">Privacy & Plugins</a></h3>
-<p>Why KeyPath needs the permissions it asks for, what we do (and don't do) with your data, and how the plugin model keeps analytics separate.</p>
-<ul class="docs-card-links">
-<li><a href="{{ '/guides/privacy' | relative_url }}">Privacy & Permissions</a></li>
-<li><a href="{{ '/guides/activity-insights' | relative_url }}">Activity Insights Plugin</a></li>
 </ul>
 </div>
 
