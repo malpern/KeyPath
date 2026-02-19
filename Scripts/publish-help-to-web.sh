@@ -10,6 +10,15 @@
 #   3. Converting header image references to website image paths
 #   4. Stripping <!-- screenshot: --> metadata tags (app-only)
 #   5. Copying images (headers, concepts, decorative) to website assets
+#   6. Generating sidebar navigation (_includes/sidebar.html)
+#   7. Generating docs landing page (docs.md)
+#
+# To add a new article:
+#   1. Add it to DOCS (content transform)
+#   2. Add it to LINK_MAP (link resolution)
+#   3. Add it to NAV_TITLES (sidebar/card display name)
+#   4. Add its resource ID to the appropriate group in GROUP_ITEMS
+#   That's it — sidebar and docs index are generated automatically.
 #
 # Run from repo root: ./Scripts/publish-help-to-web.sh
 # Then: cd .worktrees/gh-pages && git add -A && git commit && git push
@@ -68,6 +77,75 @@ LINK_MAP=(
     [privacy]="/guides/privacy"
     [karabiner-users]="/migration/karabiner-users"
     [kanata-users]="/migration/kanata-users"
+    # Website-only pages (not from app Resources, but needed for nav links)
+    [debugging]="/guides/debugging"
+    [faq]="/faq"
+)
+
+# ─────────────────────────────────────────────────────────────────────
+# Navigation registry — drives sidebar.html and docs.md generation
+#
+# NAV_TITLES: short display names for sidebar and docs card links
+# GROUP_ORDER: section display order
+# GROUP_ITEMS: resource IDs per group, space-separated, in display order
+# GROUP_TITLES: section headings for sidebar
+# GROUP_CARD_TITLES: section headings for docs landing cards
+# GROUP_DESCRIPTIONS: card body text on docs landing page
+# ─────────────────────────────────────────────────────────────────────
+
+typeset -A NAV_TITLES
+NAV_TITLES=(
+    [installation]="Setting Up KeyPath"
+    [concepts]="Keyboard Concepts"
+    [use-cases]="What You Can Build"
+    [home-row-mods]="Shortcuts Without Reaching"
+    [tap-hold]="One Key, Multiple Actions"
+    [window-management]="Windows & App Shortcuts"
+    [action-uri]="Launching Apps"
+    [alternative-layouts]="Alternative Layouts"
+    [keyboard-layouts]="Works With Your Keyboard"
+    [action-uri-reference]="Action URI Reference"
+    [privacy]="Privacy & Permissions"
+    [karabiner-users]="From Karabiner-Elements"
+    [kanata-users]="From Kanata"
+    # Website-only pages
+    [debugging]="Debugging"
+    [faq]="FAQ"
+)
+
+typeset -a GROUP_ORDER
+GROUP_ORDER=(getting-started features reference switching)
+
+typeset -A GROUP_ITEMS
+GROUP_ITEMS=(
+    [getting-started]="installation concepts use-cases"
+    [features]="home-row-mods tap-hold window-management action-uri alternative-layouts keyboard-layouts"
+    [reference]="action-uri-reference privacy debugging faq"
+    [switching]="karabiner-users kanata-users"
+)
+
+typeset -A GROUP_TITLES
+GROUP_TITLES=(
+    [getting-started]="Getting Started"
+    [features]="Features"
+    [reference]="Reference"
+    [switching]="Switching Tools"
+)
+
+typeset -A GROUP_CARD_TITLES
+GROUP_CARD_TITLES=(
+    [getting-started]="Getting Started"
+    [features]="Features"
+    [reference]="Reference"
+    [switching]="Switching Tools?"
+)
+
+typeset -A GROUP_DESCRIPTIONS
+GROUP_DESCRIPTIONS=(
+    [getting-started]="Install KeyPath and get your keyboard remapping in two minutes flat."
+    [features]="Deep dives on every KeyPath feature — home row mods, tap-hold, app launching, window tiling, and more."
+    [reference]="Technical references, privacy details, and troubleshooting."
+    [switching]="Coming from Karabiner-Elements, Kanata, or another remapper? We've got migration guides for you."
 )
 
 echo "=== Publishing help docs: app → gh-pages website ==="
@@ -143,14 +221,14 @@ transform_file() {
     ' "$tmpmap")
     rm -f "$tmpmap"
 
-    # 6. Build front matter
+    # 5. Build front matter
     local front_matter="---
 layout: default
 title: \"${title}\"
 description: \"${description}\"
 ---"
 
-    # 7. Write output
+    # 6. Write output
     echo "$front_matter" > "$dest_path"
     echo "" >> "$dest_path"
     echo "$content" >> "$dest_path"
@@ -178,7 +256,123 @@ copy_images() {
 }
 
 # ─────────────────────────────────────────────────────────────────────
-# Main: transform all registered documents
+# Generate sidebar navigation: _includes/sidebar.html
+# ─────────────────────────────────────────────────────────────────────
+
+generate_sidebar() {
+    local out="$GHPAGES/_includes/sidebar.html"
+    mkdir -p "$(dirname "$out")"
+
+    # Start nav
+    echo '<nav class="sidebar-nav">' > "$out"
+    echo '    <ul class="nav-tree">' >> "$out"
+
+    for group in "${GROUP_ORDER[@]}"; do
+        local title="${GROUP_TITLES[$group]}"
+        local items=(${=GROUP_ITEMS[$group]})
+
+        echo "        <!-- ${title} -->" >> "$out"
+        echo '        <li class="nav-section">' >> "$out"
+        echo "            <div class=\"nav-section-title\">${title}</div>" >> "$out"
+        echo '            <ul class="nav-section-items">' >> "$out"
+
+        for item in "${items[@]}"; do
+            local url_path="${LINK_MAP[$item]}"
+            local nav_title="${NAV_TITLES[$item]}"
+            echo "                <li class=\"nav-item {% if page.url contains '${url_path}' %}active{% endif %}\">" >> "$out"
+            echo "                    <a href=\"{{ '${url_path}' | relative_url }}\" class=\"nav-link\">${nav_title}</a>" >> "$out"
+            echo '                </li>' >> "$out"
+        done
+
+        echo '            </ul>' >> "$out"
+        echo '        </li>' >> "$out"
+        echo '' >> "$out"
+    done
+
+    echo '    </ul>' >> "$out"
+    echo '</nav>' >> "$out"
+
+    echo "  Generated: _includes/sidebar.html"
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# Generate docs landing page: docs.md
+# ─────────────────────────────────────────────────────────────────────
+
+generate_docs_index() {
+    local out="$GHPAGES/docs.md"
+
+    # Static hero section (always links to concepts + installation)
+    cat > "$out" << 'HERO'
+---
+layout: default
+title: Documentation
+description: Guides and references for KeyPath keyboard remapping on macOS
+hide_sidebar: true
+content_class: content-full docs-landing
+permalink: /docs
+---
+
+<div class="docs-hero">
+  <div class="docs-hero-content">
+    <h1>KeyPath Documentation</h1>
+    <p class="docs-hero-subtitle">Everything you need to master keyboard remapping on your Mac</p>
+    <div class="docs-hero-cta">
+      <a href="{{ '/guides/concepts' | relative_url }}" class="docs-cta-primary">New here? Start with Keyboard Concepts</a>
+      <a href="{{ '/getting-started/installation' | relative_url }}" class="docs-cta-secondary">Jump to Installation</a>
+    </div>
+  </div>
+  <div class="docs-hero-visual">
+    <div class="docs-hero-keyboard">
+      <div class="hero-key">A<span>⇧</span></div>
+      <div class="hero-key">S<span>⌃</span></div>
+      <div class="hero-key">D<span>⌥</span></div>
+      <div class="hero-key">F<span>⌘</span></div>
+      <div class="hero-key-gap"></div>
+      <div class="hero-key">J<span>⌘</span></div>
+      <div class="hero-key">K<span>⌥</span></div>
+      <div class="hero-key">L<span>⌃</span></div>
+      <div class="hero-key">;<span>⇧</span></div>
+    </div>
+    <p class="docs-hero-caption">Tap for letters. Hold for modifiers. Your fingers never leave home.</p>
+  </div>
+</div>
+
+<div class="docs-grid">
+HERO
+
+    # Generate a card for each group
+    for group in "${GROUP_ORDER[@]}"; do
+        local card_title="${GROUP_CARD_TITLES[$group]}"
+        local description="${GROUP_DESCRIPTIONS[$group]}"
+        local items=(${=GROUP_ITEMS[$group]})
+        local first_item="${items[1]}"
+        local first_url="${LINK_MAP[$first_item]}"
+
+        echo '' >> "$out"
+        echo '<div class="docs-card">' >> "$out"
+        echo "<h3><a href=\"{{ '${first_url}' | relative_url }}\">${card_title}</a></h3>" >> "$out"
+        echo "<p>${description}</p>" >> "$out"
+        echo '<ul class="docs-card-links">' >> "$out"
+
+        for item in "${items[@]}"; do
+            local url_path="${LINK_MAP[$item]}"
+            local nav_title="${NAV_TITLES[$item]}"
+            echo "<li><a href=\"{{ '${url_path}' | relative_url }}\">${nav_title}</a></li>" >> "$out"
+        done
+
+        echo '</ul>' >> "$out"
+        echo '</div>' >> "$out"
+    done
+
+    echo '' >> "$out"
+    echo '</div>' >> "$out"
+
+    echo "  Generated: docs.md"
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# Main: transform all registered documents, copy images, generate nav
 # ─────────────────────────────────────────────────────────────────────
 
 synced=0
@@ -199,6 +393,11 @@ for resource in "${(@k)DOCS}"; do
 done
 
 copy_images
+
+echo ""
+echo "--- Generating navigation ---"
+generate_sidebar
+generate_docs_index
 
 echo ""
 echo "=== Done: $synced docs published, $skipped skipped ==="
