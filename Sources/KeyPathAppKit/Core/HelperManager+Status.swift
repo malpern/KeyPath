@@ -67,7 +67,7 @@ extension HelperManager {
 
         do {
             let proxy = try await getRemoteProxy { _ in /* proxy error handled by timeout path */ }
-            return await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
+            let version: String? = await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
                 // Guard ensures the continuation is resumed exactly once.
                 // The lock protects a Bool: false = not yet resumed, true = already resumed.
                 let resumed = OSAllocatedUnfairLock(initialState: false)
@@ -128,6 +128,12 @@ extension HelperManager {
                     "📤 [HelperManager] proxy.getVersion() call dispatched, waiting for callback"
                 )
             }
+            // Cache the version so subsequent calls within the same session don't
+            // repeat the full XPC round-trip. Cleared by clearConnection().
+            if let version {
+                cachedHelperVersion = version
+            }
+            return version
         } catch {
             AppLogger.shared.log(
                 "❌ [HelperManager] Failed to connect to helper for version check: \(error)"
@@ -167,14 +173,10 @@ extension HelperManager {
         #endif
         AppLogger.shared.log("🧪 [HelperManager] Testing helper functionality via XPC ping")
 
-        // Pre-flight check: Must be installed first
-        guard await isHelperInstalled() else {
-            AppLogger.shared.log("❌ [HelperManager] Functionality test failed: Not installed")
-            return false
-        }
-
-        // Test actual XPC communication by getting version
-        // This tests: XPC connection, helper process, message handling
+        // getHelperVersion() already checks isHelperInstalled() internally and proves
+        // XPC connectivity if it returns a version. No need to call isHelperInstalled()
+        // separately — that doubled SMAppService.status IPC calls for no benefit.
+        // See: docs/bugs/2026-02-19-false-kanata-service-stopped-alert.md
         guard let version = await getHelperVersion() else {
             AppLogger.shared.log("❌ [HelperManager] Functionality test failed: XPC communication failed")
             return false
@@ -197,6 +199,13 @@ extension HelperManager {
     }
 
     /// Determine helper health state using SMAppService, launchctl, and XPC
+    ///
+    /// **Performance note:** This method calls `isHelperInstalled()` once and
+    /// `getHelperVersion()` once. A successful version response already proves
+    /// XPC connectivity, so `testHelperFunctionality()` is intentionally NOT
+    /// called here — it was redundant and doubled the number of IPC calls,
+    /// which caused 47s stalls when SMAppService.status was slow (see
+    /// docs/bugs/2026-02-19-false-kanata-service-stopped-alert.md).
     func getHelperHealth() async -> HealthState {
         let svc = Self.smServiceFactory(Self.helperPlistName)
         let smStatus = svc.status
@@ -211,8 +220,9 @@ extension HelperManager {
             return .notInstalled
         }
 
-        // Fast path: if XPC responds, we are healthy
-        if let version = await getHelperVersion(), await testHelperFunctionality() {
+        // A successful getHelperVersion() proves XPC connectivity + helper responsiveness.
+        // No need to call testHelperFunctionality() separately.
+        if let version = await getHelperVersion() {
             return .healthy(version: version)
         }
 

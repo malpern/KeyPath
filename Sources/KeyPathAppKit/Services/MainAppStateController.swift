@@ -495,16 +495,19 @@ class MainAppStateController {
             }
         } catch {
             validationState = .failed(blockingCount: 1, totalCount: 1)
+            // Use .validationTimeout — NOT .component(.kanataService) — so this doesn't
+            // trigger the "Kanata Service Stopped" alert dialog. The timeout may be caused
+            // by any validation step (e.g., slow Helper XPC), not necessarily Kanata.
             issues = [WizardIssue(
-                identifier: .component(.kanataService),
-                severity: .critical,
+                identifier: .validationTimeout,
+                severity: .warning,
                 category: .daemon,
                 title: "Status check timed out",
-                description: "Main status validation exceeded the 12s watchdog. The Kanata service may be slow or unresponsive.",
-                autoFixAction: .restartUnhealthyServices,
-                userAction: "Try restarting the keyboard service from the System menu."
+                description: "System validation exceeded the 12s watchdog. This is usually transient — the next check should succeed.",
+                autoFixAction: nil,
+                userAction: "If this persists, try restarting KeyPath."
             )]
-            AppLogger.shared.error("⏱️ [MainAppStateController] Validation watchdog fired – marking status as failed")
+            AppLogger.shared.error("⏱️ [MainAppStateController] Validation watchdog fired – marking status as timed out (not kanata-specific)")
             // Even failed validations should update "last checked" timestamps.
             lastValidationDate = Date()
             lastValidationTime = Date()

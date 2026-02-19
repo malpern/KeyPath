@@ -206,6 +206,7 @@ public enum IssueIdentifier: Equatable, Sendable {
     case component(ComponentRequirement)
     case conflict(SystemConflict)
     case daemon
+    case validationTimeout
 
     /// Check if this identifier represents a conflict
     public var isConflict: Bool {
