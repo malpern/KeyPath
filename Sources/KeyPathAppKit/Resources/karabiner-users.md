@@ -122,7 +122,7 @@ Karabiner's [Complex Modifications](https://ke-complex-modifications.pqrs.org/) 
 
 ## What you'll lose (temporarily)
 
-- **Community rule library** — Karabiner's [importable modifications](https://ke-complex-modifications.pqrs.org/) have no KeyPath equivalent yet. You'll need to recreate rules manually.
+- **Community rule library** — Karabiner's [importable modifications](https://ke-complex-modifications.pqrs.org/) library has thousands of user-contributed rules. KeyPath ships with 16 built-in rule collections (Vim Navigation, Home Row Mods, Window Snapping, Quick Launcher, etc.) but doesn't yet support importing community-shared packs.
 - **Some edge-case rules** — Karabiner's JSON is extremely flexible. Some exotic conditions (mouse button combinations, device-specific vendor IDs with complex conditions) may require creative workarounds in Kanata.
 - **Track record** — Karabiner has been trusted for 10+ years. KeyPath is newer. Both are open source, so you can verify the code yourself.
 
@@ -214,7 +214,7 @@ Not every Karabiner feature has a direct KeyPath equivalent yet. Here's the curr
 | Device-specific rules | **Full support** | Kanata's `device-if` in `defcfg` |
 | Complex variable conditions | **Partial** | Kanata's `switch` action covers most cases, but some multi-variable conditions need restructuring |
 | Profile switching | **Not yet** | Karabiner lets you switch between profiles; KeyPath uses a single config with layers |
-| Community rule import | **Not yet** | No equivalent to Karabiner's [Complex Modifications library](https://ke-complex-modifications.pqrs.org/) |
+| Community rule import | **Partial** | 16 built-in collections, but no community sharing or import yet (Karabiner has [thousands](https://ke-complex-modifications.pqrs.org/)) |
 | Pointing device rules | **Limited** | Kanata has mouse key support but not Karabiner's full pointing device condition system |
 
 ### Config converter (future)
