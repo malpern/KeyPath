@@ -51,7 +51,7 @@ permalink: /docs
 <li><a href="{{ '/guides/home-row-mods' | relative_url }}">Shortcuts Without Reaching</a></li>
 <li><a href="{{ '/guides/tap-hold' | relative_url }}">One Key, Multiple Actions</a></li>
 <li><a href="{{ '/guides/window-management' | relative_url }}">Windows & App Shortcuts</a></li>
-<li><a href="{{ '/guides/action-uri' | relative_url }}">Launching Apps & Workflows</a></li>
+<li><a href="{{ '/guides/action-uri' | relative_url }}">Launching Apps</a></li>
 <li><a href="{{ '/guides/alternative-layouts' | relative_url }}">Alternative Layouts</a></li>
 <li><a href="{{ '/guides/keyboard-layouts' | relative_url }}">Works With Your Keyboard</a></li>
 </ul>
@@ -63,7 +63,7 @@ permalink: /docs
 <ul class="docs-card-links">
 <li><a href="{{ '/guides/action-uri-reference' | relative_url }}">Action URI Reference</a></li>
 <li><a href="{{ '/guides/privacy' | relative_url }}">Privacy & Permissions</a></li>
-<li><a href="{{ '/guides/debugging' | relative_url }}">Debugging Guide</a></li>
+<li><a href="{{ '/guides/debugging' | relative_url }}">Debugging</a></li>
 <li><a href="{{ '/faq' | relative_url }}">FAQ</a></li>
 </ul>
 </div>
