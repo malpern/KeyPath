@@ -39,11 +39,15 @@ struct MarkdownHelpSheet: View {
 
 // MARK: - WKWebView wrapper
 
-private struct MarkdownWebView: NSViewRepresentable {
+struct MarkdownWebView: NSViewRepresentable {
     let resource: String
     let colorScheme: ColorScheme
+    /// Called when a `keypath-help://` cross-link is clicked, passing the resource name.
+    var onHelpLinkClicked: ((String) -> Void)?
 
-    func makeCoordinator() -> Coordinator { Coordinator(colorScheme: colorScheme) }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(colorScheme: colorScheme, onHelpLinkClicked: onHelpLinkClicked)
+    }
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -57,8 +61,15 @@ private struct MarkdownWebView: NSViewRepresentable {
 
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.colorScheme = colorScheme
+        context.coordinator.onHelpLinkClicked = onHelpLinkClicked
         let className = colorScheme == .dark ? "dark" : ""
         webView.evaluateJavaScript("document.body.className = '\(className)'", completionHandler: nil)
+
+        // Reload content if the resource changed
+        if context.coordinator.currentResource != resource {
+            context.coordinator.currentResource = resource
+            Self.loadResource(resource, into: webView, isDark: colorScheme == .dark)
+        }
     }
 
     static func loadResource(_ resource: String, into webView: WKWebView, isDark: Bool) {
@@ -82,9 +93,12 @@ private struct MarkdownWebView: NSViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         var colorScheme: ColorScheme
+        var onHelpLinkClicked: ((String) -> Void)?
+        var currentResource: String = ""
 
-        init(colorScheme: ColorScheme) {
+        init(colorScheme: ColorScheme, onHelpLinkClicked: ((String) -> Void)?) {
             self.colorScheme = colorScheme
+            self.onHelpLinkClicked = onHelpLinkClicked
         }
 
         func webView(
@@ -100,7 +114,11 @@ private struct MarkdownWebView: NSViewRepresentable {
             }
 
             if url.scheme == "keypath-help", let resource = url.host {
-                MarkdownWebView.loadResource(resource, into: webView, isDark: colorScheme == .dark)
+                if let callback = onHelpLinkClicked {
+                    callback(resource)
+                } else {
+                    MarkdownWebView.loadResource(resource, into: webView, isDark: colorScheme == .dark)
+                }
                 decisionHandler(.cancel)
             } else {
                 NSWorkspace.shared.open(url)

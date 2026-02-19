@@ -2,7 +2,6 @@ import AppKit
 import SwiftUI
 
 /// Manages a standalone window for displaying help documentation from the Help menu.
-/// Uses the same MarkdownHelpSheet content but in a window rather than a sheet.
 @MainActor
 final class HelpWindowController {
     static let shared = HelpWindowController()
@@ -11,23 +10,36 @@ final class HelpWindowController {
 
     private init() {}
 
-    func show(resource: String, title: String) {
-        // If a help window already exists, just update its content
+    /// Opens the help browser with a navigable sidebar of all topics.
+    func showBrowser() {
+        showBrowser(selecting: nil)
+    }
+
+    /// Opens the help browser with a specific topic pre-selected.
+    func showBrowser(selecting topic: HelpTopic?) {
         if let window, window.isVisible {
-            window.close()
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
         }
 
-        let helpView = MarkdownHelpSheet(resource: resource, title: title)
-        let hostingController = NSHostingController(rootView: helpView)
+        let browserView = HelpBrowserView(initialTopic: topic)
+        let hostingController = NSHostingController(rootView: browserView)
 
         let newWindow = NSWindow(contentViewController: hostingController)
-        newWindow.title = title
-        newWindow.styleMask = [.titled, .closable, .resizable]
-        newWindow.setContentSize(NSSize(width: 750, height: 700))
+        newWindow.title = "KeyPath Help"
+        newWindow.styleMask = [.titled, .closable, .resizable, .miniaturizable]
+        newWindow.setContentSize(NSSize(width: 850, height: 650))
         newWindow.center()
         newWindow.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
         window = newWindow
+    }
+
+    /// Opens a single help topic in the browser (backwards-compatible deep link).
+    func show(resource: String, title: String) {
+        let topic = HelpTopic.topic(forResource: resource)
+        showBrowser(selecting: topic)
     }
 }
