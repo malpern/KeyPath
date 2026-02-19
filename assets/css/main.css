@@ -2512,33 +2512,77 @@ html {
 /* Migration Page Hero */
 .migration-hero {
     text-align: center;
-    padding: 3rem 1.5rem 2rem;
-    margin-bottom: 2rem;
-    background: linear-gradient(135deg, rgba(0, 122, 255, 0.08) 0%, rgba(88, 86, 214, 0.08) 100%);
+    padding: 3.5rem 2rem 3rem;
+    margin-bottom: 2.5rem;
+    background: linear-gradient(145deg, #0b1120 0%, #1a1040 50%, #0d1a2d 100%);
     border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Subtle radial glow behind text */
+.migration-hero::before {
+    content: '';
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 500px;
+    height: 300px;
+    background: radial-gradient(ellipse, rgba(88, 86, 214, 0.25) 0%, transparent 70%);
+    pointer-events: none;
 }
 
 .migration-hero h1 {
     font-family: var(--font-display);
-    font-size: 2.5rem;
+    font-size: 2.8rem;
     font-weight: 700;
-    line-height: 1.2;
-    margin: 0 0 0.75rem;
-    background: linear-gradient(135deg, #007AFF, #5856D6);
+    line-height: 1.15;
+    margin: 0 0 1rem;
+    color: #fff;
+    position: relative;
+    letter-spacing: -0.02em;
+}
+
+.migration-hero h1 br + * {
+    color: #fff;
+}
+
+.migration-hero-subtitle {
+    font-size: 1.05rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0;
+    position: relative;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.5;
+}
+
+/* "Karabiner → KeyPath" styled spans */
+.migration-from {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.migration-hero-arrow {
+    display: inline-block;
+    font-size: 2rem;
+    color: rgba(0, 122, 255, 0.6);
+    vertical-align: middle;
+    margin: 0 0.15em;
+    position: relative;
+}
+
+.migration-to {
+    background: linear-gradient(135deg, #5AC8FA, #007AFF);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
 
-.migration-hero-subtitle {
-    font-size: 1.1rem;
-    color: var(--color-text-secondary);
-    margin: 0;
-}
-
 @media (prefers-color-scheme: dark) {
     .migration-hero {
-        background: linear-gradient(135deg, rgba(0, 122, 255, 0.15) 0%, rgba(88, 86, 214, 0.15) 100%);
+        background: linear-gradient(145deg, #0b1120 0%, #1a1040 50%, #0d1a2d 100%);
     }
 }
 

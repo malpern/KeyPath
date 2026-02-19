@@ -5,8 +5,8 @@ description: A practical guide for Karabiner-Elements users migrating to KeyPath
 ---
 
 <div class="migration-hero">
-  <h1>From Karabiner.<br>To KeyPath.</h1>
-  <p class="migration-hero-subtitle">Keep what you love about keyboard customization. Gain a modern engine built for tap-hold.</p>
+  <h1><span class="migration-from">Karabiner</span> <span class="migration-hero-arrow">→</span> <span class="migration-to">KeyPath</span></h1>
+  <p class="migration-hero-subtitle">Keep what you love about keyboard customization.<br>Gain a modern engine built for tap-hold.</p>
 </div>
 
 If you're using [Karabiner-Elements](https://karabiner-elements.pqrs.org/) and curious about KeyPath, this page maps the concepts you know to how KeyPath works — and helps you decide if switching makes sense.
