@@ -1,3 +1,4 @@
+![Tap-Hold & Tap-Dance](header-tap-hold.png)
 
 # Tap-Hold & Tap-Dance
 

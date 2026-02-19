@@ -1,3 +1,4 @@
+![From Karabiner-Elements](header-karabiner-users.png)
 
 If you're using [Karabiner-Elements](https://karabiner-elements.pqrs.org/) and curious about KeyPath, this page maps the concepts you know to how KeyPath works — and helps you decide if switching makes sense.
 
@@ -41,7 +42,6 @@ Here's how Karabiner concepts translate to KeyPath/Kanata:
 ```
 
 </div>
-</div>
 
 ### Tap-hold (dual-role keys)
 
@@ -56,7 +56,6 @@ Here's how Karabiner concepts translate to KeyPath/Kanata:
 (deflayer base @caps)
 ```
 
-</div>
 </div>
 
 Kanata's version is more concise and offers [4 tap-hold variants](help:tap-hold) with different activation strategies:
@@ -82,7 +81,6 @@ Read the [Tap-Hold guide](help:tap-hold) for details on each variant.
 ```
 
 </div>
-</div>
 
 ### Complex modifications
 
@@ -107,7 +105,6 @@ Karabiner's [Complex Modifications](https://ke-complex-modifications.pqrs.org/) 
 
 **KeyPath:** Automatic layer switching. Add an app in the App-Specific Rules tab, configure mappings, and KeyPath switches layers via TCP when you switch apps. See the [Window Management guide](help:window-management).
 
-</div>
 </div>
 
 ---
@@ -211,7 +208,7 @@ Not every Karabiner feature has a direct KeyPath equivalent yet. Here's the curr
 | App-specific rules | **Full support** | Automatic layer switching via TCP |
 | Simultaneous key combos | **Full support** | Kanata `chord` action |
 | Mouse button remapping | **Partial** | Kanata supports mouse keys, but Karabiner's mouse button conditions are more flexible |
-| Device-specific rules | **Full support** | Kanata's `device-if` in `defcfg` |
+| Device-specific rules | **Partial** | Kanata's `device-if` works in raw config, but no UI yet (see [#203](https://github.com/malpern/KeyPath/issues/203)) |
 | Complex variable conditions | **Partial** | Kanata's `switch` action covers most cases, but some multi-variable conditions need restructuring |
 | Profile switching | **Not yet** | Karabiner lets you switch between profiles; KeyPath uses a single config with layers |
 | Community rule import | **Partial** | 16 built-in collections, but no community sharing or import yet (Karabiner has [thousands](https://ke-complex-modifications.pqrs.org/)) |

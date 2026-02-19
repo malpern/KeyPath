@@ -1,3 +1,4 @@
+![Action URIs](header-action-uri.png)
 
 # Action URI System
 
@@ -186,7 +187,7 @@ open "keypath://notify?title=Hello%20World&body=Test%20message"
 1. Check KeyPath is running
 2. Verify URI syntax is correct
 3. Check logs: `tail -f ~/Library/Logs/KeyPath/keypath-debug.log`
-4. See the [Debugging Guide](help:debugging) for more troubleshooting steps
+4. Check [GitHub Issues](https://github.com/malpern/KeyPath/issues) for known issues
 
 ### App not launching
 

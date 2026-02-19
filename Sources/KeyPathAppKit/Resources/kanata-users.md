@@ -1,3 +1,4 @@
+![From Kanata](header-kanata-users.png)
 
 If you're already using Kanata on macOS, KeyPath works with your existing configuration — no manual copying required.
 
@@ -253,22 +254,6 @@ ln -s ~/.config/kanata/my-config.kbd ~/.config/keypath/keypath.kbd
 
 Beyond the core features, KeyPath offers these additional capabilities:
 
-<div class="geometric-section geometric-section-compact">
-<!-- Combos -->
-<!-- Caps Word -->
-<!-- Mouse Keys -->
-<!-- Sequences -->
-<!-- Custom Rules -->
-<!-- App-Specific -->
-<!-- Live Reload -->
-<!-- Open URLs -->
-<!-- Multi-Display -->
-<!-- Spaces -->
-<!-- Notifications -->
-<!-- Deep Linking -->
-</div>
-</div>
-
 ---
 
 ## Next Steps
@@ -288,7 +273,7 @@ Beyond the core features, KeyPath offers these additional capabilities:
 ## Getting Help
 
 - **[FAQ](https://keypath-app.com/faq)** — Common questions about KeyPath
-- **[Debugging Guide](help:debugging)** — Advanced troubleshooting
+- **[GitHub Issues](https://github.com/malpern/KeyPath/issues)** — Report bugs or ask questions
 - **[Privacy & Permissions](help:privacy)** — What KeyPath accesses and why
 - **[GitHub Issues](https://github.com/malpern/KeyPath/issues)** — Report bugs or ask questions
 - **[Kanata documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc)** — Full Kanata config reference ↗

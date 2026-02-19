@@ -117,40 +117,68 @@ enum MarkdownToHTML {
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
         :root {
-            --text: #1d1d1f;
-            --text-secondary: #6e6e73;
-            --bg: transparent;
-            --code-bg: rgba(0, 0, 0, 0.04);
-            --border: rgba(0, 0, 0, 0.08);
-            --link: #0071e3;
-            --table-header-bg: rgba(0, 0, 0, 0.03);
+            --text: #3d3229;
+            --text-secondary: #6b5d52;
+            --bg: #faf6f0;
+            --code-bg: rgba(139, 109, 75, 0.08);
+            --border: rgba(139, 109, 75, 0.15);
+            --link: #8b5e3c;
+            --link-hover: #6b4226;
+            --table-header-bg: rgba(139, 109, 75, 0.06);
+            --heading: #4a3728;
+            --accent: #c49a6c;
         }
         body.dark {
-            --text: #f5f5f7;
-            --text-secondary: #a1a1a6;
-            --code-bg: rgba(255, 255, 255, 0.06);
-            --border: rgba(255, 255, 255, 0.1);
-            --link: #2997ff;
-            --table-header-bg: rgba(255, 255, 255, 0.05);
+            --text: #e8ddd0;
+            --text-secondary: #b0a090;
+            --bg: #2a2420;
+            --code-bg: rgba(200, 170, 130, 0.1);
+            --border: rgba(200, 170, 130, 0.15);
+            --link: #d4a574;
+            --link-hover: #e8c098;
+            --table-header-bg: rgba(200, 170, 130, 0.08);
+            --heading: #e0cdb8;
+            --accent: #c49a6c;
         }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
-            font-size: 13px;
-            line-height: 1.5;
+            font-family: "Charter", "Georgia", "Times New Roman", serif;
+            font-size: 14px;
+            line-height: 1.65;
             color: var(--text);
             background: var(--bg);
             margin: 0;
-            padding: 16px 24px;
+            padding: 20px 28px;
             -webkit-font-smoothing: antialiased;
         }
-        h1 { font-size: 20px; font-weight: 600; margin: 24px 0 8px; }
-        h2 { font-size: 16px; font-weight: 600; margin: 24px 0 8px; }
-        h3 { font-size: 14px; font-weight: 600; margin: 16px 0 6px; }
+        h1 {
+            font-family: "Charter", "Georgia", serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--heading);
+            margin: 28px 0 10px;
+            letter-spacing: -0.01em;
+        }
+        h2 {
+            font-family: "Charter", "Georgia", serif;
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--heading);
+            margin: 28px 0 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border);
+        }
+        h3 {
+            font-family: "Charter", "Georgia", serif;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--heading);
+            margin: 20px 0 6px;
+        }
         p { margin: 8px 0; color: var(--text-secondary); }
         ul { margin: 8px 0; padding-left: 20px; }
         li { margin: 4px 0; color: var(--text-secondary); }
-        a { color: var(--link); text-decoration: none; }
-        a:hover { text-decoration: underline; }
+        a { color: var(--link); text-decoration: none; border-bottom: 1px solid transparent; }
+        a:hover { color: var(--link-hover); border-bottom-color: var(--link-hover); }
         code {
             font-family: "SF Mono", SFMono-Regular, Menlo, monospace;
             font-size: 12px;
@@ -194,7 +222,14 @@ enum MarkdownToHTML {
             border-bottom: 1px solid var(--border);
             color: var(--text-secondary);
         }
-        strong { color: var(--text); font-weight: 600; }
+        strong { color: var(--heading); font-weight: 600; }
+        .help-img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            margin: 16px 0;
+            display: block;
+        }
         /* External links get an arrow indicator */
         a[href^="http"]::after { content: " ↗"; font-size: 0.85em; }
         /* Internal cross-links styled as a nav card */
@@ -202,13 +237,14 @@ enum MarkdownToHTML {
             display: block;
             padding: 10px 14px;
             margin: 12px 0;
-            border-radius: 8px;
+            border-radius: 6px;
             background: var(--code-bg);
             border: 1px solid var(--border);
             text-decoration: none;
             color: var(--link);
+            border-bottom: none;
         }
-        .cross-link:hover { background: var(--table-header-bg); text-decoration: none; }
+        .cross-link:hover { background: var(--table-header-bg); border-bottom: none; }
         .cross-link::after { content: " →"; }
         </style>
         </head>
@@ -243,6 +279,13 @@ enum MarkdownToHTML {
         result = result.replacingOccurrences(
             of: "\\*(.+?)\\*",
             with: "<em>$1</em>",
+            options: .regularExpression
+        )
+
+        // Images (must come before links to avoid ![alt](url) matching as link)
+        result = result.replacingOccurrences(
+            of: "!\\[([^\\]]*)\\]\\(([^)]+)\\)",
+            with: "<img src=\"$2\" alt=\"$1\" class=\"help-img\">",
             options: .regularExpression
         )
 

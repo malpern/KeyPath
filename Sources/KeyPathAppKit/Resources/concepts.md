@@ -1,3 +1,4 @@
+![Keyboard Concepts](header-concepts.png)
 
 # Keyboard Concepts for Mac Users
 
@@ -205,7 +206,6 @@ These let you create memorable shortcuts without running out of modifier combina
 These community resources go deeper into keyboard customization concepts:
 
 - **[The Home Row Mods Guide (Precondition)](https://precondition.github.io/home-row-mods)** — The definitive community reference on home row mods ↗
-- **[A guide to home row mods (Precondition)](https://precondition.github.io/home-row-mods#what-are-home-row-mods)** — Detailed explanation of modifier layouts ↗
 - **[Kanata documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc)** — Full configuration reference for the engine behind KeyPath ↗
 - **[QMK Firmware](https://docs.qmk.fm/)** — If you're interested in firmware-level remapping on custom keyboards ↗
 - **[r/ErgoMechKeyboards](https://www.reddit.com/r/ErgoMechKeyboards/)** — Active community discussing keyboard layouts, layers, and ergonomics ↗

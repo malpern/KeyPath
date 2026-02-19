@@ -86,7 +86,8 @@ struct MarkdownWebView: NSViewRepresentable {
 
         let bodyHTML = MarkdownToHTML.convert(markdown)
         let fullHTML = MarkdownToHTML.wrapInHTMLDocument(body: bodyHTML, isDark: isDark)
-        webView.loadHTMLString(fullHTML, baseURL: nil)
+        let baseURL = Bundle.module.resourceURL
+        webView.loadHTMLString(fullHTML, baseURL: baseURL)
     }
 
     // MARK: - Coordinator

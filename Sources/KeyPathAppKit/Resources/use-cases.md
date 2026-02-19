@@ -1,3 +1,4 @@
+![What You Can Build](header-use-cases.png)
 
 # What You Can Build
 

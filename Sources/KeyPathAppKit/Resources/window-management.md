@@ -1,3 +1,4 @@
+![Window Management](header-window-management.png)
 
 # Window Management
 

@@ -1,3 +1,4 @@
+![Privacy & Permissions](header-privacy.png)
 
 # Privacy & Permissions
 
@@ -260,7 +261,7 @@ We take this seriously. If you have questions about KeyPath's privacy practices 
 
 - **[FAQ](https://keypath-app.com/faq)** — More questions and answers about KeyPath
 - **[Installation](https://keypath-app.com/getting-started/installation)** — Setup wizard and permission walkthrough
-- **[Debugging Guide](help:debugging)** — Troubleshooting permission issues
+- **[GitHub Issues](https://github.com/malpern/KeyPath/issues)** — Report bugs or ask questions
 - **[Back to Docs](https://keypath-app.com/docs)**
 
 ## External references

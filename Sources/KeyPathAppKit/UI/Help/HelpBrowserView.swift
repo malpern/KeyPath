@@ -123,15 +123,19 @@ struct HelpBrowserView: View {
 
     private var welcomeView: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("KeyPath Help")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                    Text("Learn how to remap your keyboard, build powerful shortcuts, and customize your workflow.")
-                        .foregroundStyle(.secondary)
+            VStack(spacing: 24) {
+                // Banner image
+                if let bannerURL = Bundle.module.url(forResource: "header-banner", withExtension: "png") {
+                    AsyncImage(url: bannerURL) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                    } placeholder: {
+                        Color.clear.frame(height: 200)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-                .padding(.bottom, 8)
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 16)], spacing: 16) {
                     ForEach(HelpTopic.allTopics) { topic in
@@ -142,6 +146,7 @@ struct HelpBrowserView: View {
             .padding(32)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .init(red: 0.98, green: 0.96, blue: 0.94, alpha: 1.0)))
     }
 
     private func topicCard(_ topic: HelpTopic) -> some View {
@@ -151,11 +156,13 @@ struct HelpBrowserView: View {
             HStack(spacing: 12) {
                 Image(systemName: topic.icon)
                     .font(.title3)
-                    .foregroundStyle(.secondary)
+                    .foregroundColor(Color(nsColor: .init(red: 0.55, green: 0.37, blue: 0.24, alpha: 1.0)))
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(topic.title)
+                        .font(.system(.body, design: .serif))
                         .fontWeight(.medium)
+                        .foregroundColor(Color(nsColor: .init(red: 0.29, green: 0.22, blue: 0.16, alpha: 1.0)))
                     Text(topic.group.rawValue)
                         .font(.caption)
                         .foregroundStyle(.tertiary)
@@ -164,7 +171,7 @@ struct HelpBrowserView: View {
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.quaternary.opacity(0.5))
+            .background(Color(nsColor: .init(red: 0.55, green: 0.37, blue: 0.24, alpha: 0.06)))
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)

@@ -1,3 +1,4 @@
+![Home Row Mods](header-home-row-mods.png)
 
 # Home Row Mods
 
@@ -173,7 +174,7 @@ Shift is the most frequently used modifier during normal typing (capital letters
 - **[Keyboard Concepts](help:concepts)** — Background on tap-hold, layers, and modifiers
 - **[Tap-Hold & Tap-Dance](help:tap-hold)** — Detailed guide to all tap-hold options in KeyPath
 - **[What You Can Build](help:use-cases)** — See HRM as part of a complete setup with Hyper key, window tiling, and more
-- **[Switching from Karabiner?](help:karabiner-users)** — HRM is KeyPath's biggest advantage over Karabiner — see the comparison
+- **[Switching from Karabiner?](help:karabiner-users)** — See how KeyPath's HRM compares to Karabiner's approach
 - **[Back to Docs](https://keypath-app.com/docs)**
 
 ### External references
