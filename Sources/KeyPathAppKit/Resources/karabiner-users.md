@@ -20,6 +20,7 @@ Karabiner-Elements is an excellent tool that pioneered keyboard remapping on mac
 
 **Karabiner's strengths** that KeyPath doesn't replicate:
 - Massive [community rule library](https://ke-complex-modifications.pqrs.org/) with importable JSON rules
+- Per-device targeting UI — apply different rules to each connected keyboard out of the box
 - Longer track record (10+ years, widely trusted)
 - Simpler mental model for basic remaps
 
@@ -113,11 +114,11 @@ Karabiner's [Complex Modifications](https://ke-complex-modifications.pqrs.org/) 
 
 ## What you'll gain
 
-- **Better tap-hold** — Kanata was purpose-built for tap-hold behaviors. Four variants with per-key timing give you control Karabiner can't match. See [Home Row Mods](help:home-row-mods).
-- **Split-hand detection** — Cross-hand keypresses activate modifiers, same-hand keypresses produce letters. This eliminates most home row mod misfires. Achievable in Karabiner but requires complex JSON.
-- **Readable config** — Compare 3 lines of Kanata to 20 lines of Karabiner JSON for the same remap.
+- **Better tap-hold** — Kanata offers four tap-hold variants with per-key timing, giving you more control over dual-role key behavior. See [Home Row Mods](help:home-row-mods).
+- **Split-hand detection** — Cross-hand keypresses activate modifiers, same-hand keypresses produce letters. This reduces home row mod misfires significantly.
+- **Readable config** — A typical remap takes 3 lines of Kanata vs 20+ lines of Karabiner JSON.
 - **App launching** — Built-in [Action URI system](help:action-uri) for launching apps, opening URLs, and tiling windows from your keyboard.
-- **Visual configuration** — KeyPath's SwiftUI interface lets you configure without editing JSON or config files.
+- **Visual configuration** — KeyPath's UI lets you configure without editing JSON or config files directly.
 
 ## What you'll lose (temporarily)
 
@@ -225,7 +226,7 @@ We're exploring a tool that would let you paste your Karabiner JSON and see the 
 ## Further reading
 
 - **[Keyboard Concepts](help:concepts)** — If you want a refresher on the fundamentals
-- **[Home Row Mods](help:home-row-mods)** — KeyPath's biggest advantage over Karabiner
+- **[Home Row Mods](help:home-row-mods)** — Where KeyPath really shines
 - **[Tap-Hold & Tap-Dance](help:tap-hold)** — All four tap-hold variants explained
 - **[What You Can Build](help:use-cases)** — Concrete examples of KeyPath setups
 - **[Action URIs](help:action-uri)** — Launch apps, URLs, and window actions
