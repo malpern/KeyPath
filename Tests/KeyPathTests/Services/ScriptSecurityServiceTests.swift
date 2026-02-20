@@ -5,18 +5,31 @@ import XCTest
 @MainActor
 final class ScriptSecurityServiceTests: XCTestCase {
     private var service: ScriptSecurityService!
+    private var testDefaults: UserDefaults!
+    private var suiteName: String!
 
     override func setUp() async throws {
-        service = ScriptSecurityService.shared
+        suiteName = "KeyPath.ScriptSecurityServiceTests.\(UUID().uuidString)"
+        testDefaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        testDefaults.removePersistentDomain(forName: suiteName)
+        service = ScriptSecurityService(defaults: testDefaults)
+
         // Reset to default state
         service.isScriptExecutionEnabled = false
         service.bypassFirstRunDialog = false
+        service.resetAllSettings()
     }
 
     override func tearDown() async throws {
         // Reset after each test
-        service.isScriptExecutionEnabled = false
-        service.bypassFirstRunDialog = false
+        service?.isScriptExecutionEnabled = false
+        service?.bypassFirstRunDialog = false
+        if let suiteName {
+            testDefaults?.removePersistentDomain(forName: suiteName)
+        }
+        service = nil
+        testDefaults = nil
+        suiteName = nil
     }
 
     // MARK: - Execution Check Tests

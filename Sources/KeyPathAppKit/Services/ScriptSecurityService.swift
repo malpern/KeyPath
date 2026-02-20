@@ -22,12 +22,14 @@ public final class ScriptSecurityService {
         static let scriptExecutionLog = "KeyPath.Security.ScriptExecutionLog"
     }
 
+    private let defaults: UserDefaults
+
     // MARK: - Published Properties
 
     /// Whether script execution is globally enabled
     public var isScriptExecutionEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(isScriptExecutionEnabled, forKey: Keys.scriptExecutionEnabled)
+            defaults.set(isScriptExecutionEnabled, forKey: Keys.scriptExecutionEnabled)
             AppLogger.shared.log("🔐 [ScriptSecurity] Script execution \(isScriptExecutionEnabled ? "ENABLED" : "DISABLED")")
         }
     }
@@ -35,16 +37,17 @@ public final class ScriptSecurityService {
     /// Whether to skip the first-run confirmation dialog
     public var bypassFirstRunDialog: Bool {
         didSet {
-            UserDefaults.standard.set(bypassFirstRunDialog, forKey: Keys.bypassFirstRunDialog)
+            defaults.set(bypassFirstRunDialog, forKey: Keys.bypassFirstRunDialog)
             AppLogger.shared.log("🔐 [ScriptSecurity] Bypass dialog: \(bypassFirstRunDialog)")
         }
     }
 
     // MARK: - Initialization
 
-    private init() {
-        isScriptExecutionEnabled = UserDefaults.standard.bool(forKey: Keys.scriptExecutionEnabled)
-        bypassFirstRunDialog = UserDefaults.standard.bool(forKey: Keys.bypassFirstRunDialog)
+    init(defaults: UserDefaults? = nil) {
+        self.defaults = defaults ?? .standard
+        isScriptExecutionEnabled = self.defaults.bool(forKey: Keys.scriptExecutionEnabled)
+        bypassFirstRunDialog = self.defaults.bool(forKey: Keys.bypassFirstRunDialog)
     }
 
     // MARK: - Security Checks
@@ -100,7 +103,7 @@ public final class ScriptSecurityService {
             "error": error ?? ""
         ]
 
-        var log = UserDefaults.standard.array(forKey: Keys.scriptExecutionLog) as? [[String: Any]] ?? []
+        var log = defaults.array(forKey: Keys.scriptExecutionLog) as? [[String: Any]] ?? []
         log.append(entry)
 
         // Keep last 100 entries
@@ -108,7 +111,7 @@ public final class ScriptSecurityService {
             log = Array(log.suffix(100))
         }
 
-        UserDefaults.standard.set(log, forKey: Keys.scriptExecutionLog)
+        defaults.set(log, forKey: Keys.scriptExecutionLog)
 
         if success {
             AppLogger.shared.log("✅ [ScriptSecurity] Executed: \(path)")
@@ -119,7 +122,7 @@ public final class ScriptSecurityService {
 
     /// Get execution log entries
     public var executionLog: [[String: Any]] {
-        UserDefaults.standard.array(forKey: Keys.scriptExecutionLog) as? [[String: Any]] ?? []
+        defaults.array(forKey: Keys.scriptExecutionLog) as? [[String: Any]] ?? []
     }
 
     // MARK: - Helper Methods
@@ -151,7 +154,7 @@ public final class ScriptSecurityService {
     public func resetAllSettings() {
         isScriptExecutionEnabled = false
         bypassFirstRunDialog = false
-        UserDefaults.standard.removeObject(forKey: Keys.scriptExecutionLog)
+        defaults.removeObject(forKey: Keys.scriptExecutionLog)
         AppLogger.shared.log("🔐 [ScriptSecurity] All settings reset")
     }
 }

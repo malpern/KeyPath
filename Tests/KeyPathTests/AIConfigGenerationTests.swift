@@ -4,6 +4,13 @@ import XCTest
 /// Tests for AI Config Generation components
 @MainActor
 final class AIConfigGenerationTests: XCTestCase {
+    private func makeIsolatedBiometricService() throws -> (BiometricAuthService, String) {
+        let suiteName = "KeyPath.AIConfigGenerationTests.Biometric.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        let service = BiometricAuthService(userDefaults: defaults)
+        return (service, suiteName)
+    }
     // MARK: - KeychainService Tests
 
     func testKeychainServiceHasClaudeAPIKeyMethodsExist() {
@@ -134,18 +141,17 @@ final class AIConfigGenerationTests: XCTestCase {
         XCTAssertNotNil(service)
     }
 
-    func testBiometricAuthServiceIsEnabledDefaultsFalse() {
-        // Clear any existing preference
-        UserDefaults.standard.removeObject(forKey: BiometricAuthService.requireBiometricAuthKey)
-
-        let service = BiometricAuthService.shared
+    func testBiometricAuthServiceIsEnabledDefaultsFalse() async throws {
+        let (service, suiteName) = try makeIsolatedBiometricService()
+        defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
 
         // Should default to false (not enabled)
         XCTAssertFalse(service.isEnabled)
     }
 
-    func testBiometricAuthServiceIsEnabledCanBeToggled() {
-        let service = BiometricAuthService.shared
+    func testBiometricAuthServiceIsEnabledCanBeToggled() async throws {
+        let (service, suiteName) = try makeIsolatedBiometricService()
+        defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
 
         // Save original state
         let originalState = service.isEnabled
@@ -167,8 +173,9 @@ final class AIConfigGenerationTests: XCTestCase {
         XCTAssertTrue(validNames.contains(name), "biometricTypeName should be a valid type")
     }
 
-    func testBiometricAuthServiceWouldRequireAuthRespectsIsEnabled() {
-        let service = BiometricAuthService.shared
+    func testBiometricAuthServiceWouldRequireAuthRespectsIsEnabled() async throws {
+        let (service, suiteName) = try makeIsolatedBiometricService()
+        defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
 
         // When disabled, should not require auth
         service.isEnabled = false
@@ -183,8 +190,10 @@ final class AIConfigGenerationTests: XCTestCase {
         service.isEnabled = false
     }
 
-    func testBiometricAuthServiceAuthReturnsNotRequiredWhenDisabled() async {
-        let service = BiometricAuthService.shared
+    func testBiometricAuthServiceAuthReturnsNotRequiredWhenDisabled() async throws {
+        let (service, suiteName) = try makeIsolatedBiometricService()
+        defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
+
         service.isEnabled = false
 
         let result = await service.authenticate()

@@ -15,8 +15,11 @@ public final class BiometricAuthService: @unchecked Sendable {
 
     /// Whether user has authenticated this session (persists until app restart)
     private var hasAuthenticatedThisSession: Bool = false
+    private let userDefaults: UserDefaults
 
-    private init() {}
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+    }
 
     /// Authentication result
     public enum AuthResult: Sendable {
@@ -59,8 +62,8 @@ public final class BiometricAuthService: @unchecked Sendable {
 
     /// Check if user has enabled biometric auth requirement in settings
     public var isEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: Self.requireBiometricAuthKey) }
-        set { UserDefaults.standard.set(newValue, forKey: Self.requireBiometricAuthKey) }
+        get { userDefaults.bool(forKey: Self.requireBiometricAuthKey) }
+        set { userDefaults.set(newValue, forKey: Self.requireBiometricAuthKey) }
     }
 
     /// Authenticate user before an expensive operation

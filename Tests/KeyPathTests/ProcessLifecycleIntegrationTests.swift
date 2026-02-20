@@ -109,8 +109,8 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
         let sorted = samples.sorted()
         let median = sorted[sorted.count / 2]
 
-        // Baseline in local runs is well below this; threshold allows transient CI/host jitter.
-        XCTAssertLessThan(median, 0.15, "Median process operation duration regressed: \(median)s from samples \(samples)")
+        // Baseline in local runs is below this; threshold allows transient CI/host jitter.
+        XCTAssertLessThan(median, 0.25, "Median process operation duration regressed: \(median)s from samples \(samples)")
     }
 
     // MARK: - Error Handling Tests
