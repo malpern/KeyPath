@@ -77,9 +77,6 @@ LINK_MAP=(
     [privacy]="/guides/privacy"
     [karabiner-users]="/migration/karabiner-users"
     [kanata-users]="/migration/kanata-users"
-    # Website-only pages (not from app Resources, but needed for nav links)
-    [debugging]="/guides/debugging"
-    [faq]="/faq"
 )
 
 # ─────────────────────────────────────────────────────────────────────
@@ -108,9 +105,6 @@ NAV_TITLES=(
     [privacy]="Privacy & Permissions"
     [karabiner-users]="From Karabiner-Elements"
     [kanata-users]="From Kanata"
-    # Website-only pages
-    [debugging]="Debugging"
-    [faq]="FAQ"
 )
 
 typeset -a GROUP_ORDER
@@ -120,7 +114,7 @@ typeset -A GROUP_ITEMS
 GROUP_ITEMS=(
     [getting-started]="installation concepts use-cases"
     [features]="home-row-mods tap-hold window-management action-uri alternative-layouts keyboard-layouts"
-    [reference]="action-uri-reference privacy debugging faq"
+    [reference]="action-uri-reference privacy"
     [switching]="karabiner-users kanata-users"
 )
 
@@ -181,8 +175,13 @@ transform_file() {
     local content
     content=$(<"$src_path")
 
-    # 1. Strip the header image line (line 1: ![Alt](header-*.png))
-    #    We'll handle images separately for the website
+    # 1. Extract header image filename (line 1: ![Alt](header-*.png)) for front matter,
+    #    then strip the line from the content body.
+    local header_image=""
+    local first_line=$(echo "$content" | head -1)
+    if [[ "$first_line" == '!'*'](header-'*'.png)' ]]; then
+        header_image=$(echo "$first_line" | sed -E 's/^!\[[^]]*\]\((header-[^)]+\.png)\)$/\1/')
+    fi
     content=$(echo "$content" | sed '1{/^!\[.*\](header-.*\.png)$/d;}')
 
     # 2. Strip <!-- screenshot: --> metadata tags (app-only)
@@ -221,11 +220,17 @@ transform_file() {
     ' "$tmpmap")
     rm -f "$tmpmap"
 
-    # 5. Build front matter
+    # 5. Build front matter (with parchment theme and optional header image)
     local front_matter="---
 layout: default
 title: \"${title}\"
 description: \"${description}\"
+theme: parchment"
+    if [[ -n "$header_image" ]]; then
+        front_matter="${front_matter}
+header_image: ${header_image}"
+    fi
+    front_matter="${front_matter}
 ---"
 
     # 6. Write output
@@ -253,6 +258,22 @@ copy_images() {
         fi
     done
     echo "  $copied images copied to images/help/"
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# Copy help-theme.css to gh-pages assets
+# ─────────────────────────────────────────────────────────────────────
+
+copy_theme_css() {
+    local css_src="$SRC/help-theme.css"
+    local css_dest="$GHPAGES/assets/css/help-theme.css"
+    if [[ -f "$css_src" ]]; then
+        mkdir -p "$(dirname "$css_dest")"
+        cp "$css_src" "$css_dest"
+        echo "  Copied: help-theme.css → assets/css/help-theme.css"
+    else
+        echo "  WARNING: help-theme.css not found at $css_src"
+    fi
 }
 
 # ─────────────────────────────────────────────────────────────────────
@@ -311,6 +332,7 @@ description: Guides and references for KeyPath keyboard remapping on macOS
 hide_sidebar: true
 content_class: content-full docs-landing
 permalink: /docs
+theme: parchment
 ---
 
 <div class="docs-hero">
@@ -324,15 +346,19 @@ permalink: /docs
   </div>
   <div class="docs-hero-visual">
     <div class="docs-hero-keyboard">
-      <div class="hero-key">A<span>⇧</span></div>
-      <div class="hero-key">S<span>⌃</span></div>
-      <div class="hero-key">D<span>⌥</span></div>
-      <div class="hero-key">F<span>⌘</span></div>
+      <div class="hero-hand">
+        <div class="hero-key">A<span>⇧</span></div>
+        <div class="hero-key">S<span>⌃</span></div>
+        <div class="hero-key">D<span>⌥</span></div>
+        <div class="hero-key">F<span>⌘</span></div>
+      </div>
       <div class="hero-key-gap"></div>
-      <div class="hero-key">J<span>⌘</span></div>
-      <div class="hero-key">K<span>⌥</span></div>
-      <div class="hero-key">L<span>⌃</span></div>
-      <div class="hero-key">;<span>⇧</span></div>
+      <div class="hero-hand">
+        <div class="hero-key">J<span>⌘</span></div>
+        <div class="hero-key">K<span>⌥</span></div>
+        <div class="hero-key">L<span>⌃</span></div>
+        <div class="hero-key">;<span>⇧</span></div>
+      </div>
     </div>
     <p class="docs-hero-caption">Tap for letters. Hold for modifiers. Your fingers never leave home.</p>
   </div>
@@ -393,6 +419,7 @@ for resource in "${(@k)DOCS}"; do
 done
 
 copy_images
+copy_theme_css
 
 echo ""
 echo "--- Generating navigation ---"

@@ -10,7 +10,7 @@ final class HelpWindowController: NSObject, NSWindowDelegate {
     private var overlayWasVisible = false
     private var keepingOverlayVisible = false
 
-    private override init() {}
+    override private init() {}
 
     /// Opens the help browser with a navigable sidebar of all topics.
     func showBrowser() {
@@ -74,7 +74,7 @@ final class HelpWindowController: NSObject, NSWindowDelegate {
 
     // MARK: - NSWindowDelegate
 
-    nonisolated func windowWillClose(_ notification: Notification) {
+    nonisolated func windowWillClose(_: Notification) {
         MainActor.assumeIsolated {
             if !keepingOverlayVisible, overlayWasVisible {
                 LiveKeyboardOverlayController.shared.isVisible = true

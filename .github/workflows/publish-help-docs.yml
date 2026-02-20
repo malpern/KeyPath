@@ -6,6 +6,7 @@ on:
     paths:
       - 'Sources/KeyPathAppKit/Resources/*.md'
       - 'Sources/KeyPathAppKit/Resources/*.png'
+      - 'Sources/KeyPathAppKit/Resources/*.css'
       - 'Scripts/publish-help-to-web.sh'
       - '.github/workflows/publish-help-docs.yml'
 
