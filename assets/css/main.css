@@ -8026,7 +8026,7 @@ a.button:active {
     content: '';
     position: absolute;
     inset: 0;
-    background: url('../images/help/header-banner.png') center/cover no-repeat;
+    background: url('../../images/help/header-banner.png') center/cover no-repeat;
     mix-blend-mode: multiply;
     opacity: 0.35;
     border-radius: 16px;
@@ -8049,15 +8049,28 @@ a.button:active {
 .parchment-theme .docs-hero-keyboard {
     flex-wrap: wrap;
     justify-content: center;
+    gap: 8px;
 }
 
+.hero-hand {
+    display: flex;
+    gap: 6px;
+}
+
+.parchment-theme .content a.docs-cta-primary,
 .parchment-theme .docs-cta-primary {
     background: #8b5e3c;
     color: #faf6f0 !important;
-    text-decoration: none;
-    border-bottom: none;
+    text-decoration: none !important;
+    border-bottom: none !important;
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: var(--font-size-base);
 }
 
+.parchment-theme .content a.docs-cta-primary:hover,
 .parchment-theme .docs-cta-primary:hover {
     background: #6b4226;
     color: #faf6f0 !important;
@@ -8148,7 +8161,7 @@ a.button:active {
     width: 120px;
     height: 36px;
     margin: 0 auto;
-    background: url('../images/help/decor-divider.png') center/contain no-repeat;
+    background: url('../../images/help/decor-divider.png') center/contain no-repeat;
     mix-blend-mode: multiply;
 }
 

@@ -19,15 +19,19 @@ theme: parchment
   </div>
   <div class="docs-hero-visual">
     <div class="docs-hero-keyboard">
-      <div class="hero-key">A<span>⇧</span></div>
-      <div class="hero-key">S<span>⌃</span></div>
-      <div class="hero-key">D<span>⌥</span></div>
-      <div class="hero-key">F<span>⌘</span></div>
+      <div class="hero-hand">
+        <div class="hero-key">A<span>⇧</span></div>
+        <div class="hero-key">S<span>⌃</span></div>
+        <div class="hero-key">D<span>⌥</span></div>
+        <div class="hero-key">F<span>⌘</span></div>
+      </div>
       <div class="hero-key-gap"></div>
-      <div class="hero-key">J<span>⌘</span></div>
-      <div class="hero-key">K<span>⌥</span></div>
-      <div class="hero-key">L<span>⌃</span></div>
-      <div class="hero-key">;<span>⇧</span></div>
+      <div class="hero-hand">
+        <div class="hero-key">J<span>⌘</span></div>
+        <div class="hero-key">K<span>⌥</span></div>
+        <div class="hero-key">L<span>⌃</span></div>
+        <div class="hero-key">;<span>⇧</span></div>
+      </div>
     </div>
     <p class="docs-hero-caption">Tap for letters. Hold for modifiers. Your fingers never leave home.</p>
   </div>
