@@ -113,7 +113,7 @@ Split keyboards place each hand on its own half, allowing a natural shoulder-wid
 3. Click the **Layout** tab
 4. Click your keyboard — the overlay updates instantly
 
-<!-- screenshot: id="kb-layouts-layout-picker" method="snapshot" view="LayoutPickerView" state="selected:ansi-100" -->
+<!-- screenshot: id="kb-layouts-layout-picker" method="snapshot" view="KeyboardSelectionGridView" state="selected:ansi-100" -->
 Screenshot — Physical Layout picker (2-column grid):
 ```
   ┌─────────────────────────────────────────────────────┐

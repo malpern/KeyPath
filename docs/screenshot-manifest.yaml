@@ -15,6 +15,9 @@
 #   manual    — Requires human capture. macOS system dialogs that can't be
 #               automated (authorization prompts, etc.).
 #
+# View names must match actual Swift struct declarations in
+# Sources/KeyPathAppKit/UI/. See "View → Struct mapping" at end of file.
+#
 # Last updated: 2026-02-19
 
 # =============================================================================
@@ -65,7 +68,7 @@ screenshots:
   - id: install-overlay-health-green
     file: installation.md
     method: snapshot
-    view: LiveKeyboardOverlayView
+    view: OverlayDragHeader
     state: "service:running,health:green"
     description: "Overlay header with green health indicator showing service is running"
 
@@ -76,21 +79,21 @@ screenshots:
   - id: action-uri-overlay-header
     file: action-uri.md
     method: snapshot
-    view: LiveKeyboardOverlayView
+    view: OverlayDragHeader
     state: "service:running,layer:base,inspector:collapsed"
     description: "Overlay header bar showing drag texture, layer pill, drawer button, and hide button"
 
   - id: action-uri-inspector-toolbar
     file: action-uri.md
     method: snapshot
-    view: InspectorPanelView
+    view: OverlayInspectorPanel
     state: "tab:launchers,settings:visible"
     description: "Inspector panel toolbar showing Custom Rules, Key Mapper, Launchers tabs and settings tabs"
 
   - id: action-uri-launchers-tab
     file: action-uri.md
     method: snapshot
-    view: LaunchersTabView
+    view: OverlayLaunchersSection
     state: "shortcuts:populated"
     description: "Launchers tab with populated shortcut list (Safari, Terminal, Messages, etc.)"
 
@@ -104,9 +107,9 @@ screenshots:
   - id: action-uri-activation-mode
     file: action-uri.md
     method: snapshot
-    view: LaunchersTabView
-    state: "settings:activation-picker"
-    description: "Activation mode picker showing Hold, Tap Toggle, and Leader options"
+    view: OverlayInspectorPanel
+    state: "tab:launchers,customize:activation-picker"
+    description: "Activation mode picker showing Hold and Leader Sequence options"
 
   # ---------------------------------------------------------------------------
   # tap-hold.md (2 screenshots)
@@ -115,14 +118,14 @@ screenshots:
   - id: tap-hold-custom-rules-tab
     file: tap-hold.md
     method: snapshot
-    view: CustomRulesTabView
-    state: "rules:populated,global:expanded,app:safari"
+    view: OverlayInspectorPanel
+    state: "tab:customRules,rules:populated,global:expanded,app:safari"
     description: "Custom Rules tab showing global rules and Safari app-specific rules"
 
   - id: tap-hold-rule-editor
     file: tap-hold.md
     method: snapshot
-    view: RuleEditorView
+    view: CustomRulesInlineEditor
     state: "hold:enabled,behavior:basic,tap-timeout:200,hold-timeout:200"
     description: "Rule editor with hold behavior options (Basic, Trigger early, Quick tap)"
 
@@ -133,7 +136,7 @@ screenshots:
   - id: use-cases-launchers-tab
     file: use-cases.md
     method: snapshot
-    view: LaunchersTabView
+    view: OverlayLaunchersSection
     state: "shortcuts:3-items"
     description: "Compact launchers tab with 3 items (Safari, Terminal, github.com)"
 
@@ -144,15 +147,15 @@ screenshots:
   - id: hrm-typing-feel-slider
     file: home-row-mods.md
     method: snapshot
-    view: RuleSettingsView
-    state: "rule:home-row-mods,slider:200ms"
+    view: HomeRowTimingSection
+    state: "slider:200ms"
     description: "Typing Feel slider with tap/hold timeout controls"
 
   - id: hrm-per-finger-sliders
     file: home-row-mods.md
     method: snapshot
-    view: RuleSettingsView
-    state: "rule:home-row-mods,per-finger:visible"
+    view: HomeRowTimingSection
+    state: "per-finger:visible"
     description: "Per-finger sensitivity sliders (pinky +40ms, ring +25ms, etc.)"
 
   # ---------------------------------------------------------------------------
@@ -162,8 +165,8 @@ screenshots:
   - id: window-mgmt-custom-rules
     file: window-management.md
     method: snapshot
-    view: CustomRulesTabView
-    state: "rules:app-specific,apps:safari+terminal"
+    view: OverlayInspectorPanel
+    state: "tab:customRules,rules:app-specific,apps:safari+terminal"
     description: "Custom Rules tab with global and app-specific rule cards for Safari and Terminal"
 
   # ---------------------------------------------------------------------------
@@ -173,7 +176,7 @@ screenshots:
   - id: concepts-new-rule-dialog
     file: concepts.md
     method: snapshot
-    view: RuleEditorView
+    view: CustomRulesInlineEditor
     state: "start:caps_lock,finish:escape,hold:disabled"
     description: "Simple remap dialog: Caps Lock to Escape, no hold behavior"
 
@@ -184,15 +187,15 @@ screenshots:
   - id: alt-layouts-settings-toolbar
     file: alternative-layouts.md
     method: snapshot
-    view: InspectorPanelView
-    state: "settings:visible,tab:keymap"
+    view: OverlayInspectorPanel
+    state: "tab:keymaps,settings:visible"
     description: "Settings toolbar with Keymap tab selected"
 
   - id: alt-layouts-keymap-picker
     file: alternative-layouts.md
     method: snapshot
-    view: KeymapPickerView
-    state: "selected:qwerty"
+    view: OverlayInspectorPanel
+    state: "tab:keymaps,selected:qwerty"
     description: "Keymap picker grid showing QWERTY, Dvorak, Colemak, Colemak-DH, Workman, Graphite, AZERTY, QWERTZ"
 
   # ---------------------------------------------------------------------------
@@ -202,7 +205,7 @@ screenshots:
   - id: kb-layouts-layout-picker
     file: keyboard-layouts.md
     method: snapshot
-    view: LayoutPickerView
+    view: KeyboardSelectionGridView
     state: "selected:ansi-100"
     description: "Physical Layout picker showing Standard and Split & Ergonomic categories"
 
@@ -213,8 +216,8 @@ screenshots:
   - id: karabiner-custom-rules-comparison
     file: karabiner-users.md
     method: snapshot
-    view: CustomRulesTabView
-    state: "rules:populated,global:expanded,app:safari"
+    view: OverlayInspectorPanel
+    state: "tab:customRules,rules:populated,global:expanded,app:safari"
     description: "Custom Rules tab (visual alternative to Karabiner JSON editing)"
 
 # =============================================================================
@@ -223,10 +226,10 @@ screenshots:
 
 illustrations:
 
-  # Header images (watercolor, 21:9 aspect ratio, multiply blend mode)
+  # Header images (watercolor, 21:9 aspect ratio)
   headers:
     - file: header-banner.png
-      used_in: HelpBrowserView.swift (welcome page)
+      used_in: HelpBrowserView.swift (welcome page), docs.md (website)
       description: "Welcome banner for help browser landing page"
 
     - file: header-installation.png
@@ -347,19 +350,27 @@ illustrations:
 #   - Concepts:    8 inline illustrations
 #   - Decorative:  6 dividers and flourishes
 #
-# Files with screenshot tags: 10
-#   installation.md        6 tags
-#   action-uri.md          5 tags
-#   tap-hold.md            2 tags
-#   home-row-mods.md       2 tags
-#   alternative-layouts.md 2 tags
-#   use-cases.md           1 tag
-#   window-management.md   1 tag
-#   concepts.md            1 tag
-#   keyboard-layouts.md    1 tag
-#   karabiner-users.md     1 tag
+# =============================================================================
+# VIEW → STRUCT MAPPING (for snapshot test authors)
+# =============================================================================
 #
-# Files without screenshot tags (no UI screenshots needed):
-#   privacy.md             (text-only reference)
-#   action-uri-reference.md (text-only reference)
-#   kanata-users.md        (text-only switching guide)
+# Manifest view name         Actual Swift struct                   File (under Sources/KeyPathAppKit/UI/)
+# -------------------------  ------------------------------------  --------------------------------------------------
+# LiveKeyboardOverlayView    LiveKeyboardOverlayView               Overlay/LiveKeyboardOverlayView.swift
+# OverlayDragHeader          OverlayDragHeader                     Overlay/LiveKeyboardOverlayView+Header.swift
+# OverlayInspectorPanel      OverlayInspectorPanel                 Overlay/LiveKeyboardOverlayView+Inspector.swift
+# OverlayLaunchersSection    OverlayLaunchersSection               Overlay/OverlayLaunchersSection.swift
+# LauncherDrawerView         LauncherDrawerView                    Rules/LauncherDrawerView.swift
+# CustomRulesInlineEditor    CustomRulesInlineEditor               Rules/CustomRulesView+Subviews.swift
+# HomeRowTimingSection       HomeRowTimingSection                  Rules/HomeRowTimingSection.swift
+# KeyboardSelectionGridView  KeyboardSelectionGridView             Overlay/KeyboardSelectionGridView.swift
+# GlobalRulesCard            GlobalRulesCard                       Overlay/AppRuleCard.swift
+# AppRuleCard                AppRuleCard                           Overlay/AppRuleCard.swift
+# KeymapCard                 KeymapCard                            Overlay/KeymapCard.swift
+#
+# Snapshot test feasibility:
+#   Excellent (clean DI):  LauncherDrawerView, KeyboardSelectionGridView,
+#                          OverlayLaunchersSection, KeymapCard, GlobalRulesCard,
+#                          AppRuleCard, HomeRowTimingSection
+#   Moderate (env setup):  OverlayInspectorPanel, CustomRulesInlineEditor
+#   Challenging (singletons): LiveKeyboardOverlayView, OverlayDragHeader

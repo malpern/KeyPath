@@ -20,7 +20,7 @@ Stop reaching for the Dock or Spotlight. Hold one key, press a letter, and your 
 
 One key hold + one letter = instant access to anything on your Mac. No mouse, no Cmd+Space, no typing a name.
 
-<!-- screenshot: id="use-cases-launchers-tab" method="snapshot" view="LaunchersTabView" state="shortcuts:3-items" -->
+<!-- screenshot: id="use-cases-launchers-tab" method="snapshot" view="OverlayLaunchersSection" state="shortcuts:3-items" -->
 Screenshot — Launchers tab in the inspector panel:
 ```
   ┌─────────────────────────────────────┐

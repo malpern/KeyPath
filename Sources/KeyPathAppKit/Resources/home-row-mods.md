@@ -67,7 +67,7 @@ Once you've enabled home row mods, you can fine-tune how they feel. Open the rul
 
 KeyPath provides a slider to adjust the tap-hold threshold:
 
-<!-- screenshot: id="hrm-typing-feel-slider" method="snapshot" view="RuleSettingsView" state="rule:home-row-mods,slider:200ms" -->
+<!-- screenshot: id="hrm-typing-feel-slider" method="snapshot" view="HomeRowTimingSection" state="slider:200ms" -->
 Screenshot — Typing Feel slider in rule settings:
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -89,7 +89,7 @@ Screenshot — Typing Feel slider in rule settings:
 
 Pinkies are slower than index fingers. KeyPath lets you add extra tolerance for slower fingers to prevent accidental holds:
 
-<!-- screenshot: id="hrm-per-finger-sliders" method="snapshot" view="RuleSettingsView" state="rule:home-row-mods,per-finger:visible" -->
+<!-- screenshot: id="hrm-per-finger-sliders" method="snapshot" view="HomeRowTimingSection" state="per-finger:visible" -->
 Screenshot — Per-finger sensitivity sliders:
 ```
   ┌─────────────────────────────────────────────────────┐

@@ -31,7 +31,7 @@ The fastest way to start launching apps from your keyboard:
 5. Click a key on the keyboard overlay to assign it
 6. Done — hold Caps Lock (Hyper) + press that key to launch
 
-<!-- screenshot: id="action-uri-overlay-header" method="snapshot" view="LiveKeyboardOverlayView" state="service:running,layer:base,inspector:collapsed" -->
+<!-- screenshot: id="action-uri-overlay-header" method="snapshot" view="OverlayDragHeader" state="service:running,layer:base,inspector:collapsed" -->
 Screenshot — Overlay header bar with inspector controls:
 ```
   ┌─────────────────────────────────────────────────────────┐
@@ -41,7 +41,7 @@ Screenshot — Overlay header bar with inspector controls:
   └─────────────────────────────────────────────────────────┘
 ```
 
-<!-- screenshot: id="action-uri-inspector-toolbar" method="snapshot" view="InspectorPanelView" state="tab:launchers,settings:visible" -->
+<!-- screenshot: id="action-uri-inspector-toolbar" method="snapshot" view="OverlayInspectorPanel" state="tab:launchers,settings:visible" -->
 Screenshot — Inspector panel toolbar (tap the gear to toggle settings tabs):
 ```
   ┌─────────────────────────────────────────────────────────┐
@@ -55,7 +55,7 @@ Screenshot — Inspector panel toolbar (tap the gear to toggle settings tabs):
   └─────────────────────────────────────────────────────────┘
 ```
 
-<!-- screenshot: id="action-uri-launchers-tab" method="snapshot" view="LaunchersTabView" state="shortcuts:populated" -->
+<!-- screenshot: id="action-uri-launchers-tab" method="snapshot" view="OverlayLaunchersSection" state="shortcuts:populated" -->
 Screenshot — Launchers tab with shortcut list:
 ```
   ┌─────────────────────────────────────────────────────────┐
@@ -133,7 +133,7 @@ Each row shows the key badge, the app/URL icon, and the target name. Click any r
 
 KeyPath offers two ways to trigger your launcher bindings. You can change this in the Launchers tab settings.
 
-<!-- screenshot: id="action-uri-activation-mode" method="snapshot" view="LaunchersTabView" state="settings:activation-picker" -->
+<!-- screenshot: id="action-uri-activation-mode" method="snapshot" view="OverlayInspectorPanel" state="tab:launchers,customize:activation-picker" -->
 Screenshot — Activation mode picker (in Launchers tab settings):
 ```
   ┌─────────────────────────────────────────────┐

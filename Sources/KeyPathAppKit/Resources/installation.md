@@ -241,7 +241,7 @@ The wizard shows a live status indicator:
 
 After the wizard completes and returns to the **Setup Overview** with all green checkmarks, look at the overlay in the bottom-center of your screen:
 
-<!-- screenshot: id="install-overlay-health-green" method="snapshot" view="LiveKeyboardOverlayView" state="service:running,health:green" -->
+<!-- screenshot: id="install-overlay-health-green" method="snapshot" view="OverlayDragHeader" state="service:running,health:green" -->
 Screenshot — Overlay header with green health indicator:
 ```
   ┌──────────────────────────────────────────────┐

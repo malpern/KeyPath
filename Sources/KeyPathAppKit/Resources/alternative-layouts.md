@@ -179,7 +179,7 @@ Changing your keyboard overlay to a different layout takes two clicks:
 3. Click the **Keymap** tab
 4. Click any layout card — the overlay updates instantly
 
-<!-- screenshot: id="alt-layouts-settings-toolbar" method="snapshot" view="InspectorPanelView" state="settings:visible,tab:keymap" -->
+<!-- screenshot: id="alt-layouts-settings-toolbar" method="snapshot" view="OverlayInspectorPanel" state="tab:keymaps,settings:visible" -->
 Screenshot — Settings toolbar (after clicking the gear):
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -190,7 +190,7 @@ Screenshot — Settings toolbar (after clicking the gear):
   └─────────────────────────────────────────────────────┘
 ```
 
-<!-- screenshot: id="alt-layouts-keymap-picker" method="snapshot" view="KeymapPickerView" state="selected:qwerty" -->
+<!-- screenshot: id="alt-layouts-keymap-picker" method="snapshot" view="OverlayInspectorPanel" state="tab:keymaps,selected:qwerty" -->
 Screenshot — Keymap picker (2-column grid of layout cards):
 ```
   ┌─────────────────────────────────────────────────────┐

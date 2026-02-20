@@ -27,7 +27,7 @@ The fix: **make Caps Lock send Escape instead.**
 
 This is a **remap** — making one key behave as another. It's the simplest thing you can do, and it takes about ten seconds in KeyPath.
 
-<!-- screenshot: id="concepts-new-rule-dialog" method="snapshot" view="RuleEditorView" state="start:caps_lock,finish:escape,hold:disabled" -->
+<!-- screenshot: id="concepts-new-rule-dialog" method="snapshot" view="CustomRulesInlineEditor" state="start:caps_lock,finish:escape,hold:disabled" -->
 Screenshot — Creating a simple remap in the Custom Rules tab:
 ```
   ┌─────────────────────────────────────────────────────┐

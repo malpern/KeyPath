@@ -61,7 +61,7 @@ Here's how Karabiner concepts translate to KeyPath:
 
 **In KeyPath:** Go to the **Custom Rules** tab, click **New Rule**, select an app, and add your mappings. KeyPath switches layers automatically when you switch apps — no manual toggling needed. See the [Window Management guide](help:window-management).
 
-<!-- screenshot: id="karabiner-custom-rules-comparison" method="snapshot" view="CustomRulesTabView" state="rules:populated,global:expanded,app:safari" -->
+<!-- screenshot: id="karabiner-custom-rules-comparison" method="snapshot" view="OverlayInspectorPanel" state="tab:customRules,rules:populated,global:expanded,app:safari" -->
 Screenshot — Custom Rules tab (what you'll see instead of JSON):
 ```
   ┌─────────────────────────────────────────────────────┐

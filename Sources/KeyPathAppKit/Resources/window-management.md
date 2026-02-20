@@ -24,7 +24,7 @@ Create different keyboard layouts for different apps. For example:
 5. Add key mappings for that app (e.g., `H` → `Left Arrow`)
 6. Click **Save**
 
-<!-- screenshot: id="window-mgmt-custom-rules" method="snapshot" view="CustomRulesTabView" state="rules:app-specific,apps:safari+terminal" -->
+<!-- screenshot: id="window-mgmt-custom-rules" method="snapshot" view="OverlayInspectorPanel" state="tab:customRules,rules:app-specific,apps:safari+terminal" -->
 Screenshot — Custom Rules tab showing app-specific rule cards:
 ```
   ┌─────────────────────────────────────────────────────┐

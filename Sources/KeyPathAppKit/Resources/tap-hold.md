@@ -27,7 +27,7 @@ If you're new to these ideas, start with the [Keyboard Concepts](help:concepts) 
 6. Choose hold behavior
 7. Save
 
-<!-- screenshot: id="tap-hold-custom-rules-tab" method="snapshot" view="CustomRulesTabView" state="rules:populated,global:expanded,app:safari" -->
+<!-- screenshot: id="tap-hold-custom-rules-tab" method="snapshot" view="OverlayInspectorPanel" state="tab:customRules,rules:populated,global:expanded,app:safari" -->
 Screenshot — Custom Rules tab with new rule form:
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -54,7 +54,7 @@ Screenshot — Custom Rules tab with new rule form:
   └─────────────────────────────────────────────────────┘
 ```
 
-<!-- screenshot: id="tap-hold-rule-editor" method="snapshot" view="RuleEditorView" state="hold:enabled,behavior:basic,tap-timeout:200,hold-timeout:200" -->
+<!-- screenshot: id="tap-hold-rule-editor" method="snapshot" view="CustomRulesInlineEditor" state="hold:enabled,behavior:basic,tap-timeout:200,hold-timeout:200" -->
 Screenshot — Rule editor with hold behavior options:
 ```
   ┌─────────────────────────────────────────────────────┐
