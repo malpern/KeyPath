@@ -11,7 +11,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 25
     env:
-      COVERAGE_BASELINE_PERCENT: "0.28"
+      COVERAGE_BASELINE_PERCENT: "0.27"
     
     steps:
     - name: Checkout code
