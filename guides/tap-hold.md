@@ -2,6 +2,8 @@
 layout: default
 title: "One Key, Multiple Actions"
 description: "Advanced key behaviors with tap-hold and tap-dance support"
+theme: parchment
+header_image: header-tap-hold.png
 ---
 
 

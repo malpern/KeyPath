@@ -2,6 +2,8 @@
 layout: default
 title: "Tips for Existing Kanata Users"
 description: "Use your existing Kanata config.kbd in KeyPath"
+theme: parchment
+header_image: header-kanata-users.png
 ---
 
 

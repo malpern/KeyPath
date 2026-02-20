@@ -2,6 +2,8 @@
 layout: default
 title: "Shortcuts Without Reaching"
 description: "Turn your home row keys into modifiers — the most popular advanced keyboard technique"
+theme: parchment
+header_image: header-home-row-mods.png
 ---
 
 

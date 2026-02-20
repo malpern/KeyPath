@@ -5,6 +5,7 @@ description: Guides and references for KeyPath keyboard remapping on macOS
 hide_sidebar: true
 content_class: content-full docs-landing
 permalink: /docs
+theme: parchment
 ---
 
 <div class="docs-hero">
@@ -18,15 +19,19 @@ permalink: /docs
   </div>
   <div class="docs-hero-visual">
     <div class="docs-hero-keyboard">
-      <div class="hero-key">A<span>⇧</span></div>
-      <div class="hero-key">S<span>⌃</span></div>
-      <div class="hero-key">D<span>⌥</span></div>
-      <div class="hero-key">F<span>⌘</span></div>
+      <div class="hero-hand">
+        <div class="hero-key">A<span>⇧</span></div>
+        <div class="hero-key">S<span>⌃</span></div>
+        <div class="hero-key">D<span>⌥</span></div>
+        <div class="hero-key">F<span>⌘</span></div>
+      </div>
       <div class="hero-key-gap"></div>
-      <div class="hero-key">J<span>⌘</span></div>
-      <div class="hero-key">K<span>⌥</span></div>
-      <div class="hero-key">L<span>⌃</span></div>
-      <div class="hero-key">;<span>⇧</span></div>
+      <div class="hero-hand">
+        <div class="hero-key">J<span>⌘</span></div>
+        <div class="hero-key">K<span>⌥</span></div>
+        <div class="hero-key">L<span>⌃</span></div>
+        <div class="hero-key">;<span>⇧</span></div>
+      </div>
     </div>
     <p class="docs-hero-caption">Tap for letters. Hold for modifiers. Your fingers never leave home.</p>
   </div>
@@ -63,8 +68,6 @@ permalink: /docs
 <ul class="docs-card-links">
 <li><a href="{{ '/guides/action-uri-reference' | relative_url }}">Action URI Reference</a></li>
 <li><a href="{{ '/guides/privacy' | relative_url }}">Privacy & Permissions</a></li>
-<li><a href="{{ '/guides/debugging' | relative_url }}">Debugging</a></li>
-<li><a href="{{ '/faq' | relative_url }}">FAQ</a></li>
 </ul>
 </div>
 
