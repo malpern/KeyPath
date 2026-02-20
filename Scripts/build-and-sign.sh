@@ -413,3 +413,31 @@ if pgrep -x "KeyPath" > /dev/null; then
 else
     echo "   ⚠️  WARNING: KeyPath may not have started. Run manually: open $APP_DEST" >&2
 fi
+
+# ─────────────────────────────────────────────────────────────────────
+# Publish help content to website
+# ─────────────────────────────────────────────────────────────────────
+
+GHPAGES_DIR="$SCRIPT_DIR/../.worktrees/gh-pages"
+if [ -d "$GHPAGES_DIR" ] && [ "${SKIP_WEBSITE:-0}" != "1" ]; then
+    echo ""
+    echo "🌐 Publishing help content to website..."
+    "$SCRIPT_DIR/publish-help-to-web.sh"
+
+    echo ""
+    echo "🌐 Committing and pushing gh-pages..."
+    cd "$GHPAGES_DIR"
+    if git diff --quiet && git diff --cached --quiet; then
+        echo "   No website changes to commit"
+    else
+        git add -A
+        git commit -m "Sync help docs from app ($(date '+%Y-%m-%d'))"
+        git push origin gh-pages
+        echo "   ✅ Website published"
+    fi
+    cd "$SCRIPT_DIR/.."
+else
+    if [ "${SKIP_WEBSITE:-0}" = "1" ]; then
+        echo "⏭️  Skipping website publish (SKIP_WEBSITE=1)"
+    fi
+fi
