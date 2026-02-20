@@ -13,8 +13,42 @@
     --heading: #4a3728;
     --accent: #c49a6c;
 }
-/* Always use light parchment — warm watercolor aesthetic
-   works best on the light background regardless of system appearance. */
+/* Dark mode: warm, muted palette that complements the watercolor aesthetic.
+   Feels like reading by candlelight — not a cold inversion. */
+body.dark {
+    --text: #d4c8b8;
+    --text-secondary: #b0a090;
+    --bg: #2a2420;
+    --code-bg: rgba(200, 170, 130, 0.1);
+    --border: rgba(200, 170, 130, 0.15);
+    --link: #c49a6c;
+    --link-hover: #ddb07a;
+    --table-header-bg: rgba(200, 170, 130, 0.06);
+    --heading: #e0d0c0;
+    --accent: #9a7a5a;
+}
+body.dark .callout-warning {
+    background: rgba(217, 155, 40, 0.12);
+    border-left-color: #b8860b;
+    color: #e0c070;
+}
+body.dark .callout-tip {
+    background: rgba(40, 140, 180, 0.12);
+    border-left-color: #3a9ab8;
+    color: #80c8d8;
+}
+body.dark .decor-img {
+    mix-blend-mode: screen;
+    opacity: 0.7;
+}
+body.dark .decor-end-img {
+    mix-blend-mode: screen;
+    opacity: 0.6;
+}
+body.dark .help-img {
+    opacity: 0.9;
+}
+
 body {
     font-family: "Charter", "Georgia", "Times New Roman", serif;
     font-size: 16px;
