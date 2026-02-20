@@ -8079,40 +8079,12 @@ a.button:active {
     font-weight: 600;
 }
 
-/* --- Docs hero — parchment version --- */
-.parchment-theme .docs-hero {
-    background: linear-gradient(145deg, #f5efe6 0%, #ebe3d5 50%, #f0e8dc 100%);
-    border: 1px solid rgba(139, 109, 75, 0.15);
-    position: relative;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
-}
-
-.parchment-theme .docs-hero::before {
-    content: none; /* No overlay — clean parchment surface */
-}
-
-.parchment-theme .docs-hero-content h1 {
-    color: #4a3728;
-    font-family: 'Lora', 'Georgia', serif;
-}
-
-.parchment-theme .docs-hero-subtitle {
-    color: #6b5d52;
-}
-
-.parchment-theme .docs-hero-caption {
-    color: #8a7b6e;
-}
-
-.parchment-theme .docs-hero-keyboard {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 8px;
-}
-
-.hero-hand {
+/* --- Docs landing CTA buttons --- */
+.parchment-theme .docs-hero-cta {
     display: flex;
-    gap: 6px;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-2xl);
 }
 
 .parchment-theme .content a.docs-cta-primary,
@@ -8171,40 +8143,18 @@ a.button:active {
     color: #6b4226;
 }
 
-/* --- Hero keyboard keys warm tones --- */
-.parchment-theme .hero-key {
-    background: rgba(139, 109, 75, 0.08);
-    border-color: rgba(139, 109, 75, 0.2);
-    color: #4a3728;
-    flex-shrink: 0;
-}
-
-.parchment-theme .hero-key:hover {
-    background: rgba(139, 109, 75, 0.18);
-}
-
-.parchment-theme .hero-key span {
-    color: #8b5e3c;
-}
-
 /* --- Article header image (watercolor banner) --- */
 .article-header-image {
     margin: 0 0 2rem 0;
-    overflow: hidden;
     border-radius: 8px;
-    background: #f5efe6;
-    /* isolation: isolate removed — blend mode also removed (Safari compat) */
 }
 
 .article-header-img {
     width: 100%;
     height: auto;
-    max-height: 240px;
-    object-fit: cover;
     display: block;
-    /* No mix-blend-mode — Safari leaks multiply to sibling elements,
-       making all content below the image invisible. The watercolor
-       images render well on parchment background without blending. */
+    /* No max-height/object-fit — watercolor illustrations have text
+       and artwork that gets cropped. Show at natural aspect ratio. */
 }
 
 /* --- HR as watercolor divider --- */
@@ -8223,7 +8173,6 @@ a.button:active {
     height: 36px;
     margin: 0 auto;
     background: url('../../images/help/decor-divider.png') center/contain no-repeat;
-    opacity: 0.6; /* Soften divider; no mix-blend-mode (Safari compat) */
 }
 
 /* --- Copy button warm styling --- */
