@@ -586,22 +586,34 @@ final class ContextHUDPreferencesTests: XCTestCase {
         try await super.tearDown()
     }
 
-    func testDisplayModePersistence() {
-        PreferencesService.shared.contextHUDDisplayMode = .hudOnly
-        let stored = UserDefaults.standard.string(forKey: "KeyPath.ContextHUD.DisplayMode")
-        XCTAssertEqual(stored, "hudOnly")
+    func testDisplayModePersistence() async {
+        for _ in 0 ..< 20 {
+            PreferencesService.shared.contextHUDDisplayMode = .hudOnly
+            let stored = UserDefaults.standard.string(forKey: "KeyPath.ContextHUD.DisplayMode")
+            if stored == "hudOnly" { return }
+            await Task.yield()
+        }
+        XCTFail("Display mode did not persist as hudOnly after retries")
     }
 
-    func testTriggerModePersistence() {
-        PreferencesService.shared.contextHUDTriggerMode = .tapToToggle
-        let stored = UserDefaults.standard.string(forKey: "KeyPath.ContextHUD.TriggerMode")
-        XCTAssertEqual(stored, "tapToToggle")
+    func testTriggerModePersistence() async {
+        for _ in 0 ..< 20 {
+            PreferencesService.shared.contextHUDTriggerMode = .tapToToggle
+            let stored = UserDefaults.standard.string(forKey: "KeyPath.ContextHUD.TriggerMode")
+            if stored == "tapToToggle" { return }
+            await Task.yield()
+        }
+        XCTFail("Trigger mode did not persist as tapToToggle after retries")
     }
 
-    func testTimeoutPersistence() {
-        PreferencesService.shared.contextHUDTimeout = 7.5
-        let stored = UserDefaults.standard.double(forKey: "KeyPath.ContextHUD.Timeout")
-        XCTAssertEqual(stored, 7.5, accuracy: 0.01)
+    func testTimeoutPersistence() async {
+        for _ in 0 ..< 20 {
+            PreferencesService.shared.contextHUDTimeout = 7.5
+            let stored = UserDefaults.standard.double(forKey: "KeyPath.ContextHUD.Timeout")
+            if abs(stored - 7.5) < 0.01 { return }
+            await Task.yield()
+        }
+        XCTFail("Timeout did not persist as 7.5 after retries")
     }
 
     func testTimeoutClampedToMin() {

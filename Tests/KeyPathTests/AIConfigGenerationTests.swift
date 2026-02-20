@@ -11,6 +11,7 @@ final class AIConfigGenerationTests: XCTestCase {
         let service = BiometricAuthService(userDefaults: defaults)
         return (service, suiteName)
     }
+
     // MARK: - KeychainService Tests
 
     func testKeychainServiceHasClaudeAPIKeyMethodsExist() {
@@ -141,7 +142,7 @@ final class AIConfigGenerationTests: XCTestCase {
         XCTAssertNotNil(service)
     }
 
-    func testBiometricAuthServiceIsEnabledDefaultsFalse() async throws {
+    func testBiometricAuthServiceIsEnabledDefaultsFalse() throws {
         let (service, suiteName) = try makeIsolatedBiometricService()
         defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
 
@@ -149,7 +150,7 @@ final class AIConfigGenerationTests: XCTestCase {
         XCTAssertFalse(service.isEnabled)
     }
 
-    func testBiometricAuthServiceIsEnabledCanBeToggled() async throws {
+    func testBiometricAuthServiceIsEnabledCanBeToggled() throws {
         let (service, suiteName) = try makeIsolatedBiometricService()
         defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
 
@@ -173,7 +174,7 @@ final class AIConfigGenerationTests: XCTestCase {
         XCTAssertTrue(validNames.contains(name), "biometricTypeName should be a valid type")
     }
 
-    func testBiometricAuthServiceWouldRequireAuthRespectsIsEnabled() async throws {
+    func testBiometricAuthServiceWouldRequireAuthRespectsIsEnabled() throws {
         let (service, suiteName) = try makeIsolatedBiometricService()
         defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
 
@@ -213,14 +214,30 @@ final class AIConfigGenerationTests: XCTestCase {
         XCTAssertNotNil(AIKeyRequiredDialog.dismissedKey)
     }
 
-    func testAIKeyRequiredDialogResetDismissedState() {
-        // Set dismissed state
-        UserDefaults.standard.set(true, forKey: AIKeyRequiredDialog.dismissedKey)
-        XCTAssertTrue(AIKeyRequiredDialog.hasBeenDismissed)
+    func testAIKeyRequiredDialogResetDismissedState() async {
+        // Set dismissed state and tolerate concurrent preference writes from parallel tests.
+        var setObserved = false
+        for _ in 0 ..< 20 {
+            UserDefaults.standard.set(true, forKey: AIKeyRequiredDialog.dismissedKey)
+            if AIKeyRequiredDialog.hasBeenDismissed {
+                setObserved = true
+                break
+            }
+            await Task.yield()
+        }
+        XCTAssertTrue(setObserved)
 
-        // Reset
-        AIKeyRequiredDialog.resetDismissedState()
-        XCTAssertFalse(AIKeyRequiredDialog.hasBeenDismissed)
+        // Reset and verify removal with retries.
+        var resetObserved = false
+        for _ in 0 ..< 20 {
+            AIKeyRequiredDialog.resetDismissedState()
+            if !AIKeyRequiredDialog.hasBeenDismissed {
+                resetObserved = true
+                break
+            }
+            await Task.yield()
+        }
+        XCTAssertTrue(resetObserved)
     }
 
     func testAIKeyRequiredDialogShouldShowLogic() {

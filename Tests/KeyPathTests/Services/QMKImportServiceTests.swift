@@ -3,21 +3,27 @@ import Foundation
 import KeyPathCore
 import XCTest
 
+@MainActor
 final class QMKImportServiceTests: XCTestCase {
     var service: QMKImportService!
     var testUserDefaults: UserDefaults!
+    var testSuiteName: String!
 
-    override func setUp() {
-        super.setUp()
-        service = QMKImportService.shared
-        // Clear any existing custom layouts from standard UserDefaults
-        UserDefaults.standard.removeObject(forKey: CustomLayoutStore.userDefaultsKey)
+    override func setUp() async throws {
+        try await super.setUp()
+        testSuiteName = "KeyPath.QMKImportServiceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: testSuiteName)
+        defaults?.removePersistentDomain(forName: testSuiteName)
+        testUserDefaults = defaults
+        service = QMKImportService(userDefaultsSuiteName: testSuiteName)
     }
 
-    override func tearDown() {
-        // Clean up after each test
-        UserDefaults.standard.removeObject(forKey: CustomLayoutStore.userDefaultsKey)
-        super.tearDown()
+    override func tearDown() async throws {
+        testUserDefaults?.removePersistentDomain(forName: testSuiteName)
+        testUserDefaults = nil
+        testSuiteName = nil
+        service = nil
+        try await super.tearDown()
     }
 
     // MARK: - Test Data

@@ -8,8 +8,8 @@ struct CustomLayoutStore: Codable {
     static let userDefaultsKey = "customKeyboardLayouts"
 
     /// Load custom layouts from UserDefaults
-    static func load() -> CustomLayoutStore {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey),
+    static func load(from userDefaults: UserDefaults = .standard) -> CustomLayoutStore {
+        guard let data = userDefaults.data(forKey: userDefaultsKey),
               let store = try? JSONDecoder().decode(CustomLayoutStore.self, from: data)
         else {
             return CustomLayoutStore(layouts: [])
@@ -18,12 +18,12 @@ struct CustomLayoutStore: Codable {
     }
 
     /// Save custom layouts to UserDefaults
-    func save() {
+    func save(to userDefaults: UserDefaults = .standard) {
         guard let data = try? JSONEncoder().encode(self) else {
             AppLogger.shared.error("🔧 [CustomLayoutStore] Failed to encode custom layouts")
             return
         }
-        UserDefaults.standard.set(data, forKey: Self.userDefaultsKey)
+        userDefaults.set(data, forKey: Self.userDefaultsKey)
     }
 }
 

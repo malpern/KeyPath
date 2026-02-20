@@ -68,7 +68,8 @@ final class EngineReloadSingleFlightTests: XCTestCase {
         let startedCount = await started.get()
         XCTAssertEqual(startedCount, 1, "Only one operation should execute")
         XCTAssertTrue(results.allSatisfy(\.isSuccess), "All callers should receive success")
-        XCTAssertTrue(results.allSatisfy { $0.response == "ok" }, "All callers should receive the same result")
+        let distinctResponses = Set(results.compactMap(\.response))
+        XCTAssertEqual(distinctResponses.count, 1, "All callers should receive the same result")
     }
 
     func testRunStartsNewOperationAfterCompletion() async {

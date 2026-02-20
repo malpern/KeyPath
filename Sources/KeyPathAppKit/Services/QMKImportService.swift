@@ -4,8 +4,16 @@ import KeyPathCore
 /// Service for importing QMK keyboard layouts from URLs or files
 actor QMKImportService {
     static let shared = QMKImportService()
+    private let userDefaultsSuiteName: String?
 
-    private init() {}
+    init(userDefaultsSuiteName: String? = nil) {
+        self.userDefaultsSuiteName = userDefaultsSuiteName
+    }
+
+    private var userDefaults: UserDefaults {
+        guard let userDefaultsSuiteName else { return .standard }
+        return UserDefaults(suiteName: userDefaultsSuiteName) ?? .standard
+    }
 
     /// Import a QMK layout from a URL
     /// - Parameters:
@@ -130,7 +138,7 @@ actor QMKImportService {
         layoutJSON: Data,
         layoutVariant: String?
     ) {
-        var store = CustomLayoutStore.load()
+        var store = CustomLayoutStore.load(from: userDefaults)
 
         // Ensure unique name
         let existingNames = Set(store.layouts.map(\.name))
@@ -155,7 +163,7 @@ actor QMKImportService {
         )
 
         store.layouts.append(storedLayout)
-        store.save()
+        store.save(to: userDefaults)
 
         // Invalidate cache so UI refreshes
         PhysicalLayout.invalidateCustomLayoutCache()
@@ -164,7 +172,7 @@ actor QMKImportService {
     /// Load all custom layouts from storage
     /// - Returns: Array of PhysicalLayout objects reconstructed from stored data
     func loadCustomLayouts() -> [PhysicalLayout] {
-        let store = CustomLayoutStore.load()
+        let store = CustomLayoutStore.load(from: userDefaults)
 
         return store.layouts.compactMap { storedLayout in
             // Determine keycode mapping type from variant
@@ -199,9 +207,9 @@ actor QMKImportService {
     /// Delete a custom layout
     /// - Parameter layoutId: ID of the layout to delete
     func deleteCustomLayout(layoutId: String) {
-        var store = CustomLayoutStore.load()
+        var store = CustomLayoutStore.load(from: userDefaults)
         store.layouts.removeAll { $0.id == layoutId }
-        store.save()
+        store.save(to: userDefaults)
 
         // Invalidate cache so UI refreshes
         PhysicalLayout.invalidateCustomLayoutCache()
