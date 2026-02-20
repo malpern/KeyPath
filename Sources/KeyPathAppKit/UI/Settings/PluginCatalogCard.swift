@@ -1,3 +1,4 @@
+import AppKit
 import KeyPathCore
 import KeyPathPluginKit
 import SwiftUI
@@ -104,6 +105,18 @@ struct PluginCatalogCard: View {
     }
 }
 
+/// Wraps an `NSViewController` (from a plugin's `makeSettingsViewController()`)
+/// for embedding in SwiftUI.
+struct PluginSettingsViewWrapper: NSViewControllerRepresentable {
+    let plugin: any KeyPathPlugin
+
+    func makeNSViewController(context _: Context) -> NSViewController {
+        plugin.makeSettingsViewController()
+    }
+
+    func updateNSViewController(_: NSViewController, context _: Context) {}
+}
+
 /// Shows a loaded plugin's settings view with an installed badge and remove option.
 struct InstalledPluginCard: View {
     let plugin: any KeyPathPlugin
@@ -123,8 +136,8 @@ struct InstalledPluginCard: View {
                 Spacer()
             }
 
-            // Plugin's own settings view
-            plugin.settingsView()
+            // Plugin's own settings view (via NSViewControllerRepresentable)
+            PluginSettingsViewWrapper(plugin: plugin)
 
             Divider()
 
@@ -142,9 +155,7 @@ struct InstalledPluginCard: View {
         .alert("Remove Plugin?", isPresented: $showRemoveConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Remove", role: .destructive) {
-                Task {
-                    _ = await PluginManager.shared.removePlugin(identifier: type(of: plugin).identifier)
-                }
+                _ = PluginManager.shared.removePlugin(identifier: type(of: plugin).identifier)
             }
         } message: {
             Text("This will remove \(type(of: plugin).displayName) and delete its bundle. Your logged data will be preserved.")

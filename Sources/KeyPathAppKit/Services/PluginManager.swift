@@ -144,11 +144,9 @@ public final class PluginManager {
         let displayName = type(of: plugin).displayName
         AppLogger.shared.info("🔌 [PluginManager] Loaded plugin: \(displayName) (\(identifier))")
 
-        // Activate asynchronously
-        Task {
-            await plugin.activate()
-            AppLogger.shared.info("🔌 [PluginManager] Activated plugin: \(displayName)")
-        }
+        // Activate synchronously (plugin dispatches async work internally)
+        plugin.activate()
+        AppLogger.shared.info("🔌 [PluginManager] Activated plugin: \(displayName)")
 
         // Remove from available catalog
         availablePlugins.removeAll { $0.id == identifier }
@@ -159,7 +157,7 @@ public final class PluginManager {
     /// Forward an action event to all loaded plugins.
     public func broadcastActionEvent(action: String, target: String?, uri: String) {
         for plugin in plugins {
-            plugin.didReceiveActionEvent(action: action, target: target, uri: uri)
+            plugin.didReceiveActionEvent?(action: action, target: target, uri: uri)
         }
     }
 
@@ -236,7 +234,7 @@ public final class PluginManager {
     }
 
     /// Removes a plugin by its identifier: deactivates, deletes bundle from disk.
-    public func removePlugin(identifier: String) async -> Bool {
+    public func removePlugin(identifier: String) -> Bool {
         guard let index = plugins.firstIndex(where: { type(of: $0).identifier == identifier }) else {
             AppLogger.shared.warn("🔌 [PluginManager] Cannot remove unknown plugin: \(identifier)")
             return false
@@ -246,7 +244,7 @@ public final class PluginManager {
         let displayName = type(of: plugin).displayName
 
         // Deactivate
-        await plugin.deactivate()
+        plugin.deactivate?()
 
         plugins.remove(at: index)
 

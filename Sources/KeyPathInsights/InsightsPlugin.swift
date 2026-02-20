@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import KeyPathPluginKit
 import SwiftUI
@@ -14,21 +15,30 @@ public class InsightsPlugin: NSObject, KeyPathPlugin {
     public static let identifier = "com.keypath.insights"
     public static let displayName = "Activity Insights"
 
-    public func settingsView() -> AnyView {
-        AnyView(ActivityLoggingSettingsSection())
-    }
-
-    public func activate() async {
-        if InsightsPreferences.activityLoggingEnabled {
-            await ActivityLogger.shared.enable()
+    public func makeSettingsViewController() -> NSViewController {
+        // Always called from the main thread (UI layer), safe to assume MainActor
+        MainActor.assumeIsolated {
+            NSHostingController(rootView: ActivityLoggingSettingsSection())
         }
     }
 
-    public func deactivate() async {
-        await ActivityLogger.shared.disable()
+    public func activate() {
+        Task { @MainActor in
+            if InsightsPreferences.activityLoggingEnabled {
+                await ActivityLogger.shared.enable()
+            }
+        }
+    }
+
+    public func deactivate() {
+        Task { @MainActor in
+            await ActivityLogger.shared.disable()
+        }
     }
 
     public func didReceiveActionEvent(action: String, target: String?, uri: String) {
-        ActivityLogger.shared.recordKeyPathAction(action: action, target: target, uri: uri)
+        Task { @MainActor in
+            ActivityLogger.shared.recordKeyPathAction(action: action, target: target, uri: uri)
+        }
     }
 }

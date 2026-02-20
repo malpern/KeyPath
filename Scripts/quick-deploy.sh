@@ -120,7 +120,7 @@ echo "🔨 Building..."
 BUILD_LOG=$(mktemp -t keypath-build.XXXXXX)
 # NOTE: `swift build --show-bin-path` does not reliably trigger a rebuild.
 # Always build first, then query the bin dir.
-if ! swift build --product KeyPath "${MODULE_CACHE_FLAGS[@]}" 2> "$BUILD_LOG"; then
+if ! swift build --product KeyPath --product KeyPathInsights "${MODULE_CACHE_FLAGS[@]}" 2> "$BUILD_LOG"; then
     BUILD_END_MS=$(get_time_ms)
     DURATION=$((BUILD_END_MS - BUILD_START_MS))
     echo "❌ Build failed"
@@ -157,17 +157,16 @@ else
     cp -R "$PROJECT_DIR/Sources/KeyPathApp/Resources/." "$RESOURCES_DIR/"
 fi
 
+# Sync SwiftPM resource bundles (e.g. KeyPath_KeyPathAppKit.bundle) so that
+# newly added images, markdown docs, etc. appear without a full ./build.sh.
+for bundle in "$BIN_DIR"/KeyPath_*.bundle; do
+    [[ -d "$bundle" ]] || continue
+    rsync -a "$bundle" "$RESOURCES_DIR/"
+done
+
 # Add the missing rpath for Sparkle framework (debug builds don't have this)
 if ! otool -l "$MACOS_DIR/$APP_NAME" | grep -q "@executable_path/../Frameworks"; then
     install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/$APP_NAME" 2>/dev/null || true
-fi
-
-# Sync KeyPathPluginKit dylib to Frameworks
-FRAMEWORKS_DIR="$APP_BUNDLE/Contents/Frameworks"
-PLUGINKIT_DYLIB="$BIN_DIR/libKeyPathPluginKit.dylib"
-if [[ -f "$PLUGINKIT_DYLIB" ]]; then
-    mkdir -p "$FRAMEWORKS_DIR"
-    cp "$PLUGINKIT_DYLIB" "$FRAMEWORKS_DIR/libKeyPathPluginKit.dylib"
 fi
 
 # Assemble and sync Insights.bundle to PlugIns
@@ -177,10 +176,6 @@ if [[ -f "$INSIGHTS_DYLIB" ]]; then
     mkdir -p "$INSIGHTS_BUNDLE"
     cp "$INSIGHTS_DYLIB" "$INSIGHTS_BUNDLE/libKeyPathInsights"
     cp "$PROJECT_DIR/Sources/KeyPathInsights/Info.plist" "$APP_BUNDLE/Contents/PlugIns/Insights.bundle/Contents/Info.plist"
-    # Fix rpath so plugin can find KeyPathPluginKit
-    if ! otool -l "$INSIGHTS_BUNDLE/libKeyPathInsights" 2>/dev/null | grep -q "@loader_path/../../../../Frameworks"; then
-        install_name_tool -add_rpath "@loader_path/../../../../Frameworks" "$INSIGHTS_BUNDLE/libKeyPathInsights" 2>/dev/null || true
-    fi
 fi
 
 # Re-sign with entitlements (prefer Developer ID if available)

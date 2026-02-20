@@ -43,7 +43,6 @@ let package = Package(
         ),
         .library(
             name: "KeyPathPluginKit",
-            type: .dynamic,
             targets: ["KeyPathPluginKit"]
         ),
         .library(
