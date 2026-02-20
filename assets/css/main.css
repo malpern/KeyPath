@@ -8017,25 +8017,50 @@ a.button:active {
 
 /* --- Docs hero — parchment version --- */
 .parchment-theme .docs-hero {
-    background: linear-gradient(180deg, #f5efe6 0%, #faf6f0 100%);
-    border-bottom: 1px solid rgba(139, 109, 75, 0.12);
+    background: #f5efe6;
+    border: 1px solid rgba(139, 109, 75, 0.12);
+    position: relative;
 }
 
-.parchment-theme .docs-hero h1 {
+.parchment-theme .docs-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('../images/help/header-banner.png') center/cover no-repeat;
+    mix-blend-mode: multiply;
+    opacity: 0.35;
+    border-radius: 16px;
+    pointer-events: none;
+}
+
+.parchment-theme .docs-hero-content h1 {
     color: #4a3728;
+    font-family: 'Lora', 'Georgia', serif;
 }
 
 .parchment-theme .docs-hero-subtitle {
     color: #6b5d52;
 }
 
+.parchment-theme .docs-hero-caption {
+    color: #8a7b6e;
+}
+
+.parchment-theme .docs-hero-keyboard {
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
 .parchment-theme .docs-cta-primary {
     background: #8b5e3c;
-    color: #faf6f0;
+    color: #faf6f0 !important;
+    text-decoration: none;
+    border-bottom: none;
 }
 
 .parchment-theme .docs-cta-primary:hover {
     background: #6b4226;
+    color: #faf6f0 !important;
 }
 
 .parchment-theme .docs-cta-secondary {
@@ -8080,6 +8105,11 @@ a.button:active {
     background: rgba(139, 109, 75, 0.08);
     border-color: rgba(139, 109, 75, 0.2);
     color: #4a3728;
+    flex-shrink: 0;
+}
+
+.parchment-theme .hero-key:hover {
+    background: rgba(139, 109, 75, 0.18);
 }
 
 .parchment-theme .hero-key span {
@@ -8088,14 +8118,17 @@ a.button:active {
 
 /* --- Article header image (watercolor banner) --- */
 .article-header-image {
-    margin: -1rem -1rem 2rem -1rem;
+    margin: 0 0 2rem 0;
     overflow: hidden;
-    border-radius: 0 0 8px 8px;
+    border-radius: 8px;
+    background: #f5efe6;
 }
 
 .article-header-img {
     width: 100%;
     height: auto;
+    max-height: 240px;
+    object-fit: cover;
     display: block;
     mix-blend-mode: multiply;
 }
