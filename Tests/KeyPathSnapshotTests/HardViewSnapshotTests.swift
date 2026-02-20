@@ -101,7 +101,7 @@ final class HardViewSnapshotTests: ScreenshotTestCase {
 
     func testInspectorKeymapPicker() {
         let view = MockFactories.inspectorPanel(
-            selectedSection: .keycaps,
+            selectedSection: .keyboard,
             isSettingsShelfActive: true,
             hasCustomRules: false
         )
