@@ -194,7 +194,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
 
         let unified = try XCTUnwrap(manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.homeRowMods })
         let unifiedConfig = try XCTUnwrap(unified.configuration.homeRowModsConfig)
-        XCTAssertEqual(unifiedConfig.holdMode, .layers)
+        XCTAssertEqual(unifiedConfig.holdMode, .modifiers)
         XCTAssertEqual(unifiedConfig.layerToggleMode, .toggle)
         XCTAssertEqual(unifiedConfig.layerAssignments["a"], "nav")
         XCTAssertEqual(unifiedConfig.layerAssignments["s"], "num")
