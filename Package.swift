@@ -229,6 +229,7 @@ let package = Package(
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing")
             ],
             path: "Tests/KeyPathSnapshotTests",
+            exclude: ["__Snapshots__"],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
