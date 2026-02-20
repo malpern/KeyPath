@@ -53,7 +53,9 @@ let package = Package(
     ],
     dependencies: [
         // Sparkle for automatic updates
-        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.8.1")
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.8.1"),
+        // Snapshot testing for visual regression tests
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.17.0")
     ],
     targets: [
         // Core library with shared types/utilities
@@ -216,6 +218,19 @@ let package = Package(
             ],
             linkerSettings: [
                 .linkedFramework("IOKit")
+            ]
+        ),
+        // Visual snapshot tests for help documentation screenshots
+        .testTarget(
+            name: "KeyPathSnapshotTests",
+            dependencies: [
+                "KeyPathAppKit",
+                "KeyPathCore",
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing")
+            ],
+            path: "Tests/KeyPathSnapshotTests",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
             ]
         )
     ]

@@ -13,9 +13,32 @@ struct OverlayLaunchersSection: View {
     /// Callback when customize is tapped (opens slide-over panel)
     var onCustomize: (() -> Void)?
 
-    @State private var store = LauncherStore()
+    @State private var store: LauncherStore
     @State private var showAddSheet = false
     @State private var editingMapping: QuickLaunchMapping?
+
+    init(
+        isDark: Bool,
+        fadeAmount: CGFloat = 0,
+        onMappingHover: ((String?) -> Void)? = nil,
+        onCustomize: (() -> Void)? = nil
+    ) {
+        self.isDark = isDark
+        self.fadeAmount = fadeAmount
+        self.onMappingHover = onMappingHover
+        self.onCustomize = onCustomize
+        _store = State(initialValue: LauncherStore())
+    }
+
+    /// Testing init that accepts pre-populated mappings instead of loading from RuleCollectionStore.
+    init(isDark: Bool, fadeAmount: CGFloat = 0, testMappings: [QuickLaunchMapping]) {
+        self.isDark = isDark
+        self.fadeAmount = fadeAmount
+        self.onMappingHover = nil
+        self.onCustomize = nil
+        let store = LauncherStore(testMappings: testMappings)
+        _store = State(initialValue: store)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

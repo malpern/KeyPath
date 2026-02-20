@@ -12,6 +12,12 @@ final class LauncherStore {
         loadFromRuleCollections()
     }
 
+    /// Testing init that accepts pre-populated mappings without hitting RuleCollectionStore.
+    init(testMappings: [QuickLaunchMapping]) {
+        self.mappings = testMappings
+        self.knownMappingIds = Set(testMappings.map(\.id))
+    }
+
     /// Load mappings from the shared RuleCollectionStore (same source as keyboard view)
     func loadFromRuleCollections() {
         Task { @MainActor in

@@ -266,6 +266,13 @@ jobs:
         }
         echo "✅ All UI elements have accessibility identifiers"
 
+    - name: Screenshot Manifest Validation
+      run: |
+        echo "📸 Validating screenshot manifest against Swift source..."
+        chmod +x ./Scripts/validate-screenshot-manifest.sh
+        ./Scripts/validate-screenshot-manifest.sh
+        echo "✅ Screenshot manifest is in sync"
+
     - name: Critical Pattern Analysis
       run: |
         echo "🔍 Running critical code pattern checks (moved from pre-commit)..."
