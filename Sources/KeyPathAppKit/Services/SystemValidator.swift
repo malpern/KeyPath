@@ -466,7 +466,7 @@ class SystemValidator {
                     "⚠️ [SystemValidator] Karabiner-Elements grabber is running - conflicts with Kanata"
                 )
                 // Get PID for karabiner_grabber
-                if let pid = getKarabinerGrabberPID() {
+                if let pid = await getKarabinerGrabberPID() {
                     allConflicts.append(.karabinerGrabberRunning(pid: pid))
                 }
             }
@@ -483,32 +483,36 @@ class SystemValidator {
         )
     }
 
-    /// Get PID of karabiner_grabber process
-    private func getKarabinerGrabberPID() -> Int? {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-f", "karabiner_grabber"]
+    /// Get PID of karabiner_grabber process.
+    /// Runs pgrep in a detached task to avoid blocking a cooperative thread
+    /// inside the TaskGroup (see ADR-022: no concurrent pgrep).
+    private func getKarabinerGrabberPID() async -> Int? {
+        await Task.detached(priority: .utility) {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+            task.arguments = ["-f", "karabiner_grabber"]
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
+            let pipe = Pipe()
+            task.standardOutput = pipe
 
-        do {
-            try task.run()
-            task.waitUntilExit()
+            do {
+                try task.run()
+                task.waitUntilExit()
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let pidString = output.trimmingCharacters(in: .whitespacesAndNewlines)
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+                let pidString = output.trimmingCharacters(in: .whitespacesAndNewlines)
 
-            if let pid = Int(pidString) {
-                AppLogger.shared.log("🔍 [SystemValidator] Found karabiner_grabber PID: \(pid)")
-                return pid
+                if let pid = Int(pidString) {
+                    AppLogger.shared.log("🔍 [SystemValidator] Found karabiner_grabber PID: \(pid)")
+                    return pid
+                }
+            } catch {
+                AppLogger.shared.log("❌ [SystemValidator] Error getting karabiner_grabber PID: \(error)")
             }
-        } catch {
-            AppLogger.shared.log("❌ [SystemValidator] Error getting karabiner_grabber PID: \(error)")
-        }
 
-        return nil
+            return nil
+        }.value
     }
 
     // MARK: - Health Checking

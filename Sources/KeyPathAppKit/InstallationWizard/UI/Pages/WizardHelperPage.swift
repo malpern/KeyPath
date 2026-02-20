@@ -502,7 +502,7 @@ struct WizardHelperPage: View {
     }
 
     private func checkLoginItemsApprovalNeeded() -> Bool {
-        let svc = ServiceManagement.SMAppService.daemon(plistName: HelperManager.helperPlistName)
+        let svc = HelperManager.smServiceFactory(HelperManager.helperPlistName)
         return svc.status == .requiresApproval
     }
 
@@ -523,10 +523,11 @@ struct WizardHelperPage: View {
     }
 
     private func checkApprovalStatus() async {
-        let svc = ServiceManagement.SMAppService.daemon(plistName: HelperManager.helperPlistName)
+        let svc = HelperManager.smServiceFactory(HelperManager.helperPlistName)
+        let status = svc.status
 
         // If no longer requires approval, check if helper is now healthy
-        if svc.status != .requiresApproval {
+        if status != .requiresApproval {
             let healthy = await HelperManager.shared.testHelperFunctionality()
             if healthy {
                 // Success! Helper is approved and responding
@@ -538,7 +539,7 @@ struct WizardHelperPage: View {
                 helperVersion = await HelperManager.shared.getHelperVersion()
                 scheduleStatusClear()
                 onRefresh() // Trigger parent refresh to update issues
-            } else if svc.status == .enabled {
+            } else if status == .enabled {
                 // Approved but not responding yet - give it a moment
                 needsLoginItemsApproval = false
                 actionStatus = .inProgress(message: "Helper approved, connecting…")

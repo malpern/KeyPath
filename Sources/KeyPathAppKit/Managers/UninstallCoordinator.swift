@@ -219,7 +219,7 @@ final class UninstallCoordinator {
         ]
 
         for plistName in daemonPlists {
-            let service = SMAppService.daemon(plistName: plistName)
+            let service = HelperManager.smServiceFactory(plistName)
             guard service.status == .enabled else {
                 logLines.append("ℹ️ SMAppService \(plistName): not registered, skipping")
                 continue

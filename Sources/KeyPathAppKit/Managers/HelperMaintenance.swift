@@ -161,11 +161,12 @@ final class HelperMaintenance {
             await override()
             return
         }
-        let svc = ServiceManagement.SMAppService.daemon(plistName: HelperManager.helperPlistName)
+        let svc = HelperManager.smServiceFactory(HelperManager.helperPlistName)
+        let status = svc.status
         log(
-            "🔎 SMAppService status: \(svc.status.rawValue) (0=notRegistered,1=enabled,2=requiresApproval,3=notFound)"
+            "🔎 SMAppService status: \(status.rawValue) (0=notRegistered,1=enabled,2=requiresApproval,3=notFound)"
         )
-        if svc.status == .enabled || svc.status == .notRegistered || svc.status == .requiresApproval {
+        if status == .enabled || status == .notRegistered || status == .requiresApproval {
             do {
                 try await svc.unregister()
                 log("✅ SMAppService unregister succeeded")
@@ -173,7 +174,7 @@ final class HelperMaintenance {
                 log("⚠️ SMAppService unregister failed: \(error.localizedDescription)")
             }
         } else {
-            log("ℹ️ SMAppService status=\(svc.status.rawValue) – unregister skipped")
+            log("ℹ️ SMAppService status=\(status.rawValue) – unregister skipped")
         }
     }
 
