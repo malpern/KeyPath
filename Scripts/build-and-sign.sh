@@ -60,9 +60,9 @@ create_sparkle_archive() {
 
     # Get file size
     local SIZE
-    SIZE=$(stat -f%z "${SPARKLE_DIR}/${ARCHIVE_NAME}")
+    SIZE=$(stat -f '%z' "${SPARKLE_DIR}/${ARCHIVE_NAME}" 2>/dev/null || stat --format='%s' "${SPARKLE_DIR}/${ARCHIVE_NAME}" 2>/dev/null || echo "0")
     local PUB_DATE
-    PUB_DATE=$(date -R)
+    PUB_DATE=$(date -R 2>/dev/null || date '+%a, %d %b %Y %T %z')
 
     # Generate appcast entry XML
     echo "📝 Generating appcast entry..."
