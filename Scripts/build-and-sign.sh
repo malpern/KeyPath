@@ -109,10 +109,14 @@ echo "🔐 Building privileged helper..."
 # Build and sign the helper tool
 ./Scripts/build-helper.sh
 
-echo "📸 Regenerating help screenshots..."
-# Regenerate SwiftUI snapshot screenshots so Resources/ has fresh PNGs.
-# Peekaboo captures are skipped in CI (requires app install + permissions).
-SKIP_PEEKABOO="${SKIP_PEEKABOO:-1}" ./Scripts/regenerate-screenshots.sh
+# Screenshot regeneration + website publish only run for full release builds.
+# Skipped when SKIP_NOTARIZE=1 (dev builds via `dd`).
+if [ "${SKIP_NOTARIZE:-}" != "1" ]; then
+    echo "📸 Regenerating help screenshots..."
+    SKIP_PEEKABOO="${SKIP_PEEKABOO:-1}" ./Scripts/regenerate-screenshots.sh
+else
+    echo "⏭️  Skipping screenshot regeneration (dev build)"
+fi
 
 echo "🏗️  Building KeyPath and plugins..."
 # Build main app + insights plugin (KeyPathPluginKit is statically linked, no separate dylib needed)
@@ -419,7 +423,7 @@ fi
 # ─────────────────────────────────────────────────────────────────────
 
 GHPAGES_DIR="$SCRIPT_DIR/../.worktrees/gh-pages"
-if [ -d "$GHPAGES_DIR" ] && [ "${SKIP_WEBSITE:-0}" != "1" ]; then
+if [ -d "$GHPAGES_DIR" ] && [ "${SKIP_WEBSITE:-0}" != "1" ] && [ "${SKIP_NOTARIZE:-}" != "1" ]; then
     echo ""
     echo "🌐 Publishing help content to website..."
     "$SCRIPT_DIR/publish-help-to-web.sh"
