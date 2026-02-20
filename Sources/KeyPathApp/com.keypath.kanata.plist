@@ -43,7 +43,7 @@
     <key>SoftResourceLimits</key>
     <dict>
         <key>NumberOfFiles</key>
-        <integer>256</integer>
+        <integer>1024</integer>
     </dict>
 
     <key>ThrottleInterval</key>

@@ -101,6 +101,7 @@ public final class AppContextService {
         isMonitoring = false
         currentBundleIdentifier = nil
         currentVirtualKey = nil
+        await tcpClient?.cancelInflightAndCloseConnection()
         tcpClient = nil
 
         AppLogger.shared.log("✅ [AppContextService] Stopped")
@@ -219,7 +220,8 @@ public final class AppContextService {
         }
 
         /// For testing: set TCP port after initialization
-        func setTCPPort(_ port: Int) {
+        func setTCPPort(_ port: Int) async {
+            await tcpClient?.cancelInflightAndCloseConnection()
             tcpClient = KanataTCPClient(port: port)
         }
     }

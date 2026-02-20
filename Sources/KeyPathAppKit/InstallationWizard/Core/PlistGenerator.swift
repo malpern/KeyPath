@@ -120,7 +120,7 @@ enum PlistGenerator {
             <key>SoftResourceLimits</key>
             <dict>
                 <key>NumberOfFiles</key>
-                <integer>256</integer>
+                <integer>1024</integer>
             </dict>
             <key>UserName</key>
             <string>root</string>
