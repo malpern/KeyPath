@@ -7885,12 +7885,76 @@ a.button:active {
 
 .parchment-theme .site-footer {
     background: #f0e8dc;
-    border-top-color: rgba(139, 109, 75, 0.15);
+    border-top: 1px solid rgba(139, 109, 75, 0.15);
     color: #6b5d52;
 }
 
 .parchment-theme .site-footer a {
     color: #8b5e3c;
+}
+
+.parchment-theme .site-footer a:hover {
+    color: #6b4226;
+}
+
+.parchment-theme .footer-title {
+    color: #4a3728;
+}
+
+.parchment-theme .footer-heading {
+    color: #4a3728;
+}
+
+.parchment-theme .footer-description {
+    color: #8a7b6e;
+}
+
+.parchment-theme .footer-links a {
+    color: #6b5d52;
+}
+
+.parchment-theme .footer-links a:hover {
+    color: #8b5e3c;
+}
+
+.parchment-theme .footer-credits {
+    border-top-color: rgba(139, 109, 75, 0.15);
+}
+
+.parchment-theme .footer-love {
+    color: #8a7b6e;
+}
+
+.parchment-theme .footer-love a.footer-creator {
+    color: #6b5d52;
+}
+
+.parchment-theme .footer-love a.footer-creator:hover {
+    color: #8b5e3c;
+}
+
+.parchment-theme .footer-standing {
+    color: #8a7b6e;
+}
+
+.parchment-theme .footer-standing a {
+    color: #6b5d52;
+}
+
+.parchment-theme .footer-standing a:hover {
+    color: #8b5e3c;
+}
+
+.parchment-theme .footer-copyright {
+    color: #8a7b6e;
+}
+
+.parchment-theme .footer-copyright a {
+    color: #6b5d52;
+}
+
+.parchment-theme .footer-bottom {
+    border-top: none;
 }
 
 /* --- Serif typography for content --- */
@@ -8017,20 +8081,14 @@ a.button:active {
 
 /* --- Docs hero — parchment version --- */
 .parchment-theme .docs-hero {
-    background: #f5efe6;
-    border: 1px solid rgba(139, 109, 75, 0.12);
+    background: linear-gradient(145deg, #f5efe6 0%, #ebe3d5 50%, #f0e8dc 100%);
+    border: 1px solid rgba(139, 109, 75, 0.15);
     position: relative;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .parchment-theme .docs-hero::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: url('../../images/help/header-banner.png') center/cover no-repeat;
-    mix-blend-mode: multiply;
-    opacity: 0.35;
-    border-radius: 16px;
-    pointer-events: none;
+    content: none; /* No overlay — clean parchment surface */
 }
 
 .parchment-theme .docs-hero-content h1 {
@@ -8135,6 +8193,7 @@ a.button:active {
     overflow: hidden;
     border-radius: 8px;
     background: #f5efe6;
+    isolation: isolate; /* Contain mix-blend-mode — Safari leaks it to siblings without this */
 }
 
 .article-header-img {
