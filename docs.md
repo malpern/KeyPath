@@ -5,6 +5,7 @@ description: Guides and references for KeyPath keyboard remapping on macOS
 hide_sidebar: true
 content_class: content-full docs-landing
 permalink: /docs
+theme: parchment
 ---
 
 <div class="docs-hero">

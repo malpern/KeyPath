@@ -7812,3 +7812,352 @@ a.button:active {
     font-weight: 900;
     color: #fff;
 }
+
+/* =========================================================================
+   PARCHMENT THEME — Warm watercolor aesthetic for docs pages
+   Scoped to .parchment-theme body class so it only applies when
+   front matter includes `theme: parchment`.
+   ========================================================================= */
+
+/* --- CSS custom property overrides --- */
+.parchment-theme {
+    --color-primary: #8b5e3c;
+    --color-primary-dark: #6b4226;
+    --color-primary-light: #c49a6c;
+
+    --color-background: #faf6f0;
+    --color-background-secondary: #f5efe6;
+    --color-background-tertiary: #efe8dd;
+
+    --color-text: #3d3229;
+    --color-text-secondary: #6b5d52;
+    --color-text-tertiary: #8a7b6e;
+
+    --color-border: rgba(139, 109, 75, 0.2);
+    --color-border-light: rgba(139, 109, 75, 0.1);
+
+    --color-success: #5a8a3c;
+    --color-warning: #d4940a;
+    --color-error: #b84233;
+}
+
+/* Force light mode for parchment pages — warm watercolor needs light bg */
+@media (prefers-color-scheme: dark) {
+    .parchment-theme {
+        --color-primary: #8b5e3c;
+        --color-primary-dark: #6b4226;
+        --color-primary-light: #c49a6c;
+
+        --color-background: #faf6f0;
+        --color-background-secondary: #f5efe6;
+        --color-background-tertiary: #efe8dd;
+
+        --color-text: #3d3229;
+        --color-text-secondary: #6b5d52;
+        --color-text-tertiary: #8a7b6e;
+
+        --color-border: rgba(139, 109, 75, 0.2);
+        --color-border-light: rgba(139, 109, 75, 0.1);
+    }
+}
+
+/* --- Parchment background --- */
+.parchment-theme {
+    background-color: #faf6f0;
+}
+
+/* --- Header and footer warm tones --- */
+.parchment-theme .site-header {
+    background: rgba(250, 246, 240, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom-color: rgba(139, 109, 75, 0.15);
+}
+
+.parchment-theme .site-header .nav-link {
+    color: #6b5d52;
+}
+
+.parchment-theme .site-header .nav-link:hover,
+.parchment-theme .site-header .nav-link.active {
+    color: #8b5e3c;
+}
+
+.parchment-theme .site-footer {
+    background: #f0e8dc;
+    border-top-color: rgba(139, 109, 75, 0.15);
+    color: #6b5d52;
+}
+
+.parchment-theme .site-footer a {
+    color: #8b5e3c;
+}
+
+/* --- Serif typography for content --- */
+.parchment-theme .content {
+    font-family: 'Lora', 'Georgia', 'Times New Roman', serif;
+    color: #3d3229;
+}
+
+.parchment-theme .content h1,
+.parchment-theme .content h2,
+.parchment-theme .content h3,
+.parchment-theme .content h4 {
+    font-family: 'Lora', 'Georgia', serif;
+    color: #4a3728;
+}
+
+.parchment-theme .content h2 {
+    border-bottom-color: rgba(139, 109, 75, 0.15);
+}
+
+.parchment-theme .content a {
+    color: #8b5e3c;
+}
+
+.parchment-theme .content a:hover {
+    color: #6b4226;
+}
+
+.parchment-theme .content strong {
+    color: #4a3728;
+}
+
+.parchment-theme .content p,
+.parchment-theme .content li {
+    color: #6b5d52;
+}
+
+/* --- Code blocks --- */
+.parchment-theme .content code {
+    background: rgba(139, 109, 75, 0.08);
+    color: #5a4234;
+}
+
+.parchment-theme .content pre {
+    background: rgba(139, 109, 75, 0.06);
+    border: 1px solid rgba(139, 109, 75, 0.1);
+}
+
+.parchment-theme .content pre code {
+    background: none;
+    color: #3d3229;
+}
+
+/* --- Blockquotes --- */
+.parchment-theme .content blockquote {
+    border-left-color: #c49a6c;
+    background: rgba(139, 109, 75, 0.04);
+    color: #6b5d52;
+}
+
+/* --- Callout boxes (warning / tip) --- */
+.parchment-theme .content .callout {
+    border-radius: 6px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.parchment-theme .content .callout-warning {
+    background: rgba(217, 155, 40, 0.08);
+    border-left: 4px solid #d4940a;
+    color: #7a5c00;
+}
+
+.parchment-theme .content .callout-tip {
+    background: rgba(40, 140, 180, 0.08);
+    border-left: 4px solid #2889a8;
+    color: #1a6070;
+}
+
+/* --- Tables --- */
+.parchment-theme .content table {
+    border-collapse: collapse;
+}
+
+.parchment-theme .content th {
+    background: rgba(139, 109, 75, 0.06);
+    border-bottom-color: rgba(139, 109, 75, 0.15);
+    color: #4a3728;
+}
+
+.parchment-theme .content td {
+    border-bottom-color: rgba(139, 109, 75, 0.1);
+    color: #6b5d52;
+}
+
+.parchment-theme .content tbody tr:hover {
+    background: rgba(139, 109, 75, 0.04);
+}
+
+/* --- Sidebar warm tones --- */
+.parchment-theme .sidebar {
+    background: #f5efe6;
+    border-right-color: rgba(139, 109, 75, 0.12);
+}
+
+.parchment-theme .sidebar .nav-section-title {
+    color: #4a3728;
+}
+
+.parchment-theme .sidebar .nav-link {
+    color: #6b5d52;
+}
+
+.parchment-theme .sidebar .nav-link:hover {
+    color: #8b5e3c;
+    background: rgba(139, 109, 75, 0.06);
+}
+
+.parchment-theme .sidebar .nav-item.active .nav-link {
+    color: #8b5e3c;
+    background: rgba(139, 109, 75, 0.1);
+    font-weight: 600;
+}
+
+/* --- Docs hero — parchment version --- */
+.parchment-theme .docs-hero {
+    background: linear-gradient(180deg, #f5efe6 0%, #faf6f0 100%);
+    border-bottom: 1px solid rgba(139, 109, 75, 0.12);
+}
+
+.parchment-theme .docs-hero h1 {
+    color: #4a3728;
+}
+
+.parchment-theme .docs-hero-subtitle {
+    color: #6b5d52;
+}
+
+.parchment-theme .docs-cta-primary {
+    background: #8b5e3c;
+    color: #faf6f0;
+}
+
+.parchment-theme .docs-cta-primary:hover {
+    background: #6b4226;
+}
+
+.parchment-theme .docs-cta-secondary {
+    color: #8b5e3c;
+    border-color: rgba(139, 109, 75, 0.3);
+}
+
+.parchment-theme .docs-cta-secondary:hover {
+    background: rgba(139, 109, 75, 0.06);
+    border-color: #8b5e3c;
+}
+
+/* --- Docs cards --- */
+.parchment-theme .docs-card {
+    background: #faf6f0;
+    border-color: rgba(139, 109, 75, 0.15);
+}
+
+.parchment-theme .docs-card:hover {
+    border-color: rgba(139, 109, 75, 0.3);
+    box-shadow: 0 4px 16px rgba(74, 55, 40, 0.08);
+}
+
+.parchment-theme .docs-card h3 a {
+    color: #4a3728;
+}
+
+.parchment-theme .docs-card p {
+    color: #6b5d52;
+}
+
+.parchment-theme .docs-card-links a {
+    color: #8b5e3c;
+}
+
+.parchment-theme .docs-card-links a:hover {
+    color: #6b4226;
+}
+
+/* --- Hero keyboard keys warm tones --- */
+.parchment-theme .hero-key {
+    background: rgba(139, 109, 75, 0.08);
+    border-color: rgba(139, 109, 75, 0.2);
+    color: #4a3728;
+}
+
+.parchment-theme .hero-key span {
+    color: #8b5e3c;
+}
+
+/* --- Article header image (watercolor banner) --- */
+.article-header-image {
+    margin: -1rem -1rem 2rem -1rem;
+    overflow: hidden;
+    border-radius: 0 0 8px 8px;
+}
+
+.article-header-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    mix-blend-mode: multiply;
+}
+
+/* --- HR as watercolor divider --- */
+.parchment-theme .content hr {
+    border: none;
+    height: 36px;
+    background: transparent;
+    position: relative;
+    margin: 2rem 0;
+}
+
+.parchment-theme .content hr::after {
+    content: '';
+    display: block;
+    width: 120px;
+    height: 36px;
+    margin: 0 auto;
+    background: url('../images/help/decor-divider.png') center/contain no-repeat;
+    mix-blend-mode: multiply;
+}
+
+/* --- Copy button warm styling --- */
+.parchment-theme .copy-button {
+    color: #8b5e3c;
+    border-color: rgba(139, 109, 75, 0.2);
+    background: rgba(250, 246, 240, 0.9);
+}
+
+.parchment-theme .copy-button:hover {
+    background: rgba(139, 109, 75, 0.1);
+    border-color: #8b5e3c;
+}
+
+/* --- Glossary popovers warm styling --- */
+.parchment-theme .kp-term {
+    color: #8b5e3c;
+    border-bottom-color: rgba(139, 109, 75, 0.3);
+}
+
+.parchment-theme .kp-popover {
+    background: #faf6f0;
+    border-color: rgba(139, 109, 75, 0.2);
+    box-shadow: 0 4px 20px rgba(74, 55, 40, 0.12);
+}
+
+.parchment-theme .kp-popover-title {
+    color: #4a3728;
+}
+
+.parchment-theme .kp-popover-body {
+    color: #6b5d52;
+}
+
+/* --- Mobile sidebar drawer --- */
+@media (max-width: 768px) {
+    .parchment-theme .sidebar {
+        background: #f5efe6;
+    }
+
+    .parchment-theme .sidebar-backdrop {
+        background: rgba(74, 55, 40, 0.3);
+    }
+}

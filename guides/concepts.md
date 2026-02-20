@@ -2,6 +2,8 @@
 layout: default
 title: "Keyboard Concepts for Mac Users"
 description: "Layers, tap-hold, modifiers, and more — explained for people who've never gone beyond System Settings"
+theme: parchment
+header_image: header-concepts.png
 ---
 
 

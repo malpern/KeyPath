@@ -2,6 +2,7 @@
 layout: default
 title: Debugging Guide
 description: Advanced troubleshooting and debugging for KeyPath
+theme: parchment
 ---
 
 # Debugging Guide

@@ -2,6 +2,7 @@
 layout: default
 title: FAQ
 description: Frequently asked questions about KeyPath
+theme: parchment
 ---
 
 # Frequently Asked Questions
