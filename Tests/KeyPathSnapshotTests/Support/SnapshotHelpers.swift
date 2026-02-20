@@ -80,19 +80,30 @@ func hostView<V: View>(
 
 // MARK: - Screenshot Output
 
+/// Whether snapshot tests are enabled.
+/// Set `KEYPATH_SNAPSHOTS=1` to run. Skipped by default during normal `swift test`.
+var snapshotsEnabled: Bool {
+    ProcessInfo.processInfo.environment["KEYPATH_SNAPSHOTS"] == "1"
+}
+
 /// Whether we're in recording mode (regenerating reference images).
 /// Set `SNAPSHOT_RECORD=1` environment variable to enable.
+/// Implies KEYPATH_SNAPSHOTS=1 (recording always enables tests).
 var isRecordingMode: Bool {
     ProcessInfo.processInfo.environment["SNAPSHOT_RECORD"] == "1"
 }
 
 /// Base class for screenshot snapshot tests.
+/// Skips all tests unless KEYPATH_SNAPSHOTS=1 or SNAPSHOT_RECORD=1 is set.
 /// Provides common setup including UserDefaults isolation.
 @MainActor
 class ScreenshotTestCase: XCTestCase {
 
-    override func setUp() {
-        super.setUp()
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        guard snapshotsEnabled || isRecordingMode else {
+            throw XCTSkip("Snapshot tests disabled. Set KEYPATH_SNAPSHOTS=1 to enable.")
+        }
         // Ensure deterministic @AppStorage state
         let defaults: [String: Any] = [
             "selectedKeymapId": "qwerty-us",

@@ -109,6 +109,11 @@ echo "🔐 Building privileged helper..."
 # Build and sign the helper tool
 ./Scripts/build-helper.sh
 
+echo "📸 Regenerating help screenshots..."
+# Regenerate SwiftUI snapshot screenshots so Resources/ has fresh PNGs.
+# Peekaboo captures are skipped in CI (requires app install + permissions).
+SKIP_PEEKABOO="${SKIP_PEEKABOO:-1}" ./Scripts/regenerate-screenshots.sh
+
 echo "🏗️  Building KeyPath and plugins..."
 # Build main app + insights plugin (KeyPathPluginKit is statically linked, no separate dylib needed)
 swift build --configuration release --product KeyPath --product KeyPathInsights -Xswiftc -no-whole-module-optimization
