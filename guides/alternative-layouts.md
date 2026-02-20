@@ -2,8 +2,6 @@
 layout: default
 title: "Alternative Layouts"
 description: "Colemak, Dvorak, Workman, and more — KeyPath supports 8 keymaps with a live overlay"
-theme: parchment
-header_image: header-alternative-layouts.png
 ---
 
 

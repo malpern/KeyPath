@@ -2,8 +2,6 @@
 layout: default
 title: "What You Can Build"
 description: "Concrete examples of what KeyPath can do — from simple remaps to full keyboard workflows"
-theme: parchment
-header_image: header-use-cases.png
 ---
 
 

@@ -2,8 +2,6 @@
 layout: default
 title: "Windows & App Shortcuts"
 description: "App-specific keymaps and window management with KeyPath"
-theme: parchment
-header_image: header-window-management.png
 ---
 
 
