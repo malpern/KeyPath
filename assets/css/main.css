@@ -8145,16 +8145,20 @@ a.button:active {
 
 /* --- Article header image (watercolor banner) --- */
 .article-header-image {
-    margin: 0 0 2rem 0;
+    margin: 0 0 1.5rem 0;
     border-radius: 8px;
+    overflow: hidden;
 }
 
 .article-header-img {
     width: 100%;
     height: auto;
+    max-height: 320px;
+    object-fit: cover;
+    object-position: center 30%;
     display: block;
-    /* No max-height/object-fit — watercolor illustrations have text
-       and artwork that gets cropped. Show at natural aspect ratio. */
+    /* Gentle crop: trims parchment-colored margins around artwork.
+       center 30% keeps titles/artwork visible, clips bottom edges. */
 }
 
 /* --- HR as watercolor divider --- */
