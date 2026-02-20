@@ -37,20 +37,19 @@ extension KanataTCPClient {
             AppLogger.shared.log("🔌 [TCP] No existing connection, creating new one")
         }
 
-        // Wait if already connecting
-        while isConnecting {
-            try await Task.sleep(for: .milliseconds(100)) // 100ms
-        }
-
-        // Check again after waiting
-        if let connection, connection.state == .ready {
-            AppLogger.shared.log("🔌 [TCP] Connection became ready while waiting")
-            return connection
+        // If another call is already connecting, register as a waiter and suspend until
+        // that attempt completes. This replaces the old busy-wait loop which had an actor
+        // reentrancy race: Task.sleep suspension points let multiple callers slip through
+        // simultaneously, creating duplicate connections.
+        if isConnecting {
+            AppLogger.shared.log("🔌 [TCP] Connection in progress, waiting for result...")
+            return try await withCheckedThrowingContinuation { continuation in
+                connectionWaiters.append(continuation)
+            }
         }
 
         // Create new connection
         isConnecting = true
-        defer { isConnecting = false }
 
         AppLogger.shared.log("🔌 [TCP] Creating new connection to \(host):\(port)")
         let newConnection = NWConnection(
@@ -61,61 +60,82 @@ extension KanataTCPClient {
 
         connection = newConnection
 
-        // Wait for connection to be ready with timeout
-        return try await withThrowingTaskGroup(of: NWConnection.self) { group in
-            // Connection attempt task
-            group.addTask {
-                try await withCheckedThrowingContinuation { continuation in
-                    let completionFlag = CompletionFlag()
+        // Wait for connection to be ready with timeout.
+        // On completion (success or failure), resume all queued waiters.
+        do {
+            let result = try await withThrowingTaskGroup(of: NWConnection.self) { group in
+                // Connection attempt task
+                group.addTask {
+                    try await withCheckedThrowingContinuation { continuation in
+                        let completionFlag = CompletionFlag()
 
-                    newConnection.stateUpdateHandler = { state in
-                        AppLogger.shared.log("🔌 [TCP] Connection state changed: \(state)")
-                        switch state {
-                        case .ready:
-                            if completionFlag.markCompleted() {
-                                continuation.resume(returning: newConnection)
-                            }
+                        newConnection.stateUpdateHandler = { state in
+                            AppLogger.shared.log("🔌 [TCP] Connection state changed: \(state)")
+                            switch state {
+                            case .ready:
+                                if completionFlag.markCompleted() {
+                                    continuation.resume(returning: newConnection)
+                                }
 
-                        case let .failed(error):
-                            if completionFlag.markCompleted() {
-                                continuation.resume(
-                                    throwing: KeyPathError.communication(
-                                        .connectionFailed(reason: error.localizedDescription)
+                            case let .failed(error):
+                                if completionFlag.markCompleted() {
+                                    continuation.resume(
+                                        throwing: KeyPathError.communication(
+                                            .connectionFailed(reason: error.localizedDescription)
+                                        )
                                     )
-                                )
-                            }
-                            newConnection.cancel()
+                                }
+                                newConnection.cancel()
 
-                        case .cancelled:
-                            if completionFlag.markCompleted() {
-                                continuation.resume(
-                                    throwing: KeyPathError.communication(
-                                        .connectionFailed(reason: "Connection cancelled")
+                            case .cancelled:
+                                if completionFlag.markCompleted() {
+                                    continuation.resume(
+                                        throwing: KeyPathError.communication(
+                                            .connectionFailed(reason: "Connection cancelled")
+                                        )
                                     )
-                                )
-                            }
+                                }
 
-                        default:
-                            break
+                            default:
+                                break
+                            }
                         }
+
+                        newConnection.start(queue: .global())
                     }
-
-                    newConnection.start(queue: .global())
                 }
+
+                // Timeout task (use the configured timeout value)
+                group.addTask {
+                    try await Task.sleep(for: .seconds(self.timeout))
+                    newConnection.cancel() // Cancel the connection on timeout
+                    throw KeyPathError.communication(.timeout)
+                }
+
+                // Return first result and cancel other task
+                let result = try await group.next()!
+                group.cancelAll()
+                AppLogger.shared.log("🔌 [TCP] Connection established successfully")
+                return result
             }
 
-            // Timeout task (use the configured timeout value)
-            group.addTask {
-                try await Task.sleep(for: .seconds(self.timeout))
-                newConnection.cancel() // Cancel the connection on timeout
-                throw KeyPathError.communication(.timeout)
+            // Resume all waiters with the successful connection
+            let waiters = connectionWaiters
+            connectionWaiters.removeAll()
+            isConnecting = false
+            for waiter in waiters {
+                waiter.resume(returning: result)
             }
-
-            // Return first result and cancel other task
-            let result = try await group.next()!
-            group.cancelAll()
-            AppLogger.shared.log("🔌 [TCP] Connection established successfully")
             return result
+        } catch {
+            // Resume all waiters with the error
+            let waiters = connectionWaiters
+            connectionWaiters.removeAll()
+            isConnecting = false
+            for waiter in waiters {
+                waiter.resume(throwing: error)
+            }
+            throw error
         }
     }
 

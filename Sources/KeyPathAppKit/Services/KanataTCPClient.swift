@@ -84,6 +84,9 @@ actor KanataTCPClient {
     // Connection management
     var connection: NWConnection?
     var isConnecting = false
+    /// Waiters for an in-flight connection attempt. Callers that arrive while isConnecting
+    /// is true register here and are resumed when the connection completes or fails.
+    var connectionWaiters: [CheckedContinuation<NWConnection, any Error>] = []
 
     // MARK: - Read Buffer (Critical for Two-Line Protocol)
 

@@ -67,6 +67,7 @@ class MainAppStateController {
 
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
     @ObservationIgnored private var lastKnownServiceHealthy: Bool?
+    @ObservationIgnored private var serviceHealthTask: Task<Void, Never>?
     @ObservationIgnored private var periodicRefreshTask: Task<Void, Never>?
     @ObservationIgnored private let definitiveStartupGracePeriod: TimeInterval = 3.0
     @ObservationIgnored private let transientStartupGracePeriod: TimeInterval = 12.0
@@ -244,8 +245,11 @@ class MainAppStateController {
     private func subscribeToServiceHealth() {
         guard let kanataManager else { return }
 
+        // Cancel any previous polling task to prevent duplicate loops
+        serviceHealthTask?.cancel()
+
         // Poll KanataService.state for health transitions
-        Task { @MainActor [weak self] in
+        serviceHealthTask = Task { @MainActor [weak self] in
             while let self, !Task.isCancelled {
                 let newState = kanataManager.kanataService.state
                 let isHealthy = if case .running = newState { true } else { false }

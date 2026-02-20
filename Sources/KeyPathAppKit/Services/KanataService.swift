@@ -495,12 +495,10 @@ public final class KanataService {
             }
         }
 
-        if oldState.isRunning, case .running = newStatus {
-            Task {
-                let status = await evaluateStatus()
-                publishStatus(status)
-            }
-        }
+        // Note: Previously re-evaluated status on running→running(different PID) transitions.
+        // Removed: the recursive publishStatus() call could cascade unboundedly when PIDs
+        // differ across evaluations, monopolizing the MainActor under load.
+        // PID changes are already tracked by the healthMonitor.recordPIDObservation() above.
     }
 
     /// Log service state failures to persistent crash log for later analysis
