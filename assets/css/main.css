@@ -8145,20 +8145,24 @@ a.button:active {
 
 /* --- Article header image (watercolor banner) --- */
 .article-header-image {
-    margin: 0 0 1.5rem 0;
-    border-radius: 8px;
+    margin: -1rem 0 1rem 0;
+    /* Full-bleed: break out of .content max-width to fill viewport */
+    width: 100vw;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
     overflow: hidden;
 }
 
 .article-header-img {
     width: 100%;
     height: auto;
-    max-height: 320px;
+    max-height: 300px;
     object-fit: cover;
-    object-position: center 30%;
+    object-position: center 35%;
     display: block;
-    /* Gentle crop: trims parchment-colored margins around artwork.
-       center 30% keeps titles/artwork visible, clips bottom edges. */
+    /* Crops parchment-colored margins. center 35% keeps titles/artwork
+       visible while trimming empty top and bottom edges. */
 }
 
 /* --- HR as watercolor divider --- */
