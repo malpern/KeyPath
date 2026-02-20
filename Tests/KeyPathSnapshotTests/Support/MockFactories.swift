@@ -1,13 +1,12 @@
 import Foundation
-import SwiftUI
 @testable import KeyPathAppKit
+import SwiftUI
 
 // MARK: - Mock Factories for Snapshot Testing
 
 /// Provides pre-built model instances for deterministic screenshot rendering.
 /// All factories produce stable data suitable for visual regression tests.
 enum MockFactories {
-
     // MARK: - Launcher Models
 
     static func launcherMapping(

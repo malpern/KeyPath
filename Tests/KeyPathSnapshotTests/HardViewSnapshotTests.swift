@@ -1,12 +1,11 @@
+@testable import KeyPathAppKit
 import SnapshotTesting
 import SwiftUI
 import XCTest
-@testable import KeyPathAppKit
 
 /// Snapshot tests for views with heavy dependencies (@AppStorage, view models, 25+ params).
 /// These require UserDefaults isolation and factory methods for complex init signatures.
 final class HardViewSnapshotTests: ScreenshotTestCase {
-
     // MARK: - OverlayInspectorPanel — Custom Rules Tab
 
     func testInspectorCustomRulesTab() {

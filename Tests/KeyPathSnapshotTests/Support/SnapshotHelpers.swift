@@ -1,7 +1,7 @@
+@testable import KeyPathAppKit
 import SnapshotTesting
 import SwiftUI
 import XCTest
-@testable import KeyPathAppKit
 
 // MARK: - Snapshot Configuration
 
@@ -64,8 +64,8 @@ func withIsolatedDefaults(
 
 /// Wraps a SwiftUI view in a fixed-size NSHostingView for snapshot capture.
 @MainActor
-func hostView<V: View>(
-    _ view: V,
+func hostView(
+    _ view: some View,
     size: CGSize,
     colorScheme: ColorScheme = .light
 ) -> NSView {
@@ -98,7 +98,6 @@ var isRecordingMode: Bool {
 /// Provides common setup including UserDefaults isolation.
 @MainActor
 class ScreenshotTestCase: XCTestCase {
-
     override func setUpWithError() throws {
         try super.setUpWithError()
         guard snapshotsEnabled || isRecordingMode else {
@@ -137,8 +136,8 @@ class ScreenshotTestCase: XCTestCase {
     /// Assert snapshot with standard configuration.
     /// In recording mode (SNAPSHOT_RECORD=1), generates new reference images.
     /// Use `precision` < 1.0 for views with non-deterministic content (e.g., app icons).
-    func assertScreenshot<V: View>(
-        of view: V,
+    func assertScreenshot(
+        of view: some View,
         size: CGSize,
         named name: String,
         precision: Float = 1.0,

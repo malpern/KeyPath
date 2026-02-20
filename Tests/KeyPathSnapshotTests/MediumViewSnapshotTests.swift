@@ -1,11 +1,10 @@
+@testable import KeyPathAppKit
 import SnapshotTesting
 import SwiftUI
 import XCTest
-@testable import KeyPathAppKit
 
 /// Snapshot tests for views requiring environment setup (UserDefaults, store seeding, large param lists).
 final class MediumViewSnapshotTests: ScreenshotTestCase {
-
     // MARK: - KeyboardSelectionGridView
 
     func testKeyboardSelectionGrid() {

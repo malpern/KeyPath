@@ -469,8 +469,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Getting next page
         let nextPage = await engine.nextPage(from: currentPage, given: systemState, issues: issues)
 
-        // Then: Should continue to next page in sequence (.service comes after .kanataComponents)
-        XCTAssertEqual(nextPage, .service, "Should continue to next page in sequence")
+        // Then: All remaining pages are green (no issues), so engine skips to summary
+        XCTAssertEqual(nextPage, .summary, "Should skip green pages to summary")
     }
 
     func testNextPageNoIssuesSequentialProgression() async {
@@ -482,8 +482,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Getting next page
         let nextPage = await engine.nextPage(from: currentPage, given: systemState, issues: issues)
 
-        // Then: Should advance to next page (Karabiner components now follow input monitoring)
-        XCTAssertEqual(nextPage, .karabinerComponents, "Should advance to karabiner components page")
+        // Then: All remaining pages are green (no issues, state is active), so engine skips to summary
+        XCTAssertEqual(nextPage, .summary, "Should skip green pages to summary")
     }
 
     // MARK: - Helper Methods

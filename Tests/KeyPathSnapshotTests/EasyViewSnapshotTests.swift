@@ -1,16 +1,15 @@
+@testable import KeyPathAppKit
 import SnapshotTesting
 import SwiftUI
 import XCTest
-@testable import KeyPathAppKit
 
 /// Snapshot tests for views with clean dependency injection.
 /// These views accept simple value types, bindings, and closures — no singletons needed.
 final class EasyViewSnapshotTests: ScreenshotTestCase {
-
     // MARK: - KeymapCard
 
-    func testKeymapCardSelected() {
-        let keymap = LogicalKeymap.all.first { $0.id == "qwerty-us" }!
+    func testKeymapCardSelected() throws {
+        let keymap = try XCTUnwrap(LogicalKeymap.all.first { $0.id == "qwerty-us" })
         let view = KeymapCard(
             keymap: keymap,
             isSelected: true,
