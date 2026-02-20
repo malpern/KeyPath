@@ -8193,7 +8193,7 @@ a.button:active {
     overflow: hidden;
     border-radius: 8px;
     background: #f5efe6;
-    isolation: isolate; /* Contain mix-blend-mode — Safari leaks it to siblings without this */
+    /* isolation: isolate removed — blend mode also removed (Safari compat) */
 }
 
 .article-header-img {
@@ -8202,7 +8202,9 @@ a.button:active {
     max-height: 240px;
     object-fit: cover;
     display: block;
-    mix-blend-mode: multiply;
+    /* No mix-blend-mode — Safari leaks multiply to sibling elements,
+       making all content below the image invisible. The watercolor
+       images render well on parchment background without blending. */
 }
 
 /* --- HR as watercolor divider --- */
@@ -8221,7 +8223,7 @@ a.button:active {
     height: 36px;
     margin: 0 auto;
     background: url('../../images/help/decor-divider.png') center/contain no-repeat;
-    mix-blend-mode: multiply;
+    opacity: 0.6; /* Soften divider; no mix-blend-mode (Safari compat) */
 }
 
 /* --- Copy button warm styling --- */
