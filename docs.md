@@ -68,8 +68,6 @@ theme: parchment
 <ul class="docs-card-links">
 <li><a href="{{ '/guides/action-uri-reference' | relative_url }}">Action URI Reference</a></li>
 <li><a href="{{ '/guides/privacy' | relative_url }}">Privacy & Permissions</a></li>
-<li><a href="{{ '/guides/debugging' | relative_url }}">Debugging</a></li>
-<li><a href="{{ '/faq' | relative_url }}">FAQ</a></li>
 </ul>
 </div>
 

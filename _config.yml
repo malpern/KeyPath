@@ -56,8 +56,6 @@ navigation:
     url: /docs
   - title: Install
     url: /getting-started/installation
-  - title: FAQ
-    url: /faq
 
 # Footer
 footer:
