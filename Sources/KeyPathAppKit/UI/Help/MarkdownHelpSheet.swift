@@ -72,7 +72,7 @@ struct MarkdownWebView: NSViewRepresentable {
         // Match WKWebView background to the active theme to prevent flash on scheme change
         webView.underPageBackgroundColor = isDark
             ? NSColor(red: 0.165, green: 0.141, blue: 0.125, alpha: 1.0) // #2a2420
-            : NSColor(red: 0.98, green: 0.965, blue: 0.94, alpha: 1.0)   // #faf6f0
+            : NSColor(red: 0.98, green: 0.965, blue: 0.94, alpha: 1.0) // #faf6f0
 
         // Reload content if the resource changed
         if context.coordinator.currentResource != resource {

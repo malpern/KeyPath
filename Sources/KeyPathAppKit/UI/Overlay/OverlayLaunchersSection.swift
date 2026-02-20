@@ -34,8 +34,8 @@ struct OverlayLaunchersSection: View {
     init(isDark: Bool, fadeAmount: CGFloat = 0, testMappings: [QuickLaunchMapping]) {
         self.isDark = isDark
         self.fadeAmount = fadeAmount
-        self.onMappingHover = nil
-        self.onCustomize = nil
+        onMappingHover = nil
+        onCustomize = nil
         let store = LauncherStore(testMappings: testMappings)
         _store = State(initialValue: store)
     }

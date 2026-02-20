@@ -65,7 +65,7 @@ actor ReloadSafetyMonitor {
                 AppLogger.shared.warn(
                     "⛔️ [ReloadSafety] In crash loop backoff - \(Int(remaining))s remaining"
                 )
-                return .unsafe(reason: "Crash loop detected - backing off for \(Int(remaining))s")
+                return .unsafe (reason: "Crash loop detected - backing off for \(Int(remaining))s")
             } else {
                 // Backoff expired - clear crash loop state
                 AppLogger.shared.log(
@@ -83,7 +83,7 @@ actor ReloadSafetyMonitor {
                 AppLogger.shared.debug(
                     "⏱️ [ReloadSafety] Reload cooldown active - \(String(format: "%.1f", remaining))s remaining"
                 )
-                return .unsafe(reason: "Reload cooldown - \(String(format: "%.1f", remaining))s remaining")
+                return .unsafe (reason: "Reload cooldown - \(String(format: "%.1f", remaining))s remaining")
             }
         }
 
@@ -94,7 +94,7 @@ actor ReloadSafetyMonitor {
                 "🚨 [ReloadSafety] Crash loop detected - \(recentRestarts) restarts in last \(Int(trackingWindowSeconds))s"
             )
             crashLoopDetectedAt = now
-            return .unsafe(
+            return .unsafe (
                 reason: "Crash loop detected - \(recentRestarts) restarts in \(Int(trackingWindowSeconds))s"
             )
         }
@@ -201,7 +201,7 @@ actor ReloadSafetyMonitor {
 
     enum SafetyCheck {
         case safe
-        case unsafe(reason: String)
+        case unsafe (reason: String)
 
         var isSafe: Bool {
             if case .safe = self { return true }
@@ -209,7 +209,7 @@ actor ReloadSafetyMonitor {
         }
 
         var reason: String? {
-            if case let .unsafe(reason) = self { return reason }
+            if case let .unsafe (reason) = self { return reason }
             return nil
         }
     }
