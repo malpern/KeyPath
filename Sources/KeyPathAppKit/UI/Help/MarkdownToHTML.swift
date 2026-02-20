@@ -123,7 +123,7 @@ enum MarkdownToHTML {
     }
 
     /// Wrap an HTML body fragment in a full HTML document with inline CSS.
-    static func wrapInHTMLDocument(body: String, isDark _: Bool) -> String {
+    static func wrapInHTMLDocument(body: String, isDark: Bool) -> String {
         let css: String = if let url = Bundle.module.url(forResource: "help-theme", withExtension: "css"),
                              let contents = try? String(contentsOf: url, encoding: .utf8)
         {
@@ -141,7 +141,7 @@ enum MarkdownToHTML {
         \(css)
         </style>
         </head>
-        <body>
+        <body\(isDark ? " class=\"dark\"" : "")>
         \(body)
         </body>
         </html>

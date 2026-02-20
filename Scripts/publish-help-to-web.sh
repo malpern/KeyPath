@@ -13,12 +13,8 @@
 #   6. Generating sidebar navigation (_includes/sidebar.html)
 #   7. Generating docs landing page (docs.md)
 #
-# To add a new article:
-#   1. Add it to DOCS (content transform)
-#   2. Add it to LINK_MAP (link resolution)
-#   3. Add it to NAV_TITLES (sidebar/card display name)
-#   4. Add its resource ID to the appropriate group in GROUP_ITEMS
-#   That's it — sidebar and docs index are generated automatically.
+# To add a new article, add ONE line to REGISTRY below.
+# The sidebar, docs index, and link map are all generated from it.
 #
 # Run from repo root: ./Scripts/publish-help-to-web.sh
 # Then: cd .worktrees/gh-pages && git add -A && git commit && git push
@@ -31,92 +27,50 @@ GHPAGES="$REPO_ROOT/.worktrees/gh-pages"
 IMG_DEST="$GHPAGES/images/help"
 
 # ─────────────────────────────────────────────────────────────────────
-# Document registry: resource_name → "web_path:title:description"
+# Single document registry — ONE line per article, everything derived.
 #
-# web_path determines the Jekyll directory (guides/, migration/, getting-started/)
-# title and description become Jekyll front matter
+# Format (pipe-delimited):
+#   resource_id | group | web_dir | title | nav_title | description
+#
+# - resource_id:  filename without .md in Sources/KeyPathAppKit/Resources/
+# - group:        sidebar section (getting-started, features, reference, switching)
+# - web_dir:      Jekyll output directory (getting-started, guides, migration)
+# - title:        Jekyll front matter title (full)
+# - nav_title:    Short sidebar/card display name
+# - description:  Jekyll front matter description
+#
+# Order within each group determines sidebar and docs card order.
 # ─────────────────────────────────────────────────────────────────────
 
-typeset -A DOCS
-DOCS=(
+REGISTRY=(
     # Getting Started
-    [installation]="getting-started/installation.md:Setting Up KeyPath:In two minutes your keyboard will launch apps, tile windows, and remap any key — all from the home row"
-    [concepts]="guides/concepts.md:Keyboard Concepts for Mac Users:Layers, tap-hold, modifiers, and more — explained for people who've never gone beyond System Settings"
-    [use-cases]="guides/use-cases.md:What You Can Build:Concrete examples of what KeyPath can do — from simple remaps to full keyboard workflows"
+    "installation|getting-started|getting-started|Setting Up KeyPath|Setting Up KeyPath|In two minutes your keyboard will launch apps, tile windows, and remap any key — all from the home row"
+    "concepts|getting-started|guides|Keyboard Concepts for Mac Users|Keyboard Concepts|Layers, tap-hold, modifiers, and more — explained for people who've never gone beyond System Settings"
+    "use-cases|getting-started|guides|What You Can Build|What You Can Build|Concrete examples of what KeyPath can do — from simple remaps to full keyboard workflows"
 
     # Features
-    [home-row-mods]="guides/home-row-mods.md:Shortcuts Without Reaching:Turn your home row keys into modifiers — the most popular advanced keyboard technique"
-    [tap-hold]="guides/tap-hold.md:One Key, Multiple Actions:Advanced key behaviors with tap-hold and tap-dance support"
-    [window-management]="guides/window-management.md:Windows & App Shortcuts:App-specific keymaps and window management with KeyPath"
-    [action-uri]="guides/action-uri.md:Launching Apps & Workflows:Launch apps, URLs, and folders from your keyboard with a single keystroke"
-    [alternative-layouts]="guides/alternative-layouts.md:Alternative Layouts:Colemak, Dvorak, Workman, and more — KeyPath supports 8 keymaps with a live overlay"
-    [keyboard-layouts]="guides/keyboard-layouts.md:Works With Your Keyboard:12 physical keyboard layouts from MacBook to Kinesis Advantage 360"
+    "home-row-mods|features|guides|Shortcuts Without Reaching|Shortcuts Without Reaching|Turn your home row keys into modifiers — the most popular advanced keyboard technique"
+    "tap-hold|features|guides|One Key, Multiple Actions|One Key, Multiple Actions|Advanced key behaviors with tap-hold and tap-dance support"
+    "window-management|features|guides|Windows & App Shortcuts|Windows & App Shortcuts|App-specific keymaps and window management with KeyPath"
+    "action-uri|features|guides|Launching Apps & Workflows|Launching Apps|Launch apps, URLs, and folders from your keyboard with a single keystroke"
+    "alternative-layouts|features|guides|Alternative Layouts|Alternative Layouts|Colemak, Dvorak, Workman, and more — KeyPath supports 8 keymaps with a live overlay"
+    "keyboard-layouts|features|guides|Works With Your Keyboard|Works With Your Keyboard|12 physical keyboard layouts from MacBook to Kinesis Advantage 360"
 
     # Reference
-    [action-uri-reference]="guides/action-uri-reference.md:Action URI Reference:Technical deep-link reference for integrating KeyPath with Raycast, Alfred, and scripts"
-    [privacy]="guides/privacy.md:Privacy & Permissions:Exactly what KeyPath accesses on your Mac, why, and what it does with your data"
+    "action-uri-reference|reference|guides|Action URI Reference|Action URI Reference|Technical deep-link reference for integrating KeyPath with Raycast, Alfred, and scripts"
+    "privacy|reference|guides|Privacy & Permissions|Privacy & Permissions|Exactly what KeyPath accesses on your Mac, why, and what it does with your data"
 
     # Switching Tools
-    [karabiner-users]="migration/karabiner-users.md:Switching from Karabiner-Elements:A practical guide for Karabiner-Elements users migrating to KeyPath"
-    [kanata-users]="migration/kanata-users.md:Tips for Existing Kanata Users:Use your existing Kanata config.kbd in KeyPath"
-)
-
-# Map help: link targets to their website paths
-typeset -A LINK_MAP
-LINK_MAP=(
-    [installation]="/getting-started/installation"
-    [concepts]="/guides/concepts"
-    [use-cases]="/guides/use-cases"
-    [home-row-mods]="/guides/home-row-mods"
-    [tap-hold]="/guides/tap-hold"
-    [window-management]="/guides/window-management"
-    [action-uri]="/guides/action-uri"
-    [alternative-layouts]="/guides/alternative-layouts"
-    [keyboard-layouts]="/guides/keyboard-layouts"
-    [action-uri-reference]="/guides/action-uri-reference"
-    [privacy]="/guides/privacy"
-    [karabiner-users]="/migration/karabiner-users"
-    [kanata-users]="/migration/kanata-users"
+    "karabiner-users|switching|migration|Switching from Karabiner-Elements|From Karabiner-Elements|A practical guide for Karabiner-Elements users migrating to KeyPath"
+    "kanata-users|switching|migration|Tips for Existing Kanata Users|From Kanata|Use your existing Kanata config.kbd in KeyPath"
 )
 
 # ─────────────────────────────────────────────────────────────────────
-# Navigation registry — drives sidebar.html and docs.md generation
-#
-# NAV_TITLES: short display names for sidebar and docs card links
-# GROUP_ORDER: section display order
-# GROUP_ITEMS: resource IDs per group, space-separated, in display order
-# GROUP_TITLES: section headings for sidebar
-# GROUP_CARD_TITLES: section headings for docs landing cards
-# GROUP_DESCRIPTIONS: card body text on docs landing page
+# Group metadata — sidebar headings and docs landing page descriptions
 # ─────────────────────────────────────────────────────────────────────
-
-typeset -A NAV_TITLES
-NAV_TITLES=(
-    [installation]="Setting Up KeyPath"
-    [concepts]="Keyboard Concepts"
-    [use-cases]="What You Can Build"
-    [home-row-mods]="Shortcuts Without Reaching"
-    [tap-hold]="One Key, Multiple Actions"
-    [window-management]="Windows & App Shortcuts"
-    [action-uri]="Launching Apps"
-    [alternative-layouts]="Alternative Layouts"
-    [keyboard-layouts]="Works With Your Keyboard"
-    [action-uri-reference]="Action URI Reference"
-    [privacy]="Privacy & Permissions"
-    [karabiner-users]="From Karabiner-Elements"
-    [kanata-users]="From Kanata"
-)
 
 typeset -a GROUP_ORDER
 GROUP_ORDER=(getting-started features reference switching)
-
-typeset -A GROUP_ITEMS
-GROUP_ITEMS=(
-    [getting-started]="installation concepts use-cases"
-    [features]="home-row-mods tap-hold window-management action-uri alternative-layouts keyboard-layouts"
-    [reference]="action-uri-reference privacy"
-    [switching]="karabiner-users kanata-users"
-)
 
 typeset -A GROUP_TITLES
 GROUP_TITLES=(
@@ -142,9 +96,37 @@ GROUP_DESCRIPTIONS=(
     [switching]="Coming from Karabiner-Elements, Kanata, or another remapper? We've got migration guides for you."
 )
 
+# ─────────────────────────────────────────────────────────────────────
+# Parse REGISTRY into working data structures
+# ─────────────────────────────────────────────────────────────────────
+
+# DOCS[resource] = "web_dir/resource.md:title:description"
+typeset -A DOCS
+# LINK_MAP[resource] = "/web_dir/resource"
+typeset -A LINK_MAP
+# NAV_TITLES[resource] = "nav_title"
+typeset -A NAV_TITLES
+# GROUP_ITEMS[group] = "resource1 resource2 ..."  (space-separated, preserves order)
+typeset -A GROUP_ITEMS
+
+for entry in "${REGISTRY[@]}"; do
+    local id="${entry%%|*}";       local rest="${entry#*|}"
+    local group="${rest%%|*}";     rest="${rest#*|}"
+    local web_dir="${rest%%|*}";   rest="${rest#*|}"
+    local title="${rest%%|*}";     rest="${rest#*|}"
+    local nav_title="${rest%%|*}"; rest="${rest#*|}"
+    local description="$rest"
+
+    DOCS[$id]="${web_dir}/${id}.md:${title}:${description}"
+    LINK_MAP[$id]="/${web_dir}/${id}"
+    NAV_TITLES[$id]="$nav_title"
+    GROUP_ITEMS[$group]="${GROUP_ITEMS[$group]:+${GROUP_ITEMS[$group]} }${id}"
+done
+
 echo "=== Publishing help docs: app → gh-pages website ==="
 echo "  Source: $SRC"
 echo "  Dest:   $GHPAGES"
+echo "  Articles: ${#REGISTRY[@]}"
 
 if [[ ! -d "$GHPAGES" ]]; then
     echo "ERROR: gh-pages worktree not found at $GHPAGES"
@@ -267,13 +249,17 @@ copy_images() {
 copy_theme_css() {
     local css_src="$SRC/help-theme.css"
     local css_dest="$GHPAGES/assets/css/help-theme.css"
-    if [[ -f "$css_src" ]]; then
-        mkdir -p "$(dirname "$css_dest")"
-        cp "$css_src" "$css_dest"
-        echo "  Copied: help-theme.css → assets/css/help-theme.css"
-    else
+    if [[ ! -f "$css_src" ]]; then
         echo "  WARNING: help-theme.css not found at $css_src"
+        return
     fi
+    mkdir -p "$(dirname "$css_dest")"
+    # Check for drift before copying
+    if [[ -f "$css_dest" ]] && ! diff -q "$css_src" "$css_dest" > /dev/null 2>&1; then
+        echo "  ⚠️  help-theme.css had drifted — overwriting website copy with app source of truth"
+    fi
+    cp "$css_src" "$css_dest"
+    echo "  Copied: help-theme.css → assets/css/help-theme.css"
 }
 
 # ─────────────────────────────────────────────────────────────────────
