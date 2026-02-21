@@ -55,7 +55,7 @@ navigation:
   - title: Docs
     url: /docs
   - title: Install
-    url: /getting-started/installation
+    url: /getting-started/installation/
 
 # Footer
 footer:
