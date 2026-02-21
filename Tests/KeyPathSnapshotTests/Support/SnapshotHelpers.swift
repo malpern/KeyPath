@@ -2,6 +2,7 @@
 import SnapshotTesting
 import SwiftUI
 import XCTest
+import AppKit
 
 // MARK: - Snapshot Configuration
 
@@ -98,6 +99,42 @@ var isRecordingMode: Bool {
 /// Provides common setup including UserDefaults isolation.
 @MainActor
 class ScreenshotTestCase: XCTestCase {
+    /// Render snapshots at retina-like density for crisper UI text.
+    /// This avoids soft 1x offscreen AppKit rendering.
+    private let snapshotScale: CGFloat = 2.0
+
+    /// Upper bound so generated assets stay practical for docs/web payload size.
+    private let maxSnapshotPixelsWide = 1800
+
+    /// Rasterize a hosted view into an NSImage at explicit scale.
+    private func rasterizedImage(from view: NSView, size: CGSize) -> NSImage {
+        let effectiveScale = min(snapshotScale, CGFloat(maxSnapshotPixelsWide) / max(1, size.width))
+        let pixelsWide = max(1, Int((size.width * effectiveScale).rounded()))
+        let pixelsHigh = max(1, Int((size.height * effectiveScale).rounded()))
+
+        let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: pixelsWide,
+            pixelsHigh: pixelsHigh,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        )!
+        rep.size = size
+
+        view.frame = CGRect(origin: .zero, size: size)
+        view.layoutSubtreeIfNeeded()
+        view.cacheDisplay(in: view.bounds, to: rep)
+
+        let image = NSImage(size: size)
+        image.addRepresentation(rep)
+        return image
+    }
+
     override func setUpWithError() throws {
         try super.setUpWithError()
         guard snapshotsEnabled || isRecordingMode else {
@@ -148,14 +185,15 @@ class ScreenshotTestCase: XCTestCase {
         line: UInt = #line
     ) {
         let hosted = hostView(view, size: size, colorScheme: colorScheme)
-        let strategy: Snapshotting<NSView, NSImage> = .image(
+        let rendered = rasterizedImage(from: hosted, size: size)
+        let strategy: Snapshotting<NSImage, NSImage> = .image(
             precision: precision,
             perceptualPrecision: perceptualPrecision
         )
 
         if isRecordingMode {
             assertSnapshot(
-                of: hosted,
+                of: rendered,
                 as: strategy,
                 named: name,
                 record: true,
@@ -165,7 +203,7 @@ class ScreenshotTestCase: XCTestCase {
             )
         } else {
             assertSnapshot(
-                of: hosted,
+                of: rendered,
                 as: strategy,
                 named: name,
                 file: file,
