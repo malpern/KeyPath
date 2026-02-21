@@ -8162,6 +8162,113 @@ a.button:active {
     color: #6b5d52;
 }
 
+/* Browser/adblock compatibility:
+   some engines/extensions apply generic hide rules to `.content`.
+   Use `.doc-content` as the canonical docs container and mirror key styles. */
+.doc-content {
+    max-width: 720px;
+    padding-bottom: var(--spacing-3xl);
+    font-size: 1.125rem;
+    line-height: 1.75;
+    display: block;
+    opacity: 1;
+    visibility: visible;
+}
+
+.doc-content p,
+.doc-content li {
+    color: var(--color-text);
+    color: color-mix(in srgb, var(--color-text) 92%, transparent);
+}
+
+.doc-content a {
+    text-decoration: underline;
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.18em;
+}
+
+.doc-content h1 { font-size: clamp(2.25rem, 3.8vw, 3rem); letter-spacing: -0.02em; }
+.doc-content h2 { letter-spacing: -0.01em; margin-top: var(--spacing-3xl); }
+.doc-content h3 { margin-top: var(--spacing-2xl); }
+
+.doc-content hr {
+    border: none;
+    height: 1px;
+    background: var(--color-border-light);
+    margin: var(--spacing-2xl) 0;
+}
+
+.doc-content blockquote {
+    margin: var(--spacing-lg) 0;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-left: 4px solid var(--color-border);
+    background: var(--color-background-secondary);
+    border-radius: 10px;
+}
+
+.doc-content img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1rem auto;
+    border-radius: 8px;
+}
+
+.parchment-theme .doc-content {
+    font-family: 'Lora', 'Georgia', 'Times New Roman', serif;
+    color: #3d3229;
+}
+
+.parchment-theme .doc-content h1,
+.parchment-theme .doc-content h2,
+.parchment-theme .doc-content h3,
+.parchment-theme .doc-content h4 {
+    font-family: 'Lora', 'Georgia', serif;
+    color: #4a3728;
+}
+
+.parchment-theme .doc-content p,
+.parchment-theme .doc-content li {
+    color: #6b5d52;
+}
+
+.parchment-theme .doc-content p > img[alt^="Screenshot"] {
+    border: 1px solid rgba(139, 109, 75, 0.2);
+    box-shadow: 0 4px 14px rgba(74, 55, 40, 0.10);
+    background: #fff;
+    padding: 6px;
+    border-radius: 10px;
+    margin-top: 1.1rem;
+    margin-bottom: 0.6rem;
+}
+
+.parchment-theme .doc-content .article-header-image .article-header-img {
+    width: 100%;
+    max-width: none;
+    height: clamp(220px, 30vw, 420px);
+    object-fit: cover;
+    object-position: center 72%;
+    display: block;
+    margin: 0;
+}
+
+.parchment-theme .doc-content hr {
+    border: none;
+    height: 36px;
+    background: transparent;
+    position: relative;
+    margin: 2rem 0;
+}
+
+.parchment-theme .doc-content hr::after {
+    content: '';
+    display: block;
+    width: 120px;
+    height: 36px;
+    margin: 0 auto;
+    background: url('../../images/help/decor-divider.png') center/contain no-repeat;
+}
+
 /* --- Mobile sidebar drawer --- */
 @media (max-width: 768px) {
     .parchment-theme .sidebar {

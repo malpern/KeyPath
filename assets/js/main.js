@@ -6,7 +6,7 @@
     // Parchment theme: convert emoji-prefixed blockquotes to callout boxes
     // Matches the app's renderBlockquote() behavior for ⚠️ (warning) and 💡 (tip).
     if (document.body.classList.contains('parchment-theme')) {
-        document.querySelectorAll('.content blockquote').forEach(bq => {
+        document.querySelectorAll('.doc-content blockquote, .content blockquote').forEach(bq => {
             const text = bq.textContent.trim();
             let type = null;
             if (text.startsWith('\u26A0\uFE0F') || text.startsWith('\u26A0')) type = 'warning';
@@ -456,7 +456,7 @@
     };
 
     // Apply to main article content
-    document.querySelectorAll('.content').forEach((content) => {
+    document.querySelectorAll('.doc-content, .content').forEach((content) => {
         highlightGlossaryTerms(content);
     });
     attachPopoverHandlers();
