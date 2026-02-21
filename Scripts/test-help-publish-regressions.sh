@@ -6,6 +6,7 @@ GHPAGES="$REPO_ROOT/.worktrees/gh-pages"
 CSS_FILE="$GHPAGES/assets/css/main.css"
 APP_HELP_CSS="$REPO_ROOT/Sources/KeyPathAppKit/Resources/help-theme.css"
 LAYOUT_FILE="$GHPAGES/_layouts/default.html"
+JS_FILE="$GHPAGES/assets/js/main.js"
 
 if [[ ! -d "$GHPAGES" ]]; then
   echo "ERROR: gh-pages worktree not found at $GHPAGES"
@@ -22,6 +23,10 @@ if [[ ! -f "$APP_HELP_CSS" ]]; then
 fi
 if [[ ! -f "$LAYOUT_FILE" ]]; then
   echo "ERROR: missing layout file: $LAYOUT_FILE"
+  exit 1
+fi
+if [[ ! -f "$JS_FILE" ]]; then
+  echo "ERROR: missing JS file: $JS_FILE"
   exit 1
 fi
 
@@ -123,6 +128,16 @@ assert_contains "$layout_html" 'media="print"[[:space:]][[:space:]]*onload="this
   "Google Fonts stylesheet must be non-blocking (print/onload swap)"
 assert_contains "$layout_html" '<noscript><link rel="stylesheet"' \
   "Google Fonts fallback should exist for no-JS clients"
+
+echo "Checking docs container compatibility guards..."
+assert_contains "$layout_html" '<article class="doc-content' \
+  "layout must use .doc-content as canonical article container"
+assert_not_contains "$layout_html" '<article class="content' \
+  "layout must avoid bare .content article class (blocked by some browser filters)"
+
+js_source="$(cat "$JS_FILE")"
+assert_contains "$js_source" '\.doc-content' \
+  "main JS should target .doc-content selectors for docs behavior"
 
 echo "Checking divider asset geometry regression guards..."
 src_divider="$REPO_ROOT/Sources/KeyPathAppKit/Resources/decor-divider.png"
