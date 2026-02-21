@@ -168,4 +168,51 @@ if [[ "$src_h" -gt 260 || "$src_w" -gt 1400 ]]; then
   exit 1
 fi
 
+echo "Checking header image side-whitespace regression guards..."
+python3 - "$REPO_ROOT" "$GHPAGES" <<'PY'
+from pathlib import Path
+import sys
+import numpy as np
+from PIL import Image
+
+repo = Path(sys.argv[1])
+gh = Path(sys.argv[2])
+
+def side_margin_ratio(p: Path) -> tuple[float, int, int, int]:
+    arr = np.asarray(Image.open(p).convert("RGB"), dtype=np.float32)
+    lum = arr.mean(axis=2)
+    # "Ink" columns: at least 8% of pixels are below near-white luminance.
+    frac = (lum < 245).mean(axis=0)
+    idx = np.where(frac > 0.08)[0]
+    if len(idx) == 0:
+        return 1.0, arr.shape[1], arr.shape[1], arr.shape[1]
+    left = int(idx[0])
+    right = int(arr.shape[1] - 1 - idx[-1])
+    margin = max(left, right)
+    return margin / arr.shape[1], left, right, arr.shape[1]
+
+targets = [
+    repo / "Sources/KeyPathAppKit/Resources/header-installation.png",
+    repo / "Sources/KeyPathAppKit/Resources/header-home-row-mods.png",
+    gh / "images/help/header-installation.png",
+    gh / "images/help/header-home-row-mods.png",
+]
+
+errors = []
+for p in targets:
+    if not p.exists():
+        errors.append(f"missing header asset: {p}")
+        continue
+    ratio, left, right, width = side_margin_ratio(p)
+    if ratio > 0.08:
+        errors.append(
+            f"excess side whitespace in {p.name} (left={left}px right={right}px width={width}px)"
+        )
+
+if errors:
+    for e in errors:
+        print(f"ERROR: {e}")
+    raise SystemExit(1)
+PY
+
 echo "Publish regression checks passed."
