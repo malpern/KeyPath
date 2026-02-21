@@ -41,6 +41,11 @@ jobs:
           chmod +x Scripts/publish-help-to-web.sh
           zsh Scripts/publish-help-to-web.sh
 
+      - name: Run Publish Regression Checks
+        run: |
+          chmod +x Scripts/test-help-publish-regressions.sh
+          Scripts/test-help-publish-regressions.sh
+
       - name: Verify Published Help Set Matches App Set
         run: |
           app_ids=$(find Sources/KeyPathAppKit/Resources -maxdepth 1 -type f -name '*.md' | sed 's#^.*/##; s#\.md$##' | sort)
