@@ -5,6 +5,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GHPAGES="$REPO_ROOT/.worktrees/gh-pages"
 CSS_FILE="$GHPAGES/assets/css/main.css"
 APP_HELP_CSS="$REPO_ROOT/Sources/KeyPathAppKit/Resources/help-theme.css"
+LAYOUT_FILE="$GHPAGES/_layouts/default.html"
 
 if [[ ! -d "$GHPAGES" ]]; then
   echo "ERROR: gh-pages worktree not found at $GHPAGES"
@@ -17,6 +18,10 @@ if [[ ! -f "$CSS_FILE" ]]; then
 fi
 if [[ ! -f "$APP_HELP_CSS" ]]; then
   echo "ERROR: missing app help CSS file: $APP_HELP_CSS"
+  exit 1
+fi
+if [[ ! -f "$LAYOUT_FILE" ]]; then
+  echo "ERROR: missing layout file: $LAYOUT_FILE"
   exit 1
 fi
 
@@ -51,7 +56,11 @@ assert_not_contains() {
 
 echo "Checking header image CSS regression guards..."
 header_wrap_block="$(extract_block "\\.article-header-image")"
-header_img_block="$(extract_block "\\.article-header-img")"
+header_img_block="$(extract_block "\\.parchment-theme \\.content \\.article-header-image \\.article-header-img")"
+if [[ -z "$header_img_block" ]]; then
+  # Backward-compatible fallback selector, if the specific override is renamed.
+  header_img_block="$(extract_block "\\.article-header-img")"
+fi
 
 if [[ -z "$header_wrap_block" || -z "$header_img_block" ]]; then
   echo "ERROR: missing article header CSS blocks"
@@ -73,6 +82,8 @@ assert_contains "$header_img_block" "object-fit:[[:space:]]*cover;" \
   ".article-header-img must fill header box (object-fit: cover)"
 assert_contains "$header_img_block" "object-position:[[:space:]]*center 72%;" \
   ".article-header-img must keep lower focal point visible (center 72%)"
+assert_contains "$header_img_block" "max-width:[[:space:]]*none;" \
+  ".article-header-img must override generic max-width rules to avoid side whitespace"
 
 echo "Checking screenshot sizing CSS guards..."
 assert_contains "$(cat "$CSS_FILE")" "\\.parchment-theme \\.content img" \
@@ -85,6 +96,10 @@ assert_contains "$(cat "$APP_HELP_CSS")" "\\.help-img\\[alt\\^=\"Screenshot\"\\]
   "app help CSS must include screenshot-specific sizing rules"
 assert_contains "$(cat "$APP_HELP_CSS")" "max-width:[[:space:]]*100%;" \
   "app help images must keep max-width: 100%"
+assert_contains "$(cat "$APP_HELP_CSS")" "\\.help-header-img" \
+  "app help CSS must include dedicated header image crop rules"
+assert_contains "$(cat "$APP_HELP_CSS")" "object-fit:[[:space:]]*cover;" \
+  "app header images must use object-fit: cover"
 
 echo "Checking screenshot insertion parity..."
 src_count="$(rg -n '^<!-- screenshot:' "$REPO_ROOT"/Sources/KeyPathAppKit/Resources/*.md | wc -l | tr -d ' ')"
@@ -97,6 +112,17 @@ if [[ "$src_count" != "$web_count" ]]; then
   echo "ERROR: screenshot embed count mismatch (source=$src_count, web=$web_count)"
   exit 1
 fi
+
+echo "Checking Google Fonts non-blocking load guards..."
+layout_html="$(cat "$LAYOUT_FILE")"
+assert_contains "$layout_html" 'fonts.googleapis.com' \
+  "layout must keep Google Fonts reference"
+assert_contains "$layout_html" 'rel="preload"[[:space:]][[:space:]]*as="style"' \
+  "Google Fonts should include preload style hint"
+assert_contains "$layout_html" 'media="print"[[:space:]][[:space:]]*onload="this.media='\''all'\''"' \
+  "Google Fonts stylesheet must be non-blocking (print/onload swap)"
+assert_contains "$layout_html" '<noscript><link rel="stylesheet"' \
+  "Google Fonts fallback should exist for no-JS clients"
 
 echo "Checking divider asset geometry regression guards..."
 src_divider="$REPO_ROOT/Sources/KeyPathAppKit/Resources/decor-divider.png"

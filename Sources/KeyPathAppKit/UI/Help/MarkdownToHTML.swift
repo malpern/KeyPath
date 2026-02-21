@@ -181,6 +181,13 @@ enum MarkdownToHTML {
             with: "<img src=\"$2\" alt=\"$1\" class=\"help-img\">",
             options: .regularExpression
         )
+        // Promote watercolor article banners to a dedicated class so CSS can
+        // crop built-in canvas whitespace consistently.
+        result = result.replacingOccurrences(
+            of: "<img src=\"(header-[^\"]+)\" alt=\"([^\"]*)\" class=\"help-img\">",
+            with: "<img src=\"$1\" alt=\"$2\" class=\"help-img help-header-img\">",
+            options: .regularExpression
+        )
 
         // Internal help links (help:resource-name → keypath-help://resource-name)
         result = result.replacingOccurrences(
