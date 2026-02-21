@@ -16,6 +16,11 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Verify Help Docs Parity
+      run: |
+        chmod +x ./Scripts/check-help-parity.sh
+        ./Scripts/check-help-parity.sh
     
     - name: Cache Swift packages
       uses: actions/cache@v4

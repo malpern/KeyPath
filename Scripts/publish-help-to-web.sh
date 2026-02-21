@@ -26,6 +26,15 @@ SRC="$REPO_ROOT/Sources/KeyPathAppKit/Resources"
 GHPAGES="$REPO_ROOT/.worktrees/gh-pages"
 IMG_DEST="$GHPAGES/images/help"
 
+# Screenshot IDs in markdown are stable IDs; PNG filenames occasionally differ.
+typeset -A SCREENSHOT_ALIASES
+SCREENSHOT_ALIASES=(
+    [install-auth-prompt]="permissions-login-items.png"
+    [install-add-kanata-binary]="permissions-login-items.png"
+    [install-accessibility-settings]="screenshot-accessibility-settings.png"
+    [install-input-monitoring-done]="screenshot-input-monitoring.png"
+)
+
 # ─────────────────────────────────────────────────────────────────────
 # Single document registry — ONE line per article, everything derived.
 #
@@ -85,7 +94,7 @@ GROUP_CARD_TITLES=(
     [getting-started]="Getting Started"
     [features]="Features"
     [reference]="Reference"
-    [switching]="Switching Tools?"
+    [switching]="Switching Tools"
 )
 
 typeset -A GROUP_DESCRIPTIONS
@@ -100,9 +109,9 @@ GROUP_DESCRIPTIONS=(
 # Parse REGISTRY into working data structures
 # ─────────────────────────────────────────────────────────────────────
 
-# DOCS[resource] = "web_dir/resource.md:title:description"
+# DOCS[resource] = "web_dir/resource.md:title:description:permalink"
 typeset -A DOCS
-# LINK_MAP[resource] = "/web_dir/resource"
+# LINK_MAP[resource] = "/web_dir/resource/"
 typeset -A LINK_MAP
 # NAV_TITLES[resource] = "nav_title"
 typeset -A NAV_TITLES
@@ -117,8 +126,8 @@ for entry in "${REGISTRY[@]}"; do
     local nav_title="${rest%%|*}"; rest="${rest#*|}"
     local description="$rest"
 
-    DOCS[$id]="${web_dir}/${id}.md:${title}:${description}"
-    LINK_MAP[$id]="/${web_dir}/${id}"
+    DOCS[$id]="${web_dir}/${id}.md:${title}:${description}:/${web_dir}/${id}/"
+    LINK_MAP[$id]="/${web_dir}/${id}/"
     NAV_TITLES[$id]="$nav_title"
     GROUP_ITEMS[$group]="${GROUP_ITEMS[$group]:+${GROUP_ITEMS[$group]} }${id}"
 done
@@ -134,6 +143,52 @@ if [[ ! -d "$GHPAGES" ]]; then
     exit 1
 fi
 
+# Ensure parity with app help registry by clearing managed output files first.
+# This removes stale web-only pages left from older publishing flows.
+cleanup_managed_docs() {
+    for dir in getting-started guides migration; do
+        if [[ -d "$GHPAGES/$dir" ]]; then
+            rm -f "$GHPAGES/$dir"/*.md
+        else
+            mkdir -p "$GHPAGES/$dir"
+        fi
+    done
+}
+
+generate_legacy_redirects() {
+    cat > "$GHPAGES/getting-started/first-mapping.md" << 'EOF'
+---
+layout: default
+title: First Mapping
+description: Legacy redirect
+permalink: /getting-started/first-mapping/
+hide_sidebar: true
+theme: parchment
+---
+
+<meta http-equiv="refresh" content="0; url={{ '/getting-started/installation/' | relative_url }}">
+<link rel="canonical" href="{{ '/getting-started/installation/' | relative_url }}">
+<p>This page moved to <a href="{{ '/getting-started/installation/' | relative_url }}">Setting Up KeyPath</a>.</p>
+EOF
+
+    cat > "$GHPAGES/guides/activity-insights.md" << 'EOF'
+---
+layout: default
+title: Activity Insights
+description: Legacy redirect
+permalink: /guides/activity-insights/
+hide_sidebar: true
+theme: parchment
+---
+
+<meta http-equiv="refresh" content="0; url={{ '/guides/use-cases/' | relative_url }}">
+<link rel="canonical" href="{{ '/guides/use-cases/' | relative_url }}">
+<p>This page moved to <a href="{{ '/guides/use-cases/' | relative_url }}">What You Can Build</a>.</p>
+EOF
+
+    echo "  Generated: legacy redirects (first-mapping, activity-insights)"
+}
+
 # ─────────────────────────────────────────────────────────────────────
 # Transform a single markdown file from app format to Jekyll format
 # ─────────────────────────────────────────────────────────────────────
@@ -143,11 +198,13 @@ transform_file() {
     local src_path="$SRC/${resource}.md"
     local entry="${DOCS[$resource]}"
 
-    # Parse entry: "web_path:title:description"
+    # Parse entry: "web_path:title:description:permalink"
     local web_path="${entry%%:*}"
     local rest="${entry#*:}"
     local title="${rest%%:*}"
-    local description="${rest#*:}"
+    rest="${rest#*:}"
+    local permalink="${rest##*:}"
+    local description="${rest%:*}"
     local dest_path="$GHPAGES/$web_path"
 
     # Ensure destination directory exists
@@ -164,10 +221,30 @@ transform_file() {
     if [[ "$first_line" == '!'*'](header-'*'.png)' ]]; then
         header_image=$(echo "$first_line" | sed -E 's/^!\[[^]]*\]\((header-[^)]+\.png)\)$/\1/')
     fi
-    content=$(echo "$content" | sed '1{/^!\[.*\](header-.*\.png)$/d;}')
+    content=$(echo "$content" | sed '1{/^!\[[^]]*\](header-.*\.png)$/d;}')
 
-    # 2. Strip <!-- screenshot: --> metadata tags (app-only)
-    content=$(echo "$content" | sed '/^<!-- screenshot:.*-->$/d')
+    # 2. Convert <!-- screenshot: id="foo" ... --> metadata into inline images
+    #    so website article bodies include the same screenshots as app help.
+    local converted_content=""
+    local line=""
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        local sid=""
+        sid=$(echo "$line" | sed -nE 's/^<!-- screenshot:.*id="([^"]+)".*-->$/\1/p')
+        if [[ -n "$sid" ]]; then
+            local file="${sid}.png"
+            if [[ -n "${SCREENSHOT_ALIASES[$sid]:-}" ]]; then
+                file="${SCREENSHOT_ALIASES[$sid]}"
+            fi
+            if [[ -f "$SRC/$file" ]]; then
+                converted_content+=$'\n'"![Screenshot]({{ '/images/help/${file}' | relative_url }})"$'\n'
+            else
+                echo "  WARNING: screenshot id '${sid}' has no matching PNG (expected: ${file})"
+            fi
+        else
+            converted_content+="${line}"$'\n'
+        fi
+    done <<< "$content"
+    content="${converted_content%$'\n'}"
 
     # 3. Convert inline concept images to website image paths
     #    ![Alt](concepts-foo.png) → ![Alt]({{ '/images/help/concepts-foo.png' | relative_url }})
@@ -194,7 +271,7 @@ transform_file() {
                 if (exists $map{$r}) {
                     "({{ \x27" . $map{$r} . "\x27 | relative_url }}${a})";
                 } else {
-                    "({{ \x27\/guides\/${r}\x27 | relative_url }}${a})";
+                    "({{ \x27\/guides\/${r}\/\x27 | relative_url }}${a})";
                 }
             /ge;
             print $line;
@@ -212,6 +289,8 @@ theme: parchment"
         front_matter="${front_matter}
 header_image: ${header_image}"
     fi
+    front_matter="${front_matter}
+permalink: ${permalink}"
     front_matter="${front_matter}
 ---"
 
@@ -231,7 +310,7 @@ copy_images() {
     mkdir -p "$IMG_DEST"
 
     local copied=0
-    for img in "$SRC"/header-*.png "$SRC"/concepts-*.png "$SRC"/decor-*.png; do
+    for img in "$SRC"/*.png; do
         if [[ -f "$img" ]]; then
             local name=$(basename "$img")
             cp "$img" "$IMG_DEST/$name"
@@ -322,12 +401,15 @@ theme: parchment
 ---
 
 <div class="docs-hero">
+  <div class="docs-hero-watercolor" aria-hidden="true">
+    <img src="{{ '/images/help/header-banner.png' | relative_url }}" alt="">
+  </div>
   <div class="docs-hero-content">
     <h1>KeyPath Documentation</h1>
     <p class="docs-hero-subtitle">Everything you need to master keyboard remapping on your Mac</p>
     <div class="docs-hero-cta">
-      <a href="{{ '/guides/concepts' | relative_url }}" class="docs-cta-primary">New here? Start with Keyboard Concepts</a>
-      <a href="{{ '/getting-started/installation' | relative_url }}" class="docs-cta-secondary">Jump to Installation</a>
+      <a href="{{ '/guides/concepts/' | relative_url }}" class="docs-cta-primary">New here? Start with Keyboard Concepts</a>
+      <a href="{{ '/getting-started/installation/' | relative_url }}" class="docs-cta-secondary">Jump to Installation</a>
     </div>
   </div>
   <div class="docs-hero-visual">
@@ -389,6 +471,7 @@ HERO
 
 synced=0
 skipped=0
+cleanup_managed_docs
 for resource in "${(@k)DOCS}"; do
     src_path="$SRC/${resource}.md"
     if [[ ! -f "$src_path" ]]; then
@@ -411,6 +494,7 @@ echo ""
 echo "--- Generating navigation ---"
 generate_sidebar
 generate_docs_index
+generate_legacy_redirects
 
 echo ""
 echo "=== Done: $synced docs published, $skipped skipped ==="

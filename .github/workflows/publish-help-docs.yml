@@ -31,10 +31,21 @@ jobs:
       - name: Install zsh
         run: sudo apt-get install -y zsh
 
+      - name: Verify App Help Registry Parity
+        run: |
+          chmod +x Scripts/check-help-parity.sh
+          Scripts/check-help-parity.sh
+
       - name: Run publish script
         run: |
           chmod +x Scripts/publish-help-to-web.sh
           zsh Scripts/publish-help-to-web.sh
+
+      - name: Verify Published Help Set Matches App Set
+        run: |
+          app_ids=$(find Sources/KeyPathAppKit/Resources -maxdepth 1 -type f -name '*.md' | sed 's#^.*/##; s#\.md$##' | sort)
+          web_ids=$(find .worktrees/gh-pages/getting-started .worktrees/gh-pages/guides .worktrees/gh-pages/migration -maxdepth 1 -type f -name '*.md' | sed 's#^.*/##; s#\.md$##' | sort | grep -v -E '^(first-mapping|activity-insights)$')
+          diff -u <(echo "$app_ids") <(echo "$web_ids")
 
       - name: Commit and push gh-pages
         run: |
