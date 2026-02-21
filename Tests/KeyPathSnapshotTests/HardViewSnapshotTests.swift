@@ -127,7 +127,7 @@ final class HardViewSnapshotTests: ScreenshotTestCase {
         )
         assertScreenshot(
             of: view,
-            size: CGSize(width: 800, height: 300),
+            size: CGSize(width: 1200, height: 450),
             named: "install-overlay-base",
             precision: 0.98,
             perceptualPrecision: 0.98

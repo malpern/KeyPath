@@ -8,17 +8,17 @@ import XCTest
 /// Standard frame sizes for different view categories.
 enum SnapshotSize {
     /// Small card components (KeymapCard, AppRuleCard)
-    static let card = CGSize(width: 280, height: 200)
+    static let card = CGSize(width: 420, height: 300)
     /// Medium panels (HomeRowTimingSection, CustomRulesInlineEditor)
-    static let panel = CGSize(width: 400, height: 350)
+    static let panel = CGSize(width: 600, height: 525)
     /// Large panels (OverlayInspectorPanel, OverlayLaunchersSection)
-    static let inspector = CGSize(width: 500, height: 600)
+    static let inspector = CGSize(width: 750, height: 900)
     /// Full overlay header
-    static let header = CGSize(width: 600, height: 40)
+    static let header = CGSize(width: 900, height: 60)
     /// Launcher drawer
-    static let drawer = CGSize(width: 300, height: 500)
+    static let drawer = CGSize(width: 450, height: 750)
     /// Layout picker grid
-    static let grid = CGSize(width: 500, height: 700)
+    static let grid = CGSize(width: 750, height: 1050)
 }
 
 // MARK: - Isolated UserDefaults

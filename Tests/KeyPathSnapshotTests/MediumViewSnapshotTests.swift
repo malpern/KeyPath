@@ -55,7 +55,7 @@ final class MediumViewSnapshotTests: ScreenshotTestCase {
         )
         assertScreenshot(
             of: view,
-            size: CGSize(width: 500, height: 400),
+            size: CGSize(width: 750, height: 600),
             named: "use-cases-launchers-tab",
             precision: 0.98,
             perceptualPrecision: 0.98
@@ -155,7 +155,7 @@ final class MediumViewSnapshotTests: ScreenshotTestCase {
         )
         assertScreenshot(
             of: view,
-            size: CGSize(width: 600, height: 32),
+            size: CGSize(width: 900, height: 48),
             named: "action-uri-overlay-header"
         )
     }

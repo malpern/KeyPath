@@ -105,7 +105,7 @@ final class EasyViewSnapshotTests: ScreenshotTestCase {
         )
         assertScreenshot(
             of: view,
-            size: CGSize(width: 400, height: 500),
+            size: CGSize(width: 600, height: 750),
             named: "hrm-per-finger-sliders"
         )
     }

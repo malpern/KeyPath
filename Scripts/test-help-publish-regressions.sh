@@ -215,4 +215,49 @@ if errors:
     raise SystemExit(1)
 PY
 
+echo "Checking generated screenshot source resolution guards..."
+python3 - "$REPO_ROOT" <<'PY'
+from pathlib import Path
+import re
+import sys
+from PIL import Image
+
+repo = Path(sys.argv[1])
+res = repo / "Sources/KeyPathAppKit/Resources"
+
+# Snapshot-generated documentation captures should be high-resolution enough
+# for retina displays. (Manual system screenshots use separate capture scripts
+# and are excluded from this threshold.)
+min_width = 900
+exclude = (
+    r"^screenshot-",
+    r"^permissions-",
+    r"^install-overlay-health-green\.png$",
+    r"^overlay-header-unhealthy\.png$",
+    r"^action-uri-overlay-header\.png$",
+)
+
+issues = []
+for p in sorted(res.glob("*.png")):
+    n = p.name
+    if n.startswith(("header-", "decor-")):
+        continue
+    if any(re.search(pattern, n) for pattern in exclude):
+        continue
+    with Image.open(p) as im:
+        w, h = im.size
+    # Only enforce on likely UI screenshots (not tiny icons/assets).
+    if n.startswith((
+        "action-uri-", "concepts-", "hrm-", "install-", "karabiner-",
+        "kb-layouts-", "launchers-", "tap-hold-", "use-cases-", "window-mgmt-"
+    )):
+        if w < min_width:
+            issues.append(f"{n} is too small ({w}x{h}), expected width >= {min_width}")
+
+if issues:
+    for issue in issues:
+        print(f"ERROR: {issue}")
+    raise SystemExit(1)
+PY
+
 echo "Publish regression checks passed."
