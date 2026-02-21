@@ -461,6 +461,45 @@
     });
     attachPopoverHandlers();
 
+    // Browser-compat fail-safe:
+    // Some Chromium forks/extensions can incorrectly hide the docs body while leaving header/nav visible.
+    // If we detect hidden/offscreen docs content despite substantial text content, force visible fallback styles.
+    (() => {
+        const docRoot = document.querySelector('main .content-wrapper > section');
+        if (!docRoot) return;
+
+        const rawText = (docRoot.textContent || '').replace(/\s+/g, '');
+        if (rawText.length < 200) return;
+
+        const rootRect = docRoot.getBoundingClientRect();
+        const rootStyle = getComputedStyle(docRoot);
+        const firstHeading = docRoot.querySelector('h1');
+        const headingRect = firstHeading ? firstHeading.getBoundingClientRect() : null;
+
+        const looksHidden =
+            rootStyle.display === 'none' ||
+            rootStyle.visibility === 'hidden' ||
+            parseFloat(rootStyle.opacity || '1') === 0 ||
+            rootRect.height < 40 ||
+            (headingRect && (headingRect.height < 4 || headingRect.top > window.innerHeight * 1.2));
+
+        if (!looksHidden) return;
+
+        docRoot.style.setProperty('display', 'block', 'important');
+        docRoot.style.setProperty('visibility', 'visible', 'important');
+        docRoot.style.setProperty('opacity', '1', 'important');
+        docRoot.style.setProperty('position', 'relative', 'important');
+        docRoot.style.setProperty('z-index', '1', 'important');
+        docRoot.style.setProperty('max-width', '720px', 'important');
+        docRoot.style.setProperty('width', '100%', 'important');
+        docRoot.style.setProperty('margin', '0 auto', 'important');
+
+        docRoot.querySelectorAll('h1, h2, h3, h4, p, li, ul, ol, table, pre, blockquote, img, hr, div').forEach((el) => {
+            el.style.setProperty('visibility', 'visible', 'important');
+            el.style.setProperty('opacity', '1', 'important');
+        });
+    })();
+
     // Timeline visualization scroll animations
     const timelineCards = document.querySelectorAll('.kanata-card[data-viz]');
     if (timelineCards.length > 0) {
