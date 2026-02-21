@@ -44,14 +44,14 @@
             </aside>
             {% endunless %}
             
-            <article class="doc-content{% if page.content_class %} {{ page.content_class }}{% endif %}">
+            <div class="kp-doc-body{% if page.content_class %} {{ page.content_class }}{% endif %}">
                 {% if page.header_image %}
                 <div class="article-header-image">
                     <img src="{{ '/images/help/' | append: page.header_image | relative_url }}" alt="" class="article-header-img">
                 </div>
                 {% endif %}
                 {{ content }}
-            </article>
+            </div>
         </div>
     </main>
     
