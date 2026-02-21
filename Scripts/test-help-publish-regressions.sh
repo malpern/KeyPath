@@ -130,16 +130,16 @@ assert_contains "$layout_html" '<noscript><link rel="stylesheet"' \
   "Google Fonts fallback should exist for no-JS clients"
 
 echo "Checking docs container compatibility guards..."
-assert_contains "$layout_html" 'data-kp-body="1"' \
-  "layout must use [data-kp-body] as canonical docs container"
+assert_contains "$layout_html" '<section' \
+  "layout must use main .content-wrapper > section as canonical docs container"
 assert_not_contains "$layout_html" '<article class="content' \
   "layout must avoid bare .content article class (blocked by some browser filters)"
 assert_not_contains "$layout_html" '<article class="doc-content' \
   "layout must avoid legacy .doc-content article container"
 
 js_source="$(cat "$JS_FILE")"
-assert_contains "$js_source" '\[data-kp-body]' \
-  "main JS should target [data-kp-body] selectors for docs behavior"
+assert_contains "$js_source" 'main .content-wrapper > section' \
+  "main JS should target main .content-wrapper > section selectors for docs behavior"
 
 echo "Checking divider asset geometry regression guards..."
 src_divider="$REPO_ROOT/Sources/KeyPathAppKit/Resources/decor-divider.png"
