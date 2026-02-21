@@ -8100,12 +8100,16 @@ a.button:active {
     overflow: hidden;
 }
 
-.article-header-img {
+/* Higher-specificity rule prevents generic `.parchment-theme .content img` from
+   reverting header banners back to intrinsic aspect ratio with side whitespace. */
+.parchment-theme .content .article-header-image .article-header-img {
     width: 100%;
+    max-width: none;
     height: clamp(220px, 30vw, 420px);
     object-fit: cover;
     object-position: center 72%;
     display: block;
+    margin: 0;
 }
 
 /* --- HR as watercolor divider --- */
