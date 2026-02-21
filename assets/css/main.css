@@ -8097,16 +8097,14 @@ a.button:active {
 .article-header-image {
     margin: 0 0 1rem 0;
     width: 100%;
-    overflow: visible;
+    overflow: hidden;
 }
 
 .article-header-img {
     width: 100%;
-    height: auto;
-    max-height: none;
-    aspect-ratio: auto;
-    object-fit: contain;
-    object-position: center top;
+    height: clamp(220px, 30vw, 420px);
+    object-fit: cover;
+    object-position: center 72%;
     display: block;
 }
 
