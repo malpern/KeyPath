@@ -4,6 +4,7 @@ title: "Tips for Existing Kanata Users"
 description: "Use your existing Kanata config.kbd in KeyPath"
 theme: parchment
 header_image: header-kanata-users.png
+permalink: /migration/kanata-users/
 ---
 
 
@@ -235,13 +236,13 @@ ln -s ~/.config/kanata/my-config.kbd ~/.config/keypath/keypath.kbd
 
 ## Next Steps
 
-- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }})** — KeyPath's split-hand detection and per-finger timing make HRM more reliable
-- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — Concrete examples: Hyper key launcher, window tiling, Vim everywhere
-- **[Launching Apps]({{ '/guides/action-uri' | relative_url }})** — Launch apps, open URLs, and tile windows from your Kanata config
-- **[Window Management]({{ '/guides/window-management' | relative_url }})** — App-specific keymaps that switch automatically
-- **[One Key, Multiple Actions]({{ '/guides/tap-hold' | relative_url }})** — All four tap-hold variants explained
-- **[Alternative Layouts]({{ '/guides/alternative-layouts' | relative_url }})** — Colemak, Dvorak, and other keymaps
-- **[Keyboard Layouts]({{ '/guides/keyboard-layouts' | relative_url }})** — Physical keyboard support
+- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — KeyPath's split-hand detection and per-finger timing make HRM more reliable
+- **[What You Can Build]({{ '/guides/use-cases/' | relative_url }})** — Concrete examples: Hyper key launcher, window tiling, Vim everywhere
+- **[Launching Apps]({{ '/guides/action-uri/' | relative_url }})** — Launch apps, open URLs, and tile windows from your Kanata config
+- **[Window Management]({{ '/guides/window-management/' | relative_url }})** — App-specific keymaps that switch automatically
+- **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — All four tap-hold variants explained
+- **[Alternative Layouts]({{ '/guides/alternative-layouts/' | relative_url }})** — Colemak, Dvorak, and other keymaps
+- **[Keyboard Layouts]({{ '/guides/keyboard-layouts/' | relative_url }})** — Physical keyboard support
 
 ## Architecture details
 
@@ -253,7 +254,7 @@ ln -s ~/.config/kanata/my-config.kbd ~/.config/keypath/keypath.kbd
 
 - **[FAQ](https://keypath-app.com/faq)** — Common questions about KeyPath
 - **[GitHub Issues](https://github.com/malpern/KeyPath/issues)** — Report bugs or ask questions
-- **[Privacy & Permissions]({{ '/guides/privacy' | relative_url }})** — What KeyPath accesses and why
+- **[Privacy & Permissions]({{ '/guides/privacy/' | relative_url }})** — What KeyPath accesses and why
 - **[Kanata documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc)** — Full Kanata config reference ↗
 - **[Kanata GitHub](https://github.com/jtroo/kanata)** — Kanata source code and discussions ↗
 - **[Back to Docs](https://keypath-app.com/docs)**

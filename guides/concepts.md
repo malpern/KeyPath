@@ -4,6 +4,7 @@ title: "Keyboard Concepts for Mac Users"
 description: "Layers, tap-hold, modifiers, and more — explained for people who've never gone beyond System Settings"
 theme: parchment
 header_image: header-concepts.png
+permalink: /guides/concepts/
 ---
 
 
@@ -34,6 +35,8 @@ The fix: **make Caps Lock send Escape instead.**
 
 This is a **remap** — making one key behave as another. It's the simplest thing you can do, and it takes about ten seconds in KeyPath.
 
+
+![Screenshot]({{ '/images/help/concepts-new-rule-dialog.png' | relative_url }})
 Screenshot — Creating a simple remap in the Custom Rules tab:
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -76,7 +79,7 @@ The tricky part is timing — how does KeyPath know if you meant to tap or hold?
 
 ![Tap-hold timing — tap vs hold threshold]({{ '/images/help/concepts-tap-hold-timing.png' | relative_url }})
 
-See the [One Key, Multiple Actions guide]({{ '/guides/tap-hold' | relative_url }}) for all the options.
+See the [One Key, Multiple Actions guide]({{ '/guides/tap-hold/' | relative_url }}) for all the options.
 
 ---
 
@@ -137,7 +140,7 @@ The problem: they're all in the corners. Every shortcut forces your fingers off 
 
 Hold F + press C = ⌘C (Copy). Hold A + press Tab = ⇧Tab. Your hands never move.
 
-The challenge is avoiding misfires during fast typing. KeyPath uses split-hand detection (same-hand = letter, cross-hand = modifier) and per-finger timing to make it reliable. Read the full [Shortcuts Without Reaching guide]({{ '/guides/home-row-mods' | relative_url }}) for details.
+The challenge is avoiding misfires during fast typing. KeyPath uses split-hand detection (same-hand = letter, cross-hand = modifier) and per-finger timing to make it reliable. Read the full [Shortcuts Without Reaching guide]({{ '/guides/home-row-mods/' | relative_url }}) for details.
 
 ---
 
@@ -204,12 +207,12 @@ Start with a simple remap. Get comfortable. Then add the next idea when you're r
 
 ## Where to go next
 
-- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — Concrete examples of what's possible with KeyPath
-- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }})** — The most popular advanced technique
-- **[One Key, Multiple Actions]({{ '/guides/tap-hold' | relative_url }})** — All the details on dual-role keys
-- **[Launching Apps]({{ '/guides/action-uri' | relative_url }})** — Launch apps, URLs, and folders from your keyboard
-- **[Alternative Layouts]({{ '/guides/alternative-layouts' | relative_url }})** — Colemak, Dvorak, Workman, and other keymaps
-- **[Keyboard Layouts]({{ '/guides/keyboard-layouts' | relative_url }})** — Physical keyboard support (ANSI, split, ergonomic)
+- **[What You Can Build]({{ '/guides/use-cases/' | relative_url }})** — Concrete examples of what's possible with KeyPath
+- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — The most popular advanced technique
+- **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — All the details on dual-role keys
+- **[Launching Apps]({{ '/guides/action-uri/' | relative_url }})** — Launch apps, URLs, and folders from your keyboard
+- **[Alternative Layouts]({{ '/guides/alternative-layouts/' | relative_url }})** — Colemak, Dvorak, Workman, and other keymaps
+- **[Keyboard Layouts]({{ '/guides/keyboard-layouts/' | relative_url }})** — Physical keyboard support (ANSI, split, ergonomic)
 - **[Back to Docs](https://keypath-app.com)** — See all available guides
 
 ## External resources

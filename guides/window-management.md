@@ -4,6 +4,7 @@ title: "Windows & App Shortcuts"
 description: "App-specific keymaps and window management with KeyPath"
 theme: parchment
 header_image: header-window-management.png
+permalink: /guides/window-management/
 ---
 
 
@@ -31,6 +32,8 @@ Create different keyboard layouts for different apps. For example:
 5. Add key mappings for that app (e.g., `H` → `Left Arrow`)
 6. Click **Save**
 
+
+![Screenshot]({{ '/images/help/window-mgmt-custom-rules.png' | relative_url }})
 Screenshot — Custom Rules tab showing app-specific rule cards:
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -103,7 +106,7 @@ KeyPath includes built-in window snapping shortcuts. Enable the **Window Snappin
 - **Hyper + J** → Center window
 - **Hyper + U/I/N/M** → Snap to corners
 
-These use KeyPath's [Launching Apps & Workflows]({{ '/guides/action-uri' | relative_url }}) under the hood. You can also trigger window actions from external tools like Raycast or Alfred:
+These use KeyPath's [Launching Apps & Workflows]({{ '/guides/action-uri/' | relative_url }}) under the hood. You can also trigger window actions from external tools like Raycast or Alfred:
 
 ```bash
 open "keypath://window/snap/left"
@@ -133,18 +136,18 @@ open "keypath://window/snap/left"
 1. **Start simple** — Add one app at a time and test before adding more
 2. **Test thoroughly** — Switch between apps to verify rules activate and deactivate correctly
 3. **Use familiar patterns** — Map keys in ways that match the app's existing shortcuts (e.g., Vim keys for browsers)
-4. **Combine with other features** — App-specific rules work great alongside [Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }}) and [Hyper key]({{ '/guides/use-cases' | relative_url }}) setups
+4. **Combine with other features** — App-specific rules work great alongside [Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }}) and [Hyper key]({{ '/guides/use-cases/' | relative_url }}) setups
 
 ---
 
 ## Next Steps
 
-- **[Launching Apps & Workflows]({{ '/guides/action-uri' | relative_url }})** — Full reference for all URI actions including window snapping
-- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — See window tiling as part of a complete setup
-- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Background on layers and modifiers
-- **[One Key, Multiple Actions]({{ '/guides/tap-hold' | relative_url }})** — Configure the keys that trigger your window actions
-- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }})** — Combine window management with home row modifiers
-- **[Switching from Karabiner?]({{ '/migration/karabiner-users' | relative_url }})** — Map your existing Karabiner window rules to KeyPath
+- **[Launching Apps & Workflows]({{ '/guides/action-uri/' | relative_url }})** — Full reference for all URI actions including window snapping
+- **[What You Can Build]({{ '/guides/use-cases/' | relative_url }})** — See window tiling as part of a complete setup
+- **[Keyboard Concepts]({{ '/guides/concepts/' | relative_url }})** — Background on layers and modifiers
+- **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — Configure the keys that trigger your window actions
+- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — Combine window management with home row modifiers
+- **[Switching from Karabiner?]({{ '/migration/karabiner-users/' | relative_url }})** — Map your existing Karabiner window rules to KeyPath
 - **[Back to Docs](https://keypath-app.com)** — See all available guides
 
 ## External resources

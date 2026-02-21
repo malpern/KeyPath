@@ -4,6 +4,7 @@ title: "One Key, Multiple Actions"
 description: "Advanced key behaviors with tap-hold and tap-dance support"
 theme: parchment
 header_image: header-tap-hold.png
+permalink: /guides/tap-hold/
 ---
 
 
@@ -16,9 +17,9 @@ KeyPath lets a single key do different things depending on *how* you press it:
 - **Tap-Hold**: Tap for one action, hold for another — like Caps Lock that sends Escape on tap but activates shortcuts on hold
 - **Tap-Dance**: Different actions for single tap, double tap, triple tap — like a double-click but for any key
 
-These dual-role keys are the foundation of everything else in KeyPath: [home row modifiers]({{ '/guides/home-row-mods' | relative_url }}), [app launching]({{ '/guides/action-uri' | relative_url }}), navigation layers, and more.
+These dual-role keys are the foundation of everything else in KeyPath: [home row modifiers]({{ '/guides/home-row-mods/' | relative_url }}), [app launching]({{ '/guides/action-uri/' | relative_url }}), navigation layers, and more.
 
-If you're new to these ideas, start with the [Keyboard Concepts]({{ '/guides/concepts' | relative_url }}) page for a beginner-friendly overview.
+If you're new to these ideas, start with the [Keyboard Concepts]({{ '/guides/concepts/' | relative_url }}) page for a beginner-friendly overview.
 
 ---
 
@@ -34,6 +35,8 @@ If you're new to these ideas, start with the [Keyboard Concepts]({{ '/guides/con
 6. Choose hold behavior
 7. Save
 
+
+![Screenshot]({{ '/images/help/tap-hold-custom-rules-tab.png' | relative_url }})
 Screenshot — Custom Rules tab with new rule form:
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -60,6 +63,8 @@ Screenshot — Custom Rules tab with new rule form:
   └─────────────────────────────────────────────────────┘
 ```
 
+
+![Screenshot]({{ '/images/help/tap-hold-rule-editor.png' | relative_url }})
 Screenshot — Rule editor with hold behavior options:
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -220,12 +225,12 @@ For power users, you can edit the generated Kanata config directly to fine-tune 
 
 ## Next Steps
 
-- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }})** — The most popular use of tap-hold
-- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — See tap-hold in action: Hyper key, navigation layers, combined setups
-- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Background on layers, modifiers, and dual-role keys
-- **[Launching Apps]({{ '/guides/action-uri' | relative_url }})** — Trigger actions from your keyboard config
-- **[Alternative Layouts]({{ '/guides/alternative-layouts' | relative_url }})** — Tap-hold works with any layout
-- **[Switching from Karabiner?]({{ '/migration/karabiner-users' | relative_url }})** — See how Karabiner's `to_if_alone` maps to Kanata tap-hold
+- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — The most popular use of tap-hold
+- **[What You Can Build]({{ '/guides/use-cases/' | relative_url }})** — See tap-hold in action: Hyper key, navigation layers, combined setups
+- **[Keyboard Concepts]({{ '/guides/concepts/' | relative_url }})** — Background on layers, modifiers, and dual-role keys
+- **[Launching Apps]({{ '/guides/action-uri/' | relative_url }})** — Trigger actions from your keyboard config
+- **[Alternative Layouts]({{ '/guides/alternative-layouts/' | relative_url }})** — Tap-hold works with any layout
+- **[Switching from Karabiner?]({{ '/migration/karabiner-users/' | relative_url }})** — See how Karabiner's `to_if_alone` maps to Kanata tap-hold
 - **[Back to Docs](https://keypath-app.com/docs)**
 
 ## External resources

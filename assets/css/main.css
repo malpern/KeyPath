@@ -552,6 +552,22 @@ body.sidebar-open .sidebar {
     position: relative;
 }
 
+.docs-hero-watercolor {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+}
+
+.docs-hero-watercolor img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    opacity: 0.42;
+    filter: saturate(1.05) contrast(0.95);
+}
+
 .docs-hero::before {
     content: '';
     position: absolute;
@@ -569,6 +585,12 @@ body.sidebar-open .sidebar {
     color: #FFFFFF;
     margin-bottom: var(--spacing-sm);
     line-height: 1.2;
+}
+
+.docs-hero-content,
+.docs-hero-visual {
+    position: relative;
+    z-index: 1;
 }
 
 .docs-hero-subtitle {
@@ -8157,7 +8179,8 @@ a.button:active {
 .article-header-img {
     width: 100%;
     height: auto;
-    max-height: 300px;
+    max-height: 420px;
+    aspect-ratio: 21 / 9;
     object-fit: cover;
     object-position: center 35%;
     display: block;

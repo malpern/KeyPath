@@ -4,6 +4,7 @@ title: "Launching Apps & Workflows"
 description: "Launch apps, URLs, and folders from your keyboard with a single keystroke"
 theme: parchment
 header_image: header-action-uri.png
+permalink: /guides/action-uri/
 ---
 
 
@@ -20,7 +21,7 @@ Switching between apps usually means reaching for the Dock, opening Spotlight, o
 | **App** | Safari, Terminal, Messages | Opens the app (or brings it to front if already running) |
 | **URL** | github.com, google.com | Opens in your default browser |
 | **Folder** | ~/Documents, ~/Desktop | Opens in Finder |
-| **Script** | backup.sh, deploy.py | Runs the script (with [safety protections]({{ '/guides/privacy' | relative_url }})) |
+| **Script** | backup.sh, deploy.py | Runs the script (with [safety protections]({{ '/guides/privacy/' | relative_url }})) |
 
 ---
 
@@ -38,6 +39,8 @@ The fastest way to start launching apps from your keyboard:
 5. Click a key on the keyboard overlay to assign it
 6. Done — hold Caps Lock (Hyper) + press that key to launch
 
+
+![Screenshot]({{ '/images/help/action-uri-overlay-header.png' | relative_url }})
 Screenshot — Overlay header bar with inspector controls:
 ```
   ┌─────────────────────────────────────────────────────────┐
@@ -47,6 +50,8 @@ Screenshot — Overlay header bar with inspector controls:
   └─────────────────────────────────────────────────────────┘
 ```
 
+
+![Screenshot]({{ '/images/help/action-uri-inspector-toolbar.png' | relative_url }})
 Screenshot — Inspector panel toolbar (tap the gear to toggle settings tabs):
 ```
   ┌─────────────────────────────────────────────────────────┐
@@ -60,6 +65,8 @@ Screenshot — Inspector panel toolbar (tap the gear to toggle settings tabs):
   └─────────────────────────────────────────────────────────┘
 ```
 
+
+![Screenshot]({{ '/images/help/action-uri-launchers-tab.png' | relative_url }})
 Screenshot — Launchers tab with shortcut list:
 ```
   ┌─────────────────────────────────────────────────────────┐
@@ -97,6 +104,8 @@ When you assign a launcher, the overlay keyboard shows app icons on bound keys:
 
 Click the drawer button (☰) on the overlay header to open the launcher drawer. It shows all your bindings at a glance, organized by type.
 
+
+![Screenshot]({{ '/images/help/action-uri-launcher-drawer.png' | relative_url }})
 Screenshot — Launcher drawer (slides out from overlay):
 ```
   ┌──────────────────────────┐
@@ -136,6 +145,8 @@ Each row shows the key badge, the app/URL icon, and the target name. Click any r
 
 KeyPath offers two ways to trigger your launcher bindings. You can change this in the Launchers tab settings.
 
+
+![Screenshot]({{ '/images/help/action-uri-activation-mode.png' | relative_url }})
 Screenshot — Activation mode picker (in Launchers tab settings):
 ```
   ┌─────────────────────────────────────────────┐
@@ -221,11 +232,11 @@ Enable these in the **Rules** tab to get started immediately, then customize fro
 
 ## Related guides
 
-- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — See app launching in context with window tiling, shortcuts, and more
-- **[Windows & App Shortcuts]({{ '/guides/window-management' | relative_url }})** — App-specific keymaps and window snapping
-- **[One Key, Multiple Actions]({{ '/guides/tap-hold' | relative_url }})** — How the Hyper key's tap-hold behavior works
-- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Background on layers and modifiers
-- **[Action URI Reference]({{ '/guides/action-uri-reference' | relative_url }})** — Technical deep link reference for integrating with Raycast, Alfred, and scripts
+- **[What You Can Build]({{ '/guides/use-cases/' | relative_url }})** — See app launching in context with window tiling, shortcuts, and more
+- **[Windows & App Shortcuts]({{ '/guides/window-management/' | relative_url }})** — App-specific keymaps and window snapping
+- **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — How the Hyper key's tap-hold behavior works
+- **[Keyboard Concepts]({{ '/guides/concepts/' | relative_url }})** — Background on layers and modifiers
+- **[Action URI Reference]({{ '/guides/action-uri-reference/' | relative_url }})** — Technical deep link reference for integrating with Raycast, Alfred, and scripts
 - **[Back to Docs](https://keypath-app.com)** — See all available guides
 
 ## External resources

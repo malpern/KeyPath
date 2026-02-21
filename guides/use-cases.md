@@ -4,6 +4,7 @@ title: "What You Can Build"
 description: "Concrete examples of what KeyPath can do — from simple remaps to full keyboard workflows"
 theme: parchment
 header_image: header-use-cases.png
+permalink: /guides/use-cases/
 ---
 
 
@@ -11,7 +12,7 @@ header_image: header-use-cases.png
 
 KeyPath keeps your hands on the home row and your focus on your work. Here's what that looks like in practice — from launching apps to tiling windows to typing on any layout. Each section links to a detailed guide.
 
-New to keyboard customization? Read [Keyboard Concepts]({{ '/guides/concepts' | relative_url }}) first.
+New to keyboard customization? Read [Keyboard Concepts]({{ '/guides/concepts/' | relative_url }}) first.
 
 ---
 
@@ -27,6 +28,8 @@ Stop reaching for the Dock or Spotlight. Hold one key, press a letter, and your 
 
 One key hold + one letter = instant access to anything on your Mac. No mouse, no Cmd+Space, no typing a name.
 
+
+![Screenshot]({{ '/images/help/use-cases-launchers-tab.png' | relative_url }})
 Screenshot — Launchers tab in the inspector panel:
 ```
   ┌─────────────────────────────────────┐
@@ -40,7 +43,7 @@ Screenshot — Launchers tab in the inspector panel:
   └─────────────────────────────────────┘
 ```
 
-**How to set it up:** Open the **Launchers** tab, click **Add Shortcut**, choose your key and target. See the [Launching Apps guide]({{ '/guides/action-uri' | relative_url }}) for the full walkthrough.
+**How to set it up:** Open the **Launchers** tab, click **Add Shortcut**, choose your key and target. See the [Launching Apps guide]({{ '/guides/action-uri/' | relative_url }}) for the full walkthrough.
 
 ---
 
@@ -59,7 +62,7 @@ Every keyboard shortcut requires a modifier — Command, Shift, Control, Option.
 
 Hold F + press C = Copy. Hold A + press Tab = Shift+Tab. Your hands never move.
 
-**How to set it up:** Enable the "Home Row Mods" pre-built rule in the Custom Rules tab. See the full [Shortcuts Without Reaching guide]({{ '/guides/home-row-mods' | relative_url }}).
+**How to set it up:** Enable the "Home Row Mods" pre-built rule in the Custom Rules tab. See the full [Shortcuts Without Reaching guide]({{ '/guides/home-row-mods/' | relative_url }}).
 
 ---
 
@@ -76,7 +79,7 @@ Stop dragging windows around with your mouse. Snap any window to a half, quarter
   └───────────┴───────────┘
 ```
 
-**How to set it up:** Enable the "Window Snapping" pre-built rule, or create custom bindings. See the [Window Management guide]({{ '/guides/window-management' | relative_url }}).
+**How to set it up:** Enable the "Window Snapping" pre-built rule, or create custom bindings. See the [Window Management guide]({{ '/guides/window-management/' | relative_url }}).
 
 ---
 
@@ -93,7 +96,7 @@ Your browser and your code editor need different shortcuts. KeyPath detects whic
 
 No manual toggling — just switch apps and your keyboard adapts.
 
-**How to set it up:** Go to the **Custom Rules** tab, click **New Rule**, select the target app, and add your mappings. See the [Window Management guide]({{ '/guides/window-management' | relative_url }}).
+**How to set it up:** Go to the **Custom Rules** tab, click **New Rule**, select the target app, and add your mappings. See the [Window Management guide]({{ '/guides/window-management/' | relative_url }}).
 
 ---
 
@@ -112,7 +115,7 @@ Arrow keys are small, far away, and break your typing flow. Hold a modifier to t
 
 Especially helpful on a MacBook where the arrow keys are tiny.
 
-**How to set it up:** Create a custom rule with a tap-hold key that activates a navigation layer on hold. See [One Key, Multiple Actions]({{ '/guides/tap-hold' | relative_url }}) for how dual-role keys work.
+**How to set it up:** Create a custom rule with a tap-hold key that activates a navigation layer on hold. See [One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }}) for how dual-role keys work.
 
 ---
 
@@ -138,7 +141,7 @@ Whether you're learning Colemak, using a French AZERTY layout, or typing on a sp
 
 KeyPath supports 8 keymaps and 12 physical keyboard layouts, from MacBook to Kinesis Advantage 360.
 
-**Learn more:** [Alternative Layouts]({{ '/guides/alternative-layouts' | relative_url }}) · [Keyboard Layouts]({{ '/guides/keyboard-layouts' | relative_url }})
+**Learn more:** [Alternative Layouts]({{ '/guides/alternative-layouts/' | relative_url }}) · [Keyboard Layouts]({{ '/guides/keyboard-layouts/' | relative_url }})
 
 ---
 
@@ -169,14 +172,14 @@ Start with one idea, get comfortable, then add the next. There's no rush.
 
 ## Where to go next
 
-- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — The fundamentals: layers, modifiers, and dual-role keys
-- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }})** — Deep dive on home row modifiers
-- **[One Key, Multiple Actions]({{ '/guides/tap-hold' | relative_url }})** — Fine-tune dual-role key behavior
-- **[Launching Apps & Workflows]({{ '/guides/action-uri' | relative_url }})** — Bind any key to launch apps, URLs, and more
-- **[Window Management]({{ '/guides/window-management' | relative_url }})** — App-specific shortcuts and window tiling
-- **[Alternative Layouts]({{ '/guides/alternative-layouts' | relative_url }})** — Colemak, Dvorak, Workman, and more
-- **[Keyboard Layouts]({{ '/guides/keyboard-layouts' | relative_url }})** — Physical keyboard support (ANSI, split, ergonomic)
-- **[Privacy & Permissions]({{ '/guides/privacy' | relative_url }})** — What KeyPath accesses and why
+- **[Keyboard Concepts]({{ '/guides/concepts/' | relative_url }})** — The fundamentals: layers, modifiers, and dual-role keys
+- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — Deep dive on home row modifiers
+- **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — Fine-tune dual-role key behavior
+- **[Launching Apps & Workflows]({{ '/guides/action-uri/' | relative_url }})** — Bind any key to launch apps, URLs, and more
+- **[Window Management]({{ '/guides/window-management/' | relative_url }})** — App-specific shortcuts and window tiling
+- **[Alternative Layouts]({{ '/guides/alternative-layouts/' | relative_url }})** — Colemak, Dvorak, Workman, and more
+- **[Keyboard Layouts]({{ '/guides/keyboard-layouts/' | relative_url }})** — Physical keyboard support (ANSI, split, ergonomic)
+- **[Privacy & Permissions]({{ '/guides/privacy/' | relative_url }})** — What KeyPath accesses and why
 
 ## External resources
 

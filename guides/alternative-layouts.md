@@ -4,6 +4,7 @@ title: "Alternative Layouts"
 description: "Colemak, Dvorak, Workman, and more — KeyPath supports 8 keymaps with a live overlay"
 theme: parchment
 header_image: header-alternative-layouts.png
+permalink: /guides/alternative-layouts/
 ---
 
 
@@ -31,7 +32,7 @@ The case for an alternative layout comes down to ergonomics:
 
 On QWERTY, your fingers leave the home row for most letters. On an ergonomic layout like Colemak or Dvorak, the most frequent letters are right under your fingertips. Less reaching means less strain, especially over long typing sessions.
 
-That said, switching layouts is a commitment — expect weeks of slower typing before you regain speed. Many people find it worthwhile; others prefer to stay on QWERTY and use [Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }}) or a [Hyper key]({{ '/guides/use-cases' | relative_url }}) instead.
+That said, switching layouts is a commitment — expect weeks of slower typing before you regain speed. Many people find it worthwhile; others prefer to stay on QWERTY and use [Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }}) or a [Hyper key]({{ '/guides/use-cases/' | relative_url }}) instead.
 
 ---
 
@@ -186,6 +187,8 @@ Changing your keyboard overlay to a different layout takes two clicks:
 3. Click the **Keymap** tab
 4. Click any layout card — the overlay updates instantly
 
+
+![Screenshot]({{ '/images/help/alt-layouts-settings-toolbar.png' | relative_url }})
 Screenshot — Settings toolbar (after clicking the gear):
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -196,6 +199,8 @@ Screenshot — Settings toolbar (after clicking the gear):
   └─────────────────────────────────────────────────────┘
 ```
 
+
+![Screenshot]({{ '/images/help/alt-layouts-keymap-picker.png' | relative_url }})
 Screenshot — Keymap picker (2-column grid of layout cards):
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -233,17 +238,17 @@ KeyPath doesn't change your operating system's input method — it works alongsi
 2. **Use KeyPath's overlay** as a visual reference. It shows the layout on your actual keyboard.
 3. **Expect 2-4 weeks** of slower typing before you start to feel comfortable. Most people reach their QWERTY speed in 1-3 months.
 4. **Keep shortcuts familiar.** Layouts like Colemak preserve Z/X/C/V positions, so Cut/Copy/Paste still work. On Dvorak, consider remapping shortcuts separately.
-5. **Combine with Home Row Mods.** [Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }}) work with any layout — the modifier positions adapt to wherever the home row letters are.
+5. **Combine with Home Row Mods.** [Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }}) work with any layout — the modifier positions adapt to wherever the home row letters are.
 
 ---
 
 ## Related guides
 
-- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Layers, modifiers, and tap-hold fundamentals
-- **[Keyboard Layouts]({{ '/guides/keyboard-layouts' | relative_url }})** — Physical keyboard support (ANSI, split, ergonomic)
-- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }})** — Modifiers on the home row, compatible with any layout
-- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — All KeyPath features at a glance
-- **[One Key, Multiple Actions]({{ '/guides/tap-hold' | relative_url }})** — Fine-tune dual-role key behavior
+- **[Keyboard Concepts]({{ '/guides/concepts/' | relative_url }})** — Layers, modifiers, and tap-hold fundamentals
+- **[Keyboard Layouts]({{ '/guides/keyboard-layouts/' | relative_url }})** — Physical keyboard support (ANSI, split, ergonomic)
+- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — Modifiers on the home row, compatible with any layout
+- **[What You Can Build]({{ '/guides/use-cases/' | relative_url }})** — All KeyPath features at a glance
+- **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — Fine-tune dual-role key behavior
 - **[Back to Docs](https://keypath-app.com/docs)**
 
 ## External resources

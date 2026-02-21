@@ -4,6 +4,7 @@ title: "Shortcuts Without Reaching"
 description: "Turn your home row keys into modifiers — the most popular advanced keyboard technique"
 theme: parchment
 header_image: header-home-row-mods.png
+permalink: /guides/home-row-mods/
 ---
 
 
@@ -23,7 +24,7 @@ Home row mods fix this by putting modifiers right under your fingertips:
 
 Tap a key normally and you get the letter. Hold it briefly and it becomes a modifier. Your hands never move — every shortcut is one fluid motion from the home row.
 
-If you're new to keyboard customization, read [Keyboard Concepts]({{ '/guides/concepts' | relative_url }}) first for background on dual-role keys and layers.
+If you're new to keyboard customization, read [Keyboard Concepts]({{ '/guides/concepts/' | relative_url }}) first for background on dual-role keys and layers.
 
 ---
 
@@ -74,6 +75,8 @@ Once you've enabled home row mods, you can fine-tune how they feel. Open the rul
 
 KeyPath provides a slider to adjust the tap-hold threshold:
 
+
+![Screenshot]({{ '/images/help/hrm-typing-feel-slider.png' | relative_url }})
 Screenshot — Typing Feel slider in rule settings:
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -95,6 +98,8 @@ Screenshot — Typing Feel slider in rule settings:
 
 Pinkies are slower than index fingers. KeyPath lets you add extra tolerance for slower fingers to prevent accidental holds:
 
+
+![Screenshot]({{ '/images/help/hrm-per-finger-sliders.png' | relative_url }})
 Screenshot — Per-finger sensitivity sliders:
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -149,7 +154,7 @@ Different fingers move at different speeds. KeyPath lets you give slower fingers
 
 ---
 
-**Switching from Karabiner?** See the [From Karabiner-Elements guide]({{ '/migration/karabiner-users' | relative_url }}) for a detailed comparison of how home row mods work in both tools.
+**Switching from Karabiner?** See the [From Karabiner-Elements guide]({{ '/migration/karabiner-users/' | relative_url }}) for a detailed comparison of how home row mods work in both tools.
 
 ---
 
@@ -191,12 +196,12 @@ Shift is the most frequently used modifier during normal typing (capital letters
 
 ### KeyPath guides
 
-- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Background on tap-hold, layers, and modifiers
-- **[One Key, Multiple Actions]({{ '/guides/tap-hold' | relative_url }})** — Detailed guide to all tap-hold options in KeyPath
-- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — See HRM as part of a complete setup with Hyper key, window tiling, and more
-- **[Alternative Layouts]({{ '/guides/alternative-layouts' | relative_url }})** — HRM works with any layout — see what's supported
-- **[Keyboard Layouts]({{ '/guides/keyboard-layouts' | relative_url }})** — Split keyboards and HRM are a natural match
-- **[Switching from Karabiner?]({{ '/migration/karabiner-users' | relative_url }})** — See how KeyPath's HRM compares to Karabiner's approach
+- **[Keyboard Concepts]({{ '/guides/concepts/' | relative_url }})** — Background on tap-hold, layers, and modifiers
+- **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — Detailed guide to all tap-hold options in KeyPath
+- **[What You Can Build]({{ '/guides/use-cases/' | relative_url }})** — See HRM as part of a complete setup with Hyper key, window tiling, and more
+- **[Alternative Layouts]({{ '/guides/alternative-layouts/' | relative_url }})** — HRM works with any layout — see what's supported
+- **[Keyboard Layouts]({{ '/guides/keyboard-layouts/' | relative_url }})** — Split keyboards and HRM are a natural match
+- **[Switching from Karabiner?]({{ '/migration/karabiner-users/' | relative_url }})** — See how KeyPath's HRM compares to Karabiner's approach
 - **[Back to Docs](https://keypath-app.com/docs)**
 
 ### External references

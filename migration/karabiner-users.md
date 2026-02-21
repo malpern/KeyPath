@@ -4,6 +4,7 @@ title: "Switching from Karabiner-Elements"
 description: "A practical guide for Karabiner-Elements users migrating to KeyPath"
 theme: parchment
 header_image: header-karabiner-users.png
+permalink: /migration/karabiner-users/
 ---
 
 
@@ -48,7 +49,7 @@ Here's how Karabiner concepts translate to KeyPath:
 
 **In Karabiner:** Write a complex JSON rule with `to_if_alone` and a timeout.
 
-**In KeyPath:** Create a rule, enable the **Hold, Double Tap, etc.** toggle, and choose from four hold behavior options — Basic, Trigger Early, Quick Tap, or Custom Keys. Each offers different activation strategies. See the [One Key, Multiple Actions guide]({{ '/guides/tap-hold' | relative_url }}) for details.
+**In KeyPath:** Create a rule, enable the **Hold, Double Tap, etc.** toggle, and choose from four hold behavior options — Basic, Trigger Early, Quick Tap, or Custom Keys. Each offers different activation strategies. See the [One Key, Multiple Actions guide]({{ '/guides/tap-hold/' | relative_url }}) for details.
 
 ### Layers
 
@@ -66,8 +67,10 @@ Here's how Karabiner concepts translate to KeyPath:
 
 **In Karabiner:** Per-app conditions in JSON rules.
 
-**In KeyPath:** Go to the **Custom Rules** tab, click **New Rule**, select an app, and add your mappings. KeyPath switches layers automatically when you switch apps — no manual toggling needed. See the [Window Management guide]({{ '/guides/window-management' | relative_url }}).
+**In KeyPath:** Go to the **Custom Rules** tab, click **New Rule**, select an app, and add your mappings. KeyPath switches layers automatically when you switch apps — no manual toggling needed. See the [Window Management guide]({{ '/guides/window-management/' | relative_url }}).
 
+
+![Screenshot]({{ '/images/help/karabiner-custom-rules-comparison.png' | relative_url }})
 Screenshot — Custom Rules tab (what you'll see instead of JSON):
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -95,7 +98,7 @@ Screenshot — Custom Rules tab (what you'll see instead of JSON):
 
 ## What you'll gain
 
-- **Better tap-hold** — Kanata offers four tap-hold variants with per-key timing, giving you more control over dual-role key behavior. See [Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }}).
+- **Better tap-hold** — Kanata offers four tap-hold variants with per-key timing, giving you more control over dual-role key behavior. See [Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }}).
 - **Split-hand detection** — Cross-hand keypresses activate modifiers, same-hand keypresses produce letters. This reduces home row mod misfires significantly.
 
 ### Home row mods comparison
@@ -111,7 +114,7 @@ This is where the difference is most noticeable. If you use home row mods in Kar
 | Configuration | Visual UI with sliders | JSON editing |
 | Engine | Kanata (purpose-built for tap-hold) | General-purpose JSON rules |
 - **Readable config** — A typical remap takes 3 lines of Kanata vs 20+ lines of Karabiner JSON.
-- **App launching** — Built-in [app launching]({{ '/guides/action-uri' | relative_url }}) for launching apps, opening URLs, and tiling windows from your keyboard.
+- **App launching** — Built-in [app launching]({{ '/guides/action-uri/' | relative_url }}) for launching apps, opening URLs, and tiling windows from your keyboard.
 - **Visual configuration** — KeyPath's UI lets you configure without editing JSON or config files directly.
 
 ## What you'll lose (temporarily)
@@ -186,10 +189,10 @@ KeyPath's per-finger timing and split-hand detection may mean you need less twea
 | Caps Lock → Escape/Control | Pre-built rule with tap-hold |
 | Caps Lock → Hyper | Pre-built "Caps Lock Remap" → Hyper mode |
 | Home row mods | Pre-built "Home Row Mods" rule |
-| Vi-style arrows (HJKL) | Custom rule or [Vim Navigation]({{ '/guides/use-cases' | relative_url }}#vim-navigation-everywhere) |
+| Vi-style arrows (HJKL) | Custom rule or [Vim Navigation]({{ '/guides/use-cases/' | relative_url }}#vim-navigation-everywhere) |
 | App-specific shortcuts | Custom Rules tab |
-| Launch apps from keyboard | [app launching]({{ '/guides/action-uri' | relative_url }}) |
-| Window snapping | [Window Management]({{ '/guides/window-management' | relative_url }}) |
+| Launch apps from keyboard | [app launching]({{ '/guides/action-uri/' | relative_url }}) |
+| Window snapping | [Window Management]({{ '/guides/window-management/' | relative_url }}) |
 
 ---
 
@@ -219,14 +222,14 @@ We're exploring a tool that would let you paste your Karabiner JSON and see the 
 
 ## Further reading
 
-- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — If you want a refresher on the fundamentals
-- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }})** — Where KeyPath really shines
-- **[One Key, Multiple Actions]({{ '/guides/tap-hold' | relative_url }})** — All four tap-hold variants explained
-- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — Concrete examples of KeyPath setups
-- **[Launching Apps]({{ '/guides/action-uri' | relative_url }})** — Launch apps, URLs, and window actions
-- **[Alternative Layouts]({{ '/guides/alternative-layouts' | relative_url }})** — Colemak, Dvorak, and other keymaps supported by KeyPath
-- **[Keyboard Layouts]({{ '/guides/keyboard-layouts' | relative_url }})** — Physical keyboard support (ANSI, split, ergonomic)
-- **[Privacy & Permissions]({{ '/guides/privacy' | relative_url }})** — How KeyPath's permission model compares
+- **[Keyboard Concepts]({{ '/guides/concepts/' | relative_url }})** — If you want a refresher on the fundamentals
+- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — Where KeyPath really shines
+- **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — All four tap-hold variants explained
+- **[What You Can Build]({{ '/guides/use-cases/' | relative_url }})** — Concrete examples of KeyPath setups
+- **[Launching Apps]({{ '/guides/action-uri/' | relative_url }})** — Launch apps, URLs, and window actions
+- **[Alternative Layouts]({{ '/guides/alternative-layouts/' | relative_url }})** — Colemak, Dvorak, and other keymaps supported by KeyPath
+- **[Keyboard Layouts]({{ '/guides/keyboard-layouts/' | relative_url }})** — Physical keyboard support (ANSI, split, ergonomic)
+- **[Privacy & Permissions]({{ '/guides/privacy/' | relative_url }})** — How KeyPath's permission model compares
 - **[Karabiner-Elements](https://karabiner-elements.pqrs.org/)** — Karabiner's official site ↗
 - **[Complex Modifications](https://ke-complex-modifications.pqrs.org/)** — Karabiner's community rule library ↗
 - **[Back to Docs](https://keypath-app.com/docs)**

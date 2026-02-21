@@ -4,6 +4,7 @@ title: "Setting Up KeyPath"
 description: "In two minutes your keyboard will launch apps, tile windows, and remap any key — all from the home row"
 theme: parchment
 header_image: header-installation.png
+permalink: /getting-started/installation/
 ---
 
 
@@ -22,6 +23,8 @@ Once setup is complete, KeyPath gives you:
 - **Window tiling** — Snap windows to halves, thirds, or corners with a key combo
 - **Home row shortcuts** — Your modifier keys live under your fingertips, not in the corner
 
+
+![Screenshot]({{ '/images/help/install-overlay-base.png' | relative_url }})
 Screenshot — The KeyPath overlay showing your active layout:
 ```
   ┌──────────────────────────────────────────────┐
@@ -37,7 +40,7 @@ Screenshot — The KeyPath overlay showing your active layout:
   └──────────────────────────────────────────────┘
 ```
 
-Want to see what's possible before you start? Check out [What You Can Build]({{ '/guides/use-cases' | relative_url }}).
+Want to see what's possible before you start? Check out [What You Can Build]({{ '/guides/use-cases/' | relative_url }}).
 
 ---
 
@@ -46,7 +49,7 @@ Want to see what's possible before you start? Check out [What You Can Build]({{ 
 - **macOS 14 (Sonoma) or later** is required
 - If you're running **Karabiner-Elements**, quit it first — it conflicts with KeyPath
 
-> ⚠️ **Watch out:** Karabiner-Elements grabs the same low-level keyboard APIs that KeyPath needs. Quit it from the menu bar icon before continuing. You can always switch back later — see [From Karabiner-Elements]({{ '/migration/karabiner-users' | relative_url }}).
+> ⚠️ **Watch out:** Karabiner-Elements grabs the same low-level keyboard APIs that KeyPath needs. Quit it from the menu bar icon before continuing. You can always switch back later — see [From Karabiner-Elements]({{ '/migration/karabiner-users/' | relative_url }}).
 
 ---
 
@@ -64,6 +67,8 @@ The wizard's first action step. KeyPath needs to install a small privileged help
 
 **What happens:** macOS shows an authorization prompt. Enter your password and click **Install**. This is a one-time step — you won't be asked again unless you uninstall and reinstall.
 
+
+![Screenshot]({{ '/images/help/permissions-login-items.png' | relative_url }})
 Screenshot — macOS authorization prompt:
 ```
   ┌─────────────────────────────────────┐
@@ -105,6 +110,8 @@ This step has **two components** — both need to be granted:
 
 KeyPath.app usually appears in the Accessibility list automatically. Toggle it **ON**.
 
+
+![Screenshot]({{ '/images/help/screenshot-accessibility-settings.png' | relative_url }})
 Screenshot — System Settings > Privacy & Security > Accessibility:
 ```
   ┌──────────────────────────────────────────────┐
@@ -141,6 +148,8 @@ KeyPath uses a separate engine called **kanata** to do the actual keyboard remap
 8. Toggle kanata **ON** in the list
 9. Return to KeyPath — the wizard detects the change automatically
 
+
+![Screenshot]({{ '/images/help/permissions-login-items.png' | relative_url }})
 Screenshot — Using the + button and Go to Folder to find kanata:
 ```
   ┌─ System Settings ──────────────────────────────┐
@@ -177,7 +186,7 @@ Screenshot — Using the + button and Go to Folder to find kanata:
 
 ## Step 4: Input Monitoring
 
-**Why:** Input Monitoring lets KeyPath **read** which keys you press. This is the counterpart to Accessibility — together they form the read/write pair that makes remapping work. For a deeper look at why both are needed, see [Privacy & Permissions]({{ '/guides/privacy' | relative_url }}).
+**Why:** Input Monitoring lets KeyPath **read** which keys you press. This is the counterpart to Accessibility — together they form the read/write pair that makes remapping work. For a deeper look at why both are needed, see [Privacy & Permissions]({{ '/guides/privacy/' | relative_url }}).
 
 Same two-component process as Accessibility:
 
@@ -196,6 +205,8 @@ Same process as Accessibility — kanata is a system binary and won't appear aut
 5. Click **Open**, then toggle kanata **ON**
 6. Return to KeyPath
 
+
+![Screenshot]({{ '/images/help/screenshot-input-monitoring.png' | relative_url }})
 Screenshot — System Settings > Privacy & Security > Input Monitoring after adding both:
 ```
   ┌──────────────────────────────────────────────┐
@@ -243,6 +254,8 @@ The wizard shows a live status indicator:
 
 After the wizard completes and returns to the **Setup Overview** with all green checkmarks, look at the overlay in the bottom-center of your screen:
 
+
+![Screenshot]({{ '/images/help/install-overlay-health-green.png' | relative_url }})
 Screenshot — Overlay header with green health indicator:
 ```
   ┌──────────────────────────────────────────────┐
@@ -276,9 +289,9 @@ Screenshot — Overlay header with green health indicator:
 
 You're set up! Here are the best places to go from here:
 
-- [Keyboard Concepts]({{ '/guides/concepts' | relative_url }}) — Layers, tap-hold, and the ideas behind modern keyboard customization
-- [What You Can Build]({{ '/guides/use-cases' | relative_url }}) — Real examples: app launching, window tiling, Vim-style navigation
-- [Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }}) — Turn your home row into modifier keys so you never leave home position
+- [Keyboard Concepts]({{ '/guides/concepts/' | relative_url }}) — Layers, tap-hold, and the ideas behind modern keyboard customization
+- [What You Can Build]({{ '/guides/use-cases/' | relative_url }}) — Real examples: app launching, window tiling, Vim-style navigation
+- [Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }}) — Turn your home row into modifier keys so you never leave home position
 
 ---
 

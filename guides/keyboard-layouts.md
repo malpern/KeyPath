@@ -4,6 +4,7 @@ title: "Works With Your Keyboard"
 description: "12 physical keyboard layouts from MacBook to Kinesis Advantage 360"
 theme: parchment
 header_image: header-keyboard-layouts.png
+permalink: /guides/keyboard-layouts/
 ---
 
 
@@ -120,6 +121,8 @@ Split keyboards place each hand on its own half, allowing a natural shoulder-wid
 3. Click the **Layout** tab
 4. Click your keyboard — the overlay updates instantly
 
+
+![Screenshot]({{ '/images/help/kb-layouts-layout-picker.png' | relative_url }})
 Screenshot — Physical Layout picker (2-column grid):
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -158,7 +161,7 @@ KeyPath uses your physical layout selection to:
 - **Display rules visually** — see your remapping rules on an accurate representation of your keyboard
 - **Show the right keys** — a 40% board won't show function keys that don't exist
 
-You can combine any physical layout with any [logical keymap]({{ '/guides/alternative-layouts' | relative_url }}). For example, select "Corne" as your physical layout and "Colemak-DH" as your keymap to see Colemak-DH labels on a Corne board.
+You can combine any physical layout with any [logical keymap]({{ '/guides/alternative-layouts/' | relative_url }}). For example, select "Corne" as your physical layout and "Colemak-DH" as your keymap to see Colemak-DH labels on a Corne board.
 
 ---
 
@@ -173,7 +176,7 @@ Start with a 65% or 75%. You keep arrow keys and most shortcuts work unchanged.
 The **Sofle** is a great first split — it has an extra row compared to the Corne, so the transition from a standard board is gentler.
 
 **If you want maximum efficiency:**
-The **Corne** (42 keys) is the community favorite for a balance of minimalism and usability. Pair it with [Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }}) and layers.
+The **Corne** (42 keys) is the community favorite for a balance of minimalism and usability. Pair it with [Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }}) and layers.
 
 **If comfort is the priority:**
 The **Kinesis Advantage 360** has sculpted keywells that match your fingers' natural arc. It's a significant investment but widely loved for long typing sessions.
@@ -187,19 +190,19 @@ The **Ferris Sweep** (34 keys) is as minimal as it gets. Everything beyond lette
 
 Split keyboards benefit especially from KeyPath's features:
 
-- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }})** — Split-hand detection is a natural fit when your hands are physically separated. Cross-hand keypresses reliably activate modifiers.
-- **Layers** — Smaller boards rely heavily on layers. KeyPath's [tap-hold]({{ '/guides/tap-hold' | relative_url }}) system makes layer switching smooth and customizable.
-- **[Alternative layouts]({{ '/guides/alternative-layouts' | relative_url }})** — Colemak-DH was specifically designed with columnar keyboards in mind. The DH modification moves D and H to more comfortable positions on non-staggered boards.
+- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — Split-hand detection is a natural fit when your hands are physically separated. Cross-hand keypresses reliably activate modifiers.
+- **Layers** — Smaller boards rely heavily on layers. KeyPath's [tap-hold]({{ '/guides/tap-hold/' | relative_url }}) system makes layer switching smooth and customizable.
+- **[Alternative layouts]({{ '/guides/alternative-layouts/' | relative_url }})** — Colemak-DH was specifically designed with columnar keyboards in mind. The DH modification moves D and H to more comfortable positions on non-staggered boards.
 
 ---
 
 ## Related guides
 
-- **[Alternative Layouts]({{ '/guides/alternative-layouts' | relative_url }})** — Colemak, Dvorak, Workman, and other keymaps
-- **[Keyboard Concepts]({{ '/guides/concepts' | relative_url }})** — Layers, modifiers, and tap-hold fundamentals
-- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods' | relative_url }})** — Modifiers on the home row — especially powerful on split boards
-- **[One Key, Multiple Actions]({{ '/guides/tap-hold' | relative_url }})** — Fine-tune layer-switching keys
-- **[What You Can Build]({{ '/guides/use-cases' | relative_url }})** — All KeyPath features at a glance
+- **[Alternative Layouts]({{ '/guides/alternative-layouts/' | relative_url }})** — Colemak, Dvorak, Workman, and other keymaps
+- **[Keyboard Concepts]({{ '/guides/concepts/' | relative_url }})** — Layers, modifiers, and tap-hold fundamentals
+- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — Modifiers on the home row — especially powerful on split boards
+- **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — Fine-tune layer-switching keys
+- **[What You Can Build]({{ '/guides/use-cases/' | relative_url }})** — All KeyPath features at a glance
 - **[Back to Docs](https://keypath-app.com/docs)**
 
 ## External resources
