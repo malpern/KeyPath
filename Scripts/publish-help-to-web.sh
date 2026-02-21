@@ -401,9 +401,7 @@ theme: parchment
 ---
 
 <div class="docs-hero">
-  <div class="docs-hero-watercolor" aria-hidden="true">
-    <img src="{{ '/images/help/header-banner.png' | relative_url }}" alt="">
-  </div>
+  <img class="docs-hero-banner" src="{{ '/images/help/header-banner.png' | relative_url }}" alt="">
   <div class="docs-hero-content">
     <h1>KeyPath Documentation</h1>
     <p class="docs-hero-subtitle">Everything you need to master keyboard remapping on your Mac</p>
@@ -411,24 +409,6 @@ theme: parchment
       <a href="{{ '/guides/concepts/' | relative_url }}" class="docs-cta-primary">New here? Start with Keyboard Concepts</a>
       <a href="{{ '/getting-started/installation/' | relative_url }}" class="docs-cta-secondary">Jump to Installation</a>
     </div>
-  </div>
-  <div class="docs-hero-visual">
-    <div class="docs-hero-keyboard">
-      <div class="hero-hand">
-        <div class="hero-key">A<span>⇧</span></div>
-        <div class="hero-key">S<span>⌃</span></div>
-        <div class="hero-key">D<span>⌥</span></div>
-        <div class="hero-key">F<span>⌘</span></div>
-      </div>
-      <div class="hero-key-gap"></div>
-      <div class="hero-hand">
-        <div class="hero-key">J<span>⌘</span></div>
-        <div class="hero-key">K<span>⌥</span></div>
-        <div class="hero-key">L<span>⌃</span></div>
-        <div class="hero-key">;<span>⇧</span></div>
-      </div>
-    </div>
-    <p class="docs-hero-caption">Tap for letters. Hold for modifiers. Your fingers never leave home.</p>
   </div>
 </div>
 
