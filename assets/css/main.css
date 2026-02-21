@@ -8076,25 +8076,19 @@ a.button:active {
 
 /* --- Article header image (watercolor banner) --- */
 .article-header-image {
-    margin: -1rem 0 1rem 0;
-    /* Full-bleed: break out of .content max-width to fill viewport */
-    width: 100vw;
-    position: relative;
-    left: 50%;
-    transform: translateX(-50%);
-    overflow: hidden;
+    margin: 0 0 1rem 0;
+    width: 100%;
+    overflow: visible;
 }
 
 .article-header-img {
     width: 100%;
     height: auto;
-    max-height: 420px;
-    aspect-ratio: 21 / 9;
-    object-fit: cover;
-    object-position: center 35%;
+    max-height: none;
+    aspect-ratio: auto;
+    object-fit: contain;
+    object-position: center top;
     display: block;
-    /* Crops parchment-colored margins. center 35% keeps titles/artwork
-       visible while trimming empty top and bottom edges. */
 }
 
 /* --- HR as watercolor divider --- */
