@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GHPAGES="$REPO_ROOT/.worktrees/gh-pages"
 CSS_FILE="$GHPAGES/assets/css/main.css"
+APP_HELP_CSS="$REPO_ROOT/Sources/KeyPathAppKit/Resources/help-theme.css"
 
 if [[ ! -d "$GHPAGES" ]]; then
   echo "ERROR: gh-pages worktree not found at $GHPAGES"
@@ -12,6 +13,10 @@ fi
 
 if [[ ! -f "$CSS_FILE" ]]; then
   echo "ERROR: missing CSS file: $CSS_FILE"
+  exit 1
+fi
+if [[ ! -f "$APP_HELP_CSS" ]]; then
+  echo "ERROR: missing app help CSS file: $APP_HELP_CSS"
   exit 1
 fi
 
@@ -66,6 +71,18 @@ assert_contains "$header_img_block" "object-position:[[:space:]]*center top;" \
   ".article-header-img must anchor to top (object-position: center top)"
 assert_not_contains "$header_img_block" "object-fit:[[:space:]]*cover;" \
   ".article-header-img must not crop artwork with object-fit: cover"
+
+echo "Checking screenshot sizing CSS guards..."
+assert_contains "$(cat "$CSS_FILE")" "\\.parchment-theme \\.content img" \
+  "website CSS must include base content image sizing rules"
+assert_contains "$(cat "$CSS_FILE")" "\\.parchment-theme \\.content p > img\\[alt\\^=\"Screenshot\"\\]" \
+  "website CSS must include screenshot-specific sizing rules"
+assert_contains "$(cat "$CSS_FILE")" "max-width:[[:space:]]*100%;" \
+  "website screenshot rules must keep images within content width"
+assert_contains "$(cat "$APP_HELP_CSS")" "\\.help-img\\[alt\\^=\"Screenshot\"\\]" \
+  "app help CSS must include screenshot-specific sizing rules"
+assert_contains "$(cat "$APP_HELP_CSS")" "max-width:[[:space:]]*100%;" \
+  "app help images must keep max-width: 100%"
 
 echo "Checking screenshot insertion parity..."
 src_count="$(rg -n '^<!-- screenshot:' "$REPO_ROOT"/Sources/KeyPathAppKit/Resources/*.md | wc -l | tr -d ' ')"

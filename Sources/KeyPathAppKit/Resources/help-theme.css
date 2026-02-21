@@ -191,10 +191,20 @@ body > *:nth-child(n+6) { animation-delay: 0.25s; }
     max-width: 100%;
     height: auto;
     border-radius: 6px;
-    margin: 16px 0;
+    margin: 16px auto;
     display: block;
     animation: fadeSlideIn 0.5s ease-out both;
     animation-delay: 0.1s;
+}
+/* Screenshots should read as framed captures, not decorative art. */
+.help-img[alt^="Screenshot"] {
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 14px rgba(74, 55, 40, 0.10);
+    background: #fff;
+    padding: 6px;
+    border-radius: 10px;
+    margin-top: 18px;
+    margin-bottom: 10px;
 }
 /* Smooth transitions on interactive elements */
 a { transition: color 0.15s ease, border-color 0.15s ease; }
