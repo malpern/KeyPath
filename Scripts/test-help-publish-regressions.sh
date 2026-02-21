@@ -65,12 +65,14 @@ assert_not_contains "$header_wrap_block" "width:[[:space:]]*100vw" \
 assert_not_contains "$header_wrap_block" "transform:[[:space:]]*translateX" \
   ".article-header-image must not use centering transform hacks"
 
-assert_contains "$header_img_block" "object-fit:[[:space:]]*contain;" \
-  ".article-header-img must render full image (object-fit: contain)"
-assert_contains "$header_img_block" "object-position:[[:space:]]*center top;" \
-  ".article-header-img must anchor to top (object-position: center top)"
-assert_not_contains "$header_img_block" "object-fit:[[:space:]]*cover;" \
-  ".article-header-img must not crop artwork with object-fit: cover"
+assert_contains "$header_wrap_block" "overflow:[[:space:]]*hidden;" \
+  ".article-header-image must clip oversized art to avoid blank-canvas viewport"
+assert_contains "$header_img_block" "height:[[:space:]]*clamp" \
+  ".article-header-img must have bounded responsive height"
+assert_contains "$header_img_block" "object-fit:[[:space:]]*cover;" \
+  ".article-header-img must fill header box (object-fit: cover)"
+assert_contains "$header_img_block" "object-position:[[:space:]]*center 72%;" \
+  ".article-header-img must keep lower focal point visible (center 72%)"
 
 echo "Checking screenshot sizing CSS guards..."
 assert_contains "$(cat "$CSS_FILE")" "\\.parchment-theme \\.content img" \
