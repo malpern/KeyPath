@@ -79,4 +79,48 @@ if [[ "$src_count" != "$web_count" ]]; then
   exit 1
 fi
 
+echo "Checking divider asset geometry regression guards..."
+src_divider="$REPO_ROOT/Sources/KeyPathAppKit/Resources/decor-divider.png"
+web_divider="$GHPAGES/images/help/decor-divider.png"
+
+for f in "$src_divider" "$web_divider"; do
+  if [[ ! -f "$f" ]]; then
+    echo "ERROR: missing divider asset: $f"
+    exit 1
+  fi
+done
+
+read_png_dims() {
+  local png="$1"
+  python3 - "$png" <<'PY'
+import struct, sys
+p = sys.argv[1]
+with open(p, "rb") as f:
+    sig = f.read(8)
+    if sig != b"\x89PNG\r\n\x1a\n":
+        raise SystemExit("NOT_PNG")
+    length = struct.unpack(">I", f.read(4))[0]
+    chunk = f.read(4)
+    if chunk != b"IHDR" or length != 13:
+        raise SystemExit("BAD_IHDR")
+    data = f.read(13)
+    width, height = struct.unpack(">II", data[:8])
+print(f"{width} {height}")
+PY
+}
+
+read -r src_w src_h < <(read_png_dims "$src_divider")
+read -r web_w web_h < <(read_png_dims "$web_divider")
+
+if [[ "$src_w" -ne "$web_w" || "$src_h" -ne "$web_h" ]]; then
+  echo "ERROR: source/web divider dimensions differ ($src_w x $src_h vs $web_w x $web_h)"
+  exit 1
+fi
+
+# Guard against reintroducing the old giant canvas (1584x672) with whitespace.
+if [[ "$src_h" -gt 260 || "$src_w" -gt 1400 ]]; then
+  echo "ERROR: divider image canvas too large ($src_w x $src_h) — whitespace regression likely"
+  exit 1
+fi
+
 echo "Publish regression checks passed."
