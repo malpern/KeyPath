@@ -44,10 +44,10 @@
             </aside>
             {% endunless %}
             
-            <div class="kp-root{% if page.content_class %} {{ page.content_class }}{% endif %}" data-kp-body="1">
+            <div class="kp-root{% if page.content_class %} {{ page.content_class }}{% endif %}" data-kp-body="1" style="display:block !important; visibility:visible !important; opacity:1 !important; width:100%; max-width:720px; margin:0 auto; padding-bottom:3rem;">
                 {% if page.header_image %}
-                <div class="article-header-image">
-                    <img src="{{ '/images/help/' | append: page.header_image | relative_url }}" alt="" class="article-header-img">
+                <div class="article-header-image" style="display:block !important; width:100%; overflow:hidden; margin:0 0 1rem 0;">
+                    <img src="{{ '/images/help/' | append: page.header_image | relative_url }}" alt="" class="article-header-img" style="display:block !important; width:100%; max-width:none; height:clamp(220px, 30vw, 420px); object-fit:cover; object-position:center 72%; margin:0;">
                 </div>
                 {% endif %}
                 {{ content }}
