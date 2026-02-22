@@ -473,6 +473,12 @@ struct ExpandableCollectionRow: View {
                             .padding(.top, 8)
                             .padding(.bottom, 12)
                             .padding(.horizontal, 12)
+                    } else if collection?.id == RuleCollectionIdentifier.kindaVim {
+                        // KindaVim uses custom view with install banner + category cards
+                        KindaVimCollectionView(mappings: collection?.mappings ?? [])
+                            .padding(.top, 8)
+                            .padding(.bottom, 12)
+                            .padding(.horizontal, 12)
                     } else if collection?.id == RuleCollectionIdentifier.windowSnapping {
                         // Window snapping uses visual monitor canvas
                         WindowSnappingView(

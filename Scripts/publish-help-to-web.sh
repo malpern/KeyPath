@@ -64,6 +64,7 @@ REGISTRY=(
     "action-uri|features|guides|Launching Apps & Workflows|Launching Apps|Launch apps, URLs, and folders from your keyboard with a single keystroke"
     "alternative-layouts|features|guides|Alternative Layouts|Alternative Layouts|Colemak, Dvorak, Workman, and more — KeyPath supports 8 keymaps with a live overlay"
     "keyboard-layouts|features|guides|Works With Your Keyboard|Works With Your Keyboard|12 physical keyboard layouts from MacBook to Kinesis Advantage 360"
+    "kindavim|features|guides|Full Vim Modes on macOS|Full Vim Modes|Use KindaVim for real Vim modes system-wide, with KeyPath leader-key shortcuts for Insert mode"
 
     # Reference
     "action-uri-reference|reference|guides|Action URI Reference|Action URI Reference|Technical deep-link reference for integrating KeyPath with Raycast, Alfred, and scripts"

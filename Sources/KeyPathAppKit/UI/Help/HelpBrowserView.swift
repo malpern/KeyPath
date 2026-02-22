@@ -32,6 +32,7 @@ extension HelpTopic {
         HelpTopic(id: "action-uri", title: "Launching Apps", icon: "link", resource: "action-uri", group: .features),
         HelpTopic(id: "alternative-layouts", title: "Alternative Layouts", icon: "textformat", resource: "alternative-layouts", group: .features),
         HelpTopic(id: "keyboard-layouts", title: "Your Keyboard", icon: "keyboard.badge.ellipsis", resource: "keyboard-layouts", group: .features),
+        HelpTopic(id: "kindavim", title: "Full Vim Modes", icon: "v.square", resource: "kindavim", group: .features),
         // Reference
         HelpTopic(id: "action-uri-reference", title: "Action URI Reference", icon: "curlybraces", resource: "action-uri-reference", group: .reference),
         HelpTopic(id: "privacy", title: "Privacy & Permissions", icon: "lock.shield", resource: "privacy", group: .reference),
