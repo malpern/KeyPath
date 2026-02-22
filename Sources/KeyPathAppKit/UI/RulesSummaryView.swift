@@ -262,12 +262,9 @@ struct RulesTabView: View {
                 // Toggle collection directly (welcome dialog moved to drawer's launcher tab)
                 Task {
                     await kanataManager.toggleRuleCollection(collection.id, enabled: isOn)
-                    // Sync pending toggle with actual state (handles cancel from conflict dialog)
-                    if let actual = kanataManager.ruleCollections.first(where: { $0.id == collection.id }) {
-                        pendingToggles[collection.id] = actual.isEnabled
-                    } else {
-                        pendingToggles.removeValue(forKey: collection.id)
-                    }
+                    // Clear optimistic state after async completion to avoid stale values
+                    // racing against view model updates from conflict-resolution flows.
+                    pendingToggles.removeValue(forKey: collection.id)
                 }
             },
             onEditMapping: nil,

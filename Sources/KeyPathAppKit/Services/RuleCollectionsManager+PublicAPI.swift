@@ -21,6 +21,8 @@ extension RuleCollectionsManager {
     /// Toggle a rule collection on/off
     func toggleCollection(id: UUID, isEnabled: Bool) async {
         AppLogger.shared.log("🔀 [RuleCollections] toggleCollection called: id=\(id), isEnabled=\(isEnabled)")
+        let snapshot = snapshotRuleState()
+
         let catalogMatch = RuleCollectionCatalog().defaultCollections().first { $0.id == id }
         AppLogger.shared.log("🔀 [RuleCollections] catalogMatch=\(catalogMatch?.name ?? "nil")")
         let candidate = ruleCollections.first(where: { $0.id == id }) ?? catalogMatch
@@ -47,7 +49,7 @@ extension RuleCollectionsManager {
                 switch choice {
                 case .keepNew:
                     // Disable the conflicting rule, then proceed with enabling this one
-                    await disableConflicting(conflict.source)
+                    await disableConflicting(conflict.source, regenerate: false)
                 case .keepExisting:
                     // User chose to keep the existing rule - don't enable the new one
                     return
@@ -91,7 +93,12 @@ extension RuleCollectionsManager {
 
         refreshLayerIndicatorState()
         AppLogger.shared.log("🔀 [RuleCollections] Calling regenerateConfigFromCollections...")
-        await regenerateConfigFromCollections()
+        let applied = await regenerateConfigFromCollections()
+        guard applied else {
+            AppLogger.shared.log("↩️ [RuleCollections] Toggle apply failed; rolling back to previous state")
+            await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.")
+            return
+        }
 
         // Pre-cache icons for collections with app launches (e.g., Vim nav layer)
         if isEnabled, let collection = ruleCollections.first(where: { $0.id == id }) {
@@ -124,6 +131,8 @@ extension RuleCollectionsManager {
 
     /// Add or update a rule collection
     func addCollection(_ collection: RuleCollection) async {
+        let snapshot = snapshotRuleState()
+
         if collection.isEnabled, let conflict = conflictInfo(for: collection) {
             // Show conflict resolution dialog
             let context = RuleConflictContext(
@@ -144,7 +153,7 @@ extension RuleCollectionsManager {
             switch choice {
             case .keepNew:
                 // Disable the conflicting rule, then proceed with adding this one
-                await disableConflicting(conflict.source)
+                await disableConflicting(conflict.source, regenerate: false)
             case .keepExisting:
                 // User chose to keep the existing rule - don't add the new one
                 return
@@ -162,7 +171,11 @@ extension RuleCollectionsManager {
         }
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
-        await regenerateConfigFromCollections()
+        let applied = await regenerateConfigFromCollections()
+        if !applied {
+            AppLogger.shared.log("↩️ [RuleCollections] Add collection failed; rolling back to previous state")
+            await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.")
+        }
     }
 
     /// Remove a rule collection by ID
@@ -605,6 +618,7 @@ extension RuleCollectionsManager {
     @discardableResult
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false) async -> Bool {
         AppLogger.shared.log("💾 [CustomRules] saveCustomRule called: id=\(rule.id), input='\(rule.input)', output='\(rule.output)'")
+        let snapshot = snapshotRuleState()
 
         if rule.isEnabled,
            let conflict = conflictInfo(for: rule)
@@ -628,16 +642,14 @@ extension RuleCollectionsManager {
             switch choice {
             case .keepNew:
                 // Disable the conflicting rule, then proceed with saving this one
-                await disableConflicting(conflict.source)
+                await disableConflicting(conflict.source, regenerate: false)
             case .keepExisting:
                 // User chose to keep the existing rule - don't save the new one
                 return false
             }
         }
 
-        // Track state before change for potential rollback
         let existingIndex = customRules.firstIndex(where: { $0.id == rule.id })
-        let previousRule = existingIndex.map { customRules[$0] }
 
         if let index = existingIndex {
             AppLogger.shared.log("💾 [CustomRules] Updating existing rule at index \(index)")
@@ -652,13 +664,8 @@ extension RuleCollectionsManager {
         if success {
             AppLogger.shared.log("💾 [CustomRules] Save complete, customRules.count = \(customRules.count)")
         } else {
-            // Rollback: restore previous state on failure
-            AppLogger.shared.log("💾 [CustomRules] Save failed - rolling back changes")
-            if let previous = previousRule, let index = existingIndex {
-                customRules[index] = previous
-            } else {
-                customRules.removeAll { $0.id == rule.id }
-            }
+            AppLogger.shared.log("💾 [CustomRules] Save failed - rolling back to snapshot")
+            await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.")
             AppLogger.shared.log("💾 [CustomRules] Rollback complete, customRules.count = \(customRules.count)")
         }
 
@@ -667,6 +674,7 @@ extension RuleCollectionsManager {
 
     /// Toggle a custom rule on/off
     func toggleCustomRule(id: UUID, isEnabled: Bool) async {
+        let snapshot = snapshotRuleState()
         guard let existing = customRules.first(where: { $0.id == id }) else { return }
 
         if isEnabled,
@@ -691,7 +699,7 @@ extension RuleCollectionsManager {
             switch choice {
             case .keepNew:
                 // Disable the conflicting rule, then proceed with enabling this one
-                await disableConflicting(conflict.source)
+                await disableConflicting(conflict.source, regenerate: false)
             case .keepExisting:
                 // User chose to keep the existing rule - don't enable the new one
                 return
@@ -701,7 +709,11 @@ extension RuleCollectionsManager {
         if let index = customRules.firstIndex(where: { $0.id == id }) {
             customRules[index].isEnabled = isEnabled
         }
-        await regenerateConfigFromCollections()
+        let applied = await regenerateConfigFromCollections()
+        if !applied {
+            AppLogger.shared.log("↩️ [CustomRules] Toggle apply failed; rolling back to previous state")
+            await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.")
+        }
     }
 
     /// Remove a custom rule
