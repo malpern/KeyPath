@@ -58,33 +58,46 @@ extension KanataConfiguration {
             }
         }
 
+        /// The index of the spacebar row in `layoutRows`.
+        private static let spacebarRowIndex = 5
+
         /// Render entries grouped into physical rows; rows without entries are skipped.
         private static func renderGridLines(
             _ entries: [LayerEntry],
             valueProvider: (LayerEntry) -> String
         ) -> [String] {
-            var rows: [[String]] = []
+            // spcTokenIndex tracks which token in the spacebar row corresponds to "spc"
+            var rows: [(tokens: [String], spcTokenIndex: Int?)] = []
             var remaining = entries
 
-            for layoutRow in layoutRows {
+            for (rowIndex, layoutRow) in layoutRows.enumerated() {
                 var tokens: [String] = []
+                var spcIdx: Int?
                 for key in layoutRow {
                     if let idx = remaining.firstIndex(where: { $0.sourceKey == key }) {
                         let entry = remaining.remove(at: idx)
+                        if rowIndex == spacebarRowIndex, key == "spc" {
+                            spcIdx = tokens.count
+                        }
                         tokens.append(valueProvider(entry))
                     }
                 }
                 if !tokens.isEmpty {
-                    rows.append(tokens)
+                    rows.append((tokens, spcIdx))
                 }
             }
 
             // Anything not in the known layout gets appended in a trailing row
             if !remaining.isEmpty {
-                rows.append(remaining.map { valueProvider($0) })
+                rows.append((remaining.map { valueProvider($0) }, nil))
             }
 
-            return rows.map { "  " + padRow($0) }
+            return rows.map { row in
+                if let spcIdx = row.spcTokenIndex {
+                    return "  " + padSpacebarRow(row.tokens, spcTokenIndex: spcIdx)
+                }
+                return "  " + padRow(row.tokens)
+            }
         }
 
         private static func padRow(_ tokens: [String]) -> String {
@@ -93,6 +106,23 @@ extension KanataConfiguration {
                 token.padding(toLength: width, withPad: " ", startingAt: 0)
             }
             return padded.joined(separator: " ")
+        }
+
+        /// Pad the spacebar row with extra whitespace around `spc` to represent
+        /// the physical spacebar width (matching jtroo's canonical formatting).
+        private static func padSpacebarRow(_ tokens: [String], spcTokenIndex: Int) -> String {
+            let width = tokens.map(\.count).max() ?? 0
+            let spacePad = String(repeating: " ", count: width * 2 + 2)
+            var result: [String] = []
+            for (i, token) in tokens.enumerated() {
+                let padded = token.padding(toLength: width, withPad: " ", startingAt: 0)
+                if i == spcTokenIndex {
+                    result.append(spacePad + padded + spacePad)
+                } else {
+                    result.append(padded)
+                }
+            }
+            return result.joined(separator: " ")
         }
     }
 }

@@ -26,6 +26,13 @@ extension KanataConfiguration {
     struct AliasDefinition {
         let aliasName: String
         let definition: String
+        let comment: String?
+
+        init(aliasName: String, definition: String, comment: String? = nil) {
+            self.aliasName = aliasName
+            self.definition = definition
+            self.comment = comment
+        }
     }
 
     /// Represents a chord mapping (simultaneous key presses)
@@ -83,7 +90,11 @@ extension KanataConfiguration {
                 "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
             }
 
-            aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: definition))
+            aliasDefinitions.append(AliasDefinition(
+                aliasName: aliasName,
+                definition: definition,
+                comment: "tap: \(tapOutput)  hold: \(pref.targetLayer.displayName) layer"
+            ))
 
             let entry = LayerEntry(
                 sourceKey: tapKey,
@@ -180,7 +191,11 @@ extension KanataConfiguration {
                     // Include layer notification fake keys for overlay and UI updates.
                     "(multi (on-press-fakekey kp-layer-\(layerName)-enter tap) (one-shot-pause-processing \(oneShotPauseMs)) (one-shot-press \(oneShotTimeoutMs) (layer-while-held \(layerName))))"
                 }
-                aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: definition))
+                aliasDefinitions.append(AliasDefinition(
+                    aliasName: aliasName,
+                    definition: definition,
+                    comment: "tap: \(tapOutput)  hold: \(activator.targetLayer.displayName) layer"
+                ))
 
                 // Determine where to place the activator
                 let entry = if activator.sourceLayer == .base {
@@ -238,13 +253,19 @@ extension KanataConfiguration {
 
                 // Determine the output action based on behavior or simple output
                 var layerOutput: String
-                if mapping.behavior != nil {
+                if let behavior = mapping.behavior {
                     // Advanced behavior (tap-hold, tap-dance) - use renderer
                     // Pass hyperLinkedLayerInfos so "hyper" hold action includes linked layer activations
                     let rendered = KanataBehaviorRenderer.render(mapping, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
                     // Create alias for complex behaviors to keep deflayer clean
                     let aliasName = behaviorAliasName(for: mapping, layer: collection.targetLayer)
-                    aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: rendered))
+                    let behaviorComment: String? = switch behavior {
+                    case let .dualRole(dr):
+                        "tap: \(dr.tapAction)  hold: \(dr.holdAction)"
+                    default:
+                        nil
+                    }
+                    aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: rendered, comment: behaviorComment))
                     layerOutput = "@\(aliasName)"
                 } else if mapping.requiresFork {
                     // Generate fork alias for mappings with modifier-specific outputs

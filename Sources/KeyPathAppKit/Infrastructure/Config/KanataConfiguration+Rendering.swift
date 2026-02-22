@@ -36,15 +36,67 @@ extension KanataConfiguration {
             "",
             "(defalias"
         ]
-        let definitions = aliases.map { alias in
-            // Format multi-line actions with proper indentation
-            let formattedDef = formatMultiLineAction(alias.definition)
-            return "  \(alias.aliasName) \(formattedDef)"
+
+        // Group aliases by prefix, preserving original order within each group
+        let groups: [(header: String, aliases: [AliasDefinition])] = aliasGroups(from: aliases)
+
+        var isFirstGroup = true
+        for group in groups {
+            if !isFirstGroup {
+                lines.append("")
+            }
+            lines.append("  ;; --- \(group.header) ---")
+            for alias in group.aliases {
+                let formattedDef = formatMultiLineAction(alias.definition)
+                var line = "  \(alias.aliasName) \(formattedDef)"
+                if let comment = alias.comment {
+                    // Append trailing comment; for multi-line defs put it on the last line
+                    if formattedDef.contains("\n") {
+                        line += "  ;; \(comment)"
+                    } else {
+                        line += "  ;; \(comment)"
+                    }
+                }
+                lines.append(line)
+            }
+            isFirstGroup = false
         }
-        lines.append(contentsOf: definitions)
+
         lines.append(")")
         lines.append("")
         return lines.joined(separator: "\n")
+    }
+
+    /// Partition aliases into ordered groups by name prefix.
+    private static func aliasGroups(from aliases: [AliasDefinition]) -> [(header: String, aliases: [AliasDefinition])] {
+        let prefixOrder: [(prefix: String, header: String)] = [
+            ("layer_", "Layer Activators"),
+            ("beh_", "Tap-Hold Behaviors"),
+            ("fork_", "Modifier Forks"),
+            ("act_", "Action Aliases"),
+        ]
+
+        var grouped: [String: [AliasDefinition]] = [:]
+        var otherAliases: [AliasDefinition] = []
+
+        for alias in aliases {
+            if let match = prefixOrder.first(where: { alias.aliasName.hasPrefix($0.prefix) }) {
+                grouped[match.prefix, default: []].append(alias)
+            } else {
+                otherAliases.append(alias)
+            }
+        }
+
+        var result: [(header: String, aliases: [AliasDefinition])] = []
+        for (prefix, header) in prefixOrder {
+            if let group = grouped[prefix], !group.isEmpty {
+                result.append((header, group))
+            }
+        }
+        if !otherAliases.isEmpty {
+            result.append(("Other", otherAliases))
+        }
+        return result
     }
 
     /// Format complex actions across multiple lines for better readability.
