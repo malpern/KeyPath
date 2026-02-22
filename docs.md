@@ -42,6 +42,7 @@ theme: parchment
 <li><a href="{{ '/guides/action-uri/' | relative_url }}">Launching Apps</a></li>
 <li><a href="{{ '/guides/alternative-layouts/' | relative_url }}">Alternative Layouts</a></li>
 <li><a href="{{ '/guides/keyboard-layouts/' | relative_url }}">Works With Your Keyboard</a></li>
+<li><a href="{{ '/guides/kindavim/' | relative_url }}">Full Vim Modes</a></li>
 </ul>
 </div>
 
