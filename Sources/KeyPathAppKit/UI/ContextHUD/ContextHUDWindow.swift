@@ -24,6 +24,7 @@ final class ContextHUDWindow: NSWindow {
         ignoresMouseEvents = true
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
+        appearance = NSAppearance(named: .darkAqua)
     }
 
     override var canBecomeKey: Bool {

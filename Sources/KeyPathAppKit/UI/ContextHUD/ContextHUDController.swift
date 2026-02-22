@@ -21,6 +21,9 @@ final class ContextHUDController {
     /// Cached hold labels per layer name (avoids Phase 2 jump on repeat activations)
     private var holdLabelCache: [String: [UInt16: String]] = [:]
 
+    /// Cached enabled collections (avoids ~200ms disk I/O per layer activation)
+    private var cachedEnabledCollections: [RuleCollection]?
+
     private let oneShotOverride = OneShotLayerOverrideState(
         timeoutDuration: .seconds(5)
     )
@@ -30,6 +33,9 @@ final class ContextHUDController {
         "leftctrl", "rightctrl", "leftmeta", "rightmeta",
         "capslock", "fn"
     ]
+
+    /// Background precompute task (cancelled on config change)
+    private var precomputeTask: Task<Void, Never>?
 
     private init() {
         setupNotificationObservers()
@@ -113,7 +119,21 @@ final class ContextHUDController {
                 guard let self else { return }
                 AppLogger.shared.info("🎯 [ContextHUD] Config changed - invalidating cache")
                 self.holdLabelCache.removeAll()
+                self.cachedEnabledCollections = nil
                 await self.layerKeyMapper.invalidateCache()
+                // Re-precompute after debounce to avoid thrashing
+                self.precomputeNavLayer(debounce: true)
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .ruleCollectionsChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.cachedEnabledCollections = nil
             }
         }
     }
@@ -163,6 +183,10 @@ final class ContextHUDController {
 
         // Base layer → dismiss (layer deactivated via hold release or one-shot consumption)
         if normalized == "base" {
+            // Kick off background precompute on first base event (Kanata is ready)
+            if precomputeTask == nil {
+                precomputeNavLayer()
+            }
             dismiss()
             return
         }
@@ -222,6 +246,9 @@ final class ContextHUDController {
     func resetForTesting() {
         previousLayer = "base"
         holdLabelCache.removeAll()
+        cachedEnabledCollections = nil
+        precomputeTask?.cancel()
+        precomputeTask = nil
         dismissTask?.cancel()
         dismissTask = nil
         layerMapTask?.cancel()
@@ -230,6 +257,84 @@ final class ContextHUDController {
         window = nil
         hostingView = nil
         viewModel.clear()
+    }
+
+    // MARK: - Collection Cache
+
+    /// Load enabled collections, using in-memory cache when available
+    private func loadEnabledCollections() async -> [RuleCollection] {
+        if let cached = cachedEnabledCollections {
+            return cached
+        }
+        let all = await RuleCollectionStore.shared.loadCollections()
+        let enabled = all.filter(\.isEnabled)
+        cachedEnabledCollections = enabled
+        return enabled
+    }
+
+    // MARK: - Background Precompute
+
+    /// Layers to precompute in the background (most commonly activated)
+    private static let precomputeLayers = ["nav", "launcher"]
+
+    /// Warm the LayerKeyMapper cache and hold labels for common layers
+    /// so the first activation is instant. Runs entirely off the main thread.
+    /// - Parameter debounce: Whether to debounce (use on config change, skip on startup)
+    private func precomputeNavLayer(debounce: Bool = false) {
+        precomputeTask?.cancel()
+        precomputeTask = Task { [weak self] in
+            guard let self else { return }
+            if debounce {
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { return }
+            }
+
+            AppLogger.shared.info("🎯 [ContextHUD] Background precompute starting")
+
+            let configPath = WizardSystemPaths.userConfigPath
+            let enabledCollections = await self.loadEnabledCollections()
+            let layoutId = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey) ?? LayoutPreferences.defaultLayoutId
+            let layout = PhysicalLayout.find(id: layoutId) ?? .macBookUS
+
+            for layerName in Self.precomputeLayers {
+                guard !Task.isCancelled else { return }
+
+                do {
+                    if layerName == "launcher" {
+                        let keyMap = self.buildLauncherKeyMap(from: enabledCollections)
+                        await self.preloadLauncherIcons(keyMap: keyMap)
+                        AppLogger.shared.info("🎯 [ContextHUD] Precomputed launcher icons")
+                    } else {
+                        // Warm the simulator cache
+                        let keyMap = try await self.layerKeyMapper.getMapping(
+                            for: layerName,
+                            configPath: configPath,
+                            layout: layout,
+                            collections: enabledCollections
+                        )
+                        guard !Task.isCancelled else { return }
+
+                        // Warm the hold label cache
+                        if FeatureFlags.simulatorAndVirtualKeysEnabled {
+                            let holdLabels = await self.resolveHoldLabels(
+                                keyMap: keyMap,
+                                configPath: configPath,
+                                layerName: layerName
+                            )
+                            guard !Task.isCancelled else { return }
+                            if !holdLabels.isEmpty {
+                                self.holdLabelCache[layerName] = holdLabels
+                            }
+                        }
+                        AppLogger.shared.info("🎯 [ContextHUD] Precomputed layer '\(layerName)'")
+                    }
+                } catch {
+                    AppLogger.shared.debug("🎯 [ContextHUD] Precompute failed for '\(layerName)': \(error)")
+                }
+            }
+
+            AppLogger.shared.info("🎯 [ContextHUD] Background precompute complete")
+        }
     }
 
     // MARK: - Show / Dismiss
@@ -247,8 +352,7 @@ final class ContextHUDController {
 
             do {
                 let configPath = WizardSystemPaths.userConfigPath
-                let allCollections = await RuleCollectionStore.shared.loadCollections()
-                let enabledCollections = allCollections.filter(\.isEnabled)
+                let enabledCollections = await self.loadEnabledCollections()
 
                 // Get the active layout
                 let layoutId = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey) ?? LayoutPreferences.defaultLayoutId
@@ -543,7 +647,7 @@ final class ContextHUDController {
             hostingView.layoutSubtreeIfNeeded()
 
             let fittingSize = hostingView.fittingSize
-            let width = min(max(fittingSize.width, 240), 800)
+            let width = min(max(fittingSize.width, 240), 1100)
             let height = min(max(fittingSize.height, 100), 600)
             window.setContentSize(NSSize(width: width, height: height))
         }

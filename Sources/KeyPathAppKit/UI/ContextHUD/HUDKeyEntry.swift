@@ -34,9 +34,18 @@ struct HUDKeyGroup: Identifiable, Equatable {
     let color: Color
     /// Entries in this group, sorted by key position
     let entries: [HUDKeyEntry]
+    /// Sort order for display (sub-groups get explicit order; default 0)
+    let sortOrder: Int
+
+    init(name: String, color: Color, entries: [HUDKeyEntry], sortOrder: Int = 0) {
+        self.name = name
+        self.color = color
+        self.entries = entries
+        self.sortOrder = sortOrder
+    }
 
     static func == (lhs: HUDKeyGroup, rhs: HUDKeyGroup) -> Bool {
-        lhs.name == rhs.name && lhs.entries == rhs.entries
+        lhs.name == rhs.name && lhs.entries == rhs.entries && lhs.sortOrder == rhs.sortOrder
     }
 }
 

@@ -19,7 +19,7 @@ struct ContextHUDDefaultListView: View {
     let groups: [HUDKeyGroup]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        HStack(alignment: .top, spacing: 64) {
             ForEach(groups) { group in
                 VStack(alignment: .leading, spacing: 10) {
                     // Collection header

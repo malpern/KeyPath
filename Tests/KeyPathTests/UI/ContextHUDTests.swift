@@ -119,9 +119,9 @@ final class ContextHUDViewModelTests: XCTestCase {
         let vm = ContextHUDViewModel()
         let keyMap: [UInt16: LayerKeyInfo] = [
             0: .mapped(displayLabel: "Left", outputKey: "left", outputKeyCode: nil,
-                       collectionId: RuleCollectionIdentifier.vimNavigation),
+                       collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "←"),
             1: .mapped(displayLabel: "Down", outputKey: "down", outputKeyCode: nil,
-                       collectionId: RuleCollectionIdentifier.vimNavigation),
+                       collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "↓"),
         ]
 
         let collection = RuleCollection(
@@ -137,8 +137,9 @@ final class ContextHUDViewModelTests: XCTestCase {
 
         XCTAssertEqual(vm.layerName, "nav")
         XCTAssertEqual(vm.style, .defaultList)
+        // Vim entries are split into sub-groups; both are Movement
         XCTAssertEqual(vm.groups.count, 1)
-        XCTAssertEqual(vm.groups.first?.name, "Vim Navigation")
+        XCTAssertEqual(vm.groups.first?.name, "Movement")
         XCTAssertEqual(vm.groups.first?.entries.count, 2)
     }
 
@@ -187,7 +188,7 @@ final class ContextHUDViewModelTests: XCTestCase {
         let vm = ContextHUDViewModel()
         let keyMap: [UInt16: LayerKeyInfo] = [
             0: .mapped(displayLabel: "Left", outputKey: "left", outputKeyCode: nil,
-                       collectionId: RuleCollectionIdentifier.vimNavigation),
+                       collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "←"),
             1: .mapped(displayLabel: "Snap", outputKey: "s", outputKeyCode: nil,
                        collectionId: RuleCollectionIdentifier.windowSnapping),
         ]
@@ -211,7 +212,7 @@ final class ContextHUDViewModelTests: XCTestCase {
 
         XCTAssertEqual(vm.groups.count, 2)
         let names = vm.groups.map(\.name).sorted()
-        XCTAssertEqual(names, ["Vim Navigation", "Window Snapping"])
+        XCTAssertEqual(names, ["Movement", "Window Snapping"])
     }
 
     func testEntriesSortedByKeyCode() {
@@ -293,6 +294,91 @@ final class ContextHUDViewModelTests: XCTestCase {
         XCTAssertEqual(vm.groups.count, 1)
         XCTAssertEqual(vm.groups.first?.name, "Keys")
         XCTAssertEqual(vm.groups.first?.entries.count, 2)
+    }
+
+    // MARK: - Vim Sub-Group Tests
+
+    func testVimEntriesSplitIntoSubGroups() {
+        let vm = ContextHUDViewModel()
+        let keyMap: [UInt16: LayerKeyInfo] = [
+            // Movement
+            4: .mapped(displayLabel: "Left", outputKey: "left", outputKeyCode: nil,
+                       collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "←"),
+            38: .mapped(displayLabel: "Down", outputKey: "down", outputKeyCode: nil,
+                        collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "↓"),
+            // Editing
+            0: .mapped(displayLabel: "Append", outputKey: "a", outputKeyCode: nil,
+                       collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "a"),
+            16: .mapped(displayLabel: "Yank", outputKey: "y", outputKeyCode: nil,
+                        collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "yank"),
+            // Search
+            44: .mapped(displayLabel: "Find", outputKey: "slash", outputKeyCode: nil,
+                        collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "find"),
+        ]
+
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.vimNavigation,
+            name: "Vim Navigation",
+            summary: "", category: .navigation, mappings: [],
+            targetLayer: .navigation
+        )
+
+        vm.update(layerName: "nav", keyMap: keyMap, collections: [collection], style: .defaultList)
+
+        XCTAssertEqual(vm.groups.count, 3, "Should have Movement, Editing, Search sub-groups")
+        let names = vm.groups.map(\.name)
+        XCTAssertEqual(names, ["Movement", "Editing", "Search"],
+                        "Sub-groups should be ordered: Movement → Editing → Search")
+        XCTAssertEqual(vm.groups[0].entries.count, 2) // Movement: ← ↓
+        XCTAssertEqual(vm.groups[1].entries.count, 2) // Editing: a, yank
+        XCTAssertEqual(vm.groups[2].entries.count, 1) // Search: find
+    }
+
+    func testVimSubGroupsPreserveColor() {
+        let vm = ContextHUDViewModel()
+        let keyMap: [UInt16: LayerKeyInfo] = [
+            4: .mapped(displayLabel: "Left", outputKey: "left", outputKeyCode: nil,
+                       collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "←"),
+            0: .mapped(displayLabel: "Append", outputKey: "a", outputKeyCode: nil,
+                       collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "a"),
+        ]
+
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.vimNavigation,
+            name: "Vim Navigation",
+            summary: "", category: .navigation, mappings: [],
+            targetLayer: .navigation
+        )
+
+        vm.update(layerName: "nav", keyMap: keyMap, collections: [collection], style: .defaultList)
+
+        // All vim sub-groups should have the same color
+        let colors = Set(vm.groups.map { $0.color.description })
+        XCTAssertEqual(colors.count, 1, "All vim sub-groups should share the same color")
+    }
+
+    func testVimEntriesWithoutVimLabelGoToOther() {
+        let vm = ContextHUDViewModel()
+        let keyMap: [UInt16: LayerKeyInfo] = [
+            4: .mapped(displayLabel: "Left", outputKey: "left", outputKeyCode: nil,
+                       collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "←"),
+            // This entry has no vimLabel → "Other"
+            99: .mapped(displayLabel: "Custom", outputKey: "x", outputKeyCode: nil,
+                        collectionId: RuleCollectionIdentifier.vimNavigation),
+        ]
+
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.vimNavigation,
+            name: "Vim Navigation",
+            summary: "", category: .navigation, mappings: [],
+            targetLayer: .navigation
+        )
+
+        vm.update(layerName: "nav", keyMap: keyMap, collections: [collection], style: .defaultList)
+
+        let names = vm.groups.map(\.name)
+        XCTAssertTrue(names.contains("Movement"))
+        XCTAssertTrue(names.contains("Other"))
     }
 
     // MARK: - Hold Label Tests

@@ -81,9 +81,11 @@ final class ContextHUDViewModel {
                 return label
             }()
 
-            // For VIM entries: override keycap with vim notation, use English description
+            // For VIM entries: use lowercase keycap (vim is case-sensitive),
+            // override with vim notation, use English description
             let action: String
             if let vimLabel = info.vimLabel {
+                keycap = keycap.lowercased()
                 if let override = Self.vimKeycapOverrides[keycap] {
                     keycap = override
                 }
@@ -151,9 +153,29 @@ final class ContextHUDViewModel {
             groupMap[collectionId]?.entries.append(entry)
         }
 
-        groups = groupMap.values
+        // Split vim entries into semantic sub-groups (Movement, Editing, Search)
+        var vimSubGroups: [HUDKeyGroup] = []
+        if let vimGroup = groupMap[RuleCollectionIdentifier.vimNavigation] {
+            groupMap.removeValue(forKey: RuleCollectionIdentifier.vimNavigation)
+            var subGroupEntries: [String: (order: Int, entries: [HUDKeyEntry])] = [:]
+            for entry in vimGroup.entries {
+                let vimLabel = keyMap[entry.keyCode]?.vimLabel
+                let sub = vimLabel.flatMap { Self.vimSubcategories[$0] }
+                    ?? (name: "Other", order: 99)
+                subGroupEntries[sub.name, default: (order: sub.order, entries: [])].entries.append(entry)
+            }
+            for (name, group) in subGroupEntries {
+                vimSubGroups.append(HUDKeyGroup(
+                    name: name, color: vimGroup.color,
+                    entries: group.entries, sortOrder: group.order
+                ))
+            }
+        }
+
+        groups = (groupMap.values
             .map { HUDKeyGroup(name: $0.name, color: $0.color, entries: $0.entries) }
-            .sorted { $0.name < $1.name }
+            + vimSubGroups)
+            .sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
     }
 
     /// Clear all HUD data
@@ -188,6 +210,23 @@ final class ContextHUDViewModel {
         "4": "$",
     ]
 
+    /// VIM subcategory mapping: vimLabel → (subcategory name, sort order)
+    /// Used to split the single "Vim Navigation" group into semantic sub-groups
+    static let vimSubcategories: [String: (name: String, order: Int)] = [
+        // Movement
+        "←": ("Movement", 0), "↓": ("Movement", 0),
+        "↑": ("Movement", 0), "→": ("Movement", 0),
+        "0": ("Movement", 0), "$": ("Movement", 0),
+        "gg": ("Movement", 0),
+        // Editing
+        "a": ("Editing", 1), "yank": ("Editing", 1),
+        "put": ("Editing", 1), "del": ("Editing", 1),
+        "d": ("Editing", 1), "undo": ("Editing", 1),
+        "redo": ("Editing", 1), "o": ("Editing", 1),
+        // Search
+        "find": ("Search", 2), "next": ("Search", 2),
+    ]
+
     /// VIM English descriptions for the HUD action column
     private static let vimHUDDescriptions: [String: String] = [
         "←": "← left",
@@ -196,15 +235,15 @@ final class ContextHUDViewModel {
         "→": "→ right",
         "0": "line start",
         "$": "line end",
-        "a": "append",
+        "a": "→ append",
         "gg": "go to top",
         "find": "find",
         "next": "next match",
         "yank": "yank",
         "put": "put",
-        "del": "delete char",
+        "del": "fwd delete",
         "redo": "redo",
-        "dw": "delete word",
+        "d": "backspace",
         "undo": "undo",
         "o": "open line",
     ]

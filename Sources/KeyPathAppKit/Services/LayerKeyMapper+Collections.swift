@@ -58,7 +58,7 @@ extension LayerKeyMapper {
         "p": "put",
         "x": "del",
         "r": "redo",
-        "d": "dw",
+        "d": "d",
         "u": "undo",
         "o": "o",
     ]
