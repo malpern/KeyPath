@@ -7,71 +7,20 @@ import SwiftUI
 
 struct KindaVimCollectionView: View {
     let mappings: [KeyMapping]
-
-    @State private var hasAppeared = false
-
-    private var categories: [KindaVimCategory] {
-        KindaVimCategory.allCases.filter { !commandsFor($0).isEmpty }
-    }
+    @State private var selectedHUDMode: KindaVimLeaderHUDMode = PreferencesService.shared.kindaVimLeaderHUDMode
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             installationBanner
-            shortcutCardsSection
+            integrationSummary
+            hudModeSection
             strategyTip
         }
         .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                hasAppeared = true
-            }
+            selectedHUDMode = PreferencesService.shared.kindaVimLeaderHUDMode
         }
-    }
-
-    @ViewBuilder
-    private var shortcutCardsSection: some View {
-        if categories.isEmpty {
-            Text("Enable this collection to load leader shortcuts.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        } else {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    Image(systemName: "rectangle.stack.badge.play")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(.accentColor)
-                    Text("Leader Shortcuts in KeyPath")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(.secondary)
-                }
-
-                HStack(alignment: .top, spacing: 12) {
-                    if let movement = categories.first(where: { $0 == .movement }) {
-                        categoryCard(for: movement, index: 0)
-                    }
-                    if let word = categories.first(where: { $0 == .wordMotion }) {
-                        categoryCard(for: word, index: 1)
-                    }
-                }
-                .fixedSize(horizontal: false, vertical: true)
-
-                HStack(alignment: .top, spacing: 12) {
-                    if let editing = categories.first(where: { $0 == .editing }) {
-                        categoryCard(for: editing, index: 2)
-                    }
-                    if let search = categories.first(where: { $0 == .search }) {
-                        categoryCard(for: search, index: 3)
-                    }
-                }
-                .fixedSize(horizontal: false, vertical: true)
-
-                if let clip = categories.first(where: { $0 == .clipboard }) {
-                    HStack(alignment: .top, spacing: 12) {
-                        categoryCard(for: clip, index: 4)
-                        Spacer()
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-                }
-            }
+        .onChange(of: selectedHUDMode) { _, newValue in
+            PreferencesService.shared.kindaVimLeaderHUDMode = newValue
         }
     }
 
@@ -84,9 +33,7 @@ struct KindaVimCollectionView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
-        .padding(.top, 2)
-        .opacity(hasAppeared ? 1 : 0)
-        .animation(.easeOut.delay(0.45), value: hasAppeared)
+        .padding(.top, 4)
     }
 
     @ViewBuilder
@@ -99,7 +46,7 @@ struct KindaVimCollectionView: View {
                 HStack(spacing: 6) {
                     Image(systemName: installed ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                         .foregroundColor(installed ? .green : .orange)
-                        .font(.caption.weight(.semibold))
+                        .font(.body.weight(.semibold))
                     Text(installed ? "KindaVim is installed" : "KindaVim not found")
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(.primary)
@@ -149,8 +96,53 @@ struct KindaVimCollectionView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .frame(width: 46, height: 46)
+        .frame(width: 58, height: 58)
         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+    }
+
+    private var integrationSummary: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("KindaVim handles real Normal/Visual/Insert behavior. KeyPath configures \(mappings.count) leader-layer shortcuts for quick actions while you keep typing.")
+                .font(.subheadline)
+                .foregroundColor(.primary)
+            Text("Rules here are for integration settings only. Teaching and quick-reference appear on leader hold.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private var hudModeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Leader-Hold KindaVim View")
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(.primary)
+
+            Picker(
+                "Leader-hold KindaVim view mode",
+                selection: $selectedHUDMode
+            ) {
+                ForEach(KindaVimLeaderHUDMode.allCases, id: \.self) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .accessibilityIdentifier("kindavim-leader-hud-mode-picker")
+            .accessibilityLabel("KindaVim leader hold view mode")
+
+            Text(selectedHUDMode.description)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(NSColor.controlBackgroundColor).opacity(0.35))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
 
     private static let kindaVimLogoImage: NSImage? = {
@@ -177,83 +169,4 @@ struct KindaVimCollectionView: View {
 
         return nil
     }()
-
-    private func categoryCard(for category: KindaVimCategory, index: Int) -> some View {
-        KindaVimCategoryCard(
-            category: category,
-            commands: commandsFor(category)
-        )
-        .scaleEffect(hasAppeared ? 1 : 0.8)
-        .opacity(hasAppeared ? 1 : 0)
-        .animation(
-            .spring(response: 0.5, dampingFraction: 0.7)
-                .delay(Double(index) * 0.1),
-            value: hasAppeared
-        )
-    }
-
-    private func commandsFor(_ category: KindaVimCategory) -> [KeyMapping] {
-        let inputs = category.commandInputs
-        return mappings.filter { inputs.contains($0.input.lowercased()) }
-    }
-}
-
-// MARK: - KindaVim Category Card
-
-private struct KindaVimCategoryCard: View {
-    let category: KindaVimCategory
-    let commands: [KeyMapping]
-
-    @State private var isHovered = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: category.icon)
-                    .font(.body.weight(.semibold))
-                    .foregroundColor(isHovered ? .white : category.accentColor)
-                    .symbolEffect(.bounce, value: isHovered)
-                    .frame(width: 26, height: 26)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(isHovered ? category.accentColor : category.accentColor.opacity(0.15))
-                    )
-
-                Text(category.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
-
-                Spacer()
-            }
-
-            if category == .movement {
-                VimArrowKeysCompact()
-                    .padding(.vertical, 4)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(commands, id: \.id) { command in
-                    VimCommandRowCompact(command: command, accentColor: category.accentColor)
-                }
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(isHovered ? 0.9 : 0.6))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(category.accentColor.opacity(isHovered ? 0.5 : 0.2), lineWidth: isHovered ? 2 : 1)
-        )
-        .scaleEffect(isHovered ? 1.02 : 1.0)
-        .shadow(color: category.accentColor.opacity(isHovered ? 0.2 : 0), radius: 8, x: 0, y: 4)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
-        .onHover { hovering in
-            isHovered = hovering
-        }
-    }
 }

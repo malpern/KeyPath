@@ -79,6 +79,32 @@ public enum ContextHUDHoldDelayPreset: String, CaseIterable, Sendable {
     }
 }
 
+/// Controls how KindaVim content is presented in the leader-hold shortcut list.
+public enum KindaVimLeaderHUDMode: String, CaseIterable, Sendable {
+    case contextualCoach
+    case cheatSheetOnly
+    case off
+
+    public var displayName: String {
+        switch self {
+        case .contextualCoach: "Contextual Coach + Cheatsheet"
+        case .cheatSheetOnly: "Cheatsheet Only"
+        case .off: "Use Standard Key List"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .contextualCoach:
+            "Mode-aware tips plus a compact command reference."
+        case .cheatSheetOnly:
+            "Show quick command reference without coaching tips."
+        case .off:
+            "Use the regular layer key list for leader hold."
+        }
+    }
+}
+
 /// Manages KeyPath application preferences and settings
 // SAFETY: @unchecked Sendable — all mutable state is backed by UserDefaults (thread-safe)
 // and the shared instance is confined to @MainActor. @Observable macro prevents conforming
@@ -255,6 +281,14 @@ final class PreferencesService: @unchecked Sendable {
         contextHUDHoldDelayPreset.milliseconds ?? contextHUDHoldDelayCustomMs
     }
 
+    /// Presentation mode for KindaVim in leader-hold HUD/key list.
+    var kindaVimLeaderHUDMode: KindaVimLeaderHUDMode {
+        didSet {
+            UserDefaults.standard.set(kindaVimLeaderHUDMode.rawValue, forKey: Keys.kindaVimLeaderHUDMode)
+            AppLogger.shared.log("🎯 [Preferences] kindaVimLeaderHUDMode = \(kindaVimLeaderHUDMode.rawValue)")
+        }
+    }
+
     // MARK: - Keys
 
     private enum Keys {
@@ -271,6 +305,7 @@ final class PreferencesService: @unchecked Sendable {
         static let contextHUDTimeout = "KeyPath.ContextHUD.Timeout"
         static let contextHUDHoldDelayPreset = "KeyPath.ContextHUD.HoldDelayPreset"
         static let contextHUDHoldDelayCustomMs = "KeyPath.ContextHUD.HoldDelayCustomMs"
+        static let kindaVimLeaderHUDMode = "KeyPath.KindaVim.LeaderHUDMode"
         static let overlayHiddenHintShowCount = "KeyPath.Education.OverlayHiddenHintShowCount"
     }
 
@@ -293,6 +328,7 @@ final class PreferencesService: @unchecked Sendable {
         static let contextHUDTimeout: TimeInterval = 3.0
         static let contextHUDHoldDelayPreset = ContextHUDHoldDelayPreset.long
         static let contextHUDHoldDelayCustomMs = 200
+        static let kindaVimLeaderHUDMode = KindaVimLeaderHUDMode.contextualCoach
     }
 
     // MARK: - Initialization
@@ -365,6 +401,11 @@ final class PreferencesService: @unchecked Sendable {
         contextHUDHoldDelayCustomMs =
             UserDefaults.standard.object(forKey: Keys.contextHUDHoldDelayCustomMs) as? Int
                 ?? Defaults.contextHUDHoldDelayCustomMs
+
+        let kindaVimHUDModeString = UserDefaults.standard.string(forKey: Keys.kindaVimLeaderHUDMode)
+            ?? Defaults.kindaVimLeaderHUDMode.rawValue
+        kindaVimLeaderHUDMode = KindaVimLeaderHUDMode(rawValue: kindaVimHUDModeString)
+            ?? Defaults.kindaVimLeaderHUDMode
 
         AppLogger.shared.log(
             "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), TCP port: \(tcpServerPort), Verbose logging: \(verboseKanataLogging)"

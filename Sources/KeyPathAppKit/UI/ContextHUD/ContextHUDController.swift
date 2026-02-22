@@ -13,6 +13,8 @@ final class ContextHUDController {
     private var hostingView: NSHostingView<ContextHUDView>?
     private let viewModel = ContextHUDViewModel()
     private let layerKeyMapper = LayerKeyMapper()
+    private let kindaVimStateAdapter = KindaVimStateAdapter.shared
+    private var hasStartedKindaVimStateMonitoring = false
 
     private var dismissTask: Task<Void, Never>?
     private var layerMapTask: Task<Void, Never>?
@@ -253,6 +255,10 @@ final class ContextHUDController {
         dismissTask = nil
         layerMapTask?.cancel()
         layerMapTask = nil
+        if hasStartedKindaVimStateMonitoring {
+            kindaVimStateAdapter.stopMonitoring()
+            hasStartedKindaVimStateMonitoring = false
+        }
         window?.orderOut(nil)
         window = nil
         hostingView = nil
@@ -388,11 +394,24 @@ final class ContextHUDController {
                 guard !Task.isCancelled else { return }
 
                 // Resolve content style based on the layer's own content
-                let style = HUDContentResolver.resolve(
+                let resolvedStyle = HUDContentResolver.resolve(
                     layerName: layerName,
                     keyMap: keyMap,
                     collections: enabledCollections
                 )
+
+                let kindaVimHUDMode = PreferencesService.shared.kindaVimLeaderHUDMode
+                let hasKindaVimEntries = keyMap.values.contains { $0.collectionId == RuleCollectionIdentifier.kindaVim }
+                let shouldUseKindaVimLearningStyle = kindaVimHUDMode != .off &&
+                    normalizedLayerName == "nav" &&
+                    hasKindaVimEntries
+
+                if shouldUseKindaVimLearningStyle, !hasStartedKindaVimStateMonitoring {
+                    kindaVimStateAdapter.startMonitoring()
+                    hasStartedKindaVimStateMonitoring = true
+                }
+
+                let style: HUDContentStyle = shouldUseKindaVimLearningStyle ? .kindaVimLearning : resolvedStyle
 
                 guard !Task.isCancelled else { return }
 
@@ -420,7 +439,9 @@ final class ContextHUDController {
                     collections: enabledCollections,
                     style: style,
                     holdLabels: holdLabels,
-                    launcherKeyMap: launcherKeyMap
+                    launcherKeyMap: launcherKeyMap,
+                    kindaVimState: shouldUseKindaVimLearningStyle ? kindaVimStateAdapter.state : nil,
+                    kindaVimLeaderHUDMode: kindaVimHUDMode
                 )
 
                 showWindow()
