@@ -15,58 +15,10 @@ struct KindaVimCollectionView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Installation status banner
+        VStack(alignment: .leading, spacing: 14) {
             installationBanner
-
-            // Description
-            Text("KindaVim brings real Vim modes to every macOS app. This collection adds leader-key shortcuts for quick access when in Insert mode.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-
-            // Row 1: Movement + Word Motion
-            HStack(alignment: .top, spacing: 12) {
-                if let movement = categories.first(where: { $0 == .movement }) {
-                    categoryCard(for: movement, index: 0)
-                }
-                if let word = categories.first(where: { $0 == .wordMotion }) {
-                    categoryCard(for: word, index: 1)
-                }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-
-            // Row 2: Editing + Search
-            HStack(alignment: .top, spacing: 12) {
-                if let editing = categories.first(where: { $0 == .editing }) {
-                    categoryCard(for: editing, index: 2)
-                }
-                if let search = categories.first(where: { $0 == .search }) {
-                    categoryCard(for: search, index: 3)
-                }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-
-            // Row 3: Clipboard (single card)
-            if let clip = categories.first(where: { $0 == .clipboard }) {
-                HStack(alignment: .top, spacing: 12) {
-                    categoryCard(for: clip, index: 4)
-                    Spacer()
-                }
-                .fixedSize(horizontal: false, vertical: true)
-            }
-
-            // Tip
-            HStack(spacing: 6) {
-                Image(systemName: "lightbulb.fill")
-                    .foregroundColor(.yellow)
-                    .font(.caption)
-                Text("KindaVim provides full Vim modes. This collection adds leader-key shortcuts for quick access.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.top, 4)
-            .opacity(hasAppeared ? 1 : 0)
-            .animation(.easeOut.delay(0.5), value: hasAppeared)
+            shortcutCardsSection
+            strategyTip
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -75,42 +27,156 @@ struct KindaVimCollectionView: View {
         }
     }
 
-    // MARK: - Installation Banner
+    @ViewBuilder
+    private var shortcutCardsSection: some View {
+        if categories.isEmpty {
+            Text("Enable this collection to load leader shortcuts.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "rectangle.stack.badge.play")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.accentColor)
+                    Text("Leader Shortcuts in KeyPath")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.secondary)
+                }
+
+                HStack(alignment: .top, spacing: 12) {
+                    if let movement = categories.first(where: { $0 == .movement }) {
+                        categoryCard(for: movement, index: 0)
+                    }
+                    if let word = categories.first(where: { $0 == .wordMotion }) {
+                        categoryCard(for: word, index: 1)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+
+                HStack(alignment: .top, spacing: 12) {
+                    if let editing = categories.first(where: { $0 == .editing }) {
+                        categoryCard(for: editing, index: 2)
+                    }
+                    if let search = categories.first(where: { $0 == .search }) {
+                        categoryCard(for: search, index: 3)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+
+                if let clip = categories.first(where: { $0 == .clipboard }) {
+                    HStack(alignment: .top, spacing: 12) {
+                        categoryCard(for: clip, index: 4)
+                        Spacer()
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private var strategyTip: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "lightbulb.fill")
+                .foregroundColor(.yellow)
+                .font(.caption)
+            Text("KindaVim auto-detects strategy. Hold fn while moving to force Keyboard Strategy.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(.top, 2)
+        .opacity(hasAppeared ? 1 : 0)
+        .animation(.easeOut.delay(0.45), value: hasAppeared)
+    }
 
     @ViewBuilder
     private var installationBanner: some View {
         let installed = KindaVimDetector.isInstalled
-        HStack(spacing: 8) {
-            Image(systemName: installed ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .foregroundColor(installed ? .green : .orange)
-                .font(.body)
-            Text(installed ? "KindaVim is installed" : "KindaVim not found")
-                .font(.subheadline.weight(.medium))
-                .foregroundColor(installed ? .green : .orange)
-            Spacer()
+        HStack(alignment: .center, spacing: 12) {
+            kindaVimLogo
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Image(systemName: installed ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .foregroundColor(installed ? .green : .orange)
+                        .font(.caption.weight(.semibold))
+                    Text(installed ? "KindaVim is installed" : "KindaVim not found")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.primary)
+                }
+                Text(installed ? "KeyPath detected KindaVim and your Rules collection is ready." : "Install KindaVim to enable modal editing in macOS apps.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer(minLength: 8)
+
             if !installed {
                 Button {
                     NSWorkspace.shared.open(KindaVimDetector.downloadURL)
                 } label: {
-                    Label("Download KindaVim", systemImage: "arrow.down.circle")
-                        .font(.caption.weight(.medium))
+                    Label("Download", systemImage: "arrow.down.circle.fill")
+                        .font(.caption.weight(.semibold))
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .accessibilityIdentifier("kindavim-download-button")
+                .accessibilityLabel("Download KindaVim")
             }
         }
-        .padding(10)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill((installed ? Color.green : Color.orange).opacity(0.1))
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke((installed ? Color.green : Color.orange).opacity(0.3), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
     }
 
-    // MARK: - Category Card
+    private var kindaVimLogo: some View {
+        Group {
+            if let image = Self.kindaVimLogoImage {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                Image(systemName: "command.square.fill")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .frame(width: 46, height: 46)
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+    }
+
+    private static let kindaVimLogoImage: NSImage? = {
+        let resourceName = "kindavim-icon"
+        let bundles = [Bundle.main] + Bundle.allBundles + Bundle.allFrameworks
+
+        for bundle in bundles {
+            if let url = bundle.url(forResource: resourceName, withExtension: "png"),
+               let image = NSImage(contentsOf: url)
+            {
+                return image
+            }
+        }
+
+        if let mainResourceURL = Bundle.main.resourceURL {
+            let keyPathBundleURL = mainResourceURL.appendingPathComponent("KeyPath_KeyPath.bundle")
+            if let keyPathBundle = Bundle(url: keyPathBundleURL),
+               let url = keyPathBundle.url(forResource: resourceName, withExtension: "png"),
+               let image = NSImage(contentsOf: url)
+            {
+                return image
+            }
+        }
+
+        return nil
+    }()
 
     private func categoryCard(for category: KindaVimCategory, index: Int) -> some View {
         KindaVimCategoryCard(
@@ -142,7 +208,6 @@ private struct KindaVimCategoryCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Header with icon and title
             HStack(spacing: 8) {
                 Image(systemName: category.icon)
                     .font(.body.weight(.semibold))
@@ -161,7 +226,11 @@ private struct KindaVimCategoryCard: View {
                 Spacer()
             }
 
-            // Command list
+            if category == .movement {
+                VimArrowKeysCompact()
+                    .padding(.vertical, 4)
+            }
+
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(commands, id: \.id) { command in
                     VimCommandRowCompact(command: command, accentColor: category.accentColor)

@@ -120,7 +120,9 @@ fi
 
 echo "🏗️  Building KeyPath and plugins..."
 # Build main app + insights plugin (KeyPathPluginKit is statically linked, no separate dylib needed)
-swift build --configuration release --product KeyPath --product KeyPathInsights -Xswiftc -no-whole-module-optimization
+# Note: `swift build` accepts a single `--product`; passing it twice can skip the first one.
+swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
+swift build --configuration release --product KeyPathInsights -Xswiftc -no-whole-module-optimization
 
 echo "📦 Creating app bundle..."
 APP_NAME="KeyPath"

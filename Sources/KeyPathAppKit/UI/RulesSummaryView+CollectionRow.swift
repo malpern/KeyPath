@@ -98,6 +98,38 @@ struct ExpandableCollectionRow: View {
         localHomeRowLayerConfig ?? collection?.configuration.homeRowLayerTogglesConfig ?? HomeRowLayerTogglesConfig()
     }
 
+    private var isKindaVimCollection: Bool {
+        if collection?.id == RuleCollectionIdentifier.kindaVim {
+            return true
+        }
+        if collectionId.caseInsensitiveCompare(RuleCollectionIdentifier.kindaVim.uuidString) == .orderedSame {
+            return true
+        }
+        if icon.lowercased().contains("kindavim") {
+            return true
+        }
+        if (description ?? "").lowercased().contains("kindavim") {
+            return true
+        }
+        let normalized = name.replacingOccurrences(of: " ", with: "").lowercased()
+        return normalized == "kindavim"
+    }
+
+    private var fallbackKeyMappings: [KeyMapping] {
+        mappings.map { mapping in
+            KeyMapping(
+                id: mapping.id,
+                input: mapping.input,
+                output: mapping.output,
+                shiftedOutput: mapping.shiftedOutput,
+                ctrlOutput: mapping.ctrlOutput,
+                description: mapping.description,
+                sectionBreak: mapping.sectionBreak,
+                behavior: mapping.behavior
+            )
+        }
+    }
+
     /// Format a modifier key for display
     private func formatModifierForDisplay(_ modifier: String) -> String {
         let displayNames: [String: String] = [
@@ -276,7 +308,12 @@ struct ExpandableCollectionRow: View {
         if isExpanded {
             // Inset back plane container for expanded content
             InsetBackPlane {
-                if showZeroState, mappings.isEmpty, appKeymaps.isEmpty, let onCreate = onCreateFirstRule {
+                if isKindaVimCollection {
+                    KindaVimCollectionView(mappings: collection?.mappings ?? fallbackKeyMappings)
+                        .padding(.top, 8)
+                        .padding(.bottom, 12)
+                        .padding(.horizontal, 12)
+                } else if showZeroState, mappings.isEmpty, appKeymaps.isEmpty, let onCreate = onCreateFirstRule {
                     // Zero State - only show if BOTH showZeroState is true AND all mappings are actually empty
                     VStack(spacing: 12) {
                         Text("No rules yet")
@@ -473,12 +510,6 @@ struct ExpandableCollectionRow: View {
                             .padding(.top, 8)
                             .padding(.bottom, 12)
                             .padding(.horizontal, 12)
-                    } else if collection?.id == RuleCollectionIdentifier.kindaVim {
-                        // KindaVim uses custom view with install banner + category cards
-                        KindaVimCollectionView(mappings: collection?.mappings ?? [])
-                            .padding(.top, 8)
-                            .padding(.bottom, 12)
-                            .padding(.horizontal, 12)
                     } else if collection?.id == RuleCollectionIdentifier.windowSnapping {
                         // Window snapping uses visual monitor canvas
                         WindowSnappingView(
@@ -572,8 +603,11 @@ struct ExpandableCollectionRow: View {
         } else if icon.hasPrefix("resource:") {
             let resourceName = String(icon.dropFirst(9))
             // Try Bundle.module first (Swift Package resources), then Bundle.main
+            // Support both SVG and PNG formats
             let resourceURL = Bundle.module.url(forResource: resourceName, withExtension: "svg")
                 ?? Bundle.main.url(forResource: resourceName, withExtension: "svg")
+                ?? Bundle.module.url(forResource: resourceName, withExtension: "png")
+                ?? Bundle.main.url(forResource: resourceName, withExtension: "png")
             if let url = resourceURL, let image = NSImage(contentsOf: url) {
                 Image(nsImage: image)
                     .resizable()
