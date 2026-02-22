@@ -308,6 +308,7 @@ public enum RuleCollectionCategory: String, Codable, CaseIterable, Sendable {
     case system
     case navigation
     case productivity
+    case layers
     case accessibility
     case custom
     case experimental
@@ -317,9 +318,23 @@ public enum RuleCollectionCategory: String, Codable, CaseIterable, Sendable {
         case .system: "System"
         case .navigation: "Navigation"
         case .productivity: "Productivity"
+        case .layers: "Layers"
         case .accessibility: "Accessibility"
         case .custom: "Custom"
         case .experimental: "Experimental"
+        }
+    }
+
+    /// Controls the display order of category sections in the Rules tab
+    public var sortOrder: Int {
+        switch self {
+        case .system: 0
+        case .navigation: 1
+        case .productivity: 2
+        case .layers: 3
+        case .accessibility: 4
+        case .custom: 5
+        case .experimental: 6
         }
     }
 }

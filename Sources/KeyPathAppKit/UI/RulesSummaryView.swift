@@ -5,6 +5,19 @@ import SwiftUI
     import AppKit
 #endif
 
+/// A row item in the categorized rules list: either a section header or a collection row
+enum CategorizedItem: Identifiable {
+    case header(RuleCollectionCategory)
+    case collection(RuleCollection)
+
+    var id: String {
+        switch self {
+        case let .header(category): "header-\(category.rawValue)"
+        case let .collection(collection): "collection-\(collection.id.uuidString)"
+        }
+    }
+}
+
 /// State for home row mods editing modal
 struct HomeRowModsEditState: Identifiable {
     let id = UUID()
@@ -77,7 +90,9 @@ struct RulesTabView: View {
         let catalog = RuleCollectionCatalog()
         return catalog.defaultCollections().map { catalogCollection in
             // Find matching collection from kanataManager to preserve enabled state
-            if let existing = kanataManager.ruleCollections.first(where: { $0.id == catalogCollection.id }) {
+            if var existing = kanataManager.ruleCollections.first(where: { $0.id == catalogCollection.id }) {
+                // Always use catalog category (user data may have stale values)
+                existing.category = catalogCollection.category
                 return existing
             }
             // Return catalog item with its default enabled state
@@ -143,6 +158,20 @@ struct RulesTabView: View {
         !filteredCollections.isEmpty || !filteredCustomRules.isEmpty || !filteredAppKeymaps.isEmpty
     }
 
+    /// Flat list of items: category headers interleaved with collections
+    private var categorizedItems: [CategorizedItem] {
+        let grouped = Dictionary(grouping: filteredCollections, by: \.category)
+        var items: [CategorizedItem] = []
+        for category in grouped.keys.sorted(by: { $0.sortOrder < $1.sortOrder }) {
+            guard let collections = grouped[category] else { continue }
+            items.append(.header(category))
+            for collection in collections {
+                items.append(.collection(collection))
+            }
+        }
+        return items
+    }
+
     private var recommendationCollections: [(collection: RuleCollection, reason: String)] {
         guard !isSearching else { return [] }
 
@@ -165,24 +194,31 @@ struct RulesTabView: View {
             .map { $0 }
     }
 
-    /// Compute sort order: enabled collections first, then disabled
+    /// Compute sort order: grouped by category, then enabled first within each category
     private func computeSortOrder() -> [UUID] {
-        let enabled = allCollections.filter(\.isEnabled).map(\.id)
-        let disabled = allCollections.filter { !$0.isEnabled }.map(\.id)
-        var order = enabled + disabled
+        // Group by category, sort categories by sortOrder
+        let grouped = Dictionary(grouping: allCollections, by: \.category)
+        var order: [UUID] = []
 
-        let capsLockRemapId = RuleCollectionIdentifier.capsLockRemap
-        let backupCapsLockId = RuleCollectionIdentifier.backupCapsLock
+        for category in grouped.keys.sorted(by: { $0.sortOrder < $1.sortOrder }) {
+            guard let collections = grouped[category] else { continue }
+            let enabled = collections.filter(\.isEnabled).map(\.id)
+            let disabled = collections.filter { !$0.isEnabled }.map(\.id)
+            var categoryOrder = enabled + disabled
 
-        // Keep Backup Caps Lock directly after Caps Lock Remap for discoverability
-        // when users are adjusting tap/hold behavior.
-        if let capsIndex = order.firstIndex(of: capsLockRemapId),
-           let backupIndex = order.firstIndex(of: backupCapsLockId),
-           backupIndex != capsIndex + 1
-        {
-            order.remove(at: backupIndex)
-            let insertIndex = min(capsIndex + 1, order.count)
-            order.insert(backupCapsLockId, at: insertIndex)
+            // Keep Backup Caps Lock directly after Caps Lock Remap
+            let capsLockRemapId = RuleCollectionIdentifier.capsLockRemap
+            let backupCapsLockId = RuleCollectionIdentifier.backupCapsLock
+            if let capsIndex = categoryOrder.firstIndex(of: capsLockRemapId),
+               let backupIndex = categoryOrder.firstIndex(of: backupCapsLockId),
+               backupIndex != capsIndex + 1
+            {
+                categoryOrder.remove(at: backupIndex)
+                let insertIndex = min(capsIndex + 1, categoryOrder.count)
+                categoryOrder.insert(backupCapsLockId, at: insertIndex)
+            }
+
+            order.append(contentsOf: categoryOrder)
         }
 
         return order
@@ -199,6 +235,7 @@ struct RulesTabView: View {
         let isSpecializedTable = style == .table && (
             collection.id == RuleCollectionIdentifier.numpadLayer ||
                 collection.id == RuleCollectionIdentifier.vimNavigation ||
+                collection.id == RuleCollectionIdentifier.kindaVim ||
                 collection.id == RuleCollectionIdentifier.windowSnapping ||
                 collection.id == RuleCollectionIdentifier.macFunctionKeys
         )
@@ -223,7 +260,15 @@ struct RulesTabView: View {
                     pendingSelections.removeValue(forKey: collection.id)
                 }
                 // Toggle collection directly (welcome dialog moved to drawer's launcher tab)
-                Task { await kanataManager.toggleRuleCollection(collection.id, enabled: isOn) }
+                Task {
+                    await kanataManager.toggleRuleCollection(collection.id, enabled: isOn)
+                    // Sync pending toggle with actual state (handles cancel from conflict dialog)
+                    if let actual = kanataManager.ruleCollections.first(where: { $0.id == collection.id }) {
+                        pendingToggles[collection.id] = actual.isEnabled
+                    } else {
+                        pendingToggles.removeValue(forKey: collection.id)
+                    }
+                }
             },
             onEditMapping: nil,
             onDeleteMapping: nil,
@@ -445,16 +490,32 @@ struct RulesTabView: View {
                             .padding(.vertical, 4)
                         }
 
-                        // Collection Rows (sorted: enabled first, order stable during session)
-                        ForEach(filteredCollections) { collection in
-                            collectionRow(for: collection, scrollProxy: scrollProxy)
-                                .id("collection-\(collection.id.uuidString)")
-                                .onAppear {
-                                    if recommendationFocusCollectionId == collection.id {
-                                        recommendationFocusCollectionId = nil
-                                    }
+                        // Collection Rows grouped by category (flat list with interleaved headers)
+                        ForEach(categorizedItems) { item in
+                            switch item {
+                            case let .header(category):
+                                HStack(spacing: 6) {
+                                    Text(category.displayName.uppercased())
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                        .tracking(0.8)
+
+                                    VStack { Divider() }
                                 }
-                                .padding(.vertical, 4)
+                                .padding(.horizontal, 8)
+                                .padding(.top, 16)
+                                .padding(.bottom, 2)
+
+                            case let .collection(collection):
+                                collectionRow(for: collection, scrollProxy: scrollProxy)
+                                    .id("collection-\(collection.id.uuidString)")
+                                    .onAppear {
+                                        if recommendationFocusCollectionId == collection.id {
+                                            recommendationFocusCollectionId = nil
+                                        }
+                                    }
+                                    .padding(.vertical, 4)
+                            }
                         }
 
                         if isSearching, !hasSearchResults {

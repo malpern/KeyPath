@@ -153,8 +153,8 @@ struct RuleCollectionCatalog {
     private var navigationArrows: RuleCollection {
         RuleCollection(
             id: RuleCollectionIdentifier.vimNavigation,
-            name: "Vim",
-            summary: "Vim-style navigation and text editing. Hold Leader + hjkl for arrows. Add Shift for selection.",
+            name: "Vim - Apple Keyboard Shortcuts",
+            summary: "Access familiar macOS shortcuts using Vim keys. Hold Leader + hjkl for arrows, y/p for copy/paste, u for undo, and more.",
             category: .navigation,
             mappings: [
                 // === Basic navigation (hjkl) ===
@@ -251,7 +251,7 @@ struct RuleCollectionCatalog {
             ],
             isEnabled: false,
             isSystemDefault: false,
-            icon: "resource:vim-icon",
+            icon: "resource:kindavim-icon",
             tags: ["kindavim", "vim", "navigation", "editing", "selection", "word motion"],
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(
@@ -678,7 +678,7 @@ struct RuleCollectionCatalog {
             id: RuleCollectionIdentifier.numpadLayer,
             name: "Numpad Layer",
             summary: "Right hand becomes a numpad. Hold activator key + use U/I/O, J/K/L, M/,/. for 7-8-9, 4-5-6, 1-2-3.",
-            category: .productivity,
+            category: .layers,
             mappings: [
                 // Right hand numpad (standard layout)
                 KeyMapping(input: "u", output: "kp7", description: "7"),
@@ -721,7 +721,7 @@ struct RuleCollectionCatalog {
             id: RuleCollectionIdentifier.symbolLayer,
             name: "Symbol Layer",
             summary: "Quick access to programming symbols. Choose a layout optimized for your workflow.",
-            category: .productivity,
+            category: .layers,
             mappings: [], // Generated from selected layer preset
             isEnabled: false,
             isSystemDefault: false,
@@ -875,7 +875,7 @@ struct RuleCollectionCatalog {
             id: RuleCollectionIdentifier.funLayer,
             name: "Function Layer",
             summary: "F-keys on right hand (numpad grid), media controls on left hand.",
-            category: .productivity,
+            category: .layers,
             mappings: [
                 // Right hand F-keys (numpad grid layout)
                 KeyMapping(input: "u", output: "f7", description: "F7"),
@@ -917,7 +917,7 @@ struct RuleCollectionCatalog {
             id: RuleCollectionIdentifier.launcher,
             name: "Quick Launcher",
             summary: "Hold Hyper to quickly launch apps and websites with keyboard shortcuts.",
-            category: .productivity,
+            category: .layers,
             mappings: [], // Mappings are derived from the launcherGrid configuration
             isEnabled: true,
             isSystemDefault: true,
