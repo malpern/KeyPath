@@ -87,6 +87,30 @@ extension LayerKeyMapper {
         "e": "e",
     ]
 
+    /// Neovim Terminal overlay labels — same pattern as KindaVim
+    private static let neovimOverlayLabels: [String: String] = [
+        "h": "←",
+        "j": "↓",
+        "k": "↑",
+        "l": "→",
+        "0": "0",
+        "4": "$",
+        "a": "a",
+        "g": "gg",
+        "/": "find",
+        "n": "next",
+        "y": "yank",
+        "p": "put",
+        "x": "del",
+        "r": "redo",
+        "d": "d",
+        "u": "undo",
+        "o": "o",
+        "w": "w",
+        "b": "b",
+        "e": "e",
+    ]
+
     /// Build mapping from key names to short vim overlay labels for VIM collections
     /// - Parameters:
     ///   - layerName: The layer to build mapping for
@@ -116,6 +140,14 @@ extension LayerKeyMapper {
                 for mapping in collection.mappings {
                     let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
                     if let vimLabel = Self.kindaVimOverlayLabels[mapping.input.lowercased()] {
+                        map[kanataKey] = vimLabel
+                    }
+                }
+            } else if collection.id == RuleCollectionIdentifier.neovimTerminal {
+                AppLogger.shared.info("🗺️ [VimLabel] Found Neovim Terminal collection for layer '\(layerName)', \(collection.mappings.count) mappings")
+                for mapping in collection.mappings {
+                    let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
+                    if let vimLabel = Self.neovimOverlayLabels[mapping.input.lowercased()] {
                         map[kanataKey] = vimLabel
                     }
                 }

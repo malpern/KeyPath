@@ -406,12 +406,21 @@ final class ContextHUDController {
                     normalizedLayerName == "nav" &&
                     hasKindaVimEntries
 
+                let hasNeovimEntries = keyMap.values.contains { $0.collectionId == RuleCollectionIdentifier.neovimTerminal }
+                let shouldUseNeovimStyle = normalizedLayerName == "nav" && hasNeovimEntries
+
                 if shouldUseKindaVimLearningStyle, !hasStartedKindaVimStateMonitoring {
                     kindaVimStateAdapter.startMonitoring()
                     hasStartedKindaVimStateMonitoring = true
                 }
 
-                let style: HUDContentStyle = shouldUseKindaVimLearningStyle ? .kindaVimLearning : resolvedStyle
+                let style: HUDContentStyle = if shouldUseKindaVimLearningStyle {
+                    .kindaVimLearning
+                } else if shouldUseNeovimStyle {
+                    .neovimTerminal
+                } else {
+                    resolvedStyle
+                }
 
                 guard !Task.isCancelled else { return }
 

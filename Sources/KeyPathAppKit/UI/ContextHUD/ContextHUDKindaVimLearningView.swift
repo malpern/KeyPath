@@ -104,7 +104,7 @@ struct ContextHUDKindaVimLearningView: View {
 
     private var quickReferenceSection: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text("Quick Reference")
+            Text("Motions + Window Nav")
                 .font(.footnote.monospaced().weight(.semibold))
                 .foregroundStyle(.white.opacity(0.75))
                 .tracking(1.2)
@@ -186,17 +186,17 @@ struct ContextHUDKindaVimLearningView: View {
         case .insert:
             [
                 "Type normally. Press Esc (or Ctrl-[) to enter Normal mode.",
-                "Use Leader hold for quick nav actions without leaving Insert.",
+                "Use Leader hold for quick motion and navigation shortcuts.",
             ]
         case .normal:
             [
-                "Navigate/edit with motions and operators.",
-                "Press v or V to select; press i/a/o to return to typing.",
+                "Focus on movement first: line, word, and document motions.",
+                "Use Ctrl-w h/j/k/l for basic split/window navigation.",
             ]
         case .visual:
             [
-                "Extend selection with motions, then apply an operator.",
-                "Use d/y/~/< or > on the current selection.",
+                "Extend selections with the same motion keys.",
+                "Press Esc to return to Normal movement.",
             ]
         case .unknown:
             [
@@ -211,27 +211,24 @@ struct ContextHUDKindaVimLearningView: View {
             return [
                 .init(keys: "Esc", meaning: "enter Normal mode"),
                 .init(keys: "Ctrl-[", meaning: "alternate Esc"),
-                .init(keys: "i / a", meaning: "insert before/after (from Normal)"),
-                .init(keys: "o / O", meaning: "open line below/above"),
+                .init(keys: "Leader hold", meaning: "open KeyPath motion keylist"),
             ]
         case .normal:
             return [
                 .init(keys: "h j k l", meaning: "left/down/up/right"),
                 .init(keys: "w b e", meaning: "word motions"),
                 .init(keys: "0  $", meaning: "line start/end"),
-                .init(keys: "d{motion}", meaning: "delete by motion"),
-                .init(keys: "c{motion}", meaning: "change by motion"),
-                .init(keys: "u  Ctrl-r", meaning: "undo / redo"),
+                .init(keys: "gg  G", meaning: "document top/bottom"),
+                .init(keys: "Ctrl-w h/j/k/l", meaning: "move between windows"),
                 .init(keys: "v / V", meaning: "enter Visual mode"),
             ]
         case .visual:
             return [
                 .init(keys: "h j k l", meaning: "expand selection"),
                 .init(keys: "w b e", meaning: "word-wise selection"),
-                .init(keys: "d", meaning: "delete selection"),
-                .init(keys: "y", meaning: "yank selection"),
-                .init(keys: "~", meaning: "toggle case"),
-                .init(keys: "<  >", meaning: "indent/outdent"),
+                .init(keys: "0  $", meaning: "line bounds"),
+                .init(keys: "gg  G", meaning: "document bounds"),
+                .init(keys: "Ctrl-w h/j/k/l", meaning: "window focus navigation"),
                 .init(keys: "Esc", meaning: "return to Normal mode"),
             ]
         case .unknown:

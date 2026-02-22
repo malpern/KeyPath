@@ -52,6 +52,7 @@ struct RuleCollectionCatalog {
             leaderKeyConfig,
             navigationArrows,
             kindaVimNavigation,
+            neovimTerminal,
             missionControl,
             windowSnapping,
             capsLockRemap,
@@ -253,6 +254,62 @@ struct RuleCollectionCatalog {
             isSystemDefault: false,
             icon: "resource:kindavim-icon",
             tags: ["kindavim", "vim", "navigation", "editing", "selection", "word motion"],
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(
+                input: "space",
+                targetLayer: .navigation
+            ),
+            activationHint: "Hold Leader key to enter Navigation layer",
+            configuration: .table
+        )
+    }
+
+    private var neovimTerminal: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.neovimTerminal,
+            name: "Neovim Terminal",
+            summary: "Quick-reference card for Neovim commands. Hold Leader to see core vim motions and Neovim-specific features.",
+            category: .navigation,
+            mappings: [
+                // === Basic navigation (hjkl) ===
+                KeyMapping(input: "h", output: "left", description: "h — left"),
+                KeyMapping(input: "j", output: "down", description: "j — down"),
+                KeyMapping(input: "k", output: "up", description: "k — up"),
+                KeyMapping(input: "l", output: "right", description: "l — right"),
+
+                // === Word motions ===
+                KeyMapping(input: "w", output: "A-right", description: "w — word forward", sectionBreak: true),
+                KeyMapping(input: "b", output: "A-left", description: "b — word back"),
+                KeyMapping(input: "e", output: "A-right", description: "e — end of word"),
+
+                // === Line navigation ===
+                KeyMapping(input: "0", output: "M-left", description: "0 — line start"),
+                KeyMapping(input: "4", output: "M-right", description: "$ — line end"),
+
+                // === Document navigation ===
+                KeyMapping(input: "g", output: "M-up", shiftedOutput: "M-down", description: "gg / G — doc top/bottom"),
+
+                // === Search ===
+                KeyMapping(input: "/", output: "M-f", description: "/ — find", sectionBreak: true),
+                KeyMapping(input: "n", output: "M-g", shiftedOutput: "M-S-g", description: "n / N — next/prev match"),
+
+                // === Copy/paste ===
+                KeyMapping(input: "y", output: "M-c", description: "y — yank"),
+                KeyMapping(input: "p", output: "M-v", description: "p — put"),
+
+                // === Editing ===
+                KeyMapping(input: "x", output: "del", description: "x — delete char"),
+                KeyMapping(input: "r", output: "M-S-z", description: "r — redo"),
+                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn", description: "dw — delete word"),
+                KeyMapping(input: "u", output: "M-z", ctrlOutput: "pgup", description: "u — undo"),
+
+                // === Line operations ===
+                KeyMapping(input: "o", output: "M-right ret", shiftedOutput: "up M-right ret", description: "o / O — open line below/above")
+            ],
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "terminal",
+            tags: ["neovim", "vim", "terminal", "lsp", "telescope", "buffers"],
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(
                 input: "space",

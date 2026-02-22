@@ -49,6 +49,8 @@ struct ContextHUDView: View {
                     state: viewModel.kindaVimState,
                     modeSetting: viewModel.kindaVimLeaderHUDMode
                 )
+            case .neovimTerminal:
+                ContextHUDNeovimTerminalView(groups: viewModel.groups)
             }
         }
         .environment(\.pressedKeyCodes, viewModel.pressedKeyCodes)

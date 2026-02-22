@@ -361,6 +361,7 @@ public enum RuleCollectionIdentifier {
     public static let funLayer = UUID(uuidString: "C0D1E2F3-4A5B-6C7D-8E9F-0A1B2C3D4E5F")!
     public static let typingSounds = UUID(uuidString: "B9C0D1E2-3F4A-5B6C-7D8E-9F0A1B2C3D4E")!
     public static let kindaVim = UUID(uuidString: "F1A2B3C4-5D6E-7F8A-9B0C-1D2E3F4A5B6C")!
+    public static let neovimTerminal = UUID(uuidString: "A2B3C4D5-6E7F-8A9B-0C1D-2E3F4A5B6C7D")!
 }
 
 public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {

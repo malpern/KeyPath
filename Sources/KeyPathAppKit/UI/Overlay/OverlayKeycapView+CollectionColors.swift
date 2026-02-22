@@ -17,6 +17,8 @@ extension OverlayKeycapView {
         static let symbols = Color.blue
         /// Launcher collection keys (future)
         static let launcher = Color.cyan
+        /// Neovim Terminal collection keys
+        static let neovimTerminal = Color(red: 0.3, green: 0.6, blue: 0.9)
     }
 
     /// Determine key color based on collection ownership
@@ -41,6 +43,8 @@ extension OverlayKeycapView {
             return LayerColors.symbols
         case RuleCollectionIdentifier.launcher:
             return LayerColors.launcher
+        case RuleCollectionIdentifier.neovimTerminal:
+            return LayerColors.neovimTerminal
         default:
             // Unknown collection - default orange
             return LayerColors.defaultLayer

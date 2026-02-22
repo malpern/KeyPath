@@ -56,4 +56,5 @@ enum HUDContentStyle: Equatable {
     case launcherIcons
     case symbolPicker
     case kindaVimLearning
+    case neovimTerminal
 }
