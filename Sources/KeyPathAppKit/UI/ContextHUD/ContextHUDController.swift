@@ -18,6 +18,9 @@ final class ContextHUDController {
     private var layerMapTask: Task<Void, Never>?
     private var previousLayer: String = "base"
 
+    /// Cached hold labels per layer name (avoids Phase 2 jump on repeat activations)
+    private var holdLabelCache: [String: [UInt16: String]] = [:]
+
     private let oneShotOverride = OneShotLayerOverrideState(
         timeoutDuration: .seconds(5)
     )
@@ -109,6 +112,7 @@ final class ContextHUDController {
             Task { @MainActor in
                 guard let self else { return }
                 AppLogger.shared.info("🎯 [ContextHUD] Config changed - invalidating cache")
+                self.holdLabelCache.removeAll()
                 await self.layerKeyMapper.invalidateCache()
             }
         }
@@ -118,6 +122,7 @@ final class ContextHUDController {
 
     func handleLayerChange(_ layerName: String, source: String?) {
         let normalized = layerName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        AppLogger.shared.debug("🎯 [ContextHUD] handleLayerChange: '\(layerName)' normalized='\(normalized)' source=\(source ?? "nil") prev='\(previousLayer)'")
 
         // Context HUD list is an experimental feature - skip when disabled
         guard FeatureFlags.contextHUDListEnabled else { return }
@@ -216,6 +221,7 @@ final class ContextHUDController {
     /// Reset state for testing
     func resetForTesting() {
         previousLayer = "base"
+        holdLabelCache.removeAll()
         dismissTask?.cancel()
         dismissTask = nil
         layerMapTask?.cancel()
@@ -256,11 +262,15 @@ final class ContextHUDController {
                 let collectionLauncherKeyMap = buildLauncherKeyMap(from: enabledCollections)
 
                 let keyMap: [UInt16: LayerKeyInfo]
-                var launcherKeyMap: [UInt16: LayerKeyInfo]?
+                let launcherKeyMap: [UInt16: LayerKeyInfo]? = nil
 
                 if normalizedLayerName == "launcher" {
                     // Launcher layer: use collection-built keyMap as primary
                     keyMap = collectionLauncherKeyMap
+
+                    // Preload all app icons and favicons before showing,
+                    // so the layout doesn't jitter as icons load async
+                    await preloadLauncherIcons(keyMap: keyMap)
                 } else {
                     // Other layers: use simulator for primary keyMap
                     keyMap = try await layerKeyMapper.getMapping(
@@ -269,11 +279,6 @@ final class ContextHUDController {
                         layout: layout,
                         collections: enabledCollections
                     )
-
-                    // Pass launcher entries separately so they show as their own group
-                    if normalizedLayerName != "base", !collectionLauncherKeyMap.isEmpty {
-                        launcherKeyMap = collectionLauncherKeyMap
-                    }
                 }
 
                 guard !Task.isCancelled else { return }
@@ -287,36 +292,34 @@ final class ContextHUDController {
 
                 guard !Task.isCancelled else { return }
 
-                // Phase 1: show HUD immediately with tap-only labels
+                // Resolve hold labels: use cache or fetch before showing
+                var holdLabels = self.holdLabelCache[normalizedLayerName] ?? [:]
+
+                if holdLabels.isEmpty, FeatureFlags.simulatorAndVirtualKeysEnabled {
+                    holdLabels = await resolveHoldLabels(
+                        keyMap: keyMap,
+                        configPath: configPath,
+                        layerName: layerName
+                    )
+                    guard !Task.isCancelled else { return }
+                    if !holdLabels.isEmpty {
+                        self.holdLabelCache[normalizedLayerName] = holdLabels
+                    }
+                }
+
+                guard !Task.isCancelled else { return }
+
+                // Show HUD with complete data (tap + hold labels)
                 viewModel.update(
                     layerName: layerName,
                     keyMap: keyMap,
                     collections: enabledCollections,
                     style: style,
+                    holdLabels: holdLabels,
                     launcherKeyMap: launcherKeyMap
                 )
 
-                // Show the window — dismissal is driven by layer→base change,
-                // matching how the overlay behaves (no auto-dismiss timer).
                 showWindow()
-
-                // Phase 2: resolve hold labels in background, then re-update
-                if FeatureFlags.simulatorAndVirtualKeysEnabled {
-                    let holdLabels = await resolveHoldLabels(
-                        keyMap: keyMap,
-                        configPath: configPath,
-                        layerName: layerName
-                    )
-                    guard !Task.isCancelled, !holdLabels.isEmpty else { return }
-                    viewModel.update(
-                        layerName: layerName,
-                        keyMap: keyMap,
-                        collections: enabledCollections,
-                        style: style,
-                        holdLabels: holdLabels,
-                        launcherKeyMap: launcherKeyMap
-                    )
-                }
             } catch {
                 AppLogger.shared.error("🎯 [ContextHUD] Failed to build layer mapping: \(error)")
             }
@@ -371,37 +374,54 @@ final class ContextHUDController {
 
         guard let window else { return }
 
-        // Update the hosting view content
+        // Update the hosting view content and force initial layout pass
         if let hostingView {
             hostingView.rootView = ContextHUDView(viewModel: viewModel)
+            hostingView.needsLayout = true
+            hostingView.layoutSubtreeIfNeeded()
         }
 
-        // Position at center of screen
-        positionWindow()
+        // Hide content immediately — prevents flash of stale layout
+        window.contentView?.alphaValue = 0
 
-        // Animate in: scale + fade
-        if let contentView = window.contentView {
-            contentView.wantsLayer = true
-            contentView.layer?.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-            let bounds = contentView.bounds
-            contentView.layer?.position = CGPoint(x: bounds.midX, y: bounds.midY)
+        // Defer to next runloop iteration so SwiftUI fully settles its layout.
+        // Without this, fittingSize can be stale on first view causing a visible jump.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let window = self.window else { return }
 
-            contentView.layer?.transform = CATransform3DMakeScale(0.95, 0.95, 1.0)
-            contentView.alphaValue = 0
-
-            window.orderFront(nil)
-
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.15
-                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                contentView.animator().alphaValue = 1.0
-                contentView.layer?.transform = CATransform3DIdentity
+            // Second layout pass after SwiftUI has settled
+            if let hostingView = self.hostingView {
+                hostingView.invalidateIntrinsicContentSize()
+                hostingView.layoutSubtreeIfNeeded()
             }
-        } else {
-            window.orderFront(nil)
-        }
 
-        AppLogger.shared.debug("🎯 [ContextHUD] Showing HUD for layer '\(viewModel.layerName)'")
+            // Size and position with accurate fittingSize
+            self.positionWindow()
+
+            // Animate in: scale + fade
+            if let contentView = window.contentView {
+                contentView.wantsLayer = true
+                contentView.layer?.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+                let bounds = contentView.bounds
+                contentView.layer?.position = CGPoint(x: bounds.midX, y: bounds.midY)
+
+                contentView.layer?.transform = CATransform3DMakeScale(0.95, 0.95, 1.0)
+                contentView.alphaValue = 0
+
+                window.orderFront(nil)
+
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.15
+                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                    contentView.animator().alphaValue = 1.0
+                    contentView.layer?.transform = CATransform3DIdentity
+                }
+            } else {
+                window.orderFront(nil)
+            }
+
+            AppLogger.shared.debug("🎯 [ContextHUD] Showing HUD for layer '\(self.viewModel.layerName)'")
+        }
     }
 
     private func dismiss() {
@@ -482,6 +502,24 @@ final class ContextHUDController {
         return keyMap
     }
 
+    /// Preload app icons and favicons so the launcher HUD doesn't jitter
+    private func preloadLauncherIcons(keyMap: [UInt16: LayerKeyInfo]) async {
+        await withTaskGroup(of: Void.self) { group in
+            for (_, info) in keyMap {
+                if let appId = info.appLaunchIdentifier {
+                    // App icons are synchronous (already cached by IconResolverService)
+                    _ = IconResolverService.shared.resolveAppIcon(for: appId)
+                }
+                if let url = info.urlIdentifier {
+                    // Favicons are async — preload them
+                    group.addTask {
+                        _ = await IconResolverService.shared.resolveFavicon(for: url)
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Window Creation & Positioning
 
     private func createWindow() {
@@ -499,6 +537,11 @@ final class ContextHUDController {
 
         // Size to fit content
         if let hostingView {
+            // Force SwiftUI layout pass so fittingSize reflects current content,
+            // not stale layout from a previous show/update cycle.
+            hostingView.invalidateIntrinsicContentSize()
+            hostingView.layoutSubtreeIfNeeded()
+
             let fittingSize = hostingView.fittingSize
             let width = min(max(fittingSize.width, 240), 800)
             let height = min(max(fittingSize.height, 100), 600)

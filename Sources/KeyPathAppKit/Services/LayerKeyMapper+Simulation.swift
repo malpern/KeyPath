@@ -65,12 +65,14 @@ extension LayerKeyMapper {
     ///   - configPath: Path to the kanata config file
     ///   - layout: The physical keyboard layout to use for mapping
     ///   - keyToCollection: Map of key names to collection UUIDs (for collection ownership tracking)
+    ///   - keyToVimLabel: Map of key names to short vim overlay labels (for VIM layer)
     func buildMappingWithSimulator(
         for layer: String,
         configPath: String,
         layout: PhysicalLayout,
         keyToCollection: [String: UUID] = [:],
-        activatorKeys: Set<String> = []
+        activatorKeys: Set<String> = [],
+        keyToVimLabel: [String: String] = [:]
     ) async throws -> [UInt16: LayerKeyInfo] {
         var mapping: [UInt16: LayerKeyInfo] = [:]
 
@@ -270,11 +272,16 @@ extension LayerKeyMapper {
                 let outputKey = primaryOutputKey ?? parsed.outputs.first
 
                 if let outputKey {
+                    let vimLabel = keyToVimLabel[simName]
+                    if !keyToVimLabel.isEmpty, vimLabel != nil {
+                        AppLogger.shared.info("🗺️ [VimLabel] \(simName) → vimLabel=\(vimLabel ?? "nil")")
+                    }
                     mapping[keyCode] = .mapped(
                         displayLabel: displayLabel,
                         outputKey: outputKey,
                         outputKeyCode: primaryOutputKeyCode,
-                        collectionId: collectionId
+                        collectionId: collectionId,
+                        vimLabel: vimLabel
                     )
                     if outputKey.uppercased() != parsed.input.uppercased() {
                         AppLogger.shared.debug("🗺️ [LayerKeyMapper] Mapped \(parsed.input)(\(keyCode)) -> \(outputKey)(\(displayLabel))")

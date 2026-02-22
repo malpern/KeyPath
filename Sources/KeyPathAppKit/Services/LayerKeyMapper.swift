@@ -24,6 +24,9 @@ struct LayerKeyInfo: Equatable, Sendable {
     let urlIdentifier: String?
     /// Which collection this key belongs to (for color-coding in overlay)
     let collectionId: UUID?
+    /// Short vim-language label for overlay keycaps (e.g., "yank", "put", "dw")
+    /// When set, overlay prefers this over displayLabel for VIM layer keys
+    let vimLabel: String?
 
     init(
         displayLabel: String,
@@ -34,7 +37,8 @@ struct LayerKeyInfo: Equatable, Sendable {
         appLaunchIdentifier: String? = nil,
         systemActionIdentifier: String? = nil,
         urlIdentifier: String? = nil,
-        collectionId: UUID? = nil
+        collectionId: UUID? = nil,
+        vimLabel: String? = nil
     ) {
         self.displayLabel = displayLabel
         self.outputKey = outputKey
@@ -45,17 +49,19 @@ struct LayerKeyInfo: Equatable, Sendable {
         self.systemActionIdentifier = systemActionIdentifier
         self.urlIdentifier = urlIdentifier
         self.collectionId = collectionId
+        self.vimLabel = vimLabel
     }
 
     /// Creates info for a normal key mapping
-    static func mapped(displayLabel: String, outputKey: String, outputKeyCode: UInt16?, collectionId: UUID? = nil) -> LayerKeyInfo {
+    static func mapped(displayLabel: String, outputKey: String, outputKeyCode: UInt16?, collectionId: UUID? = nil, vimLabel: String? = nil) -> LayerKeyInfo {
         LayerKeyInfo(
             displayLabel: displayLabel,
             outputKey: outputKey,
             outputKeyCode: outputKeyCode,
             isTransparent: false,
             isLayerSwitch: false,
-            collectionId: collectionId
+            collectionId: collectionId,
+            vimLabel: vimLabel
         )
     }
 
@@ -211,6 +217,7 @@ actor LayerKeyMapper {
         // Build key→collection reverse index for collection ownership tracking
         let keyToCollection = buildKeyCollectionMap(for: normalizedLayer, collections: collections)
         let activatorKeys = buildActivatorKeySet(for: normalizedLayer, collections: collections)
+        let keyToVimLabel = buildKeyVimLabelMap(for: normalizedLayer, collections: collections)
         AppLogger.shared.debug("🗺️ [LayerKeyMapper] Built key→collection map: \(keyToCollection.count) keys")
 
         // Use batch simulation for accurate key mapping
@@ -220,7 +227,8 @@ actor LayerKeyMapper {
             configPath: configPath,
             layout: layout,
             keyToCollection: keyToCollection,
-            activatorKeys: activatorKeys
+            activatorKeys: activatorKeys,
+            keyToVimLabel: keyToVimLabel
         )
 
         cache[normalizedLayer] = mapping
@@ -271,12 +279,14 @@ actor LayerKeyMapper {
                         // Build key→collection map for this layer
                         let keyToCollection = self.buildKeyCollectionMap(for: layer, collections: collections)
                         let activatorKeys = self.buildActivatorKeySet(for: layer, collections: collections)
+                        let keyToVimLabel = self.buildKeyVimLabelMap(for: layer, collections: collections)
                         let mapping = try await self.buildMappingWithSimulator(
                             for: layer,
                             configPath: configPath,
                             layout: layout,
                             keyToCollection: keyToCollection,
-                            activatorKeys: activatorKeys
+                            activatorKeys: activatorKeys,
+                            keyToVimLabel: keyToVimLabel
                         )
                         return (layer, mapping)
                     } catch {

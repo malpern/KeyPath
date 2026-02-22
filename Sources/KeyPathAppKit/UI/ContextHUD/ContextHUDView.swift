@@ -16,18 +16,6 @@ struct ContextHUDView: View {
                     .font(.subheadline.monospaced().weight(.bold))
                     .foregroundStyle(.white)
                     .tracking(1.5)
-
-                ForEach(viewModel.holdBadges, id: \.self) { badge in
-                    Text(badge)
-                        .font(.caption.monospaced().weight(.bold))
-                        .foregroundStyle(.white.opacity(0.9))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(.white.opacity(0.15))
-                        )
-                }
             }
 
             Divider()
@@ -37,7 +25,8 @@ struct ContextHUDView: View {
             contentView
         }
         .padding(20)
-        .frame(minWidth: 240, maxWidth: 800)
+        .fixedSize()
+        .frame(minWidth: 240)
         .appGlassSheet(cornerRadius: 12)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Context HUD: \(viewModel.layerName)")

@@ -157,35 +157,35 @@ struct RuleCollectionCatalog {
             category: .navigation,
             mappings: [
                 // === Basic navigation (hjkl) ===
-                KeyMapping(input: "h", output: "left", description: "Move left"),
-                KeyMapping(input: "j", output: "down", description: "Move down"),
-                KeyMapping(input: "k", output: "up", description: "Move up"),
-                KeyMapping(input: "l", output: "right", description: "Move right"),
+                KeyMapping(input: "h", output: "left", description: "h — left"),
+                KeyMapping(input: "j", output: "down", description: "j — down"),
+                KeyMapping(input: "k", output: "up", description: "k — up"),
+                KeyMapping(input: "l", output: "right", description: "l — right"),
 
                 // === Line navigation ===
-                KeyMapping(input: "0", output: "M-left", description: "Line start"),
-                KeyMapping(input: "4", output: "M-right", description: "Line end ($)"),
-                KeyMapping(input: "a", output: "right", shiftedOutput: "M-right", description: "Append / End of line"),
+                KeyMapping(input: "0", output: "M-left", description: "0 — line start"),
+                KeyMapping(input: "4", output: "M-right", description: "$ — line end"),
+                KeyMapping(input: "a", output: "right", shiftedOutput: "M-right", description: "a — append"),
 
                 // === Document navigation ===
-                KeyMapping(input: "g", output: "M-up", shiftedOutput: "M-down", description: "Doc start / Doc end"),
+                KeyMapping(input: "g", output: "M-up", shiftedOutput: "M-down", description: "gg / G — doc top/bottom"),
 
                 // === Search ===
-                KeyMapping(input: "/", output: "M-f", description: "Find", sectionBreak: true),
-                KeyMapping(input: "n", output: "M-g", shiftedOutput: "M-S-g", description: "Next match / Prev match"),
+                KeyMapping(input: "/", output: "M-f", description: "/ — find", sectionBreak: true),
+                KeyMapping(input: "n", output: "M-g", shiftedOutput: "M-S-g", description: "n / N — next/prev match"),
 
                 // === Copy/paste ===
-                KeyMapping(input: "y", output: "M-c", description: "Yank (copy)"),
-                KeyMapping(input: "p", output: "M-v", description: "Put (paste)"),
+                KeyMapping(input: "y", output: "M-c", description: "y — yank"),
+                KeyMapping(input: "p", output: "M-v", description: "p — put"),
 
                 // === Editing ===
-                KeyMapping(input: "x", output: "del", description: "Delete char"),
-                KeyMapping(input: "r", output: "M-S-z", description: "Redo"),
-                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn", description: "Delete word / Page down"),
-                KeyMapping(input: "u", output: "M-z", ctrlOutput: "pgup", description: "Undo / Page up"),
+                KeyMapping(input: "x", output: "del", description: "x — delete char"),
+                KeyMapping(input: "r", output: "M-S-z", description: "redo"),
+                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn", description: "dw — delete word"),
+                KeyMapping(input: "u", output: "M-z", ctrlOutput: "pgup", description: "u — undo"),
 
                 // === Line operations ===
-                KeyMapping(input: "o", output: "M-right ret", shiftedOutput: "up M-right ret", description: "Open line below / above")
+                KeyMapping(input: "o", output: "M-right ret", shiftedOutput: "up M-right ret", description: "o / O — open line below/above")
             ],
             isEnabled: true,
             isSystemDefault: true,

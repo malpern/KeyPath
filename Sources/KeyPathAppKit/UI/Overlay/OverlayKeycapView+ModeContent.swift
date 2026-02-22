@@ -344,7 +344,7 @@ extension OverlayKeycapView {
                 .font(.system(size: 14 * scale, weight: .medium))
                 .foregroundStyle(Color.white.opacity(0.9))
         }
-        // Check for navigation arrows (Vim style)
+        // Check for navigation arrows (Vim style) — keep arrows for hjkl
         else if let info = layerKeyInfo {
             let arrowLabels: Set<String> = ["←", "→", "↑", "↓"]
             if arrowLabels.contains(info.displayLabel) {
@@ -352,6 +352,11 @@ extension OverlayKeycapView {
                 Text(info.displayLabel)
                     .font(.system(size: 16 * scale, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.9))
+            }
+            // Vim label takes priority over Mac shortcut display
+            else if let vimLabel = info.vimLabel, !vimLabel.isEmpty {
+                dynamicTextLabel(vimLabel)
+                    .help(info.displayLabel)
             } else if !info.displayLabel.isEmpty {
                 // Skip SF symbols for modifier/special keys - keep text labels
                 let skipSymbolConversion = isModifierOrSpecialKey(info.displayLabel)
@@ -523,6 +528,9 @@ extension OverlayKeycapView {
         return nil
     }
 
+    /// Characters that benefit from monospaced font to avoid ambiguity (e.g., "o" vs "0")
+    private static let monoDisambiguationChars: Set<String> = ["o", "0", "O"]
+
     /// Render text label with dynamic sizing and multi-line wrapping
     func dynamicTextLabel(_ text: String) -> some View {
         GeometryReader { geometry in
@@ -533,9 +541,10 @@ extension OverlayKeycapView {
             let smallSize: CGFloat = 6 * scale
             let estimatedWidth = CGFloat(text.count) * preferredSize * 0.6
             let fontSize = estimatedWidth <= availableWidth ? preferredSize : (estimatedWidth <= availableWidth * 1.5 ? mediumSize : smallSize)
+            let useMono = Self.monoDisambiguationChars.contains(text)
 
-            Text(text.uppercased())
-                .font(.system(size: fontSize, weight: .medium))
+            Text(text.capitalized)
+                .font(.system(size: fontSize, weight: .medium, design: useMono ? .monospaced : .default))
                 .foregroundStyle(Color.white.opacity(0.9))
                 .lineLimit(2)
                 .multilineTextAlignment(.center)

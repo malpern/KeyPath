@@ -11,6 +11,9 @@ extension RuleCollectionsManager {
         static let unifiedHomeRowMods = "RuleCollections.Migration.UnifiedHomeRowMods"
         static let homeRowModsDefaultToModifiers = "RuleCollections.Migration.HomeRowModsDefaultToModifiers"
         static let layerNamesCommunityStandard = "RuleCollections.Migration.LayerNamesCommunityStandard"
+        static let vimDescriptionsToVimTerms = "RuleCollections.Migration.VimDescriptionsToVimTerms"
+        static let capsLockRemapForLauncher = "RuleCollections.Migration.CapsLockRemapForLauncher"
+        static let capsLockRemapForLauncherV2 = "RuleCollections.Migration.CapsLockRemapForLauncherV2"
     }
 
     /// Run one-time migrations for collection state changes
@@ -55,6 +58,21 @@ extension RuleCollectionsManager {
         if !UserDefaults.standard.bool(forKey: MigrationKey.layerNamesCommunityStandard) {
             migrateLayerNamesToCommunityStandard()
             UserDefaults.standard.set(true, forKey: MigrationKey.layerNamesCommunityStandard)
+        }
+
+        // Migration: Refresh VIM collection mappings to use vim terminology descriptions.
+        if !UserDefaults.standard.bool(forKey: MigrationKey.vimDescriptionsToVimTerms) {
+            migrateVimDescriptionsToVimTerms()
+            UserDefaults.standard.set(true, forKey: MigrationKey.vimDescriptionsToVimTerms)
+        }
+
+        // Migration: Enable Caps Lock Remap when Quick Launcher is enabled.
+        // Launcher depends on hyper (capslock hold) to activate — without Caps Lock Remap,
+        // capslock isn't captured by kanata and the launcher layer never fires.
+        // V2: Fixed to target capsLockRemap (not backupCapsLock).
+        if !UserDefaults.standard.bool(forKey: MigrationKey.capsLockRemapForLauncherV2) {
+            migrateCapsLockRemapForLauncher()
+            UserDefaults.standard.set(true, forKey: MigrationKey.capsLockRemapForLauncherV2)
         }
     }
 
@@ -157,6 +175,39 @@ extension RuleCollectionsManager {
         if updated > 0 {
             AppLogger.shared.log("♻️ [RuleCollections] Migration: Renamed layer assignments in \(updated) collection(s) to community standard names")
         }
+    }
+
+    private func migrateCapsLockRemapForLauncher() {
+        // Only enable if Quick Launcher is enabled (it needs hyper to activate)
+        let launcherEnabled = ruleCollections.contains { $0.id == RuleCollectionIdentifier.launcher && $0.isEnabled }
+        guard launcherEnabled else { return }
+
+        if let index = ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.capsLockRemap }) {
+            if !ruleCollections[index].isEnabled {
+                ruleCollections[index].isEnabled = true
+                AppLogger.shared.log("♻️ [RuleCollections] Migration: Enabled Caps Lock Remap (required by Quick Launcher)")
+            }
+        }
+    }
+
+    private func migrateVimDescriptionsToVimTerms() {
+        guard let storedIndex = ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.vimNavigation }) else {
+            return
+        }
+
+        // Get fresh mappings from the catalog
+        guard let catalogVim = RuleCollectionCatalog().defaultCollections()
+            .first(where: { $0.id == RuleCollectionIdentifier.vimNavigation })
+        else {
+            return
+        }
+
+        // Preserve user's enabled state, replace mappings with catalog versions
+        let wasEnabled = ruleCollections[storedIndex].isEnabled
+        ruleCollections[storedIndex] = catalogVim
+        ruleCollections[storedIndex].isEnabled = wasEnabled
+
+        AppLogger.shared.log("♻️ [RuleCollections] Migration: Refreshed Vim collection with vim terminology descriptions")
     }
 
     func dedupeRuleCollectionsInPlace() {

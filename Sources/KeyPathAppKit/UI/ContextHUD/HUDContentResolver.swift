@@ -21,7 +21,7 @@ enum HUDContentResolver {
         }
 
         if normalized == "launcher" {
-            return .launcherIcons
+            return .defaultList
         }
 
         if normalized == "sym" || normalized == "symbol" || normalized == "symbols" {
@@ -36,7 +36,7 @@ enum HUDContentResolver {
         }
 
         if collectionCounts[RuleCollectionIdentifier.launcher] ?? 0 > 0 {
-            return .launcherIcons
+            return .defaultList
         }
 
         if collectionCounts[RuleCollectionIdentifier.symbolLayer] ?? 0 > 0 {
@@ -46,7 +46,7 @@ enum HUDContentResolver {
         // Check by key content - if keys have app launch identifiers
         let hasAppLaunches = keyMap.values.contains { $0.appLaunchIdentifier != nil }
         if hasAppLaunches {
-            return .launcherIcons
+            return .defaultList
         }
 
         return .defaultList

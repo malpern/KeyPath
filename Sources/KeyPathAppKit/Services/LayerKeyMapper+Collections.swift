@@ -42,6 +42,57 @@ extension LayerKeyMapper {
         return map
     }
 
+    /// Short vim-language labels for overlay keycaps, keyed by input key
+    private static let vimOverlayLabels: [String: String] = [
+        "h": "←",
+        "j": "↓",
+        "k": "↑",
+        "l": "→",
+        "0": "0",
+        "4": "$",
+        "a": "a",
+        "g": "gg",
+        "/": "find",
+        "n": "next",
+        "y": "yank",
+        "p": "put",
+        "x": "del",
+        "r": "redo",
+        "d": "dw",
+        "u": "undo",
+        "o": "o",
+    ]
+
+    /// Build mapping from key names to short vim overlay labels for VIM collections
+    /// - Parameters:
+    ///   - layerName: The layer to build mapping for
+    ///   - collections: All enabled rule collections
+    /// - Returns: Dictionary mapping Kanata key names to short vim labels
+    nonisolated func buildKeyVimLabelMap(
+        for layerName: String,
+        collections: [RuleCollection]
+    ) -> [String: String] {
+        var map: [String: String] = [:]
+        let targetLayer = RuleCollectionLayer(kanataName: layerName)
+
+        for collection in collections {
+            guard collection.isEnabled,
+                  collection.id == RuleCollectionIdentifier.vimNavigation,
+                  collection.targetLayer == targetLayer else { continue }
+
+            AppLogger.shared.info("🗺️ [VimLabel] Found VIM collection for layer '\(layerName)', \(collection.mappings.count) mappings")
+            for mapping in collection.mappings {
+                let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
+                if let vimLabel = Self.vimOverlayLabels[mapping.input.lowercased()] {
+                    map[kanataKey] = vimLabel
+                }
+            }
+        }
+
+        AppLogger.shared.info("🗺️ [VimLabel] Built keyToVimLabel for '\(layerName)': \(map.count) entries — \(map)")
+        return map
+    }
+
     /// Build a set of activator keys for the given source layer.
     /// Used to ensure layer-switch keys are highlighted even when simulator outputs are empty.
     nonisolated func buildActivatorKeySet(

@@ -69,7 +69,7 @@ final class ContextHUDViewModel {
                 }
             }
 
-            let keycap = keycapLabel(for: keyCode)
+            var keycap = keycapLabel(for: keyCode)
             let color = collectionColor(for: info.collectionId)
             let sfSymbol = info.systemActionIdentifier.flatMap {
                 IconResolverService.shared.systemActionSymbol(for: $0)
@@ -81,9 +81,20 @@ final class ContextHUDViewModel {
                 return label
             }()
 
+            // For VIM entries: override keycap with vim notation, use English description
+            let action: String
+            if let vimLabel = info.vimLabel {
+                if let override = Self.vimKeycapOverrides[keycap] {
+                    keycap = override
+                }
+                action = Self.vimHUDDescriptions[vimLabel] ?? vimLabel
+            } else {
+                action = info.displayLabel
+            }
+
             return HUDKeyEntry(
                 keycap: keycap,
-                action: info.displayLabel,
+                action: action,
                 sfSymbol: sfSymbol,
                 appIdentifier: info.appLaunchIdentifier,
                 urlIdentifier: info.urlIdentifier,
@@ -157,11 +168,56 @@ final class ContextHUDViewModel {
 
     // MARK: - Private Helpers
 
+    /// Punctuation key names → display symbols
+    private static let keycapSymbols: [String: String] = [
+        "SLASH": "/",
+        "DOT": ".",
+        "COMMA": ",",
+        "SEMICOLON": ";",
+        "APOSTROPHE": "'",
+        "BACKSLASH": "\\",
+        "LBRACKET": "[",
+        "RBRACKET": "]",
+        "EQUAL": "=",
+        "MINUS": "-",
+        "GRAVE": "`",
+    ]
+
+    /// VIM keycap overrides — show vim motion instead of physical key
+    private static let vimKeycapOverrides: [String: String] = [
+        "4": "$",
+    ]
+
+    /// VIM English descriptions for the HUD action column
+    private static let vimHUDDescriptions: [String: String] = [
+        "←": "← left",
+        "↓": "↓ down",
+        "↑": "↑ up",
+        "→": "→ right",
+        "0": "line start",
+        "$": "line end",
+        "a": "append",
+        "gg": "go to top",
+        "find": "find",
+        "next": "next match",
+        "yank": "yank",
+        "put": "put",
+        "del": "delete char",
+        "redo": "redo",
+        "dw": "delete word",
+        "undo": "undo",
+        "o": "open line",
+    ]
+
     /// Convert key code to a display label for the keycap
     private func keycapLabel(for keyCode: UInt16) -> String {
-        // Use the same mapping as the overlay keyboard
         let name = OverlayKeyboardView.keyCodeToKanataName(keyCode)
-        return name.uppercased()
+        let upper = name.uppercased()
+        // Show symbol for punctuation keys
+        if let symbol = Self.keycapSymbols[upper] {
+            return symbol
+        }
+        return upper
     }
 
     /// Get collection color matching the overlay's color scheme

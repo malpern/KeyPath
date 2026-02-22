@@ -294,7 +294,7 @@ private struct MappingTableView: View {
             ForEach(collection.mappings) { mapping in
                 HStack(spacing: 0) {
                     keyCell(prettyKeyName(mapping.input), width: 80)
-                    actionCell(formatOutput(mapping.output), width: 120)
+                    actionCell(mapping.description ?? formatOutput(mapping.output), width: 120)
                     if hasShiftVariants {
                         modifierCell(mapping.shiftedOutput.map { formatOutput($0) }, width: 100, color: .orange)
                     }
