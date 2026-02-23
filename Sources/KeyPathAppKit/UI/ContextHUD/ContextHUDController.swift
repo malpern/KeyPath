@@ -225,7 +225,10 @@ final class ContextHUDController {
         }
 
         // Dismiss on Escape (manual override for both modes)
-        if key.lowercased() == "esc" {
+        if Self.isEscapeKeyName(key) {
+            // Ensure overlay/layer indicators return to base even if Kanata layer-exit
+            // push messages are missed or delayed.
+            _ = ActionDispatcher.shared.dispatch(message: "layer:base")
             dismiss()
         }
     }
@@ -284,6 +287,14 @@ final class ContextHUDController {
         let enabled = all.filter(\.isEnabled)
         cachedEnabledCollections = enabled
         return enabled
+    }
+
+    private static func isEscapeKeyName(_ key: String) -> Bool {
+        if let keyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(key) {
+            return keyCode == 53
+        }
+        let normalized = key.lowercased()
+        return normalized == "esc" || normalized == "escape"
     }
 
     // MARK: - Background Precompute

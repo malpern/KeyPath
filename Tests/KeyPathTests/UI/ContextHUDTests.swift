@@ -627,6 +627,14 @@ final class ContextHUDControllerTests: XCTestCase {
         // No crash = passes (dismiss on nil window is a no-op)
     }
 
+    func testEscapeDismisses() {
+        PreferencesService.shared.contextHUDDisplayMode = .both
+
+        // Kanata may report escape as "escape" instead of "esc"
+        controller.handleKeyInput(key: "escape", action: "press")
+        // No crash = passes
+    }
+
     func testReleaseActionIgnored() {
         PreferencesService.shared.contextHUDDisplayMode = .both
 
