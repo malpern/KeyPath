@@ -908,6 +908,41 @@ main .content-wrapper > section a[href^="http"]:not([href*="keypath"]):not(.docs
     }
 }
 
+.launch-cinema--integrated {
+    padding: var(--spacing-2xl) var(--spacing-lg);
+    margin: 0;
+    background: transparent;
+}
+
+.launch-cinema--integrated::before {
+    inset: 12% 6%;
+    border-radius: 24px;
+    background: radial-gradient(ellipse 70% 95% at 50% 20%, rgba(0, 122, 255, 0.1), transparent 72%);
+    opacity: 0.8;
+}
+
+.launch-cinema-shell {
+    position: relative;
+    z-index: 1;
+    width: min(1140px, 100%);
+    margin: 0 auto;
+    padding: clamp(1rem, 2.5vw, 2rem);
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015)),
+        rgba(16, 16, 18, 0.76);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        0 20px 44px rgba(0, 0, 0, 0.3);
+}
+
+.launch-cinema-header {
+    text-align: center;
+    max-width: 760px;
+    margin: 0 auto var(--spacing-lg);
+}
+
 .cinema-title {
     font-family: var(--font-display);
     font-size: clamp(1.9rem, 3vw, 2.25rem);
@@ -926,6 +961,10 @@ main .content-wrapper > section a[href^="http"]:not([href*="keypath"]):not(.docs
     white-space: nowrap;
 }
 
+.launch-cinema--integrated .cinema-subtitle {
+    white-space: normal;
+}
+
 @media (max-width: 768px) {
     .cinema-subtitle {
         white-space: normal;
@@ -939,6 +978,12 @@ main .content-wrapper > section a[href^="http"]:not([href*="keypath"]):not(.docs
     justify-content: center;
     gap: var(--spacing-lg);
     margin-bottom: var(--spacing-2xl);
+}
+
+.launch-cinema--integrated .cinema-toc {
+    flex-wrap: wrap;
+    gap: var(--spacing-md) var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
 }
 
 .cinema-toc-item {
@@ -999,6 +1044,11 @@ main .content-wrapper > section a[href^="http"]:not([href*="keypath"]):not(.docs
     gap: var(--spacing-lg);
     text-align: center;
     min-height: 180px;
+}
+
+.launch-cinema--integrated .launch-cinema-stage {
+    min-height: 158px;
+    padding: var(--spacing-sm) 0;
 }
 
 /* Gesture text with typing effect */

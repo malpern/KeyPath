@@ -187,87 +187,6 @@ content_class: content-full kanata-landing
     </div>
   </section>
 
-  <!-- LAUNCH ANYTHING SECTION - Cinematic Demo -->
-  <section class="launch-cinema">
-    <h2 class="cinema-title">Total control, speed and comfort</h2>
-    <p class="cinema-subtitle">Any of these gestures can open apps, URLs, or workflows.</p>
-
-    <!-- Gesture TOC - highlights as each example plays -->
-    <div class="cinema-toc">
-      <div class="cinema-toc-item" data-index="0">
-        <div class="cinema-gesture-icon">
-          <svg viewBox="0 0 40 24" fill="none">
-            <rect x="1" y="1" width="18" height="22" rx="3" fill="currentColor"/>
-            <rect x="21" y="1" width="18" height="22" rx="3" fill="currentColor"/>
-          </svg>
-        </div>
-        <span class="cinema-toc-label">Chord</span>
-      </div>
-      <div class="cinema-toc-item" data-index="1">
-        <div class="cinema-gesture-icon">
-          <svg viewBox="0 0 48 24" fill="none">
-            <rect x="1" y="1" width="14" height="22" rx="3" fill="currentColor"/>
-            <rect x="17" y="1" width="14" height="22" rx="3" fill="currentColor" opacity="0.6"/>
-            <rect x="33" y="1" width="14" height="22" rx="3" fill="currentColor" opacity="0.3"/>
-          </svg>
-        </div>
-        <span class="cinema-toc-label">Sequence</span>
-      </div>
-      <div class="cinema-toc-item" data-index="2">
-        <div class="cinema-gesture-icon">
-          <svg viewBox="0 0 32 24" fill="none">
-            <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
-            <text x="12" y="16" font-size="11" font-weight="700" fill="var(--color-background)" text-anchor="middle">2×</text>
-          </svg>
-        </div>
-        <span class="cinema-toc-label">Tap-dance</span>
-      </div>
-      <div class="cinema-toc-item" data-index="3">
-        <div class="cinema-gesture-icon">
-          <svg viewBox="0 0 24 28" fill="none">
-            <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
-            <rect x="3" y="25" width="18" height="3" rx="1.5" fill="currentColor" opacity="0.5"/>
-          </svg>
-        </div>
-        <span class="cinema-toc-label">Tap-hold</span>
-      </div>
-      <div class="cinema-toc-item" data-index="4">
-        <div class="cinema-gesture-icon">
-          <svg viewBox="0 0 40 24" fill="none">
-            <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
-            <path d="M28 12h8M33 8l4 4-4 4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
-          </svg>
-        </div>
-        <span class="cinema-toc-label">Leader</span>
-      </div>
-    </div>
-
-    <div class="launch-cinema-stage">
-      <!-- Gesture label (typed in) -->
-      <div class="cinema-gesture">
-        <span class="cinema-gesture-text"></span>
-        <span class="cinema-cursor">|</span>
-      </div>
-
-      <!-- Keys and Result on same line -->
-      <div class="cinema-action-row">
-        <!-- Keys display -->
-        <div class="cinema-keys"></div>
-
-        <!-- Arrow -->
-        <div class="cinema-arrow">→</div>
-
-        <!-- Result (app icon + name) -->
-        <div class="cinema-result">
-          <div class="cinema-app-icon"></div>
-          <div class="cinema-app-name"></div>
-        </div>
-      </div>
-    </div>
-
-    <a href="#how-it-works" class="cinema-see-more">See how it works...</a>
-  </section>
-
   <!-- BUILD YOUR OWN RULES - Full Screen -->
   <section class="rules-fullscreen">
     <div class="rules-fullscreen-content">
@@ -1184,6 +1103,89 @@ content_class: content-full kanata-landing
       </div>
     </div>
   </div>
+  </section>
+
+  <!-- SEE VOX CLAW IN ACTION -->
+  <section class="kanata-landing-section launch-cinema launch-cinema--integrated">
+    <div class="launch-cinema-shell">
+      <div class="launch-cinema-header">
+        <h2 class="cinema-title">See Vox Claw in action</h2>
+        <p class="cinema-subtitle">A live preview of gesture patterns that launch apps, sites, and workflows.</p>
+      </div>
+
+      <!-- Gesture TOC - highlights as each example plays -->
+      <div class="cinema-toc">
+        <div class="cinema-toc-item" data-index="0">
+          <div class="cinema-gesture-icon">
+            <svg viewBox="0 0 40 24" fill="none">
+              <rect x="1" y="1" width="18" height="22" rx="3" fill="currentColor"/>
+              <rect x="21" y="1" width="18" height="22" rx="3" fill="currentColor"/>
+            </svg>
+          </div>
+          <span class="cinema-toc-label">Chord</span>
+        </div>
+        <div class="cinema-toc-item" data-index="1">
+          <div class="cinema-gesture-icon">
+            <svg viewBox="0 0 48 24" fill="none">
+              <rect x="1" y="1" width="14" height="22" rx="3" fill="currentColor"/>
+              <rect x="17" y="1" width="14" height="22" rx="3" fill="currentColor" opacity="0.6"/>
+              <rect x="33" y="1" width="14" height="22" rx="3" fill="currentColor" opacity="0.3"/>
+            </svg>
+          </div>
+          <span class="cinema-toc-label">Sequence</span>
+        </div>
+        <div class="cinema-toc-item" data-index="2">
+          <div class="cinema-gesture-icon">
+            <svg viewBox="0 0 32 24" fill="none">
+              <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
+              <text x="12" y="16" font-size="11" font-weight="700" fill="var(--color-background)" text-anchor="middle">2×</text>
+            </svg>
+          </div>
+          <span class="cinema-toc-label">Tap-dance</span>
+        </div>
+        <div class="cinema-toc-item" data-index="3">
+          <div class="cinema-gesture-icon">
+            <svg viewBox="0 0 24 28" fill="none">
+              <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
+              <rect x="3" y="25" width="18" height="3" rx="1.5" fill="currentColor" opacity="0.5"/>
+            </svg>
+          </div>
+          <span class="cinema-toc-label">Tap-hold</span>
+        </div>
+        <div class="cinema-toc-item" data-index="4">
+          <div class="cinema-gesture-icon">
+            <svg viewBox="0 0 40 24" fill="none">
+              <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
+              <path d="M28 12h8M33 8l4 4-4 4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+            </svg>
+          </div>
+          <span class="cinema-toc-label">Leader</span>
+        </div>
+      </div>
+
+      <div class="launch-cinema-stage">
+        <!-- Gesture label (typed in) -->
+        <div class="cinema-gesture">
+          <span class="cinema-gesture-text"></span>
+          <span class="cinema-cursor">|</span>
+        </div>
+
+        <!-- Keys and Result on same line -->
+        <div class="cinema-action-row">
+          <!-- Keys display -->
+          <div class="cinema-keys"></div>
+
+          <!-- Arrow -->
+          <div class="cinema-arrow">→</div>
+
+          <!-- Result (app icon + name) -->
+          <div class="cinema-result">
+            <div class="cinema-app-icon"></div>
+            <div class="cinema-app-name"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- DESIGN #6: MINIMAL GEOMETRIC -->
