@@ -576,15 +576,16 @@ final class ContextHUDControllerTests: XCTestCase {
         XCTAssertEqual(controller.currentPreviousLayer, "base")
     }
 
-    func testKanataSourceIgnoredDuringOneShotOverride() {
+    func testKanataBaseClearsOneShotOverride() {
         PreferencesService.shared.contextHUDDisplayMode = .both
+        PreferencesService.shared.contextHUDTriggerMode = .tapToToggle
 
         // Activate one-shot for "nav"
         controller.handleLayerChange("nav", source: "push")
 
-        // Kanata reports "base" while one-shot is active - should be ignored
+        // Kanata reports "base" while one-shot is active - should be honored
         controller.handleLayerChange("base", source: "kanata")
-        XCTAssertEqual(controller.currentPreviousLayer, "nav", "Kanata update should be ignored during one-shot override")
+        XCTAssertEqual(controller.currentPreviousLayer, "base", "Kanata base should always clear one-shot override")
     }
 
     // MARK: - Hold Activated

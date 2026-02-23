@@ -40,7 +40,7 @@ struct VimCategoryCard: View {
 
             // Command list
             VStack(alignment: .leading, spacing: 2) {
-                ForEach(commands, id: \.id) { command in
+                ForEach(visibleCommands, id: \.id) { command in
                     VimCommandRowCompact(command: command, accentColor: category.accentColor)
                 }
             }
@@ -63,5 +63,11 @@ struct VimCategoryCard: View {
         .onHover { hovering in
             isHovered = hovering
         }
+    }
+
+    private var visibleCommands: [KeyMapping] {
+        guard category == .navigation else { return commands }
+        let navClusterKeys = Set(["h", "j", "k", "l"])
+        return commands.filter { !navClusterKeys.contains($0.input.lowercased()) }
     }
 }

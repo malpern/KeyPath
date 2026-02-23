@@ -289,6 +289,22 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    /// Selected educational Neovim topics shown in leader-hold quick reference.
+    /// Stores raw values from `NeovimTerminalCategory`.
+    var neovimReferenceTopics: Set<String> {
+        didSet {
+            let effective = neovimReferenceTopics.isEmpty ? Defaults.neovimReferenceTopics : neovimReferenceTopics
+            if effective != neovimReferenceTopics {
+                neovimReferenceTopics = effective
+                return
+            }
+            UserDefaults.standard.set(Array(effective).sorted(), forKey: Keys.neovimReferenceTopics)
+            AppLogger.shared.log(
+                "🎯 [Preferences] neovimReferenceTopics = \(Array(effective).sorted().joined(separator: ","))"
+            )
+        }
+    }
+
     // MARK: - Keys
 
     private enum Keys {
@@ -306,6 +322,8 @@ final class PreferencesService: @unchecked Sendable {
         static let contextHUDHoldDelayPreset = "KeyPath.ContextHUD.HoldDelayPreset"
         static let contextHUDHoldDelayCustomMs = "KeyPath.ContextHUD.HoldDelayCustomMs"
         static let kindaVimLeaderHUDMode = "KeyPath.KindaVim.LeaderHUDMode"
+        static let neovimReferenceTopics = "KeyPath.Neovim.ReferenceTopics"
+        static let neovimReferenceTopicsVersion = "KeyPath.Neovim.ReferenceTopicsVersion"
         static let overlayHiddenHintShowCount = "KeyPath.Education.OverlayHiddenHintShowCount"
     }
 
@@ -329,6 +347,8 @@ final class PreferencesService: @unchecked Sendable {
         static let contextHUDHoldDelayPreset = ContextHUDHoldDelayPreset.long
         static let contextHUDHoldDelayCustomMs = 200
         static let kindaVimLeaderHUDMode = KindaVimLeaderHUDMode.contextualCoach
+        static let neovimReferenceTopics = NeovimTerminalCategory.defaultRawValues
+        static let neovimReferenceTopicsVersion = 2
     }
 
     // MARK: - Initialization
@@ -406,6 +426,22 @@ final class PreferencesService: @unchecked Sendable {
             ?? Defaults.kindaVimLeaderHUDMode.rawValue
         kindaVimLeaderHUDMode = KindaVimLeaderHUDMode(rawValue: kindaVimHUDModeString)
             ?? Defaults.kindaVimLeaderHUDMode
+
+        let storedNeovimTopics = Set(UserDefaults.standard.stringArray(forKey: Keys.neovimReferenceTopics) ?? [])
+        let validNeovimTopics = Set(NeovimTerminalCategory.allCases.map(\.rawValue))
+        let sanitizedNeovimTopics = storedNeovimTopics.intersection(validNeovimTopics)
+        let topicsVersion = UserDefaults.standard.object(forKey: Keys.neovimReferenceTopicsVersion) as? Int ?? 0
+        let legacyDefault = Set([NeovimTerminalCategory.basicMotions.rawValue])
+        let migratedNeovimTopics: Set<String>
+        if topicsVersion < Defaults.neovimReferenceTopicsVersion, sanitizedNeovimTopics == legacyDefault {
+            migratedNeovimTopics = Defaults.neovimReferenceTopics
+        } else {
+            migratedNeovimTopics = sanitizedNeovimTopics
+        }
+        neovimReferenceTopics = migratedNeovimTopics.isEmpty
+            ? Defaults.neovimReferenceTopics
+            : migratedNeovimTopics
+        UserDefaults.standard.set(Defaults.neovimReferenceTopicsVersion, forKey: Keys.neovimReferenceTopicsVersion)
 
         AppLogger.shared.log(
             "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), TCP port: \(tcpServerPort), Verbose logging: \(verboseKanataLogging)"

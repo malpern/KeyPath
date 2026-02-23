@@ -1,15 +1,9 @@
 import SwiftUI
 
 /// Static quick-reference HUD view for Neovim commands.
-/// Focused on core motions and basic split/window navigation.
+/// Content is configured in the Rules panel (educational topics only).
 struct ContextHUDNeovimTerminalView: View {
     let groups: [HUDKeyGroup]
-
-    private struct CommandItem: Identifiable {
-        let id = UUID()
-        let keys: String
-        let meaning: String
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -30,42 +24,39 @@ struct ContextHUDNeovimTerminalView: View {
         }
     }
 
+    @ViewBuilder
     private var referenceLayout: some View {
-        HStack(alignment: .top, spacing: 24) {
-            VStack(alignment: .leading, spacing: 14) {
-                categorySection(
-                    title: "MOTIONS",
-                    color: NeovimTerminalCategory.movement.accentColor,
-                    commands: movementCommands
-                )
-                categorySection(
-                    title: "SEARCH",
-                    color: NeovimTerminalCategory.search.accentColor,
-                    commands: searchCommands
-                )
-            }
-            VStack(alignment: .leading, spacing: 14) {
-                categorySection(
-                    title: "WINDOW NAVIGATION",
-                    color: NeovimTerminalCategory.windowNavigation.accentColor,
-                    commands: windowNavigationCommands
-                )
+        let selectedCategories = configuredCategories
+
+        if selectedCategories.isEmpty {
+            Text("Enable at least one Neovim topic in Rules to populate this reference.")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.75))
+        } else {
+            HStack(alignment: .top, spacing: 24) {
+                VStack(alignment: .leading, spacing: 14) {
+                    ForEach(leftColumnCategories(from: selectedCategories)) { category in
+                        categorySection(category)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 14) {
+                    ForEach(rightColumnCategories(from: selectedCategories)) { category in
+                        categorySection(category)
+                    }
+                }
             }
         }
     }
 
-    private func categorySection(
-        title: String,
-        color: Color,
-        commands: [CommandItem]
-    ) -> some View {
+    private func categorySection(_ category: NeovimTerminalCategory) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(title)
+            Text(category.title.uppercased())
                 .font(.system(.caption2, design: .monospaced).weight(.bold))
-                .foregroundStyle(color.opacity(0.9))
+                .foregroundStyle(category.accentColor.opacity(0.9))
                 .tracking(1.2)
 
-            ForEach(commands) { command in
+            ForEach(category.commands) { command in
                 HStack(spacing: 8) {
                     Text(command.keys)
                         .font(.system(.caption, design: .monospaced).weight(.bold))
@@ -84,32 +75,21 @@ struct ContextHUDNeovimTerminalView: View {
         }
     }
 
-    // MARK: - Static Command Data
-
-    private var movementCommands: [CommandItem] {
-        [
-            .init(keys: "h j k l", meaning: "left/down/up/right"),
-            .init(keys: "w b e", meaning: "word motions"),
-            .init(keys: "0  $", meaning: "line start/end"),
-            .init(keys: "gg  G", meaning: "file start/end"),
-            .init(keys: "f  t", meaning: "find/till char"),
-        ]
+    private var configuredCategories: [NeovimTerminalCategory] {
+        let selected = PreferencesService.shared.neovimReferenceTopics
+        let valid = NeovimTerminalCategory.allCases.filter { selected.contains($0.rawValue) }
+        return valid.isEmpty
+            ? NeovimTerminalCategory.allCases.filter(\.defaultEnabled)
+            : valid
     }
 
-    private var windowNavigationCommands: [CommandItem] {
-        [
-            .init(keys: "Ctrl-w h/j/k/l", meaning: "focus left/down/up/right split"),
-            .init(keys: "Ctrl-w v  /  s", meaning: "split vertical / horizontal"),
-            .init(keys: "Ctrl-w =", meaning: "equalize split sizes"),
-            .init(keys: "Ctrl-w q", meaning: "close current split"),
-        ]
+    private func leftColumnCategories(from categories: [NeovimTerminalCategory]) -> [NeovimTerminalCategory] {
+        let midpoint = Int(ceil(Double(categories.count) / 2.0))
+        return Array(categories.prefix(midpoint))
     }
 
-    private var searchCommands: [CommandItem] {
-        [
-            .init(keys: "/  ?", meaning: "search fwd/back"),
-            .init(keys: "n  N", meaning: "next/prev match"),
-            .init(keys: "*  #", meaning: "word under cursor"),
-        ]
+    private func rightColumnCategories(from categories: [NeovimTerminalCategory]) -> [NeovimTerminalCategory] {
+        let midpoint = Int(ceil(Double(categories.count) / 2.0))
+        return Array(categories.dropFirst(midpoint))
     }
 }

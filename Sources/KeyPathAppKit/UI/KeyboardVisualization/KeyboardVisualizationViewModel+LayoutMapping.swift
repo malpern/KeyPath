@@ -159,16 +159,32 @@ extension KeyboardVisualizationViewModel {
                 // Only use enabled collections to match config generation behavior
                 let allCollections = await RuleCollectionStore.shared.loadCollections()
                 let ruleCollections = allCollections.filter(\.isEnabled)
+                let frontmostBundleIdentifier =
+                    currentAppBundleId
+                        ?? AppContextService.shared.currentBundleIdentifier
+                        ?? NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+                let isApprovedNeovimTerminal = NeovimTerminalScope.isApprovedTerminal(
+                    bundleIdentifier: frontmostBundleIdentifier
+                )
+                let scopedRuleCollections = isApprovedNeovimTerminal
+                    ? ruleCollections
+                    : ruleCollections.filter { $0.id != RuleCollectionIdentifier.neovimTerminal }
 
                 AppLogger.shared.debug("🗺️ [KeyboardViz] Total collections: \(allCollections.count), Enabled: \(ruleCollections.count)")
                 AppLogger.shared.debug("🗺️ [KeyboardViz] Enabled collection IDs: \(ruleCollections.map { $0.id.uuidString.prefix(8) }.joined(separator: ", "))")
+                if !isApprovedNeovimTerminal {
+                    AppLogger.shared.debug(
+                        "🗺️ [KeyboardViz] Neovim scope inactive (frontmost=\(frontmostBundleIdentifier ?? "nil")); hiding Neovim overlay/key-list content"
+                    )
+                }
 
                 // Build mapping for target layer
                 var mapping = try await layerKeyMapper.getMapping(
                     for: targetLayerName,
                     configPath: configPath,
                     layout: layout,
-                    collections: ruleCollections
+                    collections: scopedRuleCollections,
+                    cacheKeySuffix: "neovim-scope-\(isApprovedNeovimTerminal ? "approved" : "fallback")"
                 )
 
                 // DEBUG: Log what simulator returned
@@ -177,14 +193,22 @@ extension KeyboardVisualizationViewModel {
                     AppLogger.shared.debug("  [\(targetLayerName)] keyCode \(keyCode) -> '\(info.displayLabel)'")
                 }
 
+                // Outside approved terminals, strip Neovim-owned entries from display mappings.
+                // This keeps layer behavior untouched while suppressing Neovim educational UI content.
+                if !isApprovedNeovimTerminal {
+                    mapping = mapping.filter { _, info in
+                        info.collectionId != RuleCollectionIdentifier.neovimTerminal
+                    }
+                }
+
                 // Augment mapping with push-msg actions from custom rules and rule collections
                 // Only include actions targeting this specific layer
                 let customRules = await CustomRulesStore.shared.loadRules()
-                AppLogger.shared.info("🗺️ [KeyboardViz] Augmenting '\(targetLayerName)' with \(customRules.count) custom rules and \(ruleCollections.count) collections")
+                AppLogger.shared.info("🗺️ [KeyboardViz] Augmenting '\(targetLayerName)' with \(customRules.count) custom rules and \(scopedRuleCollections.count) collections")
                 mapping = augmentWithPushMsgActions(
                     mapping: mapping,
                     customRules: customRules,
-                    ruleCollections: ruleCollections,
+                    ruleCollections: scopedRuleCollections,
                     currentLayerName: targetLayerName
                 )
 

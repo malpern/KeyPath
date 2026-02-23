@@ -230,10 +230,20 @@ public final class ConfigurationService: FileConfigurationProviding {
             AppLogger.shared.log("🔧 [ConfigService]   Custom collection \(i): '\(coll.name)' (enabled: \(coll.isEnabled), layer: \(coll.targetLayer)) mappings: [\(mappingStrs)]")
         }
         let allCollections = customRuleCollections + ruleCollections
+        // Neovim Terminal is an app-scoped educational reference and should not
+        // emit global deflayer mappings that conflict with regular nav rules.
+        let collectionsForConfig = allCollections.filter {
+            $0.id != RuleCollectionIdentifier.neovimTerminal
+        }
+        if collectionsForConfig.count != allCollections.count {
+            AppLogger.shared.log(
+                "🔧 [ConfigService] Excluding Neovim Terminal reference mappings from generated config"
+            )
+        }
 
         // DETECT CONFLICTS BEFORE DEDUPLICATION
         // This catches cases where multiple collections map the same key
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: allCollections)
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: collectionsForConfig)
         if !conflicts.isEmpty {
             AppLogger.shared.log(
                 "⚠️ [ConfigService] Mapping conflicts detected: \(conflicts.map(\.description).joined(separator: "; "))"
@@ -242,7 +252,7 @@ public final class ConfigurationService: FileConfigurationProviding {
         }
         AppLogger.shared.debug("✅ [ConfigService] No mapping conflicts detected")
 
-        let combinedCollections = RuleCollectionDeduplicator.dedupe(allCollections)
+        let combinedCollections = RuleCollectionDeduplicator.dedupe(collectionsForConfig)
         let mappings = combinedCollections.enabledMappings()
         let preservedChordGroups = loadPreservedChordGroups()
         let preservedSequences = loadPreservedSequences()

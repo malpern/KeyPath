@@ -516,6 +516,42 @@ final class RuleCollectionsManagerTests: XCTestCase {
     }
 
     @MainActor
+    func testNeovimReferenceCoexistsWithVimNavigationWithoutConflictDialog() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        var conflictDialogRequested = false
+        manager.onConflictResolution = { _ in
+            conflictDialogRequested = true
+            return .keepNew
+        }
+
+        let catalogCollections = RuleCollectionCatalog().defaultCollections()
+        await manager.replaceCollections(catalogCollections)
+
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.vimNavigation && $0.isEnabled },
+            "Vim shortcuts should start enabled from catalog defaults"
+        )
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.neovimTerminal && !$0.isEnabled },
+            "Neovim Terminal should start disabled from catalog defaults"
+        )
+
+        await manager.toggleCollection(id: RuleCollectionIdentifier.neovimTerminal, isEnabled: true)
+
+        XCTAssertFalse(conflictDialogRequested, "Neovim reference should not trigger conflict dialog against Vim shortcuts")
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.neovimTerminal && $0.isEnabled },
+            "Neovim Terminal should remain enabled"
+        )
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.vimNavigation && $0.isEnabled },
+            "Vim shortcuts should remain enabled alongside Neovim reference"
+        )
+    }
+
+    @MainActor
     func testAddCollectionConflictKeepNew_DisablesExistingAndEnablesNew() async throws {
         let (manager, _) = try await createTestManager()
         defer { TestEnvironment.forceTestMode = false }

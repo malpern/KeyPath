@@ -182,8 +182,8 @@ struct RuleCollectionCatalog {
 
                 // === Editing ===
                 KeyMapping(input: "x", output: "del", description: "x — delete char"),
-                KeyMapping(input: "r", output: "M-S-z", description: "redo"),
-                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn", description: "dw — delete word"),
+                KeyMapping(input: "r", output: "M-S-z", description: "r — redo"),
+                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn", description: "d — delete previous word"),
                 KeyMapping(input: "u", output: "M-z", ctrlOutput: "pgup", description: "u — undo"),
 
                 // === Line operations ===
@@ -244,7 +244,7 @@ struct RuleCollectionCatalog {
                 // === Editing ===
                 KeyMapping(input: "x", output: "del", description: "x — delete char"),
                 KeyMapping(input: "r", output: "M-S-z", description: "r — redo"),
-                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn", description: "dw — delete word"),
+                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn", description: "d — delete previous word"),
                 KeyMapping(input: "u", output: "M-z", ctrlOutput: "pgup", description: "u — undo"),
 
                 // === Line operations ===
@@ -268,7 +268,7 @@ struct RuleCollectionCatalog {
         RuleCollection(
             id: RuleCollectionIdentifier.neovimTerminal,
             name: "Neovim Terminal",
-            summary: "Quick-reference card for Neovim commands. Hold Leader to see core vim motions and Neovim-specific features.",
+            summary: "App-specific Neovim reference for approved terminal apps. It can run alongside other Navigation rules.",
             category: .navigation,
             mappings: [
                 // === Basic navigation (hjkl) ===
@@ -300,7 +300,7 @@ struct RuleCollectionCatalog {
                 // === Editing ===
                 KeyMapping(input: "x", output: "del", description: "x — delete char"),
                 KeyMapping(input: "r", output: "M-S-z", description: "r — redo"),
-                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn", description: "dw — delete word"),
+                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn", description: "d — delete previous word"),
                 KeyMapping(input: "u", output: "M-z", ctrlOutput: "pgup", description: "u — undo"),
 
                 // === Line operations ===
@@ -733,7 +733,7 @@ struct RuleCollectionCatalog {
     private var numpadLayer: RuleCollection {
         RuleCollection(
             id: RuleCollectionIdentifier.numpadLayer,
-            name: "Numpad Layer",
+            name: "Numpad",
             summary: "Right hand becomes a numpad. Hold activator key + use U/I/O, J/K/L, M/,/. for 7-8-9, 4-5-6, 1-2-3.",
             category: .layers,
             mappings: [
@@ -776,7 +776,7 @@ struct RuleCollectionCatalog {
     private var symbolLayer: RuleCollection {
         RuleCollection(
             id: RuleCollectionIdentifier.symbolLayer,
-            name: "Symbol Layer",
+            name: "Symbol",
             summary: "Quick access to programming symbols. Choose a layout optimized for your workflow.",
             category: .layers,
             mappings: [], // Generated from selected layer preset
@@ -930,7 +930,7 @@ struct RuleCollectionCatalog {
     private var funLayer: RuleCollection {
         RuleCollection(
             id: RuleCollectionIdentifier.funLayer,
-            name: "Function Layer",
+            name: "Function",
             summary: "F-keys on right hand (numpad grid), media controls on left hand.",
             category: .layers,
             mappings: [

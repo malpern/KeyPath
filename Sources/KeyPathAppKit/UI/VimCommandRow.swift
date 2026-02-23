@@ -8,7 +8,7 @@ struct VimCommandRow: View {
     var body: some View {
         HStack(spacing: 12) {
             // Key
-            StandardKeyBadge(key: command.input, color: accentColor)
+            StandardKeyBadge(key: command.input, color: accentColor, uppercase: false)
 
             // Description
             if let desc = command.description {

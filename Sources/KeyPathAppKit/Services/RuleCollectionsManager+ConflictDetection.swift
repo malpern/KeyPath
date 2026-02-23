@@ -5,6 +5,10 @@ import KeyPathPermissions
 extension RuleCollectionsManager {
     // MARK: - Conflict Detection
 
+    private func isNeovimAppScopedReference(_ collection: RuleCollection) -> Bool {
+        collection.id == RuleCollectionIdentifier.neovimTerminal
+    }
+
     func normalizedKeys(for collection: RuleCollection) -> Set<String> {
         Set(collection.mappings.map { KanataKeyConverter.convertToKanataKey($0.input) })
     }
@@ -15,10 +19,20 @@ extension RuleCollectionsManager {
     }
 
     func conflictInfo(for candidate: RuleCollection) -> RuleConflictInfo? {
+        // Neovim Terminal is app-scoped educational content; it intentionally coexists
+        // with other navigation collections without forcing toggle conflicts.
+        if isNeovimAppScopedReference(candidate) {
+            return nil
+        }
+
         let candidateKeys = normalizedKeys(for: candidate)
         let candidateActivator = normalizedActivator(for: candidate)
 
         for other in ruleCollections where other.isEnabled && other.id != candidate.id {
+            if isNeovimAppScopedReference(other) {
+                continue
+            }
+
             if candidate.targetLayer == other.targetLayer {
                 let overlap = candidateKeys.intersection(normalizedKeys(for: other))
                 if !overlap.isEmpty {
@@ -50,6 +64,9 @@ extension RuleCollectionsManager {
         let normalizedKey = KanataKeyConverter.convertToKanataKey(rule.input)
 
         for collection in ruleCollections where collection.isEnabled && collection.targetLayer == rule.targetLayer {
+            if isNeovimAppScopedReference(collection) {
+                continue
+            }
             if normalizedKeys(for: collection).contains(normalizedKey) {
                 return RuleConflictInfo(source: .collection(collection), keys: [normalizedKey])
             }
