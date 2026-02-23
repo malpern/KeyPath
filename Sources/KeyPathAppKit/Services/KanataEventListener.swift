@@ -580,15 +580,14 @@ actor KanataEventListener {
         }
 
         // Handle MessagePush events (keypath:// URIs via push-msg)
-        // Format from Kanata: {"MessagePush":{"message":["keypath://launch/obsidian"]}}
+        // Current upstream format: {"MessagePush":{"message":"layer:nav"}}
+        // Back-compat formats: {"MessagePush":{"message":[...]}} or {"MessagePush":{"msg":"..."}}
         if let push = json["MessagePush"] as? [String: Any],
-           let messages = push["message"] as? [Any]
+           let messages = Self.extractMessagePushMessages(from: push)
         {
             AppLogger.shared.log("🌐 [EventListener] MessagePush received: \(messages)")
 
-            for item in messages {
-                guard let messageString = item as? String else { continue }
-
+            for messageString in messages {
                 // Try to parse as keypath:// URI
                 if let actionURI = KeyPathActionURI(string: messageString) {
                     AppLogger.shared.log(
@@ -742,6 +741,37 @@ actor KanataEventListener {
         }
 
         AppLogger.shared.debug("🌐 [EventListener] Unhandled message type")
+    }
+
+    static func extractMessagePushMessages(from push: [String: Any]) -> [String]? {
+        // Prefer canonical field name used by current kanata.
+        if let messages = normalizeMessagePushField(push["message"]) {
+            return messages
+        }
+
+        // Backward compatibility for older/alternate field naming.
+        if let messages = normalizeMessagePushField(push["msg"]) {
+            return messages
+        }
+
+        return nil
+    }
+
+    private static func normalizeMessagePushField(_ value: Any?) -> [String]? {
+        if let message = value as? String {
+            return [message]
+        }
+
+        if let messageArray = value as? [String] {
+            return messageArray
+        }
+
+        if let mixedArray = value as? [Any] {
+            let strings = mixedArray.compactMap { $0 as? String }
+            return strings.isEmpty ? nil : strings
+        }
+
+        return nil
     }
 
     enum ListenerError: Error {
