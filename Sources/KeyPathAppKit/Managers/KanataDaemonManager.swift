@@ -18,15 +18,16 @@ class KanataDaemonManager {
 
     // Allows unit tests to inject a fake SMAppService and simulate states like `.notFound`.
     // Default implementation wraps Apple's `SMAppService`.
-    #if DEBUG
+#if DEBUG
         nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
             NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
         }
-    #else
+        nonisolated(unsafe) static var registeredButNotLoadedOverride: (() async -> Bool)?
+#else
         nonisolated(unsafe) static let smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
             NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
         }
-    #endif
+#endif
 
     // MARK: - Singleton
 
@@ -268,6 +269,12 @@ class KanataDaemonManager {
     ///
     /// - Returns: true if service needs unregister/re-register cycle to fix
     nonisolated func isRegisteredButNotLoaded() async -> Bool {
+        #if DEBUG
+            if let override = Self.registeredButNotLoadedOverride {
+                return await override()
+            }
+        #endif
+
         let svc = Self.smServiceFactory(Self.kanataPlistName)
 
         // 1. Check if SMAppService thinks it's registered
@@ -340,80 +347,76 @@ class KanataDaemonManager {
         }
         AppLogger.shared.log("✅ [KanataDaemonManager] macOS version OK for SMAppService")
 
+        let svc = Self.smServiceFactory(Self.kanataPlistName)
         if TestEnvironment.isTestMode {
             AppLogger.shared.log(
-                "🧪 [KanataDaemonManager] Test mode detected – bypassing bundle validation"
+                "🧪 [KanataDaemonManager] Test mode detected – skipping bundle validation checks"
             )
-            let svc = Self.smServiceFactory(Self.kanataPlistName)
-            try svc.register()
-            AppLogger.shared.log("✅ [KanataDaemonManager] Test registration completed")
-            return
-        }
-
-        // Validate plist exists in app bundle
-        // Check both the expected location (for build scripts) and bundle resources (for SPM builds)
-        let bundlePath = Bundle.main.bundlePath
-        let expectedPlistPath = "\(bundlePath)/Contents/Library/LaunchDaemons/\(Self.kanataPlistName)"
-        AppLogger.shared.log("🔍 [KanataDaemonManager] Bundle path: \(bundlePath)")
-        AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for plist at: \(expectedPlistPath)")
-
-        // First check the expected location (build scripts place it here)
-        if FileManager.default.fileExists(atPath: expectedPlistPath) {
-            AppLogger.shared.log(
-                "✅ [KanataDaemonManager] Found plist at expected location: \(expectedPlistPath)"
-            )
-            if let plist = NSDictionary(contentsOfFile: expectedPlistPath) as? [String: Any],
-               let args = plist["ProgramArguments"] as? [String],
-               let first = args.first,
-               !first.contains("kanata-launcher")
-            {
-                AppLogger.shared.log(
-                    "❌ [KanataDaemonManager] Plist ProgramArguments missing kanata-launcher wrapper (found: \(first))"
-                )
-                throw KanataDaemonError.registrationFailed(
-                    "Bundled Kanata plist not updated to use kanata-launcher. Rebuild KeyPath before registering."
-                )
-            }
-        } else if let resourcePath = Bundle.main.path(
-            forResource: "com.keypath.kanata", ofType: "plist"
-        ) {
-            // Found in bundle resources (SPM build) - this is acceptable
-            AppLogger.shared.log(
-                "ℹ️ [KanataDaemonManager] Found plist in bundle resources: \(resourcePath)"
-            )
-            if let plist = NSDictionary(contentsOfFile: resourcePath) as? [String: Any],
-               let args = plist["ProgramArguments"] as? [String],
-               let first = args.first,
-               !first.contains("kanata-launcher")
-            {
-                AppLogger.shared.log(
-                    "❌ [KanataDaemonManager] Resource plist missing kanata-launcher wrapper (found: \(first))"
-                )
-                throw KanataDaemonError.registrationFailed(
-                    "Bundled Kanata plist not updated to use kanata-launcher. Rebuild KeyPath before registering."
-                )
-            }
         } else {
-            AppLogger.shared.log(
-                "❌ [KanataDaemonManager] Plist not found in app bundle (checked: \(expectedPlistPath) and bundle resources)"
-            )
-            throw KanataDaemonError.registrationFailed(
-                "Plist not found in app bundle (checked: \(expectedPlistPath) and bundle resources)"
-            )
+            // Validate plist exists in app bundle
+            // Check both the expected location (for build scripts) and bundle resources (for SPM builds)
+            let bundlePath = Bundle.main.bundlePath
+            let expectedPlistPath = "\(bundlePath)/Contents/Library/LaunchDaemons/\(Self.kanataPlistName)"
+            AppLogger.shared.log("🔍 [KanataDaemonManager] Bundle path: \(bundlePath)")
+            AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for plist at: \(expectedPlistPath)")
+
+            // First check the expected location (build scripts place it here)
+            if FileManager.default.fileExists(atPath: expectedPlistPath) {
+                AppLogger.shared.log(
+                    "✅ [KanataDaemonManager] Found plist at expected location: \(expectedPlistPath)"
+                )
+                if let plist = NSDictionary(contentsOfFile: expectedPlistPath) as? [String: Any],
+                   let args = plist["ProgramArguments"] as? [String],
+                   let first = args.first,
+                   !first.contains("kanata-launcher")
+                {
+                    AppLogger.shared.log(
+                        "❌ [KanataDaemonManager] Plist ProgramArguments missing kanata-launcher wrapper (found: \(first))"
+                    )
+                    throw KanataDaemonError.registrationFailed(
+                        "Bundled Kanata plist not updated to use kanata-launcher. Rebuild KeyPath before registering."
+                    )
+                }
+            } else if let resourcePath = Bundle.main.path(
+                forResource: "com.keypath.kanata", ofType: "plist"
+            ) {
+                // Found in bundle resources (SPM build) - this is acceptable
+                AppLogger.shared.log(
+                    "ℹ️ [KanataDaemonManager] Found plist in bundle resources: \(resourcePath)"
+                )
+                if let plist = NSDictionary(contentsOfFile: resourcePath) as? [String: Any],
+                   let args = plist["ProgramArguments"] as? [String],
+                   let first = args.first,
+                   !first.contains("kanata-launcher")
+                {
+                    AppLogger.shared.log(
+                        "❌ [KanataDaemonManager] Resource plist missing kanata-launcher wrapper (found: \(first))"
+                    )
+                    throw KanataDaemonError.registrationFailed(
+                        "Bundled Kanata plist not updated to use kanata-launcher. Rebuild KeyPath before registering."
+                    )
+                }
+            } else {
+                AppLogger.shared.log(
+                    "❌ [KanataDaemonManager] Plist not found in app bundle (checked: \(expectedPlistPath) and bundle resources)"
+                )
+                throw KanataDaemonError.registrationFailed(
+                    "Plist not found in app bundle (checked: \(expectedPlistPath) and bundle resources)"
+                )
+            }
+
+            // Validate kanata binary exists in app bundle
+            let kanataPath = "\(bundlePath)/Contents/Library/KeyPath/kanata"
+            AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for Kanata binary at: \(kanataPath)")
+            guard FileManager.default.fileExists(atPath: kanataPath) else {
+                AppLogger.shared.log("❌ [KanataDaemonManager] Kanata binary not found at: \(kanataPath)")
+                throw KanataDaemonError.registrationFailed(
+                    "Kanata binary not found in app bundle: \(kanataPath)"
+                )
+            }
+            AppLogger.shared.log("✅ [KanataDaemonManager] Kanata binary found")
         }
 
-        // Validate kanata binary exists in app bundle
-        let kanataPath = "\(bundlePath)/Contents/Library/KeyPath/kanata"
-        AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for Kanata binary at: \(kanataPath)")
-        guard FileManager.default.fileExists(atPath: kanataPath) else {
-            AppLogger.shared.log("❌ [KanataDaemonManager] Kanata binary not found at: \(kanataPath)")
-            throw KanataDaemonError.registrationFailed(
-                "Kanata binary not found in app bundle: \(kanataPath)"
-            )
-        }
-        AppLogger.shared.log("✅ [KanataDaemonManager] Kanata binary found")
-
-        let svc = Self.smServiceFactory(Self.kanataPlistName)
         let initialStatus = svc.status
         AppLogger.shared.log(
             "🔍 [KanataDaemonManager] SMAppService created with plist name: \(Self.kanataPlistName)"
@@ -427,9 +430,19 @@ class KanataDaemonManager {
 
         switch initialStatus {
         case .enabled:
-            AppLogger.shared.info(
-                "✅ [KanataDaemonManager] Daemon already enabled via SMAppService - keeping existing registration"
-            )
+            if await isRegisteredButNotLoaded() {
+                AppLogger.shared.log(
+                    "⚠️ [KanataDaemonManager] Status is .enabled but service is not loaded/running. Attempting unregister/re-register recovery."
+                )
+                try await recoverEnabledServiceRegistration(using: svc)
+                AppLogger.shared.info(
+                    "✅ [KanataDaemonManager] Recovered stale .enabled registration via re-registration"
+                )
+            } else {
+                AppLogger.shared.info(
+                    "✅ [KanataDaemonManager] Daemon already enabled via SMAppService - keeping existing registration"
+                )
+            }
             return
 
         case .requiresApproval:
@@ -452,6 +465,7 @@ class KanataDaemonManager {
                 AppLogger.shared.log(
                     "🔍 [KanataDaemonManager] After register(), status changed to: \(newStatus.rawValue) (\(String(describing: newStatus)))"
                 )
+                try await recoverIfStaleAfterRegistration(using: svc, context: "Registration")
                 AppLogger.shared.info("✅ [KanataDaemonManager] Daemon registered successfully")
                 return
             } catch {
@@ -499,6 +513,7 @@ class KanataDaemonManager {
                 AppLogger.shared.log(
                     "🔍 [KanataDaemonManager] After register(), status changed to: \(newStatus.rawValue) (\(String(describing: newStatus)))"
                 )
+                try await recoverIfStaleAfterRegistration(using: svc, context: "Registration from .notFound")
                 AppLogger.shared.info(
                     "✅ [KanataDaemonManager] Daemon registered successfully despite initial .notFound status"
                 )
@@ -537,6 +552,40 @@ class KanataDaemonManager {
                     "SMAppService register failed: \(error.localizedDescription)"
                 )
             }
+        }
+    }
+
+    /// Check for stale registration after a successful `svc.register()` and recover if needed.
+    private func recoverIfStaleAfterRegistration(using svc: SMAppServiceProtocol, context: String) async throws {
+        if await isRegisteredButNotLoaded() {
+            AppLogger.shared.log(
+                "⚠️ [KanataDaemonManager] \(context) reached .enabled but launchd still cannot load service. Attempting recovery."
+            )
+            try await recoverEnabledServiceRegistration(using: svc)
+        }
+    }
+
+    private func recoverEnabledServiceRegistration(using svc: SMAppServiceProtocol) async throws {
+        do {
+            try await svc.unregister()
+        } catch {
+            throw KanataDaemonError.registrationFailed(
+                "Failed to unregister stale SMAppService registration: \(error.localizedDescription)"
+            )
+        }
+
+        do {
+            try svc.register()
+        } catch {
+            throw KanataDaemonError.registrationFailed(
+                "Failed to re-register daemon after stale SMAppService state: \(error.localizedDescription)"
+            )
+        }
+
+        if await isRegisteredButNotLoaded() {
+            throw KanataDaemonError.registrationFailed(
+                "SMAppService remained enabled but not loaded after unregister/re-register recovery."
+            )
         }
     }
 

@@ -1,3 +1,7 @@
 {
-    "mcpServers": {}
+    "mcpServers": {
+        "gemini-nanobanana-mcp": {
+            "command": "/Users/malpern/.codex/bin/gemini-nanobanana-mcp-keychain.sh"
+        }
+    }
 }

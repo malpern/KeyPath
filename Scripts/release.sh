@@ -9,12 +9,14 @@ set -euo pipefail
 #   ./Scripts/release.sh 1.2.0              # Bumps to specified version first
 #   ./Scripts/release.sh --dry-run          # Show what would happen without doing it
 #   ./Scripts/release.sh --dry-run 1.2.0    # Dry run with version bump
+#   ./Scripts/release.sh --skip-notarize    # Local release build without notarization
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 REPO_ROOT="${SCRIPT_DIR%/Scripts}"
 INFO_PLIST="$REPO_ROOT/Sources/KeyPathApp/Info.plist"
 
 DRY_RUN=false
+SKIP_NOTARIZE=false
 NEW_VERSION=""
 
 # Parse arguments
@@ -23,12 +25,15 @@ for arg in "$@"; do
         --dry-run)
             DRY_RUN=true
             ;;
+        --skip-notarize)
+            SKIP_NOTARIZE=true
+            ;;
         *)
             if [[ $arg =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
                 NEW_VERSION="$arg"
             else
                 echo "❌ Invalid argument: $arg"
-                echo "Usage: $0 [--dry-run] [X.Y.Z]"
+                echo "Usage: $0 [--dry-run] [--skip-notarize] [X.Y.Z]"
                 exit 1
             fi
             ;;
@@ -64,6 +69,9 @@ fi
 
 echo ""
 echo "🎯 Release version: $VERSION"
+if [ "$SKIP_NOTARIZE" = true ]; then
+    echo "⚠️  Notarization: skipped (--skip-notarize)"
+fi
 echo ""
 
 # Check for uncommitted changes
@@ -103,7 +111,11 @@ fi
 
 # Build the release
 echo "🔨 Building release..."
-./build.sh
+if [ "$SKIP_NOTARIZE" = true ]; then
+    SKIP_NOTARIZE=1 ./build.sh
+else
+    ./build.sh
+fi
 
 # Check that Sparkle archive was created
 SPARKLE_ZIP="dist/sparkle/KeyPath-${VERSION}.zip"

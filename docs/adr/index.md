@@ -32,6 +32,9 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | [ADR-026](/adr/adr-026-validation-ordering) | System Validation Ordering | Accepted |
 | [ADR-027](/adr/adr-027-app-specific-keymaps) | App-Specific Keymaps via Virtual Keys | Accepted |
 | [ADR-028](/adr/adr-028-unified-sf-symbols) | Unified SF Symbol Resolution via SystemActionInfo | Accepted |
+| [ADR-029](/adr/adr-029-eliminate-fake-key-layer-notifications) | Eliminate Fake Key Layer Notifications via Native LayerChange | Proposed |
+| [ADR-030](/adr/adr-030-insights-companion-app) | Separate Activity Logging and AI Features into KeyPath Insights Companion App | Accepted |
+| [ADR-031](/adr/adr-031-kanata-service-lifecycle-invariants-and-postcondition-enforcement) | Kanata Service Lifecycle Invariants and Postcondition Enforcement | Accepted |
 
 ## Key Decisions Summary
 
@@ -41,6 +44,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 ### Installation & Repair
 - **ADR-015**: `InstallerEngine` is the unified façade for all install/repair/uninstall operations.
 - **ADR-026**: Always validate components exist BEFORE checking service status.
+- **ADR-031**: Installer success requires verified runtime readiness (`running + TCP`) or explicit pending approval.
 
 ### Configuration
 - **ADR-023**: Never parse Kanata config files directly. Use TCP and simulator.

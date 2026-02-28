@@ -79,6 +79,20 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
         XCTAssertTrue(coordinator.calls.contains("installBundledKanata"))
     }
 
+    func testInstallBundledKanataSingleActionFailsWhenCoordinatorFails() async {
+        let coordinator = StubPrivilegedOperationsCoordinator()
+        coordinator.failOnCall = "installBundledKanata"
+        let broker = PrivilegeBroker(coordinator: coordinator)
+        let engine = InstallerEngine()
+
+        let report = await engine.runSingleAction(.installBundledKanata, using: broker)
+
+        XCTAssertFalse(report.success)
+        XCTAssertTrue(
+            report.failureReason?.contains(InstallerRecipeID.installBundledKanata) ?? false
+        )
+    }
+
     func testRestartVirtualHIDDaemonUsesRestartUnhealthy() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
         let broker = PrivilegeBroker(coordinator: coordinator)

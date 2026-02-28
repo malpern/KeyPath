@@ -5,13 +5,20 @@ import ServiceManagement
 @MainActor
 final class KanataDaemonManagerTests: XCTestCase {
     var manager: KanataDaemonManager!
+    private nonisolated(unsafe) var originalSMFactory: ((String) -> SMAppServiceProtocol)!
+    private nonisolated(unsafe) var originalRegisteredButNotLoadedOverride: (() async -> Bool)?
 
     override func setUp() async throws {
         try await super.setUp()
+        originalSMFactory = KanataDaemonManager.smServiceFactory
+        originalRegisteredButNotLoadedOverride = KanataDaemonManager.registeredButNotLoadedOverride
+        KanataDaemonManager.registeredButNotLoadedOverride = nil
         manager = KanataDaemonManager.shared
     }
 
     override func tearDown() async throws {
+        KanataDaemonManager.smServiceFactory = originalSMFactory
+        KanataDaemonManager.registeredButNotLoadedOverride = originalRegisteredButNotLoadedOverride
         manager = nil
         try await super.tearDown()
     }
@@ -119,5 +126,38 @@ final class KanataDaemonManagerTests: XCTestCase {
         let manager1 = KanataDaemonManager.shared
         let manager2 = KanataDaemonManager.shared
         XCTAssertIdentical(manager1, manager2, "Should return same singleton instance")
+    }
+
+    func testRegister_WhenEnabledButNotLoaded_AttemptsRecoveryReregister() async throws {
+        final class EnabledMockService: SMAppServiceProtocol, @unchecked Sendable {
+            var status: SMAppService.Status = .enabled
+            private(set) var registerCalls = 0
+            private(set) var unregisterCalls = 0
+
+            func register() throws {
+                registerCalls += 1
+                status = .enabled
+            }
+
+            func unregister() async throws {
+                unregisterCalls += 1
+                status = .notRegistered
+            }
+        }
+
+        let mockService = EnabledMockService()
+        KanataDaemonManager.smServiceFactory = { _ in mockService }
+
+        var probeCount = 0
+        KanataDaemonManager.registeredButNotLoadedOverride = {
+            probeCount += 1
+            return probeCount == 1
+        }
+
+        try await manager.register()
+
+        XCTAssertEqual(mockService.unregisterCalls, 1, "Should unregister stale enabled registration")
+        XCTAssertEqual(mockService.registerCalls, 1, "Should re-register after unregistering stale state")
+        XCTAssertGreaterThanOrEqual(probeCount, 2, "Should probe stale state before and after recovery")
     }
 }

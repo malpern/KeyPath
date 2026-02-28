@@ -40,6 +40,14 @@ Rationale: older CLI/tooling may still expose `tools.web_search`, which prints a
 - **Labels follow selected `LogicalKeymap`** (user-selected keymap).
 - Do **not** add a UI toggle for this; treat it as a single consistent rule.
 
+### Service Lifecycle Invariants
+- **Mutating installer actions must be postcondition-verified before returning success.**
+  - Any action that can stop/restart/re-register Kanata must verify runtime readiness (`running + TCP responding`) or explicit pending-approval state before reporting success.
+- **Stale SMAppService recovery bypasses generic install throttle.**
+  - If state is `.enabled` but launchd cannot load/run the daemon, recovery install/register logic must run even inside the normal throttle window.
+- **Registration is not liveness.**
+  - Treat `SMAppService.status == .enabled` as registration metadata only; never infer runtime health from it without process + TCP evidence.
+
 ### Testing
 - **Mock Time**: Do not use `Thread.sleep`. Use `Date` overrides or mock clocks.
 - **Environment**: Use `KEYPATH_USE_INSTALLER_ENGINE=1` (default now) for tests.
