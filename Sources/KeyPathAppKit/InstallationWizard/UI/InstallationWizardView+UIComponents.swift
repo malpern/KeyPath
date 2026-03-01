@@ -127,6 +127,17 @@ extension InstallationWizardView {
                         stateMachine.navigateToPage(.kanataMigration)
                     }
                 )
+            case .karabinerImport:
+                WizardKarabinerImportPage(
+                    onImportComplete: {
+                        refreshSystemState()
+                        stateMachine.navigateToPage(.summary)
+                    },
+                    onSkip: {
+                        refreshSystemState()
+                        stateMachine.navigateToPage(.summary)
+                    }
+                )
             case .helper:
                 WizardHelperPage(
                     systemState: stateMachine.wizardState,

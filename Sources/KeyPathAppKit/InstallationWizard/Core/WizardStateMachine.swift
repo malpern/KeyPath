@@ -284,8 +284,10 @@ class WizardStateMachine {
             .summary // Migration is early optional page
         case .stopExternalKanata:
             .kanataMigration // Stop external kanata comes after migration
+        case .karabinerImport:
+            .stopExternalKanata // Karabiner import comes after stop external kanata
         case .helper:
-            .stopExternalKanata // Helper is after stop external kanata
+            .karabinerImport // Helper is after karabiner import
         case .fullDiskAccess:
             .helper
         case .conflicts:
