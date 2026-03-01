@@ -352,11 +352,11 @@ final class ServiceBootstrapper {
 
         let daemonPlistPath = getPlistPath(for: Self.vhidDaemonServiceID)
         let managerPlistPath = getPlistPath(for: Self.vhidManagerServiceID)
-        if !snapshot.daemonPlistExisted {
-            commands.append("/bin/rm -f '\(daemonPlistPath)'")
+        if !snapshot.daemonPlistExisted, let cmd = safeRemovePlistCommand(path: daemonPlistPath) {
+            commands.append(cmd)
         }
-        if !snapshot.managerPlistExisted {
-            commands.append("/bin/rm -f '\(managerPlistPath)'")
+        if !snapshot.managerPlistExisted, let cmd = safeRemovePlistCommand(path: managerPlistPath) {
+            commands.append(cmd)
         }
 
         guard !commands.isEmpty else {
@@ -376,6 +376,25 @@ final class ServiceBootstrapper {
             AppLogger.shared.log("❌ [ServiceBootstrapper] VHID rollback failed: \(rollbackResult.output)")
         }
         return rollbackResult.success
+    }
+
+    /// Build a safe shell command to remove a plist file.
+    ///
+    /// Validates the path is within `/Library/LaunchDaemons/` (or test override) and
+    /// contains no shell metacharacters, avoiding string-interpolation edge cases
+    /// in privileged shell commands.
+    private func safeRemovePlistCommand(path: String) -> String? {
+        let expectedDir = getLaunchDaemonsPath()
+        guard path.hasPrefix(expectedDir + "/"),
+              path.hasSuffix(".plist"),
+              !path.contains("'"), !path.contains("\\"), !path.contains(";"),
+              !path.contains("&"), !path.contains("|"), !path.contains("`"),
+              !path.contains("$"), !path.contains("\n")
+        else {
+            AppLogger.shared.log("⚠️ [ServiceBootstrapper] Refusing to remove suspicious path: \(path)")
+            return nil
+        }
+        return "/bin/rm -f '\(path)'"
     }
 
     // MARK: - Newsyslog Config
@@ -512,7 +531,11 @@ final class ServiceBootstrapper {
         // Handle SMAppService broken state (common after clean uninstall)
         let isRegisteredButBroken = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
         if isRegisteredButBroken {
-            await fixBrokenSMAppServiceState()
+            let fixed = await fixBrokenSMAppServiceState()
+            if !fixed {
+                AppLogger.shared.log("❌ [ServiceBootstrapper] SMAppService broken state could not be repaired")
+                return false
+            }
         }
 
         // Filter out Kanata from installation if SMAppService is managing it
@@ -548,45 +571,74 @@ final class ServiceBootstrapper {
         }
 
         // Step 2: Handle unhealthy services
-        if toRestart.isEmpty {
-            AppLogger.shared.log("✅ [ServiceBootstrapper] No unhealthy services to restart")
-            return true
-        }
-
-        // Handle Kanata via SMAppService refresh (no admin prompt needed)
-        if toRestart.contains(Self.kanataServiceID), state.isSMAppServiceManaged {
-            AppLogger.shared.log("🔧 [ServiceBootstrapper] Refreshing Kanata via SMAppService")
-            do {
-                markRestartTime(for: [Self.kanataServiceID])
-                try await KanataDaemonManager.shared.unregister()
-                // Poll for service readiness with a short wait, instead of fixed sleep
-                for _ in 0 ..< 6 { // ~0.6s
-                    if !(await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID)) {
-                        break
-                    }
-                    _ = await WizardSleep.ms(100)
-                }
-                try await KanataDaemonManager.shared.register()
-                markRestartTime(for: [Self.kanataServiceID])
-                toRestart.removeAll { $0 == Self.kanataServiceID }
-                AppLogger.shared.log("✅ [ServiceBootstrapper] Kanata SMAppService refreshed")
-            } catch {
-                AppLogger.shared.log("⚠️ [ServiceBootstrapper] SMAppService refresh failed: \(error)")
-            }
-        }
-
-        // Restart remaining unhealthy services
         if !toRestart.isEmpty {
-            AppLogger.shared.log("🔧 [ServiceBootstrapper] Restarting services: \(toRestart)")
-            let restartSuccess = await restartServicesWithAdmin(toRestart)
-            if !restartSuccess {
-                AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to restart services")
-                return false
+            // Handle Kanata via SMAppService refresh (no admin prompt needed)
+            if toRestart.contains(Self.kanataServiceID), state.isSMAppServiceManaged {
+                AppLogger.shared.log("🔧 [ServiceBootstrapper] Refreshing Kanata via SMAppService")
+                do {
+                    markRestartTime(for: [Self.kanataServiceID])
+                    try await KanataDaemonManager.shared.unregister()
+                    // Poll for service readiness with a short wait, instead of fixed sleep
+                    for _ in 0 ..< 6 { // ~0.6s
+                        if !(await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID)) {
+                            break
+                        }
+                        _ = await WizardSleep.ms(100)
+                    }
+                    try await KanataDaemonManager.shared.register()
+                    markRestartTime(for: [Self.kanataServiceID])
+                    toRestart.removeAll { $0 == Self.kanataServiceID }
+                    AppLogger.shared.log("✅ [ServiceBootstrapper] Kanata SMAppService refreshed")
+                } catch {
+                    AppLogger.shared.log("⚠️ [ServiceBootstrapper] SMAppService refresh failed: \(error)")
+                }
+            }
+
+            // Restart remaining unhealthy services
+            if !toRestart.isEmpty {
+                AppLogger.shared.log("🔧 [ServiceBootstrapper] Restarting services: \(toRestart)")
+                let restartSuccess = await restartServicesWithAdmin(toRestart)
+                if !restartSuccess {
+                    AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to restart services")
+                    return false
+                }
             }
         }
 
-        AppLogger.shared.log("✅ [ServiceBootstrapper] Service health fix complete")
-        return true
+        // Postcondition: verify all services are actually healthy before reporting success.
+        // When SMAppService is pending approval, Kanata is intentionally not running —
+        // accept that as a valid postcondition since the user must approve in Login Items.
+        let postState = await KanataDaemonManager.shared.refreshManagementState()
+        let kanataPendingApproval = postState == .smappservicePending
+
+        if kanataPendingApproval {
+            AppLogger.shared.log("⏳ [ServiceBootstrapper] Kanata pending Login Items approval — skipping Kanata health in postcondition")
+        }
+
+        // Poll for readiness to allow warm-up time after restart/install.
+        AppLogger.shared.log("🔍 [ServiceBootstrapper] Running postcondition health verification")
+        var postconditionPassed = false
+        for poll in 0 ..< 16 { // ~4s with 250ms steps
+            let finalStatus = await ServiceHealthChecker.shared.getServiceStatus()
+            let kanataOK = kanataPendingApproval || finalStatus.kanataServiceHealthy
+            if kanataOK,
+               finalStatus.vhidDaemonServiceHealthy,
+               finalStatus.vhidManagerServiceHealthy
+            {
+                postconditionPassed = true
+                break
+            }
+            if poll < 15 {
+                _ = await WizardSleep.ms(250)
+            }
+        }
+
+        if postconditionPassed {
+            AppLogger.shared.log("✅ [ServiceBootstrapper] Postcondition passed: all services healthy")
+        } else {
+            AppLogger.shared.log("❌ [ServiceBootstrapper] Postcondition failed: services not healthy after repair")
+        }
+        return postconditionPassed
     }
 
     /// Resolve legacy/conflicted SMAppService state
@@ -611,8 +663,10 @@ final class ServiceBootstrapper {
     }
 
     /// Fix broken SMAppService state with retry logic
+    ///
+    /// - Returns: `true` if the broken state was resolved, `false` if all retries failed
     @MainActor
-    private func fixBrokenSMAppServiceState() async {
+    private func fixBrokenSMAppServiceState() async -> Bool {
         AppLogger.shared.log("🔄 [ServiceBootstrapper] Fixing broken SMAppService state")
         AppLogger.shared.log("🐛 Known macOS bug: BundleProgram path caching after uninstall/reinstall")
 
@@ -639,7 +693,7 @@ final class ServiceBootstrapper {
                 let stillBroken = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
                 if !stillBroken {
                     AppLogger.shared.log("✅ [ServiceBootstrapper] Fixed SMAppService broken state")
-                    return
+                    return true
                 }
             } catch {
                 AppLogger.shared.log("❌ Attempt \(attempt) failed: \(error)")
@@ -652,6 +706,7 @@ final class ServiceBootstrapper {
             }
         }
         AppLogger.shared.log("⚠️ [ServiceBootstrapper] Could not fix SMAppService state - user may need to reboot")
+        return false
     }
 
     // MARK: - VHID Service Repair
@@ -895,9 +950,8 @@ final class ServiceBootstrapper {
                 AppLogger.shared.log(
                     "⚠️ [ServiceBootstrapper] SMAppService reports active, but daemon is not loaded. Running recovery."
                 )
-                await fixBrokenSMAppServiceState()
-                let stillBroken = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
-                if stillBroken {
+                let repaired = await fixBrokenSMAppServiceState()
+                if !repaired {
                     AppLogger.shared.log(
                         "❌ [ServiceBootstrapper] Recovery failed: daemon still not loaded after SMAppService repair"
                     )
