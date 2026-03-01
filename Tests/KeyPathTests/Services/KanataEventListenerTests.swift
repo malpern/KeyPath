@@ -84,6 +84,15 @@ final class KanataEventListenerTests: XCTestCase {
         let messages = KanataEventListener.extractMessagePushMessages(from: push)
         XCTAssertEqual(messages, ["layer:nav"])
     }
+
+    // MARK: - Capability Normalization
+
+    func testNormalizedCapabilities_lowersAndDeduplicates() {
+        let normalized = KanataEventListener.normalizedCapabilities(
+            ["HRM-TRACE", "hrm_trace", "tap-activated", "  "]
+        )
+        XCTAssertEqual(normalized, ["hrm-trace", "tap-activated"])
+    }
 }
 
 /// Tests for KeyboardVisualizationViewModel TCP input handling with capitalized actions

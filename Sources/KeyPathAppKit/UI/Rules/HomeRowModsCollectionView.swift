@@ -241,7 +241,11 @@ struct HomeRowModsCollectionView: View {
 
             Divider()
 
-            HomeRowTimingSection(config: $config, onConfigChanged: onConfigChanged)
+            HomeRowTimingSection(
+                config: $config,
+                showsHrmInsights: true,
+                onConfigChanged: onConfigChanged
+            )
         }
     }
 

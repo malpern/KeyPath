@@ -139,6 +139,29 @@ extension KanataTCPClient {
         }
     }
 
+    // MARK: - Send Serialization
+
+    /// Acquire exclusive send/receive access for the shared connection.
+    func acquireSendLock() async {
+        if !isSending {
+            isSending = true
+            return
+        }
+        await withCheckedContinuation { continuation in
+            sendWaiters.append(continuation)
+        }
+    }
+
+    /// Release send/receive access and wake the next waiter if present.
+    func releaseSendLock() {
+        if sendWaiters.isEmpty {
+            isSending = false
+            return
+        }
+        let next = sendWaiters.removeFirst()
+        next.resume()
+    }
+
     func stateString(_ state: NWConnection.State?) -> String {
         guard let state else { return "nil" }
         switch state {
@@ -163,6 +186,7 @@ extension KanataTCPClient {
         connection?.cancel()
         connection = nil
         readBuffer.removeAll() // Clear buffered data when connection closes
+        cachedHello = nil // Force fresh hello on next connection
     }
 
     /// Cancel any ongoing operations and close connection

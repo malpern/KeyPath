@@ -29,7 +29,7 @@ extension KanataTCPClient {
                 AppLogger.shared.log(
                     "✅ [TCP] hello ok (duration=\(dt)ms, protocol=\(hello.protocolVersion), caps=\(hello.capabilities.joined(separator: ",")))"
                 )
-                cachedHello = hello
+                cachedHello = cachedHelloPayload(from: hello)
                 return hello
             }
 
@@ -65,7 +65,7 @@ extension KanataTCPClient {
                     AppLogger.shared.log(
                         "✅ [TCP] hello ok (duration=\(dt)ms, protocol=\(hello.protocolVersion), caps=\(hello.capabilities.joined(separator: ",")))"
                     )
-                    cachedHello = hello
+                    cachedHello = cachedHelloPayload(from: hello)
                     return hello
                 }
 
@@ -125,6 +125,90 @@ extension KanataTCPClient {
             ) {
                 return response.names
             }
+            throw KeyPathError.communication(.invalidResponse)
+        }
+    }
+
+    /// Request aggregate HRM stats from Kanata.
+    ///
+    /// Requires server capability: `hrm-stats`.
+    func requestHrmStats() async throws -> TcpHrmStats {
+        try await withErrorRecovery {
+            let requestId = generateRequestId()
+            let requestData = try JSONEncoder().encode(["RequestHrmStats": ["request_id": requestId]])
+            let responseData = try await send(requestData)
+
+            if let stats = try extractMessage(
+                named: "HrmStats", into: TcpHrmStats.self, from: responseData
+            ) {
+                return stats.withCollectedAt(Date())
+            }
+
+            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let status = json["status"] as? String,
+               status.lowercased() == "error"
+            {
+                let msg = json["msg"] as? String ?? "RequestHrmStats failed"
+                throw KeyPathError.communication(.connectionFailed(reason: msg))
+            }
+
+            throw KeyPathError.communication(.invalidResponse)
+        }
+    }
+
+    /// Reset aggregate HRM stats in Kanata.
+    ///
+    /// Requires server capability: `hrm-stats`.
+    func resetHrmStats() async throws {
+        try await withErrorRecovery {
+            let requestId = generateRequestId()
+            let requestData = try JSONEncoder().encode(["ResetHrmStats": ["request_id": requestId]])
+            let responseData = try await send(requestData)
+
+            if let response = try? JSONDecoder().decode(TcpServerResponse.self, from: responseData),
+               response.isOk
+            {
+                return
+            }
+
+            if let response = try? JSONDecoder().decode(TcpServerResponse.self, from: responseData),
+               response.isError
+            {
+                throw KeyPathError.communication(
+                    .connectionFailed(reason: response.msg ?? "ResetHrmStats failed")
+                )
+            }
+
+            throw KeyPathError.communication(.invalidResponse)
+        }
+    }
+
+    /// Subscribe or unsubscribe this TCP connection to/from per-decision HRM traces.
+    ///
+    /// Requires server capability: `hrm-trace`.
+    func setHrmTraceSubscription(enabled: Bool) async throws {
+        try await withErrorRecovery {
+            let requestId = generateRequestId()
+            let command = enabled ? "SubscribeHrmTrace" : "UnsubscribeHrmTrace"
+            let requestData = try JSONEncoder().encode([command: ["request_id": requestId]])
+            let responseData = try await send(requestData)
+
+            if let response = try? JSONDecoder().decode(TcpServerResponse.self, from: responseData),
+               response.isOk
+            {
+                return
+            }
+
+            if let response = try? JSONDecoder().decode(TcpServerResponse.self, from: responseData),
+               response.isError
+            {
+                throw KeyPathError.communication(
+                    .connectionFailed(
+                        reason: response.msg ?? (enabled ? "SubscribeHrmTrace failed" : "UnsubscribeHrmTrace failed")
+                    )
+                )
+            }
+
             throw KeyPathError.communication(.invalidResponse)
         }
     }

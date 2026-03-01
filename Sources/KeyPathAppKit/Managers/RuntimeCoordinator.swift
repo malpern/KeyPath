@@ -423,6 +423,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         )
         Task { await ruleCollectionsManager.bootstrap() }
         ruleCollectionsManager.startEventMonitoring(port: PreferencesService.shared.tcpServerPort)
+        HrmObservabilityService.shared.startMonitoring(port: PreferencesService.shared.tcpServerPort)
 
         // Observe config-affecting preference changes (e.g., nav trigger mode) to regenerate config
         NotificationCenter.default.addObserver(

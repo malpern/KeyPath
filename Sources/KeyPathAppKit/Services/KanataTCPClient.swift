@@ -115,6 +115,11 @@ actor KanataTCPClient {
     /// Request ID management for reliable response correlation
     var nextRequestId: UInt64 = 1
 
+    /// Serialize send/receive cycles on the shared TCP connection.
+    /// NWConnection receive callbacks are not safe to overlap for request/response RPC.
+    var isSending = false
+    var sendWaiters: [CheckedContinuation<Void, Never>] = []
+
     /// Generate next request ID (monotonically increasing)
     func generateRequestId() -> UInt64 {
         let id = nextRequestId
@@ -136,6 +141,16 @@ actor KanataTCPClient {
         self.host = host
         self.port = port
         self.timeout = timeout ?? Self.defaultTimeout
+    }
+
+    /// Cache-friendly hello payload strips transient request correlation fields.
+    nonisolated func cachedHelloPayload(from hello: TcpHelloOk) -> TcpHelloOk {
+        TcpHelloOk(
+            version: hello.version,
+            protocolVersion: hello.protocolVersion,
+            capabilities: hello.capabilities,
+            request_id: nil
+        )
     }
 }
 

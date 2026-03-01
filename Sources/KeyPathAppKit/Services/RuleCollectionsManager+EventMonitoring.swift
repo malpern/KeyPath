@@ -101,6 +101,37 @@ extension RuleCollectionsManager {
                             ]
                         )
                     }
+                },
+                onHrmTrace: { trace in
+                    await MainActor.run {
+                        var userInfo: [String: Any] = [
+                            "schemaVersion": trace.schemaVersion,
+                            "key": trace.key,
+                            "decision": trace.decision.rawValue,
+                            "reason": trace.reason.rawValue,
+                            "decideLatencyMs": trace.decideLatencyMs
+                        ]
+                        if let nextKey = trace.nextKey {
+                            userInfo["nextKey"] = nextKey
+                        }
+                        if let nextKeyHand = trace.nextKeyHand?.rawValue {
+                            userInfo["nextKeyHand"] = nextKeyHand
+                        }
+                        NotificationCenter.default.post(
+                            name: .kanataHrmTrace,
+                            object: nil,
+                            userInfo: userInfo
+                        )
+                    }
+                },
+                onCapabilitiesUpdated: { capabilities in
+                    await MainActor.run {
+                        NotificationCenter.default.post(
+                            name: .kanataCapabilitiesUpdated,
+                            object: nil,
+                            userInfo: ["capabilities": capabilities]
+                        )
+                    }
                 }
             )
         }

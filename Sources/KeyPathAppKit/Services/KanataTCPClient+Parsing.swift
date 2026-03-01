@@ -20,6 +20,7 @@ extension KanataTCPClient {
             "HelloOk", "StatusInfo", "ReloadResult",
             "LayerNames", "FakeKeyNames",
             "CurrentLayerName", "CurrentLayerInfo",
+            "HrmStats",
         ]
         return json.keys.contains(where: { responseKeys.contains($0) })
     }
