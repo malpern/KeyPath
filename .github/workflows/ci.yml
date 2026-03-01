@@ -57,6 +57,12 @@ jobs:
         swift test --filter SigningPipelineTests
         swift test --filter InstallerEngineEndToEndTests
 
+    - name: Installer Reliability Matrix (Automated)
+      run: |
+        echo "🧭 Running installer reliability matrix lanes + diagnostics artifact"
+        chmod +x ./Scripts/run-installer-reliability-matrix.sh
+        ./Scripts/run-installer-reliability-matrix.sh
+
     - name: Verify SMAppService plist wrapper
       run: |
         echo "🔍 Verifying com.keypath.kanata.plist points at kanata-launcher"
@@ -117,6 +123,7 @@ jobs:
           .build/debug/
           test_output.safe.txt
           coverage/
+          test-results/installer-reliability/
         if-no-files-found: ignore
         retention-days: 7
     
@@ -147,6 +154,13 @@ jobs:
           echo "Test status: ${TEST_STATUS:-unknown}" >> $GITHUB_STEP_SUMMARY
         fi
         
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🧭 Installer Reliability Matrix" >> $GITHUB_STEP_SUMMARY
+        if [ -f "test-results/installer-reliability/latest/matrix-summary.md" ]; then
+          cat test-results/installer-reliability/latest/matrix-summary.md >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- Installer matrix summary not found." >> $GITHUB_STEP_SUMMARY
+        fi
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📊 Test Coverage" >> $GITHUB_STEP_SUMMARY
         if [ -f "coverage/coverage-summary.txt" ]; then

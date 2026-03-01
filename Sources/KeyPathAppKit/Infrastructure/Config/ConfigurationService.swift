@@ -670,6 +670,25 @@ public enum KanataKeyConverter {
 
     /// Convert KeyPath input key to Kanata key format
     public static func convertToKanataKey(_ input: String) -> String {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowercased = trimmed.lowercased()
+
+        // Action keywords used throughout rule collections and behavior rendering.
+        // Keep these as-is so they don't fall through to unknown-key warnings.
+        if lowercased == "hyper" || lowercased == "meh" {
+            return lowercased
+        }
+
+        // Canonicalize modified keys (e.g. M-right, A-bspc) to a stable uppercase prefix.
+        // This prevents false "unknown key" warnings for valid modified actions.
+        let modifierPrefixes = ["M-S-", "C-S-", "A-S-", "M-", "A-", "C-", "S-"]
+        let uppercasedInput = trimmed.uppercased()
+        for prefix in modifierPrefixes where uppercasedInput.hasPrefix(prefix) {
+            let baseKey = String(trimmed.dropFirst(prefix.count))
+            let convertedBase = convertToKanataKey(baseKey)
+            return prefix + convertedBase
+        }
+
         // Use the same key mapping logic as the original RuntimeCoordinator
         let keyMap: [String: String] = [
             "caps": "caps",
@@ -750,8 +769,6 @@ public enum KanataKeyConverter {
             "help": "help"
         ]
 
-        let lowercased = input.lowercased()
-
         // Check if we have a specific mapping
         if let mapped = keyMap[lowercased] {
             return mapped
@@ -799,7 +816,7 @@ public enum KanataKeyConverter {
         // Unknown key name - log warning and return as-is to avoid silent breakage.
         // The downstream CLI validation (kanata --check) will catch this before save.
         AppLogger.shared.log(
-            "⚠️ [KanataKeyConverter] Unknown key name '\(input)' - may not be valid kanata key",
+            "⚠️ [KanataKeyConverter] Unknown key name '\(trimmed)' - may not be valid kanata key",
             level: .warn
         )
         return lowercased

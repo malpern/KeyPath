@@ -535,6 +535,20 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertEqual(KanataKeyConverter.convertToKanataKey("left shift"), "lsft")
     }
 
+    func testConvertToKanataKey_ModifiedActions() {
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("M-right"), "M-right")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("m-right"), "M-right")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("M-S-g"), "M-S-g")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("A-bspc"), "A-bspc")
+    }
+
+    func testConvertToKanataKey_ActionKeywords() {
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("hyper"), "hyper")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("HYPER"), "hyper")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("meh"), "meh")
+        XCTAssertEqual(KanataKeyConverter.convertToKanataKey("MEH"), "meh")
+    }
+
     func testConvertToKanataSequence_SingleKey() {
         let result = KanataKeyConverter.convertToKanataSequence("esc")
         XCTAssertEqual(result, "esc", "Single key should NOT have parentheses")
