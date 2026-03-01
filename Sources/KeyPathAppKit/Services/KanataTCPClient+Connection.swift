@@ -143,33 +143,40 @@ extension KanataTCPClient {
 
     /// Acquire exclusive send/receive access for the shared connection.
     ///
-    /// Uses a waiter queue with cancellation cleanup to avoid orphaned continuations.
+    /// Uses FIFO handoff semantics with cancellation cleanup to avoid orphaned continuations.
     func acquireSendLock() async throws {
-        while true {
-            if !isSending {
-                isSending = true
-                try Task.checkCancellation()
-                return
-            }
+        try Task.checkCancellation()
+        if !isSending {
+            isSending = true
+            return
+        }
 
-            let waiterId = UUID()
-            await withTaskCancellationHandler {
-                await withCheckedContinuation { continuation in
-                    sendWaiters.append(SendWaiter(id: waiterId, continuation: continuation))
-                }
-            } onCancel: {
-                Task { await self.cancelSendWaiter(id: waiterId) }
+        let waiterId = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                sendWaiters.append(SendWaiter(id: waiterId, continuation: continuation))
             }
+        } onCancel: {
+            Task { await self.cancelSendWaiter(id: waiterId) }
+        }
+
+        do {
             try Task.checkCancellation()
+        } catch {
+            // This waiter already received the handoff; pass it forward.
+            releaseSendLock()
+            throw error
         }
     }
 
     /// Release send/receive access and wake the next waiter if present.
     func releaseSendLock() {
+        guard isSending else { return }
         if sendWaiters.isEmpty {
             isSending = false
             return
         }
+        // Keep isSending=true while handing off to the next waiter.
         let next = sendWaiters.removeFirst()
         next.continuation.resume()
     }
@@ -177,7 +184,7 @@ extension KanataTCPClient {
     private func cancelSendWaiter(id: UUID) {
         guard let index = sendWaiters.firstIndex(where: { $0.id == id }) else { return }
         let waiter = sendWaiters.remove(at: index)
-        waiter.continuation.resume()
+        waiter.continuation.resume(throwing: CancellationError())
     }
 
     func stateString(_ state: NWConnection.State?) -> String {
@@ -208,8 +215,9 @@ extension KanataTCPClient {
         isSending = false
         let waiters = sendWaiters
         sendWaiters.removeAll()
+        let teardownError = KeyPathError.communication(.connectionFailed(reason: "Connection closed"))
         for waiter in waiters {
-            waiter.continuation.resume()
+            waiter.continuation.resume(throwing: teardownError)
         }
     }
 

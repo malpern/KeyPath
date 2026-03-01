@@ -324,6 +324,7 @@ actor KanataEventListener {
     private var capabilities: Set<String> = []
     private var activeConnection: NWConnection?
     private var isHrmTraceSubscribed = false
+    private var isAwaitingHrmTraceSubscribeAck = false
     private let listenerQueue = DispatchQueue(label: "com.keypath.event-listener")
 
     /// Start listening for Kanata events
@@ -396,6 +397,7 @@ actor KanataEventListener {
         capabilitiesUpdatedHandler = nil
         capabilities.removeAll()
         isHrmTraceSubscribed = false
+        isAwaitingHrmTraceSubscribeAck = false
         activeConnection = nil
     }
 
@@ -425,12 +427,14 @@ actor KanataEventListener {
             pollTask = nil
             activeConnection = nil
             isHrmTraceSubscribed = false
+            isAwaitingHrmTraceSubscribeAck = false
         }
 
         try await waitForReady(connection)
         activeConnection = connection
         capabilities.removeAll()
         isHrmTraceSubscribed = false
+        isAwaitingHrmTraceSubscribeAck = false
         AppLogger.shared.log("🌐 [EventListener] Connected to kanata TCP server")
 
         // Bug 2 fix: monitor for post-handshake connection failures.
@@ -781,6 +785,23 @@ actor KanataEventListener {
             return
         }
 
+        // Handle subscribe ack/errors explicitly to avoid noisy "unhandled" logs.
+        if isAwaitingHrmTraceSubscribeAck, let status = json["status"] as? String {
+            let normalized = status.lowercased()
+            if normalized == "ok" {
+                isAwaitingHrmTraceSubscribeAck = false
+                isHrmTraceSubscribed = true
+                AppLogger.shared.debug("🌐 [EventListener] HrmTrace subscribe acknowledged")
+                return
+            }
+            if normalized == "error" {
+                isAwaitingHrmTraceSubscribeAck = false
+                let message = json["msg"] as? String ?? "unknown error"
+                AppLogger.shared.warn("🌐 [EventListener] HrmTrace subscribe rejected: \(message)")
+                return
+            }
+        }
+
         AppLogger.shared.debug("🌐 [EventListener] Unhandled message type")
     }
 
@@ -791,10 +812,11 @@ actor KanataEventListener {
         guard let activeConnection else { return }
 
         do {
+            isAwaitingHrmTraceSubscribeAck = true
             try await send(jsonObject: ["SubscribeHrmTrace": [:] as [String: String]], over: activeConnection)
-            isHrmTraceSubscribed = true
-            AppLogger.shared.debug("🌐 [EventListener] Subscribed to HrmTrace stream")
+            AppLogger.shared.debug("🌐 [EventListener] Requested HrmTrace subscription")
         } catch {
+            isAwaitingHrmTraceSubscribeAck = false
             // Failing this subscribe should not break layer/key event listening.
             AppLogger.shared.debug("🌐 [EventListener] HrmTrace subscribe failed: \(error.localizedDescription)")
         }

@@ -182,37 +182,13 @@ extension KanataTCPClient {
         }
     }
 
-    /// Subscribe or unsubscribe this TCP connection to/from per-decision HRM traces.
-    ///
-    /// Requires server capability: `hrm-trace`.
-    func setHrmTraceSubscription(enabled: Bool) async throws {
-        try await withErrorRecovery {
-            let requestId = generateRequestId()
-            let command = enabled ? "SubscribeHrmTrace" : "UnsubscribeHrmTrace"
-            let requestData = try JSONEncoder().encode([command: ["request_id": requestId]])
-            let responseData = try await send(requestData)
-            try verifyRequestCorrelation(expectedRequestId: requestId, responseData: responseData)
-
-            if let response = try? JSONDecoder().decode(TcpServerResponse.self, from: responseData) {
-                if response.isOk {
-                    return
-                }
-                if response.isError {
-                    throw KeyPathError.communication(
-                        .connectionFailed(
-                            reason: response.msg ?? (enabled ? "SubscribeHrmTrace failed" : "UnsubscribeHrmTrace failed")
-                        )
-                    )
-                }
-            }
-
-            throw KeyPathError.communication(.invalidResponse)
-        }
-    }
-
     private func verifyRequestCorrelation(expectedRequestId: UInt64, responseData: Data) throws {
         guard let responseRequestId = extractRequestId(from: responseData) else {
-            return
+            throw KeyPathError.communication(
+                .connectionFailed(
+                    reason: "Response missing request_id (expected=\(expectedRequestId))"
+                )
+            )
         }
         guard responseRequestId == expectedRequestId else {
             throw KeyPathError.communication(

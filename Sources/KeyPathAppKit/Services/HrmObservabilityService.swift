@@ -101,6 +101,8 @@ final class HrmObservabilityService {
     @ObservationIgnored private var calibrationTask: Task<Void, Never>?
     @ObservationIgnored private var breakdownRebuildTask: Task<Void, Never>?
     @ObservationIgnored private var statsConsecutiveFailureCount = 0
+    @ObservationIgnored private var calibrationRunToken = UUID()
+    @ObservationIgnored private var didLogTraceTruncation = false
 
     private let maxTraceEvents = 1_000
     private let statsPollInterval: Duration = .seconds(5)
@@ -165,6 +167,9 @@ final class HrmObservabilityService {
         breakdownRebuildTask = nil
         statsConsecutiveFailureCount = 0
         monitoringPort = nil
+        calibrationRunToken = UUID()
+        calibrationState = .idle
+        calibrationRemainingSeconds = 0
     }
 
     func startCalibration(durationSeconds: Int = 60) {
@@ -178,14 +183,17 @@ final class HrmObservabilityService {
         }
 
         calibrationTask?.cancel()
+        let runToken = UUID()
+        calibrationRunToken = runToken
         calibrationState = .running
         calibrationRemainingSeconds = max(1, durationSeconds)
         calibrationStartedAt = now()
         calibrationFinishedAt = nil
         recommendations = []
         recentTraceEvents.removeAll(keepingCapacity: true)
+        didLogTraceTruncation = false
 
-        calibrationTask = Task { [weak self] in
+        calibrationTask = Task { [weak self, runToken] in
             guard let self else { return }
             let client = KanataTCPClient(port: port, timeout: 3.0)
             defer {
@@ -198,19 +206,32 @@ final class HrmObservabilityService {
                 do {
                     try await client.resetHrmStats()
                 } catch {
+                    guard calibrationRunToken == runToken else { return }
+                    calibrationRemainingSeconds = 0
                     calibrationState = .failed("Failed to reset HRM stats: \(error.localizedDescription)")
                     return
                 }
             }
 
             for second in stride(from: calibrationRemainingSeconds, through: 1, by: -1) {
+                guard calibrationRunToken == runToken else { return }
                 calibrationRemainingSeconds = second
-                try? await Task.sleep(for: .seconds(1))
-                if Task.isCancelled { return }
+                do {
+                    try await Task.sleep(for: .seconds(1))
+                } catch is CancellationError {
+                    guard calibrationRunToken == runToken else { return }
+                    calibrationRemainingSeconds = 0
+                    calibrationState = .idle
+                    return
+                } catch {
+                    continue
+                }
             }
+            guard calibrationRunToken == runToken else { return }
             calibrationRemainingSeconds = 0
 
             await refreshStats(using: client)
+            guard calibrationRunToken == runToken else { return }
             recommendations = buildRecommendations(stats: latestStats, traces: recentTraceEvents)
             calibrationFinishedAt = now()
             calibrationState = .completed
@@ -307,6 +328,10 @@ final class HrmObservabilityService {
         recentTraceEvents.append(event)
         if recentTraceEvents.count > maxTraceEvents {
             recentTraceEvents.removeFirst(recentTraceEvents.count - maxTraceEvents)
+            if !didLogTraceTruncation {
+                AppLogger.shared.debug("📈 [HRM] Trace buffer capped at \(maxTraceEvents) events; older entries will be dropped")
+                didLogTraceTruncation = true
+            }
         }
         schedulePerKeyBreakdownRebuild()
 

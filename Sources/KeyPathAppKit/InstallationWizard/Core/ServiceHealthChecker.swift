@@ -458,12 +458,12 @@ final class ServiceHealthChecker: @unchecked Sendable {
     nonisolated static func decideKanataHealth(
         for runtimeSnapshot: KanataServiceRuntimeSnapshot
     ) -> KanataHealthDecision {
-        if runtimeSnapshot.staleEnabledRegistration {
-            return .unhealthy(reason: "stale-enabled-registration")
-        }
-
         if runtimeSnapshot.isRunning, runtimeSnapshot.isResponding {
             return .healthy
+        }
+
+        if runtimeSnapshot.staleEnabledRegistration {
+            return .unhealthy(reason: "stale-enabled-registration")
         }
 
         if runtimeSnapshot.launchctlExitCode == Self.launchctlNotFoundExitCode,

@@ -120,7 +120,7 @@ actor KanataTCPClient {
     var isSending = false
     struct SendWaiter {
         let id: UUID
-        let continuation: CheckedContinuation<Void, Never>
+        let continuation: CheckedContinuation<Void, Error>
     }
 
     var sendWaiters: [SendWaiter] = []

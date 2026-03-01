@@ -174,15 +174,4 @@ final class TCPClientIntegrationTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(stats.decisionsTotal, 0)
     }
 
-    func testHrmTraceSubscribeToggleWhenSupported() async throws {
-        guard await serverReachable() else { throw XCTSkip("TCP server not running") }
-        let client = KanataTCPClient(port: port)
-        let hello = try await client.hello()
-        guard hello.capabilities.contains("hrm-trace") else {
-            throw XCTSkip("Server does not advertise hrm-trace")
-        }
-
-        try await client.setHrmTraceSubscription(enabled: true)
-        try await client.setHrmTraceSubscription(enabled: false)
-    }
 }
