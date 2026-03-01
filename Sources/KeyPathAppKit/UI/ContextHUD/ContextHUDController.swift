@@ -702,7 +702,7 @@ final class ContextHUDController {
                 if let url = info.urlIdentifier {
                     // Favicons are async — preload them
                     group.addTask {
-                        _ = await IconResolverService.shared.resolveFavicon(for: url)
+                        await IconResolverService.shared.preloadIcon(for: .url(url))
                     }
                 }
             }
