@@ -31,6 +31,8 @@ struct MapperView: View {
     var presetSystemActionIdentifier: String?
     /// Optional URL identifier from overlay click
     var presetURLIdentifier: String?
+    /// Optional shifted output from overlay click
+    var presetShiftedOutput: String?
 
     /// Error alert state
     @State private var showingErrorAlert = false
@@ -134,7 +136,8 @@ struct MapperView: View {
                     inputKeyCode: presetInputKeyCode,
                     appIdentifier: presetAppIdentifier,
                     systemActionIdentifier: presetSystemActionIdentifier,
-                    urlIdentifier: presetURLIdentifier
+                    urlIdentifier: presetURLIdentifier,
+                    shiftedOutput: presetShiftedOutput
                 )
             } else {
                 // No preset - use current layer from kanataManager
@@ -154,6 +157,8 @@ struct MapperView: View {
                 let appIdentifier = notification.userInfo?["appIdentifier"] as? String
                 let systemActionIdentifier = notification.userInfo?["systemActionIdentifier"] as? String
                 let urlIdentifier = notification.userInfo?["urlIdentifier"] as? String
+                let shiftedOutput = notification.userInfo?["shiftedOutput"] as? String
+                    ?? notification.userInfo?["shiftedOutputKey"] as? String
                 viewModel.applyPresets(
                     input: input,
                     output: output,
@@ -161,7 +166,8 @@ struct MapperView: View {
                     inputKeyCode: inputKeyCode,
                     appIdentifier: appIdentifier,
                     systemActionIdentifier: systemActionIdentifier,
-                    urlIdentifier: urlIdentifier
+                    urlIdentifier: urlIdentifier,
+                    shiftedOutput: shiftedOutput
                 )
             }
         }

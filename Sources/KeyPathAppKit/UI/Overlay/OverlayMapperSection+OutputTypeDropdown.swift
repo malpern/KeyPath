@@ -48,6 +48,8 @@ extension OverlayMapperSection {
             ("Open URL", "link", false)
         } else if selectedLayerOutput != nil {
             ("Go to Layer", "square.stack.3d.up", false)
+        } else if viewModel.hasShiftedOutputConfigured {
+            ("Keystroke + ⇧", "keyboard", false)
         } else {
             ("Keystroke", "keyboard", true)
         }

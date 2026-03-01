@@ -15,7 +15,7 @@ public extension Notification.Name {
     /// Posted when overlay view should switch to mapper tab
     static let switchToMapperTab = Notification.Name("switchToMapperTab")
     /// Posted when overlay should open with mapper tab and preset values for editing
-    /// UserInfo: inputKey (String), outputKey (String), optionally appBundleId (String)
+    /// UserInfo: inputKey (String), outputKey (String), optional shiftedOutputKey (String), optionally appBundleId (String)
     static let openOverlayWithMapperPreset = Notification.Name("openOverlayWithMapperPreset")
     /// Posted to set the app condition on the mapper (for adding a rule to a specific app)
     /// UserInfo: bundleId (String), displayName (String)

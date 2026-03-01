@@ -434,7 +434,7 @@ struct RulesTabView: View {
                                 count: isSearching ? (filteredCustomRules.count + filteredAppKeymaps.flatMap(\.overrides).count) : totalCustomRulesCount,
                                 isEnabled: filteredCustomRules.isEmpty
                                     || filteredCustomRules.allSatisfy(\.isEnabled),
-                                mappings: filteredCustomRules.map { ($0.input, $0.output, nil, nil, $0.title.isEmpty ? nil : $0.title, false, $0.isEnabled, $0.id, $0.behavior) },
+                                mappings: filteredCustomRules.map { ($0.input, $0.output, $0.shiftedOutput, nil, $0.title.isEmpty ? nil : $0.title, false, $0.isEnabled, $0.id, $0.behavior) },
                                 appKeymaps: filteredAppKeymaps,
                                 onToggle: { isOn in
                                     Task {
@@ -446,10 +446,17 @@ struct RulesTabView: View {
                                 onEditMapping: { id in
                                     // Open overlay with mapper tab and preset values for editing
                                     if let rule = kanataManager.customRules.first(where: { $0.id == id }) {
+                                        var userInfo: [String: Any] = [
+                                            "inputKey": rule.input,
+                                            "outputKey": rule.output
+                                        ]
+                                        if let shiftedOutput = rule.shiftedOutput {
+                                            userInfo["shiftedOutputKey"] = shiftedOutput
+                                        }
                                         NotificationCenter.default.post(
                                             name: .openOverlayWithMapperPreset,
                                             object: nil,
-                                            userInfo: ["inputKey": rule.input, "outputKey": rule.output]
+                                            userInfo: userInfo
                                         )
                                     }
                                 },

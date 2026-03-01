@@ -87,6 +87,75 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertTrue(config.contains("(deflayer nav"), "Navigation layer block should be emitted")
     }
 
+    @MainActor
+    func testMakeCustomRulePreservesExistingShiftedOutputForSameInput() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        let original = CustomRule(input: "g", output: "M-up", shiftedOutput: "M-down", isEnabled: true)
+        let saved = await manager.saveCustomRule(original)
+        XCTAssertTrue(saved)
+
+        let updated = manager.makeCustomRule(input: "g", output: "home")
+
+        XCTAssertEqual(updated.id, original.id)
+        XCTAssertEqual(updated.input, "g")
+        XCTAssertEqual(updated.output, "home")
+        XCTAssertEqual(updated.shiftedOutput, "M-down")
+    }
+
+    @MainActor
+    func testShiftedOutputCustomRulePersistsAndRendersForkAliasAfterBootstrap() async throws {
+        let (manager, tempDir) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        let shiftedRule = CustomRule(
+            title: "Shift-aware nav",
+            input: "g",
+            output: "M-up",
+            shiftedOutput: "M-down",
+            isEnabled: true
+        )
+
+        let saved = await manager.saveCustomRule(shiftedRule)
+        XCTAssertTrue(saved, "Shifted-output custom rule should save successfully")
+
+        let collectionStore = RuleCollectionStore(
+            fileURL: tempDir.appendingPathComponent("RuleCollections.json")
+        )
+        let customStore = CustomRulesStore(
+            fileURL: tempDir.appendingPathComponent("CustomRules.json")
+        )
+        let configService = ConfigurationService(configDirectory: tempDir.path)
+        let reloadedManager = RuleCollectionsManager(
+            ruleCollectionStore: collectionStore,
+            customRulesStore: customStore,
+            configurationService: configService,
+            eventListener: KanataEventListener()
+        )
+
+        await reloadedManager.bootstrap()
+
+        let reloadedRule = try XCTUnwrap(reloadedManager.customRules.first { $0.input == "g" })
+        XCTAssertEqual(reloadedRule.output, "M-up")
+        XCTAssertEqual(reloadedRule.shiftedOutput, "M-down")
+
+        let configPath = tempDir.appendingPathComponent("keypath.kbd")
+        let config = try String(contentsOf: configPath, encoding: .utf8)
+
+        XCTAssertTrue(config.contains("fork_base_g"), "Shifted output should render a fork alias for g on base layer")
+        XCTAssertTrue(config.contains("(fork"), "Config should include a fork action for shifted output")
+        XCTAssertTrue(config.contains("(lsft rsft)"), "Shifted branch should be bound to Shift keys")
+        XCTAssertTrue(
+            config.contains("(multi lmet up)") || config.contains("M-up"),
+            "Default branch should include the non-shift output"
+        )
+        XCTAssertTrue(
+            config.contains("(multi lmet down)") || config.contains("M-down"),
+            "Shift branch should include the shifted output"
+        )
+    }
+
     // MARK: - Function Key Mode Tests
 
     func testFunctionKeyMappingsMediaMode() {

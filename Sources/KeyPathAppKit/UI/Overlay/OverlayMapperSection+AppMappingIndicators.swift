@@ -275,7 +275,11 @@ extension OverlayMapperSection {
     func toggleRecordingForCurrentSlot() {
         switch selectedBehaviorSlot {
         case .tap:
-            viewModel.toggleOutputRecording()
+            if selectedTapOutputMode == .shifted {
+                viewModel.toggleShiftedOutputRecording()
+            } else {
+                viewModel.toggleOutputRecording()
+            }
         case .hold:
             viewModel.toggleHoldRecording()
         case .combo:
@@ -287,7 +291,11 @@ extension OverlayMapperSection {
     func clearCurrentSlot() {
         switch selectedBehaviorSlot {
         case .tap:
-            viewModel.revertToKeystroke()
+            if selectedTapOutputMode == .shifted {
+                viewModel.clearShiftedOutput()
+            } else {
+                viewModel.revertToKeystroke()
+            }
         case .hold:
             viewModel.advancedBehavior.holdAction = ""
         case .combo:
@@ -306,6 +314,7 @@ extension OverlayMapperSection {
         let tapHasAction = viewModel.selectedApp != nil ||
             viewModel.selectedSystemAction != nil ||
             viewModel.selectedURL != nil ||
+            viewModel.hasShiftedOutputConfigured ||
             viewModel.outputLabel.lowercased() != viewModel.inputLabel.lowercased() ||
             hasMultiTapConfigured
         if tapHasAction {

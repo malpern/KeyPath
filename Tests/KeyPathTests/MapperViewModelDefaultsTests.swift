@@ -1,3 +1,4 @@
+import AppKit
 @testable import KeyPathAppKit
 @preconcurrency import XCTest
 
@@ -89,5 +90,89 @@ final class MapperViewModelDefaultsTests: XCTestCase {
         let viewModel = MapperViewModel()
 
         XCTAssertNil(viewModel.selectedAppCondition)
+    }
+
+    // MARK: - Shifted Output Availability
+
+    @MainActor
+    func testShiftedOutput_DefaultState_IsAvailableAndUnset() {
+        let viewModel = MapperViewModel()
+
+        XCTAssertFalse(viewModel.hasShiftedOutputConfigured)
+        XCTAssertTrue(viewModel.canUseShiftedOutput)
+        XCTAssertNil(viewModel.shiftedOutputBlockingReason)
+    }
+
+    @MainActor
+    func testShiftedOutput_BlockedWhenAppConditionSelected() {
+        let viewModel = MapperViewModel()
+        viewModel.selectedAppCondition = AppConditionInfo(
+            bundleIdentifier: "com.apple.Safari",
+            displayName: "Safari",
+            icon: NSImage(size: NSSize(width: 16, height: 16))
+        )
+
+        XCTAssertFalse(viewModel.canUseShiftedOutput)
+        XCTAssertEqual(viewModel.shiftedOutputBlockingReason, "Shift output is only available for rules that apply everywhere.")
+    }
+
+    @MainActor
+    func testShiftedOutput_BlockedWhenSystemActionSelected() {
+        let viewModel = MapperViewModel()
+        viewModel.selectedSystemAction = SystemActionInfo(id: "spotlight", name: "Spotlight", sfSymbol: "magnifyingglass")
+
+        XCTAssertFalse(viewModel.canUseShiftedOutput)
+        XCTAssertEqual(viewModel.shiftedOutputBlockingReason, "Shift output works only with keystroke output.")
+    }
+
+    @MainActor
+    func testSelectedAppCondition_ClearsShiftedOutput() {
+        let viewModel = MapperViewModel()
+        viewModel.applyShiftedOutputPreset("M-down")
+        XCTAssertTrue(viewModel.hasShiftedOutputConfigured)
+
+        viewModel.selectedAppCondition = AppConditionInfo(
+            bundleIdentifier: "com.apple.Bear",
+            displayName: "Bear",
+            icon: NSImage(size: NSSize(width: 16, height: 16))
+        )
+
+        XCTAssertFalse(viewModel.hasShiftedOutputConfigured)
+        XCTAssertNil(viewModel.shiftedOutputLabel)
+    }
+
+    @MainActor
+    func testIdentityKeystrokeMapping_UsesCanonicalSequencesNotLabels() {
+        let viewModel = MapperViewModel()
+
+        viewModel.inputSequence = KeySequence(
+            keys: [KeyPress(baseKey: "escape", modifiers: [], keyCode: 53)],
+            captureMode: .single
+        )
+        viewModel.outputSequence = KeySequence(
+            keys: [KeyPress(baseKey: "escape", modifiers: [], keyCode: 53)],
+            captureMode: .single
+        )
+
+        viewModel.inputLabel = "Different UI Label A"
+        viewModel.outputLabel = "Different UI Label B"
+
+        XCTAssertTrue(viewModel.isIdentityKeystrokeMapping)
+    }
+
+    @MainActor
+    func testIdentityKeystrokeMapping_FalseWhenOutputDiffers() {
+        let viewModel = MapperViewModel()
+
+        viewModel.inputSequence = KeySequence(
+            keys: [KeyPress(baseKey: "a", modifiers: [], keyCode: 0)],
+            captureMode: .single
+        )
+        viewModel.outputSequence = KeySequence(
+            keys: [KeyPress(baseKey: "b", modifiers: [], keyCode: 11)],
+            captureMode: .single
+        )
+
+        XCTAssertFalse(viewModel.isIdentityKeystrokeMapping)
     }
 }

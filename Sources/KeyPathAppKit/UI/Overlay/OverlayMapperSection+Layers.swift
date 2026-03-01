@@ -88,6 +88,7 @@ extension OverlayMapperSection {
         viewModel.selectedApp = nil
         viewModel.selectedSystemAction = nil
         viewModel.selectedURL = nil
+        viewModel.clearShiftedOutput()
         viewModel.outputLabel = "→ \(layer.capitalized)"
         isSystemActionPickerOpen = false
 
@@ -108,6 +109,7 @@ extension OverlayMapperSection {
 
         var customRule = kanataManager.makeCustomRule(input: inputKey, output: outputKanata)
         customRule.notes = "Switch to \(layer) layer"
+        customRule.shiftedOutput = nil
 
         let success = await kanataManager.saveCustomRule(customRule, skipReload: false)
         if success {
@@ -174,6 +176,7 @@ extension OverlayMapperSection {
             icon.size = NSSize(width: 32, height: 32)
             let bundleId = Bundle(url: url)?.bundleIdentifier ?? url.lastPathComponent
             viewModel.selectedApp = AppLaunchInfo(name: displayName, bundleIdentifier: bundleId, icon: icon)
+            viewModel.clearShiftedOutput()
             isSystemActionPickerOpen = false
         }
     }

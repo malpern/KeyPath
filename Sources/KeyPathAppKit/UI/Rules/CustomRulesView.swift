@@ -177,10 +177,17 @@ struct CustomRulesView: View {
     }
 
     private func openRuleInDrawer(_ rule: CustomRule) {
+        var userInfo: [String: Any] = [
+            "inputKey": rule.input,
+            "outputKey": rule.output
+        ]
+        if let shiftedOutput = rule.shiftedOutput {
+            userInfo["shiftedOutputKey"] = shiftedOutput
+        }
         NotificationCenter.default.post(
             name: .openOverlayWithMapperPreset,
             object: nil,
-            userInfo: ["inputKey": rule.input, "outputKey": rule.output]
+            userInfo: userInfo
         )
     }
 

@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 @testable import KeyPathWizardCore
+import ServiceManagement
 @preconcurrency import XCTest
 
 @MainActor
@@ -54,5 +55,45 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             report.failureReason?.contains("install-daemons") ?? false,
             "Failure should reference the failing recipe"
         )
+    }
+
+    func testExecutePlanTreatsPendingApprovalAsHealthyForKanataHealthCheck() async throws {
+        #if DEBUG
+            final class PendingApprovalSMAppService: SMAppServiceProtocol, @unchecked Sendable {
+                var status: SMAppService.Status { .requiresApproval }
+                func register() throws {}
+                func unregister() async throws {}
+            }
+
+            let originalSMFactory = KanataDaemonManager.smServiceFactory
+            KanataDaemonManager.smServiceFactory = { _ in PendingApprovalSMAppService() }
+            defer { KanataDaemonManager.smServiceFactory = originalSMFactory }
+
+            let coordinator = StubPrivilegedOperationsCoordinator()
+            let broker = PrivilegeBroker(coordinator: coordinator)
+            let engine = InstallerEngine()
+
+            let plan = InstallPlan(
+                recipes: [
+                    ServiceRecipe(
+                        id: InstallerRecipeID.installBundledKanata,
+                        type: .installComponent,
+                        healthCheck: HealthCheckCriteria(
+                            serviceID: KanataDaemonManager.kanataServiceID,
+                            shouldBeRunning: true
+                        )
+                    )
+                ],
+                status: .ready,
+                intent: .install
+            )
+
+            let report = await engine.execute(plan: plan, using: broker)
+
+            XCTAssertTrue(report.success)
+            XCTAssertTrue(coordinator.calls.contains("installBundledKanata"))
+        #else
+            throw XCTSkip("Uses DEBUG-only KanataDaemonManager.smServiceFactory override")
+        #endif
     }
 }

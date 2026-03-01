@@ -6,6 +6,8 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
     public var title: String
     public var input: String
     public var output: String
+    /// Optional alternate output when shift is held for this input.
+    public var shiftedOutput: String?
     public var isEnabled: Bool
     public var notes: String?
     public var createdAt: Date
@@ -19,6 +21,7 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
         title: String = "",
         input: String,
         output: String,
+        shiftedOutput: String? = nil,
         isEnabled: Bool = true,
         notes: String? = nil,
         createdAt: Date = Date(),
@@ -29,6 +32,7 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
         self.title = title
         self.input = input
         self.output = output
+        self.shiftedOutput = shiftedOutput
         self.isEnabled = isEnabled
         self.notes = notes
         self.createdAt = createdAt
@@ -41,7 +45,7 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
 
 extension CustomRule: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, title, input, output, isEnabled, notes, createdAt, behavior, targetLayer
+        case id, title, input, output, shiftedOutput, isEnabled, notes, createdAt, behavior, targetLayer
     }
 
     public init(from decoder: Decoder) throws {
@@ -50,6 +54,7 @@ extension CustomRule: Codable {
         title = try container.decode(String.self, forKey: .title)
         input = try container.decode(String.self, forKey: .input)
         output = try container.decode(String.self, forKey: .output)
+        shiftedOutput = try container.decodeIfPresent(String.self, forKey: .shiftedOutput)
         isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
         notes = try container.decodeIfPresent(String.self, forKey: .notes)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
@@ -64,6 +69,7 @@ extension CustomRule: Codable {
         try container.encode(title, forKey: .title)
         try container.encode(input, forKey: .input)
         try container.encode(output, forKey: .output)
+        try container.encodeIfPresent(shiftedOutput, forKey: .shiftedOutput)
         try container.encode(isEnabled, forKey: .isEnabled)
         try container.encodeIfPresent(notes, forKey: .notes)
         try container.encode(createdAt, forKey: .createdAt)
@@ -89,7 +95,7 @@ public extension CustomRule {
     }
 
     func asKeyMapping() -> KeyMapping {
-        KeyMapping(id: id, input: input, output: output, behavior: behavior)
+        KeyMapping(id: id, input: input, output: output, shiftedOutput: shiftedOutput, behavior: behavior)
     }
 
     func asRuleCollection() -> RuleCollection {

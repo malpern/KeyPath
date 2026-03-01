@@ -47,7 +47,7 @@ extension Notification.Name {
 
     /// Mapper drawer
     /// Posted when a key is clicked and should be selected in the mapper drawer
-    /// userInfo: keyCode (UInt16), inputKey (String), outputKey (String), layer (String)
+    /// userInfo: keyCode (UInt16), inputKey (String), outputKey (String), optional shiftedOutputKey (String), layer (String)
     static let mapperDrawerKeySelected = Notification.Name("KeyPath.Mapper.DrawerKeySelected")
 
     /// Uninstall flow

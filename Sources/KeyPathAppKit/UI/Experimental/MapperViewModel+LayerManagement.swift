@@ -152,6 +152,7 @@ extension MapperViewModel {
 
         let inputKanata = convertSequenceToKanataFormat(inputSeq)
         let targetLayer = layerFromString(currentLayer)
+        clearShiftedOutput()
 
         AppLogger.shared.log("🚀 [MapperViewModel] Creating rule: input='\(inputKanata)' output='\(app.kanataOutput)' layer=\(targetLayer)")
 
@@ -185,6 +186,7 @@ extension MapperViewModel {
         selectedApp = nil // Clear any app selection
         selectedURL = nil
         outputSequence = nil // Clear any key sequence output
+        clearShiftedOutput()
         outputLabel = action.name
 
         AppLogger.shared.log("⚙️ [MapperViewModel] Selected system action: \(action.name) (\(action.id))")
@@ -259,6 +261,7 @@ extension MapperViewModel {
         selectedApp = nil // Clear any app selection
         selectedSystemAction = nil // Clear any system action selection
         outputSequence = nil // Clear any key sequence output
+        clearShiftedOutput()
         outputLabel = extractDomain(from: trimmed)
         selectedURLFavicon = nil // Clear old favicon while loading
         showingURLDialog = false
@@ -303,6 +306,7 @@ extension MapperViewModel {
         let encodedURL = URLMappingFormatter.encodeForPushMessage(url)
         let outputKanata = "(push-msg \"open:\(encodedURL)\")"
         let targetLayer = layerFromString(currentLayer)
+        clearShiftedOutput()
 
         AppLogger.shared.log("🌐 [MapperViewModel] Creating rule: input='\(inputKanata)' output='\(outputKanata)' layer=\(targetLayer)")
 
