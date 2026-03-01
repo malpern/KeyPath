@@ -201,6 +201,7 @@ final class TCPClientRequestIDTests: XCTestCase {
             ("FakeKeyNames", #"{"FakeKeyNames":{"names":["lctl","lsft"]}}"#),
             ("CurrentLayerName", #"{"CurrentLayerName":{"name":"base"}}"#),
             ("CurrentLayerInfo", #"{"CurrentLayerInfo":{"keys":{}}}"#),
+            ("HrmStats", #"{"HrmStats":{"schema_version":1,"decisions_total":0,"tap_count":0,"hold_count":0,"reason_counts":{"timeout":0,"release_before_decide":0,"opposite_hand_key":0,"same_hand_key":0,"neutral_key":0,"unknown_hand_key":0,"explicit_policy":0},"avg_decide_latency_ms":0.0,"latency_histogram":{"bucket_0_10":0,"bucket_11_25":0,"bucket_26_50":0,"bucket_51_100":0,"bucket_101_200":0,"bucket_200_plus":0},"same_hand_suppressed_count":0,"opposite_hand_hold_count":0,"neutral_decisions_count":0}}"#),
         ]
 
         for (name, json) in responseMessages {
@@ -228,6 +229,7 @@ final class TCPClientRequestIDTests: XCTestCase {
             ("OneShotActivated", #"{"OneShotActivated":{"key":"lsft"}}"#),
             ("ChordResolved", #"{"ChordResolved":{"keys":["a","b"]}}"#),
             ("TapDanceResolved", #"{"TapDanceResolved":{"key":"td1","count":2}}"#),
+            ("HrmTrace", #"{"HrmTrace":{"schema_version":1,"key":"f","decision":"hold","reason":"opposite_hand_key","decide_latency_ms":33}}"#),
         ]
 
         for (name, json) in broadcastMessages {

@@ -13,6 +13,8 @@ final class ContextHUDController {
     private var hostingView: NSHostingView<ContextHUDView>?
     private let viewModel = ContextHUDViewModel()
     private let layerKeyMapper = LayerKeyMapper()
+    private let kindaVimStateAdapter = KindaVimStateAdapter.shared
+    private var hasStartedKindaVimStateMonitoring = false
 
     private var dismissTask: Task<Void, Never>?
     private var layerMapTask: Task<Void, Never>?
@@ -142,6 +144,7 @@ final class ContextHUDController {
 
     func handleLayerChange(_ layerName: String, source: String?) {
         let normalized = layerName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let triggerMode = PreferencesService.shared.contextHUDTriggerMode
         AppLogger.shared.debug("🎯 [ContextHUD] handleLayerChange: '\(layerName)' normalized='\(normalized)' source=\(source ?? "nil") prev='\(previousLayer)'")
 
         // Context HUD list is an experimental feature - skip when disabled
@@ -157,19 +160,26 @@ final class ContextHUDController {
         if let source {
             switch source {
             case "push":
-                if normalized == "base" {
+                // One-shot override is only needed in tap-to-toggle mode.
+                // In hold-to-show mode, push layer events should not block the
+                // subsequent Kanata "base" event on release.
+                if triggerMode == .tapToToggle {
+                    if normalized == "base" {
+                        oneShotOverride.clear()
+                    } else {
+                        oneShotOverride.activate(normalized)
+                    }
+                } else if normalized == "base" {
                     oneShotOverride.clear()
-                } else {
-                    oneShotOverride.activate(normalized)
                 }
             case "kanata":
                 if normalized == "base" {
-                    // If one-shot override is active, ignore Kanata's "base" report.
-                    // The override will be cleared by key press or timeout instead.
-                    if oneShotOverride.currentLayer != nil {
-                        return
-                    }
-                } else if oneShotOverride.shouldIgnoreKanataUpdate(normalizedLayer: normalized) {
+                    // Always honor Kanata's return-to-base signal.
+                    // Ignoring this causes the HUD to get stuck on nav.
+                    oneShotOverride.clear()
+                } else if triggerMode == .tapToToggle,
+                          oneShotOverride.shouldIgnoreKanataUpdate(normalizedLayer: normalized)
+                {
                     return
                 }
             default:
@@ -215,7 +225,10 @@ final class ContextHUDController {
         }
 
         // Dismiss on Escape (manual override for both modes)
-        if key.lowercased() == "esc" {
+        if Self.isEscapeKeyName(key) {
+            // Ensure overlay/layer indicators return to base even if Kanata layer-exit
+            // push messages are missed or delayed.
+            _ = ActionDispatcher.shared.dispatch(message: "layer:base")
             dismiss()
         }
     }
@@ -253,6 +266,10 @@ final class ContextHUDController {
         dismissTask = nil
         layerMapTask?.cancel()
         layerMapTask = nil
+        if hasStartedKindaVimStateMonitoring {
+            kindaVimStateAdapter.stopMonitoring()
+            hasStartedKindaVimStateMonitoring = false
+        }
         window?.orderOut(nil)
         window = nil
         hostingView = nil
@@ -270,6 +287,14 @@ final class ContextHUDController {
         let enabled = all.filter(\.isEnabled)
         cachedEnabledCollections = enabled
         return enabled
+    }
+
+    private static func isEscapeKeyName(_ key: String) -> Bool {
+        if let keyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(key) {
+            return keyCode == 53
+        }
+        let normalized = key.lowercased()
+        return normalized == "esc" || normalized == "escape"
     }
 
     // MARK: - Background Precompute
@@ -359,11 +384,18 @@ final class ContextHUDController {
                 let layout = PhysicalLayout.find(id: layoutId) ?? .macBookUS
 
                 let normalizedLayerName = layerName.lowercased()
+                let frontmostBundleIdentifier = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+                let isApprovedNeovimTerminal = NeovimTerminalScope.isApprovedTerminal(
+                    bundleIdentifier: frontmostBundleIdentifier
+                )
+                let scopedEnabledCollections = isApprovedNeovimTerminal
+                    ? enabledCollections
+                    : enabledCollections.filter { $0.id != RuleCollectionIdentifier.neovimTerminal }
 
                 // Build launcher keyMap from collections (not simulator).
                 // The kanata simulator cannot capture push-msg events, so launcher
                 // keys appear transparent when simulated. Build from config directly.
-                let collectionLauncherKeyMap = buildLauncherKeyMap(from: enabledCollections)
+                let collectionLauncherKeyMap = buildLauncherKeyMap(from: scopedEnabledCollections)
 
                 let keyMap: [UInt16: LayerKeyInfo]
                 let launcherKeyMap: [UInt16: LayerKeyInfo]? = nil
@@ -381,18 +413,69 @@ final class ContextHUDController {
                         for: layerName,
                         configPath: configPath,
                         layout: layout,
-                        collections: enabledCollections
+                        collections: scopedEnabledCollections,
+                        cacheKeySuffix: "neovim-scope-\(isApprovedNeovimTerminal ? "approved" : "fallback")"
                     )
                 }
 
                 guard !Task.isCancelled else { return }
 
+                var effectiveKeyMap = keyMap
+                let hasRawNeovimEntries = keyMap.values.contains {
+                    $0.collectionId == RuleCollectionIdentifier.neovimTerminal
+                }
+                if hasRawNeovimEntries, !isApprovedNeovimTerminal {
+                    effectiveKeyMap = keyMap.filter { _, info in
+                        info.collectionId != RuleCollectionIdentifier.neovimTerminal
+                    }
+                }
+
+                guard !Task.isCancelled else { return }
+
+                let hasRenderableEntries = effectiveKeyMap.values.contains { info in
+                    !info.isTransparent && !info.isLayerSwitch
+                }
+
+                if effectiveKeyMap.isEmpty || !hasRenderableEntries {
+                    if hasRawNeovimEntries, !isApprovedNeovimTerminal {
+                        AppLogger.shared.info(
+                            "🎯 [ContextHUD] Suppressing Neovim HUD outside approved terminals (frontmost=\(frontmostBundleIdentifier ?? "nil"))"
+                        )
+                    }
+                    dismiss()
+                    return
+                }
+
                 // Resolve content style based on the layer's own content
-                let style = HUDContentResolver.resolve(
+                let resolvedStyle = HUDContentResolver.resolve(
                     layerName: layerName,
-                    keyMap: keyMap,
-                    collections: enabledCollections
+                    keyMap: effectiveKeyMap,
+                    collections: scopedEnabledCollections
                 )
+
+                let kindaVimHUDMode = PreferencesService.shared.kindaVimLeaderHUDMode
+                let hasKindaVimEntries = effectiveKeyMap.values.contains { $0.collectionId == RuleCollectionIdentifier.kindaVim }
+                let shouldUseKindaVimLearningStyle = kindaVimHUDMode != .off &&
+                    normalizedLayerName == "nav" &&
+                    hasKindaVimEntries
+
+                let hasNeovimEntries = effectiveKeyMap.values.contains { $0.collectionId == RuleCollectionIdentifier.neovimTerminal }
+                let shouldUseNeovimStyle = normalizedLayerName == "nav" &&
+                    hasNeovimEntries &&
+                    isApprovedNeovimTerminal
+
+                if shouldUseKindaVimLearningStyle, !hasStartedKindaVimStateMonitoring {
+                    kindaVimStateAdapter.startMonitoring()
+                    hasStartedKindaVimStateMonitoring = true
+                }
+
+                let style: HUDContentStyle = if shouldUseKindaVimLearningStyle {
+                    .kindaVimLearning
+                } else if shouldUseNeovimStyle {
+                    .neovimTerminal
+                } else {
+                    resolvedStyle
+                }
 
                 guard !Task.isCancelled else { return }
 
@@ -401,7 +484,7 @@ final class ContextHUDController {
 
                 if holdLabels.isEmpty, FeatureFlags.simulatorAndVirtualKeysEnabled {
                     holdLabels = await resolveHoldLabels(
-                        keyMap: keyMap,
+                        keyMap: effectiveKeyMap,
                         configPath: configPath,
                         layerName: layerName
                     )
@@ -416,11 +499,13 @@ final class ContextHUDController {
                 // Show HUD with complete data (tap + hold labels)
                 viewModel.update(
                     layerName: layerName,
-                    keyMap: keyMap,
-                    collections: enabledCollections,
+                    keyMap: effectiveKeyMap,
+                    collections: scopedEnabledCollections,
                     style: style,
                     holdLabels: holdLabels,
-                    launcherKeyMap: launcherKeyMap
+                    launcherKeyMap: launcherKeyMap,
+                    kindaVimState: shouldUseKindaVimLearningStyle ? kindaVimStateAdapter.state : nil,
+                    kindaVimLeaderHUDMode: kindaVimHUDMode
                 )
 
                 showWindow()
@@ -617,7 +702,7 @@ final class ContextHUDController {
                 if let url = info.urlIdentifier {
                     // Favicons are async — preload them
                     group.addTask {
-                        _ = await IconResolverService.shared.resolveFavicon(for: url)
+                        await IconResolverService.shared.preloadIcon(for: .url(url))
                     }
                 }
             }

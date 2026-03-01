@@ -14,6 +14,10 @@ final class ContextHUDViewModel {
     var groups: [HUDKeyGroup] = []
     /// Flat list of all entries (for custom views that don't use grouping)
     var allEntries: [HUDKeyEntry] = []
+    /// Live KindaVim state snapshot used by mode-aware learning UI.
+    var kindaVimState: KindaVimStateAdapter.StateSnapshot?
+    /// Presentation mode configured in Rules for leader-hold KindaVim content.
+    var kindaVimLeaderHUDMode: KindaVimLeaderHUDMode = .contextualCoach
 
     /// Key codes currently pressed (for live highlighting)
     var pressedKeyCodes: Set<UInt16> = []
@@ -37,7 +41,9 @@ final class ContextHUDViewModel {
         collections: [RuleCollection],
         style: HUDContentStyle,
         holdLabels: [UInt16: String] = [:],
-        launcherKeyMap: [UInt16: LayerKeyInfo]? = nil
+        launcherKeyMap: [UInt16: LayerKeyInfo]? = nil,
+        kindaVimState: KindaVimStateAdapter.StateSnapshot? = nil,
+        kindaVimLeaderHUDMode: KindaVimLeaderHUDMode = .contextualCoach
     ) {
         self.layerName = layerName
         self.style = style
@@ -190,10 +196,36 @@ final class ContextHUDViewModel {
             }
         }
 
+        // Split Neovim Terminal entries into semantic sub-groups
+        if let neovimGroup = groupMap[RuleCollectionIdentifier.neovimTerminal] {
+            groupMap.removeValue(forKey: RuleCollectionIdentifier.neovimTerminal)
+            var subGroupEntries: [String: (order: Int, entries: [HUDKeyEntry])] = [:]
+            for entry in neovimGroup.entries {
+                let vimLabel = keyMap[entry.keyCode]?.vimLabel
+                let sub = vimLabel.flatMap { Self.neovimSubcategories[$0] }
+                    ?? (name: "Other", order: 99)
+                subGroupEntries[sub.name, default: (order: sub.order, entries: [])].entries.append(entry)
+            }
+            for (name, group) in subGroupEntries {
+                vimSubGroups.append(HUDKeyGroup(
+                    name: name, color: neovimGroup.color,
+                    entries: group.entries, sortOrder: group.order
+                ))
+            }
+        }
+
         groups = (groupMap.values
             .map { HUDKeyGroup(name: $0.name, color: $0.color, entries: $0.entries) }
             + vimSubGroups)
             .sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
+
+        if style == .kindaVimLearning {
+            self.kindaVimState = kindaVimState
+            self.kindaVimLeaderHUDMode = kindaVimLeaderHUDMode
+        } else {
+            self.kindaVimState = nil
+            self.kindaVimLeaderHUDMode = .contextualCoach
+        }
     }
 
     /// Clear all HUD data
@@ -202,6 +234,8 @@ final class ContextHUDViewModel {
         style = .defaultList
         groups = []
         allEntries = []
+        kindaVimState = nil
+        kindaVimLeaderHUDMode = .contextualCoach
         pressedKeyCodes = []
         activeHoldLabels = [:]
     }
@@ -265,6 +299,25 @@ final class ContextHUDViewModel {
         "yank": ("Clipboard", 4), "put": ("Clipboard", 4),
     ]
 
+    /// Neovim Terminal subcategory mapping: vimLabel → (subcategory name, sort order)
+    static let neovimSubcategories: [String: (name: String, order: Int)] = [
+        // Movement
+        "←": ("Movement", 0), "↓": ("Movement", 0),
+        "↑": ("Movement", 0), "→": ("Movement", 0),
+        "0": ("Movement", 0), "$": ("Movement", 0),
+        "gg": ("Movement", 0),
+        // Word Motion
+        "w": ("Word Motion", 1), "b": ("Word Motion", 1), "e": ("Word Motion", 1),
+        // Editing
+        "a": ("Editing", 2), "del": ("Editing", 2),
+        "d": ("Editing", 2), "undo": ("Editing", 2),
+        "redo": ("Editing", 2), "o": ("Editing", 2),
+        // Search
+        "find": ("Search", 3), "next": ("Search", 3),
+        // Clipboard
+        "yank": ("Clipboard", 4), "put": ("Clipboard", 4),
+    ]
+
     /// VIM English descriptions for the HUD action column
     private static let vimHUDDescriptions: [String: String] = [
         "←": "← left",
@@ -273,17 +326,17 @@ final class ContextHUDViewModel {
         "→": "→ right",
         "0": "line start",
         "$": "line end",
-        "a": "→ append",
-        "gg": "go to top",
+        "a": "append",
+        "gg": "doc top / bottom",
         "find": "find",
-        "next": "next match",
-        "yank": "yank",
-        "put": "put",
+        "next": "next / prev match",
+        "yank": "copy",
+        "put": "paste",
         "del": "fwd delete",
         "redo": "redo",
-        "d": "backspace",
+        "d": "delete previous word",
         "undo": "undo",
-        "o": "open line",
+        "o": "open line below/above",
         // KindaVim word motion extras
         "w": "word →",
         "b": "← word",
@@ -312,6 +365,8 @@ final class ContextHUDViewModel {
             return Color(red: 0.85, green: 0.45, blue: 0.15) // orange
         case RuleCollectionIdentifier.kindaVim:
             return Color(red: 0.2, green: 0.7, blue: 0.4) // green
+        case RuleCollectionIdentifier.neovimTerminal:
+            return Color(red: 0.3, green: 0.6, blue: 0.9) // steel blue
         case RuleCollectionIdentifier.windowSnapping:
             return .purple
         case RuleCollectionIdentifier.symbolLayer:

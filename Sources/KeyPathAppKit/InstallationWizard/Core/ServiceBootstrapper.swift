@@ -810,9 +810,25 @@ final class ServiceBootstrapper {
             AppLogger.shared.log("✅ [ServiceBootstrapper] Legacy plist removed, conflict resolved")
         }
 
-        // If already managed by SMAppService, skip registration
+        // If already managed by SMAppService, validate that launchd can actually load it.
         if state.isSMAppServiceManaged {
-            AppLogger.shared.log("✅ [ServiceBootstrapper] Already managed by SMAppService - skipping")
+            let isRegisteredButBroken = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
+            if isRegisteredButBroken {
+                AppLogger.shared.log(
+                    "⚠️ [ServiceBootstrapper] SMAppService reports active, but daemon is not loaded. Running recovery."
+                )
+                await fixBrokenSMAppServiceState()
+                let stillBroken = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
+                if stillBroken {
+                    AppLogger.shared.log(
+                        "❌ [ServiceBootstrapper] Recovery failed: daemon still not loaded after SMAppService repair"
+                    )
+                    return false
+                }
+                AppLogger.shared.log("✅ [ServiceBootstrapper] Recovered active-but-not-loaded SMAppService state")
+                return true
+            }
+            AppLogger.shared.log("✅ [ServiceBootstrapper] Already managed by SMAppService - healthy")
             return true
         }
 

@@ -56,7 +56,6 @@ Download KindaVim from [kindavim.app ↗](https://kindavim.app) if you haven't a
 
 Open KeyPath and find **KindaVim** in the rules list. Toggle it on and expand to see your shortcuts:
 
-<!-- screenshot: id="kindavim-collection-expanded" method="snapshot" view="RulesSummaryView" state="collection:kindavim,expanded,installed" -->
 Screenshot — KindaVim collection expanded in the rules list:
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -124,7 +123,6 @@ All original Vim shortcuts (hjkl, 0/$, /n, y/p, x, d, u, r, o, a, g) remain iden
 
 Hold the Leader key and the HUD appears with five organized sections:
 
-<!-- screenshot: id="kindavim-hud-sections" method="snapshot" view="ContextHUDView" state="layer:nav,collection:kindavim" -->
 Screenshot — HUD showing KindaVim command groups:
 ```
   ┌─────────────────────────────────────────────────────┐

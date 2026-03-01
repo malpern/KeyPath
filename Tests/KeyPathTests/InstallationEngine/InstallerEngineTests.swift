@@ -525,5 +525,16 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
 
         let kanataRecipe = engine.recipeForAction(.installBundledKanata, context: context)
         XCTAssertEqual(kanataRecipe?.id, InstallerRecipeID.installBundledKanata)
+        XCTAssertNotNil(
+            kanataRecipe?.healthCheck,
+            "Bundled Kanata install recipe should include a strict runtime health check"
+        )
+
+        let replaceRecipe = engine.recipeForAction(.replaceKanataWithBundled, context: context)
+        XCTAssertEqual(replaceRecipe?.id, InstallerRecipeID.replaceKanataWithBundled)
+        XCTAssertNotNil(
+            replaceRecipe?.healthCheck,
+            "Replace Kanata recipe should include a strict runtime health check"
+        )
     }
 }

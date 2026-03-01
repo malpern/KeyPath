@@ -27,6 +27,37 @@ final class ServiceHealthChecker: @unchecked Sendable {
 
     private init() {}
 
+    struct KanataServiceRuntimeSnapshot: Sendable, Equatable {
+        let managementState: KanataDaemonManager.ServiceManagementState
+        let isRunning: Bool
+        let isResponding: Bool
+        let launchctlExitCode: Int32?
+        let staleEnabledRegistration: Bool
+        let recentlyRestarted: Bool
+    }
+
+    enum KanataHealthDecision: Equatable {
+        case healthy
+        case transient(reason: String)
+        case unhealthy(reason: String)
+
+        var isHealthy: Bool {
+            switch self {
+            case .healthy, .transient:
+                true
+            case .unhealthy:
+                false
+            }
+        }
+    }
+
+#if DEBUG
+        nonisolated(unsafe) static var runtimeSnapshotOverride:
+            (() async -> KanataServiceRuntimeSnapshot)?
+        nonisolated(unsafe) static var recentlyRestartedOverride:
+            ((String, TimeInterval?) -> Bool)?
+#endif
+
     // MARK: - Service Identifiers
 
     /// Service identifier for the main Kanata keyboard remapping daemon
@@ -69,12 +100,18 @@ final class ServiceHealthChecker: @unchecked Sendable {
                     "🔍 [ServiceHealthChecker] Legacy plist exists - checking launchctl status"
                 )
             // Fall through to launchctl check below
-            case .smappserviceActive, .smappservicePending:
-                // SMAppService is managing - consider it loaded
+            case .smappserviceActive:
+                let stale = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
+                let loaded = !stale
                 AppLogger.shared.log(
-                    "🔍 [ServiceHealthChecker] Kanata service loaded via SMAppService (state: \(state.description))"
+                    "🔍 [ServiceHealthChecker] Kanata service loaded via SMAppService active state: loaded=\(loaded), stale=\(stale)"
                 )
-                return true
+                return loaded
+            case .smappservicePending:
+                AppLogger.shared.log(
+                    "🔍 [ServiceHealthChecker] Kanata service approval pending - not loaded yet"
+                )
+                return false
             case .conflicted:
                 // Both active - consider it loaded (SMAppService takes precedence)
                 AppLogger.shared.log(
@@ -144,22 +181,12 @@ final class ServiceHealthChecker: @unchecked Sendable {
         if serviceID == Self.kanataServiceID, !TestEnvironment.shouldSkipAdminOperations {
             let state = await KanataDaemonManager.shared.refreshManagementState()
             if state.isSMAppServiceManaged {
-                let snap = await checkKanataServiceHealth()
-                if snap.isRunning || snap.isResponding {
-                    AppLogger.shared.log(
-                        "🔍 [ServiceHealthChecker] Kanata healthy via SMAppService probe: running=\(snap.isRunning) responding=\(snap.isResponding) (state: \(state.description))"
-                    )
-                    return true
-                }
-                if ServiceBootstrapper.wasRecentlyRestarted(
-                    Self.kanataServiceID,
-                    within: Self.kanataRestartGraceWindow
-                ) {
-                    AppLogger.shared.log(
-                        "ℹ️ [ServiceHealthChecker] Treating Kanata as transiently healthy (recent restart window, state: \(state.description))"
-                    )
-                    return true
-                }
+                let runtimeSnapshot = await checkKanataServiceRuntimeSnapshot()
+                let decision = Self.decideKanataHealth(for: runtimeSnapshot)
+                AppLogger.shared.log(
+                    "🔍 [ServiceHealthChecker] Kanata SMAppService decision: \(decision), running=\(runtimeSnapshot.isRunning), responding=\(runtimeSnapshot.isResponding), stale=\(runtimeSnapshot.staleEnabledRegistration), state=\(state.description)"
+                )
+                return decision.isHealthy
             }
         }
 
@@ -269,26 +296,12 @@ final class ServiceHealthChecker: @unchecked Sendable {
         let kanataHealthy: Bool
 
         if kanataState.isSMAppServiceManaged {
-            // SMAppService is managing Kanata - use fast checks
-            kanataLoaded = true // SMAppService managed = loaded
-            // For health, check process first, then treat launchctl "not found" as transient
-            // during known restart windows to avoid false negatives.
-            let runningState = await evaluateKanataLaunchctlRunningState()
-            if runningState.isRunning {
-                kanataHealthy = true
-            } else if shouldTreatKanataAsTransientlyHealthy(
-                smState: kanataState,
-                launchctlExitCode: runningState.exitCode
-            ) {
-                kanataHealthy = true
-                AppLogger.shared.log(
-                    "ℹ️ [ServiceHealthChecker] Treating Kanata as transiently healthy (SMAppService restart window, exit=\(runningState.exitCode?.description ?? "nil"))"
-                )
-            } else {
-                kanataHealthy = false
-            }
+            let runtimeSnapshot = await checkKanataServiceRuntimeSnapshot()
+            kanataLoaded = runtimeSnapshot.managementState == .smappserviceActive
+                && !runtimeSnapshot.staleEnabledRegistration
+            kanataHealthy = Self.decideKanataHealth(for: runtimeSnapshot).isHealthy
             AppLogger.shared.log(
-                "🔍 [ServiceHealthChecker] Kanata SMAppService-managed: loaded=true, healthy=\(kanataHealthy)"
+                "🔍 [ServiceHealthChecker] Kanata SMAppService-managed: loaded=\(kanataLoaded), healthy=\(kanataHealthy), stale=\(runtimeSnapshot.staleEnabledRegistration), launchctlExit=\(runtimeSnapshot.launchctlExitCode?.description ?? "nil")"
             )
         } else {
             // Legacy or unknown - use full checks
@@ -353,6 +366,69 @@ final class ServiceHealthChecker: @unchecked Sendable {
         )
     }
 
+    nonisolated func checkKanataServiceRuntimeSnapshot(
+        tcpPort: Int = 37001,
+        timeoutMs: Int = 300
+    ) async -> KanataServiceRuntimeSnapshot {
+#if DEBUG
+        if let override = Self.runtimeSnapshotOverride {
+            return await override()
+        }
+#endif
+
+        let managementState = await KanataDaemonManager.shared.refreshManagementState()
+        let staleEnabledRegistration: Bool = if managementState == .smappserviceActive {
+            await KanataDaemonManager.shared.isRegisteredButNotLoaded()
+        } else {
+            false
+        }
+
+        return await checkKanataServiceRuntimeSnapshot(
+            managementState: managementState,
+            staleEnabledRegistration: staleEnabledRegistration,
+            tcpPort: tcpPort,
+            timeoutMs: timeoutMs
+        )
+    }
+
+    /// Fast runtime probe using pre-fetched service-management metadata.
+    ///
+    /// This avoids repeated `SMAppService.status` checks in tight polling loops.
+    nonisolated func checkKanataServiceRuntimeSnapshot(
+        managementState: KanataDaemonManager.ServiceManagementState,
+        staleEnabledRegistration: Bool,
+        tcpPort: Int = 37001,
+        timeoutMs: Int = 300
+    ) async -> KanataServiceRuntimeSnapshot {
+#if DEBUG
+        if let override = Self.runtimeSnapshotOverride {
+            return await override()
+        }
+#endif
+
+        let runningState = await evaluateKanataLaunchctlRunningState()
+        let tcpOK = await Task.detached { [self] in
+            if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
+               let overridePort = Int(portEnv)
+            {
+                return probeTCP(port: overridePort, timeoutMs: timeoutMs)
+            }
+            return probeTCP(port: tcpPort, timeoutMs: timeoutMs)
+        }.value
+
+        return KanataServiceRuntimeSnapshot(
+            managementState: managementState,
+            isRunning: runningState.isRunning,
+            isResponding: tcpOK,
+            launchctlExitCode: runningState.exitCode,
+            staleEnabledRegistration: staleEnabledRegistration,
+            recentlyRestarted: Self.wasRecentlyRestarted(
+                Self.kanataServiceID,
+                within: Self.kanataRestartGraceWindow
+            )
+        )
+    }
+
     private nonisolated func evaluateKanataLaunchctlRunningState() async
         -> (isRunning: Bool, exitCode: Int32?)
     {
@@ -379,16 +455,44 @@ final class ServiceHealthChecker: @unchecked Sendable {
         }
     }
 
-    private nonisolated func shouldTreatKanataAsTransientlyHealthy(
-        smState: KanataDaemonManager.ServiceManagementState,
-        launchctlExitCode: Int32?
+    nonisolated static func decideKanataHealth(
+        for runtimeSnapshot: KanataServiceRuntimeSnapshot
+    ) -> KanataHealthDecision {
+        if runtimeSnapshot.isRunning, runtimeSnapshot.isResponding {
+            return .healthy
+        }
+
+        if runtimeSnapshot.staleEnabledRegistration {
+            return .unhealthy(reason: "stale-enabled-registration")
+        }
+
+        if runtimeSnapshot.launchctlExitCode == Self.launchctlNotFoundExitCode,
+           !runtimeSnapshot.isRunning,
+           !runtimeSnapshot.isResponding
+        {
+            return .unhealthy(reason: "launchctl-not-found-without-runtime")
+        }
+
+        if runtimeSnapshot.isRunning,
+           !runtimeSnapshot.isResponding,
+           runtimeSnapshot.recentlyRestarted
+        {
+            return .transient(reason: "tcp-warmup-after-restart")
+        }
+
+        return .unhealthy(reason: "runtime-not-ready")
+    }
+
+    private nonisolated static func wasRecentlyRestarted(
+        _ serviceID: String,
+        within window: TimeInterval
     ) -> Bool {
-        guard launchctlExitCode == Self.launchctlNotFoundExitCode else { return false }
-        guard smState.isSMAppServiceManaged else { return false }
-        return ServiceBootstrapper.wasRecentlyRestarted(
-            Self.kanataServiceID,
-            within: Self.kanataRestartGraceWindow
-        )
+#if DEBUG
+        if let override = recentlyRestartedOverride {
+            return override(serviceID, window)
+        }
+#endif
+        return ServiceBootstrapper.wasRecentlyRestarted(serviceID, within: window)
     }
 
     // MARK: - Configuration Checks

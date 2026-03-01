@@ -31,10 +31,37 @@ create_sparkle_archive() {
     ditto -c -k --keepParent "${APP_NAME}.app" "sparkle/${ARCHIVE_NAME}"
     cd ..
 
-    # Sign with EdDSA using Sparkle's sign_update tool
-    local SIGN_UPDATE="/opt/homebrew/Caskroom/sparkle/2.8.1/bin/sign_update"
+    # Sign with EdDSA using Sparkle's sign_update tool.
+    # Resolve dynamically because Homebrew cask versions change frequently.
+    local SIGN_UPDATE=""
     local SIGNATURE=""
-    if [ -x "$SIGN_UPDATE" ]; then
+    if command -v sign_update >/dev/null 2>&1; then
+        SIGN_UPDATE="$(command -v sign_update)"
+    else
+        local CASK_VERSION=""
+        CASK_VERSION="$(brew list --cask --versions sparkle 2>/dev/null | awk '{print $2}')"
+        for CASK_ROOT in /opt/homebrew/Caskroom/sparkle /usr/local/Caskroom/sparkle; do
+            if [ -n "$CASK_VERSION" ] && [ -x "$CASK_ROOT/$CASK_VERSION/bin/sign_update" ]; then
+                SIGN_UPDATE="$CASK_ROOT/$CASK_VERSION/bin/sign_update"
+                break
+            fi
+        done
+
+        # Fallback: pick the newest installed sign_update in known cask roots.
+        if [ -z "$SIGN_UPDATE" ]; then
+            local CANDIDATE=""
+            for CASK_ROOT in /opt/homebrew/Caskroom/sparkle /usr/local/Caskroom/sparkle; do
+                CANDIDATE="$(ls -1dt "$CASK_ROOT"/*/bin/sign_update 2>/dev/null | head -n1 || true)"
+                if [ -n "$CANDIDATE" ] && [ -x "$CANDIDATE" ]; then
+                    SIGN_UPDATE="$CANDIDATE"
+                    break
+                fi
+            done
+        fi
+    fi
+
+    if [ -n "$SIGN_UPDATE" ] && [ -x "$SIGN_UPDATE" ]; then
+        echo "🔎 Using sign_update at: $SIGN_UPDATE"
         echo "🔐 Signing archive with EdDSA..."
 
         # sign_update typically prints: sparkle:edSignature="BASE64..."
@@ -54,8 +81,19 @@ create_sparkle_archive() {
             echo "⚠️ WARNING: EdDSA signing failed - check Keychain for Sparkle key"
         fi
     else
-        echo "⚠️ WARNING: sign_update not found at $SIGN_UPDATE"
-        echo "   Install with: brew install sparkle"
+        echo "⚠️ WARNING: sign_update not found in PATH or Homebrew Caskroom"
+        echo "   Install Sparkle CLI tools and ensure sign_update is available on PATH."
+    fi
+
+    if [ -z "$SIGNATURE" ]; then
+        if [ "${ALLOW_UNSIGNED_SPARKLE:-0}" = "1" ]; then
+            echo "⚠️ WARNING: Continuing without Sparkle EdDSA signature (ALLOW_UNSIGNED_SPARKLE=1)"
+        else
+            echo "❌ ERROR: Missing Sparkle EdDSA signature; aborting release archive generation." >&2
+            echo "   Ensure sign_update is installed and your Sparkle private key is available in Keychain." >&2
+            echo "   Set ALLOW_UNSIGNED_SPARKLE=1 only for local testing." >&2
+            return 1
+        fi
     fi
 
     # Get file size

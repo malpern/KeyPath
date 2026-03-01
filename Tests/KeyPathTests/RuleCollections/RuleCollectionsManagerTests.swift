@@ -449,6 +449,221 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertNil(updated.first(where: { $0.id == second.id })?.momentaryActivator)
     }
 
+    @MainActor
+    func testToggleCollectionConflictKeepNew_EnablesKindaVimAndDisablesVimShortcuts() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        manager.onConflictResolution = { _ in .keepNew }
+
+        let catalogCollections = RuleCollectionCatalog().defaultCollections()
+        await manager.replaceCollections(catalogCollections)
+
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.vimNavigation && $0.isEnabled },
+            "Vim shortcuts should start enabled from catalog defaults"
+        )
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.kindaVim && !$0.isEnabled },
+            "KindaVim should start disabled from catalog defaults"
+        )
+
+        await manager.toggleCollection(id: RuleCollectionIdentifier.kindaVim, isEnabled: true)
+
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.kindaVim && $0.isEnabled },
+            "KindaVim should be enabled after choosing keepNew"
+        )
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.vimNavigation && !$0.isEnabled },
+            "Vim shortcuts should be disabled after choosing keepNew"
+        )
+    }
+
+    @MainActor
+    func testToggleCollectionConflictKeepNew_EnablesVimShortcutsAndDisablesKindaVim() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        manager.onConflictResolution = { _ in .keepNew }
+
+        let catalogCollections = RuleCollectionCatalog().defaultCollections()
+        await manager.replaceCollections(catalogCollections)
+
+        // First switch to KindaVim.
+        await manager.toggleCollection(id: RuleCollectionIdentifier.kindaVim, isEnabled: true)
+
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.kindaVim && $0.isEnabled },
+            "KindaVim should be enabled after switching from Vim shortcuts"
+        )
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.vimNavigation && !$0.isEnabled },
+            "Vim shortcuts should be disabled after switching to KindaVim"
+        )
+
+        // Then switch back to Vim shortcuts.
+        await manager.toggleCollection(id: RuleCollectionIdentifier.vimNavigation, isEnabled: true)
+
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.vimNavigation && $0.isEnabled },
+            "Vim shortcuts should be enabled after choosing keepNew"
+        )
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.kindaVim && !$0.isEnabled },
+            "KindaVim should be disabled after choosing keepNew for Vim shortcuts"
+        )
+    }
+
+    @MainActor
+    func testNeovimReferenceCoexistsWithVimNavigationWithoutConflictDialog() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        var conflictDialogRequested = false
+        manager.onConflictResolution = { _ in
+            conflictDialogRequested = true
+            return .keepNew
+        }
+
+        let catalogCollections = RuleCollectionCatalog().defaultCollections()
+        await manager.replaceCollections(catalogCollections)
+
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.vimNavigation && $0.isEnabled },
+            "Vim shortcuts should start enabled from catalog defaults"
+        )
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.neovimTerminal && !$0.isEnabled },
+            "Neovim Terminal should start disabled from catalog defaults"
+        )
+
+        await manager.toggleCollection(id: RuleCollectionIdentifier.neovimTerminal, isEnabled: true)
+
+        XCTAssertFalse(conflictDialogRequested, "Neovim reference should not trigger conflict dialog against Vim shortcuts")
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.neovimTerminal && $0.isEnabled },
+            "Neovim Terminal should remain enabled"
+        )
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.vimNavigation && $0.isEnabled },
+            "Vim shortcuts should remain enabled alongside Neovim reference"
+        )
+    }
+
+    @MainActor
+    func testAddCollectionConflictKeepNew_DisablesExistingAndEnablesNew() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        manager.onConflictResolution = { _ in .keepNew }
+
+        let existing = RuleCollection(
+            id: UUID(),
+            name: "Existing",
+            summary: "Existing conflicting rule",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", output: "left")],
+            isEnabled: true,
+            targetLayer: .navigation
+        )
+
+        let replacement = RuleCollection(
+            id: UUID(),
+            name: "Replacement",
+            summary: "Replacement conflicting rule",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", output: "right")],
+            isEnabled: true,
+            targetLayer: .navigation
+        )
+
+        await manager.replaceCollections([existing])
+        await manager.addCollection(replacement)
+
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == replacement.id && $0.isEnabled },
+            "Replacement collection should be enabled after keepNew"
+        )
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == existing.id && !$0.isEnabled },
+            "Existing collection should be disabled after keepNew"
+        )
+    }
+
+    @MainActor
+    func testToggleCollectionConflictKeepNew_DisablesConflictingCustomRule() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        manager.onConflictResolution = { _ in .keepNew }
+
+        var conflictingCustomRule = CustomRule(input: "caps", output: "esc", isEnabled: true)
+        let initialRuleSaved = await manager.saveCustomRule(conflictingCustomRule)
+        XCTAssertTrue(initialRuleSaved)
+        conflictingCustomRule = try XCTUnwrap(manager.customRules.first { $0.input == "caps" && $0.output == "esc" })
+
+        await manager.toggleCollection(id: RuleCollectionIdentifier.capsLockRemap, isEnabled: true)
+
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled },
+            "Collection should be enabled after choosing keepNew"
+        )
+        XCTAssertTrue(
+            manager.customRules.contains { $0.id == conflictingCustomRule.id && !$0.isEnabled },
+            "Conflicting custom rule should be disabled after choosing keepNew"
+        )
+    }
+
+    @MainActor
+    func testToggleLeaderKeyOffResetsMomentaryActivatorsToSpace() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        await manager.replaceCollections(RuleCollectionCatalog().defaultCollections())
+        await manager.updateLeaderKey("tab")
+
+        let beforeInputs = manager.ruleCollections.compactMap(\.momentaryActivator?.input)
+        XCTAssertFalse(beforeInputs.isEmpty)
+        XCTAssertTrue(beforeInputs.allSatisfy { $0 == "tab" })
+
+        await manager.toggleCollection(id: RuleCollectionIdentifier.leaderKey, isEnabled: false)
+
+        let afterInputs = manager.ruleCollections.compactMap(\.momentaryActivator?.input)
+        XCTAssertFalse(afterInputs.isEmpty)
+        XCTAssertTrue(afterInputs.allSatisfy { $0 == "space" })
+    }
+
+    @MainActor
+    func testToggleCustomRuleConflictKeepNew_DisablesConflictingCollection() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        manager.onConflictResolution = { _ in .keepNew }
+
+        await manager.toggleCollection(id: RuleCollectionIdentifier.capsLockRemap, isEnabled: true)
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled },
+            "Collection should start enabled"
+        )
+
+        var replacementRule = CustomRule(input: "caps", output: "tab", isEnabled: false)
+        let replacementRuleSaved = await manager.saveCustomRule(replacementRule)
+        XCTAssertTrue(replacementRuleSaved)
+        replacementRule = try XCTUnwrap(manager.customRules.first { $0.input == "caps" && $0.output == "tab" })
+
+        await manager.toggleCustomRule(id: replacementRule.id, isEnabled: true)
+
+        XCTAssertTrue(
+            manager.customRules.contains { $0.id == replacementRule.id && $0.isEnabled },
+            "Custom rule should be enabled after choosing keepNew"
+        )
+        XCTAssertTrue(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && !$0.isEnabled },
+            "Conflicting collection should be disabled after choosing keepNew"
+        )
+    }
+
     // MARK: - Layer Deletion Tests
 
     @MainActor

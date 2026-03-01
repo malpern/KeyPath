@@ -54,7 +54,11 @@ extension InstallerEngine {
             ServiceRecipe(
                 id: InstallerRecipeID.installBundledKanata,
                 type: .installComponent,
-                serviceID: nil
+                serviceID: nil,
+                healthCheck: HealthCheckCriteria(
+                    serviceID: KeyPathConstants.Bundle.daemonID,
+                    shouldBeRunning: true
+                )
             )
 
         case .installCorrectVHIDDriver:
@@ -204,7 +208,11 @@ extension InstallerEngine {
             ServiceRecipe(
                 id: InstallerRecipeID.replaceKanataWithBundled,
                 type: .installComponent,
-                serviceID: nil
+                serviceID: nil,
+                healthCheck: HealthCheckCriteria(
+                    serviceID: KeyPathConstants.Bundle.daemonID,
+                    shouldBeRunning: true
+                )
             )
 
         case .synchronizeConfigPaths:

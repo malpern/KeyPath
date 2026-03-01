@@ -98,6 +98,17 @@ struct ExpandableCollectionRow: View {
         localHomeRowLayerConfig ?? collection?.configuration.homeRowLayerTogglesConfig ?? HomeRowLayerTogglesConfig()
     }
 
+    private var isNeovimTerminalCollection: Bool {
+        if collection?.id == RuleCollectionIdentifier.neovimTerminal {
+            return true
+        }
+        if collectionId.caseInsensitiveCompare(RuleCollectionIdentifier.neovimTerminal.uuidString) == .orderedSame {
+            return true
+        }
+        let normalized = name.replacingOccurrences(of: " ", with: "").lowercased()
+        return normalized == "neovimterminal"
+    }
+
     private var isKindaVimCollection: Bool {
         if collection?.id == RuleCollectionIdentifier.kindaVim {
             return true
@@ -308,7 +319,12 @@ struct ExpandableCollectionRow: View {
         if isExpanded {
             // Inset back plane container for expanded content
             InsetBackPlane {
-                if isKindaVimCollection {
+                if isNeovimTerminalCollection {
+                    NeovimTerminalCollectionView(mappings: collection?.mappings ?? fallbackKeyMappings)
+                        .padding(.top, 8)
+                        .padding(.bottom, 12)
+                        .padding(.horizontal, 12)
+                } else if isKindaVimCollection {
                     KindaVimCollectionView(mappings: collection?.mappings ?? fallbackKeyMappings)
                         .padding(.top, 8)
                         .padding(.bottom, 12)

@@ -43,19 +43,65 @@ final class PrivilegedOperationsCoordinator {
     private static var lastServiceInstallAttempt: Date?
     private static var lastSMAppApprovalNotice: Date?
     private static let smAppApprovalNoticeThrottle: TimeInterval = 5
+    private static let kanataReadinessTimeout: TimeInterval = 8
+    private static let kanataReadinessPollIntervalSeconds: TimeInterval = 0.5
+    private static let kanataLaunchctlNotFoundExitCode: Int32 = 113
+    private static let persistentLaunchctlNotFoundThreshold = 3
+    private static let staleRecoveryBypassLimit = 3
+    private static var staleRecoveryAttemptCount = 0
 
-    #if DEBUG
+    enum KanataReadinessResult: Equatable {
+        case ready
+        case pendingApproval
+        case staleRegistration
+        case launchctlNotFoundPersistent
+        case timedOut
+
+        var isSuccess: Bool {
+            self == .ready || self == .pendingApproval
+        }
+
+        var failureDescription: String {
+            switch self {
+            case .ready:
+                "Kanata readiness verified"
+            case .pendingApproval:
+                "SMAppService approval pending"
+            case .staleRegistration:
+                "SMAppService registration is enabled but launchd cannot load the service"
+            case .launchctlNotFoundPersistent:
+                "launchctl repeatedly reported the Kanata service as not found"
+            case .timedOut:
+                "Kanata did not become running + TCP responsive within readiness timeout"
+            }
+        }
+    }
+
+    enum InstallGuardDecision: Equatable {
+        case skipNoInstall
+        case skipPendingApproval
+        case throttled(remaining: TimeInterval)
+        case run(reason: String, bypassedThrottle: Bool)
+    }
+
+#if DEBUG
         nonisolated(unsafe) static var serviceStateOverride:
             (() -> KanataDaemonManager.ServiceManagementState)?
         nonisolated(unsafe) static var installAllServicesOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var installBundledKanataBinaryOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var kanataReadinessOverride:
+            ((String) async -> KanataReadinessResult)?
 
         static func resetTestingState() {
             serviceStateOverride = nil
             installAllServicesOverride = nil
+            installBundledKanataBinaryOverride = nil
+            kanataReadinessOverride = nil
             lastServiceInstallAttempt = nil
             lastSMAppApprovalNotice = nil
+            staleRecoveryAttemptCount = 0
         }
-    #endif
+#endif
 
     // MARK: - Singleton
 
@@ -178,6 +224,54 @@ final class PrivilegedOperationsCoordinator {
         try await installAllLaunchDaemonServices()
     }
 
+    private func isRegisteredButNotLoaded() async -> Bool {
+        await KanataDaemonManager.shared.isRegisteredButNotLoaded()
+    }
+
+    private static func decideInstallGuard(
+        state: KanataDaemonManager.ServiceManagementState,
+        staleEnabledRegistration: Bool,
+        now: Date,
+        lastAttempt: Date?
+    ) -> InstallGuardDecision {
+        if state == .smappservicePending {
+            return .skipPendingApproval
+        }
+
+        let requiresInstall = state.needsInstallation || state.needsMigration() || staleEnabledRegistration
+        guard requiresInstall else {
+            return .skipNoInstall
+        }
+
+        if staleEnabledRegistration {
+            staleRecoveryAttemptCount += 1
+            if staleRecoveryAttemptCount <= staleRecoveryBypassLimit {
+                return .run(
+                    reason: "stale-enabled-registration (recovery-attempt=\(staleRecoveryAttemptCount))",
+                    bypassedThrottle: true
+                )
+            }
+        } else {
+            staleRecoveryAttemptCount = 0
+        }
+
+        if let lastAttempt,
+           now.timeIntervalSince(lastAttempt) < serviceInstallThrottle
+        {
+            let remaining = serviceInstallThrottle - now.timeIntervalSince(lastAttempt)
+            return .throttled(remaining: remaining)
+        }
+
+        if staleEnabledRegistration {
+            return .run(
+                reason: "stale-enabled-registration (throttle-applied after \(staleRecoveryBypassLimit) bypasses)",
+                bypassedThrottle: false
+            )
+        }
+
+        return .run(reason: "state=\(state.description)", bypassedThrottle: false)
+    }
+
     /// Restart unhealthy LaunchDaemon services
     func restartUnhealthyServices() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Restarting unhealthy services")
@@ -216,32 +310,58 @@ final class PrivilegedOperationsCoordinator {
         let state = await currentServiceState()
         AppLogger.shared.log("\(Self.serviceGuardLogPrefix) \(context): state=\(state.description)")
 
-        if state == .smappservicePending {
-            Self.notifySMAppServiceApprovalRequired(context: context)
-            AppLogger.shared.log("\(Self.serviceGuardLogPrefix) \(context): approval pending - skipping install/refresh")
-            return false
+        let staleEnabledRegistration: Bool
+        if state == .smappserviceActive {
+            staleEnabledRegistration = await isRegisteredButNotLoaded()
+        } else {
+            staleEnabledRegistration = false
         }
 
-        let requiresInstall = state.needsInstallation || state.needsMigration()
+        if staleEnabledRegistration {
+            AppLogger.shared.log(
+                "\(Self.serviceGuardLogPrefix) \(context): detected stale SMAppService registration (enabled but not loaded)"
+            )
+        }
 
-        guard requiresInstall else {
-            AppLogger.shared.log("\(Self.serviceGuardLogPrefix) \(context): no install needed")
+        let now = Date()
+        let decision = Self.decideInstallGuard(
+            state: state,
+            staleEnabledRegistration: staleEnabledRegistration,
+            now: now,
+            lastAttempt: Self.lastServiceInstallAttempt
+        )
+
+        switch decision {
+        case .skipPendingApproval:
+            Self.notifySMAppServiceApprovalRequired(context: context)
+            AppLogger.shared.log(
+                "\(Self.serviceGuardLogPrefix) \(context): [pending-approval] skipping install/refresh"
+            )
             return false
+        case .skipNoInstall:
+            AppLogger.shared.log(
+                "\(Self.serviceGuardLogPrefix) \(context): [no-install-needed] skipping install"
+            )
+            return false
+        case let .throttled(remaining):
+            AppLogger.shared.log(
+                "\(Self.serviceGuardLogPrefix) \(context): [normal-throttle] skipping auto-install (\(String(format: "%.1f", remaining))s remaining)"
+            )
+            return false
+        case let .run(reason, bypassedThrottle):
+            if bypassedThrottle {
+                AppLogger.shared.log(
+                    "\(Self.serviceGuardLogPrefix) \(context): [stale-recovery-bypass] running install despite throttle (\(reason))"
+                )
+            } else {
+                AppLogger.shared.log(
+                    "\(Self.serviceGuardLogPrefix) \(context): [install] proceeding (\(reason))"
+                )
+            }
         }
 
         if state.needsMigration() {
             await removeLegacyKanataPlist(reason: context)
-        }
-
-        let now = Date()
-        if let last = Self.lastServiceInstallAttempt,
-           now.timeIntervalSince(last) < Self.serviceInstallThrottle
-        {
-            let remaining = Self.serviceInstallThrottle - now.timeIntervalSince(last)
-            AppLogger.shared.log(
-                "\(Self.serviceGuardLogPrefix) \(context): skipping auto-install (throttled, \(String(format: "%.1f", remaining))s remaining)"
-            )
-            return false
         }
 
         Self.lastServiceInstallAttempt = now
@@ -418,23 +538,51 @@ final class PrivilegedOperationsCoordinator {
 
     // MARK: Generic Execute
 
-    /// Install the bundled Kanata binary to the system location
+    /// Install the bundled Kanata binary to the system location.
+    ///
+    /// Postcondition: waits for runtime readiness verification (running + TCP responding),
+    /// or explicit pending-approval state, before returning success.
     func installBundledKanata() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Installing bundled Kanata binary")
-        ServiceBootstrapper.shared.markRestartTime(for: [ServiceBootstrapper.kanataServiceID])
 
-        switch Self.operationMode {
-        case .privilegedHelper:
-            try await helperInstallBundledKanata()
-        case .directSudo:
-            try await sudoInstallBundledKanata()
-        }
-
-        ServiceBootstrapper.shared.markRestartTime(for: [ServiceBootstrapper.kanataServiceID])
+        #if DEBUG
+            if let override = Self.installBundledKanataBinaryOverride {
+                try await override()
+            } else {
+                switch Self.operationMode {
+                case .privilegedHelper:
+                    try await helperInstallBundledKanata()
+                case .directSudo:
+                    try await sudoInstallBundledKanata()
+                }
+            }
+        #else
+            switch Self.operationMode {
+            case .privilegedHelper:
+                try await helperInstallBundledKanata()
+            case .directSudo:
+                try await sudoInstallBundledKanata()
+            }
+        #endif
 
         // Ensure SMAppService launchd job exists after installing the binary
         // (common case: fresh reinstall leaves service missing even though binary is present)
         try await installServicesIfUninstalled(context: "installBundledKanata")
+
+        let readiness = await verifyKanataReadinessAfterInstall(context: "installBundledKanata")
+        guard readiness.isSuccess else {
+            throw PrivilegedOperationError.operationFailed(
+                "Bundled Kanata install postcondition failed: \(readiness.failureDescription)"
+            )
+        }
+
+        if readiness == .pendingApproval {
+            AppLogger.shared.warn(
+                "⚠️ [PrivCoordinator] Bundled Kanata installed but Login Items approval is pending"
+            )
+        } else {
+            AppLogger.shared.log("✅ [PrivCoordinator] Bundled Kanata install verified (running + TCP)")
+        }
     }
 
     // Note: executeCommand removed for security. All privileged operations
@@ -488,6 +636,105 @@ final class PrivilegedOperationsCoordinator {
         } catch {
             AppLogger.shared.log("⚠️ [PrivCoordinator] Failed to remove legacy Kanata plist: \(error)")
         }
+    }
+
+    private func verifyKanataReadinessAfterInstall(context: String) async -> KanataReadinessResult {
+#if DEBUG
+            if let override = Self.kanataReadinessOverride {
+                return await override(context)
+            }
+#endif
+
+        let managementState = await currentServiceState()
+        if managementState == .smappservicePending {
+            AppLogger.shared.log(
+                "ℹ️ [PrivCoordinator] \(context): readiness pending Login Items approval"
+            )
+            return .pendingApproval
+        }
+
+        let staleEnabledOnEntry = if managementState == .smappserviceActive {
+            await isRegisteredButNotLoaded()
+        } else {
+            false
+        }
+        if staleEnabledOnEntry {
+            AppLogger.shared.error(
+                "❌ [PrivCoordinator] \(context): stale SMAppService registration persisted after install"
+            )
+            return .staleRegistration
+        }
+
+        let deadline = Date().addingTimeInterval(Self.kanataReadinessTimeout)
+        var launchctlNotFoundSamples: [Bool] = []
+        var launchctlNotFoundSuppressedInGraceWindow = false
+
+        while Date() < deadline {
+            if Task.isCancelled {
+                AppLogger.shared.warn("⚠️ [PrivCoordinator] \(context): readiness poll cancelled")
+                return .timedOut
+            }
+
+            let now = Date()
+            let remaining = deadline.timeIntervalSince(now)
+            let timeoutMs = max(50, min(300, Int(remaining * 1000)))
+            let runtimeSnapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot(
+                managementState: managementState,
+                staleEnabledRegistration: false,
+                timeoutMs: timeoutMs
+            )
+
+            if runtimeSnapshot.isRunning && runtimeSnapshot.isResponding {
+                return .ready
+            }
+
+            let launchctlNotFound =
+                runtimeSnapshot.launchctlExitCode == Self.kanataLaunchctlNotFoundExitCode
+                    && !runtimeSnapshot.isRunning && !runtimeSnapshot.isResponding
+            launchctlNotFoundSamples.append(launchctlNotFound)
+            if launchctlNotFoundSamples.count > 5 {
+                launchctlNotFoundSamples.removeFirst(launchctlNotFoundSamples.count - 5)
+            }
+            let launchctlNotFoundCount = launchctlNotFoundSamples.filter(\.self).count
+
+            if launchctlNotFoundCount >= Self.persistentLaunchctlNotFoundThreshold {
+                if runtimeSnapshot.recentlyRestarted {
+                    if !launchctlNotFoundSuppressedInGraceWindow {
+                        AppLogger.shared.log(
+                            "ℹ️ [PrivCoordinator] \(context): launchctl not-found threshold reached during restart grace; continuing readiness poll"
+                        )
+                        launchctlNotFoundSuppressedInGraceWindow = true
+                    }
+                } else {
+                    AppLogger.shared.error(
+                        "❌ [PrivCoordinator] \(context): launchctl not-found persisted while Kanata remained down"
+                    )
+                    return .launchctlNotFoundPersistent
+                }
+            } else {
+                launchctlNotFoundSuppressedInGraceWindow = false
+            }
+
+            let sleepSeconds = min(
+                Self.kanataReadinessPollIntervalSeconds,
+                max(0, deadline.timeIntervalSince(Date()))
+            )
+            if sleepSeconds > 0 {
+                do {
+                    try await Task.sleep(for: .seconds(sleepSeconds))
+                } catch is CancellationError {
+                    AppLogger.shared.warn("⚠️ [PrivCoordinator] \(context): readiness poll cancelled during sleep")
+                    return .timedOut
+                } catch {
+                    // No-op: if sleep fails for other reasons, continue toward timeout.
+                }
+            }
+        }
+
+        AppLogger.shared.error(
+            "❌ [PrivCoordinator] \(context): timed out waiting for Kanata readiness"
+        )
+        return .timedOut
     }
 
     private func helperInstallServicesWithoutLoading() async throws {

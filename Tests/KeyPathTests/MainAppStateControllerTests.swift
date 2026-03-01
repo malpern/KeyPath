@@ -222,4 +222,78 @@ struct MainAppStateControllerBehaviorTests {
             #expect(blockingCount >= 1)
         }
     }
+
+    @Test("startup gate requires TCP responsiveness before reporting ready")
+    func startupGateRequiresTCPResponsivenessBeforeReady() async {
+        let controller = MainAppStateController()
+#if DEBUG
+            var probeCount = 0
+            controller.configureStartupGateTestingState(
+                healthOverride: {
+                    probeCount += 1
+                    return KanataHealthSnapshot(
+                        isRunning: true,
+                        isResponding: probeCount >= 3
+                    )
+                },
+                transientWindowOverride: { false },
+                timingOverride: (
+                    definitiveGrace: 1.0,
+                    transientGrace: 1.05,
+                    checkInterval: 0.01
+                )
+            )
+            defer { controller.resetStartupGateTestingState() }
+#endif
+
+        let ready = await controller.evaluateKanataStartupGateForTesting()
+        #expect(ready == true)
+#if DEBUG
+            #expect(probeCount >= 3)
+#endif
+    }
+
+    @Test("startup gate does not report ready on persistent no-runtime evidence")
+    func startupGateDoesNotReportReadyForPersistentNoRuntime() async {
+        let controller = MainAppStateController()
+#if DEBUG
+            controller.configureStartupGateTestingState(
+                healthOverride: {
+                    KanataHealthSnapshot(isRunning: false, isResponding: false)
+                },
+                transientWindowOverride: { false },
+                timingOverride: (
+                    definitiveGrace: 0.05,
+                    transientGrace: 0.08,
+                    checkInterval: 0.01
+                )
+            )
+            defer { controller.resetStartupGateTestingState() }
+#endif
+
+        let ready = await controller.evaluateKanataStartupGateForTesting()
+        #expect(ready == false)
+    }
+
+    @Test("startup gate does not turn transient non-ready state into ready")
+    func startupGateDoesNotPromoteTransientNonReadyState() async {
+        let controller = MainAppStateController()
+#if DEBUG
+            controller.configureStartupGateTestingState(
+                healthOverride: {
+                    KanataHealthSnapshot(isRunning: false, isResponding: false)
+                },
+                transientWindowOverride: { true },
+                timingOverride: (
+                    definitiveGrace: 0.05,
+                    transientGrace: 0.08,
+                    checkInterval: 0.01
+                )
+            )
+            defer { controller.resetStartupGateTestingState() }
+#endif
+
+        let ready = await controller.evaluateKanataStartupGateForTesting()
+        #expect(ready == false)
+    }
 }

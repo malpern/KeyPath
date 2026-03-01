@@ -63,6 +63,9 @@ if context.permissions.inputMonitoring != .granted { ... }
 ### Service Management
 - ❌ Don't use KanataManager for installation → Use `InstallerEngine`
 - ❌ Don't manually call launchctl → Use `InstallerEngine`
+- ❌ Don't mark Kanata healthy from restart-window timing alone
+- ❌ Don't return installer action success before runtime readiness (`running + TCP responding`) is verified
+- ✅ Treat `SMAppService.status == .enabled` as registration state, not runtime liveness
 
 ### Test Seams
 - ❌ Never call real `pgrep` in tests → Tests will deadlock
@@ -107,6 +110,7 @@ Full records in [`docs/adr/`](docs/adr/README.md). Key decisions:
 | [015](docs/adr/adr-015-installer-engine.md) | InstallerEngine is the façade for all install/repair |
 | [023](docs/adr/adr-023-no-config-parsing.md) | Never parse Kanata configs - use TCP and simulator |
 | [026](docs/adr/adr-026-validation-ordering.md) | Validate components before service status |
+| [031](docs/adr/adr-031-kanata-service-lifecycle-invariants-and-postcondition-enforcement.md) | Installer success requires verified runtime readiness; stale recovery bypasses throttle |
 | [022](docs/adr/adr-022-no-concurrent-pgrep.md) | No concurrent pgrep in TaskGroups |
 | [018](docs/adr/adr-018-helper-protocol-duplication.md) | HelperProtocol.swift must be identical in both locations |
 

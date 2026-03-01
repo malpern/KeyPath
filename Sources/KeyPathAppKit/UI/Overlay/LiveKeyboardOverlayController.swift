@@ -375,6 +375,12 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                         "🧭 [OverlayController] Clearing one-shot layer override '\(overrideLayer)' on key press: \(key)"
                     )
                 }
+
+                // Allow physical Escape to always dismiss momentary/one-shot layer state.
+                // This recovers from missed layer-exit notifications.
+                if Self.isEscapeKeyName(key), self.currentLayerName.lowercased() != "base" {
+                    _ = ActionDispatcher.shared.dispatch(message: "layer:base")
+                }
             }
         }
     }
@@ -425,6 +431,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         "capslock",
         "fn"
     ]
+
+    private static func isEscapeKeyName(_ key: String) -> Bool {
+        if let keyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(key) {
+            return keyCode == 53
+        }
+        let normalized = key.lowercased()
+        return normalized == "esc" || normalized == "escape"
+    }
 
     private static let oneShotTimeoutDuration: Duration = .seconds(5)
 

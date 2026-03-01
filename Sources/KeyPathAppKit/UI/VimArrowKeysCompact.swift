@@ -1,14 +1,23 @@
 import SwiftUI
 
 struct VimArrowKeysCompact: View {
+    private let mappings: [(String, String)] = [
+        ("h", "←"),
+        ("j", "↓"),
+        ("k", "↑"),
+        ("l", "→"),
+    ]
+
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(["H", "J", "K", "L"], id: \.self) { key in
-                VimKeyBadge(key: key, color: .blue)
+        HStack(spacing: 8) {
+            ForEach(mappings, id: \.0) { mapping in
+                HStack(spacing: 4) {
+                    VimKeyBadge(key: mapping.0, color: .blue)
+                    Text(mapping.1)
+                        .font(.subheadline.monospaced().weight(.semibold))
+                        .foregroundColor(.secondary)
+                }
             }
-            Text("= Arrow keys")
-                .font(.caption2)
-                .foregroundColor(.secondary)
         }
     }
 }

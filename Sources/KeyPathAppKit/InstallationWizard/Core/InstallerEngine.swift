@@ -515,7 +515,18 @@ public final class InstallerEngine {
 
     /// Verify health check criteria
     private func verifyHealthCheck(_ criteria: HealthCheckCriteria) async -> Bool {
-        await isServiceHealthy(serviceID: criteria.serviceID)
+        if criteria.serviceID == KeyPathConstants.Bundle.daemonID,
+           criteria.shouldBeRunning
+        {
+            let health = await checkKanataServiceHealth()
+            let ready = health.isRunning && health.isResponding
+            AppLogger.shared.log(
+                "🔍 [InstallerEngine] Kanata strict health check: running=\(health.isRunning), responding=\(health.isResponding), ready=\(ready)"
+            )
+            return ready
+        }
+
+        return await isServiceHealthy(serviceID: criteria.serviceID)
     }
 
     // MARK: - Public Health Check API

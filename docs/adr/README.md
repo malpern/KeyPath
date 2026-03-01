@@ -27,6 +27,8 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-027](adr-027-app-specific-keymaps.md) | App-Specific Keymaps | Accepted |
 | [ADR-028](adr-028-unified-sf-symbols.md) | Unified SF Symbol Resolution via SystemActionInfo | Accepted |
 | [ADR-029](adr-029-eliminate-fake-key-layer-notifications.md) | Eliminate Fake Key Layer Notifications via Native LayerChange | Proposed |
+| [ADR-030](adr-030-insights-companion-app.md) | Separate Activity Logging and AI Features into KeyPath Insights Companion App | Accepted |
+| [ADR-031](adr-031-kanata-service-lifecycle-invariants-and-postcondition-enforcement.md) | Kanata Service Lifecycle Invariants and Postcondition Enforcement | Accepted |
 
 ## Key Decisions Summary
 
@@ -36,6 +38,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 ### Installation & Repair
 - **ADR-015**: `InstallerEngine` is the unified façade for all install/repair/uninstall operations.
 - **ADR-026**: Always validate components exist BEFORE checking service status.
+- **ADR-031**: Installer success requires verified runtime readiness (`running + TCP`) or explicit pending approval.
 
 ### Configuration
 - **ADR-023**: Never parse Kanata config files directly. Use TCP and simulator.

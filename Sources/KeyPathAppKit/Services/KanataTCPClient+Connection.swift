@@ -139,6 +139,54 @@ extension KanataTCPClient {
         }
     }
 
+    // MARK: - Send Serialization
+
+    /// Acquire exclusive send/receive access for the shared connection.
+    ///
+    /// Uses FIFO handoff semantics with cancellation cleanup to avoid orphaned continuations.
+    func acquireSendLock() async throws {
+        try Task.checkCancellation()
+        if !isSending {
+            isSending = true
+            return
+        }
+
+        let waiterId = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                sendWaiters.append(SendWaiter(id: waiterId, continuation: continuation))
+            }
+        } onCancel: {
+            Task { await self.cancelSendWaiter(id: waiterId) }
+        }
+
+        do {
+            try Task.checkCancellation()
+        } catch {
+            // This waiter already received the handoff; pass it forward.
+            releaseSendLock()
+            throw error
+        }
+    }
+
+    /// Release send/receive access and wake the next waiter if present.
+    func releaseSendLock() {
+        guard isSending else { return }
+        if sendWaiters.isEmpty {
+            isSending = false
+            return
+        }
+        // Keep isSending=true while handing off to the next waiter.
+        let next = sendWaiters.removeFirst()
+        next.continuation.resume()
+    }
+
+    private func cancelSendWaiter(id: UUID) {
+        guard let index = sendWaiters.firstIndex(where: { $0.id == id }) else { return }
+        let waiter = sendWaiters.remove(at: index)
+        waiter.continuation.resume(throwing: CancellationError())
+    }
+
     func stateString(_ state: NWConnection.State?) -> String {
         guard let state else { return "nil" }
         switch state {
@@ -163,6 +211,14 @@ extension KanataTCPClient {
         connection?.cancel()
         connection = nil
         readBuffer.removeAll() // Clear buffered data when connection closes
+        cachedHello = nil // Force fresh hello on next connection
+        isSending = false
+        let waiters = sendWaiters
+        sendWaiters.removeAll()
+        let teardownError = KeyPathError.communication(.connectionFailed(reason: "Connection closed"))
+        for waiter in waiters {
+            waiter.continuation.resume(throwing: teardownError)
+        }
     }
 
     /// Cancel any ongoing operations and close connection

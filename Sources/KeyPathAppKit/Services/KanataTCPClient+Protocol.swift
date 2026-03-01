@@ -3,6 +3,8 @@ import Foundation
 // MARK: - Protocol Models
 
 extension KanataTCPClient {
+    typealias TcpHrmStats = KanataHrmStatsSnapshot
+
     struct TcpHelloOk: Codable, Sendable {
         let version: String
         let protocolVersion: Int

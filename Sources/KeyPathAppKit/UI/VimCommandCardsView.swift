@@ -16,7 +16,6 @@ struct VimCommandCardsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            purposeCard
             shortcutCardsSection
             shiftTip
         }
@@ -25,38 +24,6 @@ struct VimCommandCardsView: View {
                 hasAppeared = true
             }
         }
-    }
-
-    private var purposeCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Vim Apple Shortcuts gives you Vim-like key habits using standard macOS shortcuts, without modal editing.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-
-            HStack(alignment: .top, spacing: 12) {
-                rolePill(
-                    title: "Vim Shortcuts",
-                    subtitle: "Home-row navigation and edit habits",
-                    symbol: "v.square.fill",
-                    color: .orange
-                )
-                rolePill(
-                    title: "macOS Actions",
-                    subtitle: "Maps to native app shortcuts",
-                    symbol: "macwindow",
-                    color: .blue
-                )
-            }
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
     }
 
     @ViewBuilder
@@ -111,38 +78,6 @@ struct VimCommandCardsView: View {
         .padding(.top, 2)
         .opacity(hasAppeared ? 1 : 0)
         .animation(.easeOut.delay(0.45), value: hasAppeared)
-    }
-
-    private func rolePill(title: String, subtitle: String, symbol: String, color: Color) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: symbol)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(color)
-                .frame(width: 20, height: 20)
-                .background(
-                    Circle()
-                        .fill(color.opacity(0.15))
-                )
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(.primary)
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(color.opacity(0.09))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(color.opacity(0.22), lineWidth: 1)
-        )
     }
 
     private func cardView(for category: VimCategory, index: Int) -> some View {

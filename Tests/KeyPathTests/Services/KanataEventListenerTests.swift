@@ -64,6 +64,35 @@ final class KanataEventListenerTests: XCTestCase {
         XCTAssertEqual(KanataKeyAction.release.rawValue, "release")
         XCTAssertEqual(KanataKeyAction.repeat.rawValue, "repeat")
     }
+
+    // MARK: - MessagePush Parsing Tests
+
+    func testExtractMessagePushMessages_acceptsStringMessageField() {
+        let push: [String: Any] = ["message": "layer:nav"]
+        let messages = KanataEventListener.extractMessagePushMessages(from: push)
+        XCTAssertEqual(messages, ["layer:nav"])
+    }
+
+    func testExtractMessagePushMessages_acceptsArrayMessageField() {
+        let push: [String: Any] = ["message": ["layer:nav", "layer:base"]]
+        let messages = KanataEventListener.extractMessagePushMessages(from: push)
+        XCTAssertEqual(messages, ["layer:nav", "layer:base"])
+    }
+
+    func testExtractMessagePushMessages_acceptsLegacyMsgField() {
+        let push: [String: Any] = ["msg": "layer:nav"]
+        let messages = KanataEventListener.extractMessagePushMessages(from: push)
+        XCTAssertEqual(messages, ["layer:nav"])
+    }
+
+    // MARK: - Capability Normalization
+
+    func testNormalizedCapabilities_lowersAndDeduplicates() {
+        let normalized = KanataEventListener.normalizedCapabilities(
+            ["HRM-TRACE", "hrm_trace", "tap-activated", "  "]
+        )
+        XCTAssertEqual(normalized, ["hrm-trace", "tap-activated"])
+    }
 }
 
 /// Tests for KeyboardVisualizationViewModel TCP input handling with capitalized actions

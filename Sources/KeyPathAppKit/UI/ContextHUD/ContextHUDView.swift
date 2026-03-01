@@ -43,6 +43,14 @@ struct ContextHUDView: View {
                 ContextHUDLauncherView(entries: viewModel.allEntries)
             case .symbolPicker:
                 ContextHUDSymbolView(entries: viewModel.allEntries)
+            case .kindaVimLearning:
+                ContextHUDKindaVimLearningView(
+                    groups: viewModel.groups,
+                    state: viewModel.kindaVimState,
+                    modeSetting: viewModel.kindaVimLeaderHUDMode
+                )
+            case .neovimTerminal:
+                ContextHUDNeovimTerminalView(groups: viewModel.groups)
             }
         }
         .environment(\.pressedKeyCodes, viewModel.pressedKeyCodes)

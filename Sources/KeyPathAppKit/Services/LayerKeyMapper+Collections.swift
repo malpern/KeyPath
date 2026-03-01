@@ -87,6 +87,9 @@ extension LayerKeyMapper {
         "e": "e",
     ]
 
+    /// Neovim Terminal uses the same overlay label vocabulary as KindaVim.
+    private static let neovimOverlayLabels = kindaVimOverlayLabels
+
     /// Build mapping from key names to short vim overlay labels for VIM collections
     /// - Parameters:
     ///   - layerName: The layer to build mapping for
@@ -116,6 +119,14 @@ extension LayerKeyMapper {
                 for mapping in collection.mappings {
                     let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
                     if let vimLabel = Self.kindaVimOverlayLabels[mapping.input.lowercased()] {
+                        map[kanataKey] = vimLabel
+                    }
+                }
+            } else if collection.id == RuleCollectionIdentifier.neovimTerminal {
+                AppLogger.shared.info("🗺️ [VimLabel] Found Neovim Terminal collection for layer '\(layerName)', \(collection.mappings.count) mappings")
+                for mapping in collection.mappings {
+                    let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
+                    if let vimLabel = Self.neovimOverlayLabels[mapping.input.lowercased()] {
                         map[kanataKey] = vimLabel
                     }
                 }

@@ -158,4 +158,20 @@ final class TCPClientIntegrationTests: XCTestCase {
         XCTAssertEqual(KanataTCPClient.FakeKeyAction.tap.rawValue, "Tap")
         XCTAssertEqual(KanataTCPClient.FakeKeyAction.toggle.rawValue, "Toggle")
     }
+
+    // MARK: - HRM Observability
+
+    func testHrmStatsQueryWhenSupported() async throws {
+        guard await serverReachable() else { throw XCTSkip("TCP server not running") }
+        let client = KanataTCPClient(port: port)
+        let hello = try await client.hello()
+        guard hello.capabilities.contains("hrm-stats") else {
+            throw XCTSkip("Server does not advertise hrm-stats")
+        }
+
+        let stats = try await client.requestHrmStats()
+        XCTAssertGreaterThanOrEqual(stats.schemaVersion, 1)
+        XCTAssertGreaterThanOrEqual(stats.decisionsTotal, 0)
+    }
+
 }

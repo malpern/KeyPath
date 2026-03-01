@@ -1,15 +1,18 @@
 import Foundation
 @testable import KeyPathAppKit
+import ServiceManagement
 @preconcurrency import XCTest
 
 final class ServiceHealthCheckerTests: XCTestCase {
     private var checker: ServiceHealthChecker!
     private var tempLaunchDaemonsDir: URL!
     private var originalLaunchDaemonsDir: String?
+    private nonisolated(unsafe) var originalSMFactory: ((String) -> SMAppServiceProtocol)!
 
     override func setUp() async throws {
         try await super.setUp()
         checker = ServiceHealthChecker.shared
+        originalSMFactory = KanataDaemonManager.smServiceFactory
 
         tempLaunchDaemonsDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("ServiceHealthCheckerTests-\(UUID().uuidString)")
@@ -17,19 +20,38 @@ final class ServiceHealthCheckerTests: XCTestCase {
 
         originalLaunchDaemonsDir = ProcessInfo.processInfo.environment["KEYPATH_LAUNCH_DAEMONS_DIR"]
         setenv("KEYPATH_LAUNCH_DAEMONS_DIR", tempLaunchDaemonsDir.path, 1)
+        #if DEBUG
+            ServiceHealthChecker.runtimeSnapshotOverride = nil
+            ServiceHealthChecker.recentlyRestartedOverride = nil
+            KanataDaemonManager.registeredButNotLoadedOverride = nil
+        #endif
     }
 
     override func tearDown() async throws {
         checker = nil
+        KanataDaemonManager.smServiceFactory = originalSMFactory
         if let originalLaunchDaemonsDir {
             setenv("KEYPATH_LAUNCH_DAEMONS_DIR", originalLaunchDaemonsDir, 1)
         } else {
             unsetenv("KEYPATH_LAUNCH_DAEMONS_DIR")
         }
+        #if DEBUG
+            ServiceHealthChecker.runtimeSnapshotOverride = nil
+            ServiceHealthChecker.recentlyRestartedOverride = nil
+            KanataDaemonManager.registeredButNotLoadedOverride = nil
+        #endif
         try? FileManager.default.removeItem(at: tempLaunchDaemonsDir)
         tempLaunchDaemonsDir = nil
         originalLaunchDaemonsDir = nil
+        originalSMFactory = nil
         try await super.tearDown()
+    }
+
+    private final class EnabledSMService: SMAppServiceProtocol, @unchecked Sendable {
+        var status: SMAppService.Status = .enabled
+
+        func register() throws {}
+        func unregister() async throws {}
     }
 
     private func writeEmptyPlist(serviceID: String) throws {
@@ -55,6 +77,16 @@ final class ServiceHealthCheckerTests: XCTestCase {
         try writeEmptyPlist(serviceID: ServiceHealthChecker.kanataServiceID)
         let loaded = await checker.isServiceLoaded(serviceID: ServiceHealthChecker.kanataServiceID)
         XCTAssertTrue(loaded)
+    }
+
+    func testIsServiceLoadedReturnsFalseWhenSMAppServiceEnabledButStale() async {
+#if DEBUG
+            KanataDaemonManager.smServiceFactory = { _ in EnabledSMService() }
+            KanataDaemonManager.registeredButNotLoadedOverride = { true }
+#endif
+
+        let loaded = await checker.isServiceLoaded(serviceID: ServiceHealthChecker.kanataServiceID)
+        XCTAssertFalse(loaded, "Enabled-but-stale SMAppService registration should not be treated as loaded")
     }
 
     func testIsServiceLoadedReturnsFalseForInvalidServiceID() async {
@@ -87,6 +119,66 @@ final class ServiceHealthCheckerTests: XCTestCase {
         let health = await checker.checkKanataServiceHealth()
         XCTAssertFalse(health.isRunning)
         XCTAssertFalse(health.isResponding)
+    }
+
+    func testKanataDecisionNotFoundWithoutRuntimeIsUnhealthy() {
+        let snapshot = ServiceHealthChecker.KanataServiceRuntimeSnapshot(
+            managementState: .smappserviceActive,
+            isRunning: false,
+            isResponding: false,
+            launchctlExitCode: 113,
+            staleEnabledRegistration: false,
+            recentlyRestarted: true
+        )
+
+        let decision = ServiceHealthChecker.decideKanataHealth(for: snapshot)
+        XCTAssertEqual(decision, .unhealthy(reason: "launchctl-not-found-without-runtime"))
+        XCTAssertFalse(decision.isHealthy)
+    }
+
+    func testKanataDecisionRunningWithTcpWarmupIsTransientHealthy() {
+        let snapshot = ServiceHealthChecker.KanataServiceRuntimeSnapshot(
+            managementState: .smappserviceActive,
+            isRunning: true,
+            isResponding: false,
+            launchctlExitCode: 0,
+            staleEnabledRegistration: false,
+            recentlyRestarted: true
+        )
+
+        let decision = ServiceHealthChecker.decideKanataHealth(for: snapshot)
+        XCTAssertEqual(decision, .transient(reason: "tcp-warmup-after-restart"))
+        XCTAssertTrue(decision.isHealthy)
+    }
+
+    func testKanataDecisionStaleRegistrationIsUnhealthy() {
+        let snapshot = ServiceHealthChecker.KanataServiceRuntimeSnapshot(
+            managementState: .smappserviceActive,
+            isRunning: false,
+            isResponding: false,
+            launchctlExitCode: nil,
+            staleEnabledRegistration: true,
+            recentlyRestarted: false
+        )
+
+        let decision = ServiceHealthChecker.decideKanataHealth(for: snapshot)
+        XCTAssertEqual(decision, .unhealthy(reason: "stale-enabled-registration"))
+        XCTAssertFalse(decision.isHealthy)
+    }
+
+    func testKanataDecisionRunningAndRespondingWinsOverStaleMetadata() {
+        let snapshot = ServiceHealthChecker.KanataServiceRuntimeSnapshot(
+            managementState: .smappserviceActive,
+            isRunning: true,
+            isResponding: true,
+            launchctlExitCode: 0,
+            staleEnabledRegistration: true,
+            recentlyRestarted: false
+        )
+
+        let decision = ServiceHealthChecker.decideKanataHealth(for: snapshot)
+        XCTAssertEqual(decision, .healthy)
+        XCTAssertTrue(decision.isHealthy)
     }
 
     func testIsKanataPlistInstalledUsesLaunchDaemonsOverride() throws {

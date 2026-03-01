@@ -24,7 +24,7 @@ struct LayerKeyInfo: Equatable, Sendable {
     let urlIdentifier: String?
     /// Which collection this key belongs to (for color-coding in overlay)
     let collectionId: UUID?
-    /// Short vim-language label for overlay keycaps (e.g., "yank", "put", "dw")
+    /// Short vim-language label for overlay keycaps (e.g., "yank", "put", "d")
     /// When set, overlay prefers this over displayLabel for VIM layer keys
     let vimLabel: String?
 
@@ -185,16 +185,25 @@ actor LayerKeyMapper {
     ///   - configPath: Path to the kanata config file
     ///   - layout: The physical keyboard layout to use for mapping
     ///   - collections: All rule collections (for tracking collection ownership)
+    ///   - cacheKeySuffix: Optional cache partition key for context-dependent mapping views
     /// - Returns: Dictionary mapping physical key codes to their layer-specific info
-    func getMapping(for layer: String, configPath: String, layout: PhysicalLayout, collections: [RuleCollection] = []) async throws -> [UInt16: LayerKeyInfo] {
+    func getMapping(
+        for layer: String,
+        configPath: String,
+        layout: PhysicalLayout,
+        collections: [RuleCollection] = [],
+        cacheKeySuffix: String = "default"
+    ) async throws -> [UInt16: LayerKeyInfo] {
         // Normalize layer name to lowercase for consistent cache keys
         let normalizedLayer = layer.lowercased()
-        AppLogger.shared.info("🗺️ [LayerKeyMapper] getMapping called for layer '\(layer)' (normalized: '\(normalizedLayer)')")
+        let cacheKey = "\(normalizedLayer)|\(cacheKeySuffix)"
+        AppLogger.shared
+            .info("🗺️ [LayerKeyMapper] getMapping called for layer '\(layer)' (normalized: '\(normalizedLayer)', cacheKeySuffix: '\(cacheKeySuffix)')")
 
         if !FeatureFlags.simulatorAndVirtualKeysEnabled {
             AppLogger.shared.info("🗺️ [LayerKeyMapper] Simulator disabled; using fallback mapping")
             let mapping = buildFallbackMapping(layout: layout)
-            cache[normalizedLayer] = mapping
+            cache[cacheKey] = mapping
             return mapping
         }
 
@@ -207,7 +216,7 @@ actor LayerKeyMapper {
         }
 
         // Return cached if available (use normalized key)
-        if let cached = cache[normalizedLayer] {
+        if let cached = cache[cacheKey] {
             AppLogger.shared.debug("🗺️ [LayerKeyMapper] Returning cached mapping (\(cached.count) keys)")
             return cached
         }
@@ -231,7 +240,7 @@ actor LayerKeyMapper {
             keyToVimLabel: keyToVimLabel
         )
 
-        cache[normalizedLayer] = mapping
+        cache[cacheKey] = mapping
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Built mapping: \(mapping.count) keys")
         return mapping
     }
