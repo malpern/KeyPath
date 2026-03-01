@@ -195,24 +195,44 @@ private final class RunContext: @unchecked Sendable {
     private let resumeQueue = DispatchQueue(label: "com.keypath.subprocess.resume")
     private var hasResumed = false
     private var continuation: CheckedContinuation<ProcessResult, Error>?
+    private var pendingResult: Result<ProcessResult, Error>?
 
     var timeoutTask: Task<Void, Never>?
 
     func setContinuation(_ continuation: CheckedContinuation<ProcessResult, Error>) {
+        var resultToResume: Result<ProcessResult, Error>?
         resumeQueue.sync {
-            self.continuation = continuation
+            if let pendingResult {
+                resultToResume = pendingResult
+                self.pendingResult = nil
+            } else {
+                self.continuation = continuation
+            }
+        }
+
+        if let resultToResume {
+            continuation.resume(with: resultToResume)
         }
     }
 
     @discardableResult
     func resume(with result: Result<ProcessResult, Error>) -> Bool {
-        resumeQueue.sync {
+        var continuationToResume: CheckedContinuation<ProcessResult, Error>?
+        let didResume = resumeQueue.sync {
             guard !hasResumed else { return false }
             hasResumed = true
-            continuation?.resume(with: result)
-            continuation = nil
+            if let continuation {
+                continuationToResume = continuation
+                self.continuation = nil
+            } else {
+                pendingResult = result
+            }
             return true
         }
+
+        guard didResume else { return false }
+        continuationToResume?.resume(with: result)
+        return true
     }
 }
 
