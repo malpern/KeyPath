@@ -376,7 +376,36 @@ final class ServiceHealthChecker: @unchecked Sendable {
         }
 #endif
 
-        let state = await KanataDaemonManager.shared.refreshManagementState()
+        let managementState = await KanataDaemonManager.shared.refreshManagementState()
+        let staleEnabledRegistration: Bool = if managementState == .smappserviceActive {
+            await KanataDaemonManager.shared.isRegisteredButNotLoaded()
+        } else {
+            false
+        }
+
+        return await checkKanataServiceRuntimeSnapshot(
+            managementState: managementState,
+            staleEnabledRegistration: staleEnabledRegistration,
+            tcpPort: tcpPort,
+            timeoutMs: timeoutMs
+        )
+    }
+
+    /// Fast runtime probe using pre-fetched service-management metadata.
+    ///
+    /// This avoids repeated `SMAppService.status` checks in tight polling loops.
+    nonisolated func checkKanataServiceRuntimeSnapshot(
+        managementState: KanataDaemonManager.ServiceManagementState,
+        staleEnabledRegistration: Bool,
+        tcpPort: Int = 37001,
+        timeoutMs: Int = 300
+    ) async -> KanataServiceRuntimeSnapshot {
+#if DEBUG
+        if let override = Self.runtimeSnapshotOverride {
+            return await override()
+        }
+#endif
+
         let runningState = await evaluateKanataLaunchctlRunningState()
         let tcpOK = await Task.detached { [self] in
             if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
@@ -387,15 +416,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
             return probeTCP(port: tcpPort, timeoutMs: timeoutMs)
         }.value
 
-        let staleEnabledRegistration: Bool
-        if state == .smappserviceActive {
-            staleEnabledRegistration = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
-        } else {
-            staleEnabledRegistration = false
-        }
-
         return KanataServiceRuntimeSnapshot(
-            managementState: state,
+            managementState: managementState,
             isRunning: runningState.isRunning,
             isResponding: tcpOK,
             launchctlExitCode: runningState.exitCode,

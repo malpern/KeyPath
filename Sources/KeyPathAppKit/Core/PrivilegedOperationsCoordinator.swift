@@ -44,9 +44,11 @@ final class PrivilegedOperationsCoordinator {
     private static var lastSMAppApprovalNotice: Date?
     private static let smAppApprovalNoticeThrottle: TimeInterval = 5
     private static let kanataReadinessTimeout: TimeInterval = 8
-    private static let kanataReadinessPollInterval: Duration = .milliseconds(250)
+    private static let kanataReadinessPollIntervalSeconds: TimeInterval = 0.5
     private static let kanataLaunchctlNotFoundExitCode: Int32 = 113
     private static let persistentLaunchctlNotFoundThreshold = 3
+    private static let staleRecoveryBypassLimit = 3
+    private static var staleRecoveryAttemptCount = 0
 
     enum KanataReadinessResult: Equatable {
         case ready
@@ -97,6 +99,7 @@ final class PrivilegedOperationsCoordinator {
             kanataReadinessOverride = nil
             lastServiceInstallAttempt = nil
             lastSMAppApprovalNotice = nil
+            staleRecoveryAttemptCount = 0
         }
 #endif
 
@@ -241,7 +244,15 @@ final class PrivilegedOperationsCoordinator {
         }
 
         if staleEnabledRegistration {
-            return .run(reason: "stale-enabled-registration", bypassedThrottle: true)
+            staleRecoveryAttemptCount += 1
+            if staleRecoveryAttemptCount <= staleRecoveryBypassLimit {
+                return .run(
+                    reason: "stale-enabled-registration (recovery-attempt=\(staleRecoveryAttemptCount))",
+                    bypassedThrottle: true
+                )
+            }
+        } else {
+            staleRecoveryAttemptCount = 0
         }
 
         if let lastAttempt,
@@ -249,6 +260,13 @@ final class PrivilegedOperationsCoordinator {
         {
             let remaining = serviceInstallThrottle - now.timeIntervalSince(lastAttempt)
             return .throttled(remaining: remaining)
+        }
+
+        if staleEnabledRegistration {
+            return .run(
+                reason: "stale-enabled-registration (throttle-applied after \(staleRecoveryBypassLimit) bypasses)",
+                bypassedThrottle: false
+            )
         }
 
         return .run(reason: "state=\(state.description)", bypassedThrottle: false)
@@ -520,7 +538,10 @@ final class PrivilegedOperationsCoordinator {
 
     // MARK: Generic Execute
 
-    /// Install the bundled Kanata binary to the system location
+    /// Install the bundled Kanata binary to the system location.
+    ///
+    /// Postcondition: waits for runtime readiness verification (running + TCP responding),
+    /// or explicit pending-approval state, before returning success.
     func installBundledKanata() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Installing bundled Kanata binary")
 
@@ -618,31 +639,44 @@ final class PrivilegedOperationsCoordinator {
     }
 
     private func verifyKanataReadinessAfterInstall(context: String) async -> KanataReadinessResult {
-        #if DEBUG
+#if DEBUG
             if let override = Self.kanataReadinessOverride {
                 return await override(context)
             }
-        #endif
+#endif
+
+        let managementState = await currentServiceState()
+        if managementState == .smappservicePending {
+            AppLogger.shared.log(
+                "ℹ️ [PrivCoordinator] \(context): readiness pending Login Items approval"
+            )
+            return .pendingApproval
+        }
+
+        let staleEnabledOnEntry = if managementState == .smappserviceActive {
+            await isRegisteredButNotLoaded()
+        } else {
+            false
+        }
+        if staleEnabledOnEntry {
+            AppLogger.shared.error(
+                "❌ [PrivCoordinator] \(context): stale SMAppService registration persisted after install"
+            )
+            return .staleRegistration
+        }
 
         let deadline = Date().addingTimeInterval(Self.kanataReadinessTimeout)
-        var launchctlNotFoundCount = 0
+        var launchctlNotFoundSamples: [Bool] = []
 
         while Date() < deadline {
-            let runtimeSnapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot()
-
-            if runtimeSnapshot.managementState == .smappservicePending {
-                AppLogger.shared.log(
-                    "ℹ️ [PrivCoordinator] \(context): readiness pending Login Items approval"
-                )
-                return .pendingApproval
-            }
-
-            if runtimeSnapshot.staleEnabledRegistration {
-                AppLogger.shared.error(
-                    "❌ [PrivCoordinator] \(context): stale SMAppService registration persisted after install"
-                )
-                return .staleRegistration
-            }
+            let now = Date()
+            let remaining = deadline.timeIntervalSince(now)
+            let timeoutMs = max(50, min(300, Int(remaining * 1000)))
+            let runtimeSnapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot(
+                managementState: managementState,
+                staleEnabledRegistration: false,
+                timeoutMs: timeoutMs
+            )
 
             if runtimeSnapshot.isRunning && runtimeSnapshot.isResponding {
                 return .ready
@@ -651,7 +685,11 @@ final class PrivilegedOperationsCoordinator {
             let launchctlNotFound =
                 runtimeSnapshot.launchctlExitCode == Self.kanataLaunchctlNotFoundExitCode
                     && !runtimeSnapshot.isRunning && !runtimeSnapshot.isResponding
-            launchctlNotFoundCount = launchctlNotFound ? launchctlNotFoundCount + 1 : 0
+            launchctlNotFoundSamples.append(launchctlNotFound)
+            if launchctlNotFoundSamples.count > 5 {
+                launchctlNotFoundSamples.removeFirst(launchctlNotFoundSamples.count - 5)
+            }
+            let launchctlNotFoundCount = launchctlNotFoundSamples.filter(\.self).count
 
             if launchctlNotFoundCount >= Self.persistentLaunchctlNotFoundThreshold {
                 AppLogger.shared.error(
@@ -660,7 +698,13 @@ final class PrivilegedOperationsCoordinator {
                 return .launchctlNotFoundPersistent
             }
 
-            try? await Task.sleep(for: Self.kanataReadinessPollInterval)
+            let sleepSeconds = min(
+                Self.kanataReadinessPollIntervalSeconds,
+                max(0, deadline.timeIntervalSince(Date()))
+            )
+            if sleepSeconds > 0 {
+                try? await Task.sleep(for: .seconds(sleepSeconds))
+            }
         }
 
         AppLogger.shared.error(

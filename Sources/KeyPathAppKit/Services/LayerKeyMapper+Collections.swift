@@ -87,29 +87,8 @@ extension LayerKeyMapper {
         "e": "e",
     ]
 
-    /// Neovim Terminal overlay labels — same pattern as KindaVim
-    private static let neovimOverlayLabels: [String: String] = [
-        "h": "←",
-        "j": "↓",
-        "k": "↑",
-        "l": "→",
-        "0": "0",
-        "4": "$",
-        "a": "a",
-        "g": "gg",
-        "/": "find",
-        "n": "next",
-        "y": "yank",
-        "p": "put",
-        "x": "del",
-        "r": "redo",
-        "d": "d",
-        "u": "undo",
-        "o": "o",
-        "w": "w",
-        "b": "b",
-        "e": "e",
-    ]
+    /// Neovim Terminal uses the same overlay label vocabulary as KindaVim.
+    private static let neovimOverlayLabels = kindaVimOverlayLabels
 
     /// Build mapping from key names to short vim overlay labels for VIM collections
     /// - Parameters:

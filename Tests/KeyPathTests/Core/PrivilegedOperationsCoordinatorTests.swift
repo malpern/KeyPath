@@ -172,6 +172,32 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 #endif
     }
 
+    func testInstallServicesIfUninstalledLimitsRepeatedStaleBypassAttempts() async throws {
+#if DEBUG
+            PrivilegedOperationsCoordinator.resetTestingState()
+            var installCallCount = 0
+            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
+            KanataDaemonManager.registeredButNotLoadedOverride = { true }
+            PrivilegedOperationsCoordinator.installAllServicesOverride = {
+                installCallCount += 1
+            }
+#endif
+
+        let coordinator = PrivilegedOperationsCoordinator.shared
+        let first = try await coordinator.installServicesIfUninstalled(context: "test-stale-cap-1")
+        let second = try await coordinator.installServicesIfUninstalled(context: "test-stale-cap-2")
+        let third = try await coordinator.installServicesIfUninstalled(context: "test-stale-cap-3")
+        let fourth = try await coordinator.installServicesIfUninstalled(context: "test-stale-cap-4")
+
+        XCTAssertTrue(first)
+        XCTAssertTrue(second)
+        XCTAssertTrue(third)
+        XCTAssertFalse(fourth, "Stale recovery bypass should stop after configured cap")
+#if DEBUG
+            XCTAssertEqual(installCallCount, 3)
+#endif
+    }
+
     func testInstallServicesIfUninstalledSkipsWhenSMAppServiceIsHealthyEnabled() async throws {
 #if DEBUG
             PrivilegedOperationsCoordinator.resetTestingState()

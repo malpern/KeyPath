@@ -99,9 +99,13 @@ final class HrmObservabilityService {
     @ObservationIgnored private var monitoringPort: Int?
     @ObservationIgnored private var statsPollTask: Task<Void, Never>?
     @ObservationIgnored private var calibrationTask: Task<Void, Never>?
+    @ObservationIgnored private var breakdownRebuildTask: Task<Void, Never>?
+    @ObservationIgnored private var statsConsecutiveFailureCount = 0
 
     private let maxTraceEvents = 1_000
     private let statsPollInterval: Duration = .seconds(5)
+    private let maxStatsPollInterval: Duration = .seconds(60)
+    private let traceBreakdownDebounce: Duration = .milliseconds(100)
 
     private init(
         notificationCenter: NotificationCenter = .default,
@@ -142,6 +146,7 @@ final class HrmObservabilityService {
     deinit {
         statsPollTask?.cancel()
         calibrationTask?.cancel()
+        breakdownRebuildTask?.cancel()
     }
 
     func startMonitoring(port: Int) {
@@ -156,6 +161,9 @@ final class HrmObservabilityService {
         statsPollTask = nil
         calibrationTask?.cancel()
         calibrationTask = nil
+        breakdownRebuildTask?.cancel()
+        breakdownRebuildTask = nil
+        statsConsecutiveFailureCount = 0
         monitoringPort = nil
     }
 
@@ -247,12 +255,24 @@ final class HrmObservabilityService {
         statsPollTask?.cancel()
         statsPollTask = Task { [weak self] in
             guard let self else { return }
-            await refreshStats(using: nil)
             while !Task.isCancelled {
-                try? await Task.sleep(for: statsPollInterval)
-                if Task.isCancelled { return }
                 await refreshStats(using: nil)
+                if Task.isCancelled { return }
+                try? await Task.sleep(for: currentStatsPollInterval())
             }
+        }
+    }
+
+    private func currentStatsPollInterval() -> Duration {
+        switch statsConsecutiveFailureCount {
+        case ..<1:
+            return statsPollInterval
+        case 1:
+            return .seconds(10)
+        case 2:
+            return .seconds(30)
+        default:
+            return maxStatsPollInterval
         }
     }
 
@@ -288,10 +308,20 @@ final class HrmObservabilityService {
         if recentTraceEvents.count > maxTraceEvents {
             recentTraceEvents.removeFirst(recentTraceEvents.count - maxTraceEvents)
         }
-        perKeyBreakdown = buildPerKeyBreakdown(from: recentTraceEvents)
+        schedulePerKeyBreakdownRebuild()
 
         if availability == .unknown, supportsHrmTrace {
             availability = .supported
+        }
+    }
+
+    private func schedulePerKeyBreakdownRebuild() {
+        breakdownRebuildTask?.cancel()
+        breakdownRebuildTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(for: self.traceBreakdownDebounce)
+            guard !Task.isCancelled else { return }
+            perKeyBreakdown = buildPerKeyBreakdown(from: recentTraceEvents)
         }
     }
 
@@ -339,15 +369,23 @@ final class HrmObservabilityService {
             let stats = try await client.requestHrmStats()
             latestStats = stats
             topReasons = buildTopReasons(from: stats.reasonCounts)
+            statsConsecutiveFailureCount = 0
             if availability != .supported {
                 availability = .supported
             }
             postStatsUpdated(stats)
         } catch {
+            statsConsecutiveFailureCount += 1
             if supportsHrmStats && isLikelyRuntimeDisabled(error) {
                 availability = .disabledInRuntimeConfig
             }
-            AppLogger.shared.debug("📈 [HRM] Failed to refresh stats: \(error.localizedDescription)")
+            if statsConsecutiveFailureCount >= 3 {
+                AppLogger.shared.warn(
+                    "📈 [HRM] Failed to refresh stats (\(statsConsecutiveFailureCount) consecutive): \(error.localizedDescription)"
+                )
+            } else {
+                AppLogger.shared.debug("📈 [HRM] Failed to refresh stats: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -433,7 +471,7 @@ final class HrmObservabilityService {
                 TimingRecommendation(
                     id: "reduce-hold-delay-release-before-decide",
                     title: "Reduce hold delay slightly",
-                    details: "High release-before-decide rates suggest holds are firing too eagerly. Try making hold activation a bit slower.",
+                    details: "High release-before-decide rates suggest hold activation is arriving too late. Try making hold activation a bit faster.",
                     holdDelayDeltaMs: -10,
                     tapWindowDeltaMs: 0,
                     tapOffsetDeltaMsByKey: [:],
