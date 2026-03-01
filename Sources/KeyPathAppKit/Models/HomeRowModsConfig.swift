@@ -104,13 +104,6 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
     /// All home row keys
     public static let allKeys = leftHandKeys + rightHandKeys
 
-    /// Full left-hand key set (all 3 rows) — use `HandAssignment.qwertyDefault` for new code.
-    @available(*, deprecated, message: "Use HandAssignment.qwertyDefault.leftKeys instead")
-    public static let leftHandAllKeys = HandAssignment.qwertyDefault.leftKeys
-
-    /// Full right-hand key set (all 3 rows) — use `HandAssignment.qwertyDefault` for new code.
-    @available(*, deprecated, message: "Use HandAssignment.qwertyDefault.rightKeys instead")
-    public static let rightHandAllKeys = HandAssignment.qwertyDefault.rightKeys
 
     private enum CodingKeys: String, CodingKey {
         case enabledKeys
@@ -220,8 +213,11 @@ public struct TimingConfig: Codable, Equatable, Sendable {
 
     /// When > 0, keys pressed within this many ms of the last keystroke skip hold detection
     /// entirely and produce the tap action immediately. Prevents accidental modifiers during
-    /// fast typing. 0 = disabled. Recommended starting value: 150.
+    /// fast typing. 0 = disabled.
     public var requirePriorIdleMs: Int
+
+    /// Default milliseconds for fast typing protection when enabled.
+    public static let defaultPriorIdleMs = 150
 
     public init(
         tapWindow: Int = 200,
@@ -230,7 +226,7 @@ public struct TimingConfig: Codable, Equatable, Sendable {
         quickTapTermMs: Int = 0,
         tapOffsets: [String: Int] = [:],
         holdOffsets: [String: Int] = [:],
-        requirePriorIdleMs: Int = 150
+        requirePriorIdleMs: Int = defaultPriorIdleMs
     ) {
         self.tapWindow = tapWindow
         self.holdDelay = holdDelay

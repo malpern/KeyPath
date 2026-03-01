@@ -221,7 +221,7 @@ struct HomeRowTimingSection: View {
             Toggle("Fast typing protection", isOn: Binding(
                 get: { config.timing.requirePriorIdleMs > 0 },
                 set: { newValue in
-                    config.timing.requirePriorIdleMs = newValue ? 150 : 0
+                    config.timing.requirePriorIdleMs = newValue ? TimingConfig.defaultPriorIdleMs : 0
                     updateConfig()
                 }
             ))

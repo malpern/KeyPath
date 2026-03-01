@@ -27,30 +27,16 @@ extension KanataConfiguration {
             )
             let holdTimeout = max(1, config.timing.holdDelay + (config.timing.holdOffsets[key] ?? 0))
 
-            // Opposite-hand activation: uses defhands + tap-hold-opposite-hand
-            let useOppositeHand: Bool
-            let customTapKeys: [String]
-            let activateOnOther: Bool
-            if config.oppositeHandActivation {
-                useOppositeHand = true
-                customTapKeys = []
-                activateOnOther = false
-            } else {
-                useOppositeHand = false
-                customTapKeys = []
-                activateOnOther = true
-            }
-
             // Create dual-role behavior: tap = letter, hold = modifier
             let behavior = DualRoleBehavior(
                 tapAction: key,
                 holdAction: holdAction,
                 tapTimeout: tapTimeout,
                 holdTimeout: holdTimeout,
-                activateHoldOnOtherKey: activateOnOther,
+                activateHoldOnOtherKey: !config.oppositeHandActivation,
                 quickTap: config.timing.quickTapEnabled,
-                customTapKeys: customTapKeys,
-                useOppositeHand: useOppositeHand,
+                customTapKeys: [],
+                useOppositeHand: config.oppositeHandActivation,
                 requirePriorIdleMs: config.timing.requirePriorIdleMs
             )
 
@@ -83,30 +69,16 @@ extension KanataConfiguration {
             // Build hold action based on toggle mode
             let holdAction = "(\(config.toggleMode.kanataAction) \(layerName))"
 
-            // Opposite-hand activation: uses defhands + tap-hold-opposite-hand
-            let useOppositeHand: Bool
-            let customTapKeys: [String]
-            let activateOnOther: Bool
-            if config.oppositeHandActivation {
-                useOppositeHand = true
-                customTapKeys = []
-                activateOnOther = false
-            } else {
-                useOppositeHand = false
-                customTapKeys = []
-                activateOnOther = true
-            }
-
             // Create dual-role behavior: tap = letter, hold = layer activation
             let behavior = DualRoleBehavior(
                 tapAction: key,
                 holdAction: holdAction,
                 tapTimeout: tapTimeout,
                 holdTimeout: holdTimeout,
-                activateHoldOnOtherKey: activateOnOther,
+                activateHoldOnOtherKey: !config.oppositeHandActivation,
                 quickTap: config.timing.quickTapEnabled,
-                customTapKeys: customTapKeys,
-                useOppositeHand: useOppositeHand,
+                customTapKeys: [],
+                useOppositeHand: config.oppositeHandActivation,
                 requirePriorIdleMs: config.timing.requirePriorIdleMs
             )
 
