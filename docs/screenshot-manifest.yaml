@@ -21,7 +21,7 @@
 # Last updated: 2026-02-19
 
 # =============================================================================
-# SCREENSHOTS (22 total — from embedded <!-- screenshot: --> tags)
+# SCREENSHOTS (23 total — from embedded <!-- screenshot: --> tags)
 # =============================================================================
 
 screenshots:
@@ -141,7 +141,7 @@ screenshots:
     description: "Compact launchers tab with 3 items (Safari, Terminal, github.com)"
 
   # ---------------------------------------------------------------------------
-  # home-row-mods.md (2 screenshots)
+  # home-row-mods.md (3 screenshots)
   # ---------------------------------------------------------------------------
 
   - id: hrm-typing-feel-slider
@@ -157,6 +157,13 @@ screenshots:
     view: HomeRowTimingSection
     state: "per-finger:visible"
     description: "Per-finger sensitivity sliders (pinky +40ms, ring +25ms, etc.)"
+
+  - id: hrm-fast-typing
+    file: home-row-mods.md
+    method: snapshot
+    view: HomeRowTimingSection
+    state: "prior-idle:visible"
+    description: "Fast typing protection toggle and threshold slider (require-prior-idle)"
 
   # ---------------------------------------------------------------------------
   # window-management.md (1 screenshot)
@@ -340,8 +347,8 @@ illustrations:
 # SUMMARY
 # =============================================================================
 #
-# Screenshots: 22 total
-#   - snapshot:  18 (SwiftUI snapshot tests)
+# Screenshots: 23 total
+#   - snapshot:  19 (SwiftUI snapshot tests)
 #   - peekaboo:   3 (System Settings UI automation)
 #   - manual:     1 (macOS auth dialog)
 #

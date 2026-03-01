@@ -192,6 +192,113 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
         )
     }
 
+    // MARK: - defhands + require-prior-idle Integration
+
+    func testOppositeHandActivation_EmitsDefhandsBlock() throws {
+        let hrmCollection = try makeCollection(
+            id: XCTUnwrap(UUID(uuidString: "22222222-2222-2222-2222-222222222222")),
+            name: "Home Row Mods",
+            summary: "HRM",
+            category: .custom,
+            mappings: [],
+            targetLayer: .base,
+            momentaryActivator: nil,
+            configuration: .homeRowMods(HomeRowModsConfig(
+                enabledKeys: ["a", "f"],
+                modifierAssignments: ["a": "lsft", "f": "lmet"],
+                holdMode: .modifiers,
+                oppositeHandActivation: true
+            ))
+        )
+
+        let config = KanataConfiguration.generateFromCollections([hrmCollection])
+
+        assertContains(config, "(defhands")
+        assertContains(config, "(left q w e r t a s d f g z x c v b)")
+        assertContains(config, "(right y u i o p h j k l ; n m , . /)")
+        assertContains(config, "tap-hold-opposite-hand")
+    }
+
+    func testOppositeHandOff_OmitsDefhandsBlock() throws {
+        let hrmCollection = try makeCollection(
+            id: XCTUnwrap(UUID(uuidString: "22222222-2222-2222-2222-222222222222")),
+            name: "Home Row Mods",
+            summary: "HRM",
+            category: .custom,
+            mappings: [],
+            targetLayer: .base,
+            momentaryActivator: nil,
+            configuration: .homeRowMods(HomeRowModsConfig(
+                enabledKeys: ["a"],
+                modifierAssignments: ["a": "lsft"],
+                holdMode: .modifiers,
+                oppositeHandActivation: false
+            ))
+        )
+
+        let config = KanataConfiguration.generateFromCollections([hrmCollection])
+
+        XCTAssertFalse(config.contains("defhands"), "Should not contain defhands when opposite-hand is off")
+        XCTAssertFalse(config.contains("tap-hold-opposite-hand"), "Should not contain tap-hold-opposite-hand")
+    }
+
+    func testRequirePriorIdle_EmitsDefcfgOption() throws {
+        var timing = TimingConfig.default
+        timing.requirePriorIdleMs = 150
+
+        let hrmCollection = try makeCollection(
+            id: XCTUnwrap(UUID(uuidString: "22222222-2222-2222-2222-222222222222")),
+            name: "Home Row Mods",
+            summary: "HRM",
+            category: .custom,
+            mappings: [],
+            targetLayer: .base,
+            momentaryActivator: nil,
+            configuration: .homeRowMods(HomeRowModsConfig(
+                enabledKeys: ["a"],
+                modifierAssignments: ["a": "lsft"],
+                holdMode: .modifiers,
+                timing: timing,
+                oppositeHandActivation: true
+            ))
+        )
+
+        let config = KanataConfiguration.generateFromCollections([hrmCollection])
+
+        assertContains(config, "require-prior-idle 150")
+        // Must be inside defcfg, not wrapping individual actions
+        XCTAssertTrue(
+            config.contains("(defcfg") && config.contains("require-prior-idle 150"),
+            "require-prior-idle should be a defcfg option"
+        )
+    }
+
+    func testRequirePriorIdleZero_OmitsFromDefcfg() throws {
+        var timing = TimingConfig.default
+        timing.requirePriorIdleMs = 0
+
+        let hrmCollection = try makeCollection(
+            id: XCTUnwrap(UUID(uuidString: "22222222-2222-2222-2222-222222222222")),
+            name: "Home Row Mods",
+            summary: "HRM",
+            category: .custom,
+            mappings: [],
+            targetLayer: .base,
+            momentaryActivator: nil,
+            configuration: .homeRowMods(HomeRowModsConfig(
+                enabledKeys: ["a"],
+                modifierAssignments: ["a": "lsft"],
+                holdMode: .modifiers,
+                timing: timing,
+                oppositeHandActivation: true
+            ))
+        )
+
+        let config = KanataConfiguration.generateFromCollections([hrmCollection])
+
+        XCTAssertFalse(config.contains("require-prior-idle"), "Should not contain require-prior-idle when 0")
+    }
+
     private func assertContains(
         _ config: String,
         _ snippet: String,

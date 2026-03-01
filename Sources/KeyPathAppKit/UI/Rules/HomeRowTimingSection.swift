@@ -198,23 +198,75 @@ struct HomeRowTimingSection: View {
                 }
             }
 
-            // MARK: - Split-Hand Detection
+            // MARK: - Opposite-Hand Activation
 
-            Toggle("Favor tap for same-hand keys", isOn: Binding(
-                get: { config.splitHandDetection },
+            Toggle("Opposite-hand activation", isOn: Binding(
+                get: { config.oppositeHandActivation },
                 set: { newValue in
-                    config.splitHandDetection = newValue
+                    config.oppositeHandActivation = newValue
                     updateConfig()
                 }
             ))
             .toggleStyle(.checkbox)
-            .accessibilityIdentifier("home-row-mods-split-hand-toggle")
-            .accessibilityLabel("Favor tap for same-hand keys")
+            .accessibilityIdentifier("home-row-mods-opposite-hand-toggle")
+            .accessibilityLabel("Opposite-hand activation")
 
-            Text("Same-hand key presses produce the letter immediately; opposite-hand presses allow the modifier.")
+            Text("Hold actions (modifiers or layers) only activate when you press a key with the other hand. Same-hand typing always produces letters — no accidental modifiers during fast rolls.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.leading, 18)
+
+            // MARK: - Fast Typing Protection
+
+            Toggle("Fast typing protection", isOn: Binding(
+                get: { config.timing.requirePriorIdleMs > 0 },
+                set: { newValue in
+                    config.timing.requirePriorIdleMs = newValue ? TimingConfig.defaultPriorIdleMs : 0
+                    updateConfig()
+                }
+            ))
+            .toggleStyle(.checkbox)
+            .accessibilityIdentifier("home-row-mods-prior-idle-toggle")
+            .accessibilityLabel("Fast typing protection")
+
+            if config.timing.requirePriorIdleMs > 0 {
+                Text("During fast typing, keys always produce letters — never accidental modifiers. This is the single most effective way to prevent home row mod misfires.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 18)
+
+                HStack(spacing: 8) {
+                    Text("Strict")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 80, alignment: .trailing)
+
+                    Slider(value: Binding(
+                        get: { Double(config.timing.requirePriorIdleMs) },
+                        set: { newValue in
+                            config.timing.requirePriorIdleMs = Int(newValue)
+                            debouncedUpdateConfig()
+                        }
+                    ), in: 50 ... 300, step: 10)
+                        .accessibilityIdentifier("home-row-mods-prior-idle-slider")
+                        .accessibilityLabel("Fast typing protection threshold")
+
+                    Text("Forgiving")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 90, alignment: .leading)
+                }
+
+                Text("Keys pressed within \(config.timing.requirePriorIdleMs)ms of your last keystroke skip hold detection entirely.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 88)
+            } else {
+                Text("When enabled, keys pressed shortly after your last keystroke always produce letters instead of modifiers.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 18)
+            }
 
             // MARK: - Quick Tap
 
@@ -306,7 +358,7 @@ struct HomeRowTimingSection: View {
         .pinky: "\u{1F91E}", // crossed fingers (smallest finger gesture)
         .ring: "\u{1F48D}", // ring
         .middle: "\u{1F595}", // middle finger
-        .index: "\u{261D}\u{FE0F}", // index pointing up
+        .index: "\u{261D}\u{FE0F}" // index pointing up
     ]
 
     private func fingerSliderRow(finger: TypingFeelMapping.FingerGroup) -> some View {

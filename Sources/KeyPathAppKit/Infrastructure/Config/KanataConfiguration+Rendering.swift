@@ -25,6 +25,20 @@ extension KanataConfiguration {
         """
     }
 
+    /// Render defhands block for opposite-hand tap-hold activation.
+    /// Only emitted when at least one collection uses opposite-hand activation.
+    static func renderDefhandsBlock(_ handAssignment: HandAssignment?) -> String {
+        guard let hands = handAssignment else { return "" }
+        let leftKeys = hands.leftKeys.joined(separator: " ")
+        let rightKeys = hands.rightKeys.joined(separator: " ")
+        return """
+        (defhands
+          (left \(leftKeys))
+          (right \(rightKeys)))
+
+        """
+    }
+
     static func renderAliasBlock(_ aliases: [AliasDefinition]) -> String {
         guard !aliases.isEmpty else { return "" }
         var lines = [
@@ -73,7 +87,7 @@ extension KanataConfiguration {
             ("layer_", "Layer Activators"),
             ("beh_", "Tap-Hold Behaviors"),
             ("fork_", "Modifier Forks"),
-            ("act_", "Action Aliases"),
+            ("act_", "Action Aliases")
         ]
 
         var grouped: [String: [AliasDefinition]] = [:]
@@ -118,7 +132,7 @@ extension KanataConfiguration {
         }
 
         // Format long tap-hold actions that contain multi
-        if action.contains("(tap-hold") || action.contains("(tap-hold-press") || action.contains("(tap-hold-release"), action.contains("(multi ") {
+        if action.contains("(tap-hold") || action.contains("(tap-hold-press") || action.contains("(tap-hold-release") || action.contains("(tap-hold-opposite-hand"), action.contains("(multi ") {
             return formatTapHoldWithMulti(action)
         }
 
@@ -437,8 +451,7 @@ extension KanataConfiguration {
     // Note: renderDisabledCollections removed - disabled collections not written to config (ADR-025)
 
     static func metadataLines(for collection: RuleCollection, indent: String, status: String)
-        -> [String]
-    {
+        -> [String] {
         [
             "\(indent);; === Collection: \(collection.name) (\(status)) ===",
             "\(indent);; UUID: \(collection.id.uuidString)",

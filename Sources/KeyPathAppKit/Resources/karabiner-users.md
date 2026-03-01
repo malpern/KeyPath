@@ -12,7 +12,7 @@ Karabiner-Elements is an excellent tool that pioneered keyboard remapping on mac
 |---|---|---|
 | **Config format** | JSON (verbose, complex) | Kanata S-expressions (concise) |
 | **Tap-hold** | `to_if_alone` + timeout | 4 tap-hold variants, per-key tuning |
-| **Home row mods** | Possible via complex JSON, global timeout, no misfire prevention | Built-in with split-hand detection, per-finger timing, anti-misfire |
+| **Home row mods** | Possible via complex JSON, global timeout, no misfire prevention | Built-in with opposite-hand activation, fast typing protection, per-finger timing |
 | **Per-finger timing** | Global timeout only | Individual finger sensitivity |
 | **Layers** | Separate rule sets | First-class `deflayer` with layer-switch |
 | **App-specific** | Per-app rules via JSON | Automatic layer switching via TCP |
@@ -168,7 +168,7 @@ See [Your First Mapping](https://keypath-app.com/getting-started/first-mapping) 
 
 ### 5. Fine-tune
 
-KeyPath's per-finger timing and split-hand detection may mean you need less tweaking than your Karabiner setup required. Start with defaults and adjust from there.
+KeyPath's per-finger timing, opposite-hand activation, and fast typing protection may mean you need less tweaking than your Karabiner setup required. Start with defaults and adjust from there.
 
 ---
 
