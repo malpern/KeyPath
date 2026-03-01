@@ -261,6 +261,10 @@ final class PrivilegedOperationsCoordinator {
 
         let requiresInstall = state.needsInstallation || state.needsMigration() || staleEnabledRegistration
         guard requiresInstall else {
+            // Reset stale-recovery counter when no install is needed, so it doesn't
+            // stay "stuck high" across healthy periods and throttle prematurely on
+            // the next stale event.
+            staleRecoveryAttemptCount = 0
             return .skipNoInstall
         }
 
@@ -651,6 +655,18 @@ final class PrivilegedOperationsCoordinator {
     private func removeLegacyKanataPlist(reason: String) async {
         let path = KanataDaemonManager.legacyPlistPath
         guard FileManager.default.fileExists(atPath: path) else { return }
+
+        // Validate path is a safe LaunchDaemons plist before interpolating into shell
+        guard path.hasPrefix("/Library/LaunchDaemons/"),
+              path.hasSuffix(".plist"),
+              !path.contains("'"), !path.contains("\\"), !path.contains(";"),
+              !path.contains("&"), !path.contains("|"), !path.contains("`"),
+              !path.contains("$"), !path.contains("\n")
+        else {
+            AppLogger.shared.log("⚠️ [PrivCoordinator] Refusing to remove suspicious legacy plist path: \(path)")
+            return
+        }
+
         AppLogger.shared.log("🧹 [PrivCoordinator] Removing legacy Kanata plist (reason: \(reason))")
         let cmd = """
         /bin/launchctl bootout system/\(KanataDaemonManager.kanataServiceID) 2>/dev/null || true && \
@@ -1279,6 +1295,21 @@ final class PrivilegedOperationsCoordinator {
             serviceStateOverride = nil
             installAllServicesOverride = nil
             lastServiceInstallAttempt = nil
+            staleRecoveryAttemptCount = 0
+        }
+
+        static func _testDecideInstallGuard(
+            state: KanataDaemonManager.ServiceManagementState,
+            staleEnabledRegistration: Bool,
+            now: Date = Date(),
+            lastAttempt: Date? = nil
+        ) -> InstallGuardDecision {
+            decideInstallGuard(
+                state: state,
+                staleEnabledRegistration: staleEnabledRegistration,
+                now: now,
+                lastAttempt: lastAttempt
+            )
         }
     }
 #endif

@@ -88,6 +88,18 @@ run_lane() {
         summary_line="$summary_line (no tests matched filter)"
     fi
 
+    # Swift Testing emits "0 tests in 0 suites passed" instead of XCTest format.
+    # Catch this to prevent false-green lanes when no tests match the filter.
+    if [ "$exit_code" -eq 0 ] && [ "$status" = "pass" ]; then
+        local swift_testing_zero
+        swift_testing_zero="$(grep -E "0 tests? .* 0 suites? passed" "$lane_log" | head -n 1 || true)"
+        if [ -n "$swift_testing_zero" ]; then
+            status="fail"
+            exit_code=97
+            summary_line="$summary_line (no Swift Testing tests matched filter)"
+        fi
+    fi
+
     LANE_IDS+=("$lane_id")
     LANE_NAMES+=("$lane_name")
     LANE_FILTERS+=("$lane_filter")

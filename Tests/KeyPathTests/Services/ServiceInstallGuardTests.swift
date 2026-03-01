@@ -97,4 +97,70 @@ final class ServiceInstallGuardTests: XCTestCase {
         XCTAssertTrue(didInstall)
         XCTAssertEqual(installCount, 1)
     }
+
+    // MARK: - Stale Recovery Counter Tests
+
+    /// Verify the counter resets when system becomes healthy (skipNoInstall path)
+    func testStaleRecoveryCounterResetsAcrossHealthyPeriods() async throws {
+        PrivilegedOperationsCoordinator._testResetServiceInstallGuard()
+
+        // Simulate 3 stale recovery attempts (should all bypass throttle)
+        for i in 1 ... 3 {
+            let decision = PrivilegedOperationsCoordinator._testDecideInstallGuard(
+                state: .smappserviceActive,
+                staleEnabledRegistration: true
+            )
+            XCTAssertEqual(
+                decision,
+                .run(reason: "stale-enabled-registration (recovery-attempt=\(i))", bypassedThrottle: true),
+                "Stale attempt \(i) should bypass throttle"
+            )
+        }
+
+        // System becomes healthy — counter should reset via skipNoInstall path
+        let healthyDecision = PrivilegedOperationsCoordinator._testDecideInstallGuard(
+            state: .smappserviceActive,
+            staleEnabledRegistration: false
+        )
+        XCTAssertEqual(healthyDecision, .skipNoInstall)
+
+        // Next stale event should start fresh at attempt 1, not 4
+        let afterResetDecision = PrivilegedOperationsCoordinator._testDecideInstallGuard(
+            state: .smappserviceActive,
+            staleEnabledRegistration: true
+        )
+        XCTAssertEqual(
+            afterResetDecision,
+            .run(reason: "stale-enabled-registration (recovery-attempt=1)", bypassedThrottle: true),
+            "After healthy period, stale counter should restart at 1"
+        )
+    }
+
+    /// Verify that exceeding the bypass limit applies throttle
+    func testStaleRecoveryCounterExceedingLimitAppliesThrottle() async throws {
+        PrivilegedOperationsCoordinator._testResetServiceInstallGuard()
+        let now = Date()
+
+        // Exhaust all 3 bypass attempts
+        for _ in 1 ... 3 {
+            _ = PrivilegedOperationsCoordinator._testDecideInstallGuard(
+                state: .smappserviceActive,
+                staleEnabledRegistration: true,
+                now: now
+            )
+        }
+
+        // 4th attempt with recent lastAttempt should be throttled
+        let throttled = PrivilegedOperationsCoordinator._testDecideInstallGuard(
+            state: .smappserviceActive,
+            staleEnabledRegistration: true,
+            now: now,
+            lastAttempt: now
+        )
+        if case .throttled = throttled {
+            // expected
+        } else {
+            XCTFail("Expected throttled, got \(throttled)")
+        }
+    }
 }
