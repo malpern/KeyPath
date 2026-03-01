@@ -38,6 +38,13 @@ final class ServiceBootstrapper {
     /// Service identifier for the log rotation service
     static let logRotationServiceID = "com.keypath.logrotate"
 
+    private struct VHIDInstallSnapshot {
+        let daemonPlistExisted: Bool
+        let managerPlistExisted: Bool
+        let daemonLoaded: Bool
+        let managerLoaded: Bool
+    }
+
     // MARK: - Restart Time Tracking
 
     /// Lock-protected dictionary tracking when services were last restarted
@@ -316,6 +323,59 @@ final class ServiceBootstrapper {
         } catch {
             return (false, error.localizedDescription)
         }
+    }
+
+    private func captureVHIDInstallSnapshot() async -> VHIDInstallSnapshot {
+        let daemonPlistPath = getPlistPath(for: Self.vhidDaemonServiceID)
+        let managerPlistPath = getPlistPath(for: Self.vhidManagerServiceID)
+        let snapshot = VHIDInstallSnapshot(
+            daemonPlistExisted: FileManager.default.fileExists(atPath: daemonPlistPath),
+            managerPlistExisted: FileManager.default.fileExists(atPath: managerPlistPath),
+            daemonLoaded: await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID),
+            managerLoaded: await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
+        )
+        AppLogger.shared.log(
+            "🔍 [ServiceBootstrapper] Captured VHID snapshot: daemon(plist=\(snapshot.daemonPlistExisted), loaded=\(snapshot.daemonLoaded)), manager(plist=\(snapshot.managerPlistExisted), loaded=\(snapshot.managerLoaded))"
+        )
+        return snapshot
+    }
+
+    private func rollbackVHIDChangesIfNeeded(from snapshot: VHIDInstallSnapshot) async -> Bool {
+        var commands: [String] = []
+
+        if !snapshot.daemonLoaded {
+            commands.append("/bin/launchctl bootout system/\(Self.vhidDaemonServiceID) 2>/dev/null || true")
+        }
+        if !snapshot.managerLoaded {
+            commands.append("/bin/launchctl bootout system/\(Self.vhidManagerServiceID) 2>/dev/null || true")
+        }
+
+        let daemonPlistPath = getPlistPath(for: Self.vhidDaemonServiceID)
+        let managerPlistPath = getPlistPath(for: Self.vhidManagerServiceID)
+        if !snapshot.daemonPlistExisted {
+            commands.append("/bin/rm -f '\(daemonPlistPath)'")
+        }
+        if !snapshot.managerPlistExisted {
+            commands.append("/bin/rm -f '\(managerPlistPath)'")
+        }
+
+        guard !commands.isEmpty else {
+            AppLogger.shared.log("ℹ️ [ServiceBootstrapper] No VHID rollback needed (state unchanged)")
+            return true
+        }
+
+        AppLogger.shared.log("🔄 [ServiceBootstrapper] Rolling back VHID changes after Kanata registration failure")
+        let rollbackResult = await executePrivilegedBatch(
+            label: "rollback VirtualHID service changes",
+            commands: commands,
+            prompt: "KeyPath needs to rollback VirtualHID service changes because Kanata registration did not complete."
+        )
+        if rollbackResult.success {
+            AppLogger.shared.log("✅ [ServiceBootstrapper] VHID rollback completed")
+        } else {
+            AppLogger.shared.log("❌ [ServiceBootstrapper] VHID rollback failed: \(rollbackResult.output)")
+        }
+        return rollbackResult.success
     }
 
     // MARK: - Newsyslog Config
@@ -747,6 +807,8 @@ final class ServiceBootstrapper {
             return true
         }
 
+        let vhidSnapshot = await captureVHIDInstallSnapshot()
+
         // Step 1: Install VirtualHID services (helper-first, falls back to osascript)
         AppLogger.shared.log("📱 [ServiceBootstrapper] Step 1: Installing VirtualHID services via InstallerEngine")
         let report = await InstallerEngine()
@@ -765,6 +827,12 @@ final class ServiceBootstrapper {
         if !kanataSuccess {
             AppLogger.shared.log("⚠️ [ServiceBootstrapper] SMAppService registration failed")
             AppLogger.shared.log("💡 [ServiceBootstrapper] User may need to approve in System Settings")
+            let rollbackSuccess = await rollbackVHIDChangesIfNeeded(from: vhidSnapshot)
+            if !rollbackSuccess {
+                AppLogger.shared.log(
+                    "⚠️ [ServiceBootstrapper] Compensation rollback failed; system may be left with updated VHID configuration"
+                )
+            }
             return false
         }
 
