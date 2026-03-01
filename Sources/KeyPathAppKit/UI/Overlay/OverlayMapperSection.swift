@@ -35,6 +35,8 @@ struct OverlayMapperSection: View {
 
     /// Current behavior slot being edited (tap is default)
     @State var selectedBehaviorSlot: BehaviorSlot = .tap
+    /// Current tap output mode (default or shift variant)
+    @State var selectedTapOutputMode: TapOutputMode = .default
     /// Which behavior slots have actions configured for current key
     @State var configuredBehaviorSlots: Set<BehaviorSlot> = []
 
@@ -106,6 +108,7 @@ struct OverlayMapperSection: View {
             onKeySelected?(newKeyCode)
             // Reset to tap slot when selecting a new key
             selectedBehaviorSlot = .tap
+            selectedTapOutputMode = .default
             updateConfiguredBehaviorSlots()
         }
 
@@ -130,6 +133,7 @@ struct OverlayMapperSection: View {
             let appId = notification.userInfo?["appIdentifier"] as? String
             let systemId = notification.userInfo?["systemActionIdentifier"] as? String
             let urlId = notification.userInfo?["urlIdentifier"] as? String
+            let shiftedOutputKey = notification.userInfo?["shiftedOutputKey"] as? String
 
             // Extract app condition info (for editing app-specific rules)
             let appBundleId = notification.userInfo?["appBundleId"] as? String
@@ -142,8 +146,10 @@ struct OverlayMapperSection: View {
                 outputLabel: outputKey,
                 appIdentifier: appId,
                 systemActionIdentifier: systemId,
-                urlIdentifier: urlId
+                urlIdentifier: urlId,
+                shiftedOutputKey: shiftedOutputKey
             )
+            selectedTapOutputMode = shiftedOutputKey == nil ? .default : .shifted
 
             // Load any existing behavior (hold action, etc.) from saved rules
             if let manager = kanataViewModel?.underlyingManager {
@@ -231,11 +237,26 @@ struct OverlayMapperSection: View {
             }
         }
 
-        let withOutputChange = withAutoSave.onChange(of: viewModel.outputLabel) { _, _ in
+        let withShiftAutoSave = withAutoSave.onChange(of: viewModel.isRecordingShiftedOutput) { wasRecording, isRecording in
+            guard wasRecording, !isRecording else { return }
+            guard !shouldShowHealthGate else { return }
+            guard viewModel.hasShiftedOutputConfigured else { return }
+            guard let manager = kanataViewModel?.underlyingManager else { return }
+            Task {
+                await viewModel.save(kanataManager: manager)
+                updateConfiguredBehaviorSlots()
+            }
+        }
+
+        let withOutputChange = withShiftAutoSave.onChange(of: viewModel.outputLabel) { _, _ in
             updateConfiguredBehaviorSlots()
         }
 
-        let withHoldChange = withOutputChange.onChange(of: viewModel.holdAction) { _, _ in
+        let withShiftedOutputChange = withOutputChange.onChange(of: viewModel.shiftedOutputLabel) { _, _ in
+            updateConfiguredBehaviorSlots()
+        }
+
+        let withHoldChange = withShiftedOutputChange.onChange(of: viewModel.holdAction) { _, _ in
             updateConfiguredBehaviorSlots()
         }
 
@@ -255,11 +276,25 @@ struct OverlayMapperSection: View {
             updateConfiguredBehaviorSlots()
         }
 
-        let withSlotChange = withSystemChange.onChange(of: selectedBehaviorSlot) { _, newSlot in
+        let withShiftAvailability = withSystemChange.onChange(of: viewModel.canUseShiftedOutput) { _, canUse in
+            if !canUse, selectedTapOutputMode == .shifted {
+                selectedTapOutputMode = .default
+            }
+        }
+
+        let withSlotChange = withShiftAvailability.onChange(of: selectedBehaviorSlot) { _, newSlot in
             playBehaviorAnimation(for: newSlot)
         }
 
-        let withResetDialog = withSlotChange.confirmationDialog(
+        let withTapModeChange = withSlotChange.onChange(of: selectedTapOutputMode) { _, newMode in
+            if newMode == .shifted, viewModel.isRecordingOutput {
+                viewModel.stopRecording()
+            } else if newMode == .default, viewModel.isRecordingShiftedOutput {
+                viewModel.stopRecording()
+            }
+        }
+
+        let withResetDialog = withTapModeChange.confirmationDialog(
             "Clear Mapping",
             isPresented: $showingResetDialog,
             titleVisibility: .visible
@@ -312,6 +347,7 @@ struct OverlayMapperSection: View {
             viewModel.selectedApp != nil ||
             viewModel.selectedSystemAction != nil ||
             viewModel.selectedURL != nil ||
+            viewModel.hasShiftedOutputConfigured ||
             viewModel.selectedAppCondition != nil
 
         // Hold modified
@@ -331,7 +367,7 @@ struct OverlayMapperSection: View {
             viewModel.selectedSystemAction != nil ||
             viewModel.selectedURL != nil
 
-        return hasKeyRemapping || hasAction || hasMultiTapConfigured
+        return hasKeyRemapping || hasAction || hasMultiTapConfigured || viewModel.hasShiftedOutputConfigured
     }
 
     var hasMultiTapConfigured: Bool {
@@ -407,13 +443,13 @@ struct OverlayMapperSection: View {
                             // Use different keycap for tap vs other behavior slots
                             if selectedBehaviorSlot == .tap {
                                 MapperKeycapView(
-                                    label: viewModel.outputLabel,
-                                    isRecording: viewModel.isRecordingOutput,
+                                    label: activeTapOutputLabel,
+                                    isRecording: activeTapIsRecording,
                                     maxWidth: keycapWidth,
-                                    appInfo: viewModel.selectedApp,
-                                    systemActionInfo: viewModel.selectedSystemAction,
-                                    urlFavicon: viewModel.selectedURLFavicon,
-                                    onTap: { viewModel.toggleOutputRecording() }
+                                    appInfo: selectedTapOutputMode == .default ? viewModel.selectedApp : nil,
+                                    systemActionInfo: selectedTapOutputMode == .default ? viewModel.selectedSystemAction : nil,
+                                    urlFavicon: selectedTapOutputMode == .default ? viewModel.selectedURLFavicon : nil,
+                                    onTap: { toggleRecordingForCurrentSlot() }
                                 )
                                 .scaleEffect(outputKeycapScale)
                             } else {
@@ -472,6 +508,10 @@ struct OverlayMapperSection: View {
                 .frame(width: availableWidth, height: proxy.size.height, alignment: .leading)
             }
             .frame(height: 160)
+
+            if selectedBehaviorSlot == .tap {
+                shiftOutputEditor
+            }
 
             if viewModel.showAdvanced {
                 AdvancedBehaviorContent(viewModel: viewModel)

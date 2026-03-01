@@ -330,6 +330,9 @@ struct LiveKeyboardOverlayView: View {
                         "outputKey": outputKey,
                         "keyCode": UInt16(0)
                     ]
+                    if let shiftedOutputKey = userInfo["shiftedOutputKey"] as? String {
+                        mapperUserInfo["shiftedOutputKey"] = shiftedOutputKey
+                    }
                     if let appBundleId = userInfo["appBundleId"] as? String,
                        let appDisplayName = userInfo["appDisplayName"] as? String
                     {

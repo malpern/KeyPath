@@ -165,12 +165,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             // Extract sendable values before entering Task to avoid data race
             let inputKey = notification.userInfo?["inputKey"] as? String
             let outputKey = notification.userInfo?["outputKey"] as? String
+            let shiftedOutputKey = notification.userInfo?["shiftedOutputKey"] as? String
             let appBundleId = notification.userInfo?["appBundleId"] as? String
             let appDisplayName = notification.userInfo?["appDisplayName"] as? String
             Task { @MainActor in
                 self?.openWithMapperTabAndPreset(
                     inputKey: inputKey,
                     outputKey: outputKey,
+                    shiftedOutputKey: shiftedOutputKey,
                     appBundleId: appBundleId,
                     appDisplayName: appDisplayName
                 )
@@ -264,6 +266,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     func openWithMapperTabAndPreset(
         inputKey: String?,
         outputKey: String?,
+        shiftedOutputKey: String?,
         appBundleId: String?,
         appDisplayName: String?
     ) {
@@ -286,6 +289,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             }
             if let outputKey {
                 notificationUserInfo["outputKey"] = outputKey
+            }
+            if let shiftedOutputKey {
+                notificationUserInfo["shiftedOutputKey"] = shiftedOutputKey
             }
             if let appBundleId {
                 notificationUserInfo["appBundleId"] = appBundleId
@@ -1039,6 +1045,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
         if let urlId = layerInfo?.urlIdentifier {
             userInfo["urlIdentifier"] = urlId
+        }
+        if let shiftedOutput = kanataViewModel?.underlyingManager.getCustomRule(forInput: inputKey)?.shiftedOutput {
+            userInfo["shiftedOutputKey"] = shiftedOutput
         }
         NotificationCenter.default.post(
             name: .mapperDrawerKeySelected,

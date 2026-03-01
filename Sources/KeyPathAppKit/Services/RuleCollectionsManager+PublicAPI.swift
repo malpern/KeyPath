@@ -745,6 +745,7 @@ extension RuleCollectionsManager {
                 title: existing.title,
                 input: input,
                 output: output,
+                shiftedOutput: existing.shiftedOutput,
                 isEnabled: true,
                 notes: existing.notes,
                 createdAt: existing.createdAt

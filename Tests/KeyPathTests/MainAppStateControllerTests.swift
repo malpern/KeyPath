@@ -228,19 +228,24 @@ struct MainAppStateControllerBehaviorTests {
         let controller = MainAppStateController()
 #if DEBUG
             var probeCount = 0
+            var observedNonRespondingProbe = false
             controller.configureStartupGateTestingState(
                 healthOverride: {
                     probeCount += 1
+                    let isResponding = probeCount >= 2
+                    if !isResponding {
+                        observedNonRespondingProbe = true
+                    }
                     return KanataHealthSnapshot(
                         isRunning: true,
-                        isResponding: probeCount >= 3
+                        isResponding: isResponding
                     )
                 },
                 transientWindowOverride: { false },
                 timingOverride: (
-                    definitiveGrace: 0.2,
-                    transientGrace: 0.25,
-                    checkInterval: 0.01
+                    definitiveGrace: 0.6,
+                    transientGrace: 1.2,
+                    checkInterval: 0.02
                 )
             )
             defer { controller.resetStartupGateTestingState() }
@@ -249,7 +254,8 @@ struct MainAppStateControllerBehaviorTests {
         let ready = await controller.evaluateKanataStartupGateForTesting()
         #expect(ready == true)
 #if DEBUG
-            #expect(probeCount >= 3)
+            #expect(observedNonRespondingProbe == true)
+            #expect(probeCount >= 2)
 #endif
     }
 

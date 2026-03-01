@@ -12,8 +12,10 @@ import SwiftUI
 class MapperViewModel {
     var inputLabel: String = "A"
     var outputLabel: String = "A"
+    var shiftedOutputLabel: String?
     var isRecordingInput = false
     var isRecordingOutput = false
+    var isRecordingShiftedOutput = false
     var isSaving = false
     var statusMessage: String?
     var statusIsError = false
@@ -52,7 +54,12 @@ class MapperViewModel {
     /// Legacy accessor for selectedAppCondition
     var selectedAppCondition: AppConditionInfo? {
         get { appConditionManager.selectedAppCondition }
-        set { appConditionManager.selectedAppCondition = newValue }
+        set {
+            appConditionManager.selectedAppCondition = newValue
+            if newValue != nil {
+                clearShiftedOutput()
+            }
+        }
     }
 
     // MARK: - Advanced Behavior (Delegated to AdvancedBehaviorManager)
@@ -177,6 +184,7 @@ class MapperViewModel {
     )
     @ObservationIgnored var inputSequence: KeySequence? = MapperViewModel.defaultAKeySequence
     @ObservationIgnored var outputSequence: KeySequence? = MapperViewModel.defaultAKeySequence
+    @ObservationIgnored var shiftedOutputSequence: KeySequence?
     @ObservationIgnored var keyboardCapture: KeyboardCapture?
     @ObservationIgnored var simpleKeyCaptureMonitor: Any?
     @ObservationIgnored var simpleKeyCaptureToken: UUID?
@@ -196,6 +204,7 @@ class MapperViewModel {
     /// Original key context from overlay click (for reset after clear)
     @ObservationIgnored var originalInputKey: String?
     @ObservationIgnored var originalOutputKey: String?
+    @ObservationIgnored var originalShiftedOutputKey: String?
     @ObservationIgnored var originalAppIdentifier: String?
     @ObservationIgnored var originalSystemActionIdentifier: String?
     @ObservationIgnored var originalURL: String?
@@ -205,6 +214,8 @@ class MapperViewModel {
     /// State saved before starting output recording (for restore on cancel)
     @ObservationIgnored var savedOutputLabel: String?
     @ObservationIgnored var savedOutputSequence: KeySequence?
+    @ObservationIgnored var savedShiftedOutputLabel: String?
+    @ObservationIgnored var savedShiftedOutputSequence: KeySequence?
     @ObservationIgnored var savedSelectedApp: AppLaunchInfo?
     @ObservationIgnored var savedSelectedSystemAction: SystemActionInfo?
     @ObservationIgnored var savedMacroBehavior: MacroBehavior?
@@ -214,6 +225,27 @@ class MapperViewModel {
 
     var canSave: Bool {
         inputSequence != nil && (outputSequence != nil || selectedApp != nil || selectedSystemAction != nil || selectedURL != nil)
+    }
+
+    var hasShiftedOutputConfigured: Bool {
+        shiftedOutputSequence != nil
+    }
+
+    var shiftedOutputBlockingReason: String? {
+        if selectedAppCondition != nil {
+            return "Shift output is only available for rules that apply everywhere."
+        }
+        if selectedApp != nil || selectedSystemAction != nil || selectedURL != nil {
+            return "Shift output works only with keystroke output."
+        }
+        if advancedBehavior.hasAdvancedConfig {
+            return "Shift output isn't available with hold, combo, or multi-tap behaviors."
+        }
+        return nil
+    }
+
+    var canUseShiftedOutput: Bool {
+        shiftedOutputBlockingReason == nil
     }
 
     func configure(kanataManager: RuntimeCoordinator) {
@@ -243,7 +275,8 @@ class MapperViewModel {
         outputLabel: String,
         appIdentifier: String? = nil,
         systemActionIdentifier: String? = nil,
-        urlIdentifier: String? = nil
+        urlIdentifier: String? = nil,
+        shiftedOutputKey: String? = nil
     ) {
         // Stop any active recording
         stopRecording()
@@ -261,6 +294,7 @@ class MapperViewModel {
         selectedSystemAction = nil
         selectedURL = nil
         selectedAppCondition = nil
+        clearShiftedOutput()
 
         // Set output based on action type
         if let appId = appIdentifier, let appInfo = appLaunchInfo(for: appId) {
@@ -294,6 +328,7 @@ class MapperViewModel {
             )
             AppLogger.shared.log("🖱️ [MapperViewModel] Key click - key mapping: \(inputLabel) -> \(outputLabel)")
         }
+        applyShiftedOutputPreset(shiftedOutputKey)
 
         // Update list of apps that have mappings for this key
         Task { await updateAppsWithMapping() }
@@ -317,9 +352,14 @@ class MapperViewModel {
         let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
 
         // Look up existing rule
-        guard let existingRule = kanataManager.getCustomRule(forInput: inputKey),
-              let behavior = existingRule.behavior
-        else {
+        guard let existingRule = kanataManager.getCustomRule(forInput: inputKey) else {
+            clearShiftedOutput()
+            AppLogger.shared.log("📖 [MapperViewModel] No existing behavior for input '\(inputKey)'")
+            return
+        }
+        applyShiftedOutputPreset(existingRule.shiftedOutput)
+
+        guard let behavior = existingRule.behavior else {
             AppLogger.shared.log("📖 [MapperViewModel] No existing behavior for input '\(inputKey)'")
             return
         }
@@ -399,7 +439,8 @@ class MapperViewModel {
         inputKeyCode: UInt16? = nil,
         appIdentifier: String? = nil,
         systemActionIdentifier: String? = nil,
-        urlIdentifier: String? = nil
+        urlIdentifier: String? = nil,
+        shiftedOutput: String? = nil
     ) {
         // Stop any active recording
         stopRecording()
@@ -407,6 +448,7 @@ class MapperViewModel {
         // Store original context for reset after clear
         originalInputKey = input
         originalOutputKey = output
+        originalShiftedOutputKey = shiftedOutput
         originalAppIdentifier = appIdentifier
         originalSystemActionIdentifier = systemActionIdentifier
         originalURL = urlIdentifier
@@ -417,6 +459,7 @@ class MapperViewModel {
         selectedApp = nil
         selectedSystemAction = nil
         selectedURL = nil
+        clearShiftedOutput()
 
         // Set the layer
         if let layer {
@@ -465,6 +508,7 @@ class MapperViewModel {
                 captureMode: .single
             )
         }
+        applyShiftedOutputPreset(shiftedOutput)
 
         // Store the keyCode for proper keycap rendering
         if let inputKeyCode {
@@ -486,12 +530,48 @@ class MapperViewModel {
         return result
     }
 
+    func formattedSequenceForDisplay(_ sequence: String) -> String {
+        sequence
+            .split(separator: " ")
+            .map { formatKeyForDisplay(String($0)) }
+            .joined(separator: " ")
+    }
+
+    func applyShiftedOutputPreset(_ shiftedOutput: String?) {
+        guard let shiftedOutput = shiftedOutput?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !shiftedOutput.isEmpty
+        else {
+            clearShiftedOutput()
+            return
+        }
+
+        originalShiftedOutputKey = shiftedOutput
+        shiftedOutputLabel = formattedSequenceForDisplay(shiftedOutput)
+        shiftedOutputSequence = KeySequence(
+            keys: [KeyPress(baseKey: shiftedOutput, modifiers: [], keyCode: 0)],
+            captureMode: .single
+        )
+    }
+
+    func clearShiftedOutput() {
+        shiftedOutputLabel = nil
+        shiftedOutputSequence = nil
+        originalShiftedOutputKey = nil
+        isRecordingShiftedOutput = false
+    }
+
+    func currentShiftedOutputKanataString() -> String? {
+        guard let shiftedOutputSequence else { return nil }
+        let kanata = convertSequenceToKanataFormat(shiftedOutputSequence)
+        return kanata.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : kanata
+    }
+
     func toggleInputRecording() {
         if isRecordingInput {
             stopRecording()
         } else {
             // Stop output recording if active
-            if isRecordingOutput {
+            if isRecordingOutput || isRecordingShiftedOutput {
                 stopRecording()
             }
             startInputRecording()
@@ -503,10 +583,21 @@ class MapperViewModel {
             stopRecording()
         } else {
             // Stop input recording if active
-            if isRecordingInput {
+            if isRecordingInput || isRecordingShiftedOutput {
                 stopRecording()
             }
             startOutputRecording()
+        }
+    }
+
+    func toggleShiftedOutputRecording() {
+        if isRecordingShiftedOutput {
+            stopRecording()
+        } else {
+            if isRecordingInput || isRecordingOutput {
+                stopRecording()
+            }
+            startShiftedOutputRecording()
         }
     }
 

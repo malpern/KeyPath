@@ -131,12 +131,15 @@ extension OverlayInspectorPanel {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             // Convert input key label to keyCode for proper keyboard highlighting
             let keyCode = LogicalKeymap.keyCode(forQwertyLabel: rule.input) ?? 0
-            let userInfo: [String: Any] = [
+            var userInfo: [String: Any] = [
                 "keyCode": keyCode,
                 "inputKey": rule.input,
                 "outputKey": rule.output
                 // No appBundleId means global/everywhere
             ]
+            if let shiftedOutput = rule.shiftedOutput {
+                userInfo["shiftedOutputKey"] = shiftedOutput
+            }
             NotificationCenter.default.post(
                 name: .mapperDrawerKeySelected,
                 object: nil,

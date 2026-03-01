@@ -9,7 +9,7 @@ extension OverlayMapperSection {
     var currentSlotOutputLabel: String {
         switch selectedBehaviorSlot {
         case .tap:
-            return viewModel.outputLabel
+            return activeTapOutputLabel
         case .hold:
             let action = viewModel.holdAction
             return action.isEmpty ? "" : KeyDisplayFormatter.format(action)
@@ -37,7 +37,7 @@ extension OverlayMapperSection {
     var isRecordingForCurrentSlot: Bool {
         switch selectedBehaviorSlot {
         case .tap:
-            viewModel.isRecordingOutput
+            activeTapIsRecording
         case .hold:
             viewModel.isRecordingHold
         case .combo:
@@ -49,6 +49,7 @@ extension OverlayMapperSection {
     var isAnyRecordingActive: Bool {
         viewModel.isRecordingInput ||
             viewModel.isRecordingOutput ||
+            viewModel.isRecordingShiftedOutput ||
             viewModel.isRecordingHold ||
             viewModel.isRecordingDoubleTap ||
             viewModel.isRecordingComboOutput

@@ -19,7 +19,7 @@ final class WizardWindowController {
     private var windowDelegate: WizardWindowDelegate?
     private var onDismiss: (() -> Void)?
     private var sizeObserver: NSObjectProtocol?
-    private var resizeDebounceTask: Task<Void, Never>?
+    private var resizeDebounceWorkItem: DispatchWorkItem?
 
     private init() {}
 
@@ -107,14 +107,8 @@ final class WizardWindowController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in
-                // Debounce rapid size changes during page skipping
-                self?.resizeDebounceTask?.cancel()
-                self?.resizeDebounceTask = Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(100))
-                    guard !Task.isCancelled else { return }
-                    self?.updateWindowSizeToFitContent()
-                }
+            Task { @MainActor [weak self] in
+                self?.scheduleResizeDebouncedUpdate()
             }
         }
 
@@ -125,6 +119,8 @@ final class WizardWindowController {
     /// Close the wizard window
     func closeWindow() {
         AppLogger.shared.log("🔮 [WizardWindow] Closing wizard window")
+        resizeDebounceWorkItem?.cancel()
+        resizeDebounceWorkItem = nil
         if let observer = sizeObserver {
             NotificationCenter.default.removeObserver(observer)
             sizeObserver = nil
@@ -176,9 +172,23 @@ final class WizardWindowController {
         }
     }
 
+    private func scheduleResizeDebouncedUpdate() {
+        // Debounce rapid size changes during page skipping
+        resizeDebounceWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.updateWindowSizeToFitContent()
+            }
+        }
+        resizeDebounceWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100), execute: workItem)
+    }
+
     /// Called when the window is closed (either programmatically or by user)
     func handleWindowClosed() {
         AppLogger.shared.log("🎭 [WizardWindow] ========== WIZARD CLOSED ==========")
+        resizeDebounceWorkItem?.cancel()
+        resizeDebounceWorkItem = nil
 
         // Reset overlay auto-hide guard
         LiveKeyboardOverlayController.shared.resetSettingsAutoHideGuard()

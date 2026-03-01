@@ -67,6 +67,7 @@ extension OverlayMapperSection {
             viewModel.selectedApp = app
             viewModel.selectedSystemAction = nil
             viewModel.selectedURL = nil
+            viewModel.clearShiftedOutput()
             selectedLayerOutput = nil
             viewModel.outputLabel = app.name
             isSystemActionPickerOpen = false

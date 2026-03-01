@@ -53,6 +53,43 @@ final class MapperViewModelKeyClickTests: XCTestCase {
         XCTAssertNil(viewModel.selectedURL, "No URL should be selected for plain key")
     }
 
+    @MainActor
+    func testSetInputFromKeyClick_WithShiftedOutput_PopulatesShiftedState() {
+        let viewModel = MapperViewModel()
+
+        viewModel.setInputFromKeyClick(
+            keyCode: 5,
+            inputLabel: "g",
+            outputLabel: "up",
+            shiftedOutputKey: "down"
+        )
+
+        XCTAssertTrue(viewModel.hasShiftedOutputConfigured)
+        XCTAssertEqual(viewModel.currentShiftedOutputKanataString(), "down")
+    }
+
+    @MainActor
+    func testSetInputFromKeyClick_WithoutShiftedOutput_ClearsPreviousShiftedState() {
+        let viewModel = MapperViewModel()
+
+        viewModel.setInputFromKeyClick(
+            keyCode: 5,
+            inputLabel: "g",
+            outputLabel: "up",
+            shiftedOutputKey: "down"
+        )
+        XCTAssertTrue(viewModel.hasShiftedOutputConfigured)
+
+        viewModel.setInputFromKeyClick(
+            keyCode: 1,
+            inputLabel: "s",
+            outputLabel: "d"
+        )
+
+        XCTAssertFalse(viewModel.hasShiftedOutputConfigured)
+        XCTAssertNil(viewModel.currentShiftedOutputKanataString())
+    }
+
     // MARK: - System Action Tests
 
     @MainActor

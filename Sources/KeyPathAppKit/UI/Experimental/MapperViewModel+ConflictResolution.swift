@@ -3,6 +3,12 @@ import Foundation
 import KeyPathCore
 
 extension MapperViewModel {
+    private enum CaptureTarget {
+        case input
+        case output
+        case shiftedOutput
+    }
+
     // MARK: - Conflict Resolution
 
     /// Resolve conflict by keeping hold (clears all tap-dance actions)
@@ -274,7 +280,7 @@ extension MapperViewModel {
         inputLabel = "..."
         statusMessage = "Press keys (sequence supported)"
         statusIsError = false
-        startCapture(isInput: true)
+        startCapture(target: .input)
     }
 
     func startOutputRecording() {
@@ -292,10 +298,28 @@ extension MapperViewModel {
         selectedApp = nil
         statusMessage = "Press keys (sequence supported)"
         statusIsError = false
-        startCapture(isInput: false)
+        startCapture(target: .output)
     }
 
-    private func startCapture(isInput: Bool) {
+    func startShiftedOutputRecording() {
+        guard canUseShiftedOutput else {
+            statusMessage = shiftedOutputBlockingReason
+            statusIsError = true
+            return
+        }
+
+        savedShiftedOutputLabel = shiftedOutputLabel
+        savedShiftedOutputSequence = shiftedOutputSequence
+
+        isRecordingShiftedOutput = true
+        shiftedOutputLabel = "..."
+        shiftedOutputSequence = nil
+        statusMessage = "Press keys for Shift output"
+        statusIsError = false
+        startCapture(target: .shiftedOutput)
+    }
+
+    private func startCapture(target: CaptureTarget) {
         // Create keyboard capture if needed
         if keyboardCapture == nil {
             keyboardCapture = KeyboardCapture()
@@ -313,7 +337,7 @@ extension MapperViewModel {
 
             Task { @MainActor in
                 // Update the captured sequence (streaming updates)
-                if isInput {
+                if target == .input {
                     self.inputSequence = sequence
                     self.inputLabel = sequence.displayString
                     // Store first key's keyCode for overlay-style rendering
@@ -328,6 +352,9 @@ extension MapperViewModel {
                         // Look up current mapping for this key and update output
                         self.lookupAndSetOutput(forKeyCode: keyCode)
                     }
+                } else if target == .shiftedOutput {
+                    self.shiftedOutputSequence = sequence
+                    self.shiftedOutputLabel = sequence.displayString
                 } else {
                     self.outputSequence = sequence
                     self.outputLabel = sequence.displayString
@@ -353,6 +380,7 @@ extension MapperViewModel {
         selectedApp = nil
         selectedSystemAction = nil
         selectedURL = nil
+        clearShiftedOutput()
 
         let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
 
@@ -369,6 +397,7 @@ extension MapperViewModel {
                 originalAppIdentifier = appIdentifier
                 originalSystemActionIdentifier = nil
                 originalURL = nil
+                originalShiftedOutputKey = nil
                 AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is app launch: \(appInfo.name)")
             } else if let url = info.urlIdentifier {
                 selectedURL = url
@@ -377,6 +406,7 @@ extension MapperViewModel {
                 originalURL = url
                 originalAppIdentifier = nil
                 originalSystemActionIdentifier = nil
+                originalShiftedOutputKey = nil
                 AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is URL: \(url)")
             } else if let systemId = info.systemActionIdentifier,
                       let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel)
@@ -387,6 +417,7 @@ extension MapperViewModel {
                 originalSystemActionIdentifier = systemId
                 originalAppIdentifier = nil
                 originalURL = nil
+                originalShiftedOutputKey = nil
                 AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is system action: \(systemAction.name)")
             } else if let outputKey = info.outputKey {
                 outputLabel = formatKeyForDisplay(outputKey)
@@ -397,6 +428,7 @@ extension MapperViewModel {
                 originalAppIdentifier = nil
                 originalSystemActionIdentifier = nil
                 originalURL = nil
+                originalShiftedOutputKey = nil
             } else {
                 // Fallback: use displayLabel as the output key
                 outputLabel = info.displayLabel
@@ -408,6 +440,7 @@ extension MapperViewModel {
                 originalAppIdentifier = nil
                 originalSystemActionIdentifier = nil
                 originalURL = nil
+                originalShiftedOutputKey = nil
             }
 
             // Store original context for reset
@@ -426,6 +459,7 @@ extension MapperViewModel {
             )
             originalInputKey = inputKey
             originalOutputKey = inputKey
+            originalShiftedOutputKey = nil
         }
     }
 
@@ -437,6 +471,7 @@ extension MapperViewModel {
         keyboardCapture?.stopCapture()
         isRecordingInput = false
         isRecordingOutput = false
+        isRecordingShiftedOutput = false
         statusMessage = nil
 
         AppLogger.shared.log("🎯 [MapperViewModel] finalizeCapture: canSave=\(canSave) selectedApp=\(selectedApp?.name ?? "nil") inputSeq=\(inputSequence?.displayString ?? "nil")")
@@ -470,9 +505,11 @@ extension MapperViewModel {
         keyboardCapture?.stopCapture()
 
         let wasRecordingOutput = isRecordingOutput
+        let wasRecordingShiftedOutput = isRecordingShiftedOutput
         let wasRecordingMacro = isRecordingMacro
         isRecordingInput = false
         isRecordingOutput = false
+        isRecordingShiftedOutput = false
         isRecordingMacro = false
 
         // If we stopped without capturing anything, restore previous state
@@ -495,9 +532,16 @@ extension MapperViewModel {
             }
         }
 
+        if wasRecordingShiftedOutput, shiftedOutputSequence == nil {
+            shiftedOutputLabel = savedShiftedOutputLabel
+            shiftedOutputSequence = savedShiftedOutputSequence
+        }
+
         // Clear saved state
         savedOutputLabel = nil
         savedOutputSequence = nil
+        savedShiftedOutputLabel = nil
+        savedShiftedOutputSequence = nil
         savedSelectedApp = nil
         savedSelectedSystemAction = nil
 
@@ -532,11 +576,13 @@ extension MapperViewModel {
         let inputKey = convertSequenceToKanataFormat(inputSeq).lowercased()
         let outputKey = convertSequenceToKanataFormat(outputSeq).lowercased()
         let hasAdvancedBehavior = advancedBehavior.hasAdvancedConfig
+        let hasShiftedOutput = canUseShiftedOutput && currentShiftedOutputKanataString() != nil
         if inputKey == outputKey,
            selectedApp == nil,
            selectedSystemAction == nil,
            selectedURL == nil,
-           !hasAdvancedBehavior
+           !hasAdvancedBehavior,
+           !hasShiftedOutput
         {
             statusMessage = "Nothing to save - input and output are the same"
             statusIsError = true
@@ -585,6 +631,7 @@ extension MapperViewModel {
             // Also save as custom rule for UI visibility
             let inputKanata = convertSequenceToKanataFormat(inputSeq)
             let outputKanata = convertSequenceToKanataFormat(outputSeq)
+            let shiftedOutputKanata = canUseShiftedOutput ? currentShiftedOutputKanataString() : nil
 
             // Convert currentLayer string to RuleCollectionLayer
             let targetLayer = layerFromString(currentLayer)
@@ -594,6 +641,7 @@ extension MapperViewModel {
             var customRule = kanataManager.makeCustomRule(input: inputKanata, output: outputKanata)
             customRule.notes = "Created via Mapper [\(currentLayer) layer]"
             customRule.targetLayer = targetLayer
+            customRule.shiftedOutput = shiftedOutputKanata
 
             // Add behavior based on configured actions
             // Priority: macro → dualRole → tap-dance → chord
@@ -672,6 +720,7 @@ extension MapperViewModel {
     private func reset() {
         inputLabel = "A"
         outputLabel = "A"
+        clearShiftedOutput()
         inputKeyCode = 0 // Default to A key
         // Reset to default A key sequences so save works without capturing input first
         inputSequence = Self.defaultAKeySequence
@@ -690,6 +739,7 @@ extension MapperViewModel {
     func resetForNewMapping() {
         inputLabel = "A"
         outputLabel = "A"
+        clearShiftedOutput()
         inputKeyCode = 0 // Default to A key
         inputSequence = Self.defaultAKeySequence
         outputSequence = Self.defaultAKeySequence
@@ -762,6 +812,7 @@ extension MapperViewModel {
                     captureMode: .single
                 )
             }
+            applyShiftedOutputPreset(originalShiftedOutputKey)
 
             statusMessage = nil
             AppLogger.shared.log("🧹 [MapperViewModel] Reset to original key: \(origInput) → \(origOutput)")
@@ -781,6 +832,7 @@ extension MapperViewModel {
         selectedApp = nil
         selectedSystemAction = nil
         selectedURL = nil
+        clearShiftedOutput()
 
         // Reset output to match input (identity mapping: A→A)
         outputLabel = inputLabel
@@ -823,6 +875,7 @@ extension MapperViewModel {
         lastSavedRuleID = nil
         originalInputKey = nil
         originalOutputKey = nil
+        originalShiftedOutputKey = nil
         originalLayer = nil
         currentLayer = "base"
 
@@ -895,6 +948,7 @@ extension MapperViewModel {
         selectedApp = appInfo
         selectedSystemAction = nil // Clear any system action selection
         selectedURL = nil
+        clearShiftedOutput()
         outputLabel = appInfo.name
         outputSequence = nil // Clear any key sequence output
 
