@@ -561,7 +561,7 @@ final class ServiceBootstrapper {
                 try await KanataDaemonManager.shared.unregister()
                 // Poll for service readiness with a short wait, instead of fixed sleep
                 for _ in 0 ..< 6 { // ~0.6s
-                    if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID) {
+                    if !(await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID)) {
                         break
                     }
                     _ = await WizardSleep.ms(100)
@@ -623,7 +623,7 @@ final class ServiceBootstrapper {
 
                 try await KanataDaemonManager.shared.unregister()
                 for _ in 0 ..< 10 { // ~1s
-                    if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID) {
+                    if !(await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID)) {
                         break
                     }
                     _ = await WizardSleep.ms(100)

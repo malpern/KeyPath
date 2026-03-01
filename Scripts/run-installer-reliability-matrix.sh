@@ -20,10 +20,7 @@ mkdir -p "$OUT_DIR"
 
 json_escape() {
     printf '%s' "$1" \
-        | sed -e 's/\\/\\\\/g' \
-            -e 's/"/\\"/g' \
-            -e 's/\t/\\t/g' \
-            -e 's/\r/\\r/g'
+        | perl -0777 -pe 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g'
 }
 
 capture_context() {
@@ -81,6 +78,14 @@ run_lane() {
         status="pass"
     else
         status="fail"
+    fi
+
+    local executed_tests
+    executed_tests="$(grep -Eo "Executed [0-9]+ tests?" "$lane_log" | tail -n 1 | awk '{print $2}' || true)"
+    if [ "$exit_code" -eq 0 ] && [ -n "$executed_tests" ] && [ "$executed_tests" -eq 0 ]; then
+        status="fail"
+        exit_code=97
+        summary_line="$summary_line (no tests matched filter)"
     fi
 
     LANE_IDS+=("$lane_id")
