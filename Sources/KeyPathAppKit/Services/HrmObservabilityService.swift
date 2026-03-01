@@ -583,7 +583,7 @@ final class HrmObservabilityService {
 
     private func isLikelyRuntimeDisabled(_ error: Error) -> Bool {
         let message = String(describing: error).lowercased()
-        return message.contains("disabled") || message.contains("not enabled") || message.contains("hrm")
+        return message.contains("disabled") || message.contains("not enabled")
     }
 
     private func clamp(_ value: Int, min: Int, max: Int) -> Int {

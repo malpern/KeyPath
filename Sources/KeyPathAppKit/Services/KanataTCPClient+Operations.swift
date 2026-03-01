@@ -137,13 +137,6 @@ extension KanataTCPClient {
             let requestId = generateRequestId()
             let requestData = try JSONEncoder().encode(["RequestHrmStats": ["request_id": requestId]])
             let responseData = try await send(requestData)
-            try verifyRequestCorrelation(expectedRequestId: requestId, responseData: responseData)
-
-            if let stats = try extractMessage(
-                named: "HrmStats", into: TcpHrmStats.self, from: responseData
-            ) {
-                return stats.withCollectedAt(Date())
-            }
 
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
                let status = json["status"] as? String,
@@ -151,6 +144,14 @@ extension KanataTCPClient {
             {
                 let msg = json["msg"] as? String ?? "RequestHrmStats failed"
                 throw KeyPathError.communication(.connectionFailed(reason: msg))
+            }
+
+            try verifyRequestCorrelation(expectedRequestId: requestId, responseData: responseData)
+
+            if let stats = try extractMessage(
+                named: "HrmStats", into: TcpHrmStats.self, from: responseData
+            ) {
+                return stats.withCollectedAt(Date())
             }
 
             throw KeyPathError.communication(.invalidResponse)
@@ -165,10 +166,10 @@ extension KanataTCPClient {
             let requestId = generateRequestId()
             let requestData = try JSONEncoder().encode(["ResetHrmStats": ["request_id": requestId]])
             let responseData = try await send(requestData)
-            try verifyRequestCorrelation(expectedRequestId: requestId, responseData: responseData)
 
             if let response = try? JSONDecoder().decode(TcpServerResponse.self, from: responseData) {
                 if response.isOk {
+                    try verifyRequestCorrelation(expectedRequestId: requestId, responseData: responseData)
                     return
                 }
                 if response.isError {
