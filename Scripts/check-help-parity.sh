@@ -38,7 +38,17 @@ if ! diff -u <(echo "$app_ids") <(echo "$registry_ids") >/dev/null; then
 fi
 
 echo "Checking markdown PNG references resolve in app resources..."
-png_refs="$(rg -n --no-filename --no-line-number '!\[[^]]*\]\(([^)]+\.png)\)' "$RES_DIR"/*.md -or '$1' | sort -u)"
+if command -v rg >/dev/null 2>&1; then
+  png_refs="$(
+    rg -n --no-filename --no-line-number '!\[[^]]*\]\(([^)]+\.png)\)' "$RES_DIR"/*.md -or '$1' | sort -u
+  )"
+else
+  png_refs="$(
+    grep -h -oE '!\[[^]]*\]\(([^)]+\.png)\)' "$RES_DIR"/*.md \
+      | sed -E 's/^!\[[^]]*\]\(([^)]+)\)$/\1/' \
+      | sort -u
+  )"
+fi
 missing_png=0
 while IFS= read -r png; do
   [[ -z "$png" ]] && continue
