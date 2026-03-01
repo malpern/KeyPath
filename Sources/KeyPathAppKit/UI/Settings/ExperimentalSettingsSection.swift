@@ -14,13 +14,6 @@ struct ExperimentalSettingsSection: View {
     @State private var qmkSearchEnabled = UserDefaults.standard.bool(forKey: LayoutPreferences.qmkSearchEnabledKey)
     @State private var accessibilityTestMode = PreferencesService.shared.accessibilityTestMode
 
-    #if DEBUG
-        @State private var voxClawEnabled = FeatureFlags.voxClawEnabled
-        @State private var voxClawBaseURL = FeatureFlags.voxClawBaseURL
-        @State private var voxClawHealthStatus: String?
-        @State private var voxClawHealthChecking = false
-    #endif
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -110,20 +103,6 @@ struct ExperimentalSettingsSection: View {
                     }
                 }
 
-                #if DEBUG
-                    // VoxClaw TTS Section
-                    SettingsCard {
-                        VStack(alignment: .leading, spacing: 12) {
-                            SectionHeader(icon: "speaker.wave.3.fill", title: "VoxClaw TTS", color: .teal)
-
-                            Text("Speak text aloud via VoxClaw's HTTP API (dev-only).")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-
-                            voxClawSection
-                        }
-                    }
-                #endif
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -231,107 +210,6 @@ struct ExperimentalSettingsSection: View {
                 .accessibilityIdentifier("feature-flag-learning-tips-row")
         }
     }
-
-    // MARK: - VoxClaw TTS
-
-    #if DEBUG
-        private var voxClawSection: some View {
-            VStack(alignment: .leading, spacing: 10) {
-                // Enable/disable toggle
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Enable VoxClaw")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        Text("Connect to VoxClaw menu bar app for text-to-speech")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Spacer()
-
-                    Toggle("", isOn: Binding(
-                        get: { voxClawEnabled },
-                        set: { newValue in
-                            voxClawEnabled = newValue
-                            FeatureFlags.setVoxClawEnabled(newValue)
-                            voxClawHealthStatus = nil
-                        }
-                    ))
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .controlSize(.small)
-                    .accessibilityIdentifier("voxclaw-enable-toggle")
-                    .accessibilityLabel("Enable VoxClaw TTS")
-                }
-                .padding(.vertical, 4)
-
-                if voxClawEnabled {
-                    // Server URL field
-                    HStack(spacing: 12) {
-                        Text("Server URL")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-
-                        TextField("http://hostname:port", text: Binding(
-                            get: { voxClawBaseURL },
-                            set: { newValue in
-                                voxClawBaseURL = newValue
-                                FeatureFlags.setVoxClawBaseURL(newValue)
-                                voxClawHealthStatus = nil
-                            }
-                        ))
-                        .textFieldStyle(.roundedBorder)
-                        .font(.caption.monospaced())
-                        .accessibilityIdentifier("voxclaw-url-field")
-                    }
-                    .padding(.vertical, 4)
-
-                    // Test button + status
-                    HStack(spacing: 12) {
-                        Button {
-                            voxClawHealthChecking = true
-                            voxClawHealthStatus = nil
-                            Task {
-                                let result = await VoxClawService.shared.checkHealth()
-                                voxClawHealthChecking = false
-                                switch result {
-                                case let .success(status):
-                                    let version = status.version.map { " v\($0)" } ?? ""
-                                    voxClawHealthStatus = "Connected\(version)"
-                                case let .failure(error):
-                                    voxClawHealthStatus = error.localizedDescription
-                                }
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                if voxClawHealthChecking {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                        .scaleEffect(0.7)
-                                } else {
-                                    Image(systemName: "network")
-                                }
-                                Text("Test")
-                            }
-                        }
-                        .controlSize(.small)
-                        .disabled(voxClawHealthChecking)
-                        .accessibilityIdentifier("voxclaw-test-button")
-
-                        if let status = voxClawHealthStatus {
-                            Text(status)
-                                .font(.caption)
-                                .foregroundColor(status.hasPrefix("Connected") ? .green : .red)
-                        }
-
-                        Spacer()
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
-        }
-    #endif
 
     private func featureFlagToggle(
         title: String,

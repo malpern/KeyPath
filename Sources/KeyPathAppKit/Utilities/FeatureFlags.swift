@@ -164,32 +164,6 @@ extension FeatureFlags {
         UserDefaults.standard.set(enabled, forKey: contextHUDListEnabledKey)
     }
 
-    // MARK: - VoxClaw TTS (dev-only)
-
-    #if DEBUG
-        private static let voxClawEnabledKey = "VOXCLAW_ENABLED"
-        private static let voxClawBaseURLKey = "VOXCLAW_BASE_URL"
-        private static let voxClawDefaultBaseURL = "http://macbook-air-m4.local:4140"
-
-        /// Enable VoxClaw TTS integration (default OFF, dev-only)
-        static var voxClawEnabled: Bool {
-            UserDefaults.standard.bool(forKey: voxClawEnabledKey)
-        }
-
-        static func setVoxClawEnabled(_ enabled: Bool) {
-            UserDefaults.standard.set(enabled, forKey: voxClawEnabledKey)
-        }
-
-        /// VoxClaw server base URL
-        static var voxClawBaseURL: String {
-            UserDefaults.standard.string(forKey: voxClawBaseURLKey) ?? voxClawDefaultBaseURL
-        }
-
-        static func setVoxClawBaseURL(_ url: String) {
-            UserDefaults.standard.set(url, forKey: voxClawBaseURLKey)
-        }
-    #endif
-
     // MARK: - Future Implementation (not yet built)
 
     /// Phase 2: Just-in-time permission requests (NOT YET IMPLEMENTED)
