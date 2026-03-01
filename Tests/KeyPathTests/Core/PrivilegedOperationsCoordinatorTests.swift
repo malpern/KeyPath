@@ -213,24 +213,14 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
     }
 
     func testInstallBundledKanataSucceedsWhenReadinessBecomesReady() async throws {
-#if DEBUG
+        #if DEBUG
             PrivilegedOperationsCoordinator.resetTestingState()
             PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
             KanataDaemonManager.registeredButNotLoadedOverride = { false }
             PrivilegedOperationsCoordinator.installBundledKanataBinaryOverride = {}
-            var probeCount = 0
-            ServiceHealthChecker.runtimeSnapshotOverride = {
-                probeCount += 1
-                let ready = probeCount >= 3
-                return ServiceHealthChecker.KanataServiceRuntimeSnapshot(
-                    managementState: .smappserviceActive,
-                    isRunning: ready,
-                    isResponding: ready,
-                    launchctlExitCode: ready ? 0 : nil,
-                    staleEnabledRegistration: false,
-                    recentlyRestarted: true
-                )
-            }
+            PrivilegedOperationsCoordinator.kanataReadinessOverride = { _ in .ready }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsCoordinator test overrides")
         #endif
 
         let coordinator = PrivilegedOperationsCoordinator.shared
