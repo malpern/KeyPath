@@ -9,7 +9,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             layerAssignments: ["a": "nav"],
             holdMode: .modifiers,
             layerToggleMode: .whileHeld,
-            splitHandDetection: false
+            oppositeHandActivation: false
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -29,7 +29,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             layerAssignments: ["a": "nav"],
             holdMode: .layers,
             layerToggleMode: .toggle,
-            splitHandDetection: false
+            oppositeHandActivation: false
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -42,14 +42,14 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
         XCTAssertEqual(behavior.holdAction, "(layer-toggle nav)")
     }
 
-    // MARK: - Split-Hand Detection
+    // MARK: - Opposite-Hand Activation
 
-    func testSplitHandDetectionTrue_PopulatesLeftHandKeys() {
+    func testOppositeHandActivationTrue_SetsUseOppositeHand() {
         let config = HomeRowModsConfig(
             enabledKeys: ["a"],
             modifierAssignments: ["a": "lsft"],
             holdMode: .modifiers,
-            splitHandDetection: true
+            oppositeHandActivation: true
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -57,33 +57,17 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             return XCTFail("Expected dualRole behavior")
         }
 
-        XCTAssertEqual(behavior.customTapKeys, HomeRowModsConfig.leftHandAllKeys)
+        XCTAssertTrue(behavior.useOppositeHand)
+        XCTAssertTrue(behavior.customTapKeys.isEmpty, "customTapKeys should be empty when using opposite-hand")
         XCTAssertFalse(behavior.activateHoldOnOtherKey)
     }
 
-    func testSplitHandDetectionTrue_PopulatesRightHandKeys() {
-        let config = HomeRowModsConfig(
-            enabledKeys: ["j"],
-            modifierAssignments: ["j": "rmet"],
-            holdMode: .modifiers,
-            splitHandDetection: true
-        )
-
-        let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
-        guard case let .dualRole(behavior)? = mappings.first?.behavior else {
-            return XCTFail("Expected dualRole behavior")
-        }
-
-        XCTAssertEqual(behavior.customTapKeys, HomeRowModsConfig.rightHandAllKeys)
-        XCTAssertFalse(behavior.activateHoldOnOtherKey)
-    }
-
-    func testSplitHandDetectionFalse_LeavesCustomTapKeysEmpty() {
+    func testOppositeHandActivationFalse_LeavesCustomTapKeysEmpty() {
         let config = HomeRowModsConfig(
             enabledKeys: ["a"],
             modifierAssignments: ["a": "lsft"],
             holdMode: .modifiers,
-            splitHandDetection: false
+            oppositeHandActivation: false
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -91,11 +75,12 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             return XCTFail("Expected dualRole behavior")
         }
 
+        XCTAssertFalse(behavior.useOppositeHand)
         XCTAssertTrue(behavior.customTapKeys.isEmpty)
         XCTAssertTrue(behavior.activateHoldOnOtherKey)
     }
 
-    func testSplitHandDetection_PerKeyTimingOffsetsStillApply() {
+    func testOppositeHandActivation_PerKeyTimingOffsetsStillApply() {
         var timing = TimingConfig.default
         timing.tapOffsets = ["a": 20]
         timing.holdOffsets = ["a": 10]
@@ -105,7 +90,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             modifierAssignments: ["a": "lsft"],
             holdMode: .modifiers,
             timing: timing,
-            splitHandDetection: true
+            oppositeHandActivation: true
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -115,16 +100,16 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
 
         XCTAssertEqual(behavior.tapTimeout, 220) // 200 + 20
         XCTAssertEqual(behavior.holdTimeout, 160) // 150 + 10
-        XCTAssertEqual(behavior.customTapKeys, HomeRowModsConfig.leftHandAllKeys)
+        XCTAssertTrue(behavior.useOppositeHand)
     }
 
-    func testSplitHandDetection_LayerToggleMode() {
+    func testOppositeHandActivation_LayerToggleMode() {
         let config = HomeRowModsConfig(
             enabledKeys: ["a"],
             layerAssignments: ["a": "nav"],
             holdMode: .layers,
             layerToggleMode: .whileHeld,
-            splitHandDetection: true
+            oppositeHandActivation: true
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -133,33 +118,32 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
         }
 
         XCTAssertEqual(behavior.holdAction, "(layer-while-held nav)")
-        XCTAssertEqual(behavior.customTapKeys, HomeRowModsConfig.leftHandAllKeys)
+        XCTAssertTrue(behavior.useOppositeHand)
     }
 
-    func testSplitHandDetection_LeftOnlyKeySelection() {
+    func testOppositeHandActivation_LeftOnlyKeySelection() {
         let config = HomeRowModsConfig(
             enabledKeys: Set(HomeRowModsConfig.leftHandKeys),
             modifierAssignments: HomeRowModsConfig.cagsMacDefault,
             holdMode: .modifiers,
             keySelection: .leftOnly,
-            splitHandDetection: true
+            oppositeHandActivation: true
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
-        // All left-hand keys should get left-hand customTapKeys
         for mapping in mappings {
             guard case let .dualRole(behavior)? = mapping.behavior else {
                 XCTFail("Expected dualRole behavior"); continue
             }
-            XCTAssertEqual(behavior.customTapKeys, HomeRowModsConfig.leftHandAllKeys)
+            XCTAssertTrue(behavior.useOppositeHand)
         }
     }
 
-    func testLayerTogglesMappings_SplitHandDetection() {
+    func testLayerTogglesMappings_OppositeHandActivation() {
         let config = HomeRowLayerTogglesConfig(
             enabledKeys: ["a", "j"],
             layerAssignments: ["a": "nav", "j": "sym"],
-            splitHandDetection: true
+            oppositeHandActivation: true
         )
 
         let mappings = KanataConfiguration.generateHomeRowLayerTogglesMappings(from: config)
@@ -169,46 +153,109 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             guard case let .dualRole(behavior)? = mapping.behavior else {
                 XCTFail("Expected dualRole behavior"); continue
             }
-            if mapping.input == "a" {
-                XCTAssertEqual(behavior.customTapKeys, HomeRowModsConfig.leftHandAllKeys)
-            } else {
-                XCTAssertEqual(behavior.customTapKeys, HomeRowModsConfig.rightHandAllKeys)
-            }
+            XCTAssertTrue(behavior.useOppositeHand)
+            XCTAssertTrue(behavior.customTapKeys.isEmpty)
         }
+    }
+
+    // MARK: - Require Prior Idle
+
+    func testRequirePriorIdleMs_PropagatedToBehavior() {
+        var timing = TimingConfig.default
+        timing.requirePriorIdleMs = 150
+
+        let config = HomeRowModsConfig(
+            enabledKeys: ["a"],
+            modifierAssignments: ["a": "lsft"],
+            holdMode: .modifiers,
+            timing: timing,
+            oppositeHandActivation: true
+        )
+
+        let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
+        guard case let .dualRole(behavior)? = mappings.first?.behavior else {
+            return XCTFail("Expected dualRole behavior")
+        }
+
+        XCTAssertEqual(behavior.requirePriorIdleMs, 150)
+    }
+
+    func testRequirePriorIdleMs_ZeroWhenDisabled() {
+        var timing = TimingConfig.default
+        timing.requirePriorIdleMs = 0
+
+        let config = HomeRowModsConfig(
+            enabledKeys: ["a"],
+            modifierAssignments: ["a": "lsft"],
+            holdMode: .modifiers,
+            timing: timing,
+            oppositeHandActivation: false
+        )
+
+        let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
+        guard case let .dualRole(behavior)? = mappings.first?.behavior else {
+            return XCTFail("Expected dualRole behavior")
+        }
+
+        XCTAssertEqual(behavior.requirePriorIdleMs, 0)
     }
 
     // MARK: - Full Round-Trip Tests
 
-    func testFullRoundTrip_SplitHandOn_AllEightKeys() {
+    func testFullRoundTrip_OppositeHandOn_AllEightKeys() {
         let config = HomeRowModsConfig(
             enabledKeys: Set(HomeRowModsConfig.allKeys),
             modifierAssignments: HomeRowModsConfig.cagsMacDefault,
             holdMode: .modifiers,
-            splitHandDetection: true
+            oppositeHandActivation: true
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
         XCTAssertEqual(mappings.count, 8)
 
-        let leftKeys = "q w e r t a s d f g z x c v b"
-        let rightKeys = "y u i o p h j k l ; n m , . /"
-
         for mapping in mappings {
             let rendered = KanataBehaviorRenderer.render(mapping)
-            XCTAssertTrue(rendered.hasPrefix("(tap-hold-release-keys"), "Should use tap-hold-release-keys: \(rendered)")
-
-            let isLeftKey = HomeRowModsConfig.leftHandKeys.contains(mapping.input)
-            let expectedKeyList = isLeftKey ? leftKeys : rightKeys
-            XCTAssertTrue(rendered.contains("(\(expectedKeyList))"), "Wrong key list for \(mapping.input): \(rendered)")
+            XCTAssertTrue(
+                rendered.contains("tap-hold-opposite-hand"),
+                "Should use tap-hold-opposite-hand: \(rendered)"
+            )
         }
     }
 
-    func testFullRoundTrip_SplitHandOff_AllProduceTapHoldPress() {
+    func testFullRoundTrip_OppositeHandOn_WithRequirePriorIdle() {
+        var timing = TimingConfig.default
+        timing.requirePriorIdleMs = 150
+
+        let config = HomeRowModsConfig(
+            enabledKeys: ["a"],
+            modifierAssignments: ["a": "lsft"],
+            holdMode: .modifiers,
+            timing: timing,
+            oppositeHandActivation: true
+        )
+
+        let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
+        let rendered = KanataBehaviorRenderer.render(mappings[0])
+        XCTAssertTrue(
+            rendered.hasPrefix("(require-prior-idle 150"),
+            "Should wrap in require-prior-idle: \(rendered)"
+        )
+        XCTAssertTrue(
+            rendered.contains("tap-hold-opposite-hand"),
+            "Should contain tap-hold-opposite-hand inside: \(rendered)"
+        )
+    }
+
+    func testFullRoundTrip_OppositeHandOff_AllProduceTapHoldPress() {
+        var timing = TimingConfig.default
+        timing.requirePriorIdleMs = 0
+
         let config = HomeRowModsConfig(
             enabledKeys: Set(HomeRowModsConfig.allKeys),
             modifierAssignments: HomeRowModsConfig.cagsMacDefault,
             holdMode: .modifiers,
-            splitHandDetection: false
+            timing: timing,
+            oppositeHandActivation: false
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -221,15 +268,17 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
     // MARK: - End-to-End Rendering (generate → render → verify valid kanata syntax)
 
     func testLayersModeWhileHeld_RendersValidKanataSyntax() {
-        // REGRESSION: S-expression holdAction "(layer-while-held nav)" was being mangled
-        // by convertAction() into "(multi lpar rpar)" because it split by whitespace
+        var timing = TimingConfig.default
+        timing.requirePriorIdleMs = 0
+
         let config = HomeRowModsConfig(
             enabledKeys: ["a", "s", "d", "f"],
             modifierAssignments: ["a": "lmet", "s": "lalt", "d": "lsft", "f": "lctl"],
             layerAssignments: ["a": "nav", "s": "sym", "d": "num", "f": "fun"],
             holdMode: .layers,
             layerToggleMode: .whileHeld,
-            splitHandDetection: false
+            timing: timing,
+            oppositeHandActivation: false
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -237,7 +286,6 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
 
         let allRendered = mappings.map { KanataBehaviorRenderer.render($0) }
 
-        // Every mapping must use tap-hold-press with a layer-while-held action
         for rendered in allRendered {
             XCTAssertTrue(rendered.contains("tap-hold-press"), "Should use tap-hold-press: \(rendered)")
             XCTAssertTrue(rendered.contains("layer-while-held"), "Should use layer-while-held: \(rendered)")
@@ -245,7 +293,6 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             XCTAssertFalse(rendered.contains("rpar"), "Should not mangle to rpar: \(rendered)")
         }
 
-        // All 4 layer assignments should appear across the rendered output (order may vary)
         let joined = allRendered.joined(separator: " ")
         for layer in ["nav", "sym", "num", "fun"] {
             XCTAssertTrue(
@@ -256,13 +303,17 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
     }
 
     func testLayersModeToggle_RendersValidKanataSyntax() {
+        var timing = TimingConfig.default
+        timing.requirePriorIdleMs = 0
+
         let config = HomeRowModsConfig(
             enabledKeys: ["a"],
             modifierAssignments: ["a": "lmet"],
             layerAssignments: ["a": "nav"],
             holdMode: .layers,
             layerToggleMode: .toggle,
-            splitHandDetection: false
+            timing: timing,
+            oppositeHandActivation: false
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -276,14 +327,17 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
     }
 
     func testModifierMode_RendersValidKanataSyntax() {
-        // Sanity: modifier mode should produce simple modifier holdAction
+        var timing = TimingConfig.default
+        timing.requirePriorIdleMs = 0
+
         let config = HomeRowModsConfig(
             enabledKeys: ["a"],
             modifierAssignments: ["a": "lmet"],
             layerAssignments: ["a": "nav"],
             holdMode: .modifiers,
             layerToggleMode: .whileHeld,
-            splitHandDetection: false
+            timing: timing,
+            oppositeHandActivation: false
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)

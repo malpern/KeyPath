@@ -42,10 +42,10 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
     /// Whether expert raw timing fields are expanded
     public var showExpertTiming: Bool
 
-    /// When true, same-hand key presses force an early tap (letter) during the tap-hold window,
-    /// while opposite-hand presses allow the modifier/layer to activate.
-    /// Uses Kanata's `tap-hold-release-keys` with per-hand key lists.
-    public var splitHandDetection: Bool
+    /// When true, hold actions (modifiers or layers) only activate when a key on the other hand
+    /// is pressed. Same-hand typing always produces letters.
+    /// Uses Kanata's `tap-hold-opposite-hand` with `defhands`.
+    public var oppositeHandActivation: Bool
 
     public init(
         enabledKeys: Set<String> = ["a", "s", "d", "f", "j", "k", "l", ";"],
@@ -59,7 +59,7 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         showAdvanced: Bool = false,
         timingMode: TimingMode = .basic,
         showExpertTiming: Bool = false,
-        splitHandDetection: Bool = true
+        oppositeHandActivation: Bool = true
     ) {
         self.enabledKeys = enabledKeys
         self.modifierAssignments = modifierAssignments
@@ -72,7 +72,7 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         self.showAdvanced = showAdvanced
         self.timingMode = timingMode
         self.showExpertTiming = showExpertTiming
-        self.splitHandDetection = splitHandDetection
+        self.oppositeHandActivation = oppositeHandActivation
     }
 
     /// Mac-first CAGS mapping
@@ -104,19 +104,13 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
     /// All home row keys
     public static let allKeys = leftHandKeys + rightHandKeys
 
-    /// Full left-hand key set (all 3 rows) for split-hand detection
-    public static let leftHandAllKeys = [
-        "q", "w", "e", "r", "t",
-        "a", "s", "d", "f", "g",
-        "z", "x", "c", "v", "b",
-    ]
+    /// Full left-hand key set (all 3 rows) — use `HandAssignment.qwertyDefault` for new code.
+    @available(*, deprecated, message: "Use HandAssignment.qwertyDefault.leftKeys instead")
+    public static let leftHandAllKeys = HandAssignment.qwertyDefault.leftKeys
 
-    /// Full right-hand key set (all 3 rows) for split-hand detection
-    public static let rightHandAllKeys = [
-        "y", "u", "i", "o", "p",
-        "h", "j", "k", "l", ";",
-        "n", "m", ",", ".", "/",
-    ]
+    /// Full right-hand key set (all 3 rows) — use `HandAssignment.qwertyDefault` for new code.
+    @available(*, deprecated, message: "Use HandAssignment.qwertyDefault.rightKeys instead")
+    public static let rightHandAllKeys = HandAssignment.qwertyDefault.rightKeys
 
     private enum CodingKeys: String, CodingKey {
         case enabledKeys
@@ -130,7 +124,8 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         case showAdvanced
         case timingMode
         case showExpertTiming
-        case splitHandDetection
+        case oppositeHandActivation
+        case splitHandDetection // legacy key for backward-compatible decoding
     }
 
     public init(from decoder: Decoder) throws {
@@ -155,7 +150,9 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         showAdvanced = try container.decodeIfPresent(Bool.self, forKey: .showAdvanced) ?? false
         timingMode = try container.decodeIfPresent(TimingMode.self, forKey: .timingMode) ?? .basic
         showExpertTiming = try container.decodeIfPresent(Bool.self, forKey: .showExpertTiming) ?? false
-        splitHandDetection = try container.decodeIfPresent(Bool.self, forKey: .splitHandDetection) ?? true
+        let newKey = try container.decodeIfPresent(Bool.self, forKey: .oppositeHandActivation)
+        let legacyKey = try container.decodeIfPresent(Bool.self, forKey: .splitHandDetection)
+        oppositeHandActivation = newKey ?? legacyKey ?? true
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -171,7 +168,7 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         try container.encode(showAdvanced, forKey: .showAdvanced)
         try container.encode(timingMode, forKey: .timingMode)
         try container.encode(showExpertTiming, forKey: .showExpertTiming)
-        try container.encode(splitHandDetection, forKey: .splitHandDetection)
+        try container.encode(oppositeHandActivation, forKey: .oppositeHandActivation)
     }
 }
 
@@ -221,13 +218,19 @@ public struct TimingConfig: Codable, Equatable, Sendable {
     /// Optional per-key hold offsets (ms). Positive values extend the hold delay for that key.
     public var holdOffsets: [String: Int]
 
+    /// When > 0, keys pressed within this many ms of the last keystroke skip hold detection
+    /// entirely and produce the tap action immediately. Prevents accidental modifiers during
+    /// fast typing. 0 = disabled. Recommended starting value: 150.
+    public var requirePriorIdleMs: Int
+
     public init(
         tapWindow: Int = 200,
         holdDelay: Int = 150,
         quickTapEnabled: Bool = false,
         quickTapTermMs: Int = 0,
         tapOffsets: [String: Int] = [:],
-        holdOffsets: [String: Int] = [:]
+        holdOffsets: [String: Int] = [:],
+        requirePriorIdleMs: Int = 150
     ) {
         self.tapWindow = tapWindow
         self.holdDelay = holdDelay
@@ -235,6 +238,7 @@ public struct TimingConfig: Codable, Equatable, Sendable {
         self.quickTapTermMs = quickTapTermMs
         self.tapOffsets = tapOffsets
         self.holdOffsets = holdOffsets
+        self.requirePriorIdleMs = requirePriorIdleMs
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -244,6 +248,7 @@ public struct TimingConfig: Codable, Equatable, Sendable {
         case quickTapTermMs
         case tapOffsets
         case holdOffsets
+        case requirePriorIdleMs
     }
 
     public init(from decoder: Decoder) throws {
@@ -254,6 +259,7 @@ public struct TimingConfig: Codable, Equatable, Sendable {
         quickTapTermMs = try container.decodeIfPresent(Int.self, forKey: .quickTapTermMs) ?? 0
         tapOffsets = try container.decodeIfPresent([String: Int].self, forKey: .tapOffsets) ?? [:]
         holdOffsets = try container.decodeIfPresent([String: Int].self, forKey: .holdOffsets) ?? [:]
+        requirePriorIdleMs = try container.decodeIfPresent(Int.self, forKey: .requirePriorIdleMs) ?? 0
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -264,6 +270,7 @@ public struct TimingConfig: Codable, Equatable, Sendable {
         try container.encode(quickTapTermMs, forKey: .quickTapTermMs)
         try container.encode(tapOffsets, forKey: .tapOffsets)
         try container.encode(holdOffsets, forKey: .holdOffsets)
+        try container.encode(requirePriorIdleMs, forKey: .requirePriorIdleMs)
     }
 
     public static let `default` = TimingConfig()

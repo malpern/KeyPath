@@ -20,8 +20,8 @@ public struct HomeRowLayerTogglesConfig: Codable, Equatable, Sendable {
     /// Whether advanced options are shown
     public var showAdvanced: Bool
 
-    /// When true, same-hand key presses force an early tap during the tap-hold window.
-    public var splitHandDetection: Bool
+    /// When true, hold actions only activate when a key on the other hand is pressed.
+    public var oppositeHandActivation: Bool
 
     public init(
         enabledKeys: Set<String> = ["a", "s", "d", "f", "j", "k", "l", ";"],
@@ -30,7 +30,7 @@ public struct HomeRowLayerTogglesConfig: Codable, Equatable, Sendable {
         keySelection: KeySelection = .both,
         toggleMode: LayerToggleMode = .whileHeld,
         showAdvanced: Bool = false,
-        splitHandDetection: Bool = true
+        oppositeHandActivation: Bool = true
     ) {
         self.enabledKeys = enabledKeys
         self.layerAssignments = layerAssignments
@@ -38,7 +38,42 @@ public struct HomeRowLayerTogglesConfig: Codable, Equatable, Sendable {
         self.keySelection = keySelection
         self.toggleMode = toggleMode
         self.showAdvanced = showAdvanced
-        self.splitHandDetection = splitHandDetection
+        self.oppositeHandActivation = oppositeHandActivation
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case enabledKeys
+        case layerAssignments
+        case timing
+        case keySelection
+        case toggleMode
+        case showAdvanced
+        case oppositeHandActivation
+        case splitHandDetection // legacy key for backward-compatible decoding
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabledKeys = try container.decodeIfPresent(Set<String>.self, forKey: .enabledKeys) ?? Set(Self.allKeys)
+        layerAssignments = try container.decodeIfPresent([String: String].self, forKey: .layerAssignments) ?? Self.defaultLayerAssignments
+        timing = try container.decodeIfPresent(TimingConfig.self, forKey: .timing) ?? .default
+        keySelection = try container.decodeIfPresent(KeySelection.self, forKey: .keySelection) ?? .both
+        toggleMode = try container.decodeIfPresent(LayerToggleMode.self, forKey: .toggleMode) ?? .whileHeld
+        showAdvanced = try container.decodeIfPresent(Bool.self, forKey: .showAdvanced) ?? false
+        let newKey = try container.decodeIfPresent(Bool.self, forKey: .oppositeHandActivation)
+        let legacyKey = try container.decodeIfPresent(Bool.self, forKey: .splitHandDetection)
+        oppositeHandActivation = newKey ?? legacyKey ?? true
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(enabledKeys, forKey: .enabledKeys)
+        try container.encode(layerAssignments, forKey: .layerAssignments)
+        try container.encode(timing, forKey: .timing)
+        try container.encode(keySelection, forKey: .keySelection)
+        try container.encode(toggleMode, forKey: .toggleMode)
+        try container.encode(showAdvanced, forKey: .showAdvanced)
+        try container.encode(oppositeHandActivation, forKey: .oppositeHandActivation)
     }
 
     /// Default layer assignments (community standard mirror setup)

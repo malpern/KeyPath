@@ -95,21 +95,33 @@ public enum KanataBehaviorRenderer {
         let tapTimeoutStr = tapTimeout == 200 ? "$tap-timeout" : "\(tapTimeout)"
         let holdTimeoutStr = holdTimeout == 200 ? "$hold-timeout" : "\(holdTimeout)"
 
-        // Choose variant based on flags (priority: customTapKeys > activateHoldOnOtherKey > quickTap > basic)
-        if !dr.customTapKeys.isEmpty {
-            // tap-hold-release-keys: early tap on specific keys (most specific — used for split-hand HRM)
+        // Choose variant based on flags (priority: useOppositeHand > customTapKeys > activateHoldOnOtherKey > quickTap > basic)
+        let base: String
+        if dr.useOppositeHand {
+            // tap-hold-opposite-hand: native opposite-hand detection via defhands
+            base = "(tap-hold-opposite-hand \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction))"
+        } else if !dr.customTapKeys.isEmpty {
+            // tap-hold-release-keys: early tap on specific keys (legacy split-hand HRM)
             let keys = dr.customTapKeys.map { KanataKeyConverter.convertToKanataKey($0) }.joined(separator: " ")
-            return "(tap-hold-release-keys \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction) (\(keys)))"
+            base = "(tap-hold-release-keys \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction) (\(keys)))"
         } else if dr.activateHoldOnOtherKey {
             // tap-hold-press: hold triggers on any other key press
-            return "(tap-hold-press \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction))"
+            base = "(tap-hold-press \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction))"
         } else if dr.quickTap {
             // tap-hold-release: hold triggers on release of another key
-            return "(tap-hold-release \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction))"
+            base = "(tap-hold-release \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction))"
         } else {
             // Basic tap-hold: pure timeout-based
-            return "(tap-hold \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction))"
+            base = "(tap-hold \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction))"
         }
+
+        // Append require-prior-idle if configured
+        if dr.requirePriorIdleMs > 0 {
+            // Wraps the tap-hold in a require-prior-idle guard
+            return "(require-prior-idle \(dr.requirePriorIdleMs) \(base) \(tapAction))"
+        }
+
+        return base
     }
 
     // MARK: - Tap Dance

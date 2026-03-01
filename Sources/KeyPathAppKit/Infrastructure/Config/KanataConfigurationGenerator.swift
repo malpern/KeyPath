@@ -91,6 +91,21 @@ public struct KanataConfiguration: Sendable {
         """
 
         let defvarBlock = renderDefvarBlock()
+
+        // Emit defhands block if any enabled collection uses opposite-hand activation
+        let needsDefhands = enabledCollections.contains { collection in
+            switch collection.configuration {
+            case let .homeRowMods(config):
+                config.oppositeHandActivation
+            case let .homeRowLayerToggles(config):
+                config.oppositeHandActivation
+            default:
+                false
+            }
+        }
+        let handAssignment: HandAssignment? = needsDefhands ? .qwertyDefault : nil
+        let defhandsBlock = renderDefhandsBlock(handAssignment)
+
         let sourceBlock = renderDefsrcBlock(blocks)
 
         // Load app-specific keys to use @kp-{key} aliases in base layer
@@ -133,6 +148,7 @@ public struct KanataConfiguration: Sendable {
             safetyNotes,
             appIncludeBlock,
             defvarBlock,
+            defhandsBlock,
             sourceBlock,
             aliasBlock, // Must come before layers that reference aliases (e.g., @kp-ac-spc)
             baseLayerBlock,

@@ -6,8 +6,6 @@ import Network
 extension KanataConfiguration {
     /// Generate KeyMapping instances from HomeRowModsConfig
     static func generateHomeRowModsMappings(from config: HomeRowModsConfig) -> [KeyMapping] {
-        let leftHandSet = Set(HomeRowModsConfig.leftHandAllKeys)
-
         var mappings: [KeyMapping] = []
 
         for key in config.enabledKeys {
@@ -29,14 +27,16 @@ extension KanataConfiguration {
             )
             let holdTimeout = max(1, config.timing.holdDelay + (config.timing.holdOffsets[key] ?? 0))
 
-            // Split-hand detection: same-hand keys force early tap, opposite-hand allows hold
+            // Opposite-hand activation: uses defhands + tap-hold-opposite-hand
+            let useOppositeHand: Bool
             let customTapKeys: [String]
             let activateOnOther: Bool
-            if config.splitHandDetection {
-                let isLeftHand = leftHandSet.contains(key)
-                customTapKeys = isLeftHand ? HomeRowModsConfig.leftHandAllKeys : HomeRowModsConfig.rightHandAllKeys
+            if config.oppositeHandActivation {
+                useOppositeHand = true
+                customTapKeys = []
                 activateOnOther = false
             } else {
+                useOppositeHand = false
                 customTapKeys = []
                 activateOnOther = true
             }
@@ -49,7 +49,9 @@ extension KanataConfiguration {
                 holdTimeout: holdTimeout,
                 activateHoldOnOtherKey: activateOnOther,
                 quickTap: config.timing.quickTapEnabled,
-                customTapKeys: customTapKeys
+                customTapKeys: customTapKeys,
+                useOppositeHand: useOppositeHand,
+                requirePriorIdleMs: config.timing.requirePriorIdleMs
             )
 
             let mapping = KeyMapping(
@@ -65,8 +67,6 @@ extension KanataConfiguration {
 
     /// Generate KeyMapping instances from HomeRowLayerTogglesConfig
     static func generateHomeRowLayerTogglesMappings(from config: HomeRowLayerTogglesConfig) -> [KeyMapping] {
-        let leftHandSet = Set(HomeRowModsConfig.leftHandAllKeys)
-
         var mappings: [KeyMapping] = []
 
         for key in config.enabledKeys {
@@ -83,14 +83,16 @@ extension KanataConfiguration {
             // Build hold action based on toggle mode
             let holdAction = "(\(config.toggleMode.kanataAction) \(layerName))"
 
-            // Split-hand detection: same-hand keys force early tap, opposite-hand allows hold
+            // Opposite-hand activation: uses defhands + tap-hold-opposite-hand
+            let useOppositeHand: Bool
             let customTapKeys: [String]
             let activateOnOther: Bool
-            if config.splitHandDetection {
-                let isLeftHand = leftHandSet.contains(key)
-                customTapKeys = isLeftHand ? HomeRowModsConfig.leftHandAllKeys : HomeRowModsConfig.rightHandAllKeys
+            if config.oppositeHandActivation {
+                useOppositeHand = true
+                customTapKeys = []
                 activateOnOther = false
             } else {
+                useOppositeHand = false
                 customTapKeys = []
                 activateOnOther = true
             }
@@ -103,7 +105,9 @@ extension KanataConfiguration {
                 holdTimeout: holdTimeout,
                 activateHoldOnOtherKey: activateOnOther,
                 quickTap: config.timing.quickTapEnabled,
-                customTapKeys: customTapKeys
+                customTapKeys: customTapKeys,
+                useOppositeHand: useOppositeHand,
+                requirePriorIdleMs: config.timing.requirePriorIdleMs
             )
 
             let mapping = KeyMapping(
