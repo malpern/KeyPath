@@ -162,6 +162,13 @@ public final class InstallerEngine {
 
         // Check helper registration (for install/repair)
         if intent == .install || intent == .repair {
+            if !context.system.driverCompatible {
+                return Requirement(
+                    name: "System compatibility check failed for VirtualHID driver on macOS \(context.system.macOSVersion)",
+                    status: .blocked
+                )
+            }
+
             if !context.helper.isReady {
                 // Helper not ready - check if SMAppService approval is needed
                 // This is a soft requirement - we can proceed but may need approval
@@ -422,7 +429,7 @@ public final class InstallerEngine {
             _ = await WizardSleep.ms(1000) // 1 second
         }
 
-        if let serviceID = recipe.serviceID, serviceID == KeyPathConstants.Bundle.daemonID {
+        if let serviceID = recipe.serviceID, serviceID == KeyPathConstants.Bundle.vhidDaemonID {
             // Restart Karabiner daemon with verification
             let success = try await broker.restartKarabinerDaemonVerified()
             if !success {
@@ -477,11 +484,11 @@ public final class InstallerEngine {
             try await broker.restartUnhealthyServices()
 
         case InstallerRecipeID.adoptOrphanedProcess:
-            try await broker.installLaunchDaemonServicesWithoutLoading()
+            try await broker.installAllLaunchDaemonServices()
 
         case InstallerRecipeID.replaceOrphanedProcess:
             try await broker.killAllKanataProcesses()
-            try await broker.installLaunchDaemonServicesWithoutLoading()
+            try await broker.installAllLaunchDaemonServices()
 
         case InstallerRecipeID.replaceKanataWithBundled:
             try await broker.installBundledKanata()
@@ -651,19 +658,13 @@ public final class InstallerEngine {
             finalRecipes = filteredRecipes
         }
 
-        // Create a filtered plan with just the matching recipes
-        // If we generated a direct recipe (because it wasn't in the base plan), use .ready status
-        // The base plan might be blocked due to requirements, but we can still attempt the action
-        // with admin privileges (which will be requested during execution)
-        let planStatus: PlanStatus =
-            filteredRecipes.isEmpty && !finalRecipes.isEmpty
-                ? .ready // Direct recipe generated - allow execution
-                : basePlan.status // Use base plan status for filtered recipes
+        // Create a filtered plan with just the matching recipes.
+        // Keep the original plan status/requirements to avoid bypassing blocked preconditions.
         let filteredPlan = InstallPlan(
             recipes: finalRecipes,
-            status: planStatus,
+            status: basePlan.status,
             intent: basePlan.intent,
-            blockedBy: filteredRecipes.isEmpty && !finalRecipes.isEmpty ? nil : basePlan.blockedBy,
+            blockedBy: basePlan.blockedBy,
             metadata: basePlan.metadata
         )
 

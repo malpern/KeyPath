@@ -38,6 +38,13 @@ final class ServiceBootstrapper {
     /// Service identifier for the log rotation service
     static let logRotationServiceID = "com.keypath.logrotate"
 
+    private struct VHIDInstallSnapshot {
+        let daemonPlistExisted: Bool
+        let managerPlistExisted: Bool
+        let daemonLoaded: Bool
+        let managerLoaded: Bool
+    }
+
     // MARK: - Restart Time Tracking
 
     /// Lock-protected dictionary tracking when services were last restarted
@@ -318,6 +325,59 @@ final class ServiceBootstrapper {
         }
     }
 
+    private func captureVHIDInstallSnapshot() async -> VHIDInstallSnapshot {
+        let daemonPlistPath = getPlistPath(for: Self.vhidDaemonServiceID)
+        let managerPlistPath = getPlistPath(for: Self.vhidManagerServiceID)
+        let snapshot = VHIDInstallSnapshot(
+            daemonPlistExisted: FileManager.default.fileExists(atPath: daemonPlistPath),
+            managerPlistExisted: FileManager.default.fileExists(atPath: managerPlistPath),
+            daemonLoaded: await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID),
+            managerLoaded: await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
+        )
+        AppLogger.shared.log(
+            "🔍 [ServiceBootstrapper] Captured VHID snapshot: daemon(plist=\(snapshot.daemonPlistExisted), loaded=\(snapshot.daemonLoaded)), manager(plist=\(snapshot.managerPlistExisted), loaded=\(snapshot.managerLoaded))"
+        )
+        return snapshot
+    }
+
+    private func rollbackVHIDChangesIfNeeded(from snapshot: VHIDInstallSnapshot) async -> Bool {
+        var commands: [String] = []
+
+        if !snapshot.daemonLoaded {
+            commands.append("/bin/launchctl bootout system/\(Self.vhidDaemonServiceID) 2>/dev/null || true")
+        }
+        if !snapshot.managerLoaded {
+            commands.append("/bin/launchctl bootout system/\(Self.vhidManagerServiceID) 2>/dev/null || true")
+        }
+
+        let daemonPlistPath = getPlistPath(for: Self.vhidDaemonServiceID)
+        let managerPlistPath = getPlistPath(for: Self.vhidManagerServiceID)
+        if !snapshot.daemonPlistExisted {
+            commands.append("/bin/rm -f '\(daemonPlistPath)'")
+        }
+        if !snapshot.managerPlistExisted {
+            commands.append("/bin/rm -f '\(managerPlistPath)'")
+        }
+
+        guard !commands.isEmpty else {
+            AppLogger.shared.log("ℹ️ [ServiceBootstrapper] No VHID rollback needed (state unchanged)")
+            return true
+        }
+
+        AppLogger.shared.log("🔄 [ServiceBootstrapper] Rolling back VHID changes after Kanata registration failure")
+        let rollbackResult = await executePrivilegedBatch(
+            label: "rollback VirtualHID service changes",
+            commands: commands,
+            prompt: "KeyPath needs to rollback VirtualHID service changes because Kanata registration did not complete."
+        )
+        if rollbackResult.success {
+            AppLogger.shared.log("✅ [ServiceBootstrapper] VHID rollback completed")
+        } else {
+            AppLogger.shared.log("❌ [ServiceBootstrapper] VHID rollback failed: \(rollbackResult.output)")
+        }
+        return rollbackResult.success
+    }
+
     // MARK: - Newsyslog Config
 
     /// Install the newsyslog config for log rotation
@@ -501,7 +561,7 @@ final class ServiceBootstrapper {
                 try await KanataDaemonManager.shared.unregister()
                 // Poll for service readiness with a short wait, instead of fixed sleep
                 for _ in 0 ..< 6 { // ~0.6s
-                    if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID) {
+                    if !(await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID)) {
                         break
                     }
                     _ = await WizardSleep.ms(100)
@@ -563,7 +623,7 @@ final class ServiceBootstrapper {
 
                 try await KanataDaemonManager.shared.unregister()
                 for _ in 0 ..< 10 { // ~1s
-                    if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID) {
+                    if !(await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID)) {
                         break
                     }
                     _ = await WizardSleep.ms(100)
@@ -747,6 +807,8 @@ final class ServiceBootstrapper {
             return true
         }
 
+        let vhidSnapshot = await captureVHIDInstallSnapshot()
+
         // Step 1: Install VirtualHID services (helper-first, falls back to osascript)
         AppLogger.shared.log("📱 [ServiceBootstrapper] Step 1: Installing VirtualHID services via InstallerEngine")
         let report = await InstallerEngine()
@@ -765,6 +827,12 @@ final class ServiceBootstrapper {
         if !kanataSuccess {
             AppLogger.shared.log("⚠️ [ServiceBootstrapper] SMAppService registration failed")
             AppLogger.shared.log("💡 [ServiceBootstrapper] User may need to approve in System Settings")
+            let rollbackSuccess = await rollbackVHIDChangesIfNeeded(from: vhidSnapshot)
+            if !rollbackSuccess {
+                AppLogger.shared.log(
+                    "⚠️ [ServiceBootstrapper] Compensation rollback failed; system may be left with updated VHID configuration"
+                )
+            }
             return false
         }
 
@@ -787,7 +855,7 @@ final class ServiceBootstrapper {
         }
 
         // Check current state
-        let state = await KanataDaemonManager.shared.refreshManagementState()
+        var state = await KanataDaemonManager.shared.refreshManagementState()
         AppLogger.shared.log("🔍 [ServiceBootstrapper] Current state: \(state.description)")
 
         // If conflicted, auto-resolve by removing legacy plist
@@ -808,10 +876,20 @@ final class ServiceBootstrapper {
                 return false
             }
             AppLogger.shared.log("✅ [ServiceBootstrapper] Legacy plist removed, conflict resolved")
+            state = await KanataDaemonManager.shared.refreshManagementState()
+            AppLogger.shared.log("🔍 [ServiceBootstrapper] Post-conflict state: \(state.description)")
         }
 
-        // If already managed by SMAppService, validate that launchd can actually load it.
-        if state.isSMAppServiceManaged {
+        // Explicit pending-approval state is expected to be non-running until user approval.
+        if state == .smappservicePending {
+            AppLogger.shared.log(
+                "⏳ [ServiceBootstrapper] SMAppService approval is pending in Login Items"
+            )
+            return true
+        }
+
+        // If actively managed by SMAppService, validate that launchd can actually load it.
+        if state == .smappserviceActive {
             let isRegisteredButBroken = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
             if isRegisteredButBroken {
                 AppLogger.shared.log(
@@ -841,6 +919,13 @@ final class ServiceBootstrapper {
             AppLogger.shared.info("✅ [ServiceBootstrapper] Kanata daemon registered via SMAppService")
             return true
         } catch {
+            let postErrorState = await KanataDaemonManager.shared.refreshManagementState()
+            if postErrorState == .smappservicePending {
+                AppLogger.shared.log(
+                    "⏳ [ServiceBootstrapper] Registration returned error but system is now pending approval"
+                )
+                return true
+            }
             AppLogger.shared.log("❌ [ServiceBootstrapper] SMAppService registration failed: \(error)")
             return false
         }
@@ -851,9 +936,9 @@ final class ServiceBootstrapper {
     /// Used for adopting orphan processes where we want the plist in place
     /// but don't want to load services yet.
     ///
-    /// - Parameter binaryPath: Path to the Kanata binary
+    /// - Parameter binaryPath: Unused (retained for call-site compatibility)
     /// - Returns: `true` if all plists were installed successfully
-    func installAllServicesWithoutLoading(binaryPath: String) async -> Bool {
+    func installAllServicesWithoutLoading(binaryPath _: String) async -> Bool {
         AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing service plists (no loading)")
 
         // Skip admin operations in test environment
@@ -863,25 +948,14 @@ final class ServiceBootstrapper {
         }
 
         // Generate plists
-        let kanataPlist = PlistGenerator.generateKanataPlist(
-            binaryPath: binaryPath,
-            configPath: WizardSystemPaths.userConfigPath,
-            tcpPort: 37001
-        )
         let vhidDaemonPlist = PlistGenerator.generateVHIDDaemonPlist()
         let vhidManagerPlist = PlistGenerator.generateVHIDManagerPlist()
 
         let launchDaemonsDir = getLaunchDaemonsPath()
-        let kanataPlistPath = "\(launchDaemonsDir)/\(Self.kanataServiceID).plist"
         let vhidDaemonPlistPath = "\(launchDaemonsDir)/\(Self.vhidDaemonServiceID).plist"
         let vhidManagerPlistPath = "\(launchDaemonsDir)/\(Self.vhidManagerServiceID).plist"
 
         let specs = [
-            PlistInstallSpec(
-                content: kanataPlist,
-                path: kanataPlistPath,
-                serviceID: Self.kanataServiceID
-            ),
             PlistInstallSpec(
                 content: vhidDaemonPlist,
                 path: vhidDaemonPlistPath,
@@ -909,9 +983,9 @@ final class ServiceBootstrapper {
         }
 
         let result = await executePrivilegedBatch(
-            label: "install service plists",
+            label: "install VirtualHID service plists",
             commands: prepared.commands,
-            prompt: "KeyPath needs to install the service plists."
+            prompt: "KeyPath needs to install the VirtualHID service plists."
         )
         AppLogger.shared.log(
             "🔧 [ServiceBootstrapper] Install-only result: success=\(result.success)"

@@ -218,6 +218,39 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 #endif
     }
 
+    func testRestartUnhealthyServicesFailsWhenPostconditionTimesOut() async throws {
+#if DEBUG
+            PrivilegedOperationsCoordinator.resetTestingState()
+            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
+            KanataDaemonManager.registeredButNotLoadedOverride = { false }
+            PrivilegedOperationsCoordinator.kanataReadinessOverride = { _ in .timedOut }
+#endif
+
+        let coordinator = PrivilegedOperationsCoordinator.shared
+        do {
+            try await coordinator.restartUnhealthyServices()
+            XCTFail("Expected restartUnhealthyServices to fail when postcondition does not become ready")
+        } catch let PrivilegedOperationError.operationFailed(message) {
+            XCTAssertTrue(message.contains("postcondition failed"))
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
+
+    func testRegenerateServiceConfigurationAllowsPendingApprovalPostcondition() async throws {
+#if DEBUG
+            PrivilegedOperationsCoordinator.resetTestingState()
+            PrivilegedOperationsCoordinator.kanataReadinessOverride = { _ in .pendingApproval }
+#endif
+
+        let coordinator = PrivilegedOperationsCoordinator.shared
+        do {
+            try await coordinator.regenerateServiceConfiguration()
+        } catch {
+            XCTFail("Expected regenerateServiceConfiguration to accept pending approval, got: \(error)")
+        }
+    }
+
     func testInstallBundledKanataFailsWhenReadinessTimesOut() async throws {
 #if DEBUG
             PrivilegedOperationsCoordinator.resetTestingState()

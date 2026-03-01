@@ -22,8 +22,8 @@ public enum KeyPathConstants {
         public static let bundleID = "com.keypath.KeyPath"
         public static let helperID = "com.keypath.KeyPath.Helper"
         public static let daemonID = "com.keypath.kanata"
-        public static let vhidDaemonID = "com.keypath.vhid-daemon"
-        public static let vhidManagerID = "com.keypath.vhid-manager"
+        public static let vhidDaemonID = "com.keypath.karabiner-vhiddaemon"
+        public static let vhidManagerID = "com.keypath.karabiner-vhidmanager"
     }
 
     public enum Config {

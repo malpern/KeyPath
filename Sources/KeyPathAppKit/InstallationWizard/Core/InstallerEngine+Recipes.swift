@@ -93,9 +93,12 @@ extension InstallerEngine {
             ServiceRecipe(
                 id: InstallerRecipeID.startKarabinerDaemon,
                 type: .restartService,
-                serviceID: KeyPathConstants.Bundle.daemonID,
-                launchctlActions: [.kickstart(serviceID: KeyPathConstants.Bundle.daemonID)],
-                healthCheck: HealthCheckCriteria(serviceID: KeyPathConstants.Bundle.daemonID, shouldBeRunning: true)
+                serviceID: KeyPathConstants.Bundle.vhidDaemonID,
+                launchctlActions: [.kickstart(serviceID: KeyPathConstants.Bundle.vhidDaemonID)],
+                healthCheck: HealthCheckCriteria(
+                    serviceID: KeyPathConstants.Bundle.vhidDaemonID,
+                    shouldBeRunning: true
+                )
             )
 
         case .restartUnhealthyServices:
@@ -194,14 +197,22 @@ extension InstallerEngine {
             ServiceRecipe(
                 id: InstallerRecipeID.adoptOrphanedProcess,
                 type: .installComponent,
-                serviceID: nil
+                serviceID: KeyPathConstants.Bundle.daemonID,
+                healthCheck: HealthCheckCriteria(
+                    serviceID: KeyPathConstants.Bundle.daemonID,
+                    shouldBeRunning: true
+                )
             )
 
         case .replaceOrphanedProcess:
             ServiceRecipe(
                 id: InstallerRecipeID.replaceOrphanedProcess,
                 type: .installComponent,
-                serviceID: nil
+                serviceID: KeyPathConstants.Bundle.daemonID,
+                healthCheck: HealthCheckCriteria(
+                    serviceID: KeyPathConstants.Bundle.daemonID,
+                    shouldBeRunning: true
+                )
             )
 
         case .replaceKanataWithBundled:

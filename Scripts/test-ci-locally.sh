@@ -15,6 +15,10 @@ export KP_SIGN_DRY_RUN=1
 swift test --filter SigningPipelineTests || true
 swift test --filter InstallerEngineEndToEndTests || true
 
+echo "🧭 Running installer reliability matrix"
+chmod +x ./Scripts/run-installer-reliability-matrix.sh
+./Scripts/run-installer-reliability-matrix.sh
+
 # Safe test runner (matches CI script)
 chmod +x ./Scripts/run-tests-safe.sh
 ./Scripts/run-tests-safe.sh
