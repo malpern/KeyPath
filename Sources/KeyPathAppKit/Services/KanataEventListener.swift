@@ -318,8 +318,13 @@ actor KanataEventListener {
     private var oneShotActivatedHandler: (@Sendable (KanataOneShotActivation) async -> Void)?
     private var chordResolvedHandler: (@Sendable (KanataChordResolution) async -> Void)?
     private var tapDanceResolvedHandler: (@Sendable (KanataTapDanceResolution) async -> Void)?
-    /// Capabilities advertised by Kanata in HelloOk (e.g., "hold_activated", "tap_activated").
+    private var hrmTraceHandler: (@Sendable (KanataHrmTraceEvent) async -> Void)?
+    private var capabilitiesUpdatedHandler: (@Sendable ([String]) async -> Void)?
+    /// Capabilities advertised by Kanata in HelloOk (normalized to dash-case, e.g. "hold-activated").
     private var capabilities: Set<String> = []
+    private var activeConnection: NWConnection?
+    private var isHrmTraceSubscribed = false
+    private var isAwaitingHrmTraceSubscribeAck = false
     private let listenerQueue = DispatchQueue(label: "com.keypath.event-listener")
 
     /// Start listening for Kanata events
@@ -334,6 +339,8 @@ actor KanataEventListener {
     ///   - onOneShotActivated: Called when a one-shot modifier key is activated
     ///   - onChordResolved: Called when a chord (multi-key combo) resolves
     ///   - onTapDanceResolved: Called when a tap-dance resolves to an action
+    ///   - onHrmTrace: Called when an HRM trace decision event is received
+    ///   - onCapabilitiesUpdated: Called when HelloOk capabilities are received
     func start(
         port: Int,
         onLayerChange: @escaping @Sendable (String) async -> Void,
@@ -344,7 +351,9 @@ actor KanataEventListener {
         onTapActivated: (@Sendable (KanataTapActivation) async -> Void)? = nil,
         onOneShotActivated: (@Sendable (KanataOneShotActivation) async -> Void)? = nil,
         onChordResolved: (@Sendable (KanataChordResolution) async -> Void)? = nil,
-        onTapDanceResolved: (@Sendable (KanataTapDanceResolution) async -> Void)? = nil
+        onTapDanceResolved: (@Sendable (KanataTapDanceResolution) async -> Void)? = nil,
+        onHrmTrace: (@Sendable (KanataHrmTraceEvent) async -> Void)? = nil,
+        onCapabilitiesUpdated: (@Sendable ([String]) async -> Void)? = nil
     ) async {
         if self.port == port, listenTask != nil { return }
         await stop()
@@ -359,6 +368,8 @@ actor KanataEventListener {
         oneShotActivatedHandler = onOneShotActivated
         chordResolvedHandler = onChordResolved
         tapDanceResolvedHandler = onTapDanceResolved
+        hrmTraceHandler = onHrmTrace
+        capabilitiesUpdatedHandler = onCapabilitiesUpdated
         AppLogger.shared.log("🌐 [EventListener] Starting event listener on port \(port)")
         listenTask = Task(priority: .background) { [weak self] in
             guard let self else { return }
@@ -382,6 +393,12 @@ actor KanataEventListener {
         oneShotActivatedHandler = nil
         chordResolvedHandler = nil
         tapDanceResolvedHandler = nil
+        hrmTraceHandler = nil
+        capabilitiesUpdatedHandler = nil
+        capabilities.removeAll()
+        isHrmTraceSubscribed = false
+        isAwaitingHrmTraceSubscribeAck = false
+        activeConnection = nil
     }
 
     private func listenLoop() async {
@@ -408,9 +425,16 @@ actor KanataEventListener {
             connection.cancel()
             pollTask?.cancel()
             pollTask = nil
+            activeConnection = nil
+            isHrmTraceSubscribed = false
+            isAwaitingHrmTraceSubscribeAck = false
         }
 
         try await waitForReady(connection)
+        activeConnection = connection
+        capabilities.removeAll()
+        isHrmTraceSubscribed = false
+        isAwaitingHrmTraceSubscribeAck = false
         AppLogger.shared.log("🌐 [EventListener] Connected to kanata TCP server")
 
         // Bug 2 fix: monitor for post-handshake connection failures.
@@ -627,11 +651,16 @@ actor KanataEventListener {
 
         // Handle HelloOk (capability advertisement)
         if let helloOk = json["HelloOk"] as? [String: Any] {
-            let caps = (helloOk["capabilities"] as? [String]) ?? []
-            capabilities = Set(caps.map { $0.lowercased() })
+            let rawCaps = (helloOk["capabilities"] as? [String]) ?? []
+            let normalizedCaps = Self.normalizedCapabilities(rawCaps)
+            capabilities = Set(normalizedCaps)
             AppLogger.shared.log(
-                "🌐 [EventListener] HelloOk caps=\(caps.joined(separator: ",")) protocol=\(helloOk["protocol"] ?? "?")"
+                "🌐 [EventListener] HelloOk caps=\(normalizedCaps.joined(separator: ",")) protocol=\(helloOk["protocol"] ?? "?")"
             )
+            if let handler = capabilitiesUpdatedHandler {
+                await handler(normalizedCaps)
+            }
+            await subscribeToHrmTraceIfSupported()
             return
         }
 
@@ -740,7 +769,70 @@ actor KanataEventListener {
             return
         }
 
+        // Handle HrmTrace events (per-decision home-row-mods telemetry)
+        if let payload = json["HrmTrace"] {
+            do {
+                let payloadData = try JSONSerialization.data(withJSONObject: payload)
+                let trace = try JSONDecoder()
+                    .decode(KanataHrmTraceEvent.self, from: payloadData)
+                    .withTimestamp(Date())
+                if let handler = hrmTraceHandler {
+                    await handler(trace)
+                }
+            } catch {
+                AppLogger.shared.debug("🌐 [EventListener] Failed to decode HrmTrace: \(error.localizedDescription)")
+            }
+            return
+        }
+
+        // Handle subscribe ack/errors explicitly to avoid noisy "unhandled" logs.
+        if isAwaitingHrmTraceSubscribeAck, let status = json["status"] as? String {
+            let normalized = status.lowercased()
+            if normalized == "ok" {
+                isAwaitingHrmTraceSubscribeAck = false
+                isHrmTraceSubscribed = true
+                AppLogger.shared.debug("🌐 [EventListener] HrmTrace subscribe acknowledged")
+                return
+            }
+            if normalized == "error" {
+                isAwaitingHrmTraceSubscribeAck = false
+                let message = json["msg"] as? String ?? "unknown error"
+                AppLogger.shared.warn("🌐 [EventListener] HrmTrace subscribe rejected: \(message)")
+                return
+            }
+        }
+
         AppLogger.shared.debug("🌐 [EventListener] Unhandled message type")
+    }
+
+    private func subscribeToHrmTraceIfSupported() async {
+        guard !isHrmTraceSubscribed else { return }
+        guard capabilities.contains("hrm-trace") else { return }
+        guard hrmTraceHandler != nil else { return }
+        guard let activeConnection else { return }
+
+        do {
+            isAwaitingHrmTraceSubscribeAck = true
+            try await send(jsonObject: ["SubscribeHrmTrace": [:] as [String: String]], over: activeConnection)
+            AppLogger.shared.debug("🌐 [EventListener] Requested HrmTrace subscription")
+        } catch {
+            isAwaitingHrmTraceSubscribeAck = false
+            // Failing this subscribe should not break layer/key event listening.
+            AppLogger.shared.debug("🌐 [EventListener] HrmTrace subscribe failed: \(error.localizedDescription)")
+        }
+    }
+
+    static func normalizedCapabilities(_ capabilities: [String]) -> [String] {
+        var set = Set<String>()
+        for capability in capabilities {
+            let normalized = capability
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+                .replacingOccurrences(of: "_", with: "-")
+            guard !normalized.isEmpty else { continue }
+            set.insert(normalized)
+        }
+        return set.sorted()
     }
 
     static func extractMessagePushMessages(from push: [String: Any]) -> [String]? {

@@ -29,7 +29,7 @@ extension KanataTCPClient {
                 AppLogger.shared.log(
                     "✅ [TCP] hello ok (duration=\(dt)ms, protocol=\(hello.protocolVersion), caps=\(hello.capabilities.joined(separator: ",")))"
                 )
-                cachedHello = hello
+                cachedHello = cachedHelloPayload(from: hello)
                 return hello
             }
 
@@ -65,7 +65,7 @@ extension KanataTCPClient {
                     AppLogger.shared.log(
                         "✅ [TCP] hello ok (duration=\(dt)ms, protocol=\(hello.protocolVersion), caps=\(hello.capabilities.joined(separator: ",")))"
                     )
-                    cachedHello = hello
+                    cachedHello = cachedHelloPayload(from: hello)
                     return hello
                 }
 
@@ -126,6 +126,77 @@ extension KanataTCPClient {
                 return response.names
             }
             throw KeyPathError.communication(.invalidResponse)
+        }
+    }
+
+    /// Request aggregate HRM stats from Kanata.
+    ///
+    /// Requires server capability: `hrm-stats`.
+    func requestHrmStats() async throws -> TcpHrmStats {
+        try await withErrorRecovery {
+            let requestId = generateRequestId()
+            let requestData = try JSONEncoder().encode(["RequestHrmStats": ["request_id": requestId]])
+            let responseData = try await send(requestData)
+
+            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let status = json["status"] as? String,
+               status.lowercased() == "error"
+            {
+                let msg = json["msg"] as? String ?? "RequestHrmStats failed"
+                throw KeyPathError.communication(.connectionFailed(reason: msg))
+            }
+
+            try verifyRequestCorrelation(expectedRequestId: requestId, responseData: responseData)
+
+            if let stats = try extractMessage(
+                named: "HrmStats", into: TcpHrmStats.self, from: responseData
+            ) {
+                return stats.withCollectedAt(Date())
+            }
+
+            throw KeyPathError.communication(.invalidResponse)
+        }
+    }
+
+    /// Reset aggregate HRM stats in Kanata.
+    ///
+    /// Requires server capability: `hrm-stats`.
+    func resetHrmStats() async throws {
+        try await withErrorRecovery {
+            let requestId = generateRequestId()
+            let requestData = try JSONEncoder().encode(["ResetHrmStats": ["request_id": requestId]])
+            let responseData = try await send(requestData)
+
+            if let response = try? JSONDecoder().decode(TcpServerResponse.self, from: responseData) {
+                if response.isOk {
+                    try verifyRequestCorrelation(expectedRequestId: requestId, responseData: responseData)
+                    return
+                }
+                if response.isError {
+                    throw KeyPathError.communication(
+                        .connectionFailed(reason: response.msg ?? "ResetHrmStats failed")
+                    )
+                }
+            }
+
+            throw KeyPathError.communication(.invalidResponse)
+        }
+    }
+
+    private func verifyRequestCorrelation(expectedRequestId: UInt64, responseData: Data) throws {
+        guard let responseRequestId = extractRequestId(from: responseData) else {
+            throw KeyPathError.communication(
+                .connectionFailed(
+                    reason: "Response missing request_id (expected=\(expectedRequestId))"
+                )
+            )
+        }
+        guard responseRequestId == expectedRequestId else {
+            throw KeyPathError.communication(
+                .connectionFailed(
+                    reason: "Mismatched response request_id (expected=\(expectedRequestId), got=\(responseRequestId))"
+                )
+            )
         }
     }
 

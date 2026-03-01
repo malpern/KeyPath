@@ -172,6 +172,32 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 #endif
     }
 
+    func testInstallServicesIfUninstalledLimitsRepeatedStaleBypassAttempts() async throws {
+#if DEBUG
+            PrivilegedOperationsCoordinator.resetTestingState()
+            var installCallCount = 0
+            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
+            KanataDaemonManager.registeredButNotLoadedOverride = { true }
+            PrivilegedOperationsCoordinator.installAllServicesOverride = {
+                installCallCount += 1
+            }
+#endif
+
+        let coordinator = PrivilegedOperationsCoordinator.shared
+        let first = try await coordinator.installServicesIfUninstalled(context: "test-stale-cap-1")
+        let second = try await coordinator.installServicesIfUninstalled(context: "test-stale-cap-2")
+        let third = try await coordinator.installServicesIfUninstalled(context: "test-stale-cap-3")
+        let fourth = try await coordinator.installServicesIfUninstalled(context: "test-stale-cap-4")
+
+        XCTAssertTrue(first)
+        XCTAssertTrue(second)
+        XCTAssertTrue(third)
+        XCTAssertFalse(fourth, "Stale recovery bypass should stop after configured cap")
+#if DEBUG
+            XCTAssertEqual(installCallCount, 3)
+#endif
+    }
+
     func testInstallServicesIfUninstalledSkipsWhenSMAppServiceIsHealthyEnabled() async throws {
 #if DEBUG
             PrivilegedOperationsCoordinator.resetTestingState()
@@ -228,6 +254,35 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
             try await coordinator.installBundledKanata()
         } catch {
             XCTFail("Expected installBundledKanata to succeed after readiness recovered, got: \(error)")
+        }
+    }
+
+    func testInstallBundledKanataIgnoresLaunchctl113ThresholdDuringRestartGrace() async throws {
+#if DEBUG
+            PrivilegedOperationsCoordinator.resetTestingState()
+            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
+            KanataDaemonManager.registeredButNotLoadedOverride = { false }
+            PrivilegedOperationsCoordinator.installBundledKanataBinaryOverride = {}
+            var probeCount = 0
+            ServiceHealthChecker.runtimeSnapshotOverride = {
+                probeCount += 1
+                let ready = probeCount >= 4
+                return ServiceHealthChecker.KanataServiceRuntimeSnapshot(
+                    managementState: .smappserviceActive,
+                    isRunning: ready,
+                    isResponding: ready,
+                    launchctlExitCode: ready ? 0 : 113,
+                    staleEnabledRegistration: false,
+                    recentlyRestarted: !ready
+                )
+            }
+#endif
+
+        let coordinator = PrivilegedOperationsCoordinator.shared
+        do {
+            try await coordinator.installBundledKanata()
+        } catch {
+            XCTFail("Expected restart grace window to suppress early launchctl 113 failure, got: \(error)")
         }
     }
 

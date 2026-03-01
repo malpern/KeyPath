@@ -200,4 +200,10 @@ extension Notification.Name {
     static let kanataTapDanceResolved = Notification.Name("KeyPath.KanataTapDanceResolved")
     /// Posted when a generic push-msg is received (userInfo["message"] = String) - e.g., "icon:arrow-left", "emphasis:h,j,k,l"
     static let kanataMessagePush = Notification.Name("KeyPath.KanataMessagePush")
+    /// Posted when HRM per-decision trace events are received.
+    static let kanataHrmTrace = Notification.Name("KeyPath.KanataHrmTrace")
+    /// Posted when latest HRM aggregate stats have been refreshed.
+    static let kanataHrmStatsUpdated = Notification.Name("KeyPath.KanataHrmStatsUpdated")
+    /// Posted when HelloOk capability list changes.
+    static let kanataCapabilitiesUpdated = Notification.Name("KeyPath.KanataCapabilitiesUpdated")
 }

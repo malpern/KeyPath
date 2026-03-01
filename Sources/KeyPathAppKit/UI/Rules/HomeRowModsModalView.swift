@@ -167,7 +167,7 @@ struct HomeRowModsModalView: View {
     }
 
     private var timingSection: some View {
-        HomeRowTimingSection(config: $localConfig) { newConfig in
+        HomeRowTimingSection(config: $localConfig, showsHrmInsights: true) { newConfig in
             localConfig = newConfig
         }
         .padding(.horizontal)

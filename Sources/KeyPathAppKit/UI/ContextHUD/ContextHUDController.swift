@@ -693,14 +693,18 @@ final class ContextHUDController {
 
     /// Preload app icons and favicons so the launcher HUD doesn't jitter
     private func preloadLauncherIcons(keyMap: [UInt16: LayerKeyInfo]) async {
-        for (_, info) in keyMap {
-            if let appId = info.appLaunchIdentifier {
-                // App icons are synchronous (already cached by IconResolverService)
-                _ = IconResolverService.shared.resolveAppIcon(for: appId)
-            }
-            if let url = info.urlIdentifier {
-                // Favicons are async — preload them
-                _ = await IconResolverService.shared.resolveFavicon(for: url)
+        await withTaskGroup(of: Void.self) { group in
+            for (_, info) in keyMap {
+                if let appId = info.appLaunchIdentifier {
+                    // App icons are synchronous (already cached by IconResolverService)
+                    _ = IconResolverService.shared.resolveAppIcon(for: appId)
+                }
+                if let url = info.urlIdentifier {
+                    // Favicons are async — preload them
+                    group.addTask {
+                        await IconResolverService.shared.preloadIcon(for: .url(url))
+                    }
+                }
             }
         }
     }

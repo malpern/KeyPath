@@ -87,8 +87,7 @@ extension RuleCollectionsManager {
 
         // Special handling: If Leader Key collection is toggled off, reset all momentary activators to default (space)
         if id == RuleCollectionIdentifier.leaderKey, !isEnabled {
-            await updateLeaderKey("space")
-            return // updateLeaderKey already calls regenerateConfigFromCollections
+            applyLeaderKeyToMomentaryActivators("space")
         }
 
         refreshLayerIndicatorState()
@@ -594,7 +593,13 @@ extension RuleCollectionsManager {
     /// Update the leader key for all collections that use momentary activation
     func updateLeaderKey(_ newKey: String) async {
         AppLogger.shared.log("🔑 [RuleCollections] Updating leader key to '\(newKey)'")
+        applyLeaderKeyToMomentaryActivators(newKey)
+        dedupeRuleCollectionsInPlace()
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+    }
 
+    private func applyLeaderKeyToMomentaryActivators(_ newKey: String) {
         // Update all collections that have a momentary activator
         for index in ruleCollections.indices {
             if ruleCollections[index].momentaryActivator != nil {
@@ -608,10 +613,6 @@ extension RuleCollectionsManager {
                 )
             }
         }
-
-        dedupeRuleCollectionsInPlace()
-        refreshLayerIndicatorState()
-        await regenerateConfigFromCollections()
     }
 
     /// Save or update a custom rule

@@ -5,6 +5,8 @@ import Foundation
 /// Tests for SubprocessRunner actor
 /// Verifies that subprocess execution works correctly and doesn't block MainActor
 final class SubprocessRunnerTests: XCTestCase {
+    private struct TestTimeoutError: Error {}
+
     var fakeRunner: SubprocessRunnerFake!
 
     override func setUp() async throws {
@@ -215,6 +217,51 @@ final class SubprocessRunnerTests: XCTestCase {
             XCTFail("Expected cancellation to throw")
         } catch {
             XCTAssertTrue(error is CancellationError, "Expected CancellationError, got \(error)")
+        }
+    }
+
+    func testRunCancellationBeforeLaunchDoesNotHang() async {
+        let longRunningTask = Task {
+            try await SubprocessRunner.shared.run(
+                "/bin/sleep",
+                args: ["5"],
+                timeout: 30
+            )
+        }
+
+        // Cancel immediately to exercise the pre-launch cancellation race.
+        longRunningTask.cancel()
+
+        do {
+            _ = try await awaitWithTimeout(seconds: 2.0) {
+                try await longRunningTask.value
+            }
+            XCTFail("Expected cancellation to throw")
+        } catch is CancellationError {
+            // Expected
+        } catch is TestTimeoutError {
+            XCTFail("Cancellation path hung waiting for continuation")
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    private func awaitWithTimeout<T: Sendable>(
+        seconds: TimeInterval,
+        operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask {
+                try await operation()
+            }
+            group.addTask {
+                try await Task.sleep(for: .seconds(seconds))
+                throw TestTimeoutError()
+            }
+
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
         }
     }
 }

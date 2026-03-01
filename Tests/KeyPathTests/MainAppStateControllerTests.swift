@@ -243,9 +243,9 @@ struct MainAppStateControllerBehaviorTests {
                 },
                 transientWindowOverride: { false },
                 timingOverride: (
-                    definitiveGrace: 0.6,
-                    transientGrace: 1.2,
-                    checkInterval: 0.02
+                    definitiveGrace: 1.0,
+                    transientGrace: 1.05,
+                    checkInterval: 0.01
                 )
             )
             defer { controller.resetStartupGateTestingState() }

@@ -166,6 +166,21 @@ final class ServiceHealthCheckerTests: XCTestCase {
         XCTAssertFalse(decision.isHealthy)
     }
 
+    func testKanataDecisionRunningAndRespondingWinsOverStaleMetadata() {
+        let snapshot = ServiceHealthChecker.KanataServiceRuntimeSnapshot(
+            managementState: .smappserviceActive,
+            isRunning: true,
+            isResponding: true,
+            launchctlExitCode: 0,
+            staleEnabledRegistration: true,
+            recentlyRestarted: false
+        )
+
+        let decision = ServiceHealthChecker.decideKanataHealth(for: snapshot)
+        XCTAssertEqual(decision, .healthy)
+        XCTAssertTrue(decision.isHealthy)
+    }
+
     func testIsKanataPlistInstalledUsesLaunchDaemonsOverride() throws {
         try writeEmptyPlist(serviceID: ServiceHealthChecker.kanataServiceID)
         XCTAssertTrue(checker.isKanataPlistInstalled())

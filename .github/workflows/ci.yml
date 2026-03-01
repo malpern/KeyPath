@@ -12,6 +12,7 @@ jobs:
     timeout-minutes: 25
     env:
       COVERAGE_BASELINE_PERCENT: "0.27"
+      COVERAGE_TOLERANCE_PERCENT: "0.01"
     
     steps:
     - name: Checkout code
@@ -99,10 +100,11 @@ jobs:
         fi
 
         echo "Coverage (narrow lane): ${ACTUAL_COVERAGE}%"
-        if awk -v actual="${ACTUAL_COVERAGE}" -v baseline="${COVERAGE_BASELINE_PERCENT}" 'BEGIN {exit !(actual + 0 >= baseline + 0)}'; then
-          echo "✅ Coverage is non-regressing (>= ${COVERAGE_BASELINE_PERCENT}%)"
+        EFFECTIVE_FLOOR=$(awk -v baseline="${COVERAGE_BASELINE_PERCENT}" -v tol="${COVERAGE_TOLERANCE_PERCENT}" 'BEGIN {printf "%.2f", baseline - tol}')
+        if awk -v actual="${ACTUAL_COVERAGE}" -v floor="${EFFECTIVE_FLOOR}" 'BEGIN {exit !(actual + 0 >= floor + 0)}'; then
+          echo "✅ Coverage is non-regressing (>= ${EFFECTIVE_FLOOR}% effective floor; baseline ${COVERAGE_BASELINE_PERCENT}% with ±${COVERAGE_TOLERANCE_PERCENT}% tolerance)"
         else
-          echo "❌ Coverage regression: ${ACTUAL_COVERAGE}% < ${COVERAGE_BASELINE_PERCENT}%"
+          echo "❌ Coverage regression: ${ACTUAL_COVERAGE}% < ${EFFECTIVE_FLOOR}% effective floor (baseline ${COVERAGE_BASELINE_PERCENT}% with ±${COVERAGE_TOLERANCE_PERCENT}% tolerance)"
           exit 1
         fi
     

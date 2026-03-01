@@ -12,10 +12,22 @@ import SwiftUI
 /// - Per-finger sensitivity checkbox + sliders when checked
 struct HomeRowTimingSection: View {
     @Binding var config: HomeRowModsConfig
+    let showsHrmInsights: Bool
     let onConfigChanged: (HomeRowModsConfig) -> Void
 
     @State private var sliderDebounceTask: Task<Void, Never>?
     @State private var showPerFinger: Bool = false
+    private var hrmObservability = HrmObservabilityService.shared
+
+    init(
+        config: Binding<HomeRowModsConfig>,
+        showsHrmInsights: Bool = false,
+        onConfigChanged: @escaping (HomeRowModsConfig) -> Void
+    ) {
+        _config = config
+        self.showsHrmInsights = showsHrmInsights
+        self.onConfigChanged = onConfigChanged
+    }
 
     private var feelSliderPosition: Double? {
         TypingFeelMapping.sliderPosition(tapWindow: config.timing.tapWindow, holdDelay: config.timing.holdDelay)
@@ -270,12 +282,21 @@ struct HomeRowTimingSection: View {
                     }
                 }
             }
+
+            if showsHrmInsights {
+                Divider()
+                    .padding(.vertical, 4)
+                hrmInsightsSection
+            }
         }
         .animation(.easeInOut(duration: 0.2), value: config.timing.quickTapEnabled)
         .animation(.easeInOut(duration: 0.2), value: showPerFinger)
         .animation(.easeInOut(duration: 0.15), value: config.showExpertTiming)
         .onAppear {
             showPerFinger = hasAnyPerKeyOffsets
+            if showsHrmInsights {
+                hrmObservability.startMonitoring(port: PreferencesService.shared.tcpServerPort)
+            }
         }
     }
 
@@ -395,6 +416,146 @@ struct HomeRowTimingSection: View {
         }
     }
 
+    // MARK: - HRM Insights
+
+    private var hrmInsightsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("HRM Insights")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text(hrmObservability.availability.displayName)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(hrmAvailabilityColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(hrmAvailabilityColor.opacity(0.12))
+                    .clipShape(Capsule())
+                    .accessibilityIdentifier("home-row-mods-hrm-availability-badge")
+            }
+
+            Text("Live observability for home-row tap/hold decisions. Use calibration to preview conservative timing suggestions before applying.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 8) {
+                Button("Start 60s Calibration") {
+                    hrmObservability.startCalibration(durationSeconds: 60)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!hrmObservability.supportsHrmStats || hrmObservability.calibrationState == .running)
+                .accessibilityIdentifier("home-row-mods-hrm-start-calibration-button")
+
+                Button("Refresh Stats") {
+                    hrmObservability.refreshNow()
+                }
+                .buttonStyle(.bordered)
+                .disabled(!hrmObservability.supportsHrmStats)
+                .accessibilityIdentifier("home-row-mods-hrm-refresh-stats-button")
+            }
+
+            if hrmObservability.calibrationState == .running {
+                Text("Calibration running: \(hrmObservability.calibrationRemainingSeconds)s remaining")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("home-row-mods-hrm-calibration-running")
+            } else if case let .failed(message) = hrmObservability.calibrationState {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier("home-row-mods-hrm-calibration-error")
+            }
+
+            if let stats = hrmObservability.latestStats {
+                hrmStatsSummary(stats)
+            } else {
+                Text("No HRM stats available yet. Trigger some typing activity, then refresh stats.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !hrmObservability.recommendations.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Recommendation Preview")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    ForEach(hrmObservability.recommendations) { recommendation in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(recommendation.title)
+                                .font(.caption.weight(.semibold))
+                            Text(recommendation.details)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 2)
+                    }
+
+                    Button("Apply Suggestions") {
+                        var updatedConfig = config
+                        hrmObservability.applyRecommendations(to: &updatedConfig)
+                        config = updatedConfig
+                        updateConfig()
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("home-row-mods-hrm-apply-suggestions-button")
+                }
+            }
+        }
+    }
+
+    private func hrmStatsSummary(_ stats: KanataHrmStatsSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                hrmMetricChip(title: "Decisions", value: "\(stats.decisionsTotal)")
+                hrmMetricChip(title: "Tap/Hold", value: "\(stats.tapCount)/\(stats.holdCount)")
+                hrmMetricChip(title: "Avg Latency", value: "\(Int(stats.avgDecideLatencyMs.rounded()))ms")
+            }
+
+            if !hrmObservability.topReasons.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Top Reasons")
+                        .font(.caption.weight(.semibold))
+                    ForEach(hrmObservability.topReasons) { reason in
+                        Text("• \(reason.reason.displayName): \(reason.count)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            if !hrmObservability.perKeyBreakdown.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Per-Key Breakdown")
+                        .font(.caption.weight(.semibold))
+                    ForEach(hrmObservability.perKeyBreakdown) { breakdown in
+                        Text(
+                            "\(breakdown.key.uppercased()): \(breakdown.tapCount) tap / \(breakdown.holdCount) hold • \(breakdown.avgLatencyMs)ms avg"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    private func hrmMetricChip(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.caption.weight(.semibold))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(Color.secondary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
     // MARK: - Helpers
 
     private var quickTapHelperText: String {
@@ -410,6 +571,19 @@ struct HomeRowTimingSection: View {
 
     private var hasAnyPerKeyOffsets: Bool {
         !config.timing.tapOffsets.isEmpty || !config.timing.holdOffsets.isEmpty
+    }
+
+    private var hrmAvailabilityColor: Color {
+        switch hrmObservability.availability {
+        case .supported:
+            .green
+        case .unsupported:
+            .secondary
+        case .disabledInRuntimeConfig:
+            .orange
+        case .unknown:
+            .secondary
+        }
     }
 
     private func updateConfig() {

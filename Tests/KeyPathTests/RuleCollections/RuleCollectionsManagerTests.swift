@@ -685,6 +685,25 @@ final class RuleCollectionsManagerTests: XCTestCase {
     }
 
     @MainActor
+    func testToggleLeaderKeyOffResetsMomentaryActivatorsToSpace() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        await manager.replaceCollections(RuleCollectionCatalog().defaultCollections())
+        await manager.updateLeaderKey("tab")
+
+        let beforeInputs = manager.ruleCollections.compactMap(\.momentaryActivator?.input)
+        XCTAssertFalse(beforeInputs.isEmpty)
+        XCTAssertTrue(beforeInputs.allSatisfy { $0 == "tab" })
+
+        await manager.toggleCollection(id: RuleCollectionIdentifier.leaderKey, isEnabled: false)
+
+        let afterInputs = manager.ruleCollections.compactMap(\.momentaryActivator?.input)
+        XCTAssertFalse(afterInputs.isEmpty)
+        XCTAssertTrue(afterInputs.allSatisfy { $0 == "space" })
+    }
+
+    @MainActor
     func testToggleCustomRuleConflictKeepNew_DisablesConflictingCollection() async throws {
         let (manager, _) = try await createTestManager()
         defer { TestEnvironment.forceTestMode = false }
