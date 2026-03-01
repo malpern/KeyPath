@@ -24,6 +24,14 @@ struct PermissionOracleTests {
         #expect(PermissionOracle.Status.error("test").isBlocking == true)
     }
 
+    @Test("Status.isMissing treats unknown denied and error as missing")
+    func statusIsMissing() {
+        #expect(PermissionOracle.Status.granted.isMissing == false)
+        #expect(PermissionOracle.Status.denied.isMissing == true)
+        #expect(PermissionOracle.Status.unknown.isMissing == true)
+        #expect(PermissionOracle.Status.error("test").isMissing == true)
+    }
+
     @Test("Status description is accurate")
     func statusDescription() {
         #expect(PermissionOracle.Status.granted.description == "granted")

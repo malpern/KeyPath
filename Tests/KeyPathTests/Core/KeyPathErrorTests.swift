@@ -265,6 +265,48 @@ struct KeyPathErrorTests {
         #expect(driverError.errorDescription?.contains("VirtualHID") == true)
     }
 
+    @Test("Additional error branches have stable descriptions")
+    func additionalErrorBranches() {
+        let conflicts = [
+            KeyPathError.MappingConflictInfo(
+                inputKey: "a",
+                layer: "nav",
+                conflictingCollections: ["One", "Two"]
+            ),
+        ]
+
+        let mappingConflict = KeyPathError.configuration(.mappingConflicts(conflicts: conflicts))
+        #expect(mappingConflict.errorDescription?.contains("Key 'a'") == true)
+        #expect(mappingConflict.errorDescription?.contains("One") == true)
+
+        let parseWithoutLine = KeyPathError.configuration(.parseError(line: nil, message: "boom"))
+        #expect(parseWithoutLine.errorDescription == "Parse error: boom")
+
+        let backupNotFound = KeyPathError.configuration(.backupNotFound)
+        #expect(backupNotFound.errorDescription == "No backup configuration found")
+
+        let alreadyRunning = KeyPathError.process(.alreadyRunning)
+        #expect(alreadyRunning.errorDescription == "Process is already running")
+
+        let keychainLoad = KeyPathError.permission(.keychainLoadFailed(status: -1))
+        #expect(keychainLoad.errorDescription?.contains("-1") == true)
+
+        let keychainDelete = KeyPathError.permission(.keychainDeleteFailed(status: -2))
+        #expect(keychainDelete.errorDescription?.contains("-2") == true)
+
+        let eventTapEnable = KeyPathError.system(.eventTapEnableFailed)
+        #expect(eventTapEnable.errorDescription == "Failed to enable event tap")
+
+        let invalidPort = KeyPathError.communication(.invalidPort)
+        #expect(invalidPort.errorDescription == "Invalid port number")
+
+        let recordingFailed = KeyPathError.coordination(.recordingFailed(reason: "cancelled"))
+        #expect(recordingFailed.errorDescription?.contains("cancelled") == true)
+
+        let logRotationFailed = KeyPathError.logging(.logRotationFailed(reason: "disk full"))
+        #expect(logRotationFailed.errorDescription?.contains("disk full") == true)
+    }
+
     // MARK: - Equatable Conformance
 
     @Test("Equatable conformance works correctly")
