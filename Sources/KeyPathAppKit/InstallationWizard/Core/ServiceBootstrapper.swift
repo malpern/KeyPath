@@ -606,12 +606,22 @@ final class ServiceBootstrapper {
         }
 
         // Postcondition: verify all services are actually healthy before reporting success.
+        // When SMAppService is pending approval, Kanata is intentionally not running —
+        // accept that as a valid postcondition since the user must approve in Login Items.
+        let postState = await KanataDaemonManager.shared.refreshManagementState()
+        let kanataPendingApproval = postState == .smappservicePending
+
+        if kanataPendingApproval {
+            AppLogger.shared.log("⏳ [ServiceBootstrapper] Kanata pending Login Items approval — skipping Kanata health in postcondition")
+        }
+
         // Poll for readiness to allow warm-up time after restart/install.
         AppLogger.shared.log("🔍 [ServiceBootstrapper] Running postcondition health verification")
         var postconditionPassed = false
         for poll in 0 ..< 16 { // ~4s with 250ms steps
             let finalStatus = await ServiceHealthChecker.shared.getServiceStatus()
-            if finalStatus.kanataServiceHealthy,
+            let kanataOK = kanataPendingApproval || finalStatus.kanataServiceHealthy
+            if kanataOK,
                finalStatus.vhidDaemonServiceHealthy,
                finalStatus.vhidManagerServiceHealthy
             {
