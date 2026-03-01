@@ -137,6 +137,7 @@ extension KanataTCPClient {
             let requestId = generateRequestId()
             let requestData = try JSONEncoder().encode(["RequestHrmStats": ["request_id": requestId]])
             let responseData = try await send(requestData)
+            try verifyRequestCorrelation(expectedRequestId: requestId, responseData: responseData)
 
             if let stats = try extractMessage(
                 named: "HrmStats", into: TcpHrmStats.self, from: responseData
@@ -164,19 +165,17 @@ extension KanataTCPClient {
             let requestId = generateRequestId()
             let requestData = try JSONEncoder().encode(["ResetHrmStats": ["request_id": requestId]])
             let responseData = try await send(requestData)
+            try verifyRequestCorrelation(expectedRequestId: requestId, responseData: responseData)
 
-            if let response = try? JSONDecoder().decode(TcpServerResponse.self, from: responseData),
-               response.isOk
-            {
-                return
-            }
-
-            if let response = try? JSONDecoder().decode(TcpServerResponse.self, from: responseData),
-               response.isError
-            {
-                throw KeyPathError.communication(
-                    .connectionFailed(reason: response.msg ?? "ResetHrmStats failed")
-                )
+            if let response = try? JSONDecoder().decode(TcpServerResponse.self, from: responseData) {
+                if response.isOk {
+                    return
+                }
+                if response.isError {
+                    throw KeyPathError.communication(
+                        .connectionFailed(reason: response.msg ?? "ResetHrmStats failed")
+                    )
+                }
             }
 
             throw KeyPathError.communication(.invalidResponse)
@@ -192,24 +191,35 @@ extension KanataTCPClient {
             let command = enabled ? "SubscribeHrmTrace" : "UnsubscribeHrmTrace"
             let requestData = try JSONEncoder().encode([command: ["request_id": requestId]])
             let responseData = try await send(requestData)
+            try verifyRequestCorrelation(expectedRequestId: requestId, responseData: responseData)
 
-            if let response = try? JSONDecoder().decode(TcpServerResponse.self, from: responseData),
-               response.isOk
-            {
-                return
-            }
-
-            if let response = try? JSONDecoder().decode(TcpServerResponse.self, from: responseData),
-               response.isError
-            {
-                throw KeyPathError.communication(
-                    .connectionFailed(
-                        reason: response.msg ?? (enabled ? "SubscribeHrmTrace failed" : "UnsubscribeHrmTrace failed")
+            if let response = try? JSONDecoder().decode(TcpServerResponse.self, from: responseData) {
+                if response.isOk {
+                    return
+                }
+                if response.isError {
+                    throw KeyPathError.communication(
+                        .connectionFailed(
+                            reason: response.msg ?? (enabled ? "SubscribeHrmTrace failed" : "UnsubscribeHrmTrace failed")
+                        )
                     )
-                )
+                }
             }
 
             throw KeyPathError.communication(.invalidResponse)
+        }
+    }
+
+    private func verifyRequestCorrelation(expectedRequestId: UInt64, responseData: Data) throws {
+        guard let responseRequestId = extractRequestId(from: responseData) else {
+            return
+        }
+        guard responseRequestId == expectedRequestId else {
+            throw KeyPathError.communication(
+                .connectionFailed(
+                    reason: "Mismatched response request_id (expected=\(expectedRequestId), got=\(responseRequestId))"
+                )
+            )
         }
     }
 

@@ -25,7 +25,7 @@ extension KanataTCPClient {
         let connection = try await ensureConnectionCore()
 
         // Serialize request/response cycles on the shared connection.
-        await acquireSendLock()
+        try await acquireSendLock()
         defer { releaseSendLock() }
 
         // Send with timeout

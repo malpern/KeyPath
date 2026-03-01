@@ -118,7 +118,12 @@ actor KanataTCPClient {
     /// Serialize send/receive cycles on the shared TCP connection.
     /// NWConnection receive callbacks are not safe to overlap for request/response RPC.
     var isSending = false
-    var sendWaiters: [CheckedContinuation<Void, Never>] = []
+    struct SendWaiter {
+        let id: UUID
+        let continuation: CheckedContinuation<Void, Never>
+    }
+
+    var sendWaiters: [SendWaiter] = []
 
     /// Generate next request ID (monotonically increasing)
     func generateRequestId() -> UInt64 {

@@ -142,13 +142,25 @@ extension KanataTCPClient {
     // MARK: - Send Serialization
 
     /// Acquire exclusive send/receive access for the shared connection.
-    func acquireSendLock() async {
-        if !isSending {
-            isSending = true
-            return
-        }
-        await withCheckedContinuation { continuation in
-            sendWaiters.append(continuation)
+    ///
+    /// Uses a waiter queue with cancellation cleanup to avoid orphaned continuations.
+    func acquireSendLock() async throws {
+        while true {
+            if !isSending {
+                isSending = true
+                try Task.checkCancellation()
+                return
+            }
+
+            let waiterId = UUID()
+            await withTaskCancellationHandler {
+                await withCheckedContinuation { continuation in
+                    sendWaiters.append(SendWaiter(id: waiterId, continuation: continuation))
+                }
+            } onCancel: {
+                Task { await self.cancelSendWaiter(id: waiterId) }
+            }
+            try Task.checkCancellation()
         }
     }
 
@@ -159,7 +171,13 @@ extension KanataTCPClient {
             return
         }
         let next = sendWaiters.removeFirst()
-        next.resume()
+        next.continuation.resume()
+    }
+
+    private func cancelSendWaiter(id: UUID) {
+        guard let index = sendWaiters.firstIndex(where: { $0.id == id }) else { return }
+        let waiter = sendWaiters.remove(at: index)
+        waiter.continuation.resume()
     }
 
     func stateString(_ state: NWConnection.State?) -> String {
@@ -187,6 +205,12 @@ extension KanataTCPClient {
         connection = nil
         readBuffer.removeAll() // Clear buffered data when connection closes
         cachedHello = nil // Force fresh hello on next connection
+        isSending = false
+        let waiters = sendWaiters
+        sendWaiters.removeAll()
+        for waiter in waiters {
+            waiter.continuation.resume()
+        }
     }
 
     /// Cancel any ongoing operations and close connection

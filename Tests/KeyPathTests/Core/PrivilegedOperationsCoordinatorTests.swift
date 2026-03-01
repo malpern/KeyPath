@@ -267,6 +267,35 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
         }
     }
 
+    func testInstallBundledKanataIgnoresLaunchctl113ThresholdDuringRestartGrace() async throws {
+#if DEBUG
+            PrivilegedOperationsCoordinator.resetTestingState()
+            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
+            KanataDaemonManager.registeredButNotLoadedOverride = { false }
+            PrivilegedOperationsCoordinator.installBundledKanataBinaryOverride = {}
+            var probeCount = 0
+            ServiceHealthChecker.runtimeSnapshotOverride = {
+                probeCount += 1
+                let ready = probeCount >= 4
+                return ServiceHealthChecker.KanataServiceRuntimeSnapshot(
+                    managementState: .smappserviceActive,
+                    isRunning: ready,
+                    isResponding: ready,
+                    launchctlExitCode: ready ? 0 : 113,
+                    staleEnabledRegistration: false,
+                    recentlyRestarted: !ready
+                )
+            }
+#endif
+
+        let coordinator = PrivilegedOperationsCoordinator.shared
+        do {
+            try await coordinator.installBundledKanata()
+        } catch {
+            XCTFail("Expected restart grace window to suppress early launchctl 113 failure, got: \(error)")
+        }
+    }
+
     func testInstallBundledKanataFailsForHistoricalStaleThrottleAndLaunchctl113Sequence() async throws {
 #if DEBUG
             PrivilegedOperationsCoordinator.resetTestingState()

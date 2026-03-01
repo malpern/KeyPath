@@ -667,8 +667,14 @@ final class PrivilegedOperationsCoordinator {
 
         let deadline = Date().addingTimeInterval(Self.kanataReadinessTimeout)
         var launchctlNotFoundSamples: [Bool] = []
+        var launchctlNotFoundSuppressedInGraceWindow = false
 
         while Date() < deadline {
+            if Task.isCancelled {
+                AppLogger.shared.warn("⚠️ [PrivCoordinator] \(context): readiness poll cancelled")
+                return .timedOut
+            }
+
             let now = Date()
             let remaining = deadline.timeIntervalSince(now)
             let timeoutMs = max(50, min(300, Int(remaining * 1000)))
@@ -692,10 +698,21 @@ final class PrivilegedOperationsCoordinator {
             let launchctlNotFoundCount = launchctlNotFoundSamples.filter(\.self).count
 
             if launchctlNotFoundCount >= Self.persistentLaunchctlNotFoundThreshold {
-                AppLogger.shared.error(
-                    "❌ [PrivCoordinator] \(context): launchctl not-found persisted while Kanata remained down"
-                )
-                return .launchctlNotFoundPersistent
+                if runtimeSnapshot.recentlyRestarted {
+                    if !launchctlNotFoundSuppressedInGraceWindow {
+                        AppLogger.shared.log(
+                            "ℹ️ [PrivCoordinator] \(context): launchctl not-found threshold reached during restart grace; continuing readiness poll"
+                        )
+                        launchctlNotFoundSuppressedInGraceWindow = true
+                    }
+                } else {
+                    AppLogger.shared.error(
+                        "❌ [PrivCoordinator] \(context): launchctl not-found persisted while Kanata remained down"
+                    )
+                    return .launchctlNotFoundPersistent
+                }
+            } else {
+                launchctlNotFoundSuppressedInGraceWindow = false
             }
 
             let sleepSeconds = min(
@@ -703,7 +720,14 @@ final class PrivilegedOperationsCoordinator {
                 max(0, deadline.timeIntervalSince(Date()))
             )
             if sleepSeconds > 0 {
-                try? await Task.sleep(for: .seconds(sleepSeconds))
+                do {
+                    try await Task.sleep(for: .seconds(sleepSeconds))
+                } catch is CancellationError {
+                    AppLogger.shared.warn("⚠️ [PrivCoordinator] \(context): readiness poll cancelled during sleep")
+                    return .timedOut
+                } catch {
+                    // No-op: if sleep fails for other reasons, continue toward timeout.
+                }
             }
         }
 

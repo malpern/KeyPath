@@ -238,8 +238,8 @@ struct MainAppStateControllerBehaviorTests {
                 },
                 transientWindowOverride: { false },
                 timingOverride: (
-                    definitiveGrace: 0.2,
-                    transientGrace: 0.25,
+                    definitiveGrace: 1.0,
+                    transientGrace: 1.05,
                     checkInterval: 0.01
                 )
             )
