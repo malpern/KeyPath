@@ -45,6 +45,10 @@ let package = Package(
             name: "KeyPathPluginKit",
             targets: ["KeyPathPluginKit"]
         ),
+        .executable(
+            name: "keypath-cli",
+            targets: ["KeyPathCLI"]
+        ),
         .library(
             name: "KeyPathInsights",
             type: .dynamic,
@@ -55,7 +59,9 @@ let package = Package(
         // Sparkle for automatic updates
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.8.1"),
         // Snapshot testing for visual regression tests
-        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.17.0")
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.17.0"),
+        // ArgumentParser for CLI
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0")
     ],
     targets: [
         // Core library with shared types/utilities
@@ -183,6 +189,18 @@ let package = Package(
                 "test-tcc-stability.swift"
             ],
             sources: ["smappservice-poc.swift"],
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        // Standalone CLI binary
+        .executableTarget(
+            name: "KeyPathCLI",
+            dependencies: [
+                "KeyPathAppKit",
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ],
+            path: "Sources/KeyPathCLI",
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]

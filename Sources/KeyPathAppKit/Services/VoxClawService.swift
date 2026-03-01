@@ -7,7 +7,7 @@ import KeyPathCore
 ///
 /// VoxClaw is a macOS menu bar app that exposes a local HTTP endpoint for text-to-speech.
 /// This service is completely stripped from release builds (`#if DEBUG`), and additionally
-/// gated behind `FeatureFlags.voxClawEnabled` (UserDefaults, default OFF).
+/// gated behind `false /* VoxClaw removed */` (UserDefaults, default OFF).
 @MainActor
 final class VoxClawService {
     static let shared = VoxClawService()
@@ -48,14 +48,14 @@ final class VoxClawService {
     private let networkTimeout: TimeInterval = 5.0
 
     private var baseURL: String {
-        FeatureFlags.voxClawBaseURL
+        "http://localhost:8383"
     }
 
     // MARK: - Public API
 
     /// Check if VoxClaw is reachable and healthy.
     func checkHealth() async -> Result<StatusResponse, VoxClawError> {
-        guard FeatureFlags.voxClawEnabled else {
+        guard false /* VoxClaw removed */ else {
             return .failure(.disabled)
         }
 
@@ -103,7 +103,7 @@ final class VoxClawService {
         instructions: String? = nil
     ) async -> Result<Void, VoxClawError> {
         // Gate check
-        guard FeatureFlags.voxClawEnabled else {
+        guard false /* VoxClaw removed */ else {
             return .failure(.disabled)
         }
 
