@@ -178,6 +178,7 @@ final class PrivilegedOperationsCoordinator {
             kanataConfigPath: kanataConfigPath,
             tcpPort: tcpPort
         )
+        try await enforceKanataRuntimePostcondition(after: "installAllLaunchDaemonServices(explicit)")
     }
 
     /// Install all LaunchDaemon services (convenience overload - uses PreferencesService for config)
@@ -203,6 +204,7 @@ final class PrivilegedOperationsCoordinator {
         case .directSudo:
             try await sudoInstallAllServicesWithPreferences()
         }
+        try await enforceKanataRuntimePostcondition(after: "installAllLaunchDaemonServices")
     }
 
     private func currentServiceState() async -> KanataDaemonManager.ServiceManagementState {
@@ -215,13 +217,32 @@ final class PrivilegedOperationsCoordinator {
     }
 
     private func runServiceInstall() async throws {
-        #if DEBUG
+#if DEBUG
             if let override = Self.installAllServicesOverride {
                 try await override()
                 return
             }
         #endif
         try await installAllLaunchDaemonServices()
+    }
+
+    private func enforceKanataRuntimePostcondition(after operation: String) async throws {
+        let readiness = await verifyKanataReadinessAfterInstall(context: operation)
+        guard readiness.isSuccess else {
+            throw PrivilegedOperationError.operationFailed(
+                "Kanata postcondition failed after \(operation): \(readiness.failureDescription)"
+            )
+        }
+
+        if readiness == .pendingApproval {
+            AppLogger.shared.warn(
+                "⚠️ [PrivCoordinator] \(operation) completed but Login Items approval is pending"
+            )
+        } else {
+            AppLogger.shared.log(
+                "✅ [PrivCoordinator] \(operation) postcondition verified (running + TCP responding)"
+            )
+        }
     }
 
     private func isRegisteredButNotLoaded() async -> Bool {
@@ -281,6 +302,7 @@ final class PrivilegedOperationsCoordinator {
             AppLogger.shared.log(
                 "✅ [PrivCoordinator] Installed services before restart request – skipping restart call"
             )
+            try await enforceKanataRuntimePostcondition(after: "restartUnhealthyServices(pre-restart)")
             return
         }
 
@@ -301,6 +323,8 @@ final class PrivilegedOperationsCoordinator {
         if try await installServicesIfUninstalled(context: "post-restart") {
             AppLogger.shared.log("✅ [PrivCoordinator] Service installed after restart attempt")
         }
+
+        try await enforceKanataRuntimePostcondition(after: "restartUnhealthyServices")
     }
 
     /// Installs all LaunchDaemon services via SMAppService when the Kanata daemon is missing.
@@ -379,6 +403,7 @@ final class PrivilegedOperationsCoordinator {
         AppLogger.shared.log("🔐 [PrivCoordinator] Regenerating service configuration via SMAppService")
         // Always use SMAppService path for Kanata
         try await sudoRegenerateConfig()
+        try await enforceKanataRuntimePostcondition(after: "regenerateServiceConfiguration")
     }
 
     /// Install newsyslog config for log rotation

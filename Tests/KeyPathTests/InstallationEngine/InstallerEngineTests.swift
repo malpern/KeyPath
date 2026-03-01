@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+import KeyPathCore
 @testable import KeyPathWizardCore
 @preconcurrency import XCTest
 
@@ -140,6 +141,29 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         case let .blocked(requirement):
             XCTAssertNotNil(requirement, "Blocked plan should have requirement")
             XCTAssertNotNil(plan.blockedBy, "Blocked plan should have blockedBy")
+        }
+    }
+
+    func testMakePlanBlocksWhenDriverIsIncompatible() async {
+        let context = SystemContextBuilder(
+            permissionsStatus: .granted,
+            helperReady: true,
+            servicesHealthy: false,
+            componentsInstalled: false,
+            conflicts: [],
+            driverCompatible: false
+        ).build()
+
+        let plan = await engine.makePlan(for: .install, context: context)
+        switch plan.status {
+        case .ready:
+            XCTFail("Plan should be blocked when driver compatibility fails")
+        case let .blocked(requirement):
+            XCTAssertTrue(
+                requirement.name.contains("VirtualHID driver"),
+                "Blocked requirement should explain driver compatibility failure"
+            )
+            XCTAssertEqual(plan.blockedBy, requirement)
         }
     }
 
@@ -536,5 +560,21 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
             replaceRecipe?.healthCheck,
             "Replace Kanata recipe should include a strict runtime health check"
         )
+
+        let karabinerStartRecipe = engine.recipeForAction(.startKarabinerDaemon, context: context)
+        XCTAssertEqual(karabinerStartRecipe?.id, InstallerRecipeID.startKarabinerDaemon)
+        XCTAssertEqual(karabinerStartRecipe?.serviceID, KeyPathConstants.Bundle.vhidDaemonID)
+        XCTAssertEqual(
+            karabinerStartRecipe?.healthCheck?.serviceID,
+            KeyPathConstants.Bundle.vhidDaemonID
+        )
+
+        let adoptRecipe = engine.recipeForAction(.adoptOrphanedProcess, context: context)
+        XCTAssertEqual(adoptRecipe?.id, InstallerRecipeID.adoptOrphanedProcess)
+        XCTAssertEqual(adoptRecipe?.healthCheck?.serviceID, KeyPathConstants.Bundle.daemonID)
+
+        let replaceOrphanRecipe = engine.recipeForAction(.replaceOrphanedProcess, context: context)
+        XCTAssertEqual(replaceOrphanRecipe?.id, InstallerRecipeID.replaceOrphanedProcess)
+        XCTAssertEqual(replaceOrphanRecipe?.healthCheck?.serviceID, KeyPathConstants.Bundle.daemonID)
     }
 }

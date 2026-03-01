@@ -35,6 +35,23 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
         )
     }
 
+    func testStartKarabinerDaemonRoutesToVerifiedKarabinerRestart() async {
+        let coordinator = StubPrivilegedOperationsCoordinator()
+        let broker = PrivilegeBroker(coordinator: coordinator)
+        let engine = InstallerEngine()
+
+        _ = await engine.runSingleAction(.startKarabinerDaemon, using: broker)
+
+        XCTAssertTrue(
+            coordinator.calls.contains("restartKarabinerDaemonVerified"),
+            "startKarabinerDaemon should route to verified Karabiner restart"
+        )
+        XCTAssertFalse(
+            coordinator.calls.contains("restartUnhealthyServices"),
+            "startKarabinerDaemon should not use generic restartUnhealthyServices path"
+        )
+    }
+
     func testVHIDActionsRouteToDriverAndRepair() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
         let broker = PrivilegeBroker(coordinator: coordinator)
@@ -58,12 +75,12 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
         let engine = InstallerEngine()
 
         _ = await engine.runSingleAction(.adoptOrphanedProcess, using: broker)
-        XCTAssertTrue(coordinator.calls.contains("installLaunchDaemonServicesWithoutLoading"))
+        XCTAssertTrue(coordinator.calls.contains("installAllLaunchDaemonServices"))
 
         coordinator.calls.removeAll()
         _ = await engine.runSingleAction(.replaceOrphanedProcess, using: broker)
         XCTAssertTrue(coordinator.calls.contains("killAllKanataProcesses"))
-        XCTAssertTrue(coordinator.calls.contains("installLaunchDaemonServicesWithoutLoading"))
+        XCTAssertTrue(coordinator.calls.contains("installAllLaunchDaemonServices"))
     }
 
     func testBundledActionsRouteToInstaller() async {

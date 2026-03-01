@@ -787,7 +787,7 @@ final class ServiceBootstrapper {
         }
 
         // Check current state
-        let state = await KanataDaemonManager.shared.refreshManagementState()
+        var state = await KanataDaemonManager.shared.refreshManagementState()
         AppLogger.shared.log("🔍 [ServiceBootstrapper] Current state: \(state.description)")
 
         // If conflicted, auto-resolve by removing legacy plist
@@ -808,10 +808,20 @@ final class ServiceBootstrapper {
                 return false
             }
             AppLogger.shared.log("✅ [ServiceBootstrapper] Legacy plist removed, conflict resolved")
+            state = await KanataDaemonManager.shared.refreshManagementState()
+            AppLogger.shared.log("🔍 [ServiceBootstrapper] Post-conflict state: \(state.description)")
         }
 
-        // If already managed by SMAppService, validate that launchd can actually load it.
-        if state.isSMAppServiceManaged {
+        // Explicit pending-approval state is expected to be non-running until user approval.
+        if state == .smappservicePending {
+            AppLogger.shared.log(
+                "⏳ [ServiceBootstrapper] SMAppService approval is pending in Login Items"
+            )
+            return true
+        }
+
+        // If actively managed by SMAppService, validate that launchd can actually load it.
+        if state == .smappserviceActive {
             let isRegisteredButBroken = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
             if isRegisteredButBroken {
                 AppLogger.shared.log(
@@ -841,6 +851,13 @@ final class ServiceBootstrapper {
             AppLogger.shared.info("✅ [ServiceBootstrapper] Kanata daemon registered via SMAppService")
             return true
         } catch {
+            let postErrorState = await KanataDaemonManager.shared.refreshManagementState()
+            if postErrorState == .smappservicePending {
+                AppLogger.shared.log(
+                    "⏳ [ServiceBootstrapper] Registration returned error but system is now pending approval"
+                )
+                return true
+            }
             AppLogger.shared.log("❌ [ServiceBootstrapper] SMAppService registration failed: \(error)")
             return false
         }
@@ -851,9 +868,9 @@ final class ServiceBootstrapper {
     /// Used for adopting orphan processes where we want the plist in place
     /// but don't want to load services yet.
     ///
-    /// - Parameter binaryPath: Path to the Kanata binary
+    /// - Parameter binaryPath: Unused (retained for call-site compatibility)
     /// - Returns: `true` if all plists were installed successfully
-    func installAllServicesWithoutLoading(binaryPath: String) async -> Bool {
+    func installAllServicesWithoutLoading(binaryPath _: String) async -> Bool {
         AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing service plists (no loading)")
 
         // Skip admin operations in test environment
@@ -863,25 +880,14 @@ final class ServiceBootstrapper {
         }
 
         // Generate plists
-        let kanataPlist = PlistGenerator.generateKanataPlist(
-            binaryPath: binaryPath,
-            configPath: WizardSystemPaths.userConfigPath,
-            tcpPort: 37001
-        )
         let vhidDaemonPlist = PlistGenerator.generateVHIDDaemonPlist()
         let vhidManagerPlist = PlistGenerator.generateVHIDManagerPlist()
 
         let launchDaemonsDir = getLaunchDaemonsPath()
-        let kanataPlistPath = "\(launchDaemonsDir)/\(Self.kanataServiceID).plist"
         let vhidDaemonPlistPath = "\(launchDaemonsDir)/\(Self.vhidDaemonServiceID).plist"
         let vhidManagerPlistPath = "\(launchDaemonsDir)/\(Self.vhidManagerServiceID).plist"
 
         let specs = [
-            PlistInstallSpec(
-                content: kanataPlist,
-                path: kanataPlistPath,
-                serviceID: Self.kanataServiceID
-            ),
             PlistInstallSpec(
                 content: vhidDaemonPlist,
                 path: vhidDaemonPlistPath,
@@ -909,9 +915,9 @@ final class ServiceBootstrapper {
         }
 
         let result = await executePrivilegedBatch(
-            label: "install service plists",
+            label: "install VirtualHID service plists",
             commands: prepared.commands,
-            prompt: "KeyPath needs to install the service plists."
+            prompt: "KeyPath needs to install the VirtualHID service plists."
         )
         AppLogger.shared.log(
             "🔧 [ServiceBootstrapper] Install-only result: success=\(result.success)"
