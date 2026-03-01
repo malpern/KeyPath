@@ -35,13 +35,7 @@ extension OverlayMapperSection {
                 if selectedTapOutputMode == .shifted, viewModel.hasShiftedOutputConfigured {
                     Button("Remove") {
                         viewModel.clearShiftedOutput()
-                        let isIdentityKeystroke = viewModel.selectedApp == nil &&
-                            viewModel.selectedSystemAction == nil &&
-                            viewModel.selectedURL == nil &&
-                            !viewModel.advancedBehavior.hasAdvancedConfig &&
-                            viewModel.inputLabel.lowercased() == viewModel.outputLabel.lowercased()
-
-                        if isIdentityKeystroke {
+                        if viewModel.isIdentityKeystrokeMapping {
                             viewModel.revertToKeystroke()
                         } else if let manager = kanataViewModel?.underlyingManager {
                             Task { await viewModel.save(kanataManager: manager) }

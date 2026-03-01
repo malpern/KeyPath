@@ -283,6 +283,7 @@ struct OverlayMapperSection: View {
         }
 
         let withSlotChange = withShiftAvailability.onChange(of: selectedBehaviorSlot) { _, newSlot in
+            selectedTapOutputMode = .default
             playBehaviorAnimation(for: newSlot)
         }
 

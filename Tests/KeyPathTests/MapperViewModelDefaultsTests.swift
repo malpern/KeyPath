@@ -140,4 +140,39 @@ final class MapperViewModelDefaultsTests: XCTestCase {
         XCTAssertFalse(viewModel.hasShiftedOutputConfigured)
         XCTAssertNil(viewModel.shiftedOutputLabel)
     }
+
+    @MainActor
+    func testIdentityKeystrokeMapping_UsesCanonicalSequencesNotLabels() {
+        let viewModel = MapperViewModel()
+
+        viewModel.inputSequence = KeySequence(
+            keys: [KeyPress(baseKey: "escape", modifiers: [], keyCode: 53)],
+            captureMode: .single
+        )
+        viewModel.outputSequence = KeySequence(
+            keys: [KeyPress(baseKey: "escape", modifiers: [], keyCode: 53)],
+            captureMode: .single
+        )
+
+        viewModel.inputLabel = "Different UI Label A"
+        viewModel.outputLabel = "Different UI Label B"
+
+        XCTAssertTrue(viewModel.isIdentityKeystrokeMapping)
+    }
+
+    @MainActor
+    func testIdentityKeystrokeMapping_FalseWhenOutputDiffers() {
+        let viewModel = MapperViewModel()
+
+        viewModel.inputSequence = KeySequence(
+            keys: [KeyPress(baseKey: "a", modifiers: [], keyCode: 0)],
+            captureMode: .single
+        )
+        viewModel.outputSequence = KeySequence(
+            keys: [KeyPress(baseKey: "b", modifiers: [], keyCode: 11)],
+            captureMode: .single
+        )
+
+        XCTAssertFalse(viewModel.isIdentityKeystrokeMapping)
+    }
 }

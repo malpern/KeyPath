@@ -248,6 +248,21 @@ class MapperViewModel {
         shiftedOutputBlockingReason == nil
     }
 
+    var isIdentityKeystrokeMapping: Bool {
+        guard selectedApp == nil,
+              selectedSystemAction == nil,
+              selectedURL == nil,
+              !advancedBehavior.hasAdvancedConfig,
+              let inputKanata = currentInputKanataString(),
+              let outputSequence
+        else {
+            return false
+        }
+
+        let outputKanata = convertSequenceToKanataFormat(outputSequence)
+        return inputKanata.caseInsensitiveCompare(outputKanata) == .orderedSame
+    }
+
     func configure(kanataManager: RuntimeCoordinator) {
         self.kanataManager = kanataManager
         Task {
