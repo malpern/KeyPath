@@ -155,36 +155,30 @@ struct KanataBehaviorRendererTests {
         )
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
         let rendered = KanataBehaviorRenderer.render(mappings[0])
-        // Default timing: tapWindow=200 → $tap-timeout, holdDelay=150 → literal 150
-        // Default requirePriorIdleMs=150, so wrapped in require-prior-idle
-        #expect(rendered == "(require-prior-idle 150 (tap-hold-opposite-hand $tap-timeout 150 a lsft) a)")
+        // tap-hold-opposite-hand uses single timeout (holdDelay=150)
+        // require-prior-idle is a defcfg option, not per-action
+        #expect(rendered == "(tap-hold-opposite-hand 150 a lsft)")
     }
 
     @Test("HRM with opposite-hand ON produces tap-hold-opposite-hand for 'j'")
     func oppositeHandRightKey() {
-        var timing = TimingConfig.default
-        timing.requirePriorIdleMs = 0
         let config = HomeRowModsConfig(
             enabledKeys: ["j"],
             modifierAssignments: ["j": "rmet"],
             holdMode: .modifiers,
-            timing: timing,
             oppositeHandActivation: true
         )
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
         let rendered = KanataBehaviorRenderer.render(mappings[0])
-        #expect(rendered == "(tap-hold-opposite-hand $tap-timeout 150 j rmet)")
+        #expect(rendered == "(tap-hold-opposite-hand 150 j rmet)")
     }
 
     @Test("HRM with opposite-hand OFF produces tap-hold-press")
     func oppositeHandOff() {
-        var timing = TimingConfig.default
-        timing.requirePriorIdleMs = 0
         let config = HomeRowModsConfig(
             enabledKeys: ["a"],
             modifierAssignments: ["a": "lsft"],
             holdMode: .modifiers,
-            timing: timing,
             oppositeHandActivation: false
         )
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)

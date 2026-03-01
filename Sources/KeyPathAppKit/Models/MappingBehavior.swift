@@ -126,10 +126,6 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
     /// Requires a global `defhands` block to define left/right hand keys.
     public var useOppositeHand: Bool
 
-    /// When > 0, appends `require-prior-idle` to the tap-hold action.
-    /// Keys pressed within this many ms of the last keystroke produce tap immediately.
-    public var requirePriorIdleMs: Int
-
     public init(
         tapAction: String,
         holdAction: String,
@@ -138,8 +134,7 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
         activateHoldOnOtherKey: Bool = false,
         quickTap: Bool = false,
         customTapKeys: [String] = [],
-        useOppositeHand: Bool = false,
-        requirePriorIdleMs: Int = 0
+        useOppositeHand: Bool = false
     ) {
         self.tapAction = tapAction
         self.holdAction = holdAction
@@ -150,7 +145,6 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
         self.quickTap = quickTap
         self.customTapKeys = customTapKeys
         self.useOppositeHand = useOppositeHand
-        self.requirePriorIdleMs = requirePriorIdleMs
     }
 
     /// Returns true if the configuration is valid for rendering.

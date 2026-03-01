@@ -86,6 +86,80 @@ final class HandAssignmentTests: XCTestCase {
 
     // MARK: - Backward Compatibility
 
+    // MARK: - Codable Migration (splitHandDetection → oppositeHandActivation)
+
+    func testHomeRowModsConfig_DecodesLegacySplitHandDetection() throws {
+        let json = """
+        {
+            "enabledKeys": ["a"],
+            "modifierAssignments": {"a": "lsft"},
+            "holdMode": "modifiers",
+            "splitHandDetection": true
+        }
+        """.data(using: .utf8)!
+        let config = try JSONDecoder().decode(HomeRowModsConfig.self, from: json)
+        XCTAssertTrue(config.oppositeHandActivation, "Legacy splitHandDetection:true should map to oppositeHandActivation:true")
+    }
+
+    func testHomeRowModsConfig_DecodesLegacySplitHandDetectionFalse() throws {
+        let json = """
+        {
+            "enabledKeys": ["a"],
+            "modifierAssignments": {"a": "lsft"},
+            "holdMode": "modifiers",
+            "splitHandDetection": false
+        }
+        """.data(using: .utf8)!
+        let config = try JSONDecoder().decode(HomeRowModsConfig.self, from: json)
+        XCTAssertFalse(config.oppositeHandActivation, "Legacy splitHandDetection:false should map to oppositeHandActivation:false")
+    }
+
+    func testHomeRowModsConfig_PrefersNewKeyOverLegacy() throws {
+        let json = """
+        {
+            "enabledKeys": ["a"],
+            "modifierAssignments": {"a": "lsft"},
+            "holdMode": "modifiers",
+            "oppositeHandActivation": false,
+            "splitHandDetection": true
+        }
+        """.data(using: .utf8)!
+        let config = try JSONDecoder().decode(HomeRowModsConfig.self, from: json)
+        XCTAssertFalse(config.oppositeHandActivation, "New key should take precedence over legacy key")
+    }
+
+    func testHomeRowModsConfig_DefaultsTrueWhenNeitherKeyPresent() throws {
+        let json = """
+        {
+            "enabledKeys": ["a"],
+            "modifierAssignments": {"a": "lsft"},
+            "holdMode": "modifiers"
+        }
+        """.data(using: .utf8)!
+        let config = try JSONDecoder().decode(HomeRowModsConfig.self, from: json)
+        XCTAssertTrue(config.oppositeHandActivation, "Should default to true when neither key is present")
+    }
+
+    func testHomeRowLayerTogglesConfig_DecodesLegacySplitHandDetection() throws {
+        let json = """
+        {
+            "enabledKeys": ["a"],
+            "layerAssignments": {"a": "nav"},
+            "splitHandDetection": false
+        }
+        """.data(using: .utf8)!
+        let config = try JSONDecoder().decode(HomeRowLayerTogglesConfig.self, from: json)
+        XCTAssertFalse(config.oppositeHandActivation, "Legacy splitHandDetection should migrate to oppositeHandActivation")
+    }
+
+    func testHomeRowModsConfig_EncodesOnlyNewKey() throws {
+        let config = HomeRowModsConfig(oppositeHandActivation: true)
+        let data = try JSONEncoder().encode(config)
+        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        XCTAssertNotNil(json["oppositeHandActivation"], "Should encode oppositeHandActivation")
+        XCTAssertNil(json["splitHandDetection"], "Should not encode legacy splitHandDetection")
+    }
+
     func testQwertyDefaultMatchesOldStaticProperties() {
         // Verify that qwertyDefault matches the old HomeRowModsConfig static lists
         // This ensures backward compatibility when migrating from the old approach

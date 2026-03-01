@@ -98,8 +98,10 @@ public enum KanataBehaviorRenderer {
         // Choose variant based on flags (priority: useOppositeHand > customTapKeys > activateHoldOnOtherKey > quickTap > basic)
         let base: String
         if dr.useOppositeHand {
-            // tap-hold-opposite-hand: native opposite-hand detection via defhands
-            base = "(tap-hold-opposite-hand \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction))"
+            // tap-hold-opposite-hand: native opposite-hand detection via defhands.
+            // Uses a single timeout (hold-time) — not dual tap/hold timeouts.
+            // Kanata PR #1955: (tap-hold-opposite-hand <timeout> <tap> <hold>)
+            base = "(tap-hold-opposite-hand \(holdTimeoutStr) \(tapAction) \(holdAction))"
         } else if !dr.customTapKeys.isEmpty {
             // tap-hold-release-keys: early tap on specific keys (legacy split-hand HRM)
             let keys = dr.customTapKeys.map { KanataKeyConverter.convertToKanataKey($0) }.joined(separator: " ")
@@ -115,12 +117,8 @@ public enum KanataBehaviorRenderer {
             base = "(tap-hold \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction))"
         }
 
-        // Append require-prior-idle if configured
-        if dr.requirePriorIdleMs > 0 {
-            // Wraps the tap-hold in a require-prior-idle guard
-            return "(require-prior-idle \(dr.requirePriorIdleMs) \(base) \(tapAction))"
-        }
-
+        // Note: require-prior-idle is a global defcfg option, not a per-action wrapper.
+        // It is emitted in the defcfg block by KanataConfigurationGenerator.
         return base
     }
 

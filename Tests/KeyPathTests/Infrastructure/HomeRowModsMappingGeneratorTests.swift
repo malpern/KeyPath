@@ -158,48 +158,6 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
         }
     }
 
-    // MARK: - Require Prior Idle
-
-    func testRequirePriorIdleMs_PropagatedToBehavior() {
-        var timing = TimingConfig.default
-        timing.requirePriorIdleMs = 150
-
-        let config = HomeRowModsConfig(
-            enabledKeys: ["a"],
-            modifierAssignments: ["a": "lsft"],
-            holdMode: .modifiers,
-            timing: timing,
-            oppositeHandActivation: true
-        )
-
-        let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
-        guard case let .dualRole(behavior)? = mappings.first?.behavior else {
-            return XCTFail("Expected dualRole behavior")
-        }
-
-        XCTAssertEqual(behavior.requirePriorIdleMs, 150)
-    }
-
-    func testRequirePriorIdleMs_ZeroWhenDisabled() {
-        var timing = TimingConfig.default
-        timing.requirePriorIdleMs = 0
-
-        let config = HomeRowModsConfig(
-            enabledKeys: ["a"],
-            modifierAssignments: ["a": "lsft"],
-            holdMode: .modifiers,
-            timing: timing,
-            oppositeHandActivation: false
-        )
-
-        let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
-        guard case let .dualRole(behavior)? = mappings.first?.behavior else {
-            return XCTFail("Expected dualRole behavior")
-        }
-
-        XCTAssertEqual(behavior.requirePriorIdleMs, 0)
-    }
-
     // MARK: - Full Round-Trip Tests
 
     func testFullRoundTrip_OppositeHandOn_AllEightKeys() {
@@ -222,39 +180,11 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
         }
     }
 
-    func testFullRoundTrip_OppositeHandOn_WithRequirePriorIdle() {
-        var timing = TimingConfig.default
-        timing.requirePriorIdleMs = 150
-
-        let config = HomeRowModsConfig(
-            enabledKeys: ["a"],
-            modifierAssignments: ["a": "lsft"],
-            holdMode: .modifiers,
-            timing: timing,
-            oppositeHandActivation: true
-        )
-
-        let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
-        let rendered = KanataBehaviorRenderer.render(mappings[0])
-        XCTAssertTrue(
-            rendered.hasPrefix("(require-prior-idle 150"),
-            "Should wrap in require-prior-idle: \(rendered)"
-        )
-        XCTAssertTrue(
-            rendered.contains("tap-hold-opposite-hand"),
-            "Should contain tap-hold-opposite-hand inside: \(rendered)"
-        )
-    }
-
     func testFullRoundTrip_OppositeHandOff_AllProduceTapHoldPress() {
-        var timing = TimingConfig.default
-        timing.requirePriorIdleMs = 0
-
         let config = HomeRowModsConfig(
             enabledKeys: Set(HomeRowModsConfig.allKeys),
             modifierAssignments: HomeRowModsConfig.cagsMacDefault,
             holdMode: .modifiers,
-            timing: timing,
             oppositeHandActivation: false
         )
 
@@ -268,16 +198,12 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
     // MARK: - End-to-End Rendering (generate → render → verify valid kanata syntax)
 
     func testLayersModeWhileHeld_RendersValidKanataSyntax() {
-        var timing = TimingConfig.default
-        timing.requirePriorIdleMs = 0
-
         let config = HomeRowModsConfig(
             enabledKeys: ["a", "s", "d", "f"],
             modifierAssignments: ["a": "lmet", "s": "lalt", "d": "lsft", "f": "lctl"],
             layerAssignments: ["a": "nav", "s": "sym", "d": "num", "f": "fun"],
             holdMode: .layers,
             layerToggleMode: .whileHeld,
-            timing: timing,
             oppositeHandActivation: false
         )
 
@@ -303,16 +229,12 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
     }
 
     func testLayersModeToggle_RendersValidKanataSyntax() {
-        var timing = TimingConfig.default
-        timing.requirePriorIdleMs = 0
-
         let config = HomeRowModsConfig(
             enabledKeys: ["a"],
             modifierAssignments: ["a": "lmet"],
             layerAssignments: ["a": "nav"],
             holdMode: .layers,
             layerToggleMode: .toggle,
-            timing: timing,
             oppositeHandActivation: false
         )
 
@@ -327,16 +249,12 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
     }
 
     func testModifierMode_RendersValidKanataSyntax() {
-        var timing = TimingConfig.default
-        timing.requirePriorIdleMs = 0
-
         let config = HomeRowModsConfig(
             enabledKeys: ["a"],
             modifierAssignments: ["a": "lmet"],
             layerAssignments: ["a": "nav"],
             holdMode: .modifiers,
             layerToggleMode: .whileHeld,
-            timing: timing,
             oppositeHandActivation: false
         )
 

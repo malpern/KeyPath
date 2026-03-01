@@ -255,6 +255,8 @@ public struct TimingConfig: Codable, Equatable, Sendable {
         quickTapTermMs = try container.decodeIfPresent(Int.self, forKey: .quickTapTermMs) ?? 0
         tapOffsets = try container.decodeIfPresent([String: Int].self, forKey: .tapOffsets) ?? [:]
         holdOffsets = try container.decodeIfPresent([String: Int].self, forKey: .holdOffsets) ?? [:]
+        // Decoder defaults to 0 (disabled) for existing configs that predate this field,
+        // preserving their current behavior. New configs use defaultPriorIdleMs (150) via init.
         requirePriorIdleMs = try container.decodeIfPresent(Int.self, forKey: .requirePriorIdleMs) ?? 0
     }
 
