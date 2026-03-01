@@ -263,7 +263,6 @@ final class PrivilegedOperationsCoordinator {
         }
 
         if staleEnabledRegistration {
-            staleRecoveryAttemptCount = 0
             return .run(
                 reason: "stale-enabled-registration (throttle-applied after \(staleRecoveryBypassLimit) bypasses)",
                 bypassedThrottle: false
