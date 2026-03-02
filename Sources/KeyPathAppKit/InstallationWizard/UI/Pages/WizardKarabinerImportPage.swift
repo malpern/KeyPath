@@ -261,8 +261,26 @@ struct WizardKarabinerImportPage: View {
             try? await AppKeymapStore.shared.upsertKeymap(keymap)
         }
 
+        // Also persist any launcher mappings from the conversion
+        if !result.launcherMappings.isEmpty {
+            await persistLauncherMappings(result.launcherMappings)
+        }
+
         withAnimation {
             importComplete = true
         }
+    }
+
+    private func persistLauncherMappings(_ newMappings: [LauncherMapping]) async {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        guard let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) else { return }
+        var collection = collections[index]
+        guard var config = collection.configuration.launcherGridConfig else { return }
+
+        config.mappings.append(contentsOf: newMappings)
+        collection.configuration = .launcherGrid(config)
+        collections[index] = collection
+        try? await RuleCollectionStore.shared.saveCollections(collections)
+        NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
     }
 }

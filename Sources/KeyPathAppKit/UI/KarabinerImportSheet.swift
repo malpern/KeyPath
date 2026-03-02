@@ -535,6 +535,25 @@ struct KarabinerImportSheet: View {
             try? await AppKeymapStore.shared.upsertKeymap(keymap)
         }
 
+        // Import selected launcher mappings into the launcher collection
+        let selectedLaunchers = result.launcherMappings.filter { selectedLauncherIds.contains($0.id) }
+        if !selectedLaunchers.isEmpty {
+            await persistLauncherMappings(selectedLaunchers)
+        }
+
         dismiss()
+    }
+
+    private func persistLauncherMappings(_ newMappings: [LauncherMapping]) async {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        guard let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) else { return }
+        var collection = collections[index]
+        guard var config = collection.configuration.launcherGridConfig else { return }
+
+        config.mappings.append(contentsOf: newMappings)
+        collection.configuration = .launcherGrid(config)
+        collections[index] = collection
+        try? await RuleCollectionStore.shared.saveCollections(collections)
+        NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
     }
 }

@@ -316,7 +316,17 @@ actor KarabinerConverterService {
 
         // Skip variable-only activation manipulators (these set up layers, not actual mappings)
         if isVariableActivator(manipulator, layerVariables: layerVariables) {
-            // These are handled by the layer detection logic
+            return
+        }
+
+        // Skip manipulators guarded by variable conditions — KeyPath can't gate rules
+        // on variable state, so importing them unconditionally would change behavior
+        if !variableConditions.isEmpty {
+            let varNames = variableConditions.map(\.name).joined(separator: ", ")
+            result.skipped.append(KarabinerSkippedRule(
+                description: rule,
+                reason: "Guarded by variable condition (\(varNames)) — layer-gated rules not yet supported"
+            ))
             return
         }
 
@@ -457,11 +467,7 @@ actor KarabinerConverterService {
             description: "\(fromKey) → \(toKey)"
         )
 
-        if !appConditions.isEmpty {
-            addToAppKeymaps(mapping: mapping, appConditions: appConditions, result: &result)
-        } else {
-            result.mappings.append(mapping)
-        }
+        routeMapping(mapping, appConditions: appConditions, rule: rule, result: &result)
     }
 
     // MARK: - Dual Role Conversion
@@ -546,11 +552,7 @@ actor KarabinerConverterService {
             behavior: behavior
         )
 
-        if !appConditions.isEmpty {
-            addToAppKeymaps(mapping: mapping, appConditions: appConditions, result: &result)
-        } else {
-            result.mappings.append(mapping)
-        }
+        routeMapping(mapping, appConditions: appConditions, rule: rule, result: &result)
     }
 
     // MARK: - Chord Conversion
@@ -596,7 +598,6 @@ actor KarabinerConverterService {
         }
 
         // Translate output
-        let toKey = toFirst.keyCode ?? toFirst.consumerKeyCode ?? ""
         let toMods = toFirst.modifiers ?? []
         let output: String
         if let key = toFirst.keyCode {
@@ -624,11 +625,7 @@ actor KarabinerConverterService {
             behavior: behavior
         )
 
-        if !appConditions.isEmpty {
-            addToAppKeymaps(mapping: mapping, appConditions: appConditions, result: &result)
-        } else {
-            result.mappings.append(mapping)
-        }
+        routeMapping(mapping, appConditions: appConditions, rule: rule, result: &result)
     }
 
     // MARK: - Macro Conversion
@@ -697,11 +694,7 @@ actor KarabinerConverterService {
             behavior: behavior
         )
 
-        if !appConditions.isEmpty {
-            addToAppKeymaps(mapping: mapping, appConditions: appConditions, result: &result)
-        } else {
-            result.mappings.append(mapping)
-        }
+        routeMapping(mapping, appConditions: appConditions, rule: rule, result: &result)
     }
 
     // MARK: - Shell Command Conversion
@@ -807,34 +800,51 @@ actor KarabinerConverterService {
         }
     }
 
-    private func addToAppKeymaps(
-        mapping: KeyMapping,
+    /// Route a mapping to app keymaps or global mappings based on app conditions.
+    /// Handles `_if` conditions as app-specific overrides, and `_unless` conditions
+    /// as global mappings with a warning (since KeyPath can't express "except in app X").
+    private func routeMapping(
+        _ mapping: KeyMapping,
         appConditions: [AppCondition],
+        rule: String,
         result: inout RuleConversionResult
     ) {
-        for condition in appConditions where condition.isIf {
-            for bundleId in condition.bundleIdentifiers {
-                // Strip regex anchors and escapes for bundle ID
-                let cleanBundleId = bundleId
-                    .replacingOccurrences(of: "^", with: "")
-                    .replacingOccurrences(of: "$", with: "")
-                    .replacingOccurrences(of: "\\.", with: ".")
+        let ifConditions = appConditions.filter(\.isIf)
+        let unlessConditions = appConditions.filter { !$0.isIf }
 
-                let override = AppKeyOverride(
-                    inputKey: mapping.input,
-                    outputAction: mapping.output,
-                    description: mapping.description
-                )
+        if !ifConditions.isEmpty {
+            // Add as app-specific overrides
+            for condition in ifConditions {
+                for bundleId in condition.bundleIdentifiers {
+                    // Strip regex anchors and escapes for bundle ID
+                    let cleanBundleId = bundleId
+                        .replacingOccurrences(of: "^", with: "")
+                        .replacingOccurrences(of: "$", with: "")
+                        .replacingOccurrences(of: "\\.", with: ".")
 
-                let displayName = cleanBundleId.split(separator: ".").last.map(String.init) ?? cleanBundleId
+                    let override = AppKeyOverride(
+                        inputKey: mapping.input,
+                        outputAction: mapping.output,
+                        description: mapping.description
+                    )
 
-                let keymap = AppKeymap(
-                    bundleIdentifier: cleanBundleId,
-                    displayName: displayName.capitalized,
-                    overrides: [override]
-                )
-                result.appKeymaps.append(keymap)
+                    let displayName = cleanBundleId.split(separator: ".").last.map(String.init) ?? cleanBundleId
+
+                    let keymap = AppKeymap(
+                        bundleIdentifier: cleanBundleId,
+                        displayName: displayName.capitalized,
+                        overrides: [override]
+                    )
+                    result.appKeymaps.append(keymap)
+                }
             }
+        } else if !unlessConditions.isEmpty {
+            // Only "unless" conditions — add as global mapping with warning
+            let apps = unlessConditions.flatMap(\.bundleIdentifiers).joined(separator: ", ")
+            result.warnings.append("'\(rule)' applies everywhere except [\(apps)] — imported as global rule (app exclusions not yet supported)")
+            result.mappings.append(mapping)
+        } else {
+            result.mappings.append(mapping)
         }
     }
 
