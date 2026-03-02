@@ -293,9 +293,24 @@ extension RuleCollectionsManager {
             }
 
             return true
+        } catch is CancellationError {
+            // Task was cancelled (e.g., view disappeared mid-save) — silently ignore
+            // rather than showing a misleading "validation failed" dialog
+            AppLogger.shared.log("⚠️ [RuleCollections] Config save cancelled (task cancellation)")
+            return false
         } catch {
             AppLogger.shared.log("❌ [RuleCollections] Failed to regenerate config: \(error)")
             AppLogger.shared.log("❌ [RuleCollections] Error details: \(String(describing: error))")
+
+            // Detect validation cancellation (propagated through KeyPathError wrapper)
+            if let keyPathError = error as? KeyPathError,
+               case let .configuration(configError) = keyPathError,
+               case let .validationFailed(errors) = configError,
+               errors.contains(where: { $0.contains("cancelled") })
+            {
+                AppLogger.shared.log("⚠️ [RuleCollections] Config validation was cancelled — not showing error dialog")
+                return false
+            }
 
             // Extract user-friendly error message
             let userMessage = if let keyPathError = error as? KeyPathError,
