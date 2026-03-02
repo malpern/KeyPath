@@ -45,6 +45,7 @@ class WizardNavigationEngineTests: XCTestCase {
         engine = newEngine
         await MainActor.run {
             newEngine.markFDAPageShown()
+            newEngine.markKarabinerImportPageShown()
         }
 
         // Save original factory and inject mock that reports helper as enabled
@@ -240,6 +241,7 @@ class WizardNavigationEngineTests: XCTestCase {
             .summary, // Overview
             .kanataMigration, // Migrate existing Kanata configs
             .stopExternalKanata, // Stop external Kanata before setup
+            .karabinerImport, // Import Karabiner config (one-time)
             .helper, // Privileged helper installation comes early to avoid repeated prompts
             .fullDiskAccess, // Optional FDA for better diagnostics
             .conflicts, // Must resolve conflicts first
@@ -268,8 +270,8 @@ class WizardNavigationEngineTests: XCTestCase {
 
         // Then: Should return correct indices
         XCTAssertEqual(summaryIndex, 0, "Summary should be first (index 0)")
-        XCTAssertEqual(conflictsIndex, 5, "Conflicts should be at index 5")
-        XCTAssertEqual(serviceIndex, 10, "Service should be index 10 in the expanded flow")
+        XCTAssertEqual(conflictsIndex, 6, "Conflicts should be at index 6")
+        XCTAssertEqual(serviceIndex, 11, "Service should be index 11 in the expanded flow")
     }
 
     // MARK: - Blocking Page Tests

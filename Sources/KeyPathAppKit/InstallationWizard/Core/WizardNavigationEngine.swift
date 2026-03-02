@@ -28,6 +28,11 @@ final class WizardNavigationEngine: WizardNavigating {
         hasShownKanataMigrationPage = true
     }
 
+    /// Mark Karabiner import page as shown
+    func markKarabinerImportPageShown() {
+        hasShownKarabinerImportPage = true
+    }
+
     /// Check if FDA page has been shown
     var hasFDABeenShown: Bool {
         hasShownFullDiskAccessPage
