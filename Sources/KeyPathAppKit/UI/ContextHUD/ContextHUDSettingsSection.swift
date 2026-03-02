@@ -80,9 +80,12 @@ struct ContextHUDSettingsSection: View {
             DisclosureGroup("Advanced", isExpanded: $advancedExpanded) {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        Text("Hold Delay")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                        HStack(spacing: 4) {
+                            Text("Hold Delay")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            InfoTip("Default is Long. Medium matches previous behavior.")
+                        }
 
                         Spacer()
 
@@ -126,9 +129,6 @@ struct ContextHUDSettingsSection: View {
                         }
                     }
 
-                    Text("Default is Long. Medium matches previous behavior.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
                 .padding(.top, 2)
             }

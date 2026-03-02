@@ -186,29 +186,21 @@ struct MappingBehaviorEditor: View {
             // Behavior flags
             GroupBox("Options") {
                 VStack(alignment: .leading, spacing: 6) {
-                    Toggle(isOn: $activateHoldOnOtherKey) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Activate hold on other key")
-                            Text("Hold triggers when you press another key")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
+                    HStack(spacing: 4) {
+                        Toggle("Activate hold on other key", isOn: $activateHoldOnOtherKey)
+                            .onChange(of: activateHoldOnOtherKey) { _, _ in syncBehaviorFromState() }
+                            .accessibilityIdentifier("mapping-behavior-activate-hold-toggle")
+                            .accessibilityLabel("Activate hold on other key")
+                        InfoTip("Hold triggers when you press another key")
                     }
-                    .onChange(of: activateHoldOnOtherKey) { _, _ in syncBehaviorFromState() }
-                    .accessibilityIdentifier("mapping-behavior-activate-hold-toggle")
-                    .accessibilityLabel("Activate hold on other key")
 
-                    Toggle(isOn: $quickTap) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Quick tap")
-                            Text("Fast taps always register as tap")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
+                    HStack(spacing: 4) {
+                        Toggle("Quick tap", isOn: $quickTap)
+                            .accessibilityIdentifier("mapping-behavior-quick-tap-toggle")
+                            .accessibilityLabel("Quick tap")
+                            .onChange(of: quickTap) { _, _ in syncBehaviorFromState() }
+                        InfoTip("Fast taps always register as tap")
                     }
-                    .accessibilityIdentifier("mapping-behavior-quick-tap-toggle")
-                    .accessibilityLabel("Quick tap")
-                    .onChange(of: quickTap) { _, _ in syncBehaviorFromState() }
                 }
                 .padding(.vertical, 4)
             }

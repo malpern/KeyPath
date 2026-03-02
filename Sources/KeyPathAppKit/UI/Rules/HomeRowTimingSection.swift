@@ -305,17 +305,17 @@ struct HomeRowTimingSection: View {
 
             // MARK: - Per-Finger Sensitivity
 
-            Toggle("Adjust per-finger sensitivity", isOn: $showPerFinger)
-                .toggleStyle(.checkbox)
-                .accessibilityIdentifier("home-row-mods-per-finger-toggle")
-                .accessibilityLabel("Adjust per-finger sensitivity")
+            HStack(spacing: 4) {
+                Toggle("Adjust per-finger sensitivity", isOn: $showPerFinger)
+                    .toggleStyle(.checkbox)
+                    .accessibilityIdentifier("home-row-mods-per-finger-toggle")
+                    .accessibilityLabel("Adjust per-finger sensitivity")
+
+                InfoTip("Add extra delay for slower fingers to prevent accidental holds.")
+            }
 
             if showPerFinger {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Add extra delay for slower fingers to prevent accidental holds.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
                     ForEach(TypingFeelMapping.FingerGroup.allCases, id: \.self) { finger in
                         fingerSliderRow(finger: finger)
                     }
