@@ -189,10 +189,15 @@ struct VerboseLoggingToggle: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 12) {
-                HStack(spacing: 4) {
-                    Text("Verbose Logging")
-                        .font(.headline)
-                    InfoTip("Detailed Kanata trace logs for debugging")
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text("Verbose Logging")
+                            .font(.headline)
+                        InfoTip("Detailed Kanata trace logs for debugging")
+                    }
+                    Text("May impact performance")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
 
                 Spacer()

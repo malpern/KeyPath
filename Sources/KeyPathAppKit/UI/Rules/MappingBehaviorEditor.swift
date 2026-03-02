@@ -186,25 +186,21 @@ struct MappingBehaviorEditor: View {
             // Behavior flags
             GroupBox("Options") {
                 VStack(alignment: .leading, spacing: 6) {
-                    Toggle(isOn: $activateHoldOnOtherKey) {
-                        HStack(spacing: 4) {
-                            Text("Activate hold on other key")
-                            InfoTip("Hold triggers when you press another key")
-                        }
+                    HStack(spacing: 4) {
+                        Toggle("Activate hold on other key", isOn: $activateHoldOnOtherKey)
+                            .onChange(of: activateHoldOnOtherKey) { _, _ in syncBehaviorFromState() }
+                            .accessibilityIdentifier("mapping-behavior-activate-hold-toggle")
+                            .accessibilityLabel("Activate hold on other key")
+                        InfoTip("Hold triggers when you press another key")
                     }
-                    .onChange(of: activateHoldOnOtherKey) { _, _ in syncBehaviorFromState() }
-                    .accessibilityIdentifier("mapping-behavior-activate-hold-toggle")
-                    .accessibilityLabel("Activate hold on other key")
 
-                    Toggle(isOn: $quickTap) {
-                        HStack(spacing: 4) {
-                            Text("Quick tap")
-                            InfoTip("Fast taps always register as tap")
-                        }
+                    HStack(spacing: 4) {
+                        Toggle("Quick tap", isOn: $quickTap)
+                            .accessibilityIdentifier("mapping-behavior-quick-tap-toggle")
+                            .accessibilityLabel("Quick tap")
+                            .onChange(of: quickTap) { _, _ in syncBehaviorFromState() }
+                        InfoTip("Fast taps always register as tap")
                     }
-                    .accessibilityIdentifier("mapping-behavior-quick-tap-toggle")
-                    .accessibilityLabel("Quick tap")
-                    .onChange(of: quickTap) { _, _ in syncBehaviorFromState() }
                 }
                 .padding(.vertical, 4)
             }
