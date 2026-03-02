@@ -142,6 +142,7 @@ public final class SimpleModsService {
 
     /// Apply current mappings to config
     private func applyChanges() async {
+        guard !Task.isCancelled else { return }
         defer {
             isApplying = false
         }
@@ -151,8 +152,10 @@ public final class SimpleModsService {
             let effectiveContent = try writer.generateEffectiveConfig()
 
             // Validate config
+            guard !Task.isCancelled else { return }
             AppLogger.shared.log("🔍 [SimpleMods] Validating effective config (pre-write)...")
             let validation = await validateConfig(effectiveContent)
+            guard !Task.isCancelled else { return }
             if !validation.isValid {
                 AppLogger.shared.log(
                     "❌ [SimpleMods] Pre-write validation failed with \(validation.errors.count) error(s):"
