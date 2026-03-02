@@ -187,11 +187,9 @@ struct MappingBehaviorEditor: View {
             GroupBox("Options") {
                 VStack(alignment: .leading, spacing: 6) {
                     Toggle(isOn: $activateHoldOnOtherKey) {
-                        VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 4) {
                             Text("Activate hold on other key")
-                            Text("Hold triggers when you press another key")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                            InfoTip("Hold triggers when you press another key")
                         }
                     }
                     .onChange(of: activateHoldOnOtherKey) { _, _ in syncBehaviorFromState() }
@@ -199,11 +197,9 @@ struct MappingBehaviorEditor: View {
                     .accessibilityLabel("Activate hold on other key")
 
                     Toggle(isOn: $quickTap) {
-                        VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 4) {
                             Text("Quick tap")
-                            Text("Fast taps always register as tap")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                            InfoTip("Fast taps always register as tap")
                         }
                     }
                     .accessibilityIdentifier("mapping-behavior-quick-tap-toggle")
