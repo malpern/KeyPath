@@ -233,7 +233,6 @@ struct HomeRowTimingSection: View {
             }
 
             if config.timing.requirePriorIdleMs > 0 {
-
                 HStack(spacing: 8) {
                     Text("Strict")
                         .font(.caption2)
