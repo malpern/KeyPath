@@ -287,7 +287,8 @@ class WizardStateMachine {
         case .karabinerImport:
             .stopExternalKanata // Karabiner import comes after stop external kanata
         case .helper:
-            .karabinerImport // Helper is after karabiner import
+            // Only go back to karabiner import if it was actually shown (config exists)
+            WizardSystemPaths.karabinerConfigExists ? .karabinerImport : .stopExternalKanata
         case .fullDiskAccess:
             .helper
         case .conflicts:

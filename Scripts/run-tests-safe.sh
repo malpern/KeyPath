@@ -120,8 +120,10 @@ kill $WATCHDOG_PID 2>/dev/null || true
 
 # 5) Summarize
 # Count actual test failures vs passes (both XCTest and Swift Testing formats)
-FAIL_COUNT=$(grep -cE "Test Case '.*' failed|Test .* failed after" "$LOG" 2>/dev/null || echo 0)
-PASS_COUNT=$(grep -cE "Test Case '.*' passed|Test .* passed after" "$LOG" 2>/dev/null || echo 0)
+FAIL_COUNT=$(grep -cE "Test Case '.*' failed|Test .* failed after" "$LOG" 2>/dev/null || true)
+FAIL_COUNT=${FAIL_COUNT:-0}
+PASS_COUNT=$(grep -cE "Test Case '.*' passed|Test .* passed after" "$LOG" 2>/dev/null || true)
+PASS_COUNT=${PASS_COUNT:-0}
 IS_SIGNAL_CRASH=false
 if [ "$EXIT_CODE" -gt 128 ] 2>/dev/null; then
   IS_SIGNAL_CRASH=true

@@ -746,28 +746,32 @@ actor KarabinerConverterService {
         let trimmed = cmd.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Detect: open -a "AppName" or open -a AppName
-        if let match = trimmed.range(of: #"^open\s+-a\s+[\"']?([^\"']+)[\"']?\s*$"#, options: .regularExpression) {
-            let appName = String(trimmed[match]).replacingOccurrences(of: "open -a ", with: "")
-                .trimmingCharacters(in: CharacterSet(charactersIn: "\"' "))
-            return .app(name: appName, bundleId: nil)
+        if let captured = captureGroup(in: trimmed, pattern: #"^open\s+-a\s+[\"']?([^\"']+?)[\"']?\s*$"#) {
+            return .app(name: captured, bundleId: nil)
         }
 
         // Detect: open "https://..." or open https://...
-        if let match = trimmed.range(of: #"^open\s+[\"']?(https?://[^\s\"']+)[\"']?\s*$"#, options: .regularExpression) {
-            let url = String(trimmed[match]).replacingOccurrences(of: "open ", with: "")
-                .trimmingCharacters(in: CharacterSet(charactersIn: "\"' "))
-            return .url(url)
+        if let captured = captureGroup(in: trimmed, pattern: #"^open\s+[\"']?(https?://[^\s\"']+)[\"']?\s*$"#) {
+            return .url(captured)
         }
 
         // Detect: open /path/to/folder or open ~/folder
-        if let match = trimmed.range(of: #"^open\s+[\"']?([~/][^\s\"']+)[\"']?\s*$"#, options: .regularExpression) {
-            let path = String(trimmed[match]).replacingOccurrences(of: "open ", with: "")
-                .trimmingCharacters(in: CharacterSet(charactersIn: "\"' "))
-            return .folder(path: path, name: nil)
+        if let captured = captureGroup(in: trimmed, pattern: #"^open\s+[\"']?([~/][^\s\"']+)[\"']?\s*$"#) {
+            return .folder(path: captured, name: nil)
         }
 
         // Generic script
         return .script(path: trimmed, name: nil)
+    }
+
+    /// Extract the first capture group from a regex match.
+    private func captureGroup(in string: String, pattern: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: string, range: NSRange(string.startIndex..., in: string)),
+              match.numberOfRanges > 1,
+              let captureRange = Range(match.range(at: 1), in: string)
+        else { return nil }
+        return String(string[captureRange]).trimmingCharacters(in: .whitespaces)
     }
 
     // MARK: - App Condition Helpers
@@ -821,6 +825,16 @@ actor KarabinerConverterService {
                         .replacingOccurrences(of: "^", with: "")
                         .replacingOccurrences(of: "$", with: "")
                         .replacingOccurrences(of: "\\.", with: ".")
+
+                    // Skip bundle IDs that still contain regex metacharacters after cleanup
+                    // (e.g., "com.google.(Chrome|Chromium)" from "^com\.google\.(Chrome|Chromium)$")
+                    if cleanBundleId.contains(where: { ".*+?[]|(){}".contains($0) }) {
+                        result.skipped.append(KarabinerSkippedRule(
+                            description: rule,
+                            reason: "App condition uses regex pattern '\(bundleId)' — only literal bundle IDs are supported"
+                        ))
+                        continue
+                    }
 
                     let override = AppKeyOverride(
                         inputKey: mapping.input,
@@ -901,18 +915,19 @@ actor KarabinerConverterService {
     // MARK: - Deduplication
 
     private func deduplicateAppKeymaps(_ keymaps: [AppKeymap]) -> [AppKeymap] {
-        var byBundleId: [String: AppKeymap] = [:]
+        var byBundleId: [String: Int] = [:] // bundleId → index in result
+        var result: [AppKeymap] = []
 
         for keymap in keymaps {
             let bundleId = keymap.mapping.bundleIdentifier
-            if var existing = byBundleId[bundleId] {
-                existing.overrides.append(contentsOf: keymap.overrides)
-                byBundleId[bundleId] = existing
+            if let existingIndex = byBundleId[bundleId] {
+                result[existingIndex].overrides.append(contentsOf: keymap.overrides)
             } else {
-                byBundleId[bundleId] = keymap
+                byBundleId[bundleId] = result.count
+                result.append(keymap)
             }
         }
 
-        return Array(byBundleId.values)
+        return result
     }
 }

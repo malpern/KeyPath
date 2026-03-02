@@ -131,11 +131,11 @@ extension InstallationWizardView {
                 WizardKarabinerImportPage(
                     onImportComplete: {
                         refreshSystemState()
-                        stateMachine.navigateToPage(.summary)
+                        stateMachine.nextPage()
                     },
                     onSkip: {
                         refreshSystemState()
-                        stateMachine.navigateToPage(.summary)
+                        stateMachine.nextPage()
                     }
                 )
             case .helper:

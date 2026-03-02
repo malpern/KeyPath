@@ -200,7 +200,7 @@ public enum WizardSystemPaths {
 
     /// Whether a Karabiner config file exists at the default location
     public static var karabinerConfigExists: Bool {
-        FileManager.default.fileExists(atPath: remapSystemPath(karabinerConfigPath))
+        FileManager.default.fileExists(atPath: karabinerConfigPath)
     }
 
     // MARK: - System Preference URLs
