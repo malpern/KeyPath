@@ -22,6 +22,7 @@ struct KarabinerImportSheet: View {
     @State private var errorMessage: String?
     @State private var showFilePicker = false
     @State private var showSkippedRules = false
+    @State private var pasteDebounceTask: Task<Void, Never>?
 
     private let converterService = KarabinerConverterService()
 
@@ -236,7 +237,11 @@ struct KarabinerImportSheet: View {
                 .clipShape(.rect(cornerRadius: 4))
                 .accessibilityIdentifier("karabiner-import-paste-field")
                 .onChange(of: pastedJSON) { _, newValue in
-                    if !newValue.isEmpty {
+                    pasteDebounceTask?.cancel()
+                    guard !newValue.isEmpty else { return }
+                    pasteDebounceTask = Task {
+                        try? await Task.sleep(for: .milliseconds(500))
+                        guard !Task.isCancelled else { return }
                         loadProfiles(source: .paste)
                     }
                 }
@@ -471,6 +476,8 @@ struct KarabinerImportSheet: View {
             return FileManager.default.contents(atPath: path)
         case .file:
             guard let url = selectedFileURL else { return nil }
+            let accessing = url.startAccessingSecurityScopedResource()
+            defer { if accessing { url.stopAccessingSecurityScopedResource() } }
             return try? Data(contentsOf: url)
         case .paste:
             return pastedJSON.data(using: .utf8)
@@ -506,7 +513,7 @@ struct KarabinerImportSheet: View {
         }
 
         do {
-            let result = try await converterService.convert(data: data, profileIndex: selectedProfileIndex)
+            let result = try converterService.convert(data: data, profileIndex: selectedProfileIndex)
             conversionResult = result
 
             // Select all by default
@@ -524,6 +531,7 @@ struct KarabinerImportSheet: View {
 
     private func performImport() async {
         guard let result = conversionResult else { return }
+        var errors: [String] = []
 
         // Import selected collections
         for collection in result.collections where selectedCollectionIds.contains(collection.id) {
@@ -532,28 +540,27 @@ struct KarabinerImportSheet: View {
 
         // Import selected app keymaps
         for keymap in result.appKeymaps where selectedAppKeymapIds.contains(keymap.id) {
-            try? await AppKeymapStore.shared.upsertKeymap(keymap)
+            do {
+                try await AppKeymapStore.shared.upsertKeymap(keymap)
+            } catch {
+                errors.append("App keymap '\(keymap.mapping.displayName)': \(error.localizedDescription)")
+            }
         }
 
         // Import selected launcher mappings into the launcher collection
         let selectedLaunchers = result.launcherMappings.filter { selectedLauncherIds.contains($0.id) }
         if !selectedLaunchers.isEmpty {
-            await persistLauncherMappings(selectedLaunchers)
+            do {
+                try await KarabinerConverterService.persistLauncherMappings(selectedLaunchers)
+            } catch {
+                errors.append("Launcher mappings: \(error.localizedDescription)")
+            }
         }
 
-        dismiss()
-    }
-
-    private func persistLauncherMappings(_ newMappings: [LauncherMapping]) async {
-        var collections = await RuleCollectionStore.shared.loadCollections()
-        guard let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) else { return }
-        var collection = collections[index]
-        guard var config = collection.configuration.launcherGridConfig else { return }
-
-        config.mappings.append(contentsOf: newMappings)
-        collection.configuration = .launcherGrid(config)
-        collections[index] = collection
-        try? await RuleCollectionStore.shared.saveCollections(collections)
-        NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
+        if !errors.isEmpty {
+            errorMessage = "Some items failed to import: \(errors.joined(separator: "; "))"
+        } else {
+            dismiss()
+        }
     }
 }

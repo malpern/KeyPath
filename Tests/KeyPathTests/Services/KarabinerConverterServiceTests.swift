@@ -92,7 +92,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
     func testEmptyJSONThrows() async {
         let data = "{}".data(using: .utf8)!
         do {
-            _ = try await service.convert(data: data, profileIndex: nil)
+            _ = try service.convert(data: data, profileIndex: nil)
             XCTFail("Should throw for missing profiles")
         } catch let error as KarabinerImportError {
             if case .invalidJSON = error {
@@ -113,7 +113,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         """
         let data = json.data(using: .utf8)!
         do {
-            _ = try await service.convert(data: data, profileIndex: nil)
+            _ = try service.convert(data: data, profileIndex: nil)
             XCTFail("Should throw for empty profiles")
         } catch let error as KarabinerImportError {
             if case .noProfiles = error {} else {
@@ -130,7 +130,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         """
         let data = json.data(using: .utf8)!
         do {
-            _ = try await service.convert(data: data, profileIndex: 5)
+            _ = try service.convert(data: data, profileIndex: 5)
             XCTFail("Should throw for out-of-range index")
         } catch let error as KarabinerImportError {
             if case .profileIndexOutOfRange = error {} else {
@@ -176,7 +176,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: 0)
+        let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.collections.count, 1)
         XCTAssertEqual(result.collections[0].name, "Karabiner Simple Remaps")
@@ -204,7 +204,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: 0)
+        let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.collections.count, 1)
         XCTAssertEqual(result.collections[0].mappings.count, 2)
@@ -234,7 +234,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: 0)
+        let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.collections.count, 1)
         XCTAssertEqual(result.collections[0].name, "Vim arrows")
@@ -265,7 +265,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: 0)
+        let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.collections.count, 1)
         let mapping = result.collections[0].mappings[0]
@@ -303,7 +303,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: 0)
+        let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.collections.count, 1)
         let mapping = result.collections[0].mappings[0]
@@ -344,7 +344,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: 0)
+        let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.collections.count, 1)
         let mapping = result.collections[0].mappings[0]
@@ -382,7 +382,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: 0)
+        let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.launcherMappings.count, 1)
         if case let .app(name, _) = result.launcherMappings[0].target {
@@ -414,7 +414,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: 0)
+        let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.launcherMappings.count, 1)
         if case let .url(urlString) = result.launcherMappings[0].target {
@@ -449,7 +449,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: 0)
+        let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertFalse(result.appKeymaps.isEmpty, "Should have app keymaps")
         let keymap = result.appKeymaps[0]
@@ -480,7 +480,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: 0)
+        let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertTrue(result.collections.isEmpty || result.collections[0].mappings.isEmpty)
         XCTAssertFalse(result.skippedRules.isEmpty)
@@ -500,7 +500,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: 0)
+        let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertFalse(result.skippedRules.isEmpty)
         XCTAssertTrue(result.skippedRules[0].reason.contains("Unknown"))
@@ -528,7 +528,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: 0)
+        let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertTrue(result.collections.isEmpty)
     }
@@ -559,7 +559,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: nil)
+        let result = try service.convert(data: data, profileIndex: nil)
 
         XCTAssertEqual(result.profileName, "Second")
         XCTAssertEqual(result.collections[0].mappings[0].input, "c")
@@ -580,7 +580,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: 0)
+        let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.collections.count, 1)
         XCTAssertEqual(result.collections[0].mappings[0].input, "volu")
@@ -602,7 +602,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
         """
         let data = json.data(using: .utf8)!
-        let result = try await service.convert(data: data, profileIndex: 0)
+        let result = try service.convert(data: data, profileIndex: 0)
 
         let collection = result.collections[0]
         XCTAssertEqual(collection.category, .custom)
@@ -616,7 +616,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
     func testFileTooLargeThrows() async {
         let data = Data(repeating: 0, count: 11 * 1024 * 1024)
         do {
-            _ = try await service.convert(data: data, profileIndex: nil)
+            _ = try service.convert(data: data, profileIndex: nil)
             XCTFail("Should throw for oversized file")
         } catch let error as KarabinerImportError {
             if case .fileTooLarge = error {} else {

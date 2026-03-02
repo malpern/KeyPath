@@ -180,6 +180,10 @@ enum KarabinerKeyTranslator {
         "any": "any",
     ]
 
+    /// Modifier names that have no Kanata prefix equivalent.
+    /// When encountered, callers should emit a warning instead of silently dropping them.
+    static let unsupportedModifierPrefixes: Set<String> = ["fn"]
+
     /// Karabiner modifier → Kanata prefix for key expressions (e.g., "C-" for command)
     private static let modifierPrefixMap: [String: String] = [
         "left_shift": "S-",

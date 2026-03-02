@@ -305,16 +305,5 @@ struct KarabinerCondition: Decodable {
 
 // MARK: - Parameters
 
-struct KarabinerParameters: Decodable {
-    let basicToIfAloneTimeoutMilliseconds: Int?
-    let basicToIfHeldDownThresholdMilliseconds: Int?
-    let basicToDelayedActionDelayMilliseconds: Int?
-    let basicSimultaneousThresholdMilliseconds: Int?
-
-    private enum CodingKeys: String, CodingKey {
-        case basicToIfAloneTimeoutMilliseconds = "basic.to_if_alone_timeout_milliseconds"
-        case basicToIfHeldDownThresholdMilliseconds = "basic.to_if_held_down_threshold_milliseconds"
-        case basicToDelayedActionDelayMilliseconds = "basic.to_delayed_action_delay_milliseconds"
-        case basicSimultaneousThresholdMilliseconds = "basic.simultaneous_threshold_milliseconds"
-    }
-}
+/// Profile-level and complex-modification-level parameters share the same shape.
+typealias KarabinerParameters = KarabinerManipulatorParameters

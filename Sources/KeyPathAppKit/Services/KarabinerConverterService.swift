@@ -55,24 +55,18 @@ enum KarabinerImportError: LocalizedError {
 /// let profiles = try service.getProfiles(from: data)
 /// let result = try service.convert(data: data, profileIndex: 0)
 /// ```
-actor KarabinerConverterService {
+struct KarabinerConverterService: Sendable {
     /// Maximum file size we'll accept (10 MB).
     private static let maxFileSize = 10 * 1024 * 1024
 
     // MARK: - Public API
 
     /// List available profiles in a Karabiner config file.
-    nonisolated func getProfiles(from data: Data) throws -> [(name: String, index: Int, isSelected: Bool)] {
+    func getProfiles(from data: Data) throws -> [(name: String, index: Int, isSelected: Bool)] {
         let config = try decodeConfig(data)
         return config.profiles.enumerated().map { index, profile in
             (name: profile.name, index: index, isSelected: profile.selected ?? false)
         }
-    }
-
-    /// Detect the default Karabiner config file path.
-    nonisolated func detectKarabinerConfig() -> URL? {
-        let path = WizardSystemPaths.karabinerConfigPath
-        return FileManager.default.fileExists(atPath: path) ? URL(fileURLWithPath: path) : nil
     }
 
     /// Convert a Karabiner JSON config into KeyPath rule collections.
@@ -101,7 +95,7 @@ actor KarabinerConverterService {
 
     // MARK: - Decoding
 
-    private nonisolated func decodeConfig(_ data: Data) throws -> KarabinerConfig {
+    private func decodeConfig(_ data: Data) throws -> KarabinerConfig {
         guard data.count <= Self.maxFileSize else {
             throw KarabinerImportError.fileTooLarge
         }
@@ -439,6 +433,14 @@ actor KarabinerConverterService {
         let mandatoryMods = from.modifiers?.mandatory ?? []
         let toMods = toFirst.modifiers ?? []
 
+        // Warn about unsupported modifier prefixes (e.g., fn)
+        let droppedFromMods = mandatoryMods.filter { KarabinerKeyTranslator.unsupportedModifierPrefixes.contains($0) }
+        let droppedToMods = toMods.filter { KarabinerKeyTranslator.unsupportedModifierPrefixes.contains($0) }
+        if !droppedFromMods.isEmpty || !droppedToMods.isEmpty {
+            let dropped = (droppedFromMods + droppedToMods).joined(separator: ", ")
+            result.warnings.append("'\(rule)': modifier '\(dropped)' has no Kanata prefix equivalent and was dropped from the key expression")
+        }
+
         let kanataInput: String?
         if from.keyCode != nil {
             kanataInput = KarabinerKeyTranslator.toKanataExpression(keyCode: fromKey, modifiers: mandatoryMods)
@@ -664,14 +666,19 @@ actor KarabinerConverterService {
 
         // Translate each output key
         var outputs: [String] = []
+        var droppedKeyCount = 0
         for to in toArray {
             if let key = to.keyCode {
                 if let kanata = KarabinerKeyTranslator.toKanataExpression(keyCode: key, modifiers: to.modifiers ?? []) {
                     outputs.append(kanata)
+                } else {
+                    droppedKeyCount += 1
                 }
             } else if let key = to.consumerKeyCode {
                 if let kanata = KarabinerKeyTranslator.consumerKeyToKanataExpression(keyCode: key, modifiers: to.modifiers ?? []) {
                     outputs.append(kanata)
+                } else {
+                    droppedKeyCount += 1
                 }
             }
         }
@@ -679,6 +686,10 @@ actor KarabinerConverterService {
         guard !outputs.isEmpty else {
             result.skipped.append(KarabinerSkippedRule(description: rule, reason: "No translatable output keys in macro"))
             return
+        }
+
+        if droppedKeyCount > 0 {
+            result.warnings.append("'\(rule)': \(droppedKeyCount) key(s) in macro sequence could not be translated and were dropped")
         }
 
         let behavior = MappingBehavior.macro(MacroBehavior(
@@ -828,7 +839,7 @@ actor KarabinerConverterService {
 
                     // Skip bundle IDs that still contain regex metacharacters after cleanup
                     // (e.g., "com.google.(Chrome|Chromium)" from "^com\.google\.(Chrome|Chromium)$")
-                    if cleanBundleId.contains(where: { ".*+?[]|(){}".contains($0) }) {
+                    if cleanBundleId.contains(where: { "*+?[]|(){}\\".contains($0) }) {
                         result.skipped.append(KarabinerSkippedRule(
                             description: rule,
                             reason: "App condition uses regex pattern '\(bundleId)' — only literal bundle IDs are supported"
@@ -910,6 +921,23 @@ actor KarabinerConverterService {
         }
 
         return false
+    }
+
+    // MARK: - Launcher Persistence
+
+    /// Persist launcher mappings into the existing launcher rule collection.
+    /// Shared implementation used by both KarabinerImportSheet and WizardKarabinerImportPage.
+    static func persistLauncherMappings(_ newMappings: [LauncherMapping]) async throws {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        guard let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) else { return }
+        var collection = collections[index]
+        guard var config = collection.configuration.launcherGridConfig else { return }
+
+        config.mappings.append(contentsOf: newMappings)
+        collection.configuration = .launcherGrid(config)
+        collections[index] = collection
+        try await RuleCollectionStore.shared.saveCollections(collections)
+        NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
     }
 
     // MARK: - Deduplication

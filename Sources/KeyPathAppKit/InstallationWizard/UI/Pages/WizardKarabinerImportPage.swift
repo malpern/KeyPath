@@ -239,7 +239,7 @@ struct WizardKarabinerImportPage: View {
         }
 
         do {
-            let result = try await converterService.convert(data: data, profileIndex: nil)
+            let result = try converterService.convert(data: data, profileIndex: nil)
             conversionResult = result
             selectedCollectionIds = Set(result.collections.map(\.id))
             selectedAppKeymapIds = Set(result.appKeymaps.map(\.id))
@@ -252,35 +252,35 @@ struct WizardKarabinerImportPage: View {
 
     private func performImport() async {
         guard let result = conversionResult else { return }
+        var errors: [String] = []
 
         for collection in result.collections where selectedCollectionIds.contains(collection.id) {
             await kanataManager.addRuleCollection(collection)
         }
 
         for keymap in result.appKeymaps where selectedAppKeymapIds.contains(keymap.id) {
-            try? await AppKeymapStore.shared.upsertKeymap(keymap)
+            do {
+                try await AppKeymapStore.shared.upsertKeymap(keymap)
+            } catch {
+                errors.append("App keymap '\(keymap.mapping.displayName)': \(error.localizedDescription)")
+            }
         }
 
         // Also persist any launcher mappings from the conversion
         if !result.launcherMappings.isEmpty {
-            await persistLauncherMappings(result.launcherMappings)
+            do {
+                try await KarabinerConverterService.persistLauncherMappings(result.launcherMappings)
+            } catch {
+                errors.append("Launcher mappings: \(error.localizedDescription)")
+            }
+        }
+
+        if !errors.isEmpty {
+            errorMessage = "Some items failed to import: \(errors.joined(separator: "; "))"
         }
 
         withAnimation {
             importComplete = true
         }
-    }
-
-    private func persistLauncherMappings(_ newMappings: [LauncherMapping]) async {
-        var collections = await RuleCollectionStore.shared.loadCollections()
-        guard let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) else { return }
-        var collection = collections[index]
-        guard var config = collection.configuration.launcherGridConfig else { return }
-
-        config.mappings.append(contentsOf: newMappings)
-        collection.configuration = .launcherGrid(config)
-        collections[index] = collection
-        try? await RuleCollectionStore.shared.saveCollections(collections)
-        NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
     }
 }
