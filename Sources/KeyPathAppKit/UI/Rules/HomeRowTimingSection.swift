@@ -200,40 +200,39 @@ struct HomeRowTimingSection: View {
 
             // MARK: - Opposite-Hand Activation
 
-            Toggle("Opposite-hand activation", isOn: Binding(
-                get: { config.oppositeHandActivation },
-                set: { newValue in
-                    config.oppositeHandActivation = newValue
-                    updateConfig()
-                }
-            ))
-            .toggleStyle(.checkbox)
-            .accessibilityIdentifier("home-row-mods-opposite-hand-toggle")
-            .accessibilityLabel("Opposite-hand activation")
+            HStack(spacing: 4) {
+                Toggle("Opposite-hand activation", isOn: Binding(
+                    get: { config.oppositeHandActivation },
+                    set: { newValue in
+                        config.oppositeHandActivation = newValue
+                        updateConfig()
+                    }
+                ))
+                .toggleStyle(.checkbox)
+                .accessibilityIdentifier("home-row-mods-opposite-hand-toggle")
+                .accessibilityLabel("Opposite-hand activation")
 
-            Text("Hold actions (modifiers or layers) only activate when you press a key with the other hand. Same-hand typing always produces letters — no accidental modifiers during fast rolls.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.leading, 18)
+                InfoTip("Hold actions (modifiers or layers) only activate when you press a key with the other hand. Same-hand typing always produces letters — no accidental modifiers during fast rolls.")
+            }
 
             // MARK: - Fast Typing Protection
 
-            Toggle("Fast typing protection", isOn: Binding(
-                get: { config.timing.requirePriorIdleMs > 0 },
-                set: { newValue in
-                    config.timing.requirePriorIdleMs = newValue ? TimingConfig.defaultPriorIdleMs : 0
-                    updateConfig()
-                }
-            ))
-            .toggleStyle(.checkbox)
-            .accessibilityIdentifier("home-row-mods-prior-idle-toggle")
-            .accessibilityLabel("Fast typing protection")
+            HStack(spacing: 4) {
+                Toggle("Fast typing protection", isOn: Binding(
+                    get: { config.timing.requirePriorIdleMs > 0 },
+                    set: { newValue in
+                        config.timing.requirePriorIdleMs = newValue ? TimingConfig.defaultPriorIdleMs : 0
+                        updateConfig()
+                    }
+                ))
+                .toggleStyle(.checkbox)
+                .accessibilityIdentifier("home-row-mods-prior-idle-toggle")
+                .accessibilityLabel("Fast typing protection")
+
+                InfoTip("During fast typing, keys always produce letters — never accidental modifiers. This is the single most effective way to prevent home row mod misfires.")
+            }
 
             if config.timing.requirePriorIdleMs > 0 {
-                Text("During fast typing, keys always produce letters — never accidental modifiers. This is the single most effective way to prevent home row mod misfires.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 18)
 
                 HStack(spacing: 8) {
                     Text("Strict")
@@ -261,11 +260,6 @@ struct HomeRowTimingSection: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.leading, 88)
-            } else {
-                Text("When enabled, keys pressed shortly after your last keystroke always produce letters instead of modifiers.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 18)
             }
 
             // MARK: - Quick Tap
