@@ -57,8 +57,9 @@ struct KarabinerConverterService: Sendable {
     private static let maxFileSize = 10 * 1024 * 1024
 
     // Cached regex patterns for shell command parsing (compiled once)
+    // Handles flags before -a (e.g. open -n -a "Safari"), optional .app suffix, and extra args after app name
     // swiftlint:disable:next force_try
-    private static let openAppRegex = try! NSRegularExpression(pattern: #"^open\s+-a\s+[\"']?([^\"']+?)[\"']?\s*$"#)
+    private static let openAppRegex = try! NSRegularExpression(pattern: #"^open\s+(?:-\w+\s+)*-a\s+[\"']?([^\"']+?)[\"']?(?:\s+--args\b.*)?$"#)
     // swiftlint:disable:next force_try
     private static let openURLRegex = try! NSRegularExpression(pattern: #"^open\s+[\"']?(https?://[^\s\"']+)[\"']?\s*$"#)
     // swiftlint:disable:next force_try
@@ -336,6 +337,10 @@ struct KarabinerConverterService: Sendable {
         case .shellCommand:
             convertShellCommand(manipulator, rule: rule, appConditions: appConditions, result: &result)
 
+        case .shellCommandWithDroppedTap:
+            result.warnings.append("'\(rule)': has both a shell command and a tap action (to_if_alone) — tap action was dropped; only the shell command was imported")
+            convertShellCommand(manipulator, rule: rule, appConditions: appConditions, result: &result)
+
         case .dualRole:
             convertDualRole(manipulator, rule: rule, appConditions: appConditions, result: &result)
 
@@ -361,12 +366,16 @@ struct KarabinerConverterService: Sendable {
         case chord
         case macro
         case shellCommand
+        case shellCommandWithDroppedTap
         case unsupported(String)
     }
 
     private func classifyManipulator(_ manipulator: KarabinerManipulator) -> ManipulatorClassification {
-        // Shell command
+        // Shell command (takes priority; warn if to_if_alone tap action will be dropped)
         if manipulator.to?.contains(where: { $0.shellCommand != nil }) == true {
+            if manipulator.toIfAlone != nil {
+                return .shellCommandWithDroppedTap
+            }
             return .shellCommand
         }
 
@@ -542,13 +551,14 @@ struct KarabinerConverterService: Sendable {
             return
         }
 
-        let timeout = manipulator.parameters?.basicToIfAloneTimeoutMilliseconds ?? 200
+        let tapTimeout = manipulator.parameters?.basicToIfAloneTimeoutMilliseconds ?? 200
+        let holdTimeout = manipulator.parameters?.basicToIfHeldDownThresholdMilliseconds ?? 500
 
         let behavior = MappingBehavior.dualRole(DualRoleBehavior(
             tapAction: tapAction,
             holdAction: holdAction,
-            tapTimeout: timeout,
-            holdTimeout: timeout,
+            tapTimeout: tapTimeout,
+            holdTimeout: holdTimeout,
             activateHoldOnOtherKey: true
         ))
 
@@ -761,9 +771,10 @@ struct KarabinerConverterService: Sendable {
     private func parseShellCommand(_ cmd: String) -> LauncherTarget {
         let trimmed = cmd.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Detect: open -a "AppName" or open -a AppName
+        // Detect: open [-n] -a "AppName" [--args ...] or open -a AppName.app
         if let captured = captureGroup(in: trimmed, regex: Self.openAppRegex) {
-            return .app(name: captured, bundleId: nil)
+            let appName = captured.hasSuffix(".app") ? String(captured.dropLast(4)) : captured
+            return .app(name: appName, bundleId: nil)
         }
 
         // Detect: open "https://..." or open https://...
