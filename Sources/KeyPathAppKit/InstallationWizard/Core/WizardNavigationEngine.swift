@@ -38,6 +38,11 @@ final class WizardNavigationEngine: WizardNavigating {
         hasShownFullDiskAccessPage
     }
 
+    /// Check if Karabiner import page has been shown
+    var hasKarabinerImportBeenShown: Bool {
+        hasShownKarabinerImportPage
+    }
+
     /// Skip all green pages (including one-time offerings) to find the first page
     /// that actually needs user attention. Used for auto-navigation after validation.
     ///

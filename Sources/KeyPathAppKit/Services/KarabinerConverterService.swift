@@ -23,7 +23,6 @@ struct KarabinerSkippedRule: Identifiable, Sendable {
 // MARK: - Error Type
 
 enum KarabinerImportError: LocalizedError {
-    case fileNotFound
     case invalidJSON(String)
     case noProfiles
     case fileTooLarge
@@ -31,8 +30,6 @@ enum KarabinerImportError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .fileNotFound:
-            "Karabiner configuration file not found"
         case let .invalidJSON(detail):
             "Invalid Karabiner JSON: \(detail)"
         case .noProfiles:
@@ -58,6 +55,14 @@ enum KarabinerImportError: LocalizedError {
 struct KarabinerConverterService: Sendable {
     /// Maximum file size we'll accept (10 MB).
     private static let maxFileSize = 10 * 1024 * 1024
+
+    // Cached regex patterns for shell command parsing (compiled once)
+    // swiftlint:disable:next force_try
+    private static let openAppRegex = try! NSRegularExpression(pattern: #"^open\s+-a\s+[\"']?([^\"']+?)[\"']?\s*$"#)
+    // swiftlint:disable:next force_try
+    private static let openURLRegex = try! NSRegularExpression(pattern: #"^open\s+[\"']?(https?://[^\s\"']+)[\"']?\s*$"#)
+    // swiftlint:disable:next force_try
+    private static let openPathRegex = try! NSRegularExpression(pattern: #"^open\s+[\"']?([~/][^\s\"']+)[\"']?\s*$"#)
 
     // MARK: - Public API
 
@@ -757,17 +762,17 @@ struct KarabinerConverterService: Sendable {
         let trimmed = cmd.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Detect: open -a "AppName" or open -a AppName
-        if let captured = captureGroup(in: trimmed, pattern: #"^open\s+-a\s+[\"']?([^\"']+?)[\"']?\s*$"#) {
+        if let captured = captureGroup(in: trimmed, regex: Self.openAppRegex) {
             return .app(name: captured, bundleId: nil)
         }
 
         // Detect: open "https://..." or open https://...
-        if let captured = captureGroup(in: trimmed, pattern: #"^open\s+[\"']?(https?://[^\s\"']+)[\"']?\s*$"#) {
+        if let captured = captureGroup(in: trimmed, regex: Self.openURLRegex) {
             return .url(captured)
         }
 
         // Detect: open /path/to/folder or open ~/folder
-        if let captured = captureGroup(in: trimmed, pattern: #"^open\s+[\"']?([~/][^\s\"']+)[\"']?\s*$"#) {
+        if let captured = captureGroup(in: trimmed, regex: Self.openPathRegex) {
             return .folder(path: captured, name: nil)
         }
 
@@ -775,10 +780,9 @@ struct KarabinerConverterService: Sendable {
         return .script(path: trimmed, name: nil)
     }
 
-    /// Extract the first capture group from a regex match.
-    private func captureGroup(in string: String, pattern: String) -> String? {
-        guard let regex = try? NSRegularExpression(pattern: pattern),
-              let match = regex.firstMatch(in: string, range: NSRange(string.startIndex..., in: string)),
+    /// Extract the first capture group from a pre-compiled regex match.
+    private func captureGroup(in string: String, regex: NSRegularExpression) -> String? {
+        guard let match = regex.firstMatch(in: string, range: NSRange(string.startIndex..., in: string)),
               match.numberOfRanges > 1,
               let captureRange = Range(match.range(at: 1), in: string)
         else { return nil }

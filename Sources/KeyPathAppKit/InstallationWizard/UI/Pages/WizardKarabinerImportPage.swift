@@ -181,6 +181,17 @@ struct WizardKarabinerImportPage: View {
                     }
                 }
             }
+
+            // Warnings
+            ForEach(result.warnings, id: \.self) { warning in
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(.blue)
+                    Text(warning)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -277,10 +288,10 @@ struct WizardKarabinerImportPage: View {
 
         if !errors.isEmpty {
             errorMessage = "Some items failed to import: \(errors.joined(separator: "; "))"
-        }
-
-        withAnimation {
-            importComplete = true
+        } else {
+            withAnimation {
+                importComplete = true
+            }
         }
     }
 }
