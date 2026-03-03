@@ -208,6 +208,8 @@ struct WizardStateInterpreter {
             issues // Summary shows all issues
         case .stopExternalKanata:
             [] // Stop external kanata page doesn't use issues
+        case .karabinerImport:
+            [] // Karabiner import page doesn't use issues
         }
     }
 

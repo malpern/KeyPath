@@ -7,6 +7,7 @@ import SwiftUI
 struct GeneralSettingsTabView: View {
     @Environment(KanataViewModel.self) var kanataManager
     @State private var settingsToastManager = WizardToastManager()
+    @State private var showingKarabinerImport = false
 
     var body: some View {
         generalSettingsContent
@@ -115,6 +116,28 @@ struct GeneralSettingsTabView: View {
 
                     VerboseLoggingToggle()
                         .padding(.top, 4)
+                }
+
+                Divider()
+
+                // Import
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Import")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    Button {
+                        showingKarabinerImport = true
+                    } label: {
+                        Label("Import from Karabiner", systemImage: "square.and.arrow.down")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    .accessibilityIdentifier("settings-import-karabiner-button")
+                    .accessibilityLabel("Import from Karabiner")
+                }
+                .sheet(isPresented: $showingKarabinerImport) {
+                    KarabinerImportSheet()
                 }
 
                 if FeatureFlags.simulatorAndVirtualKeysEnabled {

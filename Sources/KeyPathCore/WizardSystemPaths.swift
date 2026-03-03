@@ -193,6 +193,16 @@ public enum WizardSystemPaths {
     public static let karabinerDaemon =
         "/Library/Application Support/org.pqrs.Karabiner-Elements/bin/karabiner_session_monitor"
 
+    /// Karabiner-Elements user configuration file
+    public static var karabinerConfigPath: String {
+        "\(userHomeDirectory)/.config/karabiner/karabiner.json"
+    }
+
+    /// Whether a Karabiner config file exists at the default location
+    public static var karabinerConfigExists: Bool {
+        FileManager.default.fileExists(atPath: karabinerConfigPath)
+    }
+
     // MARK: - System Preference URLs
 
     /// Privacy & Security settings URL

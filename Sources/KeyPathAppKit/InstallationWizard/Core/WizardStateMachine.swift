@@ -284,8 +284,11 @@ class WizardStateMachine {
             .summary // Migration is early optional page
         case .stopExternalKanata:
             .kanataMigration // Stop external kanata comes after migration
+        case .karabinerImport:
+            .stopExternalKanata // Karabiner import comes after stop external kanata
         case .helper:
-            .stopExternalKanata // Helper is after stop external kanata
+            // Only go back to karabiner import if that page was actually shown during this wizard flow
+            navigationEngine.hasKarabinerImportBeenShown ? .karabinerImport : .stopExternalKanata
         case .fullDiskAccess:
             .helper
         case .conflicts:
