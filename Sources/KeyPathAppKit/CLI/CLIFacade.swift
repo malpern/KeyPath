@@ -62,9 +62,10 @@ public struct CLIFacade: Sendable {
         return collections.map { CLIRuleCollection(from: $0) }
     }
 
+    /// Enable a collection by name or ID. Returns the name, or nil if not found. Throws on ambiguous match.
     public func enableCollection(nameOrId: String) async throws -> String? {
         var collections = await RuleCollectionStore.shared.loadCollections()
-        guard let index = findCollectionIndex(nameOrId: nameOrId, in: collections) else {
+        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
             return nil
         }
         collections[index].isEnabled = true
@@ -72,9 +73,10 @@ public struct CLIFacade: Sendable {
         return collections[index].name
     }
 
+    /// Disable a collection by name or ID. Returns the name, or nil if not found. Throws on ambiguous match.
     public func disableCollection(nameOrId: String) async throws -> String? {
         var collections = await RuleCollectionStore.shared.loadCollections()
-        guard let index = findCollectionIndex(nameOrId: nameOrId, in: collections) else {
+        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
             return nil
         }
         collections[index].isEnabled = false
@@ -82,9 +84,10 @@ public struct CLIFacade: Sendable {
         return collections[index].name
     }
 
-    public func showCollection(nameOrId: String) async -> CLIRuleCollection? {
+    /// Show a collection by name or ID. Returns nil if not found. Throws on ambiguous match.
+    public func showCollection(nameOrId: String) async throws -> CLIRuleCollection? {
         let collections = await RuleCollectionStore.shared.loadCollections()
-        guard let index = findCollectionIndex(nameOrId: nameOrId, in: collections) else {
+        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
             return nil
         }
         return CLIRuleCollection(from: collections[index])
@@ -176,6 +179,8 @@ public struct CLIFacade: Sendable {
 
     // MARK: - Status
 
+    // ⚠️ inspectSystem() calls SMAppService.status which does synchronous IPC —
+    // can take 10-30s under launchd load. Callers should be aware of potential latency.
     @MainActor
     public func runStatus() async -> CLIStatusResult {
         let engine = InstallerEngine()
@@ -215,10 +220,56 @@ public struct CLIFacade: Sendable {
 
     // MARK: - Helpers
 
-    private func findCollectionIndex(nameOrId: String, in collections: [RuleCollection]) -> Int? {
-        collections.firstIndex {
-            $0.id.uuidString == nameOrId || $0.name.localizedCaseInsensitiveContains(nameOrId)
+    /// Resolve a collection by name or UUID. Returns nil if not found. Throws `AmbiguousCollectionMatch` on multiple matches.
+    private func resolveCollectionIndex(nameOrId: String, in collections: [RuleCollection]) throws -> Int? {
+        // Exact UUID match
+        if let index = collections.firstIndex(where: { $0.id.uuidString == nameOrId }) {
+            return index
         }
+
+        // Exact name match (case-insensitive)
+        let exactMatches = collections.enumerated().filter {
+            $0.element.name.caseInsensitiveCompare(nameOrId) == .orderedSame
+        }
+        if exactMatches.count == 1 {
+            return exactMatches[0].offset
+        }
+
+        // Substring match as fallback
+        let substringMatches = collections.enumerated().filter {
+            $0.element.name.localizedCaseInsensitiveContains(nameOrId)
+        }
+        if substringMatches.count == 1 {
+            return substringMatches[0].offset
+        }
+        if substringMatches.count > 1 {
+            throw AmbiguousCollectionMatch(
+                query: nameOrId,
+                matches: substringMatches.map { .init(name: $0.element.name, id: $0.element.id.uuidString) }
+            )
+        }
+
+        return nil
+    }
+}
+
+/// Thrown when a collection name/ID query matches multiple collections.
+public struct AmbiguousCollectionMatch: Error, CustomStringConvertible {
+    public struct Match: Sendable {
+        public let name: String
+        public let id: String
+    }
+
+    public let query: String
+    public let matches: [Match]
+
+    public var description: String {
+        var lines = ["Found \(matches.count) collections matching \"\(query)\":"]
+        for match in matches {
+            lines.append("  - \(match.name) (id: \(match.id))")
+        }
+        lines.append("Use the full name or ID to disambiguate.")
+        return lines.joined(separator: "\n")
     }
 }
 
@@ -237,7 +288,7 @@ public struct CLIRuleCollection: Codable, Sendable {
     public let mappingCount: Int
     public let summary: String
 
-    init(from collection: RuleCollection) {
+    public init(from collection: RuleCollection) {
         id = collection.id.uuidString
         name = collection.name
         isEnabled = collection.isEnabled

@@ -89,7 +89,7 @@ extension KeyPathTool {
             mutating func run() async throws {
                 let facade = await MainActor.run { CLIFacade() }
 
-                guard let collection = await facade.showCollection(nameOrId: nameOrId) else {
+                guard let collection = try await facade.showCollection(nameOrId: nameOrId) else {
                     print("Collection '\(nameOrId)' not found.")
                     throw ExitCode.failure
                 }
