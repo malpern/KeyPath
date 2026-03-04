@@ -7,7 +7,7 @@ struct KeyPathTool: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "keypath",
         abstract: "KeyPath keyboard configuration CLI",
-        version: "0.1.0",
+        version: CLIVersion.current,
         subcommands: [
             Status.self,
             Remap.self,

@@ -11,7 +11,22 @@ public struct CLIFacade: Sendable {
 
     public func loadCustomRules() async -> [CLICustomRule] {
         let rules = await CustomRulesStore.shared.loadRules()
-        return rules.map { CLICustomRule(input: $0.input, output: $0.output, behavior: $0.behavior.map { String(describing: $0) }) }
+        return rules.map { CLICustomRule(input: $0.input, output: $0.output, behavior: $0.behavior.map(Self.describeBehavior)) }
+    }
+
+    private static func describeBehavior(_ behavior: MappingBehavior) -> String {
+        switch behavior {
+        case let .dualRole(d):
+            "tap-hold: tap=\(d.tapAction), hold=\(d.holdAction), timeout=\(d.tapTimeout)ms"
+        case .tapOrTapDance(.tap):
+            "tap"
+        case let .tapOrTapDance(.tapDance(td)):
+            "tap-dance: \(td.steps.map(\.action).joined(separator: ", "))"
+        case let .macro(m):
+            "macro: \(m.text ?? m.outputs.joined(separator: " "))"
+        case let .chord(c):
+            "chord: \(c.keys.joined(separator: "+")) → \(c.output)"
+        }
     }
 
     /// Add a simple key remap. Returns `true` if an existing mapping for the input key was replaced.
@@ -140,29 +155,30 @@ public struct CLIFacade: Sendable {
 
     // MARK: - TCP
 
-    public func tcpCheckHealth() async -> Bool {
+    private func tcpClient() async -> KanataTCPClient {
         let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
-        let client = KanataTCPClient(port: port)
+        return KanataTCPClient(port: port)
+    }
+
+    public func tcpCheckHealth() async -> Bool {
+        let client = await tcpClient()
         return await client.checkServerStatus()
     }
 
     public func tcpGetLayers() async throws -> [String] {
-        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
-        let client = KanataTCPClient(port: port)
+        let client = await tcpClient()
         return try await client.requestLayerNames()
     }
 
     public func tcpReload() async -> Bool {
-        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
-        let client = KanataTCPClient(port: port)
+        let client = await tcpClient()
         let result = await client.reloadConfig()
         if case .success = result { return true }
         return false
     }
 
     public func tcpGetHrmStats() async throws -> CLIHrmStats {
-        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
-        let client = KanataTCPClient(port: port)
+        let client = await tcpClient()
         let stats = try await client.requestHrmStats()
         return CLIHrmStats(
             totalDecisions: stats.decisionsTotal,
@@ -172,8 +188,7 @@ public struct CLIFacade: Sendable {
     }
 
     public func tcpResetHrmStats() async throws {
-        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
-        let client = KanataTCPClient(port: port)
+        let client = await tcpClient()
         try await client.resetHrmStats()
     }
 
@@ -234,6 +249,12 @@ public struct CLIFacade: Sendable {
         if exactMatches.count == 1 {
             return exactMatches[0].offset
         }
+        if exactMatches.count > 1 {
+            throw AmbiguousCollectionMatch(
+                query: nameOrId,
+                matches: exactMatches.map { .init(name: $0.element.name, id: $0.element.id.uuidString) }
+            )
+        }
 
         // Substring match as fallback
         let substringMatches = collections.enumerated().filter {
@@ -271,6 +292,14 @@ public struct AmbiguousCollectionMatch: Error, CustomStringConvertible {
         lines.append("Use the full name or ID to disambiguate.")
         return lines.joined(separator: "\n")
     }
+}
+
+// MARK: - Version
+
+/// Shared version constant for the CLI binary.
+/// Update this when bumping the app version.
+public enum CLIVersion {
+    public static let current = "0.1.0"
 }
 
 // MARK: - Public CLI Types
