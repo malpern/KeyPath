@@ -7,6 +7,7 @@ import SwiftUI
 struct GeneralSettingsTabView: View {
     @Environment(KanataViewModel.self) var kanataManager
     @State private var settingsToastManager = WizardToastManager()
+    @State private var showingKarabinerImport = false
 
     var body: some View {
         generalSettingsContent
@@ -117,6 +118,28 @@ struct GeneralSettingsTabView: View {
                         .padding(.top, 4)
                 }
 
+                Divider()
+
+                // Import
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Import")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    Button {
+                        showingKarabinerImport = true
+                    } label: {
+                        Label("Import from Karabiner", systemImage: "square.and.arrow.down")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    .accessibilityIdentifier("settings-import-karabiner-button")
+                    .accessibilityLabel("Import from Karabiner")
+                }
+                .sheet(isPresented: $showingKarabinerImport) {
+                    KarabinerImportSheet()
+                }
+
                 if FeatureFlags.simulatorAndVirtualKeysEnabled {
                     Divider()
 
@@ -190,10 +213,13 @@ struct VerboseLoggingToggle: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Verbose Logging")
-                        .font(.headline)
-                    Text("Detailed Kanata trace logs for debugging")
-                        .font(.subheadline)
+                    HStack(spacing: 4) {
+                        Text("Verbose Logging")
+                            .font(.headline)
+                        InfoTip("Detailed Kanata trace logs for debugging")
+                    }
+                    Text("May impact performance")
+                        .font(.caption)
                         .foregroundColor(.secondary)
                 }
 

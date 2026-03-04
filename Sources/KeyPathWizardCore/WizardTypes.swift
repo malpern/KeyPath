@@ -20,6 +20,7 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
     case kanataComponents = "Kanata Components"
     case kanataMigration = "Kanata Migration"
     case stopExternalKanata = "Stop External Kanata"
+    case karabinerImport = "Karabiner Import"
     case service = "Start Service"
     case communication = "Communication"
 
@@ -36,6 +37,7 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         case .kanataComponents: "Kanata Engine Setup"
         case .kanataMigration: "Migrate Existing Kanata Config"
         case .stopExternalKanata: "Stop External Kanata"
+        case .karabinerImport: "Import Karabiner Rules"
         case .communication: "Communication Protocol"
         case .service: "Start Keyboard Service"
         }
@@ -53,6 +55,7 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         case .kanataComponents: "kanata-components"
         case .kanataMigration: "kanata-migration"
         case .stopExternalKanata: "stop-external-kanata"
+        case .karabinerImport: "karabiner-import"
         case .helper: "privileged-helper"
         case .communication: "communication"
         case .service: "service"
@@ -68,6 +71,7 @@ public extension WizardPage {
         .summary,
         .kanataMigration,
         .stopExternalKanata,
+        .karabinerImport,
         .helper,
         .fullDiskAccess,
         .conflicts,

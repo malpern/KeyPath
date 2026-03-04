@@ -52,6 +52,7 @@ struct HomeRowModsModalView: View {
 
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: 24) {
+                    hrmExplainer
                     holdModeSection
                     preferencesSection
                     timingSection
@@ -84,6 +85,18 @@ struct HomeRowModsModalView: View {
         .sheet(isPresented: $showHelp) {
             MarkdownHelpSheet(resource: "home-row-mods", title: "Home Row Mods")
         }
+    }
+
+    private var hrmExplainer: some View {
+        DisclosureGroup("What are home row mods?") {
+            Text("Home row mods turn your home row keys (A S D F / J K L ;) into dual-role keys: tap for the letter, hold for a modifier like Shift or Command.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .padding(.top, 4)
+        }
+        .font(.subheadline)
+        .padding(.horizontal)
+        .accessibilityIdentifier("home-row-mods-explainer-disclosure")
     }
 
     private var holdModeSection: some View {

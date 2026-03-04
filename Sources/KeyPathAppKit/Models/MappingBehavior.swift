@@ -91,10 +91,11 @@ public enum TapOrTapDanceBehavior: Codable, Equatable, Sendable {
 /// Settings for a tap-hold (dual-role) key.
 ///
 /// **Variant Priority** (renderer uses first matching condition):
-/// 1. `customTapKeys` (non-empty) → `tap-hold-release-keys` (split-hand HRM)
-/// 2. `activateHoldOnOtherKey` → `tap-hold-press`
-/// 3. `quickTap` → `tap-hold-release`
-/// 4. Otherwise → `tap-hold` (basic)
+/// 1. `useOppositeHand` → `tap-hold-opposite-hand` (native opposite-hand HRM)
+/// 2. `customTapKeys` (non-empty) → `tap-hold-release-keys` (legacy split-hand HRM)
+/// 3. `activateHoldOnOtherKey` → `tap-hold-press`
+/// 4. `quickTap` → `tap-hold-release`
+/// 5. Otherwise → `tap-hold` (basic)
 public struct DualRoleBehavior: Codable, Equatable, Sendable {
     /// Action when tapped (e.g., "a", "esc", or a macro string).
     public var tapAction: String
@@ -117,9 +118,13 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
     public var quickTap: Bool
 
     /// List of keys that trigger early tap when pressed.
-    /// Maps to Kanata's `tap-hold-release-keys` variant.
+    /// Maps to Kanata's `tap-hold-release-keys` variant (legacy).
     /// Only used when `customTapKeys` is non-empty and other flags are false.
     public var customTapKeys: [String]
+
+    /// If true, uses Kanata's `tap-hold-opposite-hand` variant.
+    /// Requires a global `defhands` block to define left/right hand keys.
+    public var useOppositeHand: Bool
 
     public init(
         tapAction: String,
@@ -128,7 +133,8 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
         holdTimeout: Int = 200,
         activateHoldOnOtherKey: Bool = false,
         quickTap: Bool = false,
-        customTapKeys: [String] = []
+        customTapKeys: [String] = [],
+        useOppositeHand: Bool = false
     ) {
         self.tapAction = tapAction
         self.holdAction = holdAction
@@ -138,6 +144,7 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
         self.activateHoldOnOtherKey = activateHoldOnOtherKey
         self.quickTap = quickTap
         self.customTapKeys = customTapKeys
+        self.useOppositeHand = useOppositeHand
     }
 
     /// Returns true if the configuration is valid for rendering.

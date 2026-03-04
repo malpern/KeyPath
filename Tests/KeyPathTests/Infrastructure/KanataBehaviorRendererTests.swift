@@ -143,42 +143,43 @@ struct KanataBehaviorRendererTests {
         #expect(result == "(tap-hold-release-keys $tap-timeout $hold-timeout a lctl (s d f))")
     }
 
-    // MARK: - Split-Hand Detection
+    // MARK: - Opposite-Hand Activation
 
-    @Test("HRM with split-hand ON produces tap-hold-release-keys with left-hand keys for 'a'")
-    func splitHandLeftKey() {
+    @Test("HRM with opposite-hand ON produces tap-hold-opposite-hand for 'a'")
+    func oppositeHandLeftKey() {
         let config = HomeRowModsConfig(
             enabledKeys: ["a"],
             modifierAssignments: ["a": "lsft"],
             holdMode: .modifiers,
-            splitHandDetection: true
+            oppositeHandActivation: true
         )
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
         let rendered = KanataBehaviorRenderer.render(mappings[0])
-        // Default timing: tapWindow=200 → $tap-timeout, holdDelay=150 → literal 150
-        #expect(rendered == "(tap-hold-release-keys $tap-timeout 150 a lsft (q w e r t a s d f g z x c v b))")
+        // tap-hold-opposite-hand uses single timeout (holdDelay=150)
+        // require-prior-idle is a defcfg option, not per-action
+        #expect(rendered == "(tap-hold-opposite-hand 150 a lsft)")
     }
 
-    @Test("HRM with split-hand ON produces tap-hold-release-keys with right-hand keys for 'j'")
-    func splitHandRightKey() {
+    @Test("HRM with opposite-hand ON produces tap-hold-opposite-hand for 'j'")
+    func oppositeHandRightKey() {
         let config = HomeRowModsConfig(
             enabledKeys: ["j"],
             modifierAssignments: ["j": "rmet"],
             holdMode: .modifiers,
-            splitHandDetection: true
+            oppositeHandActivation: true
         )
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
         let rendered = KanataBehaviorRenderer.render(mappings[0])
-        #expect(rendered == "(tap-hold-release-keys $tap-timeout 150 j rmet (y u i o p h j k l ; n m , . /))")
+        #expect(rendered == "(tap-hold-opposite-hand 150 j rmet)")
     }
 
-    @Test("HRM with split-hand OFF produces tap-hold-press")
-    func splitHandOff() {
+    @Test("HRM with opposite-hand OFF produces tap-hold-press")
+    func oppositeHandOff() {
         let config = HomeRowModsConfig(
             enabledKeys: ["a"],
             modifierAssignments: ["a": "lsft"],
             holdMode: .modifiers,
-            splitHandDetection: false
+            oppositeHandActivation: false
         )
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
         let rendered = KanataBehaviorRenderer.render(mappings[0])
@@ -519,7 +520,7 @@ struct KanataBehaviorRendererTests {
             layerAssignments: ["a": "nav", "s": "sym"],
             holdMode: .layers,
             layerToggleMode: .whileHeld,
-            splitHandDetection: false
+            oppositeHandActivation: false
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -549,7 +550,7 @@ struct KanataBehaviorRendererTests {
             layerAssignments: ["a": "nav"],
             holdMode: .layers,
             layerToggleMode: .toggle,
-            splitHandDetection: false
+            oppositeHandActivation: false
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)

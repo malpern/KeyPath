@@ -203,6 +203,12 @@ extension ConfigurationService {
                 }
                 return (false, errors)
             }
+        } catch is CancellationError {
+            // Task was cancelled (e.g., by debounce replacing this task) — not a real failure.
+            // Clean up and return success so callers don't show a spurious error dialog.
+            try? FileManager.default.removeItem(atPath: tempConfigPath)
+            AppLogger.shared.log("⚠️ [Validation-CLI] Validation cancelled (task superseded)")
+            return (true, [])
         } catch {
             // Clean up temp file on error
             if keepFailedConfig {

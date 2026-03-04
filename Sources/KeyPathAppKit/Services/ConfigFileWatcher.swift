@@ -404,6 +404,7 @@ class ConfigFileWatcher: @unchecked Sendable {
         debounceTask = Task { @MainActor [weak self] in
             guard let self else { return }
             try? await Task.sleep(for: .seconds(debounceDelay))
+            guard !Task.isCancelled else { return }
             await processFileChange()
         }
     }

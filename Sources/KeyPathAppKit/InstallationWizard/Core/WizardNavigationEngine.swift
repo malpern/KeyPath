@@ -9,11 +9,13 @@ final class WizardNavigationEngine: WizardNavigating {
     // Track single-show pages
     private var hasShownFullDiskAccessPage = false
     private var hasShownKanataMigrationPage = false
+    private var hasShownKarabinerImportPage = false
 
     /// Reset navigation state for a fresh wizard run
     func resetNavigationState() {
         hasShownFullDiskAccessPage = false
         hasShownKanataMigrationPage = false
+        hasShownKarabinerImportPage = false
     }
 
     /// Mark FDA page as shown (called when user completes or skips FDA)
@@ -26,9 +28,19 @@ final class WizardNavigationEngine: WizardNavigating {
         hasShownKanataMigrationPage = true
     }
 
+    /// Mark Karabiner import page as shown
+    func markKarabinerImportPageShown() {
+        hasShownKarabinerImportPage = true
+    }
+
     /// Check if FDA page has been shown
     var hasFDABeenShown: Bool {
         hasShownFullDiskAccessPage
+    }
+
+    /// Check if Karabiner import page has been shown
+    var hasKarabinerImportBeenShown: Bool {
+        hasShownKarabinerImportPage
     }
 
     /// Skip all green pages (including one-time offerings) to find the first page
@@ -50,6 +62,8 @@ final class WizardNavigationEngine: WizardNavigating {
             switch page {
             case .kanataMigration:
                 hasShownKanataMigrationPage = true
+            case .karabinerImport:
+                hasShownKarabinerImportPage = true
             default:
                 break
             }
@@ -95,6 +109,13 @@ final class WizardNavigationEngine: WizardNavigating {
             AppLogger.shared.log("🔍 [NavigationEngine] → .kanataMigration (existing configs detected)")
             hasShownKanataMigrationPage = true
             return .kanataMigration
+        }
+
+        // 2b. KARABINER IMPORT: Offer import when Karabiner config exists (one-time)
+        if !hasShownKarabinerImportPage, WizardSystemPaths.karabinerConfigExists {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .karabinerImport (Karabiner config detected)")
+            hasShownKarabinerImportPage = true
+            return .karabinerImport
         }
 
         // 3. FDA: Show Enhanced Diagnostics decision (one-time, after helper is ready)
@@ -279,7 +300,7 @@ final class WizardNavigationEngine: WizardNavigating {
             default:
                 false
             }
-        case .fullDiskAccess, .kanataMigration, .stopExternalKanata:
+        case .fullDiskAccess, .kanataMigration, .stopExternalKanata, .karabinerImport:
             false // Optional/offering pages — not issue-based
         }
     }
@@ -304,6 +325,8 @@ final class WizardNavigationEngine: WizardNavigating {
         case .fullDiskAccess:
             return false // Optional, not blocking
         case .kanataMigration:
+            return false // Optional, not blocking
+        case .karabinerImport:
             return false // Optional, not blocking
         case .stopExternalKanata:
             return false // Optional, only shown when migrating with running process
@@ -357,6 +380,8 @@ final class WizardNavigationEngine: WizardNavigating {
             "Grant Full Disk Access"
         case .kanataMigration:
             "Use This Config"
+        case .karabinerImport:
+            "Import Rules"
         case .stopExternalKanata:
             "Stop Kanata"
         case .summary:
@@ -402,6 +427,8 @@ final class WizardNavigationEngine: WizardNavigating {
             return true // Can always try to grant FDA
         case .kanataMigration:
             return true // Can always skip or migrate
+        case .karabinerImport:
+            return true // Can always skip or import
         case .stopExternalKanata:
             return true // Can always stop external kanata
         case .summary:

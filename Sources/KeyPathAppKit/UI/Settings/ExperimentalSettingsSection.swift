@@ -62,13 +62,11 @@ struct ExperimentalSettingsSection: View {
                         SectionHeader(icon: "ant.fill", title: "Testing", color: .green)
 
                         HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 4) {
                                 Text("Accessibility Test Mode")
                                     .font(.subheadline)
                                     .fontWeight(.medium)
-                                Text("Makes overlay discoverable by automation tools (Peekaboo). Takes effect immediately.")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                InfoTip("Makes overlay discoverable by automation tools (Peekaboo). Takes effect immediately.")
                             }
 
                             Spacer()
@@ -137,13 +135,11 @@ struct ExperimentalSettingsSection: View {
 
     private var qmkSearchToggle: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
                 Text("QMK Keyboard Search")
                     .font(.body)
                     .fontWeight(.medium)
-                Text("Search and import layouts from the QMK keyboard database")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                InfoTip("Search and import layouts from the QMK keyboard database")
             }
             Spacer()
             Toggle("", isOn: $qmkSearchEnabled)
@@ -248,13 +244,11 @@ struct ExperimentalSettingsSection: View {
 
     private var learningTipsModePicker: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
                 Text("Learning Tips")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                Text("Control when contextual tips are shown")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                InfoTip("Control when contextual tips are shown")
             }
 
             Spacer()

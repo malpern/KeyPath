@@ -261,8 +261,10 @@ public final class ActionDispatcher {
         }
 
         AppLogger.shared.log("🌐 [ActionDispatcher] Opening URL: \(url)")
-        NSWorkspace.shared.open(url)
-        LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
+        if !TestEnvironment.isRunningTests {
+            NSWorkspace.shared.open(url)
+            LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
+        }
         return .success
     }
 
@@ -574,10 +576,12 @@ public final class ActionDispatcher {
 
         // Open in Finder
         let url = URL(fileURLWithPath: expandedPath)
-        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: expandedPath)
+        if !TestEnvironment.isRunningTests {
+            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: expandedPath)
+            LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
+        }
         AppLogger.shared.log("✅ [ActionDispatcher] Opened folder: \(url.path)")
 
-        LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
         return .success
     }
 
