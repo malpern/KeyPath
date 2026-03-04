@@ -166,12 +166,43 @@ public struct CLIFacade: Sendable {
         try await client.resetHrmStats()
     }
 
-    // MARK: - Status (delegates to existing KeyPathCLI)
+    // MARK: - Status
 
     @MainActor
-    public func runStatus() async -> Int32 {
-        let cli = KeyPathCLI()
-        return await cli.run(arguments: ["keypath", "status"])
+    public func runStatus() async -> CLIStatusResult {
+        let engine = InstallerEngine()
+        let context = await engine.inspectSystem()
+
+        return CLIStatusResult(
+            isOperational: context.permissions.isSystemReady
+                && context.helper.isReady
+                && context.components.hasAllRequired
+                && context.services.isHealthy
+                && !context.conflicts.hasConflicts,
+            helperInstalled: context.helper.isInstalled,
+            helperWorking: context.helper.isWorking,
+            helperVersion: context.helper.version,
+            keyPathAccessibility: context.permissions.keyPath.accessibility.isReady,
+            keyPathInputMonitoring: context.permissions.keyPath.inputMonitoring.isReady,
+            kanataAccessibility: context.permissions.kanata.accessibility.isReady,
+            kanataInputMonitoring: context.permissions.kanata.inputMonitoring.isReady,
+            kanataBinaryInstalled: context.components.kanataBinaryInstalled,
+            karabinerDriverInstalled: context.components.karabinerDriverInstalled,
+            vhidDeviceHealthy: context.components.vhidDeviceHealthy,
+            kanataRunning: context.services.kanataRunning,
+            karabinerDaemonRunning: context.services.karabinerDaemonRunning,
+            vhidHealthy: context.services.vhidHealthy,
+            hasConflicts: context.conflicts.hasConflicts,
+            timestamp: context.timestamp
+        )
+    }
+
+    // MARK: - Key Validation
+
+    /// Validate a key name against the Kanata key set. Returns the canonical form, or nil if invalid.
+    public func validateKey(_ key: String) -> String? {
+        guard CustomRuleValidator.isValidKey(key) else { return nil }
+        return CustomRuleValidator.normalizeKey(key)
     }
 
     // MARK: - Helpers
@@ -198,24 +229,43 @@ public struct CLIRuleCollection: Codable, Sendable {
     public let mappingCount: Int
     public let summary: String
 
-    init(from internal_: RuleCollection) {
-        id = internal_.id.uuidString
-        name = internal_.name
-        isEnabled = internal_.isEnabled
-        mappingCount = internal_.mappings.count
-        summary = internal_.summary
+    init(from collection: RuleCollection) {
+        id = collection.id.uuidString
+        name = collection.name
+        isEnabled = collection.isEnabled
+        mappingCount = collection.mappings.count
+        summary = collection.summary
     }
 }
 
-public struct CLIApplyResult: Sendable {
+public struct CLIApplyResult: Codable, Sendable {
     public let collectionsCount: Int
     public let enabledCount: Int
     public let customRulesCount: Int
     public let reloadSuccess: Bool
 }
 
-public struct CLIHrmStats: Sendable {
+public struct CLIHrmStats: Codable, Sendable {
     public let totalDecisions: Int
     public let tapCount: Int
     public let holdCount: Int
+}
+
+public struct CLIStatusResult: Codable, Sendable {
+    public let isOperational: Bool
+    public let helperInstalled: Bool
+    public let helperWorking: Bool
+    public let helperVersion: String?
+    public let keyPathAccessibility: Bool
+    public let keyPathInputMonitoring: Bool
+    public let kanataAccessibility: Bool
+    public let kanataInputMonitoring: Bool
+    public let kanataBinaryInstalled: Bool
+    public let karabinerDriverInstalled: Bool
+    public let vhidDeviceHealthy: Bool
+    public let kanataRunning: Bool
+    public let karabinerDaemonRunning: Bool
+    public let vhidHealthy: Bool
+    public let hasConflicts: Bool
+    public let timestamp: Date
 }

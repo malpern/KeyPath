@@ -38,13 +38,18 @@ extension KeyPathTool {
 
         struct Validate: AsyncParsableCommand {
             static let configuration = CommandConfiguration(
-                abstract: "Validate current configuration"
+                abstract: "Check that a generated configuration exists (does not invoke Kanata syntax checking)"
             )
 
             mutating func run() async throws {
                 let facade = await MainActor.run { CLIFacade() }
                 let config = await facade.currentConfig()
-                print("Configuration valid (\(config.count) characters)")
+                if config.isEmpty {
+                    print("No configuration generated yet. Run 'keypath apply' first.")
+                    throw ExitCode.failure
+                }
+                print("Configuration exists (\(config.count) characters)")
+                print("Note: This checks file presence only. Use 'keypath apply' to validate and reload via Kanata.")
             }
         }
     }

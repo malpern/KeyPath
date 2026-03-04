@@ -45,9 +45,6 @@ extension KeyPathTool {
             @Argument(help: "Collection name or ID")
             var nameOrId: String
 
-            @Flag(help: "Apply changes immediately")
-            var apply: Bool = false
-
             mutating func run() async throws {
                 let facade = await MainActor.run { CLIFacade() }
                 guard let name = try await facade.enableCollection(nameOrId: nameOrId) else {
@@ -55,16 +52,7 @@ extension KeyPathTool {
                     throw ExitCode.failure
                 }
                 print("Enabled '\(name)'")
-
-                if apply {
-                    let result = try await facade.applyConfiguration()
-                    if result.reloadSuccess {
-                        print("Configuration applied.")
-                    } else {
-                        print("Kanata reload failed.")
-                        throw ExitCode.failure
-                    }
-                }
+                print("Run 'keypath apply' to regenerate config and reload Kanata.")
             }
         }
 
@@ -76,9 +64,6 @@ extension KeyPathTool {
             @Argument(help: "Collection name or ID")
             var nameOrId: String
 
-            @Flag(help: "Apply changes immediately")
-            var apply: Bool = false
-
             mutating func run() async throws {
                 let facade = await MainActor.run { CLIFacade() }
                 guard let name = try await facade.disableCollection(nameOrId: nameOrId) else {
@@ -86,16 +71,7 @@ extension KeyPathTool {
                     throw ExitCode.failure
                 }
                 print("Disabled '\(name)'")
-
-                if apply {
-                    let result = try await facade.applyConfiguration()
-                    if result.reloadSuccess {
-                        print("Configuration applied.")
-                    } else {
-                        print("Kanata reload failed.")
-                        throw ExitCode.failure
-                    }
-                }
+                print("Run 'keypath apply' to regenerate config and reload Kanata.")
             }
         }
 

@@ -20,11 +20,11 @@ extension KeyPathTool {
         @Option(help: "Key to emit on hold (for tap-hold)")
         var hold: String?
 
+        @Option(help: "Tap-hold timeout in milliseconds (default: 200)")
+        var timeout: Int = 200
+
         @Flag(help: "Remove the mapping for the input key")
         var remove: Bool = false
-
-        @Flag(help: "Apply changes immediately after remapping")
-        var apply: Bool = false
 
         mutating func run() async throws {
             let facade = await MainActor.run { CLIFacade() }
@@ -37,9 +37,18 @@ extension KeyPathTool {
                 }
                 print("Removed mapping for '\(input)'")
             } else if let tap, let hold {
-                try await facade.addTapHoldRemap(input: input, tap: tap, hold: hold)
-                print("Mapped \(input) → tap:\(tap), hold:\(hold)")
+                // Validate all keys
+                try validateKeyName(input, label: "input", facade: facade)
+                try validateKeyName(tap, label: "tap", facade: facade)
+                try validateKeyName(hold, label: "hold", facade: facade)
+
+                try await facade.addTapHoldRemap(input: input, tap: tap, hold: hold, timeout: timeout)
+                print("Mapped \(input) → tap:\(tap), hold:\(hold) (timeout: \(timeout)ms)")
             } else if let output {
+                // Validate keys
+                try validateKeyName(input, label: "input", facade: facade)
+                try validateKeyName(output, label: "output", facade: facade)
+
                 try await facade.addSimpleRemap(input: input, output: output)
                 print("Mapped \(input) → \(output)")
             } else {
@@ -47,15 +56,14 @@ extension KeyPathTool {
                 throw ExitCode.failure
             }
 
-            if apply {
-                print("Applying configuration...")
-                let result = try await facade.applyConfiguration()
-                if result.reloadSuccess {
-                    print("Configuration applied and Kanata reloaded.")
-                } else {
-                    print("Configuration written but Kanata reload failed.")
-                    throw ExitCode.failure
-                }
+            print("Run 'keypath apply' to regenerate config and reload Kanata.")
+        }
+
+        private func validateKeyName(_ key: String, label: String, facade: CLIFacade) throws {
+            guard facade.validateKey(key) != nil else {
+                print("Invalid \(label) key: '\(key)'")
+                print("Use canonical Kanata key names (e.g., caps, lalt, esc, lctl, spc, ret)")
+                throw ExitCode.failure
             }
         }
     }
