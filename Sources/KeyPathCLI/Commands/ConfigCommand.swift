@@ -9,7 +9,7 @@ extension KeyPathTool {
             subcommands: [
                 Show.self,
                 Path.self,
-                Validate.self,
+                Check.self,
             ]
         )
 
@@ -36,9 +36,9 @@ extension KeyPathTool {
             }
         }
 
-        struct Validate: AsyncParsableCommand {
+        struct Check: AsyncParsableCommand {
             static let configuration = CommandConfiguration(
-                abstract: "Check that a generated configuration exists (does not invoke Kanata syntax checking)"
+                abstract: "Check that a generated configuration file exists on disk"
             )
 
             mutating func run() async throws {

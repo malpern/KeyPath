@@ -8,21 +8,19 @@ extension KeyPathTool {
             abstract: "Regenerate config, validate, and reload Kanata"
         )
 
-        @Flag(help: "Only regenerate the config file without reloading Kanata (does not invoke Kanata syntax checking)")
-        var dryRun: Bool = false
+        @Flag(help: "Print the current config file contents without regenerating or reloading")
+        var show: Bool = false
 
         mutating func run() async throws {
             let facade = await MainActor.run { CLIFacade() }
 
-            if dryRun {
-                print("Dry run: regenerating configuration without reload...")
+            if show {
                 let config = await facade.currentConfig()
                 if config.isEmpty {
-                    print("No configuration generated. Add rules first.")
+                    print("No configuration generated yet. Add rules and run 'keypath apply' first.")
                     throw ExitCode.failure
                 }
-                print("Configuration regenerated (\(config.count) characters)")
-                print("Note: Kanata syntax was not checked. Run without --dry-run to validate via reload.")
+                print(config)
             } else {
                 print("Applying configuration...")
                 let result = try await facade.applyConfiguration()
@@ -31,7 +29,8 @@ extension KeyPathTool {
                 if result.reloadSuccess {
                     print("Kanata reloaded successfully.")
                 } else {
-                    print("Kanata reload failed.")
+                    print("Config was written but Kanata reload failed.")
+                    print("Run 'keypath tcp reload' once Kanata is running.")
                     throw ExitCode.failure
                 }
             }

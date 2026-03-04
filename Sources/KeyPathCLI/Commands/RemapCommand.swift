@@ -30,6 +30,10 @@ extension KeyPathTool {
             let facade = await MainActor.run { CLIFacade() }
 
             if remove {
+                if output != nil || tap != nil || hold != nil {
+                    print("Error: --remove cannot be combined with an output key or --tap/--hold")
+                    throw ExitCode.failure
+                }
                 let removed = try await facade.removeRemap(input: input)
                 if !removed {
                     print("No mapping found for '\(input)'")
@@ -42,14 +46,20 @@ extension KeyPathTool {
                 try validateKeyName(tap, label: "tap", facade: facade)
                 try validateKeyName(hold, label: "hold", facade: facade)
 
-                try await facade.addTapHoldRemap(input: input, tap: tap, hold: hold, timeout: timeout)
+                let replaced = try await facade.addTapHoldRemap(input: input, tap: tap, hold: hold, timeout: timeout)
+                if replaced {
+                    print("Replaced existing mapping for '\(input)'")
+                }
                 print("Mapped \(input) → tap:\(tap), hold:\(hold) (timeout: \(timeout)ms)")
             } else if let output {
                 // Validate keys
                 try validateKeyName(input, label: "input", facade: facade)
                 try validateKeyName(output, label: "output", facade: facade)
 
-                try await facade.addSimpleRemap(input: input, output: output)
+                let replaced = try await facade.addSimpleRemap(input: input, output: output)
+                if replaced {
+                    print("Replaced existing mapping for '\(input)'")
+                }
                 print("Mapped \(input) → \(output)")
             } else {
                 print("Error: specify an output key, or --tap/--hold for tap-hold, or --remove")

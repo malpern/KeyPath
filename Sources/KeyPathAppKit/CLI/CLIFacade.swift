@@ -14,16 +14,23 @@ public struct CLIFacade: Sendable {
         return rules.map { CLICustomRule(input: $0.input, output: $0.output, behavior: $0.behavior.map { String(describing: $0) }) }
     }
 
-    public func addSimpleRemap(input: String, output: String) async throws {
+    /// Add a simple key remap. Returns `true` if an existing mapping for the input key was replaced.
+    @discardableResult
+    public func addSimpleRemap(input: String, output: String) async throws -> Bool {
         var rules = await CustomRulesStore.shared.loadRules()
+        let hadExisting = rules.contains { $0.input == input }
         rules.removeAll { $0.input == input }
         let rule = CustomRule(input: input, output: output)
         rules.append(rule)
         try await CustomRulesStore.shared.saveRules(rules)
+        return hadExisting
     }
 
-    public func addTapHoldRemap(input: String, tap: String, hold: String, timeout: Int = 200) async throws {
+    /// Add a tap-hold remap. Returns `true` if an existing mapping for the input key was replaced.
+    @discardableResult
+    public func addTapHoldRemap(input: String, tap: String, hold: String, timeout: Int = 200) async throws -> Bool {
         var rules = await CustomRulesStore.shared.loadRules()
+        let hadExisting = rules.contains { $0.input == input }
         rules.removeAll { $0.input == input }
         let rule = CustomRule(
             input: input,
@@ -36,6 +43,7 @@ public struct CLIFacade: Sendable {
         )
         rules.append(rule)
         try await CustomRulesStore.shared.saveRules(rules)
+        return hadExisting
     }
 
     public func removeRemap(input: String) async throws -> Bool {

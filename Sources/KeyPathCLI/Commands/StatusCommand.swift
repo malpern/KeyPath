@@ -68,7 +68,7 @@ extension KeyPathTool {
                 print("✅ System is ready and operational")
             } else {
                 print("❌ System has blocking issue(s)")
-                print("   Run 'keypath repair' or 'keypath install' to fix")
+                print("   Open KeyPath.app and use the Installation Wizard to fix")
             }
         }
     }
