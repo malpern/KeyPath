@@ -184,7 +184,11 @@ jobs:
     - name: Build Release
       run: |
         echo "🔨 Building release version..."
-        swift build -c release
+        # Build the app product only — the CLI (keypath) depends on KeyPathAppKit
+        # which transitively imports SwiftUI. Release-mode linker restricts SwiftUICore
+        # to app bundles, so the CLI can't link in release config. The CLI is validated
+        # by the debug build + tests above.
+        swift build -c release --product KeyPath
         echo "✅ Release build successful"
     
     - name: Check Build Outputs
