@@ -48,7 +48,7 @@ extension KeyPathTool {
             mutating func run() async throws {
                 let facade = await MainActor.run { CLIFacade() }
                 guard let name = try await facade.enableCollection(nameOrId: nameOrId) else {
-                    print("Collection '\(nameOrId)' not found.")
+                    printErr("Collection '\(nameOrId)' not found.")
                     throw ExitCode.failure
                 }
                 print("Enabled '\(name)'")
@@ -67,7 +67,7 @@ extension KeyPathTool {
             mutating func run() async throws {
                 let facade = await MainActor.run { CLIFacade() }
                 guard let name = try await facade.disableCollection(nameOrId: nameOrId) else {
-                    print("Collection '\(nameOrId)' not found.")
+                    printErr("Collection '\(nameOrId)' not found.")
                     throw ExitCode.failure
                 }
                 print("Disabled '\(name)'")
@@ -90,7 +90,7 @@ extension KeyPathTool {
                 let facade = await MainActor.run { CLIFacade() }
 
                 guard let collection = try await facade.showCollection(nameOrId: nameOrId) else {
-                    print("Collection '\(nameOrId)' not found.")
+                    printErr("Collection '\(nameOrId)' not found.")
                     throw ExitCode.failure
                 }
 

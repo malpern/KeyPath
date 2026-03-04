@@ -26,22 +26,26 @@ extension KeyPathTool {
         @Flag(help: "Remove the mapping for the input key")
         var remove: Bool = false
 
+        func validate() throws {
+            if remove && (output != nil || tap != nil || hold != nil) {
+                throw ValidationError("--remove cannot be combined with an output key or --tap/--hold")
+            }
+            if (tap != nil) != (hold != nil) {
+                throw ValidationError("--tap and --hold must be used together")
+            }
+        }
+
         mutating func run() async throws {
             let facade = await MainActor.run { CLIFacade() }
 
             if remove {
-                if output != nil || tap != nil || hold != nil {
-                    print("Error: --remove cannot be combined with an output key or --tap/--hold")
-                    throw ExitCode.failure
-                }
                 let removed = try await facade.removeRemap(input: input)
                 if !removed {
-                    print("No mapping found for '\(input)'")
+                    printErr("No mapping found for '\(input)'")
                     throw ExitCode.failure
                 }
                 print("Removed mapping for '\(input)'")
             } else if let tap, let hold {
-                // Validate all keys
                 try validateKeyName(input, label: "input", facade: facade)
                 try validateKeyName(tap, label: "tap", facade: facade)
                 try validateKeyName(hold, label: "hold", facade: facade)
@@ -52,7 +56,6 @@ extension KeyPathTool {
                 }
                 print("Mapped \(input) → tap:\(tap), hold:\(hold) (timeout: \(timeout)ms)")
             } else if let output {
-                // Validate keys
                 try validateKeyName(input, label: "input", facade: facade)
                 try validateKeyName(output, label: "output", facade: facade)
 
@@ -62,7 +65,7 @@ extension KeyPathTool {
                 }
                 print("Mapped \(input) → \(output)")
             } else {
-                print("Error: specify an output key, or --tap/--hold for tap-hold, or --remove")
+                printErr("Specify an output key, or --tap/--hold for tap-hold, or --remove")
                 throw ExitCode.failure
             }
 
@@ -71,8 +74,8 @@ extension KeyPathTool {
 
         private func validateKeyName(_ key: String, label: String, facade: CLIFacade) throws {
             guard facade.validateKey(key) != nil else {
-                print("Invalid \(label) key: '\(key)'")
-                print("Use canonical Kanata key names (e.g., caps, lalt, esc, lctl, spc, ret)")
+                printErr("Invalid \(label) key: '\(key)'")
+                printErr("Use canonical Kanata key names (e.g., caps, lalt, esc, lctl, spc, ret)")
                 throw ExitCode.failure
             }
         }

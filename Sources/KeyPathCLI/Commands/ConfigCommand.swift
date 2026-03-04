@@ -45,7 +45,7 @@ extension KeyPathTool {
                 let facade = await MainActor.run { CLIFacade() }
                 let config = await facade.currentConfig()
                 if config.isEmpty {
-                    print("No configuration generated yet. Run 'keypath apply' first.")
+                    printErr("No configuration generated yet. Run 'keypath apply' first.")
                     throw ExitCode.failure
                 }
                 print("Configuration exists (\(config.count) characters)")

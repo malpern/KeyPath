@@ -46,7 +46,7 @@ let package = Package(
             targets: ["KeyPathPluginKit"]
         ),
         .executable(
-            name: "keypath-cli",
+            name: "keypath",
             targets: ["KeyPathCLI"]
         ),
         .library(

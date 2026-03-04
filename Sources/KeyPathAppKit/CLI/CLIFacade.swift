@@ -236,7 +236,7 @@ public struct CLIFacade: Sendable {
     // MARK: - Helpers
 
     /// Resolve a collection by name or UUID. Returns nil if not found. Throws `AmbiguousCollectionMatch` on multiple matches.
-    private func resolveCollectionIndex(nameOrId: String, in collections: [RuleCollection]) throws -> Int? {
+    func resolveCollectionIndex(nameOrId: String, in collections: [RuleCollection]) throws -> Int? {
         // Exact UUID match
         if let index = collections.firstIndex(where: { $0.id.uuidString == nameOrId }) {
             return index
@@ -356,4 +356,11 @@ public struct CLIStatusResult: Codable, Sendable {
     public let vhidHealthy: Bool
     public let hasConflicts: Bool
     public let timestamp: Date
+}
+
+// MARK: - Stderr Helper
+
+/// Write a diagnostic message to stderr. Use for errors and warnings so stdout stays clean for scripts.
+public func printErr(_ message: String) {
+    FileHandle.standardError.write(Data((message + "\n").utf8))
 }
