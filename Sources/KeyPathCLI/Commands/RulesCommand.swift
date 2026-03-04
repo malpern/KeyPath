@@ -60,6 +60,9 @@ extension KeyPathTool {
                     let result = try await facade.applyConfiguration()
                     if result.reloadSuccess {
                         print("Configuration applied.")
+                    } else {
+                        print("Kanata reload failed.")
+                        throw ExitCode.failure
                     }
                 }
             }
@@ -88,6 +91,9 @@ extension KeyPathTool {
                     let result = try await facade.applyConfiguration()
                     if result.reloadSuccess {
                         print("Configuration applied.")
+                    } else {
+                        print("Kanata reload failed.")
+                        throw ExitCode.failure
                     }
                 }
             }

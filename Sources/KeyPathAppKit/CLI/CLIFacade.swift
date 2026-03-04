@@ -110,7 +110,7 @@ public struct CLIFacade: Sendable {
             customRules: customRules
         )
 
-        let client = KanataTCPClient(port: 37001)
+        let client = KanataTCPClient(port: PreferencesService.shared.tcpServerPort)
         let result = await client.reloadConfig()
         let reloadSuccess: Bool
         if case .success = result {
@@ -130,24 +130,28 @@ public struct CLIFacade: Sendable {
     // MARK: - TCP
 
     public func tcpCheckHealth() async -> Bool {
-        let client = KanataTCPClient(port: 37001)
+        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
+        let client = KanataTCPClient(port: port)
         return await client.checkServerStatus()
     }
 
     public func tcpGetLayers() async throws -> [String] {
-        let client = KanataTCPClient(port: 37001)
+        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
+        let client = KanataTCPClient(port: port)
         return try await client.requestLayerNames()
     }
 
     public func tcpReload() async -> Bool {
-        let client = KanataTCPClient(port: 37001)
+        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
+        let client = KanataTCPClient(port: port)
         let result = await client.reloadConfig()
         if case .success = result { return true }
         return false
     }
 
     public func tcpGetHrmStats() async throws -> CLIHrmStats {
-        let client = KanataTCPClient(port: 37001)
+        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
+        let client = KanataTCPClient(port: port)
         let stats = try await client.requestHrmStats()
         return CLIHrmStats(
             totalDecisions: stats.decisionsTotal,
@@ -157,7 +161,8 @@ public struct CLIFacade: Sendable {
     }
 
     public func tcpResetHrmStats() async throws {
-        let client = KanataTCPClient(port: 37001)
+        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
+        let client = KanataTCPClient(port: port)
         try await client.resetHrmStats()
     }
 
