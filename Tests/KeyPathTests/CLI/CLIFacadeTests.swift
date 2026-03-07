@@ -61,6 +61,10 @@ final class CLIFacadeTests: XCTestCase {
                 return
             }
             XCTAssertEqual(ambiguous.matches.count, 2)
+            XCTAssertTrue(
+                ambiguous.hint.contains("Use the ID"),
+                "Exact-name duplicates should tell user to use the ID, not the name"
+            )
         }
     }
 

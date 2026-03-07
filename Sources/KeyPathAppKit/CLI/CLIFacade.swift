@@ -252,7 +252,8 @@ public struct CLIFacade: Sendable {
         if exactMatches.count > 1 {
             throw AmbiguousCollectionMatch(
                 query: nameOrId,
-                matches: exactMatches.map { .init(name: $0.element.name, id: $0.element.id.uuidString) }
+                matches: exactMatches.map { .init(name: $0.element.name, id: $0.element.id.uuidString) },
+                hint: "Multiple collections share this name. Use the ID to disambiguate."
             )
         }
 
@@ -283,13 +284,20 @@ public struct AmbiguousCollectionMatch: Error, CustomStringConvertible {
 
     public let query: String
     public let matches: [Match]
+    public let hint: String
+
+    public init(query: String, matches: [Match], hint: String = "Use the full name or ID to disambiguate.") {
+        self.query = query
+        self.matches = matches
+        self.hint = hint
+    }
 
     public var description: String {
         var lines = ["Found \(matches.count) collections matching \"\(query)\":"]
         for match in matches {
             lines.append("  - \(match.name) (id: \(match.id))")
         }
-        lines.append("Use the full name or ID to disambiguate.")
+        lines.append(hint)
         return lines.joined(separator: "\n")
     }
 }
@@ -297,9 +305,9 @@ public struct AmbiguousCollectionMatch: Error, CustomStringConvertible {
 // MARK: - Version
 
 /// Shared version constant for the CLI binary.
-/// Update this when bumping the app version.
+/// Keep in sync with CFBundleShortVersionString in Sources/KeyPathApp/Info.plist.
 public enum CLIVersion {
-    public static let current = "0.1.0"
+    public static let current = "1.0.0"
 }
 
 // MARK: - Public CLI Types
