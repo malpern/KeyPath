@@ -11,9 +11,20 @@ extension KeyPathCLI {
         @Flag(help: "Output as JSON")
         var json: Bool = false
 
+        @Option(help: "Timeout in seconds (default: 30)")
+        var timeout: Int = 30
+
         mutating func run() async throws {
-            let facade = await MainActor.run { CLIFacade() }
-            let status = await facade.runStatus()
+            let facade = CLIFacade()
+            let status: CLIStatusResult
+            do {
+                status = try await withThrowingTimeout(seconds: timeout) {
+                    await facade.runStatus()
+                }
+            } catch is TimeoutError {
+                printErr("Status check timed out after \(timeout)s (SMAppService IPC may be slow)")
+                throw ExitCode.failure
+            }
 
             if json {
                 let encoder = JSONEncoder()

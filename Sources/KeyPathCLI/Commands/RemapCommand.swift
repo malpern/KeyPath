@@ -27,7 +27,7 @@ extension KeyPathCLI {
         var remove: Bool = false
 
         func validate() throws {
-            if remove && (output != nil || tap != nil || hold != nil) {
+            if remove, output != nil || tap != nil || hold != nil {
                 throw ValidationError("--remove cannot be combined with an output key or --tap/--hold")
             }
             if (tap != nil) != (hold != nil) {
