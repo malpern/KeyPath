@@ -230,7 +230,7 @@ KeyPath includes a CLI for automation and system administration.
 [[cli-installation]]
 === CLI Installation
 
-The CLI is bundled with KeyPath.app. To use it:
+The standalone CLI is exposed as `keypath`. To use it:
 
 [source,bash]
 ----
@@ -238,7 +238,7 @@ The CLI is bundled with KeyPath.app. To use it:
 export PATH="$PATH:/Applications/KeyPath.app/Contents/MacOS"
 
 # Or use full path
-/Applications/KeyPath.app/Contents/MacOS/keypath-cli status
+/Applications/KeyPath.app/Contents/MacOS/keypath status
 ----
 
 [[cli-commands]]
@@ -251,7 +251,7 @@ Check system status and wizard readiness.
 
 [source,bash]
 ----
-keypath-cli status
+keypath status
 ----
 
 **Output:**
@@ -271,7 +271,7 @@ Install KeyPath services and components.
 
 [source,bash]
 ----
-keypath-cli install
+keypath install
 ----
 
 **What it does:**
@@ -290,7 +290,7 @@ Repair broken or unhealthy services.
 
 [source,bash]
 ----
-keypath-cli repair
+keypath repair
 ----
 
 **What it does:**
@@ -310,8 +310,8 @@ Remove KeyPath services and components.
 
 [source,bash]
 ----
-keypath-cli uninstall
-keypath-cli uninstall --delete-config
+keypath uninstall
+keypath uninstall --delete-config
 ----
 
 **Options:**
@@ -332,7 +332,7 @@ Inspect system state without making changes.
 
 [source,bash]
 ----
-keypath-cli inspect
+keypath inspect
 ----
 
 **Output:**
@@ -350,9 +350,9 @@ Show usage information.
 
 [source,bash]
 ----
-keypath-cli help
-keypath-cli --help
-keypath-cli -h
+keypath help
+keypath --help
+keypath -h
 ----
 
 [[deep-links]]
@@ -880,13 +880,13 @@ Conflicts are warnings, not errors. The last enabled rule wins. To resolve:
 [source,bash]
 ----
 # Check system status
-keypath-cli status
+keypath status
 
 # Inspect without making changes
-keypath-cli inspect
+keypath inspect
 
 # Repair issues
-keypath-cli repair
+keypath repair
 ----
 
 [[log-files]]
@@ -955,10 +955,10 @@ KeyPath manages macOS permissions automatically:
 [source,bash]
 ----
 # Preserve user configuration
-keypath-cli uninstall
+keypath uninstall
 
 # Delete user configuration too
-keypath-cli uninstall --delete-config
+keypath uninstall --delete-config
 ----
 
 **What gets removed:**

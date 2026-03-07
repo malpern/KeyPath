@@ -89,6 +89,7 @@ struct KarabinerImportSheet: View {
                 }
             }
             .pickerStyle(.segmented)
+            .accessibilityIdentifier("karabiner-import-source-picker")
             .onChange(of: importSource) { _, _ in
                 errorMessage = nil
                 profiles = []
@@ -267,7 +268,8 @@ struct KarabinerImportSheet: View {
                             title: collection.name,
                             subtitle: "\(collection.mappings.count) mapping\(collection.mappings.count == 1 ? "" : "s")",
                             icon: collection.icon ?? "keyboard",
-                            isSelected: selectedCollectionIds.contains(collection.id)
+                            isSelected: selectedCollectionIds.contains(collection.id),
+                            accessibilityIdentifier: "karabiner-import-collection-\(collection.id.uuidString.lowercased())"
                         ) {
                             toggleSelection(collection.id, in: &selectedCollectionIds)
                         }
@@ -282,7 +284,8 @@ struct KarabinerImportSheet: View {
                             title: keymap.mapping.displayName,
                             subtitle: "\(keymap.overrides.count) override\(keymap.overrides.count == 1 ? "" : "s")",
                             icon: "app.badge",
-                            isSelected: selectedAppKeymapIds.contains(keymap.id)
+                            isSelected: selectedAppKeymapIds.contains(keymap.id),
+                            accessibilityIdentifier: "karabiner-import-app-keymap-\(keymap.id.uuidString.lowercased())"
                         ) {
                             toggleSelection(keymap.id, in: &selectedAppKeymapIds)
                         }
@@ -297,7 +300,8 @@ struct KarabinerImportSheet: View {
                             title: mapping.target.displayName,
                             subtitle: "Key: \(mapping.key)",
                             icon: "arrow.up.forward.app",
-                            isSelected: selectedLauncherIds.contains(mapping.id)
+                            isSelected: selectedLauncherIds.contains(mapping.id),
+                            accessibilityIdentifier: "karabiner-import-launcher-\(mapping.id.uuidString.lowercased())"
                         ) {
                             toggleSelection(mapping.id, in: &selectedLauncherIds)
                         }
@@ -409,6 +413,7 @@ struct KarabinerImportSheet: View {
         subtitle: String,
         icon: String,
         isSelected: Bool,
+        accessibilityIdentifier: String,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -432,6 +437,7 @@ struct KarabinerImportSheet: View {
         }
         .buttonStyle(.plain)
         .padding(.vertical, 4)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private func toggleSelection(_ id: UUID, in set: inout Set<UUID>) {

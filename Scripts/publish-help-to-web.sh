@@ -66,7 +66,6 @@ REGISTRY=(
     "keyboard-layouts|features|guides|Works With Your Keyboard|Works With Your Keyboard|12 physical keyboard layouts from MacBook to Kinesis Advantage 360"
     "neovim-terminal|features|guides|Neovim in the Terminal|Neovim in the Terminal|Bring Neovim navigation muscle memory to every macOS app with a Leader-layer HUD reference"
     "kindavim|features|guides|Full Vim Modes on macOS|Full Vim Modes|Use KindaVim for real Vim modes system-wide, with KeyPath leader-key shortcuts for Insert mode"
-    "neovim-terminal|features|guides|Neovim in the Terminal|Neovim Terminal|Use your Neovim muscle memory system-wide with leader-layer shortcuts and a quick-reference HUD"
 
     # Reference
     "action-uri-reference|reference|guides|Action URI Reference|Action URI Reference|Technical deep-link reference for integrating KeyPath with Raycast, Alfred, and scripts"
