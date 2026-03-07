@@ -38,18 +38,33 @@ extension KeyPathTool {
 
         struct Check: AsyncParsableCommand {
             static let configuration = CommandConfiguration(
-                abstract: "Check that a generated configuration file exists on disk"
+                abstract: "Validate configuration using kanata --check"
             )
 
+            @Flag(help: "Output as JSON")
+            var json: Bool = false
+
             mutating func run() async throws {
-                let facade = await MainActor.run { CLIFacade() }
-                let config = await facade.currentConfig()
-                if config.isEmpty {
-                    printErr("No configuration generated yet. Run 'keypath apply' first.")
+                let facade = CLIFacade()
+                let result = await facade.validateConfig()
+
+                if json {
+                    let encoder = JSONEncoder()
+                    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                    let data = try encoder.encode(result)
+                    print(String(data: data, encoding: .utf8) ?? "")
+                } else if result.isValid {
+                    print("Configuration is valid.")
+                } else {
+                    printErr("Configuration validation failed:")
+                    for error in result.errors {
+                        printErr("  - \(error)")
+                    }
+                }
+
+                if !result.isValid {
                     throw ExitCode.failure
                 }
-                print("Configuration exists (\(config.count) characters)")
-                print("Note: This checks file presence only. Use 'keypath apply' to validate and reload via Kanata.")
             }
         }
     }

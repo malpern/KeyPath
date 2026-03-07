@@ -232,9 +232,13 @@ struct OverlayKeycapView: View {
         OpticalAdjustments.forLabel(effectiveLabel)
     }
 
-    /// Metadata for current label
+    /// Metadata for current label, with custom shift override from LayerKeyInfo
     var metadata: LabelMetadata {
-        LabelMetadata.forLabel(effectiveLabel)
+        var meta = LabelMetadata.forLabel(effectiveLabel)
+        if let customShift = layerKeyInfo?.customShiftLabel {
+            meta.shiftSymbol = customShift
+        }
+        return meta
     }
 
     /// Whether mouse is hovering over this key

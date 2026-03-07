@@ -158,4 +158,9 @@ struct PhysicalLayout: Identifiable {
     static func find(id: String) -> PhysicalLayout? {
         all.first { $0.id == id }
     }
+
+    /// Whether this layout has action keys (Touch ID, Layer, etc.) that open the drawer
+    var hasDrawerButtons: Bool {
+        keys.contains { $0.keyCode == 0xFFFF }
+    }
 }

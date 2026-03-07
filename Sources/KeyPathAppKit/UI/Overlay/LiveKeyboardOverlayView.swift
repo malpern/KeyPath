@@ -463,6 +463,7 @@ struct LiveKeyboardOverlayView: View {
                 isKanataConnected: viewModel.isKanataConnected,
                 healthIndicatorState: uiState.healthIndicatorState,
                 drawerButtonHighlighted: uiState.drawerButtonHighlighted,
+                layoutHasDrawerButtons: activeLayout.hasDrawerButtons,
                 onClose: { onClose?() },
                 onToggleInspector: { onToggleInspector?() },
                 onHealthTap: { onHealthIndicatorTap?() },

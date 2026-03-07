@@ -6,6 +6,7 @@ import SwiftUI
 enum BehaviorSlot: String, Identifiable, CaseIterable {
     case tap
     case hold
+    case shift
     case combo
 
     var id: String {
@@ -16,6 +17,7 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
         switch self {
         case .tap: "Tap"
         case .hold: "Hold"
+        case .shift: "Shift"
         case .combo: "Combo"
         }
     }
@@ -24,6 +26,7 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
         switch self {
         case .tap: "Tap"
         case .hold: "Hold"
+        case .shift: "Shift"
         case .combo: "Combo"
         }
     }
@@ -32,6 +35,7 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
         switch self {
         case .tap: "tap"
         case .hold: "hold"
+        case .shift: "shift +"
         case .combo: "press together with"
         }
     }
@@ -40,6 +44,7 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
         switch self {
         case .tap: "hand.tap"
         case .hold: "hand.point.down.fill"
+        case .shift: "shift"
         case .combo: "rectangle.on.rectangle"
         }
     }
@@ -63,6 +68,9 @@ struct BehaviorStatePicker: View {
     /// When true, shows the "in use" dot for tap
     var tapIsNonIdentity: Bool = false
 
+    /// Whether the shift slot shows a system default (dimmer indicator) vs custom override
+    var isShiftDefault: Bool = false
+
     var body: some View {
         HStack(spacing: 16) {
             ForEach(BehaviorSlot.allCases) { slot in
@@ -70,6 +78,7 @@ struct BehaviorStatePicker: View {
                     slot: slot,
                     isSelected: selectedState == slot,
                     isConfigured: isSlotConfigured(slot),
+                    isDefault: slot == .shift && isShiftDefault,
                     onSelect: {
                         withAnimation(.easeInOut(duration: 0.15)) {
                             selectedState = slot
@@ -86,7 +95,7 @@ struct BehaviorStatePicker: View {
         case .tap:
             // Only show dot if tap is a non-identity mapping (A→B, not A→A)
             tapIsNonIdentity
-        case .hold, .combo:
+        case .hold, .shift, .combo:
             // Show dot if the slot has a configured action
             configuredStates.contains(slot)
         }
@@ -98,6 +107,7 @@ private struct BehaviorStateCell: View {
     let slot: BehaviorSlot
     let isSelected: Bool
     let isConfigured: Bool
+    var isDefault: Bool = false
     let onSelect: () -> Void
 
     @State private var isPressed = false
@@ -116,8 +126,9 @@ private struct BehaviorStateCell: View {
                     .lineLimit(1)
                     .overlay(alignment: .leading) {
                         // Configured indicator dot (positioned to the left of label)
+                        // Default (system) shift shows dimmer dot; custom shows bright
                         Circle()
-                            .fill(isConfigured ? Color.accentColor : Color.clear)
+                            .fill(isConfigured ? Color.accentColor.opacity(isDefault ? 0.35 : 1.0) : Color.clear)
                             .frame(width: 5, height: 5)
                             .offset(x: -8)
                     }
@@ -178,6 +189,8 @@ private struct BehaviorKeycapIcon: View {
                 tapIcon
             case .hold:
                 holdIcon
+            case .shift:
+                shiftIcon
             case .combo:
                 comboIcon
             }
@@ -221,6 +234,25 @@ private struct BehaviorKeycapIcon: View {
             RoundedRectangle(cornerRadius: 1)
                 .fill(strokeColor)
                 .frame(width: 14, height: 3)
+        }
+    }
+
+    /// Shift: Keycap with shift arrow indicator
+    private var shiftIcon: some View {
+        ZStack {
+            // Keycap
+            RoundedRectangle(cornerRadius: 4)
+                .fill(fillColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(strokeColor, lineWidth: 1.5)
+                )
+                .frame(width: 18, height: 16)
+
+            // Shift arrow
+            Image(systemName: "shift")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(strokeColor)
         }
     }
 
@@ -270,6 +302,7 @@ extension BehaviorSlot {
         switch self {
         case .tap: "behavior-tap"
         case .hold: "behavior-hold"
+        case .shift: "behavior-shift"
         case .combo: "behavior-combo"
         }
     }
@@ -278,6 +311,7 @@ extension BehaviorSlot {
         switch self {
         case .tap: "behavior-tap-selected"
         case .hold: "behavior-hold-selected"
+        case .shift: "behavior-shift-selected"
         case .combo: "behavior-combo-selected"
         }
     }
@@ -286,6 +320,7 @@ extension BehaviorSlot {
         switch self {
         case .tap: "rectangle.portrait.arrowtriangle.2.inward"
         case .hold: "rectangle.portrait.bottomhalf.filled"
+        case .shift: "shift"
         case .combo: "rectangle.portrait.on.rectangle.portrait"
         }
     }

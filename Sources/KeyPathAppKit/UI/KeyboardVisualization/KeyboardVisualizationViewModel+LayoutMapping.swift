@@ -215,6 +215,9 @@ extension KeyboardVisualizationViewModel {
                 // Apply app-specific overrides for the current frontmost app
                 mapping = await applyAppSpecificOverrides(to: mapping)
 
+                // Enrich mapping with custom shift labels from custom rules
+                mapping = enrichWithCustomShiftLabels(mapping: mapping, customRules: customRules)
+
                 // Update layer name and mapping atomically to prevent UI flash
                 // This ensures the UI never shows mismatched layer name + old mapping
                 await MainActor.run {
@@ -255,6 +258,42 @@ extension KeyboardVisualizationViewModel {
                 continue
             }
             result[inputKeyCode] = outputKeyCode
+        }
+        return result
+    }
+
+    /// Enrich layer mapping with custom shift labels from custom rules that have shiftedOutput.
+    /// This lets the overlay keyboard show the custom shifted character instead of the system default.
+    func enrichWithCustomShiftLabels(
+        mapping: [UInt16: LayerKeyInfo],
+        customRules: [CustomRule]
+    ) -> [UInt16: LayerKeyInfo] {
+        // Build lookup: kanata input name → custom shiftedOutput
+        var shiftOverrides: [String: String] = [:]
+        for rule in customRules where rule.isEnabled {
+            guard let shiftedOutput = rule.shiftedOutput, !shiftedOutput.isEmpty else { continue }
+            shiftOverrides[rule.input.lowercased()] = KeyDisplayFormatter.format(shiftedOutput)
+        }
+        guard !shiftOverrides.isEmpty else { return mapping }
+
+        var result = mapping
+        for (keyCode, info) in mapping {
+            let kanataName = OverlayKeyboardView.keyCodeToKanataName(keyCode)
+            if let customShift = shiftOverrides[kanataName.lowercased()] {
+                result[keyCode] = LayerKeyInfo(
+                    displayLabel: info.displayLabel,
+                    outputKey: info.outputKey,
+                    outputKeyCode: info.outputKeyCode,
+                    isTransparent: info.isTransparent,
+                    isLayerSwitch: info.isLayerSwitch,
+                    appLaunchIdentifier: info.appLaunchIdentifier,
+                    systemActionIdentifier: info.systemActionIdentifier,
+                    urlIdentifier: info.urlIdentifier,
+                    collectionId: info.collectionId,
+                    vimLabel: info.vimLabel,
+                    customShiftLabel: customShift
+                )
+            }
         }
         return result
     }

@@ -25,38 +25,54 @@ extension OverlayMapperSection {
     }
 
     var shiftOutputEditor: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                tapOutputModeButton(title: "Default", mode: .default)
-                tapOutputModeButton(title: "With Shift ⇧", mode: .shifted)
+        VStack(alignment: .leading, spacing: 12) {
+            detailSectionHeader("Action")
+            tapOutputModeRow(
+                title: "Default",
+                subtitle: defaultActionSummary,
+                mode: .default,
+                accessibilityIdentifier: "overlay-mapper-shift-mode-default"
+            )
 
-                Spacer(minLength: 0)
+            detailSectionHeader("Variants")
 
-                if selectedTapOutputMode == .shifted, viewModel.hasShiftedOutputConfigured {
-                    Button("Remove") {
-                        viewModel.clearShiftedOutput()
-                        if viewModel.isIdentityKeystrokeMapping {
-                            viewModel.revertToKeystroke()
-                        } else if let manager = kanataViewModel?.underlyingManager {
-                            Task { await viewModel.save(kanataManager: manager) }
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("overlay-mapper-shift-remove")
+            if viewModel.hasShiftedOutputConfigured || viewModel.canUseShiftedOutput {
+                tapOutputModeRow(
+                    title: "Shift Variant",
+                    subtitle: shiftVariantSummary,
+                    mode: .shifted,
+                    accessibilityIdentifier: "overlay-mapper-shift-mode-shifted",
+                    trailingAction: viewModel.hasShiftedOutputConfigured
+                        ? AnyView(
+                            Button("Remove") {
+                                removeShiftVariant()
+                            }
+                            .buttonStyle(.plain)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("overlay-mapper-shift-remove")
+                        )
+                        : nil
+                )
+
+                if selectedTapOutputMode == .shifted {
+                    Text(shiftOutputHelperText)
+                        .font(.caption2)
+                        .foregroundStyle(viewModel.canUseShiftedOutput ? Color.secondary : Color.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("overlay-mapper-shift-helper")
                 }
+            } else {
+                unavailableDetailRow(
+                    title: "Shift Variant",
+                    message: shiftOutputHelperText
+                )
             }
 
-            if selectedTapOutputMode == .shifted {
-                Text(shiftOutputHelperText)
-                    .font(.caption2)
-                    .foregroundStyle(viewModel.canUseShiftedOutput ? Color.secondary : Color.orange)
-                    .lineLimit(2)
-                    .accessibilityIdentifier("overlay-mapper-shift-helper")
-            }
+            detailSectionHeader("Additional Actions")
+            multiTapActionRow
         }
-        .padding(.horizontal, 2)
+        .padding(.top, 6)
     }
 
     private var shiftOutputHelperText: String {
@@ -69,27 +85,163 @@ extension OverlayMapperSection {
         return "Tap the output keycap to capture the output when Shift is held."
     }
 
-    @ViewBuilder
-    private func tapOutputModeButton(title: String, mode: TapOutputMode) -> some View {
+    private var defaultActionSummary: String {
+        if let selectedApp = viewModel.selectedApp {
+            return "Launches \(selectedApp.name)"
+        }
+        if let selectedSystemAction = viewModel.selectedSystemAction {
+            return selectedSystemAction.name
+        }
+        if viewModel.selectedURL != nil {
+            return "Opens URL"
+        }
+        if selectedLayerOutput != nil {
+            return "Goes to a layer"
+        }
+        return "Types \(viewModel.outputLabel)"
+    }
+
+    private var shiftVariantSummary: String {
+        if let shifted = viewModel.shiftedOutputLabel, !shifted.isEmpty {
+            return "Shift-\(viewModel.inputLabel.uppercased()) types \(shifted)"
+        }
+        return "Add a separate action when Shift is held."
+    }
+
+    private var multiTapSummary: String {
+        let configuredCounts = [2, 3, 4].filter { viewModel.multiTapAction(for: $0) != nil }
+        if configuredCounts.isEmpty {
+            return "Add actions for double- or triple-tap."
+        }
+        let summary = configuredCounts.map { "\($0)x" }.joined(separator: ", ")
+        return "Configured for \(summary) taps."
+    }
+
+    private func removeShiftVariant() {
+        viewModel.clearShiftedOutput()
+        selectedTapOutputMode = .default
+
+        if viewModel.isIdentityKeystrokeMapping {
+            viewModel.revertToKeystroke()
+        } else if let manager = kanataViewModel?.underlyingManager {
+            Task { await viewModel.save(kanataManager: manager) }
+        }
+    }
+
+    private func detailSectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+            .accessibilityHidden(true)
+    }
+
+    private func tapOutputModeRow(
+        title: String,
+        subtitle: String,
+        mode: TapOutputMode,
+        accessibilityIdentifier: String,
+        trailingAction: AnyView? = nil
+    ) -> some View {
         let isSelected = selectedTapOutputMode == mode
-        Button {
+        return Button {
             selectedTapOutputMode = mode
         } label: {
-            Text(title)
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.04))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(isSelected ? Color.accentColor.opacity(0.35) : Color.primary.opacity(0.15), lineWidth: 0.5)
-                )
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 8)
+
+                if let trailingAction {
+                    trailingAction
+                }
+
+                Image(systemName: isSelected ? "record.circle.fill" : "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.7))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(isSelected ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.12), lineWidth: 0.5)
+            )
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier(mode == .default ? "overlay-mapper-shift-mode-default" : "overlay-mapper-shift-mode-shifted")
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private func unavailableDetailRow(title: String, message: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
+
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.primary.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
+        )
+        .accessibilityIdentifier("overlay-mapper-shift-unavailable")
+    }
+
+    private var multiTapActionRow: some View {
+        Button {
+            showMultiTapSlideOver = true
+        } label: {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Multi-Tap Actions")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+
+                    Text(multiTapSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 8)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("overlay-mapper-multitap-link")
     }
 }
