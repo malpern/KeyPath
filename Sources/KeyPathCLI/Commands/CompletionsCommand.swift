@@ -2,6 +2,9 @@ import ArgumentParser
 import Foundation
 
 extension KeyPathTool {
+    /// Explicit subcommands for shell completions.
+    /// ArgumentParser also provides a built-in `--generate-completion-script <shell>`
+    /// flag, but these subcommands are more discoverable for users.
     struct Completions: ParsableCommand {
         static let configuration = CommandConfiguration(
             abstract: "Generate shell completions",

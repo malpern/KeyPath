@@ -72,17 +72,7 @@ extension KeyPathTool {
                 throw ExitCode.failure
             }
 
-            if apply {
-                let result = try await facade.applyConfiguration()
-                if result.reloadSuccess {
-                    print("Config applied and Kanata reloaded.")
-                } else {
-                    printErr("Config written but Kanata reload failed.")
-                    throw ExitCode.failure
-                }
-            } else {
-                print("Run 'keypath apply' to regenerate config and reload Kanata.")
-            }
+            try await applyConfigurationOrHint(facade: facade, apply: apply)
         }
 
         private func validateKeyName(_ key: String, label: String, facade: CLIFacade) throws {

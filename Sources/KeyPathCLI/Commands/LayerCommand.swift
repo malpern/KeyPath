@@ -23,7 +23,13 @@ extension KeyPathTool {
 
             mutating func run() async throws {
                 let facade = await MainActor.run { CLIFacade() }
-                let layers = try await facade.tcpGetLayers()
+                let layers: [String]
+                do {
+                    layers = try await facade.tcpGetLayers()
+                } catch {
+                    printErr("Could not connect to Kanata (is it running?)")
+                    throw ExitCode.failure
+                }
 
                 if json {
                     let encoder = JSONEncoder()
@@ -32,11 +38,11 @@ extension KeyPathTool {
                     print(String(data: data, encoding: .utf8) ?? "")
                 } else {
                     if layers.isEmpty {
-                        print("No layers found (is Kanata running?)")
+                        print("No layers found.")
                     } else {
                         print("Layers:")
-                        for (i, layer) in layers.enumerated() {
-                            print("  \(i): \(layer)")
+                        for layer in layers {
+                            print("  \(layer)")
                         }
                     }
                 }

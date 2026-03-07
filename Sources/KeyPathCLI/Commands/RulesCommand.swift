@@ -55,17 +55,7 @@ extension KeyPathTool {
                     throw ExitCode.failure
                 }
                 print("Enabled '\(name)'")
-                if apply {
-                    let result = try await facade.applyConfiguration()
-                    if result.reloadSuccess {
-                        print("Config applied and Kanata reloaded.")
-                    } else {
-                        printErr("Config written but Kanata reload failed.")
-                        throw ExitCode.failure
-                    }
-                } else {
-                    print("Run 'keypath apply' to regenerate config and reload Kanata.")
-                }
+                try await applyConfigurationOrHint(facade: facade, apply: apply)
             }
         }
 
@@ -87,17 +77,7 @@ extension KeyPathTool {
                     throw ExitCode.failure
                 }
                 print("Disabled '\(name)'")
-                if apply {
-                    let result = try await facade.applyConfiguration()
-                    if result.reloadSuccess {
-                        print("Config applied and Kanata reloaded.")
-                    } else {
-                        printErr("Config written but Kanata reload failed.")
-                        throw ExitCode.failure
-                    }
-                } else {
-                    print("Run 'keypath apply' to regenerate config and reload Kanata.")
-                }
+                try await applyConfigurationOrHint(facade: facade, apply: apply)
             }
         }
 

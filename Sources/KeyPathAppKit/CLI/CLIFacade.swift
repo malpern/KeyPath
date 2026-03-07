@@ -401,14 +401,20 @@ public struct AmbiguousCollectionMatch: Error, CustomStringConvertible {
 // MARK: - Version
 
 /// Shared version constant for the CLI binary.
-/// Reads from the KeyPath.app bundle at /Applications/KeyPath.app if available,
+/// Reads from the KeyPath.app bundle, checking /Applications and ~/Applications,
 /// falling back to a hardcoded value.
 public enum CLIVersion {
     public static let current: String = {
-        if let bundle = Bundle(path: "/Applications/KeyPath.app"),
-           let version = bundle.infoDictionary?["CFBundleShortVersionString"] as? String
-        {
-            return version
+        let candidates = [
+            "/Applications/KeyPath.app",
+            NSString("~/Applications/KeyPath.app").expandingTildeInPath
+        ]
+        for path in candidates {
+            if let bundle = Bundle(path: path),
+               let version = bundle.infoDictionary?["CFBundleShortVersionString"] as? String
+            {
+                return version
+            }
         }
         return "1.0.0"
     }()
