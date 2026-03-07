@@ -46,7 +46,14 @@ if [ "$KEYPATH_USE_SUDO" = "1" ]; then
 fi
 
 # 0) Isolated build/test dirs and HOME to avoid parallel-agent collisions
-SCRATCH_PATH=${SCRATCH_PATH:-.build-ci}
+# In CI, reuse the default .build/ to avoid relinking the CLI executable
+# (keypath depends on KeyPathAppKit → SwiftUI, which can fail to link from a
+# fresh scratch path on Xcode 16.4 due to SwiftUICore client restrictions).
+if [ "${CI_ENVIRONMENT}" = "true" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
+    SCRATCH_PATH=${SCRATCH_PATH:-.build}
+else
+    SCRATCH_PATH=${SCRATCH_PATH:-.build-ci}
+fi
 export HOME=${TEST_HOME:-$(mktemp -d 2>/dev/null || mktemp -d -t keypath-tests)}
 MODULE_CACHE="$SCRATCH_PATH/ModuleCache.noindex"
 mkdir -p "$SCRATCH_PATH" "$MODULE_CACHE"
