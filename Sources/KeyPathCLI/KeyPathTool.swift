@@ -15,6 +15,10 @@ struct KeyPathTool: AsyncParsableCommand {
             Apply.self,
             Config.self,
             TCP.self,
+            Install.self,
+            Repair.self,
+            Uninstall.self,
+            Inspect.self,
         ]
     )
 }

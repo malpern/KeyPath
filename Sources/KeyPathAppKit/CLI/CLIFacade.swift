@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathDaemonLifecycle
 import KeyPathWizardCore
 
 /// Public facade exposing KeyPathAppKit internals for the CLI binary.
@@ -122,27 +123,38 @@ public struct CLIFacade: Sendable {
         ConfigurationService().configurationPath
     }
 
+    /// Validate configuration content using kanata --check.
+    @MainActor
+    public func validateConfig() async -> CLIValidationResult {
+        let service = ConfigurationService()
+        let config = await service.current()
+        if config.content.isEmpty {
+            return CLIValidationResult(isValid: false, errors: ["No configuration generated yet. Run 'keypath apply' first."])
+        }
+        let result = await service.validateConfiguration(config.content)
+        return CLIValidationResult(isValid: result.isValid, errors: result.errors)
+    }
+
     // MARK: - Apply Pipeline
 
-    @MainActor
     public func applyConfiguration() async throws -> CLIApplyResult {
         let collections = await RuleCollectionStore.shared.loadCollections()
         let customRules = await CustomRulesStore.shared.loadRules()
         let enabledCount = collections.filter(\.isEnabled).count
 
-        let service = ConfigurationService()
+        let service = await MainActor.run { ConfigurationService() }
         try await service.saveConfiguration(
             ruleCollections: collections,
             customRules: customRules
         )
 
-        let client = KanataTCPClient(port: PreferencesService.shared.tcpServerPort)
+        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
+        let client = KanataTCPClient(port: port)
         let result = await client.reloadConfig()
-        let reloadSuccess: Bool
-        if case .success = result {
-            reloadSuccess = true
+        let reloadSuccess = if case .success = result {
+            true
         } else {
-            reloadSuccess = false
+            false
         }
 
         return CLIApplyResult(
@@ -194,8 +206,8 @@ public struct CLIFacade: Sendable {
 
     // MARK: - Status
 
-    // ⚠️ inspectSystem() calls SMAppService.status which does synchronous IPC —
-    // can take 10-30s under launchd load. Callers should be aware of potential latency.
+    /// ⚠️ inspectSystem() calls SMAppService.status which does synchronous IPC —
+    /// can take 10-30s under launchd load. Callers should be aware of potential latency.
     @MainActor
     public func runStatus() async -> CLIStatusResult {
         let engine = InstallerEngine()
@@ -222,6 +234,83 @@ public struct CLIFacade: Sendable {
             vhidHealthy: context.services.vhidHealthy,
             hasConflicts: context.conflicts.hasConflicts,
             timestamp: context.timestamp
+        )
+    }
+
+    // MARK: - Installer Operations
+
+    /// Run install via InstallerEngine. Requires privileged helper.
+    @MainActor
+    public func runInstall() async -> CLIInstallerReport {
+        let engine = InstallerEngine()
+        let broker = PrivilegeBroker()
+        let report = await engine.run(intent: .install, using: broker)
+        return CLIInstallerReport(from: report)
+    }
+
+    /// Run repair via InstallerEngine. Attempts fast restart first, then full repair.
+    @MainActor
+    public func runRepair() async -> CLIInstallerReport {
+        // Try fast-path restart first
+        let coordinator = ProcessCoordinator()
+        let restarted = await coordinator.restartService()
+        if restarted {
+            let engine = InstallerEngine()
+            let context = await engine.inspectSystem()
+            if context.permissions.isSystemReady,
+               context.helper.isReady,
+               context.components.hasAllRequired,
+               context.services.isHealthy,
+               !context.conflicts.hasConflicts
+            {
+                return CLIInstallerReport(
+                    success: true,
+                    failureReason: nil,
+                    steps: [CLIInstallerStep(name: "KanataService restart", success: true, error: nil)],
+                    fastRepair: true
+                )
+            }
+        }
+
+        // Full repair
+        let engine = InstallerEngine()
+        let broker = PrivilegeBroker()
+        let report = await engine.run(intent: .repair, using: broker)
+        return CLIInstallerReport(from: report)
+    }
+
+    /// Run uninstall via InstallerEngine.
+    @MainActor
+    public func runUninstall(deleteConfig: Bool) async -> CLIInstallerReport {
+        let engine = InstallerEngine()
+        let broker = PrivilegeBroker()
+        let report = await engine.uninstall(deleteConfig: deleteConfig, using: broker)
+        return CLIInstallerReport(from: report)
+    }
+
+    /// Inspect system and generate an install plan without executing it.
+    @MainActor
+    public func runInspect() async -> CLIInspectResult {
+        let engine = InstallerEngine()
+        let context = await engine.inspectSystem()
+        let plan = await engine.makePlan(for: .inspectOnly, context: context)
+
+        let planStatus: String
+        var blockedBy: String?
+        switch plan.status {
+        case .ready:
+            planStatus = "ready"
+        case let .blocked(requirement):
+            planStatus = "blocked"
+            blockedBy = requirement.name
+        }
+
+        return CLIInspectResult(
+            macOSVersion: context.system.macOSVersion,
+            driverCompatible: context.system.driverCompatible,
+            planStatus: planStatus,
+            blockedBy: blockedBy,
+            plannedRecipes: plan.recipes.map { "\($0.id) (\($0.type))" }
         )
     }
 
@@ -364,6 +453,48 @@ public struct CLIStatusResult: Codable, Sendable {
     public let vhidHealthy: Bool
     public let hasConflicts: Bool
     public let timestamp: Date
+}
+
+public struct CLIValidationResult: Codable, Sendable {
+    public let isValid: Bool
+    public let errors: [String]
+}
+
+public struct CLIInstallerReport: Codable, Sendable {
+    public let success: Bool
+    public let failureReason: String?
+    public let steps: [CLIInstallerStep]
+    public let fastRepair: Bool
+
+    init(from report: InstallerReport) {
+        success = report.success
+        failureReason = report.failureReason
+        steps = report.executedRecipes.map {
+            CLIInstallerStep(name: $0.recipeID, success: $0.success, error: $0.error)
+        }
+        fastRepair = false
+    }
+
+    init(success: Bool, failureReason: String?, steps: [CLIInstallerStep], fastRepair: Bool) {
+        self.success = success
+        self.failureReason = failureReason
+        self.steps = steps
+        self.fastRepair = fastRepair
+    }
+}
+
+public struct CLIInstallerStep: Codable, Sendable {
+    public let name: String
+    public let success: Bool
+    public let error: String?
+}
+
+public struct CLIInspectResult: Codable, Sendable {
+    public let macOSVersion: String
+    public let driverCompatible: Bool
+    public let planStatus: String
+    public let blockedBy: String?
+    public let plannedRecipes: [String]
 }
 
 // MARK: - Stderr Helper
