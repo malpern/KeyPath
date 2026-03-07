@@ -42,13 +42,13 @@ struct OverlayMapperSection: View {
     /// Which behavior slots have actions configured for current key
     @State var configuredBehaviorSlots: Set<BehaviorSlot> = []
 
-    /// Animation state for output keycap behavior demonstration
-    @State var outputKeycapScale: CGFloat = 1.0
+    /// Animation state for input keycap behavior demonstration
+    @State var inputKeycapScale: CGFloat = 1.0
     @State var behaviorAnimationTask: Task<Void, Never>?
-    /// Animation state for behavior slot label (shows above output keycap)
+    /// Animation state for behavior slot label (shows above input keycap)
     @State var showBehaviorLabel = false
-    /// Animation state for output keycap bounce when switching behavior slots
-    @State var outputKeycapBounce = false
+    /// Animation state for input keycap bounce when switching behavior slots
+    @State var inputKeycapBounce = false
 
     var body: some View {
         bodyView
@@ -60,8 +60,6 @@ struct OverlayMapperSection: View {
                 healthGateContent
             } else {
                 mapperContent
-                    .saturation(Double(1 - fadeAmount)) // Monochromatic when faded
-                    .opacity(Double(1 - fadeAmount * 0.5)) // Fade with keyboard
             }
         }
 
@@ -433,8 +431,12 @@ struct OverlayMapperSection: View {
                                 label: viewModel.inputLabel,
                                 keyCode: viewModel.inputKeyCode,
                                 isRecording: viewModel.isRecordingInput,
+                                fadeAmount: fadeAmount,
+                                customShiftSymbol: viewModel.isShiftedOutputDefault ? nil : viewModel.shiftedOutputLabel,
                                 onTap: { viewModel.toggleInputRecording() }
                             )
+                            .scaleEffect(inputKeycapBounce ? 1.05 : 1.0)
+                            .scaleEffect(inputKeycapScale)
 
                             // Input modifier label (Shift, multi-tap) floats above input keycap
                             if let inputModifierLabel {
@@ -446,8 +448,12 @@ struct OverlayMapperSection: View {
                                     .scaleEffect(showBehaviorLabel ? 1 : 0.8)
                             }
                         }
-                        appConditionDropdown
-                        appMappingIndicators
+                        Group {
+                            appConditionDropdown
+                            appMappingIndicators
+                        }
+                        .saturation(Double(1 - fadeAmount))
+                        .opacity(Double(1 - fadeAmount * 0.5))
                     }
                     .frame(width: keycapWidth)
 
@@ -457,6 +463,7 @@ struct OverlayMapperSection: View {
                         Image(systemName: "arrow.right")
                             .font(.title3)
                             .foregroundColor(.secondary)
+                            .modifier(TextGlowModifier(fadeAmount: fadeAmount))
                             .frame(height: 100) // Match keycap height
 
                         // Reset button positioned at bottom of arrow column
@@ -475,6 +482,7 @@ struct OverlayMapperSection: View {
                                 .accessibilityIdentifier("overlay-mapper-reset")
                             }
                             .frame(height: 100)
+                            .opacity(Double(1 - fadeAmount * 0.5))
                         }
                     }
                     .frame(width: arrowWidth)
@@ -494,7 +502,6 @@ struct OverlayMapperSection: View {
                                     urlFavicon: selectedTapOutputMode == .default ? viewModel.selectedURLFavicon : nil,
                                     onTap: { toggleRecordingForCurrentSlot() }
                                 )
-                                .scaleEffect(outputKeycapScale)
                             } else {
                                 // Hold/Shift/Combo/Multi-tap use BehaviorSlotKeycap
                                 let slotName = selectedTapCount > 1
@@ -508,19 +515,21 @@ struct OverlayMapperSection: View {
                                     onTap: { toggleRecordingForCurrentSlot() },
                                     onClear: { clearCurrentSlot() }
                                 )
-                                .scaleEffect(outputKeycapBounce ? 1.05 : 1.0)
-                                .scaleEffect(outputKeycapScale)
                             }
 
                             // (trigger labels are shown above the input keycap)
                         }
                         // Output type dropdown shown for all slots
-                        outputTypeDropdown
+                        Group {
+                            outputTypeDropdown
 
-                        // Hold variant button - shown when Hold tab is selected and configured
-                        if selectedBehaviorSlot == .hold, !viewModel.holdAction.isEmpty {
-                            holdVariantButton
+                            // Hold variant button - shown when Hold tab is selected and configured
+                            if selectedBehaviorSlot == .hold, !viewModel.holdAction.isEmpty {
+                                holdVariantButton
+                            }
                         }
+                        .saturation(Double(1 - fadeAmount))
+                        .opacity(Double(1 - fadeAmount * 0.5))
 
                     }
                     .frame(width: keycapWidth)
@@ -535,6 +544,8 @@ struct OverlayMapperSection: View {
             if viewModel.showAdvanced {
                 AdvancedBehaviorContent(viewModel: viewModel)
                     .transition(.opacity.combined(with: .move(edge: .top)))
+                    .saturation(Double(1 - fadeAmount))
+                    .opacity(Double(1 - fadeAmount * 0.5))
             }
 
             Spacer(minLength: 0)
@@ -545,7 +556,8 @@ struct OverlayMapperSection: View {
                 BehaviorStatePicker(
                     selectedState: $selectedBehaviorSlot,
                     configuredStates: configuredBehaviorSlots,
-                    tapIsNonIdentity: tapHasNonIdentityMapping
+                    tapIsNonIdentity: tapHasNonIdentityMapping,
+                    isShiftDefault: viewModel.isShiftedOutputDefault
                 )
                 .padding(.top, 8)
 
@@ -565,6 +577,8 @@ struct OverlayMapperSection: View {
                         .animation(.easeOut(duration: 0.2), value: status)
                 }
             }
+            .saturation(Double(1 - fadeAmount))
+            .opacity(Double(1 - fadeAmount * 0.5))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

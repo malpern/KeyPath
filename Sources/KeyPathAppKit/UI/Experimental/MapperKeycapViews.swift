@@ -1,6 +1,24 @@
 import AppKit
 import SwiftUI
 
+// MARK: - Text Glow Modifier
+
+/// Adds a soft glow effect to content that intensifies with fadeAmount.
+/// Used on keycap labels when the keyboard fades (drawer open).
+struct TextGlowModifier: ViewModifier {
+    let fadeAmount: CGFloat
+
+    func body(content: Content) -> some View {
+        if fadeAmount > 0.1 {
+            content
+                .shadow(color: Color(red: 0.6, green: 0.8, blue: 1.0).opacity(Double(fadeAmount) * 0.8), radius: 8)
+                .shadow(color: Color(red: 0.6, green: 0.8, blue: 1.0).opacity(Double(fadeAmount) * 0.4), radius: 16)
+        } else {
+            content
+        }
+    }
+}
+
 // MARK: - Behavior Slot Keycap View
 
 /// Keycap view for behavior slot outputs (Hold, Double Tap, etc.)
@@ -418,6 +436,9 @@ struct MapperInputKeycap: View {
     let label: String
     let keyCode: UInt16?
     let isRecording: Bool
+    var fadeAmount: CGFloat = 0
+    /// Custom shift symbol override (nil = use system default from LabelMetadata)
+    var customShiftSymbol: String?
     let onTap: () -> Void
 
     @State private var isHovered = false
@@ -479,7 +500,12 @@ struct MapperInputKeycap: View {
     }
 
     private var labelMetadata: LabelMetadata {
-        LabelMetadata.forLabel(label)
+        var metadata = LabelMetadata.forLabel(label)
+        // Override shift symbol if a custom one is provided
+        if let custom = customShiftSymbol {
+            metadata.shiftSymbol = custom
+        }
+        return metadata
     }
 
     var body: some View {
@@ -495,6 +521,7 @@ struct MapperInputKeycap: View {
 
             // Content based on layout role
             keyContent
+                .modifier(TextGlowModifier(fadeAmount: fadeAmount))
         }
         .frame(width: baseSize, height: baseSize)
         .scaleEffect(isPressed ? 0.95 : 1.0)
@@ -678,8 +705,9 @@ struct MapperInputKeycap: View {
     // MARK: - Styling
 
     private var foregroundColor: Color {
-        Color(red: 0.88, green: 0.93, blue: 1.0)
-            .opacity(isPressed ? 1.0 : 0.88)
+        let base = Color(red: 0.88, green: 0.93, blue: 1.0)
+        let brightness = fadeAmount > 0 ? 1.0 : (isPressed ? 1.0 : 0.88)
+        return base.opacity(brightness)
     }
 
     private var backgroundColor: Color {

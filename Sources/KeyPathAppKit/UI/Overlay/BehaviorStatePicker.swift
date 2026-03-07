@@ -68,6 +68,9 @@ struct BehaviorStatePicker: View {
     /// When true, shows the "in use" dot for tap
     var tapIsNonIdentity: Bool = false
 
+    /// Whether the shift slot shows a system default (dimmer indicator) vs custom override
+    var isShiftDefault: Bool = false
+
     var body: some View {
         HStack(spacing: 16) {
             ForEach(BehaviorSlot.allCases) { slot in
@@ -75,6 +78,7 @@ struct BehaviorStatePicker: View {
                     slot: slot,
                     isSelected: selectedState == slot,
                     isConfigured: isSlotConfigured(slot),
+                    isDefault: slot == .shift && isShiftDefault,
                     onSelect: {
                         withAnimation(.easeInOut(duration: 0.15)) {
                             selectedState = slot
@@ -103,6 +107,7 @@ private struct BehaviorStateCell: View {
     let slot: BehaviorSlot
     let isSelected: Bool
     let isConfigured: Bool
+    var isDefault: Bool = false
     let onSelect: () -> Void
 
     @State private var isPressed = false
@@ -121,8 +126,9 @@ private struct BehaviorStateCell: View {
                     .lineLimit(1)
                     .overlay(alignment: .leading) {
                         // Configured indicator dot (positioned to the left of label)
+                        // Default (system) shift shows dimmer dot; custom shows bright
                         Circle()
-                            .fill(isConfigured ? Color.accentColor : Color.clear)
+                            .fill(isConfigured ? Color.accentColor.opacity(isDefault ? 0.35 : 1.0) : Color.clear)
                             .frame(width: 5, height: 5)
                             .offset(x: -8)
                     }

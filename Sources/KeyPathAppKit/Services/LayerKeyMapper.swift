@@ -27,6 +27,8 @@ struct LayerKeyInfo: Equatable, Sendable {
     /// Short vim-language label for overlay keycaps (e.g., "yank", "put", "d")
     /// When set, overlay prefers this over displayLabel for VIM layer keys
     let vimLabel: String?
+    /// Custom shifted output label (overrides the system default shift symbol on the keycap)
+    let customShiftLabel: String?
 
     init(
         displayLabel: String,
@@ -38,7 +40,8 @@ struct LayerKeyInfo: Equatable, Sendable {
         systemActionIdentifier: String? = nil,
         urlIdentifier: String? = nil,
         collectionId: UUID? = nil,
-        vimLabel: String? = nil
+        vimLabel: String? = nil,
+        customShiftLabel: String? = nil
     ) {
         self.displayLabel = displayLabel
         self.outputKey = outputKey
@@ -50,6 +53,7 @@ struct LayerKeyInfo: Equatable, Sendable {
         self.urlIdentifier = urlIdentifier
         self.collectionId = collectionId
         self.vimLabel = vimLabel
+        self.customShiftLabel = customShiftLabel
     }
 
     /// Creates info for a normal key mapping

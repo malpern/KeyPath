@@ -38,7 +38,7 @@ extension OverlayMapperSection {
         case .hold:
             return !viewModel.holdAction.isEmpty
         case .shift:
-            return viewModel.hasShiftedOutputConfigured
+            return viewModel.hasShiftedOutputConfigured && !viewModel.isShiftedOutputDefault
         case .combo:
             return viewModel.advancedBehavior.hasValidCombo
         }
