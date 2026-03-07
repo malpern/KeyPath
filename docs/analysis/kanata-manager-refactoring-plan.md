@@ -68,7 +68,7 @@ This document outlines the step-by-step plan to decompose the `KanataManager` mo
 > - Health/TCP monitoring consolidated inside `KanataService`
 > - `RuntimeCoordinator` consumes the façade instead of `ServiceHealthMonitor` directly
 > - All wizard flows (Kanata Service page, Components page, Reset Everything, etc.) use façade
-> - CLI commands (`keypath-cli repair`) route through `InstallerEngine`
+> - CLI commands (`keypath repair`) route through `InstallerEngine`
 > - Settings Status tab, uninstall dialog, wizard state detector use façade
 > 
 > ✅ **Health Check APIs Exposed (Nov 24, 2025):**

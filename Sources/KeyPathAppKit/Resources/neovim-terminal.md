@@ -1,3 +1,5 @@
+![Neovim in the Terminal](header-neovim-terminal.png)
+
 # Neovim in the Terminal
 
 You live in the terminal. Neovim is your editor. But when you switch to other macOS apps, your muscle memory goes silent — no `hjkl`, no `w`/`b`, no `gd`. KeyPath bridges the gap: hold the Leader key and your vim instincts work everywhere, while the HUD shows a quick-reference card for the Neovim commands you use most.
