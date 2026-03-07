@@ -12,6 +12,7 @@ struct KeyPathCLI: AsyncParsableCommand {
             Status.self,
             Remap.self,
             Rules.self,
+            Layer.self,
             Apply.self,
             Config.self,
             TCP.self,
@@ -19,6 +20,7 @@ struct KeyPathCLI: AsyncParsableCommand {
             Repair.self,
             Uninstall.self,
             Inspect.self,
+            Completions.self,
         ]
     )
 }

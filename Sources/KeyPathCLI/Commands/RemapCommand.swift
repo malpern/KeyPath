@@ -26,6 +26,9 @@ extension KeyPathCLI {
         @Flag(help: "Remove the mapping for the input key")
         var remove: Bool = false
 
+        @Flag(help: "Regenerate config and reload Kanata after saving")
+        var apply: Bool = false
+
         func validate() throws {
             if remove, output != nil || tap != nil || hold != nil {
                 throw ValidationError("--remove cannot be combined with an output key or --tap/--hold")
@@ -69,7 +72,7 @@ extension KeyPathCLI {
                 throw ExitCode.failure
             }
 
-            print("Run 'keypath apply' to regenerate config and reload Kanata.")
+            try await applyConfigurationOrHint(facade: facade, apply: apply)
         }
 
         private func validateKeyName(_ key: String, label: String, facade: CLIFacade) throws {
