@@ -100,6 +100,8 @@ struct OverlayDragHeader: View {
     let healthIndicatorState: HealthIndicatorState
     /// Whether the drawer button should be visually highlighted (hotkey feedback)
     let drawerButtonHighlighted: Bool
+    /// Whether the current layout has its own drawer buttons (Touch ID, Layer, etc.)
+    let layoutHasDrawerButtons: Bool
     let onClose: () -> Void
     let onToggleInspector: () -> Void
     /// Callback when health indicator is tapped (to launch wizard)
@@ -181,40 +183,25 @@ struct OverlayDragHeader: View {
                 // - Otherwise shows Japanese input + layer pill
                 statusSlot(indicatorCornerRadius: indicatorCornerRadius, buttonSize: buttonSize)
 
-                // 2. Toggle inspector/drawer button
-                Button {
-                    AppLogger.shared.log("🔘 [Header] Toggle drawer button clicked - isInspectorOpen=\(isInspectorOpen)")
-                    onToggleInspector()
-                } label: {
-                    Image(systemName: isInspectorOpen ? "xmark.circle" : "slider.horizontal.3")
-                        .font(.system(size: buttonSize * 0.72, weight: .semibold))
-                        .foregroundStyle(drawerButtonHighlighted ? Color.accentColor : headerIconColor)
-                        .frame(width: buttonSize, height: buttonSize)
-                        .scaleEffect(drawerButtonHighlighted ? 1.2 : 1.0)
-                        .animation(.easeInOut(duration: 0.1), value: drawerButtonHighlighted)
+                // 2. Toggle inspector/drawer button (fallback for layouts without their own drawer buttons)
+                if !layoutHasDrawerButtons || isInspectorOpen {
+                    Button {
+                        AppLogger.shared.log("🔘 [Header] Toggle drawer button clicked - isInspectorOpen=\(isInspectorOpen)")
+                        onToggleInspector()
+                    } label: {
+                        Image(systemName: isInspectorOpen ? "xmark.circle" : "sidebar.right")
+                            .font(.system(size: buttonSize * 0.72, weight: .semibold))
+                            .foregroundStyle(drawerButtonHighlighted ? Color.accentColor : headerIconColor)
+                            .frame(width: buttonSize, height: buttonSize)
+                            .scaleEffect(drawerButtonHighlighted ? 1.2 : 1.0)
+                            .animation(.easeInOut(duration: 0.1), value: drawerButtonHighlighted)
+                    }
+                    .modifier(OverlayGlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+                    .onHover { isHoveringButton = $0 }
+                    .windowTooltip(isInspectorOpen ? "Close Settings" : "Open Settings", id: "drawer")
+                    .accessibilityIdentifier("overlay-drawer-toggle")
+                    .accessibilityLabel(isInspectorOpen ? "Close settings drawer" : "Open settings drawer")
                 }
-                .modifier(OverlayGlassButtonStyleModifier(reduceTransparency: reduceTransparency))
-                .onHover { isHoveringButton = $0 }
-                .windowTooltip(isInspectorOpen ? "Close Settings" : "Open Settings", id: "drawer")
-                .accessibilityIdentifier("overlay-drawer-toggle")
-                .accessibilityLabel(isInspectorOpen ? "Close settings drawer" : "Open settings drawer")
-
-                // 3. Hide button (rightmost) - hides overlay, use ⌘⌥K to bring back
-                Button {
-                    AppLogger.shared.log("🔘 [Header] Hide button clicked")
-                    print("🔘 [Header] Hide button clicked")
-                    onClose()
-                } label: {
-                    Image(systemName: "eye.slash")
-                        .font(.system(size: buttonSize * 0.72, weight: .semibold))
-                        .foregroundStyle(headerIconColor)
-                        .frame(width: buttonSize, height: buttonSize)
-                }
-                .modifier(OverlayGlassButtonStyleModifier(reduceTransparency: reduceTransparency))
-                .onHover { isHoveringButton = $0 }
-                .windowTooltip("Hide Overlay (⌘⌥K)", id: "hide")
-                .accessibilityIdentifier("overlay-hide-button")
-                .accessibilityLabel("Hide keyboard overlay")
             }
             .padding(.trailing, 6)
             .animation(.easeOut(duration: 0.12), value: currentLayerName)
