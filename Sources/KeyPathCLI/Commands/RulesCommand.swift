@@ -45,6 +45,9 @@ extension KeyPathTool {
             @Argument(help: "Collection name or ID")
             var nameOrId: String
 
+            @Flag(help: "Regenerate config and reload Kanata after saving")
+            var apply: Bool = false
+
             mutating func run() async throws {
                 let facade = await MainActor.run { CLIFacade() }
                 guard let name = try await facade.enableCollection(nameOrId: nameOrId) else {
@@ -52,7 +55,17 @@ extension KeyPathTool {
                     throw ExitCode.failure
                 }
                 print("Enabled '\(name)'")
-                print("Run 'keypath apply' to regenerate config and reload Kanata.")
+                if apply {
+                    let result = try await facade.applyConfiguration()
+                    if result.reloadSuccess {
+                        print("Config applied and Kanata reloaded.")
+                    } else {
+                        printErr("Config written but Kanata reload failed.")
+                        throw ExitCode.failure
+                    }
+                } else {
+                    print("Run 'keypath apply' to regenerate config and reload Kanata.")
+                }
             }
         }
 
@@ -64,6 +77,9 @@ extension KeyPathTool {
             @Argument(help: "Collection name or ID")
             var nameOrId: String
 
+            @Flag(help: "Regenerate config and reload Kanata after saving")
+            var apply: Bool = false
+
             mutating func run() async throws {
                 let facade = await MainActor.run { CLIFacade() }
                 guard let name = try await facade.disableCollection(nameOrId: nameOrId) else {
@@ -71,7 +87,17 @@ extension KeyPathTool {
                     throw ExitCode.failure
                 }
                 print("Disabled '\(name)'")
-                print("Run 'keypath apply' to regenerate config and reload Kanata.")
+                if apply {
+                    let result = try await facade.applyConfiguration()
+                    if result.reloadSuccess {
+                        print("Config applied and Kanata reloaded.")
+                    } else {
+                        printErr("Config written but Kanata reload failed.")
+                        throw ExitCode.failure
+                    }
+                } else {
+                    print("Run 'keypath apply' to regenerate config and reload Kanata.")
+                }
             }
         }
 

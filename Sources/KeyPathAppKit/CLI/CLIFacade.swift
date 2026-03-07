@@ -204,6 +204,13 @@ public struct CLIFacade: Sendable {
         try await client.resetHrmStats()
     }
 
+    public func tcpChangeLayer(_ layerName: String) async -> Bool {
+        let client = await tcpClient()
+        let result = await client.changeLayer(layerName)
+        if case .success = result { return true }
+        return false
+    }
+
     // MARK: - Status
 
     /// ⚠️ inspectSystem() calls SMAppService.status which does synchronous IPC —
@@ -394,9 +401,17 @@ public struct AmbiguousCollectionMatch: Error, CustomStringConvertible {
 // MARK: - Version
 
 /// Shared version constant for the CLI binary.
-/// Keep in sync with CFBundleShortVersionString in Sources/KeyPathApp/Info.plist.
+/// Reads from the KeyPath.app bundle at /Applications/KeyPath.app if available,
+/// falling back to a hardcoded value.
 public enum CLIVersion {
-    public static let current = "1.0.0"
+    public static let current: String = {
+        if let bundle = Bundle(path: "/Applications/KeyPath.app"),
+           let version = bundle.infoDictionary?["CFBundleShortVersionString"] as? String
+        {
+            return version
+        }
+        return "1.0.0"
+    }()
 }
 
 // MARK: - Public CLI Types

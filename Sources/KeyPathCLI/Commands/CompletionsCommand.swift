@@ -1,0 +1,48 @@
+import ArgumentParser
+import Foundation
+
+extension KeyPathTool {
+    struct Completions: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Generate shell completions",
+            subcommands: [
+                Zsh.self,
+                Bash.self,
+                Fish.self,
+            ]
+        )
+
+        struct Zsh: ParsableCommand {
+            static let configuration = CommandConfiguration(
+                abstract: "Generate zsh completions"
+            )
+
+            mutating func run() throws {
+                let script = KeyPathTool.completionScript(for: .zsh)
+                print(script)
+            }
+        }
+
+        struct Bash: ParsableCommand {
+            static let configuration = CommandConfiguration(
+                abstract: "Generate bash completions"
+            )
+
+            mutating func run() throws {
+                let script = KeyPathTool.completionScript(for: .bash)
+                print(script)
+            }
+        }
+
+        struct Fish: ParsableCommand {
+            static let configuration = CommandConfiguration(
+                abstract: "Generate fish completions"
+            )
+
+            mutating func run() throws {
+                let script = KeyPathTool.completionScript(for: .fish)
+                print(script)
+            }
+        }
+    }
+}
