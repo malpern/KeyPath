@@ -1,4 +1,13 @@
+import AppKit
 import SwiftUI
+
+private struct SystemActionPopoverContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
 
 extension OverlayMapperSection {
     // MARK: - System Action Groups
@@ -27,26 +36,27 @@ extension OverlayMapperSection {
         ]
     }
 
-    /// Dynamic max height for the popover based on expansion state
-    private var expandedMaxHeight: CGFloat {
-        let baseHeight: CGFloat = 270 // Height for collapsed state (5 rows + dividers)
-        let systemActionsHeight: CGFloat = 480 // System actions grid when expanded
-        let appsHeight: CGFloat = 300 // Apps list when expanded
-        let layersHeight: CGFloat = 250 // Layers list when expanded
-
-        var height = baseHeight
-        if isSystemActionsExpanded { height += systemActionsHeight }
-        if isLaunchAppsExpanded { height += appsHeight }
-        if isLayersExpanded { height += layersHeight }
-
-        return min(height, 750) // Cap at reasonable screen height
+    /// Keep the picker compact by default, then grow it to a larger scrollable surface
+    /// whenever any section expands. Using an explicit height lets the popover resize
+    /// with the presented SwiftUI view instead of relying on a maxHeight that never
+    /// increases the popover's ideal size.
+    private var collapsedPopoverHeight: CGFloat {
+        270
     }
 
-    private var popoverMaxHeight: CGFloat {
-        if isSystemActionsExpanded {
-            return min(expandedMaxHeight * 2, 1000)
-        }
-        return expandedMaxHeight
+    private var hasExpandedSection: Bool {
+        isSystemActionsExpanded || isLaunchAppsExpanded || isLayersExpanded
+    }
+
+    private var maximumPopoverHeight: CGFloat {
+        let visibleScreenHeight = NSScreen.main?.visibleFrame.height ?? 900
+        return min(collapsedPopoverHeight * 2, max(collapsedPopoverHeight, visibleScreenHeight - 160))
+    }
+
+    private var popoverHeight: CGFloat {
+        guard hasExpandedSection else { return collapsedPopoverHeight }
+        let measuredHeight = max(collapsedPopoverHeight, outputActionPopoverContentHeight)
+        return min(measuredHeight, maximumPopoverHeight)
     }
 
     /// Popover content for output type picker with collapsible sections
@@ -275,19 +285,35 @@ extension OverlayMapperSection {
                 }
             }
             .padding(.vertical, 6)
+            .background(
+                GeometryReader { geometry in
+                    Color.clear.preference(
+                        key: SystemActionPopoverContentHeightKey.self,
+                        value: geometry.size.height
+                    )
+                }
+            )
         }
         .scrollBounceBehavior(.basedOnSize)
-        .frame(width: 320)
-        .frame(maxHeight: popoverMaxHeight)
+        .frame(width: 320, height: popoverHeight, alignment: .top)
         .pickerPopoverChrome()
+        .animation(.easeInOut(duration: 0.25), value: popoverHeight)
         .animation(.easeInOut(duration: 0.25), value: isSystemActionsExpanded)
         .animation(.easeInOut(duration: 0.25), value: isLaunchAppsExpanded)
         .animation(.easeInOut(duration: 0.25), value: isLayersExpanded)
+        .onPreferenceChange(SystemActionPopoverContentHeightKey.self) { measuredHeight in
+            let snappedHeight = ceil(measuredHeight)
+            guard abs(outputActionPopoverContentHeight - snappedHeight) > 1 else { return }
+            withAnimation(.easeInOut(duration: 0.25)) {
+                outputActionPopoverContentHeight = snappedHeight
+            }
+        }
         .onAppear {
             // Auto-expand the relevant section based on current selection
             isSystemActionsExpanded = viewModel.selectedSystemAction != nil
             isLaunchAppsExpanded = viewModel.selectedApp != nil
             isLayersExpanded = selectedLayerOutput != nil
+            outputActionPopoverContentHeight = collapsedPopoverHeight
             if isLaunchAppsExpanded {
                 loadKnownApps()
             }

@@ -213,8 +213,7 @@ final class RecordingCoordinator {
         }
 
         // Save as CustomRule and let regenerateConfigFromCollections build the full kanata config
-        // (handles macros, sequences, chords, forks, tap-hold, etc.)
-        AppLogger.shared.log("📝 [RecordingCoordinator] Using COMPLEX path (multi-key or modifiers)")
+        AppLogger.shared.log("📝 [RecordingCoordinator] Saving via CustomRule pipeline")
         let inputKanata = convertSequenceToKanataInput(inputSequence)
         let outputKanata = convertSequenceToKanataOutput(outputSequence)
         AppLogger.shared.log("📝 [RecordingCoordinator] Creating CustomRule: '\(inputKanata)' → '\(outputKanata)'")
@@ -227,8 +226,6 @@ final class RecordingCoordinator {
         let saveResult = await kanataManager.saveCustomRule(customRule, skipReload: false)
         AppLogger.shared.log("📝 [RecordingCoordinator] CustomRule save result: \(saveResult)")
 
-        await kanataManager.updateStatus()
-
         if saveResult {
             await MainActor.run {
                 onSuccess(
@@ -237,7 +234,6 @@ final class RecordingCoordinator {
                 clearCapturedSequences()
             }
         } else {
-            AppLogger.shared.log("❌ [Coordinator] CustomRule save failed")
             onError(KeyPathError.coordination(.recordingFailed(reason: "Failed to save mapping rule")))
         }
     }

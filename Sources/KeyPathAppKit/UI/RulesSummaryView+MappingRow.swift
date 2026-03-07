@@ -52,71 +52,62 @@ struct MappingRowView: View {
         }) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    // Mapping content
-                    HStack(spacing: 8) {
-                        // Show layer activator if present
-                        if layerActivator != nil {
-                            HStack(spacing: 4) {
-                                Text("Hold")
-                                    .font(.body.monospaced().weight(.semibold))
-                                    .foregroundColor(.accentColor)
-                                Text(leaderKeyDisplay)
-                                    .font(.body.monospaced().weight(.semibold))
-                                    .foregroundColor(KeycapStyle.textColor)
-                            }
-                            .modifier(KeycapStyle())
-
-                            Text("+")
-                                .font(.body)
-                                .foregroundColor(.secondary)
+                    // Show layer activator if present
+                    if layerActivator != nil {
+                        HStack(spacing: 4) {
+                            Text("Hold")
+                                .font(.body.monospaced().weight(.semibold))
+                                .foregroundColor(.accentColor)
+                            Text(leaderKeyDisplay)
+                                .font(.body.monospaced().weight(.semibold))
+                                .foregroundColor(KeycapStyle.textColor)
                         }
+                        .modifier(KeycapStyle())
 
-                        Text(prettyKeyName(mapping.input))
+                        Text("+")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Text(prettyKeyName(mapping.input))
+                        .font(.body.monospaced().weight(.semibold))
+                        .foregroundColor(KeycapStyle.textColor)
+                        .modifier(KeycapStyle())
+                        .accessibilityIdentifier("rules-summary-mapping-row-input-\(mapping.id)")
+
+                    Image(systemName: "arrow.right")
+                        .font(.body.weight(.medium))
+                        .foregroundColor(.secondary)
+
+                    // Show rich chips for app/system/url/layer actions, otherwise show key chip
+                    if let appId = appLaunchIdentifier {
+                        RulesSummaryAppLaunchChip(appIdentifier: appId)
+                    } else if let actionId = systemActionIdentifier {
+                        RulesSummarySystemActionChip(actionIdentifier: actionId)
+                    } else if let urlId = urlIdentifier {
+                        RulesSummaryURLChip(urlString: urlId)
+                    } else if let layerName = layerSwitchIdentifier {
+                        RulesSummaryLayerSwitchChip(layerName: layerName)
+                    } else {
+                        Text(prettyKeyName(mapping.output))
                             .font(.body.monospaced().weight(.semibold))
                             .foregroundColor(KeycapStyle.textColor)
                             .modifier(KeycapStyle())
-                            .accessibilityIdentifier("rules-summary-mapping-row-input-\(mapping.id)")
-
-                        Image(systemName: "arrow.right")
-                            .font(.body.weight(.medium))
-                            .foregroundColor(.secondary)
-
-                        // Show rich chips for app/system/url/layer actions, otherwise show key chip
-                        if let appId = appLaunchIdentifier {
-                            RulesSummaryAppLaunchChip(appIdentifier: appId)
-                        } else if let actionId = systemActionIdentifier {
-                            RulesSummarySystemActionChip(actionIdentifier: actionId)
-                        } else if let urlId = urlIdentifier {
-                            RulesSummaryURLChip(urlString: urlId)
-                        } else if let layerName = layerSwitchIdentifier {
-                            RulesSummaryLayerSwitchChip(layerName: layerName)
-                        } else {
-                            Text(prettyKeyName(mapping.output))
-                                .font(.body.monospaced().weight(.semibold))
-                                .foregroundColor(KeycapStyle.textColor)
-                                .modifier(KeycapStyle())
-                        }
-
-                        // Show rule name/title if provided
-                        if let title = mapping.description, !title.isEmpty {
-                            Text(title)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-
-                        // Behavior summary for custom rules on same line
-                        if let behavior = mapping.behavior {
-                            behaviorSummaryView(behavior: behavior)
-                        }
-
-                        if mapping.shiftedOutput != nil {
-                            shiftedOutputBadge
-                        }
-
-                        Spacer(minLength: 0)
                     }
 
-                    Spacer()
+                    // Show rule name/title if provided
+                    if let title = mapping.description, !title.isEmpty {
+                        Text(title)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+
+                    // Behavior summary for custom rules on same line
+                    if let behavior = mapping.behavior {
+                        behaviorSummaryView(behavior: behavior)
+                    }
+
+                    Spacer(minLength: 0)
 
                     // Action buttons - subtle icons that appear on hover
                     if onEditMapping != nil || onDeleteMapping != nil {
@@ -152,6 +143,10 @@ struct MappingRowView: View {
                                 .frame(width: 0)
                         }
                     }
+                }
+
+                if let shiftedOutput = mapping.shiftedOutput {
+                    RuleModifierVariantView(label: "⇧ Shift", output: shiftedOutput)
                 }
             }
             .padding(.leading, 48)
@@ -216,18 +211,6 @@ struct MappingRowView: View {
             }
         }
         .foregroundColor(.secondary)
-    }
-
-    private var shiftedOutputBadge: some View {
-        Text("⇧ Customized")
-            .font(.caption2.weight(.medium))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(Color.orange.opacity(0.12))
-            )
     }
 
     /// Extract tap dance steps (skip index 0 which is single tap = output)

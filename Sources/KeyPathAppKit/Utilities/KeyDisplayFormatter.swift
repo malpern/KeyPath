@@ -152,6 +152,19 @@ public enum KeyDisplayFormatter {
         return key.uppercased()
     }
 
+    /// Format a kanata output sequence for compact UI display.
+    ///
+    /// Examples:
+    /// - `M-right` -> `⌘→`
+    /// - `C-S-a` -> `⌃⇧A`
+    /// - `up ret` -> `↑ ↩`
+    public static func formatSequence(_ output: String) -> String {
+        output
+            .split(whereSeparator: \.isWhitespace)
+            .map { formatSequenceToken(String($0)) }
+            .joined(separator: " ")
+    }
+
     /// Format a key output for tap-hold display labels.
     ///
     /// - Parameter output: The output key string (may contain multiple keys)
@@ -210,5 +223,40 @@ public enum KeyDisplayFormatter {
 
         // Unknown key -> return as-is if non-empty
         return key.isEmpty ? nil : key
+    }
+
+    private static func formatSequenceToken(_ token: String) -> String {
+        let compositePrefixes: [(String, String)] = [
+            ("C-M-A-S-", "⌃⌘⌥⇧"),
+            ("C-M-S-", "⌃⌘⇧"),
+            ("C-A-S-", "⌃⌥⇧"),
+            ("M-A-S-", "⌘⌥⇧"),
+            ("C-M-A-", "⌃⌘⌥"),
+            ("M-S-", "⌘⇧"),
+            ("C-S-", "⌃⇧"),
+            ("A-S-", "⌥⇧"),
+            ("C-M-", "⌃⌘"),
+            ("C-A-", "⌃⌥"),
+            ("M-A-", "⌘⌥")
+        ]
+
+        for (prefix, symbols) in compositePrefixes where token.hasPrefix(prefix) {
+            let remainder = String(token.dropFirst(prefix.count))
+            return symbols + formatSequenceToken(remainder)
+        }
+
+        let singlePrefixes: [(String, String)] = [
+            ("M-", "⌘"),
+            ("A-", "⌥"),
+            ("C-", "⌃"),
+            ("S-", "⇧")
+        ]
+
+        for (prefix, symbol) in singlePrefixes where token.hasPrefix(prefix) {
+            let remainder = String(token.dropFirst(prefix.count))
+            return symbol + formatSequenceToken(remainder)
+        }
+
+        return format(token)
     }
 }

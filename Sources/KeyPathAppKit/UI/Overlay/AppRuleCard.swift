@@ -204,23 +204,29 @@ struct GlobalRulesCard: View {
         Button(action: { onEdit(rule) }) {
             ZStack(alignment: .trailing) {
                 // Rule mapping content
-                HStack(spacing: 8) {
-                    // Input key chip
-                    GlobalKeyChip(text: rule.input)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        // Input key chip
+                        GlobalKeyChip(text: rule.input)
 
-                    // Arrow (matching Settings style)
-                    Image(systemName: "arrow.right")
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(.secondary)
+                        // Arrow (matching Settings style)
+                        Image(systemName: "arrow.right")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(.secondary)
 
-                    // Output - show layer chip for layer switches, otherwise regular key chip
-                    if let layerName = LayerInfo.extractLayerName(from: rule.output) {
-                        DrawerLayerChip(layerName: layerName)
-                    } else {
-                        GlobalKeyChip(text: rule.output)
+                        // Output - show layer chip for layer switches, otherwise regular key chip
+                        if let layerName = LayerInfo.extractLayerName(from: rule.output) {
+                            DrawerLayerChip(layerName: layerName)
+                        } else {
+                            GlobalKeyChip(text: rule.output)
+                        }
+
+                        Spacer(minLength: 0)
                     }
 
-                    Spacer(minLength: 0)
+                    if let shiftedOutput = rule.shiftedOutput {
+                        RuleModifierVariantView(label: "⇧ Shift", output: shiftedOutput)
+                    }
                 }
 
                 // Action buttons overlay - only visible on hover

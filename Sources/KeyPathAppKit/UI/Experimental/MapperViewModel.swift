@@ -608,6 +608,7 @@ class MapperViewModel {
     }
 
     /// Show a success status message that auto-dismisses after a delay
+    /// Show a success status message that auto-dismisses after a delay
     func showTransientStatus(_ message: String, duration: Duration = .seconds(2)) {
         statusDismissTask?.cancel()
         statusMessage = message

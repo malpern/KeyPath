@@ -355,7 +355,6 @@ extension MapperViewModel {
                 } else if target == .shiftedOutput {
                     self.shiftedOutputSequence = sequence
                     self.shiftedOutputLabel = sequence.displayString
-                    self.isShiftedOutputDefault = false
                 } else {
                     self.outputSequence = sequence
                     self.outputLabel = sequence.displayString
@@ -678,22 +677,14 @@ extension MapperViewModel {
             AppLogger.shared.log("💾 [MapperViewModel] Adding chord behavior: keys=\(allKeys), output='\(chord.output)'")
         }
 
-        // skipReload: false — let regenerateConfigFromCollections rebuild the full config
-        // and reload kanata so all features (forks, tap-hold, etc.) take effect immediately
         let customRuleSaved = await kanataManager.saveCustomRule(customRule, skipReload: false)
         AppLogger.shared.log("💾 [MapperViewModel] saveCustomRule returned: \(customRuleSaved)")
 
         if customRuleSaved {
-            // Track the saved rule ID for potential clearing
             lastSavedRuleID = customRule.id
-
-            AppLogger.shared.info("🔔 [MapperViewModel] Posting kanataConfigChanged notification (input='\(inputKanata)', output='\(outputKanata)', layer='\(targetLayer)')")
-            NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
-
             showTransientStatus("✓ Saved")
             AppLogger.shared.log("✅ [MapperViewModel] Saved mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [layer: \(currentLayer)] (ruleID: \(customRule.id))")
         } else {
-            // Custom rule save failed (validation or conflict)
             statusMessage = "Rule save failed"
             statusIsError = true
             AppLogger.shared.error("❌ [MapperViewModel] saveCustomRule returned false for input='\(inputKanata)', output='\(outputKanata)'")

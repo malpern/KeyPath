@@ -25,6 +25,7 @@ struct OverlayMapperSection: View {
     @State var isSystemActionsExpanded = false
     @State var isLaunchAppsExpanded = false
     @State var isLayersExpanded = false
+    @State var outputActionPopoverContentHeight: CGFloat = 0
     @State var knownApps: [AppLaunchInfo] = []
     @State var showingNewLayerDialog = false
     @State var newLayerName = ""

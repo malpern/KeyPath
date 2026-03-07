@@ -267,11 +267,11 @@ struct CustomRuleRow: View {
                             behaviorSummaryView(behavior: behavior)
                         }
 
-                        if rule.shiftedOutput != nil {
-                            shiftedOutputBadge
-                        }
-
                         Spacer(minLength: 0)
+                    }
+
+                    if let shiftedOutput = rule.shiftedOutput {
+                        RuleModifierVariantView(label: "⇧ Shift", output: shiftedOutput)
                     }
 
                     if let notes = rule.notes, !notes.isEmpty {
@@ -356,18 +356,6 @@ struct CustomRuleRow: View {
             }
         }
         .foregroundColor(.secondary)
-    }
-
-    private var shiftedOutputBadge: some View {
-        Text("⇧ Customized")
-            .font(.caption2.weight(.medium))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(Color.orange.opacity(0.12))
-            )
     }
 
     /// Extract tap dance steps (skip index 0 which is single tap = output)
