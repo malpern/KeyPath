@@ -79,6 +79,48 @@ extension OverlayMapperSection {
         }
     }
 
+    var tapCountHeader: some View {
+        HStack {
+            Text("Trigger")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+    }
+
+    func tapCountOption(count: Int, label: String) -> some View {
+        let isSelected = selectedTapCount == count
+        let isConfigured = count == 1 || viewModel.multiTapAction(for: count) != nil
+
+        return Button {
+            selectedTapCount = count
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "checkmark" : "circle")
+                    .font(isSelected ? .body.weight(.medium) : .body)
+                    .frame(width: 28)
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.5))
+                Text(label)
+                    .font(.body)
+                Spacer()
+                if isConfigured, count > 1 {
+                    Circle()
+                        .fill(Color.accentColor)
+                        .frame(width: 5, height: 5)
+                }
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(LayerPickerItemButtonStyle())
+        .focusable(false)
+        .accessibilityIdentifier("overlay-mapper-tap-count-\(count)")
+    }
+
     var everywhereOption: some View {
         Button {
             viewModel.selectedAppCondition = nil
@@ -275,13 +317,17 @@ extension OverlayMapperSection {
     func toggleRecordingForCurrentSlot() {
         switch selectedBehaviorSlot {
         case .tap:
-            if selectedTapOutputMode == .shifted {
+            if selectedTapCount > 1 {
+                viewModel.toggleMultiTapRecording(for: selectedTapCount)
+            } else if selectedTapOutputMode == .shifted {
                 viewModel.toggleShiftedOutputRecording()
             } else {
                 viewModel.toggleOutputRecording()
             }
         case .hold:
             viewModel.toggleHoldRecording()
+        case .shift:
+            viewModel.toggleShiftedOutputRecording()
         case .combo:
             viewModel.toggleComboOutputRecording()
         }
@@ -291,13 +337,17 @@ extension OverlayMapperSection {
     func clearCurrentSlot() {
         switch selectedBehaviorSlot {
         case .tap:
-            if selectedTapOutputMode == .shifted {
+            if selectedTapCount > 1 {
+                viewModel.clearMultiTapAction(for: selectedTapCount)
+            } else if selectedTapOutputMode == .shifted {
                 viewModel.clearShiftedOutput()
             } else {
                 viewModel.revertToKeystroke()
             }
         case .hold:
             viewModel.advancedBehavior.holdAction = ""
+        case .shift:
+            viewModel.clearShiftedOutput()
         case .combo:
             viewModel.advancedBehavior.comboKeys = []
             viewModel.advancedBehavior.comboOutput = ""
@@ -314,7 +364,6 @@ extension OverlayMapperSection {
         let tapHasAction = viewModel.selectedApp != nil ||
             viewModel.selectedSystemAction != nil ||
             viewModel.selectedURL != nil ||
-            viewModel.hasShiftedOutputConfigured ||
             viewModel.outputLabel.lowercased() != viewModel.inputLabel.lowercased() ||
             hasMultiTapConfigured
         if tapHasAction {
@@ -324,6 +373,11 @@ extension OverlayMapperSection {
         // Check hold slot
         if !viewModel.holdAction.isEmpty {
             slots.insert(.hold)
+        }
+
+        // Check shift slot
+        if viewModel.hasShiftedOutputConfigured {
+            slots.insert(.shift)
         }
 
         // Check combo slot
@@ -378,6 +432,20 @@ extension OverlayMapperSection {
                 try? await Task.sleep(for: .milliseconds(500))
                 withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
                     outputKeycapScale = 1.0
+                }
+
+            case .shift:
+                // Choreography: label first, then keycap bounce
+                withAnimation(.easeOut(duration: 0.12)) {
+                    showBehaviorLabel = true
+                }
+                try? await Task.sleep(for: .milliseconds(80))
+                withAnimation(.spring(response: 0.15, dampingFraction: 0.5)) {
+                    outputKeycapBounce = true
+                }
+                try? await Task.sleep(for: .milliseconds(120))
+                withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
+                    outputKeycapBounce = false
                 }
 
             case .combo:

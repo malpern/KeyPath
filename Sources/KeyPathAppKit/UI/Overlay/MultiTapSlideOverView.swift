@@ -8,12 +8,10 @@ struct MultiTapSlideOverView: View {
     private let tapCounts = [2, 3, 4]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Configure what happens when you tap \(sourceKey) multiple times in quick succession.")
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Tap \(sourceKey.uppercased()) multiple times to trigger different actions.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-
-            Divider()
 
             ForEach(tapCounts, id: \.self) { count in
                 MultiTapRow(
@@ -38,44 +36,62 @@ private struct MultiTapRow: View {
     let onClear: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
-            Text("\(count)x Tap")
-                .font(.subheadline.weight(.medium))
+        HStack(spacing: 6) {
+            // Tap count badge
+            Text("\(count)×")
+                .font(.caption.weight(.semibold).monospaced())
+                .foregroundStyle(action.isEmpty ? .tertiary : .primary)
+                .frame(width: 22)
 
-            Spacer()
-
-            if isRecording {
-                Text("Recording...")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if action.isEmpty {
-                Text("Not configured")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            } else {
-                Text(KeyDisplayFormatter.format(action))
-                    .font(.caption.monospaced())
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(.quaternary)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            // Action display / record button
+            Button(action: onRecord) {
+                HStack(spacing: 4) {
+                    if isRecording {
+                        Circle()
+                            .fill(.red)
+                            .frame(width: 6, height: 6)
+                        Text("Press a key…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if action.isEmpty {
+                        Text("Record")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(KeyDisplayFormatter.format(action))
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(isRecording ? Color.red.opacity(0.08) : Color.primary.opacity(0.04))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(
+                            isRecording ? Color.red.opacity(0.3) : Color.primary.opacity(0.1),
+                            lineWidth: 0.5
+                        )
+                )
             }
-
-            Button {
-                onRecord()
-            } label: {
-                Image(systemName: isRecording ? "stop.fill" : "record.circle")
-            }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
             .accessibilityIdentifier("multitap-record-\(count)x")
 
-            Button {
-                onClear()
-            } label: {
-                Image(systemName: "xmark.circle")
+            // Clear button (only when configured)
+            if !action.isEmpty {
+                Button(action: onClear) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("multitap-clear-\(count)x")
             }
-            .buttonStyle(.borderless)
-            .accessibilityIdentifier("multitap-clear-\(count)x")
         }
     }
 }

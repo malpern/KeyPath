@@ -32,6 +32,8 @@ struct OverlayMapperSection: View {
     @State var showMultiTapSlideOver = false
     /// Currently selected layer for "Go to Layer" output
     @State var selectedLayerOutput: String?
+    /// Selected tap count (1 = single, 2 = double, 3 = triple)
+    @State var selectedTapCount: Int = 1
 
     /// Current behavior slot being edited (tap is default)
     @State var selectedBehaviorSlot: BehaviorSlot = .tap
@@ -109,6 +111,7 @@ struct OverlayMapperSection: View {
             // Reset to tap slot when selecting a new key
             selectedBehaviorSlot = .tap
             selectedTapOutputMode = .default
+            selectedTapCount = 1
             updateConfiguredBehaviorSlots()
         }
 
@@ -277,13 +280,19 @@ struct OverlayMapperSection: View {
         }
 
         let withShiftAvailability = withSystemChange.onChange(of: viewModel.canUseShiftedOutput) { _, canUse in
-            if !canUse, selectedTapOutputMode == .shifted {
-                selectedTapOutputMode = .default
+            if !canUse {
+                if selectedTapOutputMode == .shifted {
+                    selectedTapOutputMode = .default
+                }
+                if selectedBehaviorSlot == .shift {
+                    selectedBehaviorSlot = .tap
+                }
             }
         }
 
         let withSlotChange = withShiftAvailability.onChange(of: selectedBehaviorSlot) { _, newSlot in
-            selectedTapOutputMode = .default
+            selectedTapOutputMode = newSlot == .shift ? .shifted : .default
+            if newSlot != .tap { selectedTapCount = 1 }
             playBehaviorAnimation(for: newSlot)
         }
 
@@ -295,7 +304,14 @@ struct OverlayMapperSection: View {
             }
         }
 
-        let withResetDialog = withTapModeChange.confirmationDialog(
+        let withTapCountChange = withTapModeChange.onChange(of: selectedTapCount) { _, newCount in
+            if newCount > 1 {
+                // Show label animation for multi-tap
+                playBehaviorAnimation(for: .tap)
+            }
+        }
+
+        let withResetDialog = withTapCountChange.confirmationDialog(
             "Clear Mapping",
             isPresented: $showingResetDialog,
             titleVisibility: .visible
@@ -368,11 +384,24 @@ struct OverlayMapperSection: View {
             viewModel.selectedSystemAction != nil ||
             viewModel.selectedURL != nil
 
-        return hasKeyRemapping || hasAction || hasMultiTapConfigured || viewModel.hasShiftedOutputConfigured
+        return hasKeyRemapping || hasAction || hasMultiTapConfigured
     }
 
     var hasMultiTapConfigured: Bool {
         !viewModel.doubleTapAction.isEmpty || viewModel.tapDanceSteps.contains { !$0.action.isEmpty }
+    }
+
+    /// Label shown above the input keycap for non-default triggers
+    private var inputModifierLabel: String? {
+        if selectedTapCount > 1 {
+            return "\(selectedTapCount)× Tap"
+        }
+        switch selectedBehaviorSlot {
+        case .tap: return nil
+        case .hold: return "Hold"
+        case .shift: return "⇧ Shift"
+        case .combo: return "Combo"
+        }
     }
 
     private var mapperContent: some View {
@@ -398,12 +427,25 @@ struct OverlayMapperSection: View {
                 HStack(alignment: .top, spacing: spacing) {
                     // Input column: Keycap -> Dropdown -> App indicators
                     VStack(spacing: 4) {
-                        MapperInputKeycap(
-                            label: viewModel.inputLabel,
-                            keyCode: viewModel.inputKeyCode,
-                            isRecording: viewModel.isRecordingInput,
-                            onTap: { viewModel.toggleInputRecording() }
-                        )
+                        // Keycap with input modifier label above
+                        ZStack(alignment: .top) {
+                            MapperInputKeycap(
+                                label: viewModel.inputLabel,
+                                keyCode: viewModel.inputKeyCode,
+                                isRecording: viewModel.isRecordingInput,
+                                onTap: { viewModel.toggleInputRecording() }
+                            )
+
+                            // Input modifier label (Shift, multi-tap) floats above input keycap
+                            if let inputModifierLabel {
+                                Text(inputModifierLabel)
+                                    .font(.caption.weight(.medium))
+                                    .foregroundStyle(Color.accentColor)
+                                    .offset(y: -18)
+                                    .opacity(showBehaviorLabel ? 1 : 0)
+                                    .scaleEffect(showBehaviorLabel ? 1 : 0.8)
+                            }
+                        }
                         appConditionDropdown
                         appMappingIndicators
                     }
@@ -442,7 +484,7 @@ struct OverlayMapperSection: View {
                         // Keycap with label overlay above
                         ZStack(alignment: .top) {
                             // Use different keycap for tap vs other behavior slots
-                            if selectedBehaviorSlot == .tap {
+                            if selectedBehaviorSlot == .tap, selectedTapCount == 1 {
                                 MapperKeycapView(
                                     label: activeTapOutputLabel,
                                     isRecording: activeTapIsRecording,
@@ -454,12 +496,15 @@ struct OverlayMapperSection: View {
                                 )
                                 .scaleEffect(outputKeycapScale)
                             } else {
-                                // Hold/Combo use BehaviorSlotKeycap
+                                // Hold/Shift/Combo/Multi-tap use BehaviorSlotKeycap
+                                let slotName = selectedTapCount > 1
+                                    ? "\(selectedTapCount)× Tap"
+                                    : selectedBehaviorSlot.label
                                 BehaviorSlotKeycap(
                                     label: currentSlotOutputLabel,
                                     isConfigured: currentSlotIsConfigured,
                                     isRecording: isRecordingForCurrentSlot,
-                                    slotName: selectedBehaviorSlot.label,
+                                    slotName: slotName,
                                     onTap: { toggleRecordingForCurrentSlot() },
                                     onClear: { clearCurrentSlot() }
                                 )
@@ -467,15 +512,7 @@ struct OverlayMapperSection: View {
                                 .scaleEffect(outputKeycapScale)
                             }
 
-                            // Behavior slot label floats above keycap
-                            if selectedBehaviorSlot != .tap {
-                                Text(selectedBehaviorSlot.label)
-                                    .font(.caption.weight(.medium))
-                                    .foregroundStyle(Color.accentColor)
-                                    .offset(y: -18)
-                                    .opacity(showBehaviorLabel ? 1 : 0)
-                                    .scaleEffect(showBehaviorLabel ? 1 : 0.8)
-                            }
+                            // (trigger labels are shown above the input keycap)
                         }
                         // Output type dropdown shown for all slots
                         outputTypeDropdown
@@ -485,21 +522,6 @@ struct OverlayMapperSection: View {
                             holdVariantButton
                         }
 
-                        if selectedBehaviorSlot == .tap {
-                            Button {
-                                showMultiTapSlideOver = true
-                            } label: {
-                                HStack(spacing: 4) {
-                                    Text("Multi-tap actions")
-                                        .font(.caption)
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption2)
-                                }
-                                .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("overlay-mapper-multitap-link")
-                        }
                     }
                     .frame(width: keycapWidth)
                 }
@@ -509,10 +531,6 @@ struct OverlayMapperSection: View {
                 .frame(width: availableWidth, height: proxy.size.height, alignment: .leading)
             }
             .frame(height: 160)
-
-            if selectedBehaviorSlot == .tap {
-                shiftOutputEditor
-            }
 
             if viewModel.showAdvanced {
                 AdvancedBehaviorContent(viewModel: viewModel)
@@ -558,7 +576,8 @@ struct OverlayMapperSection: View {
     /// App condition dropdown - subtle when not set, shows app icon when set
     private var appConditionDropdown: some View {
         let hasCondition = viewModel.selectedAppCondition != nil
-        let displayText = viewModel.selectedAppCondition?.displayName ?? "Everywhere"
+        let isNonDefault = hasCondition || selectedTapCount > 1
+        let displayText = inputConditionDisplayText
 
         return Button {
             // Start loading apps immediately BEFORE opening popover
@@ -577,22 +596,39 @@ struct OverlayMapperSection: View {
                     .font(.caption2)
             }
             .font(.caption2)
-            .foregroundStyle(hasCondition ? .primary : .secondary)
+            .foregroundStyle(isNonDefault ? .primary : .secondary)
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
             .background(
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(hasCondition ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.04))
+                    .fill(isNonDefault ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.04))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(hasCondition ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.2), lineWidth: 0.5)
+                    .strokeBorder(isNonDefault ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.2), lineWidth: 0.5)
             )
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("overlay-mapper-app-condition")
         .popover(isPresented: $isAppConditionPickerOpen, arrowEdge: .bottom) {
             appConditionPopover
+        }
+    }
+
+    /// Display text for the input condition dropdown
+    private var inputConditionDisplayText: String {
+        let tapLabel: String? = switch selectedTapCount {
+        case 2: "2× Tap"
+        case 3: "3× Tap"
+        default: nil
+        }
+        let appLabel = viewModel.selectedAppCondition?.displayName
+
+        switch (tapLabel, appLabel) {
+        case let (tap?, app?): return "\(tap) · \(app)"
+        case let (tap?, nil): return "\(tap) · Everywhere"
+        case let (nil, app?): return app
+        default: return "Everywhere"
         }
     }
 
@@ -621,6 +657,15 @@ struct OverlayMapperSection: View {
     private var appConditionPopover: some View {
         ScrollView {
             VStack(spacing: 0) {
+                // Tap count section (only in tap behavior slot)
+                if selectedBehaviorSlot == .tap {
+                    tapCountHeader
+                    tapCountOption(count: 1, label: "Single Tap")
+                    tapCountOption(count: 2, label: "Double Tap")
+                    tapCountOption(count: 3, label: "Triple Tap")
+                    PopoverListDivider()
+                }
+
                 everywhereOption
                 PopoverListDivider()
                 onlyInHeader
@@ -630,7 +675,7 @@ struct OverlayMapperSection: View {
             }
             .padding(.vertical, 6)
         }
-        .frame(minWidth: 240, maxHeight: 350)
+        .frame(minWidth: 240, maxHeight: 400)
         .pickerPopoverChrome()
     }
 }

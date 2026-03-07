@@ -9,10 +9,16 @@ extension OverlayMapperSection {
     var currentSlotOutputLabel: String {
         switch selectedBehaviorSlot {
         case .tap:
+            if selectedTapCount > 1 {
+                let action = viewModel.multiTapAction(for: selectedTapCount) ?? ""
+                return action.isEmpty ? "" : KeyDisplayFormatter.format(action)
+            }
             return activeTapOutputLabel
         case .hold:
             let action = viewModel.holdAction
             return action.isEmpty ? "" : KeyDisplayFormatter.format(action)
+        case .shift:
+            return viewModel.shiftedOutputLabel ?? ""
         case .combo:
             let action = viewModel.comboOutput
             return action.isEmpty ? "" : KeyDisplayFormatter.format(action)
@@ -24,12 +30,17 @@ extension OverlayMapperSection {
     var currentSlotIsConfigured: Bool {
         switch selectedBehaviorSlot {
         case .tap:
+            if selectedTapCount > 1 {
+                return viewModel.multiTapAction(for: selectedTapCount) != nil
+            }
             // Tap always has a behavior (even if it's same key in/out)
-            true
+            return true
         case .hold:
-            !viewModel.holdAction.isEmpty
+            return !viewModel.holdAction.isEmpty
+        case .shift:
+            return viewModel.hasShiftedOutputConfigured
         case .combo:
-            viewModel.advancedBehavior.hasValidCombo
+            return viewModel.advancedBehavior.hasValidCombo
         }
     }
 
@@ -37,11 +48,16 @@ extension OverlayMapperSection {
     var isRecordingForCurrentSlot: Bool {
         switch selectedBehaviorSlot {
         case .tap:
-            activeTapIsRecording
+            if selectedTapCount > 1 {
+                return viewModel.isRecordingMultiTap(for: selectedTapCount)
+            }
+            return activeTapIsRecording
         case .hold:
-            viewModel.isRecordingHold
+            return viewModel.isRecordingHold
+        case .shift:
+            return viewModel.isRecordingShiftedOutput
         case .combo:
-            viewModel.isRecordingComboOutput
+            return viewModel.isRecordingComboOutput
         }
     }
 
