@@ -355,6 +355,7 @@ extension MapperViewModel {
                 } else if target == .shiftedOutput {
                     self.shiftedOutputSequence = sequence
                     self.shiftedOutputLabel = sequence.displayString
+                    self.isShiftedOutputDefault = false
                 } else {
                     self.outputSequence = sequence
                     self.outputLabel = sequence.displayString
@@ -605,8 +606,7 @@ extension MapperViewModel {
             )
 
             if success {
-                statusMessage = "✓ Saved"
-                statusIsError = false
+                showTransientStatus("✓ Saved")
                 SoundPlayer.shared.playSuccessSound()
                 AppLogger.shared.log("✅ [MapperViewModel] Saved app-specific mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [only in \(appCondition.displayName)]")
             } else {
@@ -618,100 +618,85 @@ extension MapperViewModel {
             return
         }
 
-        // Global mapping (no app condition)
-        do {
-            // Use the existing config generator for complex sequences
-            let configGenerator = KanataConfigGenerator(kanataManager: kanataManager)
-            let generatedConfig = try await configGenerator.generateMapping(
-                input: inputSeq,
-                output: outputSeq
+        // Global mapping — save as CustomRule and let regenerateConfigFromCollections
+        // build the full kanata config (handles forks, tap-hold, tap-dance, chords, macros, etc.)
+        let inputKanata = convertSequenceToKanataFormat(inputSeq)
+        let outputKanata = convertSequenceToKanataFormat(outputSeq)
+        let shiftedOutputKanata = canUseShiftedOutput ? currentShiftedOutputKanataString() : nil
+
+        // Convert currentLayer string to RuleCollectionLayer
+        let targetLayer = layerFromString(currentLayer)
+
+        // Use makeCustomRule to reuse existing rule ID for the same input key
+        // This prevents duplicate keys in defsrc which causes Kanata validation errors
+        var customRule = kanataManager.makeCustomRule(input: inputKanata, output: outputKanata)
+        customRule.notes = "Created via Mapper [\(currentLayer) layer]"
+        customRule.targetLayer = targetLayer
+        customRule.shiftedOutput = shiftedOutputKanata
+
+        // Add behavior based on configured actions
+        // Priority: macro → dualRole → tap-dance → chord
+        // (UI should prevent conflicting behaviors from being set simultaneously)
+        if let macroBehavior, macroBehavior.isValid {
+            customRule.behavior = .macro(macroBehavior)
+            AppLogger.shared.log("💾 [MapperViewModel] Adding macro behavior")
+        } else if !holdAction.isEmpty {
+            let dualRole = DualRoleBehavior(
+                tapAction: outputKanata,
+                holdAction: holdAction,
+                tapTimeout: tapTimeout,
+                holdTimeout: holdTimeout,
+                activateHoldOnOtherKey: holdBehavior == .triggerEarly,
+                quickTap: holdBehavior == .quickTap,
+                customTapKeys: holdBehavior == .customKeys ? customTapKeysText.split(separator: " ").map(String.init) : []
             )
-            try await kanataManager.saveGeneratedConfiguration(generatedConfig)
-
-            // Also save as custom rule for UI visibility
-            let inputKanata = convertSequenceToKanataFormat(inputSeq)
-            let outputKanata = convertSequenceToKanataFormat(outputSeq)
-            let shiftedOutputKanata = canUseShiftedOutput ? currentShiftedOutputKanataString() : nil
-
-            // Convert currentLayer string to RuleCollectionLayer
-            let targetLayer = layerFromString(currentLayer)
-
-            // Use makeCustomRule to reuse existing rule ID for the same input key
-            // This prevents duplicate keys in defsrc which causes Kanata validation errors
-            var customRule = kanataManager.makeCustomRule(input: inputKanata, output: outputKanata)
-            customRule.notes = "Created via Mapper [\(currentLayer) layer]"
-            customRule.targetLayer = targetLayer
-            customRule.shiftedOutput = shiftedOutputKanata
-
-            // Add behavior based on configured actions
-            // Priority: macro → dualRole → tap-dance → chord
-            // (UI should prevent conflicting behaviors from being set simultaneously)
-            if let macroBehavior, macroBehavior.isValid {
-                customRule.behavior = .macro(macroBehavior)
-                AppLogger.shared.log("💾 [MapperViewModel] Adding macro behavior")
-            } else if !holdAction.isEmpty {
-                let dualRole = DualRoleBehavior(
-                    tapAction: outputKanata,
-                    holdAction: holdAction,
-                    tapTimeout: tapTimeout,
-                    holdTimeout: holdTimeout,
-                    activateHoldOnOtherKey: holdBehavior == .triggerEarly,
-                    quickTap: holdBehavior == .quickTap,
-                    customTapKeys: holdBehavior == .customKeys ? customTapKeysText.split(separator: " ").map(String.init) : []
-                )
-                customRule.behavior = .dualRole(dualRole)
-                AppLogger.shared.log("💾 [MapperViewModel] Adding dualRole behavior: tap='\(outputKanata)', hold='\(holdAction)'")
-            } else if !doubleTapAction.isEmpty || tapDanceSteps.contains(where: { !$0.action.isEmpty }) {
-                // Build tap-dance steps: single tap + double tap + any additional steps
-                var steps = [
-                    TapDanceStep(label: "Single tap", action: outputKanata),
-                    TapDanceStep(label: "Double tap", action: doubleTapAction)
-                ]
-                // Add any additional tap-dance steps (triple tap, etc.)
-                for step in advancedBehavior.tapDanceSteps where !step.action.isEmpty {
-                    steps.append(TapDanceStep(label: step.label, action: step.action))
-                }
-                let tapDance = TapDanceBehavior(windowMs: tapTimeout, steps: steps)
-                customRule.behavior = .tapOrTapDance(.tapDance(tapDance))
-                AppLogger.shared.log("💾 [MapperViewModel] Adding tapDance behavior: \(steps.count) steps")
-            } else if advancedBehavior.hasValidCombo {
-                // Build chord from input key + combo keys
-                var allKeys = [inputKanata]
-                allKeys.append(contentsOf: advancedBehavior.comboKeys)
-                let chord = ChordBehavior(
-                    keys: allKeys,
-                    output: advancedBehavior.comboOutput,
-                    timeout: advancedBehavior.comboTimeout
-                )
-                customRule.behavior = .chord(chord)
-                AppLogger.shared.log("💾 [MapperViewModel] Adding chord behavior: keys=\(allKeys), output='\(chord.output)'")
+            customRule.behavior = .dualRole(dualRole)
+            AppLogger.shared.log("💾 [MapperViewModel] Adding dualRole behavior: tap='\(outputKanata)', hold='\(holdAction)'")
+        } else if !doubleTapAction.isEmpty || tapDanceSteps.contains(where: { !$0.action.isEmpty }) {
+            // Build tap-dance steps: single tap + double tap + any additional steps
+            var steps = [
+                TapDanceStep(label: "Single tap", action: outputKanata),
+                TapDanceStep(label: "Double tap", action: doubleTapAction)
+            ]
+            // Add any additional tap-dance steps (triple tap, etc.)
+            for step in advancedBehavior.tapDanceSteps where !step.action.isEmpty {
+                steps.append(TapDanceStep(label: step.label, action: step.action))
             }
+            let tapDance = TapDanceBehavior(windowMs: tapTimeout, steps: steps)
+            customRule.behavior = .tapOrTapDance(.tapDance(tapDance))
+            AppLogger.shared.log("💾 [MapperViewModel] Adding tapDance behavior: \(steps.count) steps")
+        } else if advancedBehavior.hasValidCombo {
+            // Build chord from input key + combo keys
+            var allKeys = [inputKanata]
+            allKeys.append(contentsOf: advancedBehavior.comboKeys)
+            let chord = ChordBehavior(
+                keys: allKeys,
+                output: advancedBehavior.comboOutput,
+                timeout: advancedBehavior.comboTimeout
+            )
+            customRule.behavior = .chord(chord)
+            AppLogger.shared.log("💾 [MapperViewModel] Adding chord behavior: keys=\(allKeys), output='\(chord.output)'")
+        }
 
-            let customRuleSaved = await kanataManager.saveCustomRule(customRule, skipReload: true)
-            AppLogger.shared.log("💾 [MapperViewModel] saveCustomRule returned: \(customRuleSaved)")
+        // skipReload: false — let regenerateConfigFromCollections rebuild the full config
+        // and reload kanata so all features (forks, tap-hold, etc.) take effect immediately
+        let customRuleSaved = await kanataManager.saveCustomRule(customRule, skipReload: false)
+        AppLogger.shared.log("💾 [MapperViewModel] saveCustomRule returned: \(customRuleSaved)")
 
-            if customRuleSaved {
-                // Track the saved rule ID for potential clearing
-                lastSavedRuleID = customRule.id
+        if customRuleSaved {
+            // Track the saved rule ID for potential clearing
+            lastSavedRuleID = customRule.id
 
-                // Notify overlay to rebuild layer mapping (since saveGeneratedConfiguration
-                // doesn't go through onRulesChanged, we post the notification explicitly)
-                AppLogger.shared.info("🔔 [MapperViewModel] Posting kanataConfigChanged notification (input='\(inputKanata)', output='\(outputKanata)', layer='\(targetLayer)')")
-                NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+            AppLogger.shared.info("🔔 [MapperViewModel] Posting kanataConfigChanged notification (input='\(inputKanata)', output='\(outputKanata)', layer='\(targetLayer)')")
+            NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
 
-                statusMessage = "✓ Saved"
-                statusIsError = false
-                AppLogger.shared.log("✅ [MapperViewModel] Saved mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [layer: \(currentLayer)] (ruleID: \(customRule.id))")
-            } else {
-                // Custom rule save failed (validation or conflict)
-                statusMessage = "Rule save failed"
-                statusIsError = true
-                AppLogger.shared.error("❌ [MapperViewModel] saveCustomRule returned false for input='\(inputKanata)', output='\(outputKanata)'")
-            }
-        } catch {
-            statusMessage = "Failed: \(error.localizedDescription)"
+            showTransientStatus("✓ Saved")
+            AppLogger.shared.log("✅ [MapperViewModel] Saved mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [layer: \(currentLayer)] (ruleID: \(customRule.id))")
+        } else {
+            // Custom rule save failed (validation or conflict)
+            statusMessage = "Rule save failed"
             statusIsError = true
-            AppLogger.shared.error("❌ [MapperViewModel] Save failed: \(error)")
+            AppLogger.shared.error("❌ [MapperViewModel] saveCustomRule returned false for input='\(inputKanata)', output='\(outputKanata)'")
         }
 
         isSaving = false

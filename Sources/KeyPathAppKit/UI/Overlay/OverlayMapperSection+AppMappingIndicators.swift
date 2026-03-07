@@ -348,6 +348,15 @@ extension OverlayMapperSection {
             viewModel.advancedBehavior.holdAction = ""
         case .shift:
             viewModel.clearShiftedOutput()
+            // Revert to system default if available
+            if let defaultShift = viewModel.defaultShiftSymbol {
+                viewModel.shiftedOutputLabel = defaultShift
+                viewModel.shiftedOutputSequence = KeySequence(
+                    keys: [KeyPress(baseKey: defaultShift, modifiers: [], keyCode: 0)],
+                    captureMode: .single
+                )
+                viewModel.isShiftedOutputDefault = true
+            }
         case .combo:
             viewModel.advancedBehavior.comboKeys = []
             viewModel.advancedBehavior.comboOutput = ""
@@ -388,7 +397,7 @@ extension OverlayMapperSection {
         configuredBehaviorSlots = slots
     }
 
-    /// Play animation on the output keycap to demonstrate the selected behavior
+    /// Play animation on the input keycap to demonstrate the selected behavior
     /// Choreography: For non-tap slots, label fades in first, then keycap bounces
     func playBehaviorAnimation(for slot: BehaviorSlot) {
         // Cancel any existing animation
@@ -396,18 +405,18 @@ extension OverlayMapperSection {
 
         // Reset label state when switching slots
         showBehaviorLabel = false
-        outputKeycapBounce = false
+        inputKeycapBounce = false
 
         behaviorAnimationTask = Task { @MainActor in
             switch slot {
             case .tap:
                 // Single press animation - no label needed
                 withAnimation(.easeIn(duration: 0.1)) {
-                    outputKeycapScale = 0.88
+                    inputKeycapScale = 0.88
                 }
                 try? await Task.sleep(for: .milliseconds(100))
                 withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
-                    outputKeycapScale = 1.0
+                    inputKeycapScale = 1.0
                 }
 
             case .hold:
@@ -418,20 +427,20 @@ extension OverlayMapperSection {
                 try? await Task.sleep(for: .milliseconds(80))
                 // Bounce the keycap
                 withAnimation(.spring(response: 0.15, dampingFraction: 0.5)) {
-                    outputKeycapBounce = true
+                    inputKeycapBounce = true
                 }
                 try? await Task.sleep(for: .milliseconds(120))
                 withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
-                    outputKeycapBounce = false
+                    inputKeycapBounce = false
                 }
                 // Then press-hold animation
                 try? await Task.sleep(for: .milliseconds(100))
                 withAnimation(.easeIn(duration: 0.15)) {
-                    outputKeycapScale = 0.85
+                    inputKeycapScale = 0.85
                 }
                 try? await Task.sleep(for: .milliseconds(500))
                 withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
-                    outputKeycapScale = 1.0
+                    inputKeycapScale = 1.0
                 }
 
             case .shift:
@@ -441,11 +450,11 @@ extension OverlayMapperSection {
                 }
                 try? await Task.sleep(for: .milliseconds(80))
                 withAnimation(.spring(response: 0.15, dampingFraction: 0.5)) {
-                    outputKeycapBounce = true
+                    inputKeycapBounce = true
                 }
                 try? await Task.sleep(for: .milliseconds(120))
                 withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
-                    outputKeycapBounce = false
+                    inputKeycapBounce = false
                 }
 
             case .combo:
@@ -456,25 +465,25 @@ extension OverlayMapperSection {
                 try? await Task.sleep(for: .milliseconds(80))
                 // Bounce the keycap
                 withAnimation(.spring(response: 0.15, dampingFraction: 0.5)) {
-                    outputKeycapBounce = true
+                    inputKeycapBounce = true
                 }
                 try? await Task.sleep(for: .milliseconds(120))
                 withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
-                    outputKeycapBounce = false
+                    inputKeycapBounce = false
                 }
                 // Combo animation: two quick simultaneous presses
                 try? await Task.sleep(for: .milliseconds(100))
                 // Simulate pressing multiple keys together
                 withAnimation(.easeIn(duration: 0.1)) {
-                    outputKeycapScale = 0.85
+                    inputKeycapScale = 0.85
                 }
                 try? await Task.sleep(for: .milliseconds(200))
                 withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
-                    outputKeycapScale = 1.05
+                    inputKeycapScale = 1.05
                 }
                 try? await Task.sleep(for: .milliseconds(100))
                 withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
-                    outputKeycapScale = 1.0
+                    inputKeycapScale = 1.0
                 }
             }
         }

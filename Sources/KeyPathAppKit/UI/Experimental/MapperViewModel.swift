@@ -13,12 +13,15 @@ class MapperViewModel {
     var inputLabel: String = "A"
     var outputLabel: String = "A"
     var shiftedOutputLabel: String?
+    /// Whether the current shifted output is the system default (not a custom override)
+    var isShiftedOutputDefault = false
     var isRecordingInput = false
     var isRecordingOutput = false
     var isRecordingShiftedOutput = false
     var isSaving = false
     var statusMessage: String?
     var statusIsError = false
+    private var statusDismissTask: Task<Void, Never>?
     var currentLayer: String = "base"
     var availableLayers: [String] = ["base", "nav"]
     /// Selected app for launch action (nil = normal key output)
@@ -231,6 +234,11 @@ class MapperViewModel {
         shiftedOutputSequence != nil
     }
 
+    /// Whether the current input key has a standard shift symbol (e.g., 1→!, ;→:)
+    var defaultShiftSymbol: String? {
+        LabelMetadata.forLabel(inputLabel).shiftSymbol
+    }
+
     var shiftedOutputBlockingReason: String? {
         if selectedAppCondition != nil {
             return "Shift output is only available for rules that apply everywhere."
@@ -345,6 +353,16 @@ class MapperViewModel {
         }
         applyShiftedOutputPreset(shiftedOutputKey)
 
+        // If no custom shifted output was loaded, pre-populate with system default
+        if !hasShiftedOutputConfigured, let defaultShift = defaultShiftSymbol {
+            shiftedOutputLabel = defaultShift
+            shiftedOutputSequence = KeySequence(
+                keys: [KeyPress(baseKey: defaultShift, modifiers: [], keyCode: 0)],
+                captureMode: .single
+            )
+            isShiftedOutputDefault = true
+        }
+
         // Update list of apps that have mappings for this key
         Task { await updateAppsWithMapping() }
 
@@ -368,11 +386,31 @@ class MapperViewModel {
 
         // Look up existing rule
         guard let existingRule = kanataManager.getCustomRule(forInput: inputKey) else {
-            clearShiftedOutput()
+            // No custom rule — populate default shift symbol if available
+            if !hasShiftedOutputConfigured, let defaultShift = defaultShiftSymbol {
+                shiftedOutputLabel = defaultShift
+                shiftedOutputSequence = KeySequence(
+                    keys: [KeyPress(baseKey: defaultShift, modifiers: [], keyCode: 0)],
+                    captureMode: .single
+                )
+                isShiftedOutputDefault = true
+            }
             AppLogger.shared.log("📖 [MapperViewModel] No existing behavior for input '\(inputKey)'")
             return
         }
         applyShiftedOutputPreset(existingRule.shiftedOutput)
+        // If a custom shifted output was loaded, mark it as non-default
+        if hasShiftedOutputConfigured {
+            isShiftedOutputDefault = false
+        } else if let defaultShift = defaultShiftSymbol {
+            // No custom shift in rule — populate default
+            shiftedOutputLabel = defaultShift
+            shiftedOutputSequence = KeySequence(
+                keys: [KeyPress(baseKey: defaultShift, modifiers: [], keyCode: 0)],
+                captureMode: .single
+            )
+            isShiftedOutputDefault = true
+        }
 
         guard let behavior = existingRule.behavior else {
             AppLogger.shared.log("📖 [MapperViewModel] No existing behavior for input '\(inputKey)'")
@@ -566,6 +604,21 @@ class MapperViewModel {
             keys: [KeyPress(baseKey: shiftedOutput, modifiers: [], keyCode: 0)],
             captureMode: .single
         )
+        isShiftedOutputDefault = false
+    }
+
+    /// Show a success status message that auto-dismisses after a delay
+    func showTransientStatus(_ message: String, duration: Duration = .seconds(2)) {
+        statusDismissTask?.cancel()
+        statusMessage = message
+        statusIsError = false
+        statusDismissTask = Task { @MainActor in
+            try? await Task.sleep(for: duration)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.3)) {
+                statusMessage = nil
+            }
+        }
     }
 
     func clearShiftedOutput() {
@@ -573,9 +626,12 @@ class MapperViewModel {
         shiftedOutputSequence = nil
         originalShiftedOutputKey = nil
         isRecordingShiftedOutput = false
+        isShiftedOutputDefault = false
     }
 
     func currentShiftedOutputKanataString() -> String? {
+        // Don't save system default shift as a custom rule
+        guard !isShiftedOutputDefault else { return nil }
         guard let shiftedOutputSequence else { return nil }
         let kanata = convertSequenceToKanataFormat(shiftedOutputSequence)
         return kanata.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : kanata

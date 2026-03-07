@@ -212,40 +212,33 @@ final class RecordingCoordinator {
             return
         }
 
-        // Otherwise, generate a full config (macros/sequences/chords)
+        // Save as CustomRule and let regenerateConfigFromCollections build the full kanata config
+        // (handles macros, sequences, chords, forks, tap-hold, etc.)
         AppLogger.shared.log("📝 [RecordingCoordinator] Using COMPLEX path (multi-key or modifiers)")
-        let configGenerator = KanataConfigGenerator(kanataManager: kanataManager)
-        do {
-            let generatedConfig = try await configGenerator.generateMapping(
-                input: inputSequence, output: outputSequence
-            )
-            try await kanataManager.saveGeneratedConfiguration(generatedConfig)
-            AppLogger.shared.log("📝 [RecordingCoordinator] Generated config saved successfully")
+        let inputKanata = convertSequenceToKanataInput(inputSequence)
+        let outputKanata = convertSequenceToKanataOutput(outputSequence)
+        AppLogger.shared.log("📝 [RecordingCoordinator] Creating CustomRule: '\(inputKanata)' → '\(outputKanata)'")
+        let customRule = CustomRule(
+            input: inputKanata,
+            output: outputKanata,
+            isEnabled: true,
+            notes: "Created via recording"
+        )
+        let saveResult = await kanataManager.saveCustomRule(customRule, skipReload: false)
+        AppLogger.shared.log("📝 [RecordingCoordinator] CustomRule save result: \(saveResult)")
 
-            // Also create a CustomRule so it appears in the Custom Rules UI
-            let inputKanata = convertSequenceToKanataInput(inputSequence)
-            let outputKanata = convertSequenceToKanataOutput(outputSequence)
-            AppLogger.shared.log("📝 [RecordingCoordinator] Creating CustomRule: '\(inputKanata)' → '\(outputKanata)'")
-            let customRule = CustomRule(
-                input: inputKanata,
-                output: outputKanata,
-                isEnabled: true,
-                notes: "Created via recording"
-            )
-            let saveResult = await kanataManager.saveCustomRule(customRule, skipReload: true)
-            AppLogger.shared.log("📝 [RecordingCoordinator] CustomRule save result: \(saveResult)")
+        await kanataManager.updateStatus()
 
-            await kanataManager.updateStatus()
-
+        if saveResult {
             await MainActor.run {
                 onSuccess(
                     "Key mapping saved: \(inputSequence.displayString) → \(outputSequence.displayString)"
                 )
                 clearCapturedSequences()
             }
-        } catch {
-            AppLogger.shared.log("❌ [Coordinator] Error saving mapping: \(error)")
-            onError(error)
+        } else {
+            AppLogger.shared.log("❌ [Coordinator] CustomRule save failed")
+            onError(KeyPathError.coordination(.recordingFailed(reason: "Failed to save mapping rule")))
         }
     }
 
