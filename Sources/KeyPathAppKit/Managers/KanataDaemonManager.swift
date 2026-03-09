@@ -115,7 +115,7 @@ class KanataDaemonManager {
     /// - Returns: The current ServiceManagementState
     @discardableResult
     nonisolated func refreshManagementState() async -> ServiceManagementState {
-        let hasLegacy = FileManager.default.fileExists(atPath: Self.legacyPlistPath)
+        let hasLegacy = Foundation.FileManager().fileExists(atPath: Self.legacyPlistPath)
         let svc = Self.smServiceFactory(Self.kanataPlistName)
         let smStatus = svc.status
 
@@ -244,7 +244,7 @@ class KanataDaemonManager {
     /// Check if legacy launchctl installation exists
     /// - Returns: true if plist exists at /Library/LaunchDaemons/com.keypath.kanata.plist
     nonisolated func hasLegacyInstallation() -> Bool {
-        FileManager.default.fileExists(atPath: Self.legacyPlistPath)
+        Foundation.FileManager().fileExists(atPath: Self.legacyPlistPath)
     }
 
     /// Check if SMAppService is currently being used for Kanata daemon management
@@ -364,9 +364,7 @@ class KanataDaemonManager {
         AppLogger.shared.log(
             "🔐 [SMAPPSERVICE-TRIGGER] *** ENTRY POINT *** Registering Kanata daemon via SMAppService"
         )
-        // Log stack trace to identify caller
-        let callStack = Thread.callStackSymbols.prefix(10).joined(separator: "\n")
-        AppLogger.shared.log("🔐 [SMAPPSERVICE-TRIGGER] Call stack:\n\(callStack)")
+        AppLogger.shared.log("🔐 [SMAPPSERVICE-TRIGGER] Caller stack unavailable in this build")
         AppLogger.shared.log(
             "🔍 [KanataDaemonManager] macOS version check: \(ProcessInfo.processInfo.operatingSystemVersionString)"
         )
@@ -390,7 +388,7 @@ class KanataDaemonManager {
             AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for plist at: \(expectedPlistPath)")
 
             // First check the expected location (build scripts place it here)
-            if FileManager.default.fileExists(atPath: expectedPlistPath) {
+            if Foundation.FileManager().fileExists(atPath: expectedPlistPath) {
                 AppLogger.shared.log(
                     "✅ [KanataDaemonManager] Found plist at expected location: \(expectedPlistPath)"
                 )
@@ -437,7 +435,7 @@ class KanataDaemonManager {
             // Validate runtime host exists in app bundle
             let launcherPath = WizardSystemPaths.bundledKanataLauncherPath
             AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for Kanata launcher at: \(launcherPath)")
-            guard FileManager.default.fileExists(atPath: launcherPath) else {
+            guard Foundation.FileManager().fileExists(atPath: launcherPath) else {
                 AppLogger.shared.log("❌ [KanataDaemonManager] Kanata launcher not found at: \(launcherPath)")
                 throw KanataDaemonError.registrationFailed(
                     "Kanata launcher not found in app bundle: \(launcherPath)"
@@ -448,7 +446,7 @@ class KanataDaemonManager {
             // Validate kanata core binary exists in app bundle
             let kanataPath = WizardSystemPaths.bundledKanataPath
             AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for Kanata binary at: \(kanataPath)")
-            guard FileManager.default.fileExists(atPath: kanataPath) else {
+            guard Foundation.FileManager().fileExists(atPath: kanataPath) else {
                 AppLogger.shared.log("❌ [KanataDaemonManager] Kanata binary not found at: \(kanataPath)")
                 throw KanataDaemonError.registrationFailed(
                     "Kanata binary not found in app bundle: \(kanataPath)"

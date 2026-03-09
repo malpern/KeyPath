@@ -133,7 +133,7 @@ final class TypingSoundsManager {
         keyInputObserver = NotificationCenter.default.addObserver(
             forName: .kanataKeyInput,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] notification in
             guard let action = notification.userInfo?["action"] as? String else { return }
             Task { @MainActor [weak self] in

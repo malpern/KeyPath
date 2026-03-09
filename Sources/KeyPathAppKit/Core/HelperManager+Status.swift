@@ -300,7 +300,7 @@ extension HelperManager {
             "/var/log/com.keypath.helper.stdout.log",
             "/var/log/com.keypath.helper.stderr.log"
         ]
-        for path in fileCandidates where FileManager.default.fileExists(atPath: path) {
+        for path in fileCandidates where Foundation.FileManager().fileExists(atPath: path) {
             do {
                 let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
                 let data = try handle.readToEnd()

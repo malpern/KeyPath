@@ -8,9 +8,9 @@ actor CustomRulesStore {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private let fileURL: URL
-    private let fileManager: Foundation.FileManager
+    private let fileManager: FileManager
 
-    init(fileURL: URL? = nil, fileManager: Foundation.FileManager = .default) {
+    init(fileURL: URL? = nil, fileManager: FileManager = Foundation.FileManager()) {
         self.fileManager = fileManager
         let defaultDirectory = URL(
             fileURLWithPath: WizardSystemPaths.userConfigDirectory, isDirectory: true

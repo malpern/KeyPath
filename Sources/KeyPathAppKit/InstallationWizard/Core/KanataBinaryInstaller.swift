@@ -27,7 +27,7 @@ final class KanataBinaryInstaller {
         // Ensure bundled binary exists
         // NOTE: This case is now surfaced as a .critical wizard issue via KanataBinaryDetector
         // detecting .bundledMissing status and IssueGenerator creating a .bundledKanataMissing component issue
-        guard FileManager.default.fileExists(atPath: bundledPath) else {
+        guard Foundation.FileManager().fileExists(atPath: bundledPath) else {
             AppLogger.shared.log(
                 "❌ [KanataBinaryInstaller] CRITICAL: Bundled kanata binary not found at: \(bundledPath)"
             )
@@ -38,7 +38,7 @@ final class KanataBinaryInstaller {
         }
 
         // Verify the bundled binary is executable
-        guard FileManager.default.isExecutableFile(atPath: bundledPath) else {
+        guard Foundation.FileManager().isExecutableFile(atPath: bundledPath) else {
             AppLogger.shared.log(
                 "❌ [KanataBinaryInstaller] Bundled kanata binary exists but is not executable: \(bundledPath)"
             )
@@ -62,7 +62,7 @@ final class KanataBinaryInstaller {
         if TestEnvironment.shouldSkipAdminOperations {
             AppLogger.shared.log("⚠️ [KanataBinaryInstaller] TEST MODE: Skipping actual binary installation")
             // In test mode, just verify the source exists and return success
-            success = FileManager.default.fileExists(atPath: bundledPath)
+            success = Foundation.FileManager().fileExists(atPath: bundledPath)
         } else {
             // Mark warm-up before replacement so health checks can treat launchctl "not found"
             // transitions as transient while the daemon is being swapped.
@@ -184,13 +184,13 @@ final class KanataBinaryInstaller {
         let bundledPath = WizardSystemPaths.bundledKanataPath
 
         // If system version doesn't exist, we need to install it
-        guard FileManager.default.fileExists(atPath: systemPath) else {
+        guard Foundation.FileManager().fileExists(atPath: systemPath) else {
             AppLogger.shared.log("🔄 [KanataBinaryInstaller] System kanata not found - initial installation needed")
             return true
         }
 
         // If bundled version doesn't exist, no upgrade possible
-        guard FileManager.default.fileExists(atPath: bundledPath) else {
+        guard Foundation.FileManager().fileExists(atPath: bundledPath) else {
             AppLogger.shared.log("⚠️ [KanataBinaryInstaller] Bundled kanata not found - cannot upgrade")
             return false
         }
@@ -244,14 +244,14 @@ final class KanataBinaryInstaller {
         let systemPath = WizardSystemPaths.kanataSystemInstallPath
 
         // Verify the system path exists, otherwise fall back to bundled
-        if FileManager.default.fileExists(atPath: systemPath) {
+        if Foundation.FileManager().fileExists(atPath: systemPath) {
             AppLogger.shared.log(
                 "✅ [KanataBinaryInstaller] Using system Kanata path (has TCC permissions): \(systemPath)"
             )
             return systemPath
         } else {
             let bundledPath = WizardSystemPaths.bundledKanataPath
-            if FileManager.default.fileExists(atPath: bundledPath) {
+            if Foundation.FileManager().fileExists(atPath: bundledPath) {
                 AppLogger.shared.log(
                     "⚠️ [KanataBinaryInstaller] System kanata not found, using bundled path: \(bundledPath)"
                 )
@@ -268,7 +268,7 @@ final class KanataBinaryInstaller {
     /// Check if bundled Kanata binary exists in app bundle
     func isBundledKanataAvailable() -> Bool {
         let bundledPath = WizardSystemPaths.bundledKanataPath
-        let exists = FileManager.default.fileExists(atPath: bundledPath)
+        let exists = Foundation.FileManager().fileExists(atPath: bundledPath)
         if exists {
             AppLogger.shared.log("✅ [KanataBinaryInstaller] Bundled kanata available at: \(bundledPath)")
         } else {

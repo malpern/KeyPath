@@ -65,7 +65,7 @@ struct AppLaunchChip: View {
 
         for path in commonPaths {
             let url = URL(fileURLWithPath: path)
-            if FileManager.default.fileExists(atPath: path) {
+            if Foundation.FileManager().fileExists(atPath: path) {
                 loadFromURL(url)
                 return
             }

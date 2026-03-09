@@ -167,7 +167,7 @@ public class KanataConfigGenerator {
 
     /// Get the project root directory
     private func getProjectRoot() -> String? {
-        let fileManager = FileManager.default
+        let fileManager = Foundation.FileManager()
         var currentPath = fileManager.currentDirectoryPath
 
         // Look for characteristic files that indicate project roo

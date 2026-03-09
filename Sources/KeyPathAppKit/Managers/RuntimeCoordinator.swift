@@ -435,7 +435,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             NotificationCenter.default.addObserver(
                 forName: .configAffectingPreferenceChanged,
                 object: nil,
-                queue: .main
+                queue: NotificationObserverManager.mainOperationQueue
             ) { @Sendable [weak self] _ in
                 guard let self else { return }
                 Task { @MainActor in
@@ -447,7 +447,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             NotificationCenter.default.addObserver(
                 forName: .splitRuntimeHostExited,
                 object: nil,
-                queue: .main
+                queue: NotificationObserverManager.mainOperationQueue
             ) { @Sendable [weak self] note in
                 guard let self else { return }
                 let pid = note.userInfo?[KanataSplitRuntimeHostExitInfo.pidUserInfoKey] as? pid_t ?? 0
@@ -844,7 +844,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Ensure config directory exists
         let configDir = URL(fileURLWithPath: configDirectory)
-        try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+        try Foundation.FileManager().createDirectory(at: configDir, withIntermediateDirectories: true)
 
         // Write the default config (unconditionally)
         try defaultConfig.write(to: configURL, atomically: true, encoding: .utf8)

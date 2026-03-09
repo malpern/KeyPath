@@ -14,9 +14,7 @@ extension HelperManager {
             }
         #endif
         AppLogger.shared.log("🔐 [SMAPPSERVICE-TRIGGER] *** Registering privileged helper via SMAppService")
-        // Log stack trace to identify caller
-        let callStack = Thread.callStackSymbols.prefix(10).joined(separator: "\n")
-        AppLogger.shared.log("🔐 [SMAPPSERVICE-TRIGGER] Helper install call stack:\n\(callStack)")
+        AppLogger.shared.log("🔐 [SMAPPSERVICE-TRIGGER] Helper install caller stack unavailable in this build")
         guard #available(macOS 13, *) else {
             throw HelperManagerError.installationFailed("Requires macOS 13+ for SMAppService")
         }
@@ -150,7 +148,7 @@ extension HelperManager {
     private nonisolated func signingPreflightFailure() async -> String? {
         if TestEnvironment.isRunningTests { return nil }
 
-        let fm = FileManager.default
+        let fm = Foundation.FileManager()
         let bundlePath = Bundle.main.bundlePath
         let helperPath = bundlePath + "/Contents/Library/HelperTools/KeyPathHelper"
 

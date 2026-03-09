@@ -22,13 +22,13 @@ extension OverlayInspectorPanel {
                             onAddRule: {
                                 // Switch to mapper with no app condition (global/everywhere)
                                 onSelectSection(.mapper)
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: DispatchWorkItem {
                                     NotificationCenter.default.post(
                                         name: .mapperSetAppCondition,
                                         object: nil,
                                         userInfo: ["bundleId": "", "displayName": ""]
                                     )
-                                }
+                                })
                             },
                             onRuleHover: onRuleHover
                         )
@@ -90,7 +90,7 @@ extension OverlayInspectorPanel {
         // Open mapper with this app's context and rule preloaded
         // Use UserDefaults directly since @AppStorage can't be accessed from nested functions
         UserDefaults.standard.set(InspectorSection.mapper.rawValue, forKey: "inspectorSection")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: DispatchWorkItem {
             // Convert input key label to keyCode for proper keyboard highlighting
             let keyCode = LogicalKeymap.keyCode(forQwertyLabel: override.inputKey) ?? 0
             let userInfo: [String: Any] = [
@@ -105,14 +105,14 @@ extension OverlayInspectorPanel {
                 object: nil,
                 userInfo: userInfo
             )
-        }
+        })
     }
 
     private func addRuleForApp(keymap: AppKeymap) {
         // Open mapper with this app's context (no rule preloaded)
         // Use UserDefaults directly since @AppStorage can't be accessed from nested functions
         UserDefaults.standard.set(InspectorSection.mapper.rawValue, forKey: "inspectorSection")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: DispatchWorkItem {
             // Set the app condition on the mapper view model
             NotificationCenter.default.post(
                 name: .mapperSetAppCondition,
@@ -122,13 +122,13 @@ extension OverlayInspectorPanel {
                     "displayName": keymap.mapping.displayName
                 ]
             )
-        }
+        })
     }
 
     private func editGlobalRule(rule: CustomRule) {
         // Open mapper with the global rule preloaded (no app condition)
         onSelectSection(.mapper)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: DispatchWorkItem {
             // Convert input key label to keyCode for proper keyboard highlighting
             let keyCode = LogicalKeymap.keyCode(forQwertyLabel: rule.input) ?? 0
             var userInfo: [String: Any] = [
@@ -145,6 +145,6 @@ extension OverlayInspectorPanel {
                 object: nil,
                 userInfo: userInfo
             )
-        }
+        })
     }
 }

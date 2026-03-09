@@ -732,7 +732,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     func analyzeLogFile(path: String) async -> [KanataDiagnostic] {
         var diagnostics: [KanataDiagnostic] = []
 
-        guard FileManager.default.fileExists(atPath: path) else {
+        guard Foundation.FileManager().fileExists(atPath: path) else {
             diagnostics.append(
                 KanataDiagnostic(
                     timestamp: Date(),
@@ -828,7 +828,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     // MARK: - Helper Methods
 
     private func isKanataInstalled() -> Bool {
-        FileManager.default.fileExists(atPath: WizardSystemPaths.kanataActiveBinary)
+        Foundation.FileManager().fileExists(atPath: WizardSystemPaths.kanataActiveBinary)
     }
 
     private func isKarabinerElementsRunning() async -> Bool {
@@ -850,7 +850,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     }
 
     private func isKarabinerDriverInstalled() -> Bool {
-        FileManager.default.fileExists(
+        Foundation.FileManager().fileExists(
             atPath: "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice"
         )
     }

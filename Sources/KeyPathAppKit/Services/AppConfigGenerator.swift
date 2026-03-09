@@ -134,10 +134,10 @@ public enum AppConfigGenerator {
 
         // Ensure directory exists
         let directory = (path as NSString).deletingLastPathComponent
-        try Foundation.FileManager.default.createDirectory(
+        try Foundation.FileManager().createDirectory(
             atPath: directory,
             withIntermediateDirectories: true,
-            attributes: nil
+            attributes: nil as [FileAttributeKey: Any]?
         )
 
         // VALIDATE BEFORE WRITING - prevent broken configs from being saved
@@ -403,7 +403,7 @@ public enum AppConfigGenerator {
 public extension AppConfigGenerator {
     /// Check if the app config file exists
     static var configFileExists: Bool {
-        Foundation.FileManager.default.fileExists(atPath: appConfigPath)
+        Foundation.FileManager().fileExists(atPath: appConfigPath)
     }
 
     /// Read the current app config file content
@@ -414,8 +414,8 @@ public extension AppConfigGenerator {
     /// Delete the app config file
     static func deleteConfig() throws {
         let path = appConfigPath
-        if Foundation.FileManager.default.fileExists(atPath: path) {
-            try Foundation.FileManager.default.removeItem(atPath: path)
+        if Foundation.FileManager().fileExists(atPath: path) {
+            try Foundation.FileManager().removeItem(atPath: path)
             AppLogger.shared.log("🗑️ [AppConfigGenerator] Deleted app config at \(path)")
         }
     }

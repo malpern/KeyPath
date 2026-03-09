@@ -60,7 +60,7 @@ actor QMKImportService {
         }
 
         // Check file size before reading (10MB limit)
-        let fileAttributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
+        let fileAttributes = try Foundation.FileManager().attributesOfItem(atPath: fileURL.path)
         if let fileSize = fileAttributes[.size] as? Int64, fileSize > 10 * 1024 * 1024 {
             throw QMKImportError.invalidJSON("File too large (max 10MB). File size: \(fileSize / 1024 / 1024)MB")
         }

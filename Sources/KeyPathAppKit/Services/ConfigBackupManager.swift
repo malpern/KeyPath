@@ -31,7 +31,7 @@ public final class ConfigBackupManager {
     /// Create a backup of the current config file before user editing
     /// Returns true if backup was created, false if current config is invalid
     public func createPreEditBackup() -> Bool {
-        guard FileManager.default.fileExists(atPath: configPath) else {
+        guard Foundation.FileManager().fileExists(atPath: configPath) else {
             AppLogger.shared.log("⚠️ [BackupManager] No config file to backup at: \(configPath)")
             return false
         }
@@ -73,12 +73,12 @@ public final class ConfigBackupManager {
 
     /// Get list of available backup files, sorted by date (newest first)
     public func getAvailableBackups() -> [BackupInfo] {
-        guard FileManager.default.fileExists(atPath: backupDirectory) else {
+        guard Foundation.FileManager().fileExists(atPath: backupDirectory) else {
             return []
         }
 
         do {
-            let files = try FileManager.default.contentsOfDirectory(atPath: backupDirectory)
+            let files = try Foundation.FileManager().contentsOfDirectory(atPath: backupDirectory)
             let backupFiles = files.filter { $0.hasSuffix(".kbd") }
 
             var backups: [BackupInfo] = []
@@ -86,9 +86,9 @@ public final class ConfigBackupManager {
             for file in backupFiles {
                 let fullPath = "\(backupDirectory)/\(file)"
 
-                if let attributes = try? FileManager.default.attributesOfItem(atPath: fullPath),
-                   let modDate = attributes[.modificationDate] as? Date,
-                   let size = attributes[.size] as? Int64
+                if let attributes = try? Foundation.FileManager().attributesOfItem(atPath: fullPath),
+                   let modDate = attributes[Foundation.FileAttributeKey.modificationDate] as? Date,
+                   let size = attributes[Foundation.FileAttributeKey.size] as? Int64
                 {
                     backups.append(
                         BackupInfo(
@@ -112,7 +112,7 @@ public final class ConfigBackupManager {
 
     /// Restore config from a specific backup
     public func restoreFromBackup(_ backup: BackupInfo) throws {
-        guard FileManager.default.fileExists(atPath: backup.fullPath) else {
+        guard Foundation.FileManager().fileExists(atPath: backup.fullPath) else {
             throw KeyPathError.configuration(.backupNotFound)
         }
 
@@ -127,10 +127,10 @@ public final class ConfigBackupManager {
         }
 
         // Create a backup of current config (if it exists) before restoring
-        if FileManager.default.fileExists(atPath: configPath) {
+        if Foundation.FileManager().fileExists(atPath: configPath) {
             let currentBackupPath =
                 "\(backupDirectory)/before_restore_\(Date().timeIntervalSince1970).kbd"
-            try? FileManager.default.copyItem(atPath: configPath, toPath: currentBackupPath)
+            try? Foundation.FileManager().copyItem(atPath: configPath, toPath: currentBackupPath)
         }
 
         // Restore the backup
@@ -168,13 +168,13 @@ public final class ConfigBackupManager {
     // MARK: - Private Methods
 
     private func createBackupDirectoryIfNeeded() {
-        guard !FileManager.default.fileExists(atPath: backupDirectory) else { return }
+        guard !Foundation.FileManager().fileExists(atPath: backupDirectory) else { return }
 
         do {
-            try FileManager.default.createDirectory(
+            try Foundation.FileManager().createDirectory(
                 atPath: backupDirectory,
                 withIntermediateDirectories: true,
-                attributes: [.posixPermissions: 0o755]
+                attributes: [Foundation.FileAttributeKey.posixPermissions: 0o755]
             )
             AppLogger.shared.log("✅ [BackupManager] Created backup directory: \(backupDirectory)")
         } catch {
@@ -191,7 +191,7 @@ public final class ConfigBackupManager {
 
             for backup in backupsToDelete {
                 do {
-                    try FileManager.default.removeItem(atPath: backup.fullPath)
+                    try Foundation.FileManager().removeItem(atPath: backup.fullPath)
                     AppLogger.shared.log("🗑️ [BackupManager] Deleted old backup: \(backup.filename)")
                 } catch {
                     AppLogger.shared.log(

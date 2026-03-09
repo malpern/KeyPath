@@ -104,7 +104,7 @@ extension HelperManager {
     /// Verify the embedded helper's designated requirement roughly matches expectations.
     /// Logs warnings on mismatch; does not block connection (to avoid false positives during dev).
     private nonisolated func verifyEmbeddedHelperSignature() async {
-        let fm = FileManager.default
+        let fm = Foundation.FileManager()
         // Use the production app path (like SignatureHealthCheck does)
         // Bundle.main.bundlePath can be wrong when launched via Xcode tools
         let bundlePath = "/Applications/KeyPath.app"

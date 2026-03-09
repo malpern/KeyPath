@@ -27,6 +27,8 @@ import Foundation
 ///
 /// For `@MainActor` types, use the `@MainActor` variant methods.
 public final class NotificationObserverManager: @unchecked Sendable {
+    public static let mainOperationQueue: OperationQueue? = nil
+
     /// Stored observer with its associated notification center
     private struct StoredObserver {
         let observer: NSObjectProtocol
@@ -58,8 +60,8 @@ public final class NotificationObserverManager: @unchecked Sendable {
     public func observe(
         _ name: Notification.Name,
         object: Any? = nil,
-        queue: OperationQueue? = .main,
-        center: NotificationCenter = .default,
+        queue: OperationQueue? = NotificationObserverManager.mainOperationQueue,
+        center: NotificationCenter = NotificationCenter.default,
         handler: @escaping @Sendable (Notification) -> Void
     ) {
         let observer = center.addObserver(
@@ -83,7 +85,7 @@ public final class NotificationObserverManager: @unchecked Sendable {
     public func observeUserInfo(
         _ name: Notification.Name,
         object: Any? = nil,
-        queue: OperationQueue? = .main,
+        queue: OperationQueue? = NotificationObserverManager.mainOperationQueue,
         handler: @escaping @Sendable ([AnyHashable: Any]?) -> Void
     ) {
         observe(name, object: object, queue: queue) { notification in

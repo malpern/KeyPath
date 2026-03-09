@@ -307,7 +307,7 @@ struct AdvancedSettingsTabView: View {
         }
 
         let keepPath = "/Applications/KeyPath.app"
-        let manager = FileManager.default
+        let manager = Foundation.FileManager()
         var removed = 0
         for path in duplicateAppCopies where path != keepPath {
             let url = URL(fileURLWithPath: path)

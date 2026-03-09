@@ -403,8 +403,8 @@ struct WizardKanataServicePage: View {
     private nonisolated static func extractConfigError(from stderrPath: String) -> String? {
         // Ignore stale stderr logs so old config errors don't surface after reinstalls.
         let maxLogAge: TimeInterval = 10 * 60
-        if let attributes = try? FileManager.default.attributesOfItem(atPath: stderrPath),
-           let modifiedAt = attributes[.modificationDate] as? Date,
+        if let attributes = try? Foundation.FileManager().attributesOfItem(atPath: stderrPath),
+           let modifiedAt = attributes[Foundation.FileAttributeKey.modificationDate] as? Date,
            Date().timeIntervalSince(modifiedAt) > maxLogAge
         {
             return nil

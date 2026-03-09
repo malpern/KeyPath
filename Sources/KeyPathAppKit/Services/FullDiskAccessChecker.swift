@@ -78,7 +78,7 @@ final class FullDiskAccessChecker {
         // NOTE: We intentionally do NOT probe the user-scoped TCC.db here.
         // The purpose is to detect FDA needed for Kanata verification (system TCC.db readability).
         // Avoid any heavy or invasive probing. This is a lightweight "can we read system TCC.db" test.
-        guard FileManager.default.isReadableFile(atPath: systemTCCPath) else {
+        guard Foundation.FileManager().isReadableFile(atPath: systemTCCPath) else {
             return false
         }
 

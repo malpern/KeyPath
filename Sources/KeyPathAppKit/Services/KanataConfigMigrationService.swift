@@ -45,7 +45,7 @@ public final class KanataConfigMigrationService {
 
     // MARK: - Properties
 
-    private let fileManager = FileManager.default
+    private let fileManager = Foundation.FileManager()
     // Use the same config path as ConfigurationService (KeyPathConstants.Config.mainConfigPath)
     // which is ~/.config/keypath/keypath.kbd, not Application Support
     private let keyPathConfigPath = WizardSystemPaths.userConfigPath
@@ -157,7 +157,7 @@ public final class KanataConfigMigrationService {
         try fileManager.createDirectory(
             atPath: keyPathConfigDirectory,
             withIntermediateDirectories: true,
-            attributes: [.posixPermissions: 0o755]
+            attributes: [FileAttributeKey.posixPermissions: 0o755]
         )
         AppLogger.shared.log("✅ [MigrationService] Created KeyPath config directory: \(keyPathConfigDirectory)")
     }
@@ -216,7 +216,7 @@ public final class KanataConfigMigrationService {
             try fileManager.createDirectory(
                 atPath: backupDir,
                 withIntermediateDirectories: true,
-                attributes: [.posixPermissions: 0o755]
+                attributes: [FileAttributeKey.posixPermissions: 0o755]
             )
         }
 

@@ -425,7 +425,7 @@ struct AboutView: View {
 
     private func revealConfigFile() {
         let configPath = KeyPathConstants.Config.mainConfigPath
-        let exists = FileManager.default.fileExists(atPath: configPath)
+        let exists = Foundation.FileManager().fileExists(atPath: configPath)
 
         if exists {
             NSWorkspace.shared.selectFile(configPath, inFileViewerRootedAtPath: "")

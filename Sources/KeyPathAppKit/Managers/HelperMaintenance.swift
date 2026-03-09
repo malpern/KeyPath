@@ -228,7 +228,7 @@ final class HelperMaintenance {
             return await override(useAppleScriptFallback)
         }
         let (removedDirectly, _) = await Task.detached { () -> (Bool, Bool) in
-            let fm = FileManager.default
+            let fm = Foundation.FileManager()
             let legacyBin = "/Library/PrivilegedHelperTools/com.keypath.helper"
             let legacyPlist = "/Library/LaunchDaemons/com.keypath.helper.plist"
 
@@ -307,7 +307,7 @@ final class HelperMaintenance {
             NSHomeDirectory() + "/Applications/KeyPath.app",
             NSHomeDirectory() + "/Downloads/KeyPath.app"
         ]
-        for p in defaults where FileManager.default.fileExists(atPath: p) {
+        for p in defaults where Foundation.FileManager().fileExists(atPath: p) {
             candidates.append(p)
         }
         return candidates.isEmpty ? defaults : candidates

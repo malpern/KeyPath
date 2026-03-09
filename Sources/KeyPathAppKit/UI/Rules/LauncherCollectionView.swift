@@ -572,7 +572,7 @@ private struct LauncherMappingEditor: View {
         let expandedPath = (folderPath as NSString).expandingTildeInPath
         var isDirectory: ObjCBool = false
 
-        if !FileManager.default.fileExists(atPath: expandedPath, isDirectory: &isDirectory) {
+        if !Foundation.FileManager().fileExists(atPath: expandedPath, isDirectory: &isDirectory) {
             return "Folder not found at this path"
         }
 
@@ -589,14 +589,14 @@ private struct LauncherMappingEditor: View {
 
         let expandedPath = (scriptPath as NSString).expandingTildeInPath
 
-        if !FileManager.default.fileExists(atPath: expandedPath) {
+        if !Foundation.FileManager().fileExists(atPath: expandedPath) {
             return "Script not found at this path"
         }
 
         // Check if it's a recognized script type or executable
         let securityService = ScriptSecurityService.shared
         let isScript = securityService.isRecognizedScript(expandedPath)
-        let isExecutable = FileManager.default.isExecutableFile(atPath: expandedPath)
+        let isExecutable = Foundation.FileManager().isExecutableFile(atPath: expandedPath)
 
         if !isScript, !isExecutable {
             return "File may not be executable"

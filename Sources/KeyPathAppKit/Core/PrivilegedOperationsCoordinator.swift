@@ -652,7 +652,7 @@ final class PrivilegedOperationsCoordinator {
 
     private func removeLegacyKanataPlist(reason: String) async {
         let path = KanataDaemonManager.legacyPlistPath
-        guard FileManager.default.fileExists(atPath: path) else { return }
+        guard Foundation.FileManager().fileExists(atPath: path) else { return }
 
         // Validate path is a safe LaunchDaemons plist before interpolating into shell
         guard path.hasPrefix("/Library/LaunchDaemons/"),
@@ -1107,7 +1107,7 @@ final class PrivilegedOperationsCoordinator {
         let vhidPlist = "/Library/LaunchDaemons/\(vhidLabel).plist"
 
         // Determine if a LaunchDaemon is installed; prefer managed restart to prevent duplicates
-        let hasService = FileManager.default.fileExists(atPath: vhidPlist)
+        let hasService = Foundation.FileManager().fileExists(atPath: vhidPlist)
         AppLogger.shared.log("🔐 [PrivCoordinator] VHID LaunchDaemon installed: \(hasService)")
 
         // Log current PIDs before any action (for diagnostics)

@@ -242,9 +242,9 @@ final class UninstallCoordinator {
             return bundled
         }
 
-        let repoPath = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        let repoPath = URL(fileURLWithPath: Foundation.FileManager().currentDirectoryPath)
             .appendingPathComponent("Sources/KeyPath/Resources/uninstall.sh")
-        if FileManager.default.isExecutableFile(atPath: repoPath.path) {
+        if Foundation.FileManager().isExecutableFile(atPath: repoPath.path) {
             return repoPath
         }
 

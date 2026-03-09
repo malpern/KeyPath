@@ -71,12 +71,12 @@ actor BrowserHistoryScanner {
         var isInstalled: Bool {
             if self == .firefox {
                 // Firefox profile directory check
-                return FileManager.default.fileExists(atPath: historyPath)
+                return Foundation.FileManager().fileExists(atPath: historyPath)
             }
             if isChromiumBased, let basePath = chromiumBasePath {
-                return FileManager.default.fileExists(atPath: basePath)
+                return Foundation.FileManager().fileExists(atPath: basePath)
             }
-            return FileManager.default.fileExists(atPath: historyPath)
+            return Foundation.FileManager().fileExists(atPath: historyPath)
         }
 
         var isChromiumBased: Bool {
@@ -111,7 +111,7 @@ actor BrowserHistoryScanner {
             "\(NSHomeDirectory())/Library/Messages",
             "\(NSHomeDirectory())/Library/Cookies"
         ]
-        return testPaths.contains { FileManager.default.isReadableFile(atPath: $0) }
+        return testPaths.contains { Foundation.FileManager().isReadableFile(atPath: $0) }
     }
 
     /// Get installed browsers that can be scanned
@@ -189,8 +189,9 @@ actor BrowserHistoryScanner {
 
         // Safari keeps database locked, so we need to copy it first
         let tempPath = NSTemporaryDirectory() + "safari_history_\(UUID().uuidString).db"
-        try FileManager.default.copyItem(atPath: dbPath, toPath: tempPath)
-        defer { try? FileManager.default.removeItem(atPath: tempPath) }
+        let fileManager = Foundation.FileManager()
+        try fileManager.copyItem(atPath: dbPath, toPath: tempPath)
+        defer { try? fileManager.removeItem(atPath: tempPath) }
 
         var db: OpaquePointer?
         guard sqlite3_open_v2(tempPath, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else {
@@ -270,8 +271,9 @@ actor BrowserHistoryScanner {
     private func scanChromium(path: String) throws -> [VisitedSite] {
         // Chromium also keeps database locked
         let tempPath = NSTemporaryDirectory() + "chromium_history_\(UUID().uuidString).db"
-        try FileManager.default.copyItem(atPath: path, toPath: tempPath)
-        defer { try? FileManager.default.removeItem(atPath: tempPath) }
+        let fileManager = Foundation.FileManager()
+        try fileManager.copyItem(atPath: path, toPath: tempPath)
+        defer { try? fileManager.removeItem(atPath: tempPath) }
 
         var db: OpaquePointer?
         guard sqlite3_open_v2(tempPath, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else {
@@ -352,8 +354,9 @@ actor BrowserHistoryScanner {
     private func scanFirefoxProfile(at profileDir: String) throws -> [VisitedSite] {
         let dbPath = "\(profileDir)/places.sqlite"
         let tempPath = NSTemporaryDirectory() + "firefox_history_\(UUID().uuidString).db"
-        try FileManager.default.copyItem(atPath: dbPath, toPath: tempPath)
-        defer { try? FileManager.default.removeItem(atPath: tempPath) }
+        let fileManager = Foundation.FileManager()
+        try fileManager.copyItem(atPath: dbPath, toPath: tempPath)
+        defer { try? fileManager.removeItem(atPath: tempPath) }
 
         var db: OpaquePointer?
         guard sqlite3_open_v2(tempPath, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else {
@@ -409,7 +412,7 @@ actor BrowserHistoryScanner {
             func commitProfile() {
                 guard let currentPath else { return }
                 let fullPath = isRelative ? "\(profilesPath)/\(currentPath)" : currentPath
-                if FileManager.default.fileExists(atPath: "\(fullPath)/places.sqlite") {
+                if Foundation.FileManager().fileExists(atPath: "\(fullPath)/places.sqlite") {
                     profiles.append(fullPath)
                 }
             }
@@ -445,7 +448,7 @@ actor BrowserHistoryScanner {
 
     /// Fallback: scan for .default and .default-release profiles.
     private func fallbackFirefoxProfilePaths(at profilesPath: String) -> [String] {
-        let fm = FileManager.default
+        let fm = Foundation.FileManager()
         guard let contents = try? fm.contentsOfDirectory(atPath: profilesPath) else {
             return []
         }
@@ -475,25 +478,25 @@ actor BrowserHistoryScanner {
         {
             for profileDir in infoCache.keys.sorted() {
                 let path = "\(basePath)/\(profileDir)/History"
-                if FileManager.default.fileExists(atPath: path) {
+                if Foundation.FileManager().fileExists(atPath: path) {
                     historyPaths.append(path)
                 }
             }
         }
 
         if historyPaths.isEmpty {
-            if let contents = try? FileManager.default.contentsOfDirectory(atPath: basePath) {
+            if let contents = try? Foundation.FileManager().contentsOfDirectory(atPath: basePath) {
                 let candidateDirs = contents.filter { $0 == "Default" || $0.hasPrefix("Profile ") }
                 for dir in candidateDirs {
                     let path = "\(basePath)/\(dir)/History"
-                    if FileManager.default.fileExists(atPath: path) {
+                    if Foundation.FileManager().fileExists(atPath: path) {
                         historyPaths.append(path)
                     }
                 }
             }
         }
 
-        if historyPaths.isEmpty, FileManager.default.fileExists(atPath: fallbackHistoryPath) {
+        if historyPaths.isEmpty, Foundation.FileManager().fileExists(atPath: fallbackHistoryPath) {
             historyPaths.append(fallbackHistoryPath)
         }
 

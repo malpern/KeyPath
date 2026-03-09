@@ -360,7 +360,7 @@ struct StatusSettingsTabView: View {
     private func checkTCPConfiguration() async -> Bool {
         // Keep this fast and predictable: only verify the active plist contains a --port argument.
         let plistPath = KanataDaemonManager.getActivePlistPath()
-        guard FileManager.default.fileExists(atPath: plistPath) else { return false }
+        guard Foundation.FileManager().fileExists(atPath: plistPath) else { return false }
 
         let args: [String]
         do {

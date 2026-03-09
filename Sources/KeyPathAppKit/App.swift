@@ -533,10 +533,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let shouldRunHostPassthruDiagnostic =
             ProcessInfo.processInfo.environment[Self.hostPassthruDiagnosticEnvKey] == "1"
-            || FileManager.default.fileExists(atPath: Self.hostPassthruDiagnosticTriggerPath)
+            || Foundation.FileManager().fileExists(atPath: Self.hostPassthruDiagnosticTriggerPath)
 
         if shouldRunHostPassthruDiagnostic {
-            try? FileManager.default.removeItem(atPath: Self.hostPassthruDiagnosticTriggerPath)
+            try? Foundation.FileManager().removeItem(atPath: Self.hostPassthruDiagnosticTriggerPath)
             AppLogger.shared.info("🧪 [AppDelegate] Running experimental host passthru diagnostics and exiting")
             Task { @MainActor in
                 let diagnosticsService = DiagnosticsService(
@@ -565,10 +565,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let shouldPrepareHostPassthruBridge =
             ProcessInfo.processInfo.environment[Self.hostPassthruBridgePrepEnvKey] == "1"
-            || FileManager.default.fileExists(atPath: Self.hostPassthruBridgePrepTriggerPath)
+            || Foundation.FileManager().fileExists(atPath: Self.hostPassthruBridgePrepTriggerPath)
 
         if shouldPrepareHostPassthruBridge {
-            try? FileManager.default.removeItem(atPath: Self.hostPassthruBridgePrepTriggerPath)
+            try? Foundation.FileManager().removeItem(atPath: Self.hostPassthruBridgePrepTriggerPath)
             AppLogger.shared.info("🧪 [AppDelegate] Preparing experimental host passthru bridge environment and exiting")
             Task { @MainActor in
                 do {
@@ -624,10 +624,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let shouldRunHelperRepair =
             ProcessInfo.processInfo.environment[Self.helperRepairEnvKey] == "1"
-            || FileManager.default.fileExists(atPath: Self.helperRepairTriggerPath)
+            || Foundation.FileManager().fileExists(atPath: Self.helperRepairTriggerPath)
 
         if shouldRunHelperRepair {
-            try? FileManager.default.removeItem(atPath: Self.helperRepairTriggerPath)
+            try? Foundation.FileManager().removeItem(atPath: Self.helperRepairTriggerPath)
             AppLogger.shared.info("🧪 [AppDelegate] Running helper cleanup/repair and exiting")
             let useAppleScriptFallbackRaw = ProcessInfo.processInfo.environment["KEYPATH_HELPER_REPAIR_USE_APPLESCRIPT"]?
                 .trimmingCharacters(in: .whitespacesAndNewlines)

@@ -275,13 +275,13 @@ final class RecoveryDaemonService {
 
     /// Log service state failures to persistent crash log for later analysis
     private func logServiceFailure(from oldState: ServiceState, reason: String) {
-        let crashLogDir = FileManager.default.homeDirectoryForCurrentUser
+        let crashLogDir = Foundation.FileManager().homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Logs/KeyPath")
         let crashLogPath = crashLogDir.appendingPathComponent("crashes.log")
 
         // Ensure directory exists
         do {
-            try FileManager.default.createDirectory(at: crashLogDir, withIntermediateDirectories: true)
+            try Foundation.FileManager().createDirectory(at: crashLogDir, withIntermediateDirectories: true)
         } catch {
             AppLogger.shared.warn("⚠️ [RecoveryDaemonService] Failed to create crash log directory: \(error.localizedDescription)")
         }
@@ -302,7 +302,7 @@ final class RecoveryDaemonService {
         // Append to log file
         if let data = entry.data(using: .utf8) {
             do {
-                if FileManager.default.fileExists(atPath: crashLogPath.path) {
+                if Foundation.FileManager().fileExists(atPath: crashLogPath.path) {
                     let handle = try FileHandle(forWritingTo: crashLogPath)
                     try handle.seekToEnd()
                     try handle.write(contentsOf: data)

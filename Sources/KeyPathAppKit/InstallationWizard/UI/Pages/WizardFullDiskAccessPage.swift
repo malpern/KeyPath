@@ -220,7 +220,7 @@ struct WizardFullDiskAccessPage: View {
         AppLogger.shared.log("🔐 [Wizard] FDA check: Testing system TCC database access")
 
         // Try to read the system TCC database
-        if FileManager.default.isReadableFile(atPath: systemTCCPath) {
+        if Foundation.FileManager().isReadableFile(atPath: systemTCCPath) {
             // Try a very light read operation
             if let data = try? Data(
                 contentsOf: URL(fileURLWithPath: systemTCCPath), options: .mappedIfSafe

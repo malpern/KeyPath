@@ -189,7 +189,7 @@ public final class InstallerEngine {
 
         // Check that system directories exist (not writable - installation uses admin privileges)
         let launchDaemonsDir = KeyPathConstants.System.launchDaemonsDir
-        if !FileManager.default.fileExists(atPath: launchDaemonsDir) {
+        if !Foundation.FileManager().fileExists(atPath: launchDaemonsDir) {
             return Requirement(
                 name: "LaunchDaemons directory missing",
                 status: .blocked

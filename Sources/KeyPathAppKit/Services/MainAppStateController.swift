@@ -165,13 +165,13 @@ class MainAppStateController {
     /// Log crash events to persistent storage for later analysis.
     /// Crashes are logged to ~/Library/Logs/KeyPath/crashes.log
     private func logCrashEvent(_ error: KanataError) {
-        let crashLogDir = FileManager.default.homeDirectoryForCurrentUser
+        let crashLogDir = Foundation.FileManager().homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Logs/KeyPath")
         let crashLogPath = crashLogDir.appendingPathComponent("crashes.log")
 
         // Ensure directory exists
         do {
-            try FileManager.default.createDirectory(at: crashLogDir, withIntermediateDirectories: true)
+            try Foundation.FileManager().createDirectory(at: crashLogDir, withIntermediateDirectories: true)
         } catch {
             AppLogger.shared.warn("⚠️ [MainAppStateController] Failed to create crash log directory: \(error.localizedDescription)")
         }
@@ -192,7 +192,7 @@ class MainAppStateController {
         // Append to log file
         if let data = entry.data(using: .utf8) {
             do {
-                if FileManager.default.fileExists(atPath: crashLogPath.path) {
+                if Foundation.FileManager().fileExists(atPath: crashLogPath.path) {
                     let handle = try FileHandle(forWritingTo: crashLogPath)
                     try handle.seekToEnd()
                     try handle.write(contentsOf: data)
@@ -228,7 +228,7 @@ class MainAppStateController {
         // Check SMAppService plist first if active, otherwise fall back to legacy plist
         let plistPath = KanataDaemonManager.getActivePlistPath()
 
-        let plistExists = FileManager.default.fileExists(atPath: plistPath)
+        let plistExists = Foundation.FileManager().fileExists(atPath: plistPath)
 
         guard plistExists else {
             AppLogger.shared.warn(

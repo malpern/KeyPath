@@ -161,6 +161,6 @@ extension OverlayMapperSection {
         let path = url.standardizedFileURL.path
         return path.hasPrefix("/Applications/") ||
             path.hasPrefix("/System/Applications/") ||
-            path.hasPrefix(FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications").path)
+            path.hasPrefix(Foundation.FileManager().homeDirectoryForCurrentUser.appendingPathComponent("Applications").path)
     }
 }

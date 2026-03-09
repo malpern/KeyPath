@@ -12,7 +12,7 @@ public final class SimpleModsParser: Sendable {
     public func parse() throws -> (
         block: SentinelBlock?, allMappings: [SimpleMapping], conflicts: [MappingConflict]
     ) {
-        guard FileManager.default.fileExists(atPath: configPath) else {
+        guard Foundation.FileManager().fileExists(atPath: configPath) else {
             // No config file means no block
             return (nil, [], [])
         }

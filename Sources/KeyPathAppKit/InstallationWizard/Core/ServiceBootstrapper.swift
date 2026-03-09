@@ -104,7 +104,7 @@ final class ServiceBootstrapper {
         // Test mode: just check if plist exists
         if TestEnvironment.shouldSkipAdminOperations {
             let plistPath = getPlistPath(for: serviceID)
-                let exists = Foundation.FileManager.default.fileExists(atPath: plistPath)
+                let exists = Foundation.FileManager().fileExists(atPath: plistPath)
             AppLogger.shared.log(
                 "🧪 [ServiceBootstrapper] Test mode - service \(serviceID) loaded: \(exists)"
             )
@@ -329,8 +329,8 @@ final class ServiceBootstrapper {
         let daemonPlistPath = getPlistPath(for: Self.vhidDaemonServiceID)
         let managerPlistPath = getPlistPath(for: Self.vhidManagerServiceID)
         let snapshot = VHIDInstallSnapshot(
-            daemonPlistExisted: Foundation.FileManager.default.fileExists(atPath: daemonPlistPath),
-            managerPlistExisted: Foundation.FileManager.default.fileExists(atPath: managerPlistPath),
+            daemonPlistExisted: Foundation.FileManager().fileExists(atPath: daemonPlistPath),
+            managerPlistExisted: Foundation.FileManager().fileExists(atPath: managerPlistPath),
             daemonLoaded: await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID),
             managerLoaded: await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
         )
@@ -441,7 +441,7 @@ final class ServiceBootstrapper {
                 prompt: "KeyPath needs to install the log rotation config."
             )
 
-            try? Foundation.FileManager.default.removeItem(atPath: tempPath)
+            try? Foundation.FileManager().removeItem(atPath: tempPath)
 
             if result.success {
                 AppLogger.shared.log("✅ [ServiceBootstrapper] Newsyslog config installed successfully")
@@ -471,7 +471,7 @@ final class ServiceBootstrapper {
 
     /// Check if newsyslog config is installed
     func isNewsyslogConfigInstalled() -> Bool {
-        Foundation.FileManager.default.fileExists(atPath: "/etc/newsyslog.d/com.keypath.conf")
+        Foundation.FileManager().fileExists(atPath: "/etc/newsyslog.d/com.keypath.conf")
     }
 
     // MARK: - Restart Unhealthy Services
@@ -764,7 +764,7 @@ final class ServiceBootstrapper {
 
         defer {
             for tempFile in prepared.tempFiles {
-                try? Foundation.FileManager.default.removeItem(atPath: tempFile)
+                try? Foundation.FileManager().removeItem(atPath: tempFile)
             }
         }
 

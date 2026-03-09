@@ -97,7 +97,7 @@ class ConfigFileWatcher: @unchecked Sendable {
         AppLogger.shared.log("📁 [FileWatcher] Parent directory: \(watchedDirectoryPath ?? "unknown")")
 
         // Check if file exists and start appropriate monitoring
-        if FileManager.default.fileExists(atPath: path) {
+        if Foundation.FileManager().fileExists(atPath: path) {
             AppLogger.shared.log("📁 [FileWatcher] Target file exists - setting up direct file monitoring")
             setupFileMonitoring()
         } else {
@@ -175,7 +175,7 @@ class ConfigFileWatcher: @unchecked Sendable {
         }
 
         // Ensure directory exists
-        guard FileManager.default.fileExists(atPath: directoryPath) else {
+        guard Foundation.FileManager().fileExists(atPath: directoryPath) else {
             AppLogger.shared.log("❌ [FileWatcher] Directory doesn't exist: \(directoryPath)")
             handleDirectoryMonitoringFailure()
             return
@@ -342,7 +342,7 @@ class ConfigFileWatcher: @unchecked Sendable {
         AppLogger.shared.log("📁 [FileWatcher] Processing directory change event")
 
         // Check if our target file was created
-        if FileManager.default.fileExists(atPath: filePath) {
+        if Foundation.FileManager().fileExists(atPath: filePath) {
             AppLogger.shared.log("🎉 [FileWatcher] Target file was created! Switching to file monitoring")
 
             // Stop directory monitoring
@@ -371,7 +371,7 @@ class ConfigFileWatcher: @unchecked Sendable {
         AppLogger.shared.log("📁 [FileWatcher] Processing file change event for: \(path)")
 
         // Check if file still exists (handles atomic writes where file is deleted/recreated)
-        if !FileManager.default.fileExists(atPath: path) {
+        if !Foundation.FileManager().fileExists(atPath: path) {
             AppLogger.shared.log(
                 "⚠️ [FileWatcher] File no longer exists - may be atomic write in progress"
             )
@@ -380,7 +380,7 @@ class ConfigFileWatcher: @unchecked Sendable {
             // Wait a brief moment and check again
             try? await Task.sleep(for: .milliseconds(100)) // 100ms
 
-            if FileManager.default.fileExists(atPath: path) {
+            if Foundation.FileManager().fileExists(atPath: path) {
                 AppLogger.shared.log("📁 [FileWatcher] File reappeared - atomic write completed")
             } else {
                 AppLogger.shared.log(
@@ -477,7 +477,7 @@ class ConfigFileWatcher: @unchecked Sendable {
         }
 
         do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: path)
+            let attributes = try Foundation.FileManager().attributesOfItem(atPath: path)
             let modDate = attributes[.modificationDate] as? Date
             lastModificationDate = modDate
             AppLogger.shared.log(
@@ -496,7 +496,7 @@ class ConfigFileWatcher: @unchecked Sendable {
         }
 
         do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: path)
+            let attributes = try Foundation.FileManager().attributesOfItem(atPath: path)
             let currentModDate = attributes[.modificationDate] as? Date
 
             AppLogger.shared.log(
@@ -540,7 +540,7 @@ class ConfigFileWatcher: @unchecked Sendable {
         AppLogger.shared.log("📁 [FileWatcher] Processing debounced file change for: \(path)")
 
         // Check if file still exists (important for atomic writes)
-        guard FileManager.default.fileExists(atPath: path) else {
+        guard Foundation.FileManager().fileExists(atPath: path) else {
             AppLogger.shared.log("⚠️ [FileWatcher] File no longer exists during processing: \(path)")
 
             // Switch to directory monitoring to watch for recreation
@@ -564,7 +564,7 @@ class ConfigFileWatcher: @unchecked Sendable {
 
         // Get file size for logging
         do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: path)
+            let attributes = try Foundation.FileManager().attributesOfItem(atPath: path)
             let fileSize = attributes[.size] as? Int64 ?? 0
             AppLogger.shared.log(
                 "📁 [FileWatcher] Triggering file change callback for file (\(fileSize) bytes)"

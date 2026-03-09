@@ -106,7 +106,7 @@ final class ConfigHotReloadService {
         callbacks.onValidating?()
 
         // Check file exists
-        guard FileManager.default.fileExists(atPath: configPath) else {
+        guard Foundation.FileManager().fileExists(atPath: configPath) else {
             AppLogger.shared.error("❌ [ConfigHotReload] Config file no longer exists: \(configPath)")
             let result = ReloadResult.failure("Config file was deleted")
             callbacks.onFailure?(result.message)

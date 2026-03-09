@@ -895,7 +895,7 @@ extension MapperViewModel {
             URL(fileURLWithPath: "/System/Applications/\(identifier).app")
         ]
 
-        for url in candidates where FileManager.default.fileExists(atPath: url.path) {
+        for url in candidates where Foundation.FileManager().fileExists(atPath: url.path) {
             return buildAppLaunchInfo(from: url)
         }
 

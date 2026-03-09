@@ -132,7 +132,7 @@ final class LauncherStore {
         ]
 
         for path in paths {
-            if FileManager.default.fileExists(atPath: path) {
+            if Foundation.FileManager().fileExists(atPath: path) {
                 return true
             }
         }

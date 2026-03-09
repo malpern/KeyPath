@@ -173,7 +173,7 @@ struct WizardInputMonitoringPage: View {
                                             "🔧 [WizardInputMonitoringPage] Kanata Fix clicked - opening System Settings and revealing kanata"
                                         )
                                         let path = WizardSystemPaths.kanataSystemInstallPath
-                                        if !FileManager.default.fileExists(atPath: path) {
+                                        if !Foundation.FileManager().fileExists(atPath: path) {
                                             AppLogger.shared.warn(
                                                 "⚠️ [WizardInputMonitoringPage] Kanata system binary missing at \(path) - routing to Kanata Components"
                                             )
