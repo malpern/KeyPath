@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-extension KeyPathTool {
+extension KeyPathCLI {
     struct TCP: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             abstract: "Query running Kanata via TCP",

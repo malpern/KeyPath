@@ -101,7 +101,6 @@ final class ConfigHotReloadService {
     /// - Returns: Result with success status and optional new content/mappings
     func handleExternalChange(configPath: String) async -> ReloadResult {
         AppLogger.shared.log("📝 [ConfigHotReload] External config file change detected")
-
         // Notify detection
         callbacks.onDetected?()
         callbacks.onValidating?()

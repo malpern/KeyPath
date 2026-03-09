@@ -111,7 +111,7 @@ class WizardAutoFixer {
     /// Backward-compat reset hook used by Settings; delegates to façade repair action.
     @MainActor
     func resetEverything() async -> Bool {
-        let report = await installerEngine.runSingleAction(.restartUnhealthyServices, using: PrivilegeBroker())
+        let report = await installerEngine.runSingleAction(.terminateConflictingProcesses, using: PrivilegeBroker())
         return report.success
     }
 

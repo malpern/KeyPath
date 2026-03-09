@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import ServiceManagement
+import Darwin
 
 /// Manager for Kanata LaunchDaemon registration via SMAppService
 ///
@@ -284,22 +285,16 @@ class KanataDaemonManager {
 
         // Run expensive checks async
         return await Task.detached {
-            // 2. Check launchd state
-            let launchctlOutput: String
-            do {
-                let result = try await SubprocessRunner.shared.launchctl("print", ["system/\(Self.kanataServiceID)"])
-                launchctlOutput = result.exitCode == 0 ? result.stdout : ""
-            } catch {
-                launchctlOutput = ""
-            }
+            let launchctlOutputs = await Self.readLaunchctlOutputs(for: .smappserviceActive)
 
             // 3. Check if process is running
             let processIsRunning = await Self.pgrepKanataProcessAsync()
 
             // 4. Analyze the state
-            let launchctlCanFindService = !launchctlOutput.isEmpty
-            let isSpawnFailed = launchctlOutput.contains("spawn failed") ||
-                launchctlOutput.contains("last exit code = 78")
+            let launchctlCanFindService = launchctlOutputs.contains { !$0.output.isEmpty }
+            let isSpawnFailed = launchctlOutputs.contains { entry in
+                entry.output.contains("spawn failed") || entry.output.contains("last exit code = 78")
+            }
 
             // Issue detected if:
             // - Service registered but launchd can't find it, OR
@@ -325,6 +320,40 @@ class KanataDaemonManager {
 
             return hasIssue
         }.value
+    }
+
+    nonisolated static func preferredLaunchctlTargets(
+        for managementState: ServiceManagementState,
+        userID: uid_t = getuid()
+    ) -> [String] {
+        let guiTarget = "gui/\(userID)/\(kanataServiceID)"
+        let systemTarget = "system/\(kanataServiceID)"
+
+        switch managementState {
+        case .legacyActive:
+            return [systemTarget]
+        case .smappserviceActive, .smappservicePending, .conflicted, .unknown, .uninstalled:
+            return [guiTarget, systemTarget]
+        }
+    }
+
+    nonisolated private static func readLaunchctlOutputs(for managementState: ServiceManagementState)
+        async -> [(target: String, output: String, exitCode: Int32?)]
+    {
+        var outputs: [(target: String, output: String, exitCode: Int32?)] = []
+        for target in preferredLaunchctlTargets(for: managementState) {
+            do {
+                let result = try await SubprocessRunner.shared.launchctl("print", [target])
+                outputs.append((
+                    target: target,
+                    output: result.exitCode == 0 ? result.stdout : "",
+                    exitCode: result.exitCode
+                ))
+            } catch {
+                outputs.append((target: target, output: "", exitCode: nil))
+            }
+        }
+        return outputs
     }
 
     // MARK: - Registration
@@ -405,8 +434,19 @@ class KanataDaemonManager {
                 )
             }
 
-            // Validate kanata binary exists in app bundle
-            let kanataPath = "\(bundlePath)/Contents/Library/KeyPath/kanata"
+            // Validate runtime host exists in app bundle
+            let launcherPath = WizardSystemPaths.bundledKanataLauncherPath
+            AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for Kanata launcher at: \(launcherPath)")
+            guard FileManager.default.fileExists(atPath: launcherPath) else {
+                AppLogger.shared.log("❌ [KanataDaemonManager] Kanata launcher not found at: \(launcherPath)")
+                throw KanataDaemonError.registrationFailed(
+                    "Kanata launcher not found in app bundle: \(launcherPath)"
+                )
+            }
+            AppLogger.shared.log("✅ [KanataDaemonManager] Kanata launcher found")
+
+            // Validate kanata core binary exists in app bundle
+            let kanataPath = WizardSystemPaths.bundledKanataPath
             AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for Kanata binary at: \(kanataPath)")
             guard FileManager.default.fileExists(atPath: kanataPath) else {
                 AppLogger.shared.log("❌ [KanataDaemonManager] Kanata binary not found at: \(kanataPath)")

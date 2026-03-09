@@ -37,17 +37,11 @@ extension InstallerEngine {
     /// Convert an AutoFixAction to a ServiceRecipe
     func recipeForAction(_ action: AutoFixAction, context _: SystemContext) -> ServiceRecipe? {
         switch action {
-        case .installLaunchDaemonServices:
+        case .installRequiredRuntimeServices:
             ServiceRecipe(
-                id: InstallerRecipeID.installLaunchDaemonServices,
-                type: .installService,
-                serviceID: nil,
-                launchctlActions: [
-                    .bootstrap(serviceID: KeyPathConstants.Bundle.daemonID),
-                    .bootstrap(serviceID: KeyPathConstants.Bundle.vhidDaemonID),
-                    .bootstrap(serviceID: KeyPathConstants.Bundle.vhidManagerID)
-                ],
-                healthCheck: HealthCheckCriteria(serviceID: KeyPathConstants.Bundle.daemonID, shouldBeRunning: true)
+                id: InstallerRecipeID.installRequiredRuntimeServices,
+                type: .installComponent,
+                serviceID: KeyPathConstants.Bundle.outputBridgeID
             )
 
         case .installBundledKanata:
@@ -101,18 +95,10 @@ extension InstallerEngine {
                 )
             )
 
-        case .restartUnhealthyServices:
-            ServiceRecipe(
-                id: InstallerRecipeID.restartUnhealthyServices,
-                type: .restartService,
-                serviceID: nil
-            )
-
         case .restartVirtualHIDDaemon:
-            // Same recipe as restartUnhealthyServices (verified restart path)
             ServiceRecipe(
-                id: InstallerRecipeID.restartUnhealthyServices,
-                type: .restartService,
+                id: InstallerRecipeID.repairVHIDDaemonServices,
+                type: .installComponent,
                 serviceID: nil
             )
 
@@ -193,28 +179,6 @@ extension InstallerEngine {
                 serviceID: nil
             )
 
-        case .adoptOrphanedProcess:
-            ServiceRecipe(
-                id: InstallerRecipeID.adoptOrphanedProcess,
-                type: .installComponent,
-                serviceID: KeyPathConstants.Bundle.daemonID,
-                healthCheck: HealthCheckCriteria(
-                    serviceID: KeyPathConstants.Bundle.daemonID,
-                    shouldBeRunning: true
-                )
-            )
-
-        case .replaceOrphanedProcess:
-            ServiceRecipe(
-                id: InstallerRecipeID.replaceOrphanedProcess,
-                type: .installComponent,
-                serviceID: KeyPathConstants.Bundle.daemonID,
-                healthCheck: HealthCheckCriteria(
-                    serviceID: KeyPathConstants.Bundle.daemonID,
-                    shouldBeRunning: true
-                )
-            )
-
         case .replaceKanataWithBundled:
             ServiceRecipe(
                 id: InstallerRecipeID.replaceKanataWithBundled,
@@ -271,8 +235,8 @@ extension InstallerEngine {
     /// Map AutoFixAction to recipe ID
     func recipeIDForAction(_ action: AutoFixAction) -> String {
         switch action {
-        case .installLaunchDaemonServices:
-            InstallerRecipeID.installLaunchDaemonServices
+        case .installRequiredRuntimeServices:
+            InstallerRecipeID.installRequiredRuntimeServices
         case .installBundledKanata:
             InstallerRecipeID.installBundledKanata
         case .installCorrectVHIDDriver:
@@ -285,8 +249,6 @@ extension InstallerEngine {
             InstallerRecipeID.reinstallPrivilegedHelper
         case .startKarabinerDaemon:
             InstallerRecipeID.startKarabinerDaemon
-        case .restartUnhealthyServices:
-            InstallerRecipeID.restartUnhealthyServices
         case .terminateConflictingProcesses:
             InstallerRecipeID.terminateConflictingProcesses
         case .fixDriverVersionMismatch:
@@ -294,8 +256,7 @@ extension InstallerEngine {
         case .installMissingComponents:
             InstallerRecipeID.installMissingComponents
         case .restartVirtualHIDDaemon:
-            // restartVirtualHIDDaemon maps to restartUnhealthyServices recipe
-            InstallerRecipeID.restartUnhealthyServices
+            InstallerRecipeID.repairVHIDDaemonServices
         case .createConfigDirectories:
             InstallerRecipeID.createConfigDirectories
         case .activateVHIDDeviceManager:
@@ -312,10 +273,6 @@ extension InstallerEngine {
             InstallerRecipeID.regenerateServiceConfig
         case .restartCommServer:
             InstallerRecipeID.restartCommServer
-        case .adoptOrphanedProcess:
-            InstallerRecipeID.adoptOrphanedProcess
-        case .replaceOrphanedProcess:
-            InstallerRecipeID.replaceOrphanedProcess
         case .replaceKanataWithBundled:
             InstallerRecipeID.replaceKanataWithBundled
         case .synchronizeConfigPaths:

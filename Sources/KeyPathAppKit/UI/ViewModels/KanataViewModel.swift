@@ -31,6 +31,8 @@ class KanataViewModel {
     var diagnostics: [KanataDiagnostic] = []
     var lastProcessExitCode: Int32?
     var lastConfigUpdate: Date = .init()
+    var activeRuntimePathTitle: String?
+    var activeRuntimePathDetail: String?
 
     // UI State Properties (Legacy state removed - use InstallerEngine/SystemContext)
     // Removed: errorReason, showWizard, launchFailureStatus
@@ -117,6 +119,8 @@ class KanataViewModel {
         diagnostics = state.diagnostics
         lastProcessExitCode = state.lastProcessExitCode
         lastConfigUpdate = state.lastConfigUpdate
+        activeRuntimePathTitle = state.activeRuntimePathTitle
+        activeRuntimePathDetail = state.activeRuntimePathDetail
         saveStatus = state.saveStatus
         // Note: emergencyStopActivated is managed locally in ViewModel, not synced from manager
 
@@ -479,8 +483,8 @@ class KanataViewModel {
         await manager.restartKanata(reason: reason)
     }
 
-    func currentServiceState() async -> KanataService.ServiceState {
-        await manager.currentServiceState()
+    func currentRuntimeStatus() async -> RuntimeCoordinator.RuntimeStatus {
+        await manager.currentRuntimeStatus()
     }
 
     // MARK: - Rule Conflict Resolution

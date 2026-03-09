@@ -23,8 +23,8 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
 
         XCTAssertTrue(report.success, "Execution should succeed when broker operations succeed")
         XCTAssertTrue(
-            coordinator.calls.contains("installAllLaunchDaemonServices"),
-            "Install service recipe should attempt to install LaunchDaemon services"
+            coordinator.calls.contains("installRequiredRuntimeServices"),
+            "Install service recipe should attempt to install required runtime services"
         )
         XCTAssertTrue(
             coordinator.calls.contains("installBundledKanata"),
@@ -34,7 +34,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
 
     func testExecutePlanStopsOnBrokerFailure() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
-        coordinator.failOnCall = "installAllLaunchDaemonServices"
+        coordinator.failOnCall = "installRequiredRuntimeServices"
         let broker = PrivilegeBroker(coordinator: coordinator)
         let engine = InstallerEngine()
 

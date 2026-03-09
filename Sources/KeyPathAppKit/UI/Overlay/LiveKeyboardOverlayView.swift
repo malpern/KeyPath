@@ -91,11 +91,11 @@ struct LiveKeyboardOverlayView: View {
     @AppStorage("launcherWelcomeSeenForBuild") var launcherWelcomeSeenForBuild: String = ""
     @State var pendingLauncherConfig: LauncherGridConfig?
 
-    // MARK: - Service Stopped Alert (Overlay)
+    // MARK: - Runtime Stopped Alert (Overlay)
 
-    @State var showingKanataServiceStoppedAlert = false
-    @State private var lastKanataServiceIssuePresent = false
-    @State private var hasSeenHealthyKanataService = false
+    @State var showingRuntimeStoppedAlert = false
+    @State private var lastRuntimeIssuePresent = false
+    @State private var hasSeenHealthyRuntime = false
     @State private var overlayLaunchTime = Date()
     @State private var toastManager = WizardToastManager()
     @State private var lastReloadFailureToastAt: Date?
@@ -157,18 +157,18 @@ struct LiveKeyboardOverlayView: View {
         }
     }
 
-    private func handleKanataServiceIssueChange(_ issues: [WizardIssue]) {
-        let serviceIssue = issues.first { issue in
-            if case .component(.kanataService) = issue.identifier {
+    private func handleRuntimeIssueChange(_ issues: [WizardIssue]) {
+        let runtimeIssue = issues.first { issue in
+            if case .component(.keyPathRuntime) = issue.identifier {
                 return true
             }
             return false
         }
-        let hasServiceIssue = serviceIssue != nil
+        let hasRuntimeIssue = runtimeIssue != nil
 
-        if !hasServiceIssue {
+        if !hasRuntimeIssue {
             if let state = MainAppStateController.shared.validationState, state != .checking {
-                hasSeenHealthyKanataService = true
+                hasSeenHealthyRuntime = true
             }
         }
 
@@ -176,16 +176,16 @@ struct LiveKeyboardOverlayView: View {
         let timeSinceLaunch = Date().timeIntervalSince(overlayLaunchTime)
         let wizardOpen = WizardWindowController.shared.isVisible
 
-        if hasServiceIssue,
-           !lastKanataServiceIssuePresent,
-           hasSeenHealthyKanataService,
+        if hasRuntimeIssue,
+           !lastRuntimeIssuePresent,
+           hasSeenHealthyRuntime,
            !wizardOpen,
            timeSinceLaunch > 10
         {
-            showingKanataServiceStoppedAlert = true
+            showingRuntimeStoppedAlert = true
         }
 
-        lastKanataServiceIssuePresent = hasServiceIssue
+        lastRuntimeIssuePresent = hasRuntimeIssue
     }
 
     private func openSystemStatusSettings() {
@@ -288,7 +288,7 @@ struct LiveKeyboardOverlayView: View {
                 inputSourceDetector.stopMonitoring()
             },
             onLoadCustomRulesState: { loadCustomRulesState() },
-            onServiceIssueChange: { handleKanataServiceIssueChange($0) },
+            onServiceIssueChange: { handleRuntimeIssueChange($0) },
             onConfigValidationFailed: { notification in
                 let errors = notification.userInfo?["errors"] as? [String] ?? []
                 guard !errors.isEmpty else { return }
@@ -395,14 +395,14 @@ struct LiveKeyboardOverlayView: View {
         .modifier(OverlayDialogsModifier(
             pendingDeleteRule: $pendingDeleteRule,
             appRuleDeleteError: $appRuleDeleteError,
-            showingKanataServiceStoppedAlert: $showingKanataServiceStoppedAlert,
+            showingRuntimeStoppedAlert: $showingRuntimeStoppedAlert,
             showingValidationFailureModal: $showingValidationFailureModal,
             validationFailureErrors: $validationFailureErrors,
             showResetAllRulesConfirmation: $showResetAllRulesConfirmation,
             onDeleteAppRule: { keymap, override in
                 deleteAppRule(keymap: keymap, override: override)
             },
-            onRestartKanataService: {
+            onRestartRuntime: {
                 Task { @MainActor in
                     guard let kanataViewModel else { return }
                     _ = await kanataViewModel.restartKanata(

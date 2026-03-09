@@ -24,7 +24,7 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
     func testDriverNotRedWhenOnlyKanataServiceIssue() {
         let daemonIssue = makeIssue(
             category: .daemon,
-            identifier: IssueIdentifier.component(.kanataService)
+            identifier: IssueIdentifier.component(.keyPathRuntime)
         )
 
         let overall = KarabinerComponentsStatusEvaluator.evaluate(
@@ -35,13 +35,8 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
             .driver,
             in: [daemonIssue]
         )
-        let services = KarabinerComponentsStatusEvaluator.getIndividualComponentStatus(
-            .backgroundServices,
-            in: [daemonIssue]
-        )
 
         XCTAssertEqual(driver, InstallationStatus.completed, "Driver should stay green when only Kanata service is pending")
-        XCTAssertEqual(services, InstallationStatus.completed, "Background services row should stay green for Kanata-only issues")
         XCTAssertEqual(overall, InstallationStatus.completed, "Overall Karabiner status should stay green for Kanata-only issues")
     }
 
@@ -65,14 +60,13 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
             timestamp: now
         )
 
-        // Key scenario: vhidServicesHealthy=true but launchDaemonServicesHealthy=false (Kanata not installed)
+        // Key scenario: vhidServicesHealthy=true while the full runtime still is not installed
         let components = ComponentStatus(
             kanataBinaryInstalled: true,
             karabinerDriverInstalled: true,
             karabinerDaemonRunning: true,
             vhidDeviceInstalled: true,
             vhidDeviceHealthy: true,
-            launchDaemonServicesHealthy: false, // All services (including Kanata) - FALSE
             vhidServicesHealthy: true, // VHID only - TRUE (this is the key!)
             vhidVersionMismatch: false
         )
@@ -96,26 +90,21 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
         // Act: Adapt the context to wizard format
         let result = SystemContextAdapter.adapt(context)
 
-        // Assert: No launchDaemonServices issue with .installation category
-        // (that's what the Karabiner page looks for)
+        // Assert: No stale recovery-services installation issue is generated
         let karabinerRelatedIssues = result.issues.filter { issue in
-            if case .component(.launchDaemonServices) = issue.identifier,
-               issue.category == WizardIssue.IssueCategory.installation
-            {
-                return true
-            }
-            return false
+            issue.category == WizardIssue.IssueCategory.installation &&
+                issue.title.localizedCaseInsensitiveContains("recovery services")
         }
 
         XCTAssertTrue(
             karabinerRelatedIssues.isEmpty,
-            "When VHID services are healthy, no .launchDaemonServices issue should be generated " +
+            "When VHID services are healthy, no recovery-services installation issue should be generated " +
                 "for the Karabiner page. Found: \(karabinerRelatedIssues)"
         )
 
         // Should have a Kanata-specific issue instead
         let kanataIssues = result.issues.filter { issue in
-            if case .component(.kanataService) = issue.identifier {
+            if case .component(.keyPathRuntime) = issue.identifier {
                 return true
             }
             return false
@@ -123,12 +112,13 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
 
         XCTAssertFalse(
             kanataIssues.isEmpty,
-            "A .kanataService issue should be generated when Kanata is not running but VHID is healthy"
+            "A .keyPathRuntime issue should be generated when Kanata is not running but VHID is healthy"
         )
     }
 
-    /// Verify that when VHID services are unhealthy, the .launchDaemonServices issue IS generated
-    func testLaunchDaemonServicesIssueWhenVHIDUnhealthy() {
+    /// Verify that VHID unhealthy state still maps to the Karabiner page through VHID-specific issues,
+    /// not legacy recovery-service issues.
+    func testVHIDUnhealthyUsesVHIDSpecificIssue() {
         let now = Date()
         let perms = PermissionOracle.Snapshot(
             keyPath: PermissionOracle.PermissionSet(
@@ -149,7 +139,6 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
             karabinerDaemonRunning: true,
             vhidDeviceInstalled: true,
             vhidDeviceHealthy: true,
-            launchDaemonServicesHealthy: false,
             vhidServicesHealthy: false, // VHID unhealthy!
             vhidVersionMismatch: false
         )
@@ -172,9 +161,9 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
 
         let result = SystemContextAdapter.adapt(context)
 
-        // Should have a launchDaemonServices issue when VHID is unhealthy
+        // Should have a VHID-specific installation issue when VHID is unhealthy.
         let vhidIssues = result.issues.filter { issue in
-            if case .component(.launchDaemonServices) = issue.identifier,
+            if case .component(.vhidDeviceManager) = issue.identifier,
                issue.category == WizardIssue.IssueCategory.installation
             {
                 return true
@@ -184,7 +173,7 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
 
         XCTAssertFalse(
             vhidIssues.isEmpty,
-            "When VHID services are unhealthy, a .launchDaemonServices issue should be generated"
+            "When VHID services are unhealthy, a VHID-specific installation issue should be generated"
         )
     }
 }

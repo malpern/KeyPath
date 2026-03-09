@@ -266,7 +266,7 @@ struct WizardSystemStatusOverview: View {
             )
         )
 
-        // 7. Kanata Service (depends on helper + driver)
+        // 7. KeyPath Runtime (depends on helper + driver)
         let serviceStatus = getServiceStatus()
         let serviceNavigation = getServiceNavigationTarget()
         let serviceIssues = issues.filter { issue in
@@ -276,7 +276,7 @@ struct WizardSystemStatusOverview: View {
             StatusItemModel(
                 id: "kanata-service",
                 icon: "app.badge.checkmark",
-                title: "Kanata Service",
+                title: "KeyPath Runtime",
                 subtitle: kanataIsRunning ? "Running" : nil,
                 status: serviceStatus,
                 isNavigable: true,
@@ -612,8 +612,7 @@ struct WizardSystemStatusOverview: View {
             if issue.category == .installation {
                 switch issue.identifier {
                 case .component(.kanataBinaryMissing),
-                     .component(.kanataService),
-                     .component(.orphanedKanataProcess):
+                     .component(.keyPathRuntime):
                     return true
                 default:
                     return false

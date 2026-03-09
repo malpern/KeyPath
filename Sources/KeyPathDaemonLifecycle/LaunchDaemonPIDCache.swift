@@ -104,42 +104,56 @@ public actor LaunchDaemonPIDCache {
 
     // MARK: - Private Implementation
 
+    private nonisolated func kanataLaunchctlTargets(userID: uid_t = getuid()) -> [String] {
+        ["gui/\(userID)/com.keypath.kanata", "system/com.keypath.kanata"]
+    }
+
     private func fetchLaunchDaemonPIDWithTimeout() async throws -> pid_t? {
-        let task = Process()
-        task.launchPath = "/bin/launchctl"
-        task.arguments = ["print", "system/com.keypath.kanata"]
+        for target in kanataLaunchctlTargets() {
+            let task = Process()
+            task.launchPath = "/bin/launchctl"
+            task.arguments = ["print", target]
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = Pipe() // Discard error output
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = Pipe()
 
-        let processTask = Task { () throws -> pid_t? in
-            try await self.runLaunchctlPrint(task: task, pipe: pipe)
-        }
-
-        do {
-            return try await withThrowingTaskGroup(of: pid_t?.self) { group in
-                group.addTask {
-                    try await processTask.value
-                }
-
-                group.addTask {
-                    try await Task.sleep(for: .seconds(self.launchctlTimeout))
-                    throw TimeoutError()
-                }
-
-                guard let result = try await group.next() else {
-                    group.cancelAll()
-                    throw TimeoutError()
-                }
-                group.cancelAll()
-                return result
+            let processTask = Task { () throws -> pid_t? in
+                try await self.runLaunchctlPrint(task: task, pipe: pipe)
             }
-        } catch {
-            terminateLaunchctl(task)
-            processTask.cancel()
-            throw error
+
+            do {
+                let result = try await withThrowingTaskGroup(of: pid_t?.self) { group in
+                    group.addTask {
+                        try await processTask.value
+                    }
+
+                    group.addTask {
+                        try await Task.sleep(for: .seconds(self.launchctlTimeout))
+                        throw TimeoutError()
+                    }
+
+                    guard let result = try await group.next() else {
+                        group.cancelAll()
+                        throw TimeoutError()
+                    }
+                    group.cancelAll()
+                    return result
+                }
+
+                if result != nil {
+                    return result
+                }
+            } catch {
+                terminateLaunchctl(task)
+                processTask.cancel()
+                if error is TimeoutError {
+                    throw error
+                }
+            }
         }
+
+        return nil
     }
 
     private func runLaunchctlPrint(task: Process, pipe: Pipe) async throws -> pid_t? {

@@ -272,7 +272,7 @@ final class WizardNavigationEngine: WizardNavigating {
                     switch comp {
                     case .karabinerDriver, .karabinerDaemon,
                          .vhidDeviceManager, .vhidDeviceActivation,
-                         .vhidDeviceRunning, .launchDaemonServices,
+                         .vhidDeviceRunning,
                          .vhidDaemonMisconfigured, .vhidDriverVersionMismatch:
                         return true
                     default:
@@ -285,7 +285,7 @@ final class WizardNavigationEngine: WizardNavigating {
             issues.contains { issue in
                 if case let .component(comp) = issue.identifier {
                     switch comp {
-                    case .kanataBinaryMissing, .kanataBinaryVersionMismatch, .kanataService:
+                    case .kanataBinaryMissing, .kanataBinaryVersionMismatch:
                         return true
                     default:
                         return false
@@ -389,7 +389,7 @@ final class WizardNavigationEngine: WizardNavigating {
             case .active:
                 "Close Setup"
             case .serviceNotRunning, .ready:
-                "Start Kanata Service"
+                "Start KeyPath Runtime"
             default:
                 "Continue Setup"
             }

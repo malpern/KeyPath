@@ -41,6 +41,8 @@ struct KanataUIState: Sendable {
     let diagnostics: [KanataDiagnostic]
     let lastProcessExitCode: Int32?
     let lastConfigUpdate: Date
+    let activeRuntimePathTitle: String?
+    let activeRuntimePathDetail: String?
 
     // UI State (Legacy status removed)
     // Removed: errorReason, showWizard, launchFailureStatus
@@ -63,6 +65,8 @@ struct KanataUIState: Sendable {
         diagnostics: [],
         lastProcessExitCode: nil,
         lastConfigUpdate: Date(),
+        activeRuntimePathTitle: nil,
+        activeRuntimePathDetail: nil,
         validationError: nil,
         saveStatus: .idle,
         pendingRuleConflict: nil

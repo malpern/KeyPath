@@ -57,7 +57,7 @@ public class KeyboardCapture {
     /// Non-blocking check for whether Kanata is running, using cached service state.
     /// Replaces the old blocking `pgrep` call that could stall the main actor.
     func fastProbeKanataRunning(timeout _: TimeInterval = 0.25) -> Bool {
-        KanataService.shared.state.isRunning
+        KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning
     }
 
     // MARK: - Event Router Configuration

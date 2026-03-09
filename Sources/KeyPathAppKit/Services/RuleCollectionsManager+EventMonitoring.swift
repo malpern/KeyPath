@@ -35,14 +35,23 @@ extension RuleCollectionsManager {
                         self.handleUnknownMessage(message)
                     }
                 },
-                onKeyInput: { key, action in
+                onKeyInput: { observation in
                     // Post notification for TCP-based physical key input events
                     // Used by KeyboardVisualizationViewModel for overlay highlighting
                     await MainActor.run {
+                        var userInfo: [String: Any] = [
+                            "key": observation.key,
+                            "action": observation.action.rawValue.lowercased(),
+                            "listenerSessionID": observation.sessionID,
+                            "observedAt": observation.observedAt
+                        ]
+                        if let kanataTimestamp = observation.kanataTimestamp {
+                            userInfo["kanataTimestamp"] = kanataTimestamp
+                        }
                         NotificationCenter.default.post(
                             name: .kanataKeyInput,
                             object: nil,
-                            userInfo: ["key": key, "action": action.rawValue.lowercased()]
+                            userInfo: userInfo
                         )
                     }
                 },
@@ -53,7 +62,13 @@ extension RuleCollectionsManager {
                         NotificationCenter.default.post(
                             name: .kanataHoldActivated,
                             object: nil,
-                            userInfo: ["key": activation.key, "action": activation.action]
+                            userInfo: [
+                                "key": activation.key,
+                                "action": activation.action,
+                                "listenerSessionID": activation.sessionID,
+                                "observedAt": activation.observedAt,
+                                "kanataTimestamp": activation.timestamp
+                            ]
                         )
                     }
                 },
@@ -64,7 +79,13 @@ extension RuleCollectionsManager {
                         NotificationCenter.default.post(
                             name: .kanataTapActivated,
                             object: nil,
-                            userInfo: ["key": activation.key, "action": activation.action]
+                            userInfo: [
+                                "key": activation.key,
+                                "action": activation.action,
+                                "listenerSessionID": activation.sessionID,
+                                "observedAt": activation.observedAt,
+                                "kanataTimestamp": activation.timestamp
+                            ]
                         )
                     }
                 },
@@ -74,7 +95,13 @@ extension RuleCollectionsManager {
                         NotificationCenter.default.post(
                             name: .kanataOneShotActivated,
                             object: nil,
-                            userInfo: ["key": activation.key, "modifiers": activation.modifiers]
+                            userInfo: [
+                                "key": activation.key,
+                                "modifiers": activation.modifiers,
+                                "listenerSessionID": activation.sessionID,
+                                "observedAt": activation.observedAt,
+                                "kanataTimestamp": activation.timestamp
+                            ]
                         )
                     }
                 },
@@ -84,7 +111,13 @@ extension RuleCollectionsManager {
                         NotificationCenter.default.post(
                             name: .kanataChordResolved,
                             object: nil,
-                            userInfo: ["keys": resolution.keys, "action": resolution.action]
+                            userInfo: [
+                                "keys": resolution.keys,
+                                "action": resolution.action,
+                                "listenerSessionID": resolution.sessionID,
+                                "observedAt": resolution.observedAt,
+                                "kanataTimestamp": resolution.timestamp
+                            ]
                         )
                     }
                 },
@@ -97,7 +130,10 @@ extension RuleCollectionsManager {
                             userInfo: [
                                 "key": resolution.key,
                                 "tapCount": resolution.tapCount,
-                                "action": resolution.action
+                                "action": resolution.action,
+                                "listenerSessionID": resolution.sessionID,
+                                "observedAt": resolution.observedAt,
+                                "kanataTimestamp": resolution.timestamp
                             ]
                         )
                     }

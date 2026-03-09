@@ -336,7 +336,7 @@ struct AdvancedSettingsTabView: View {
 
     private func performResetEverything() async {
         let report = await InstallerEngine()
-            .runSingleAction(.restartUnhealthyServices, using: PrivilegeBroker())
+            .runSingleAction(.terminateConflictingProcesses, using: PrivilegeBroker())
         await MainActor.run {
             if report.success {
                 settingsToastManager.showInfo("Reset everything complete")

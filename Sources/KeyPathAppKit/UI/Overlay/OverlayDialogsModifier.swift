@@ -5,12 +5,12 @@ import SwiftUI
 struct OverlayDialogsModifier: ViewModifier {
     @Binding var pendingDeleteRule: (keymap: AppKeymap, override: AppKeyOverride)?
     @Binding var appRuleDeleteError: String?
-    @Binding var showingKanataServiceStoppedAlert: Bool
+    @Binding var showingRuntimeStoppedAlert: Bool
     @Binding var showingValidationFailureModal: Bool
     @Binding var validationFailureErrors: [String]
     @Binding var showResetAllRulesConfirmation: Bool
     let onDeleteAppRule: (AppKeymap, AppKeyOverride) -> Void
-    let onRestartKanataService: () -> Void
+    let onRestartRuntime: () -> Void
     let onCopyValidationErrors: () -> Void
     let onOpenConfig: () -> Void
     let onOpenDiagnostics: () -> Void
@@ -64,21 +64,21 @@ struct OverlayDialogsModifier: ViewModifier {
                     }
                 }
             )
-            // Alert when Kanata stops unexpectedly
+            // Alert when the runtime stops unexpectedly
             .alert(
-                "Kanata Service Stopped",
-                isPresented: $showingKanataServiceStoppedAlert,
+                "KeyPath Runtime Stopped",
+                isPresented: $showingRuntimeStoppedAlert,
                 actions: {
-                    Button("Restart Service") {
-                        showingKanataServiceStoppedAlert = false
-                        onRestartKanataService()
+                    Button("Restart Runtime") {
+                        showingRuntimeStoppedAlert = false
+                        onRestartRuntime()
                     }
                     .accessibilityIdentifier("overlay-kanata-service-stopped-restart-button")
                     Button("Cancel", role: .cancel) {}
                         .accessibilityIdentifier("overlay-kanata-service-stopped-cancel-button")
                 },
                 message: {
-                    Text("The remapping service stopped unexpectedly.")
+                    Text("The remapping runtime stopped unexpectedly.")
                 }
             )
             // Config validation failure sheet

@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 @preconcurrency import XCTest
 
 /// Unit tests for PlistGenerator service.
@@ -55,6 +56,19 @@ final class PlistGeneratorTests: XCTestCase {
         XCTAssertFalse(args.contains("--debug"))
         XCTAssertTrue(args.contains("--port"))
         XCTAssertTrue(args.contains("5829"))
+    }
+
+    func testBuildKanataPlistArgumentsDoesNotDuplicateTraceWhenDebugPresent() {
+        let args = KanataRuntimeLaunchRequest(
+            configPath: "/tmp/test.kbd",
+            inheritedArguments: ["--debug"],
+            addTraceLogging: true
+        ).commandLine(binaryPath: "/usr/local/bin/kanata")
+
+        XCTAssertEqual(
+            args,
+            ["/usr/local/bin/kanata", "--cfg", "/tmp/test.kbd", "--debug"]
+        )
     }
 
     func testBuildKanataPlistArgumentsCustomPort() {

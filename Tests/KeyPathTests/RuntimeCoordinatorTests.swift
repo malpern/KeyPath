@@ -5,6 +5,20 @@
 final class RuntimeCoordinatorTests: KeyPathTestCase {
     lazy var manager: RuntimeCoordinator = .init()
 
+    override func setUp() {
+        super.setUp()
+        KanataRuntimePathCoordinator.testDecision = nil
+        KanataSplitRuntimeHostService.testPersistentHostPID = nil
+        KanataSplitRuntimeHostService.testStartPersistentError = nil
+    }
+
+    override func tearDown() {
+        KanataRuntimePathCoordinator.testDecision = nil
+        KanataSplitRuntimeHostService.testPersistentHostPID = nil
+        KanataSplitRuntimeHostService.testStartPersistentError = nil
+        super.tearDown()
+    }
+
     func testInitialState() {
         // Test initial published properties
         // XCTAssertFalse(manager.isRunning, "Should not be running initially") // Removed
@@ -77,12 +91,131 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
         XCTAssertTrue(configPath.contains("keypath.kbd"), "Config path should contain keypath.kbd")
     }
 
+    func testInitialUIStateHasNoActiveRuntimePath() {
+        let state = manager.getCurrentUIState()
+        XCTAssertNil(state.activeRuntimePathTitle, "Initial UI state should not report an active runtime path")
+        XCTAssertNil(state.activeRuntimePathDetail, "Initial UI state should not report active runtime path details")
+    }
+
     func testInstallationStatus() {
         // Test installation status check
         let isInstalled = manager.isCompletelyInstalled()
 
         // Should return a boolean (true or false)
         XCTAssertNotNil(isInstalled)
+    }
+
+    func testUnexpectedSplitRuntimeHostExitFailsLoudly() async throws {
+        await manager.handleSplitRuntimeHostExit(
+            pid: 12345,
+            exitCode: 9,
+            terminationReason: "uncaughtSignal",
+            expected: false,
+            stderrLogPath: "/tmp/keypath-host.log"
+        )
+
+        let error = try XCTUnwrap(manager.lastError)
+        XCTAssertTrue(error.contains("Split runtime host exited unexpectedly"))
+        XCTAssertTrue(error.contains("/tmp/keypath-host.log"))
+        XCTAssertTrue(error.contains("no longer auto-falls back"))
+        XCTAssertNil(manager.lastWarning)
+
+        let state = manager.getCurrentUIState()
+        XCTAssertNil(state.activeRuntimePathTitle)
+        XCTAssertNil(state.activeRuntimePathDetail)
+    }
+
+    func testExpectedSplitRuntimeHostExitDoesNotSetRecoveryError() async {
+        manager.lastError = nil
+
+        await manager.handleSplitRuntimeHostExit(
+            pid: 12345,
+            exitCode: 0,
+            terminationReason: "exit",
+            expected: true,
+            stderrLogPath: nil
+        )
+
+        XCTAssertNil(manager.lastError)
+    }
+
+    func testSuccessfulSplitRuntimeStartClearsPreviousExitError() async throws {
+        await manager.handleSplitRuntimeHostExit(
+            pid: 12345,
+            exitCode: 9,
+            terminationReason: "uncaughtSignal",
+            expected: false,
+            stderrLogPath: "/tmp/keypath-host.log"
+        )
+
+        XCTAssertNotNil(manager.lastError)
+
+        KanataRuntimePathCoordinator.testDecision = .useSplitRuntime(reason: "test split runtime")
+        KanataSplitRuntimeHostService.testPersistentHostPID = 4343
+        let started = await manager.startKanata(
+            reason: "Manual recovery"
+        )
+
+        XCTAssertTrue(started)
+        XCTAssertNil(manager.lastError)
+        XCTAssertNil(manager.lastWarning)
+    }
+
+    func testSplitRuntimeStartStopRestartCycle() async {
+        KanataRuntimePathCoordinator.testDecision = .useSplitRuntime(reason: "test split runtime")
+        KanataSplitRuntimeHostService.testPersistentHostPID = 4242
+
+        let started = await manager.startKanata(reason: "Split runtime test start")
+        XCTAssertTrue(started)
+
+        var state = manager.getCurrentUIState()
+        XCTAssertEqual(state.activeRuntimePathTitle, "Split Runtime Host")
+        XCTAssertTrue(state.activeRuntimePathDetail?.contains("PID 4242") == true)
+
+        let restarted = await manager.restartKanata(reason: "Split runtime test restart")
+        XCTAssertTrue(restarted)
+
+        state = manager.getCurrentUIState()
+        XCTAssertEqual(state.activeRuntimePathTitle, "Split Runtime Host")
+        XCTAssertTrue(state.activeRuntimePathDetail?.contains("PID 4242") == true)
+
+        let stopped = await manager.stopKanata(reason: "Split runtime test stop")
+        XCTAssertTrue(stopped)
+
+        state = manager.getCurrentUIState()
+        XCTAssertNil(state.activeRuntimePathTitle)
+        XCTAssertNil(state.activeRuntimePathDetail)
+    }
+
+    func testRestartCutsOverToSplitRuntimeWhenPreferred() async {
+        KanataRuntimePathCoordinator.testDecision = .useSplitRuntime(reason: "test split runtime")
+        KanataSplitRuntimeHostService.testPersistentHostPID = 5252
+
+        let restarted = await manager.restartKanata(reason: "Cut over from legacy to split runtime")
+        XCTAssertTrue(restarted)
+
+        let state = manager.getCurrentUIState()
+        XCTAssertEqual(state.activeRuntimePathTitle, "Split Runtime Host")
+        XCTAssertTrue(state.activeRuntimePathDetail?.contains("Bundled user-session host active") == true)
+    }
+
+    func testSplitRuntimeStartFailureDoesNotSilentlyFallBackToLegacy() async {
+        struct SplitStartFailure: LocalizedError {
+            var errorDescription: String? { "simulated split host start failure" }
+        }
+
+        KanataRuntimePathCoordinator.testDecision = .useSplitRuntime(reason: "test split runtime")
+        KanataSplitRuntimeHostService.testStartPersistentError = SplitStartFailure()
+
+        let started = await manager.startKanata(reason: "Split runtime start should fail loudly")
+        XCTAssertFalse(started)
+        XCTAssertEqual(
+            manager.lastError,
+            "Split runtime host failed to start: simulated split host start failure. Legacy fallback is reserved for recovery paths."
+        )
+
+        let state = manager.getCurrentUIState()
+        XCTAssertNil(state.activeRuntimePathTitle)
     }
 
     func testPerformanceConfigValidation() async {

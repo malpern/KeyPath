@@ -1,0 +1,22 @@
+[package]
+name = "keypath-kanata-host-bridge"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "keypath_kanata_host_bridge"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+default = []
+simulated-output-spike = ["kanata_state_machine/simulated_output"]
+passthru-output-spike = [
+    "kanata_state_machine/simulated_input",
+    "kanata_state_machine/simulated_output",
+]
+
+[dependencies]
+kanata_state_machine = { package = "kanata", path = "../../External/kanata", features = ["tcp_server"] }
+kanata-parser = { path = "../../External/kanata/parser" }
+karabiner-driverkit = "0.2.1"
+parking_lot = "0.12"

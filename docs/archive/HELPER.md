@@ -94,7 +94,7 @@ class PrivilegedOperationsCoordinator {
         }
     }
 
-    func restartKanataService() async throws {
+    func restartRecoveryDaemonService() async throws {
         switch Self.operationMode {
         case .privilegedHelper:
             try await helperRestartService()
@@ -145,7 +145,7 @@ KeyPath/
 @objc protocol HelperProtocol {
     func installLaunchDaemon(reply: @escaping (Bool, String?) -> Void)
     func installVirtualHIDDriver(reply: @escaping (Bool, String?) -> Void)
-    func restartKanataService(reply: @escaping (Bool, String?) -> Void)
+    func restartRecoveryDaemonService(reply: @escaping (Bool, String?) -> Void)
     func uninstallAll(reply: @escaping (Bool, String?) -> Void)
 }
 ```

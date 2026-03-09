@@ -112,7 +112,7 @@ struct WizardActionSection: View {
             // Handle other cases based on systemState
             switch systemState {
             case .serviceNotRunning, .ready:
-                WizardButton("Start Kanata Service", style: .primary, isDefaultAction: true) {
+                WizardButton("Start KeyPath Runtime", style: .primary, isDefaultAction: true) {
                     onStartService()
                 }
 

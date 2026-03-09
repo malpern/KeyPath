@@ -59,7 +59,7 @@ extension RuntimeCoordinator {
         }
 
         // Skip reloads if Kanata service isn't healthy yet; avoid connection-refused storm
-        let healthStatus = await kanataService.checkHealth(
+        let healthStatus = await diagnosticsManager.checkHealth(
             tcpPort: PreferencesService.shared.tcpServerPort
         )
         if !healthStatus.isHealthy {

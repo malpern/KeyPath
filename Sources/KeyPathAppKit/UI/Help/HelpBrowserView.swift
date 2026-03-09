@@ -243,7 +243,7 @@ struct HelpBrowserView: View {
         ScrollView {
             VStack(spacing: 0) {
                 // Banner image
-                if let bannerURL = Bundle.module.url(forResource: "header-banner", withExtension: "png") {
+                if let bannerURL = KeyPathAppKitResources.url(forResource: "header-banner", withExtension: "png") {
                     AsyncImage(url: bannerURL) { image in
                         image
                             .resizable()
@@ -289,7 +289,7 @@ struct HelpBrowserView: View {
                 }
 
                 // End-of-page flourish — same splotch style as article dividers
-                if let flourishURL = Bundle.module.url(forResource: "decor-divider", withExtension: "png") {
+                if let flourishURL = KeyPathAppKitResources.url(forResource: "decor-divider", withExtension: "png") {
                     Image(nsImage: NSImage(contentsOf: flourishURL) ?? NSImage())
                         .resizable()
                         .aspectRatio(contentMode: .fit)

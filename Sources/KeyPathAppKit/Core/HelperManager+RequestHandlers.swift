@@ -1,6 +1,19 @@
 import Foundation
 import KeyPathCore
 
+private final class HelperXPCCallCompletionState: @unchecked Sendable {
+    private var completed = false
+    private let lock = NSLock()
+
+    func tryComplete() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if completed { return false }
+        completed = true
+        return true
+    }
+}
+
 extension HelperManager {
     // MARK: - XPC Protocol Wrappers
 
@@ -58,7 +71,6 @@ extension HelperManager {
             AppLogger.shared.log("⚠️ [HelperManager] CONCURRENT XPC CALL DETECTED: \(name)")
             AppLogger.shared.log("   → This may cause race conditions or hangs")
             AppLogger.shared.log("   → Active calls: \(activeXPCCalls.joined(separator: ", "))")
-            assertionFailure("Concurrent XPC call to \(name) - check caller logic")
         }
 
         activeXPCCalls.insert(name)
@@ -70,21 +82,7 @@ extension HelperManager {
 
         // Execute with timeout to prevent infinite hangs when XPC connection is interrupted
         // Use a class with lock for thread-safe completion tracking
-        final class CompletionState: @unchecked Sendable {
-            private var _completed = false
-            private let lock = NSLock()
-
-            /// Atomically try to mark as completed. Returns true if this call won the race.
-            func tryComplete() -> Bool {
-                lock.lock()
-                defer { lock.unlock() }
-                if _completed { return false }
-                _completed = true
-                return true
-            }
-        }
-
-        let completionState = CompletionState()
+        let completionState = HelperXPCCallCompletionState()
 
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             // Set up timeout
@@ -111,17 +109,67 @@ extension HelperManager {
         }
     }
 
-    // MARK: - LaunchDaemon Operations
+    /// Execute an XPC call that returns a value, with the same timeout and duplicate-call guard
+    /// used by the void-returning helper operations.
+    private func executeValueXPCCall<T: Sendable>(
+        _ name: String,
+        timeout: TimeInterval = 30.0,
+        _ call: @escaping @Sendable (
+            HelperProtocol,
+            @escaping @Sendable (Result<T, Error>) -> Void
+        ) -> Void
+    ) async throws -> T {
+        if activeXPCCalls.contains(name) {
+            AppLogger.shared.log("⚠️ [HelperManager] CONCURRENT XPC CALL DETECTED: \(name)")
+            AppLogger.shared.log("   → This may cause race conditions or hangs")
+            AppLogger.shared.log("   → Active calls: \(activeXPCCalls.joined(separator: ", "))")
+        }
 
-    func installLaunchDaemon(plistPath: String, serviceID: String) async throws {
-        try await executeXPCCall("installLaunchDaemon") { proxy, reply in
-            proxy.installLaunchDaemon(plistPath: plistPath, serviceID: serviceID, reply: reply)
+        activeXPCCalls.insert(name)
+        defer { activeXPCCalls.remove(name) }
+
+        AppLogger.shared.log("📤 [HelperManager] Calling \(name)")
+
+        let completionState = HelperXPCCallCompletionState()
+
+        return try await withCheckedThrowingContinuation { continuation in
+            Task {
+                try? await Task.sleep(for: .seconds(timeout))
+                guard completionState.tryComplete() else { return }
+                AppLogger.shared.log("⏱️ [HelperManager] \(name) timed out after \(Int(timeout))s")
+                continuation.resume(throwing: HelperManagerError.operationFailed("XPC call '\(name)' timed out after \(Int(timeout))s"))
+            }
+
+            Task {
+                do {
+                    let proxy = try await self.getRemoteProxy { error in
+                        guard completionState.tryComplete() else { return }
+                        continuation.resume(throwing: error)
+                    }
+
+                    call(proxy) { result in
+                        guard completionState.tryComplete() else { return }
+
+                        switch result {
+                        case let .success(value):
+                            AppLogger.shared.info("✅ [HelperManager] \(name) succeeded")
+                            continuation.resume(returning: value)
+                        case let .failure(error):
+                            AppLogger.shared.log("❌ [HelperManager] \(name) failed: \(error.localizedDescription)")
+                            continuation.resume(throwing: error)
+                        }
+                    }
+                } catch {
+                    guard completionState.tryComplete() else { return }
+                    continuation.resume(throwing: error)
+                }
+            }
         }
     }
 
-    func restartUnhealthyServices() async throws {
-        try await executeXPCCall("restartUnhealthyServices") { proxy, reply in
-            proxy.restartUnhealthyServices(reply: reply)
+    func recoverRequiredRuntimeServices() async throws {
+        try await executeXPCCall("recoverRequiredRuntimeServices") { proxy, reply in
+            proxy.recoverRequiredRuntimeServices(reply: reply)
         }
     }
 
@@ -143,9 +191,9 @@ extension HelperManager {
         }
     }
 
-    func installLaunchDaemonServicesWithoutLoading() async throws {
-        try await executeXPCCall("installLaunchDaemonServicesWithoutLoading") { proxy, reply in
-            proxy.installLaunchDaemonServicesWithoutLoading(reply: reply)
+    func installRequiredRuntimeServices() async throws {
+        try await executeXPCCall("installRequiredRuntimeServices") { proxy, reply in
+            proxy.installRequiredRuntimeServices(reply: reply)
         }
     }
 
@@ -185,22 +233,116 @@ extension HelperManager {
         }
     }
 
+    func getKanataOutputBridgeStatus() async throws -> KanataOutputBridgeStatus {
+        try await executeValueXPCCall("getKanataOutputBridgeStatus") { proxy, reply in
+            proxy.getKanataOutputBridgeStatus { payload, errorMessage in
+                if let errorMessage {
+                    reply(.failure(HelperManagerError.operationFailed(errorMessage)))
+                    return
+                }
+
+                guard let payload else {
+                    reply(.failure(HelperManagerError.operationFailed("Missing output bridge status payload")))
+                    return
+                }
+
+                do {
+                    let status = try JSONDecoder().decode(
+                        KanataOutputBridgeStatus.self,
+                        from: Data(payload.utf8)
+                    )
+                    reply(.success(status))
+                } catch {
+                    let trimmedPayload = payload.trimmingCharacters(in: .whitespacesAndNewlines)
+                    AppLogger.shared.log(
+                        "⚠️ [HelperManager] Failed to decode output bridge status payload: '\(trimmedPayload)'"
+                    )
+                    if Self.shouldSoftenOutputBridgeStatusFailure {
+                        reply(
+                            .success(
+                                KanataOutputBridgeStatus(
+                                    available: false,
+                                    companionRunning: false,
+                                    requiresPrivilegedBridge: true,
+                                    socketDirectory: KeyPathConstants.OutputBridge.socketDirectory,
+                                    detail: "output bridge status unavailable during one-shot probe"
+                                )
+                            )
+                        )
+                    } else {
+                        reply(.failure(HelperManagerError.operationFailed("Failed to decode output bridge status: \(error.localizedDescription)")))
+                    }
+                }
+            }
+        }
+    }
+
+    private static var shouldSoftenOutputBridgeStatusFailure: Bool {
+        let environment = ProcessInfo.processInfo.environment
+        return environment["KEYPATH_ENABLE_HOST_PASSTHRU_DIAGNOSTIC"] == "1"
+            || environment["KEYPATH_PREPARE_HOST_PASSTHRU_BRIDGE"] == "1"
+            || environment["KEYPATH_RUN_HELPER_REPAIR"] == "1"
+            || environment["KEYPATH_EXERCISE_OUTPUT_BRIDGE_COMPANION_RESTART"] == "1"
+    }
+
+    func prepareKanataOutputBridgeSession(hostPID: Int32) async throws -> KanataOutputBridgeSession {
+        try await executeValueXPCCall("prepareKanataOutputBridgeSession") { proxy, reply in
+            proxy.prepareKanataOutputBridgeSession(hostPID: hostPID) { payload, errorMessage in
+                if let errorMessage {
+                    reply(.failure(HelperManagerError.operationFailed(errorMessage)))
+                    return
+                }
+
+                guard let payload else {
+                    reply(.failure(HelperManagerError.operationFailed("Missing output bridge session payload")))
+                    return
+                }
+
+                do {
+                    let session = try JSONDecoder().decode(
+                        KanataOutputBridgeSession.self,
+                        from: Data(payload.utf8)
+                    )
+                    reply(.success(session))
+                } catch {
+                    reply(.failure(HelperManagerError.operationFailed("Failed to decode output bridge session: \(error.localizedDescription)")))
+                }
+            }
+        }
+    }
+
+    func activateKanataOutputBridgeSession(sessionID: String) async throws {
+        try await executeXPCCall("activateKanataOutputBridgeSession", timeout: 45.0) { proxy, reply in
+            proxy.activateKanataOutputBridgeSession(sessionID: sessionID, reply: reply)
+        }
+    }
+
+    func restartKanataOutputBridgeCompanion() async throws {
+        do {
+            try await executeXPCCall("restartKanataOutputBridgeCompanion") { proxy, reply in
+                proxy.restartKanataOutputBridgeCompanion(reply: reply)
+            }
+        } catch {
+            AppLogger.shared.log(
+                "⚠️ [HelperManager] restartKanataOutputBridgeCompanion failed, retrying with fresh XPC connection: \(error.localizedDescription)"
+            )
+            clearConnection()
+            try await executeXPCCall("restartKanataOutputBridgeCompanion.retry") { proxy, reply in
+                proxy.restartKanataOutputBridgeCompanion(reply: reply)
+            }
+        }
+    }
+
     // MARK: - Process Management
 
     func terminateProcess(_ pid: Int32) async throws {
-        AppLogger.shared.log("📤 [HelperManager] Calling terminateProcess(\(pid))")
-
-        let proxy = try await getRemoteProxy { _ in }
-
-        return try await withCheckedThrowingContinuation { continuation in
+        try await executeValueXPCCall("terminateProcess") { proxy, reply in
             proxy.terminateProcess(pid) { success, errorMessage in
                 if success {
-                    AppLogger.shared.info("✅ [HelperManager] terminateProcess succeeded")
-                    continuation.resume()
+                    reply(.success(()))
                 } else {
                     let error = errorMessage ?? "Unknown error"
-                    AppLogger.shared.log("❌ [HelperManager] terminateProcess failed: \(error)")
-                    continuation.resume(throwing: HelperManagerError.operationFailed(error))
+                    reply(.failure(HelperManagerError.operationFailed(error)))
                 }
             }
         }

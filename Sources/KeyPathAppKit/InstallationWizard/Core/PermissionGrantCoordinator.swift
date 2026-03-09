@@ -220,7 +220,7 @@ class PermissionGrantCoordinator {
     }
 
     private func attemptKanataRestart(kanataManager: RuntimeCoordinator) async -> Bool {
-        let success = await kanataManager.restartServiceWithFallback(
+        let success = await kanataManager.restartKanata(
             reason: "Permission grant restart"
         )
         if success {
@@ -366,19 +366,16 @@ class PermissionGrantCoordinator {
         logger.log("🔄 [ServiceBounce] Bounce flag cleared")
     }
 
-    /// Perform the service bounce via the InstallerEngine façade
+    /// Perform the service bounce via the privileged coordinator seam.
     func performServiceBounce() async -> Bool {
-        logger.log("🔄 [ServiceBounce] Bounce via InstallerEngine: restartUnhealthyServices")
-        let report = await InstallerEngine()
-            .runSingleAction(.restartUnhealthyServices, using: PrivilegeBroker())
-        if report.success {
+        logger.log("🔄 [ServiceBounce] Bounce via PrivilegeBroker.recoverRequiredRuntimeServices")
+        do {
+            try await PrivilegeBroker().recoverRequiredRuntimeServices()
             logger.log("✅ [ServiceBounce] Bounce completed successfully")
             return true
+        } catch {
+            logger.log("❌ [ServiceBounce] Bounce failed: \(error.localizedDescription)")
+            return false
         }
-
-        logger.log(
-            "❌ [ServiceBounce] Bounce failed: \(report.failureReason ?? "Unknown error")"
-        )
-        return false
     }
 }

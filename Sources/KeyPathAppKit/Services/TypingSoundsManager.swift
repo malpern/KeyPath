@@ -242,13 +242,13 @@ final class TypingSoundsManager {
         let suffix = isKeydown ? "down" : "up"
         let filename = "\(profile.id)-\(suffix)"
 
-        // Try Bundle.module first (Swift Package resources), then Bundle.main
+        // Try the app kit resource bundle first, then Bundle.main.
         // Note: .process() in Package.swift flattens directory structure, so files
         // are at bundle root, not in a Sounds subdirectory
-        if let url = Bundle.module.url(forResource: filename, withExtension: "mp3") {
+        if let url = KeyPathAppKitResources.url(forResource: filename, withExtension: "mp3") {
             return url
         }
-        if let url = Bundle.module.url(forResource: filename, withExtension: "wav") {
+        if let url = KeyPathAppKitResources.url(forResource: filename, withExtension: "wav") {
             return url
         }
         if let url = Bundle.main.url(forResource: filename, withExtension: "mp3") {

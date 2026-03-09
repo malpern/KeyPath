@@ -380,13 +380,12 @@ struct WizardSummaryPage: View {
         )
         if karabinerStatus == .failed { count += 1 }
 
-        // 6. Kanata Engine Setup (failed => red)
+        // 6. Keyboard Engine Setup (failed => red)
         let hasKanataIssues = issues.contains { issue in
             if issue.category == .installation {
                 switch issue.identifier {
                 case .component(.kanataBinaryMissing),
-                     .component(.kanataService),
-                     .component(.orphanedKanataProcess):
+                     .component(.keyPathRuntime):
                     return true
                 default:
                     return false

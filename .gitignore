@@ -40,6 +40,8 @@ Temporary Items
 Packages/
 Package.resolved
 *.xcodeproj/
+target/
+**/target/
 
 # App artifacts
 *.app

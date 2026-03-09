@@ -10,7 +10,6 @@ final class FacadeLintTests: XCTestCase {
             root.appendingPathComponent("Sources/KeyPathAppKit/Core/PrivilegedOperationsCoordinator.swift").path,
             root.appendingPathComponent("Sources/KeyPathAppKit/InstallationWizard/Core/PrivilegeBroker.swift").path,
             root.appendingPathComponent("Sources/KeyPathAppKit/InstallationWizard/Core/InstallerEngine.swift").path,
-            root.appendingPathComponent("Sources/KeyPathAppKit/Infrastructure/Privileged/HelperBackedPrivilegedOperations.swift").path,
             root.appendingPathComponent("Sources/KeyPathAppKit/Managers/RuntimeCoordinator.swift").path,
             root.appendingPathComponent("Sources/KeyPathAppKit/Managers/RuntimeCoordinator+Lifecycle.swift").path,
             root.appendingPathComponent("Sources/KeyPathAppKit/InstallationWizard/Core/PermissionGrantCoordinator.swift").path

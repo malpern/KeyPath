@@ -113,8 +113,8 @@ graph TD
     InstallerEngine --> SystemValidator[SystemValidator]
     InstallerEngine --> PrivilegeBroker[PrivilegeBroker]
     
-    KanataService --> HealthMonitor[ServiceHealthMonitor]
-    KanataService --> ProcessLifecycle[ProcessLifecycleManager]
+    RecoveryDaemonService --> HealthMonitor[ServiceHealthMonitor]
+    RecoveryDaemonService --> ProcessLifecycle[ProcessLifecycleManager]
     
     ConfigService --> Constants[SystemConstants]
 ```

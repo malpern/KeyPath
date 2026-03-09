@@ -87,10 +87,21 @@ public struct EngineSystemInfo: Sendable, Equatable {
     public let macOSVersion: String
     /// Driver compatibility status
     public let driverCompatible: Bool
+    /// Current planned Kanata runtime path, if evaluated
+    public let runtimePathDecision: KanataRuntimePathDecision?
+    /// Privileged output companion status, if evaluated
+    public let outputBridgeStatus: KanataOutputBridgeStatus?
 
-    public init(macOSVersion: String, driverCompatible: Bool) {
+    public init(
+        macOSVersion: String,
+        driverCompatible: Bool,
+        runtimePathDecision: KanataRuntimePathDecision? = nil,
+        outputBridgeStatus: KanataOutputBridgeStatus? = nil
+    ) {
         self.macOSVersion = macOSVersion
         self.driverCompatible = driverCompatible
+        self.runtimePathDecision = runtimePathDecision
+        self.outputBridgeStatus = outputBridgeStatus
     }
 }
 
@@ -296,10 +307,17 @@ public struct KanataHealthSnapshot: Sendable {
     public let isRunning: Bool
     /// Whether the service is responding to TCP health checks
     public let isResponding: Bool
+    /// Whether Kanata can actually capture input from the active keyboard devices.
+    public let inputCaptureReady: Bool
 
-    public init(isRunning: Bool, isResponding: Bool) {
+    public init(isRunning: Bool, isResponding: Bool, inputCaptureReady: Bool = true) {
         self.isRunning = isRunning
         self.isResponding = isResponding
+        self.inputCaptureReady = inputCaptureReady
+    }
+
+    public var isReady: Bool {
+        isRunning && isResponding && inputCaptureReady
     }
 }
 

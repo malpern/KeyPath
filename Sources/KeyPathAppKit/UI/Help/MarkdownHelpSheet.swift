@@ -82,9 +82,9 @@ struct MarkdownWebView: NSViewRepresentable {
     }
 
     static func loadResource(_ resource: String, into webView: WKWebView, isDark: Bool) {
-        guard let url = Bundle.module.url(forResource: resource, withExtension: "md"),
+        guard let url = KeyPathAppKitResources.url(forResource: resource, withExtension: "md"),
               let markdown = try? String(contentsOf: url, encoding: .utf8),
-              let resourceDir = Bundle.module.resourceURL
+              let resourceDir = KeyPathAppKitResources.resourceURL
         else {
             let fallback = MarkdownToHTML.wrapInHTMLDocument(
                 body: "<p>Could not load help content.</p>",

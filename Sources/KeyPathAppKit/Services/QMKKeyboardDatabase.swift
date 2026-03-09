@@ -16,7 +16,7 @@ actor QMKKeyboardDatabase {
 
     /// Load bundled popular keyboards (instant, no network)
     private func loadBundledKeyboards() -> [KeyboardMetadata] {
-        guard let url = Bundle.module.url(forResource: "popular-keyboards", withExtension: "json") else {
+        guard let url = KeyPathAppKitResources.url(forResource: "popular-keyboards", withExtension: "json") else {
             AppLogger.shared.warn("⚠️ [QMKDatabase] popular-keyboards.json not found in bundle")
             return []
         }

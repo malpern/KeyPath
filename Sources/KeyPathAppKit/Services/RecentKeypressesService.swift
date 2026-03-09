@@ -18,6 +18,8 @@ final class RecentKeypressesService {
         let action: String // "press", "release", "repeat"
         let timestamp: Date
         let layer: String?
+        let listenerSessionID: Int?
+        let kanataTimestamp: UInt64?
 
         var displayKey: String {
             // Capitalize first letter for display
@@ -78,9 +80,10 @@ final class RecentKeypressesService {
             let userInfo = notification.userInfo
             let key = userInfo?["key"] as? String
             let action = userInfo?["action"] as? String
+            let metadata = KeypressObservationMetadata.from(userInfo: userInfo)
             Task { @MainActor [weak self] in
                 guard let self, isRecording, let key, let action else { return }
-                addEvent(key: key, action: action)
+                addEvent(key: key, action: action, metadata: metadata)
             }
         }
 
@@ -102,12 +105,14 @@ final class RecentKeypressesService {
         }
     #endif
 
-    private func addEvent(key: String, action: String) {
+    private func addEvent(key: String, action: String, metadata: KeypressObservationMetadata = .init(listenerSessionID: nil, kanataTimestamp: nil, observedAt: nil)) {
         let event = KeypressEvent(
             key: key,
             action: action,
             timestamp: Date(),
-            layer: currentLayer
+            layer: currentLayer,
+            listenerSessionID: metadata.listenerSessionID,
+            kanataTimestamp: metadata.kanataTimestamp
         )
 
         // DEDUPLICATION: Check last 10 events for duplicate (key, action, layer) within window

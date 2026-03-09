@@ -270,7 +270,7 @@ class MockEnvironmentKanataManager: ObservableObject {
         }
 
         let result = mockEnvironment.mockLaunchctlResult(command: [
-            "kickstart", "system/com.keypath.kanata"
+            "kickstart", "gui/\(getuid())/com.keypath.kanata"
         ])
 
         if result.exitCode == 0 {
@@ -283,7 +283,7 @@ class MockEnvironmentKanataManager: ObservableObject {
     }
 
     func stopKanata() async {
-        let result = mockEnvironment.mockLaunchctlResult(command: ["kill", "system/com.keypath.kanata"])
+        let result = mockEnvironment.mockLaunchctlResult(command: ["kill", "gui/\(getuid())/com.keypath.kanata"])
 
         if result.exitCode == 0 {
             isRunning = false

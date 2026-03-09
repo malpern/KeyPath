@@ -120,6 +120,16 @@ final class KanataDaemonManagerTests: XCTestCase {
         XCTAssertEqual(KanataDaemonManager.kanataPlistName, "com.keypath.kanata.plist")
     }
 
+    func testPreferredLaunchctlTargetsForSMAppServicePreferGuiDomain() {
+        let targets = KanataDaemonManager.preferredLaunchctlTargets(for: .smappserviceActive, userID: 501)
+        XCTAssertEqual(targets, ["gui/501/com.keypath.kanata", "system/com.keypath.kanata"])
+    }
+
+    func testPreferredLaunchctlTargetsForLegacyUseSystemOnly() {
+        let targets = KanataDaemonManager.preferredLaunchctlTargets(for: .legacyActive, userID: 501)
+        XCTAssertEqual(targets, ["system/com.keypath.kanata"])
+    }
+
     // MARK: - Singleton Tests
 
     func testSingleton() {

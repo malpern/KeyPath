@@ -35,7 +35,6 @@ final class WizardStateRegressionTests: XCTestCase {
             karabinerDaemonRunning: true,
             vhidDeviceInstalled: true,
             vhidDeviceHealthy: true,
-            launchDaemonServicesHealthy: true,
             vhidServicesHealthy: true,
             vhidVersionMismatch: false
         )
@@ -58,5 +57,58 @@ final class WizardStateRegressionTests: XCTestCase {
         XCTAssertEqual(second.state, .active)
         XCTAssertTrue(first.issues.isEmpty)
         XCTAssertTrue(second.issues.isEmpty)
+    }
+
+    func testRunningKanataWithoutInputCaptureRoutesToMissingPermissions() {
+        let ready = PermissionOracle.Status.granted
+        let set = PermissionOracle.PermissionSet(
+            accessibility: ready,
+            inputMonitoring: ready,
+            source: "test",
+            confidence: .high,
+            timestamp: Date()
+        )
+        let perms = PermissionOracle.Snapshot(
+            keyPath: set,
+            kanata: set,
+            timestamp: Date()
+        )
+
+        let health = HealthStatus(
+            kanataRunning: true,
+            karabinerDaemonRunning: true,
+            vhidHealthy: true,
+            kanataInputCaptureReady: false,
+            kanataInputCaptureIssue: "kanata-cannot-open-built-in-keyboard"
+        )
+
+        let components = ComponentStatus(
+            kanataBinaryInstalled: true,
+            karabinerDriverInstalled: true,
+            karabinerDaemonRunning: true,
+            vhidDeviceInstalled: true,
+            vhidDeviceHealthy: true,
+            vhidServicesHealthy: true,
+            vhidVersionMismatch: false
+        )
+
+        let context = SystemContext(
+            permissions: perms,
+            services: health,
+            conflicts: .init(conflicts: [], canAutoResolve: false),
+            components: components,
+            helper: HelperStatus(isInstalled: true, version: "1.0.0", isWorking: true),
+            system: EngineSystemInfo(macOSVersion: "26.0.1", driverCompatible: true),
+            timestamp: Date()
+        )
+
+        let adapted = SystemContextAdapter.adapt(context)
+
+        XCTAssertEqual(adapted.state, .missingPermissions(missing: [.kanataInputMonitoring]))
+        XCTAssertTrue(
+            adapted.issues.contains { issue in
+                issue.identifier == .permission(.kanataInputMonitoring)
+            }
+        )
     }
 }

@@ -88,7 +88,7 @@ extension StatusSettingsTabView {
         if context.services.kanataRunning {
             return "Service Running"
         }
-        if context.components.launchDaemonServicesHealthy || context.services.karabinerDaemonRunning {
+        if context.services.karabinerDaemonRunning {
             return "Service Starting"
         }
         return "Service Stopped"
@@ -133,7 +133,7 @@ extension StatusSettingsTabView {
     var serviceStatusDetail: StatusDetail {
         guard let context = systemContext else {
             return StatusDetail(
-                title: "Kanata Service",
+                title: "KeyPath Runtime",
                 message: "Checking current status…",
                 icon: "ellipsis.circle",
                 level: .info
@@ -141,17 +141,23 @@ extension StatusSettingsTabView {
         }
 
         if context.services.kanataRunning {
+            let runtimeMessage =
+                if let runtimePathTitle = context.services.activeRuntimePathTitle {
+                    "Running via \(runtimePathTitle.lowercased())."
+                } else {
+                    "Running normally."
+                }
             return StatusDetail(
-                title: "Kanata Service",
-                message: "Running normally.",
+                title: "KeyPath Runtime",
+                message: "\(runtimeMessage) Powered by Kanata.",
                 icon: "bolt.fill",
                 level: .success
             )
         }
 
-        if context.components.launchDaemonServicesHealthy || context.services.karabinerDaemonRunning {
+        if context.services.karabinerDaemonRunning {
             return StatusDetail(
-                title: "Kanata Service",
+                title: "KeyPath Runtime",
                 message: "Starting…",
                 icon: "hourglass.circle",
                 level: .info
@@ -159,8 +165,8 @@ extension StatusSettingsTabView {
         }
 
         return StatusDetail(
-            title: "Kanata Service",
-            message: "Service is stopped. Use the switch above to turn it on.",
+            title: "KeyPath Runtime",
+            message: "Runtime is stopped. Use the switch above to turn it on.",
             icon: "pause.circle",
             level: .warning,
             actions: [

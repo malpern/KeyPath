@@ -145,7 +145,6 @@ final class UpdateServiceDecisionTests: XCTestCase {
                 karabinerDaemonRunning: servicesReady,
                 vhidDeviceInstalled: true,
                 vhidDeviceHealthy: servicesReady,
-                launchDaemonServicesHealthy: servicesReady,
                 vhidServicesHealthy: servicesReady,
                 vhidVersionMismatch: false,
                 kanataBinaryVersionMismatch: false

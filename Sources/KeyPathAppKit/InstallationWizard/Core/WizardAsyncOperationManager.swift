@@ -333,11 +333,11 @@ enum WizardOperations {
     static func startService(kanataManager: RuntimeCoordinator) -> AsyncOperation<Bool> {
         AsyncOperation<Bool>(
             id: "start_service",
-            name: "Start Kanata Service"
+            name: "Start KeyPath Runtime"
         ) { progressCallback in
             progressCallback(0.1)
 
-            let restarted = await kanataManager.restartServiceWithFallback(
+            let restarted = await kanataManager.startKanata(
                 reason: "Wizard async start operation"
             )
 
@@ -513,7 +513,7 @@ struct WizardError: LocalizedError {
                 ]
             )
 
-        case let op where op.contains("Auto Fix: Start Kanata Service"):
+        case let op where op.contains("Auto Fix: Start KeyPath Runtime"):
             return (
                 "The keyboard remapping service won't start",
                 [
@@ -602,7 +602,7 @@ struct WizardError: LocalizedError {
                 ]
             )
 
-        case let op where op.contains("Start Kanata Service"):
+        case let op where op.contains("Start KeyPath Runtime"):
             return (
                 "Couldn't start the keyboard service",
                 [
@@ -681,20 +681,14 @@ extension AutoFixAction {
             "Create Config Directories"
         case .activateVHIDDeviceManager:
             "Activate VirtualHIDDevice Manager"
-        case .installLaunchDaemonServices:
-            "Install LaunchDaemon Services"
-        case .adoptOrphanedProcess:
-            "Adopt Orphaned Process"
-        case .replaceOrphanedProcess:
-            "Replace Orphaned Process"
+        case .installRequiredRuntimeServices:
+            "Install Required Runtime Services"
         case .installBundledKanata:
             "Install Kanata Binary"
         case .repairVHIDDaemonServices:
             "Repair VHID Daemon Services"
         case .synchronizeConfigPaths:
             "Synchronize Config Paths"
-        case .restartUnhealthyServices:
-            "Restart Unhealthy Services"
         case .installLogRotation:
             "Install Log Rotation"
         case .replaceKanataWithBundled:

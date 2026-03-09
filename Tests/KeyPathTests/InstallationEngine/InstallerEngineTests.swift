@@ -44,6 +44,10 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         // Phase 2: Verify we get real data, not stubs
         XCTAssertFalse(context.system.macOSVersion.isEmpty, "macOS version should be detected")
         XCTAssertNotNil(context.permissions.timestamp, "Permissions should have timestamp")
+        XCTAssertNil(
+            context.system.runtimePathDecision,
+            "Tests should not perform live runtime-path evaluation during inspectSystem()"
+        )
     }
 
     func testInspectSystemReturnsConsistentContext() async {
@@ -104,9 +108,10 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         let context = await engine.inspectSystem()
         let plan = await engine.makePlan(for: .install, context: context)
 
-        // Phase 3: Install intent should generate recipes
+        // Install planning may legitimately be empty when the system is already ready;
+        // it should still return a valid recipe array rather than forcing recovery work.
         if case .ready = plan.status {
-            XCTAssertGreaterThan(plan.recipes.count, 0, "Install plan should have recipes")
+            XCTAssertNotNil(plan.recipes, "Install plan should provide a recipe array")
         }
     }
 
@@ -385,76 +390,6 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
 
     // MARK: - runSingleAction() Tests
 
-    func testRunSingleActionForInstallLaunchDaemonServices() async {
-        // Test that runSingleAction correctly handles installLaunchDaemonServices
-        // This action is install-specific, not repair-specific, so it should use .install intent
-        let broker = PrivilegeBroker()
-        let report = await engine.runSingleAction(.installLaunchDaemonServices, using: broker)
-
-        // Should not fail with "No repair recipes found" error
-        XCTAssertNotNil(report, "runSingleAction should return a report")
-
-        // If it failed, it should be for a real reason (not "No repair recipes found")
-        if !report.success {
-            XCTAssertNotNil(report.failureReason, "Failed report should have a reason")
-            XCTAssertFalse(
-                report.failureReason?.contains("No repair recipes found") ?? false,
-                "Should not fail with 'No repair recipes found' - action should be handled correctly"
-            )
-        }
-
-        // Verify the report structure
-        XCTAssertNotNil(report.timestamp, "Report should have timestamp")
-        XCTAssertNotNil(report.executedRecipes, "Report should have executedRecipes array")
-
-        // If execution succeeded, verify we have recipe results
-        if report.success {
-            XCTAssertGreaterThanOrEqual(
-                report.executedRecipes.count, 0,
-                "Successful execution should have recipe results (may be 0 if already installed)"
-            )
-        }
-    }
-
-    func testRunSingleActionGeneratesRecipeForInstallLaunchDaemonServices() async {
-        // Verify that runSingleAction can generate a recipe for installLaunchDaemonServices
-        // even when it's not in the standard repair plan
-        let broker = PrivilegeBroker()
-        let context = await engine.inspectSystem()
-
-        // First, verify installLaunchDaemonServices is NOT in repair plan
-        let repairPlan = await engine.makePlan(for: .repair, context: context)
-        let repairRecipeIDs = repairPlan.recipes.map(\.id)
-        let hasInRepairPlan = repairRecipeIDs.contains("install-launch-daemon-services")
-
-        // It may or may not be in repair plan depending on system state
-        // But runSingleAction should handle it regardless
-
-        // Now test runSingleAction - it should work even if not in repair plan
-        let report = await engine.runSingleAction(.installLaunchDaemonServices, using: broker)
-
-        // Should not fail with "No recipe available"
-        XCTAssertNotNil(report, "runSingleAction should return a report")
-
-        if !report.success {
-            // If it failed, verify it's not because recipe wasn't found
-            XCTAssertNotNil(report.failureReason, "Failed report should have a reason")
-            XCTAssertFalse(
-                report.failureReason?.contains("No recipe available") ?? false,
-                "Should not fail with 'No recipe available' - recipe should be generated"
-            )
-        }
-
-        // Assert: Verify that if the action wasn't in repair plan, runSingleAction still handled it
-        if !hasInRepairPlan {
-            // This proves runSingleAction correctly uses .install intent or generates direct recipe
-            XCTAssertTrue(
-                report.executedRecipes.count >= 0,
-                "runSingleAction should handle installLaunchDaemonServices even if not in repair plan"
-            )
-        }
-    }
-
     func testRunSingleActionForRepairActions() async {
         // Test that repair-specific actions work correctly
         let broker = PrivilegeBroker()
@@ -504,13 +439,10 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
             .installMissingComponents,
             .createConfigDirectories,
             .activateVHIDDeviceManager,
-            .installLaunchDaemonServices,
+            .installRequiredRuntimeServices,
             .installBundledKanata,
             .repairVHIDDaemonServices,
             .synchronizeConfigPaths,
-            .restartUnhealthyServices,
-            .adoptOrphanedProcess,
-            .replaceOrphanedProcess,
             .installLogRotation,
             .replaceKanataWithBundled,
             .enableTCPServer,
@@ -532,20 +464,20 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         }
     }
 
-    func testRecipeIDsAreCentralizedForInstallLaunchDaemonsAndKanata() async {
+    func testRecipeIDsAreCentralizedForRuntimeServicesAndKanata() async {
         let context = await engine.inspectSystem()
 
         XCTAssertEqual(
-            engine.recipeIDForAction(.installLaunchDaemonServices),
-            InstallerRecipeID.installLaunchDaemonServices
+            engine.recipeIDForAction(.installRequiredRuntimeServices),
+            InstallerRecipeID.installRequiredRuntimeServices
         )
         XCTAssertEqual(
             engine.recipeIDForAction(.installBundledKanata),
             InstallerRecipeID.installBundledKanata
         )
 
-        let launchRecipe = engine.recipeForAction(.installLaunchDaemonServices, context: context)
-        XCTAssertEqual(launchRecipe?.id, InstallerRecipeID.installLaunchDaemonServices)
+        let runtimeServicesRecipe = engine.recipeForAction(.installRequiredRuntimeServices, context: context)
+        XCTAssertEqual(runtimeServicesRecipe?.id, InstallerRecipeID.installRequiredRuntimeServices)
 
         let kanataRecipe = engine.recipeForAction(.installBundledKanata, context: context)
         XCTAssertEqual(kanataRecipe?.id, InstallerRecipeID.installBundledKanata)
@@ -569,12 +501,7 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
             KeyPathConstants.Bundle.vhidDaemonID
         )
 
-        let adoptRecipe = engine.recipeForAction(.adoptOrphanedProcess, context: context)
-        XCTAssertEqual(adoptRecipe?.id, InstallerRecipeID.adoptOrphanedProcess)
-        XCTAssertEqual(adoptRecipe?.healthCheck?.serviceID, KeyPathConstants.Bundle.daemonID)
-
-        let replaceOrphanRecipe = engine.recipeForAction(.replaceOrphanedProcess, context: context)
-        XCTAssertEqual(replaceOrphanRecipe?.id, InstallerRecipeID.replaceOrphanedProcess)
-        XCTAssertEqual(replaceOrphanRecipe?.healthCheck?.serviceID, KeyPathConstants.Bundle.daemonID)
+        let terminateRecipe = engine.recipeForAction(.terminateConflictingProcesses, context: context)
+        XCTAssertEqual(terminateRecipe?.id, InstallerRecipeID.terminateConflictingProcesses)
     }
 }

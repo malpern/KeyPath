@@ -22,7 +22,7 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
         }
     }
 
-    func testRestartCommServerRoutesToRestartUnhealthy() async {
+    func testRestartCommServerRoutesToRegenerateConfig() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
         let broker = PrivilegeBroker(coordinator: coordinator)
         let engine = InstallerEngine()
@@ -30,8 +30,8 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
         _ = await engine.runSingleAction(.restartCommServer, using: broker)
 
         XCTAssertTrue(
-            coordinator.calls.contains("restartUnhealthyServices"),
-            "restartCommServer should restart unhealthy services"
+            coordinator.calls.contains("regenerateServiceConfiguration"),
+            "restartCommServer should regenerate service configuration"
         )
     }
 
@@ -47,8 +47,8 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
             "startKarabinerDaemon should route to verified Karabiner restart"
         )
         XCTAssertFalse(
-            coordinator.calls.contains("restartUnhealthyServices"),
-            "startKarabinerDaemon should not use generic restartUnhealthyServices path"
+            coordinator.calls.contains("recoverRequiredRuntimeServices"),
+            "startKarabinerDaemon should not use the generic runtime recovery path"
         )
     }
 
@@ -69,18 +69,13 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
         XCTAssertTrue(coordinator.calls.contains("downloadAndInstallCorrectVHIDDriver"))
     }
 
-    func testOrphanedProcessActionsRouteCorrectly() async {
+    func testTerminateConflictingProcessesRouteCorrectly() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
         let broker = PrivilegeBroker(coordinator: coordinator)
         let engine = InstallerEngine()
 
-        _ = await engine.runSingleAction(.adoptOrphanedProcess, using: broker)
-        XCTAssertTrue(coordinator.calls.contains("installAllLaunchDaemonServices"))
-
-        coordinator.calls.removeAll()
-        _ = await engine.runSingleAction(.replaceOrphanedProcess, using: broker)
+        _ = await engine.runSingleAction(.terminateConflictingProcesses, using: broker)
         XCTAssertTrue(coordinator.calls.contains("killAllKanataProcesses"))
-        XCTAssertTrue(coordinator.calls.contains("installAllLaunchDaemonServices"))
     }
 
     func testBundledActionsRouteToInstaller() async {
@@ -110,7 +105,7 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
         )
     }
 
-    func testRestartVirtualHIDDaemonUsesRestartUnhealthy() async {
+    func testRestartVirtualHIDDaemonUsesVHIDRepairPath() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
         let broker = PrivilegeBroker(coordinator: coordinator)
         let engine = InstallerEngine()
@@ -118,8 +113,8 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
         _ = await engine.runSingleAction(.restartVirtualHIDDaemon, using: broker)
 
         XCTAssertTrue(
-            coordinator.calls.contains("restartUnhealthyServices"),
-            "restartVirtualHIDDaemon maps to restart-unhealthy-services recipe"
+            coordinator.calls.contains("repairVHIDDaemonServices"),
+            "restartVirtualHIDDaemon should map to the VHID repair path"
         )
     }
 }

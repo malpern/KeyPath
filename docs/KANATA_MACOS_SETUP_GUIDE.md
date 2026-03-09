@@ -323,6 +323,57 @@ cargo build --release
 cargo build --release --features "cmd,watch" -v
 ```
 
+### Building the Runtime Host Library Artifact
+
+For the long-term KeyPath macOS runtime-host migration, the repository now includes a helper script
+that emits Kanata's vendored Rust library target as a static archive:
+
+```bash
+./Scripts/build-kanata-runtime-library.sh
+```
+
+This produces:
+
+- `build/kanata-runtime/libkanata_state_machine.a`
+
+Important:
+
+- this validates that the upstream Rust library can be packaged as a linkable artifact
+- it does **not** provide a Swift-callable API by itself
+- the next integration step is a small Rust bridge crate that exports a stable C ABI for the
+  bundled KeyPath macOS runtime host
+
+To build that bridge layer itself:
+
+```bash
+./Scripts/build-kanata-host-bridge.sh
+```
+
+This produces:
+
+- `build/kanata-host-bridge/libkeypath_kanata_host_bridge.a`
+- `build/kanata-host-bridge/libkeypath_kanata_host_bridge.dylib`
+- `build/kanata-host-bridge/include/keypath_kanata_host_bridge.h`
+
+You can smoke-test the bridge exports directly:
+
+```bash
+python3 ./Scripts/verify-kanata-host-bridge.py \
+  ./build/kanata-host-bridge/libkeypath_kanata_host_bridge.dylib
+```
+
+For the experimental bundled-host runtime path, `kanata-launcher` now supports an
+opt-in in-process mode:
+
+```bash
+KEYPATH_EXPERIMENTAL_HOST_RUNTIME=1 \
+  ./.build/debug/KeyPathKanataLauncher --port 37001
+```
+
+This bypasses the legacy `exec(/Library/KeyPath/bin/kanata)` handoff and runs the
+Kanata startup sequence inside the bundled host process instead. Keep it as a
+development-only path until the in-process runtime becomes the default.
+
 ## Architecture Notes
 
 ### How It All Works Together

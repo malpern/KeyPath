@@ -1,10 +1,74 @@
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 import KeyPathPermissions
 import KeyPathWizardCore
 @preconcurrency import XCTest
 
 @MainActor
 final class KeyPathCLITests: XCTestCase {
+    func testStatusCommandPrintsOutputBridgeCompanionDetails() async throws {
+        var context = makeSystemContext()
+        context = SystemContext(
+            permissions: context.permissions,
+            services: context.services,
+            conflicts: context.conflicts,
+            components: context.components,
+            helper: context.helper,
+            system: EngineSystemInfo(
+                macOSVersion: "15.0",
+                driverCompatible: true,
+                outputBridgeStatus: KanataOutputBridgeStatus(
+                    available: true,
+                    companionRunning: true,
+                    requiresPrivilegedBridge: true,
+                    socketDirectory: "/Library/KeyPath/run/kpko",
+                    detail: "privileged output companion is installed and launchctl can inspect system/com.keypath.output-bridge"
+                )
+            ),
+            timestamp: context.timestamp
+        )
+        let stub = InstallerEngineStub(context: context)
+        let cli = KeyPathCLI(installerEngine: stub, privilegeBrokerFactory: { PrivilegeBroker() })
+
+        let output = try await captureStandardOutput {
+            _ = await cli.run(arguments: ["keypath-cli", "status"])
+        }
+
+        XCTAssertTrue(output.contains("--- Output Bridge Companion ---"))
+        XCTAssertTrue(output.contains("Available: ✅"))
+        XCTAssertTrue(output.contains("Running: ✅"))
+        XCTAssertTrue(output.contains("Socket Directory: /Library/KeyPath/run/kpko"))
+        XCTAssertTrue(output.contains("com.keypath.output-bridge"))
+    }
+
+    func testStatusCommandPrintsActiveRuntimePath() async throws {
+        var context = makeSystemContext()
+        context = SystemContext(
+            permissions: context.permissions,
+            services: HealthStatus(
+                kanataRunning: true,
+                karabinerDaemonRunning: true,
+                vhidHealthy: true,
+                activeRuntimePathTitle: "Split Runtime Host",
+                activeRuntimePathDetail: "Bundled user-session host active with privileged output companion"
+            ),
+            conflicts: context.conflicts,
+            components: context.components,
+            helper: context.helper,
+            system: context.system,
+            timestamp: context.timestamp
+        )
+        let stub = InstallerEngineStub(context: context)
+        let cli = KeyPathCLI(installerEngine: stub, privilegeBrokerFactory: { PrivilegeBroker() })
+
+        let output = try await captureStandardOutput {
+            _ = await cli.run(arguments: ["keypath-cli", "status"])
+        }
+
+        XCTAssertTrue(output.contains("Active Runtime Path: Split Runtime Host"))
+        XCTAssertTrue(output.contains("Runtime Detail: Bundled user-session host active with privileged output companion"))
+    }
+
     func testStatusCommandReturnsSuccessWhenSystemOperational() async {
         let context = makeSystemContext()
         let stub = InstallerEngineStub(context: context)
@@ -54,6 +118,32 @@ final class KeyPathCLITests: XCTestCase {
 
 // MARK: - Test Helpers
 
+@MainActor
+private func captureStandardOutput(
+    _ operation: () async throws -> Void
+) async throws -> String {
+    let pipe = Pipe()
+    let originalStdout = dup(STDOUT_FILENO)
+    dup2(pipe.fileHandleForWriting.fileDescriptor, STDOUT_FILENO)
+
+    do {
+        try await operation()
+        fflush(stdout)
+    } catch {
+        fflush(stdout)
+        dup2(originalStdout, STDOUT_FILENO)
+        close(originalStdout)
+        pipe.fileHandleForWriting.closeFile()
+        throw error
+    }
+
+    dup2(originalStdout, STDOUT_FILENO)
+    close(originalStdout)
+    pipe.fileHandleForWriting.closeFile()
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    return String(decoding: data, as: UTF8.self)
+}
+
 private func makeSystemContext(
     helperReady: Bool = true,
     componentsReady: Bool = true,
@@ -84,7 +174,6 @@ private func makeSystemContext(
                 karabinerDaemonRunning: true,
                 vhidDeviceInstalled: true,
                 vhidDeviceHealthy: true,
-                launchDaemonServicesHealthy: true,
                 vhidServicesHealthy: true,
                 vhidVersionMismatch: false
             )

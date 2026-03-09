@@ -241,10 +241,6 @@ final class ServiceBootstrapperTests: XCTestCase {
         let installResult = await bootstrapper.installAllServices()
         XCTAssertTrue(installResult)
 
-        let installOnlyResult = await bootstrapper.installAllServicesWithoutLoading(
-            binaryPath: "/tmp/fake-kanata"
-        )
-        XCTAssertTrue(installOnlyResult)
     }
 
     func testRepairVHIDDaemonServicesInTestModeSetsOutput() async {

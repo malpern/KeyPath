@@ -45,7 +45,7 @@ public enum WizardSystemPaths {
     /// System-installed kanata binary location (avoids Gatekeeper issues)
     /// This is where the LaunchDaemon installer copies the bundled binary
     public static var kanataSystemInstallPath: String {
-        remapSystemPath("/Library/KeyPath/bin/kanata")
+        currentRuntimeHost().systemCorePath
     }
 
     /// Standard kanata binary location - used for both homebrew and experimental versions
@@ -84,7 +84,18 @@ public enum WizardSystemPaths {
         {
             return override
         }
-        return "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
+        return currentRuntimeHost().bundledCorePath
+    }
+
+    /// Bundled kanata runtime host path.
+    /// This is the app-bundled executable currently launched by SMAppService.
+    public static var bundledKanataLauncherPath: String {
+        if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_KANATA_LAUNCHER_OVERRIDE"],
+           !override.isEmpty
+        {
+            return override
+        }
+        return currentRuntimeHost().launcherPath
     }
 
     /// Bundled kanata simulator binary path (for dry-run simulation)
@@ -106,19 +117,22 @@ public enum WizardSystemPaths {
     /// Active kanata binary path - uses simple filesystem checks for performance
     /// Single canonical path eliminates TCC permission fragmentation
     public static var kanataActiveBinary: String {
-        // Use system install path if it exists (for LaunchDaemon)
-        // Otherwise use bundled path (for UI/detection)
-        if FileManager.default.fileExists(atPath: kanataSystemInstallPath) {
-            return kanataSystemInstallPath
-        }
-        return bundledKanataPath
+        currentRuntimeHost().preferredCoreBinaryPath()
     }
 
     /// All known kanata binary paths for detection/filtering
     public static func allKnownKanataPaths() -> [String] {
-        [kanataSystemInstallPath, bundledKanataPath].filter {
+        let runtimeHost = currentRuntimeHost()
+        return [runtimeHost.systemCorePath, runtimeHost.bundledCorePath].filter {
             FileManager.default.fileExists(atPath: $0)
         }
+    }
+
+    private static func currentRuntimeHost() -> KanataRuntimeHost {
+        KanataRuntimeHost.current(
+            bundlePath: Bundle.main.bundlePath,
+            systemRoot: currentTestRoot()
+        )
     }
 
     /// Homebrew binary path

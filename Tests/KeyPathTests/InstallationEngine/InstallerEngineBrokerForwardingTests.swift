@@ -50,16 +50,13 @@ private final class PrivilegedCoordinatorStub: PrivilegedOperationsCoordinating 
     private(set) var restartKarabinerDaemonVerifiedCallCount = 0
 
     // Required protocol methods
-    func installLaunchDaemon(plistPath _: String, serviceID _: String) async throws {}
     func cleanupPrivilegedHelper() async throws {}
-    func installAllLaunchDaemonServices(kanataBinaryPath _: String, kanataConfigPath _: String, tcpPort _: Int) async throws {}
-    func installAllLaunchDaemonServices() async throws {}
-    func restartUnhealthyServices() async throws {}
+    func installRequiredRuntimeServices() async throws {}
+    func recoverRequiredRuntimeServices() async throws {}
     func installServicesIfUninstalled(context _: String) async throws -> Bool {
         false
     }
 
-    func installLaunchDaemonServicesWithoutLoading() async throws {}
     func installNewsyslogConfig() async throws {}
     func regenerateServiceConfiguration() async throws {}
     func repairVHIDDaemonServices() async throws {}

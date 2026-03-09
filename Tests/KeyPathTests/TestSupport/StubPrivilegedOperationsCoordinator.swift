@@ -12,33 +12,21 @@ final class StubPrivilegedOperationsCoordinator: PrivilegedOperationsCoordinatin
         calls.append(name)
     }
 
-    func installLaunchDaemon(plistPath _: String, serviceID _: String) async throws {
-        try record("installLaunchDaemon")
-    }
-
     func cleanupPrivilegedHelper() async throws {
         try record("cleanupPrivilegedHelper")
     }
 
-    func installAllLaunchDaemonServices(kanataBinaryPath _: String, kanataConfigPath _: String, tcpPort _: Int) async throws {
-        try record("installAllLaunchDaemonServices")
+    func installRequiredRuntimeServices() async throws {
+        try record("installRequiredRuntimeServices")
     }
 
-    func installAllLaunchDaemonServices() async throws {
-        try record("installAllLaunchDaemonServices")
-    }
-
-    func restartUnhealthyServices() async throws {
-        try record("restartUnhealthyServices")
+    func recoverRequiredRuntimeServices() async throws {
+        try record("recoverRequiredRuntimeServices")
     }
 
     func installServicesIfUninstalled(context _: String) async throws -> Bool {
         try record("installServicesIfUninstalled")
         return false
-    }
-
-    func installLaunchDaemonServicesWithoutLoading() async throws {
-        try record("installLaunchDaemonServicesWithoutLoading")
     }
 
     func installNewsyslogConfig() async throws {
@@ -73,7 +61,7 @@ final class StubPrivilegedOperationsCoordinator: PrivilegedOperationsCoordinatin
         try record("killAllKanataProcesses")
     }
 
-    func stopKanataService() async throws {
+    func stopRecoveryDaemonService() async throws {
         try record("stopKanataService")
     }
 

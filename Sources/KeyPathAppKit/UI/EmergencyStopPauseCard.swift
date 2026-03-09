@@ -58,7 +58,7 @@ struct EmergencyStopPauseCard: View {
                                 Image(systemName: "play.circle.fill")
                                     .font(.title3)
                             }
-                            Text(isRestarting ? "Restarting..." : "Restart Service")
+                            Text(isRestarting ? "Restarting..." : "Restart Runtime")
                                 .font(.headline)
                         }
                         .padding(.horizontal, 20)

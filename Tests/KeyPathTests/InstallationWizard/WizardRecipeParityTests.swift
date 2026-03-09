@@ -18,8 +18,7 @@ final class WizardRecipeParityTests: XCTestCase {
 
         let actions: [AutoFixAction] = [
             .installBundledKanata,
-            .installLaunchDaemonServices,
-            .restartUnhealthyServices,
+            .installRequiredRuntimeServices,
             .terminateConflictingProcesses
         ]
 
@@ -54,7 +53,7 @@ final class WizardRecipeParityTests: XCTestCase {
         )
     }
 
-    func testRepairPlanRestartsServicesWhenUnhealthy() async {
+    func testRepairPlanRepairsUnhealthyDriverServices() async {
         let engine = InstallerEngine()
         let context = SystemContextBuilder(
             permissionsStatus: .granted,
@@ -67,8 +66,10 @@ final class WizardRecipeParityTests: XCTestCase {
         let ids = plan.recipes.map(\.id)
 
         XCTAssertTrue(
-            ids.contains(engine.recipeIDForAction(.restartUnhealthyServices)),
-            "Repair plan should restart unhealthy services when health is false"
+            ids.contains(engine.recipeIDForAction(.installRequiredRuntimeServices))
+                || ids.contains(engine.recipeIDForAction(.repairVHIDDaemonServices))
+                || ids.contains(engine.recipeIDForAction(.startKarabinerDaemon)),
+            "Repair plan should use concrete split-runtime service repair actions when health is false"
         )
     }
 }

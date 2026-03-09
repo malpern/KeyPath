@@ -486,7 +486,7 @@ final class ServiceBootstrapper {
     ///
     /// - Returns: `true` if all services are healthy after the operation
     @MainActor
-    func restartUnhealthyServices() async -> Bool {
+    func recoverRequiredRuntimeServices() async -> Bool {
         AppLogger.shared.log("🔧 [ServiceBootstrapper] Starting comprehensive service health fix")
 
         // Skip in test mode
@@ -985,65 +985,4 @@ final class ServiceBootstrapper {
         }
     }
 
-    /// Install all LaunchDaemon service plists without loading them
-    ///
-    /// Used for adopting orphan processes where we want the plist in place
-    /// but don't want to load services yet.
-    ///
-    /// - Parameter binaryPath: Unused (retained for call-site compatibility)
-    /// - Returns: `true` if all plists were installed successfully
-    func installAllServicesWithoutLoading(binaryPath _: String) async -> Bool {
-        AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing service plists (no loading)")
-
-        // Skip admin operations in test environment
-        if TestEnvironment.shouldSkipAdminOperations {
-            AppLogger.shared.log("🧪 [TestEnvironment] Skipping service installation - returning mock success")
-            return true
-        }
-
-        // Generate plists
-        let vhidDaemonPlist = PlistGenerator.generateVHIDDaemonPlist()
-        let vhidManagerPlist = PlistGenerator.generateVHIDManagerPlist()
-
-        let launchDaemonsDir = getLaunchDaemonsPath()
-        let vhidDaemonPlistPath = "\(launchDaemonsDir)/\(Self.vhidDaemonServiceID).plist"
-        let vhidManagerPlistPath = "\(launchDaemonsDir)/\(Self.vhidManagerServiceID).plist"
-
-        let specs = [
-            PlistInstallSpec(
-                content: vhidDaemonPlist,
-                path: vhidDaemonPlistPath,
-                serviceID: Self.vhidDaemonServiceID
-            ),
-            PlistInstallSpec(
-                content: vhidManagerPlist,
-                path: vhidManagerPlistPath,
-                serviceID: Self.vhidManagerServiceID
-            )
-        ]
-
-        let prepared: (tempFiles: [String], commands: [String])
-        do {
-            prepared = try preparePlistInstall(specs: specs)
-        } catch {
-            AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to prepare service plists: \(error)")
-            return false
-        }
-
-        defer {
-            for tempFile in prepared.tempFiles {
-                try? FileManager.default.removeItem(atPath: tempFile)
-            }
-        }
-
-        let result = await executePrivilegedBatch(
-            label: "install VirtualHID service plists",
-            commands: prepared.commands,
-            prompt: "KeyPath needs to install the VirtualHID service plists."
-        )
-        AppLogger.shared.log(
-            "🔧 [ServiceBootstrapper] Install-only result: success=\(result.success)"
-        )
-        return result.success
-    }
 }

@@ -2,7 +2,7 @@ import KeyPathAppKit
 import SwiftUI
 
 @main
-struct KeyPathMain {
+struct KeyPath {
     static func main() async {
         if let exitCode = await KeyPathCLIEntrypoint.runIfNeeded(arguments: CommandLine.arguments) {
             exit(exitCode)

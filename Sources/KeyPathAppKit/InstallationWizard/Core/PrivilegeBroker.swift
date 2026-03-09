@@ -18,33 +18,21 @@ public struct PrivilegeBroker {
         self.coordinator = coordinator
     }
 
-    // MARK: - LaunchDaemon Operations
-
-    /// Install a LaunchDaemon plist file to /Library/LaunchDaemons/
-    public func installLaunchDaemon(plistPath: String, serviceID: String) async throws {
-        try await coordinator.installLaunchDaemon(plistPath: plistPath, serviceID: serviceID)
-    }
-
     // MARK: - Service Management
 
-    /// Install all LaunchDaemon services
-    public func installAllLaunchDaemonServices() async throws {
-        try await coordinator.installAllLaunchDaemonServices()
+    /// Install only the privileged services required by the split runtime path.
+    public func installRequiredRuntimeServices() async throws {
+        try await coordinator.installRequiredRuntimeServices()
     }
 
     /// Restart unhealthy services
-    public func restartUnhealthyServices() async throws {
-        try await coordinator.restartUnhealthyServices()
+    public func recoverRequiredRuntimeServices() async throws {
+        try await coordinator.recoverRequiredRuntimeServices()
     }
 
     /// Install newsyslog config for log rotation
     public func installNewsyslogConfig() async throws {
         try await coordinator.installNewsyslogConfig()
-    }
-
-    /// Install LaunchDaemon services without loading (adopt/replace paths)
-    public func installLaunchDaemonServicesWithoutLoading() async throws {
-        try await coordinator.installLaunchDaemonServicesWithoutLoading()
     }
 
     /// Regenerate service configuration (TCP/plist refresh)
@@ -85,7 +73,7 @@ public struct PrivilegeBroker {
     }
 
     /// Stop Kanata LaunchDaemon and kill any remaining processes
-    public func stopKanataService() async throws {
+    public func stopRecoveryDaemonService() async throws {
         let cmd = "/bin/launchctl bootout system/\(KanataDaemonManager.kanataServiceID) 2>/dev/null || true"
         try await coordinator.sudoExecuteCommand(cmd, description: "Stop Kanata service")
         try await coordinator.killAllKanataProcesses()

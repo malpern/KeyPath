@@ -156,19 +156,17 @@ public enum ComponentRequirement: Equatable, Sendable {
     case privilegedHelperUnhealthy // Helper installed but not responding/working
     case kanataBinaryMissing // Kanata binary needs to be installed to system location
     case bundledKanataMissing // CRITICAL: Bundled kanata binary missing from app bundle (packaging issue)
-    case kanataService
+    case keyPathRuntime
     case karabinerDriver
     case karabinerDaemon
     case vhidDeviceManager
     case vhidDeviceActivation
     case vhidDeviceRunning
-    case launchDaemonServices
-    case launchDaemonServicesUnhealthy // Services loaded but crashed/failing
     case vhidDaemonMisconfigured
     case vhidDriverVersionMismatch // Karabiner driver version incompatible with kanata version
     case kanataBinaryVersionMismatch // Installed kanata binary fails trusted identity checks
     case kanataTCPServer // TCP server for Kanata communication and config validation
-    case orphanedKanataProcess // Kanata running but not managed by LaunchDaemon
+    case orphanedKanataProcess // External Kanata runtime is conflicting with KeyPath runtime
     case communicationServerConfiguration // Communication server enabled but not configured in service
     case communicationServerNotResponding // Communication server configured but not responding
     case tcpServerConfiguration // TCP enabled but not configured in service
@@ -186,13 +184,10 @@ public enum AutoFixAction: Equatable, Sendable {
     case installMissingComponents
     case createConfigDirectories
     case activateVHIDDeviceManager
-    case installLaunchDaemonServices
+    case installRequiredRuntimeServices
     case installBundledKanata // Install bundled kanata binary to system location
     case repairVHIDDaemonServices
     case synchronizeConfigPaths // Fix config path mismatches
-    case restartUnhealthyServices // Restart services that are loaded but crashed
-    case adoptOrphanedProcess // Install LaunchDaemon to manage existing process
-    case replaceOrphanedProcess // Kill orphaned process and start managed one
     case installLogRotation // Install newsyslog config for log rotation to keep logs under 10MB
     case replaceKanataWithBundled // Replace system kanata with bundled Developer ID signed binary
     case enableTCPServer // Enable TCP server for communication

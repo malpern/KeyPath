@@ -29,7 +29,7 @@ graph TB
         RuleCollectionsMgr[RuleCollectionsManager<br/>Rule management]
         SystemReqChecker[SystemRequirementsChecker<br/>System checks]
         ConfigService[ConfigurationService<br/>File I/O]
-        KanataService[KanataService<br/>Process lifecycle]
+        RuntimeHost["KeyPath Runtime Host<br/>Normal runtime lifecycle"]
         PermissionOracle[PermissionOracle<br/>Permission detection]
         DiagnosticsService[DiagnosticsService<br/>Error analysis]
     end
@@ -41,7 +41,8 @@ graph TB
     end
 
     subgraph "System Components"
-        LaunchDaemon[LaunchDaemon<br/>com.keypath.kanata]
+        RuntimeHostProcess["KeyPath Runtime Host<br/>bundled kanata-launcher"]
+        OutputBridge["Output Bridge Daemon<br/>com.keypath.output-bridge"]
         VHIDDriver[VirtualHID Driver<br/>Karabiner]
         SystemSettings[System Settings<br/>TCC Permissions]
     end
@@ -59,7 +60,7 @@ graph TB
     RuntimeCoordinator --> RuleCollectionsMgr
     RuntimeCoordinator --> SystemReqChecker
     RuntimeCoordinator --> ConfigService
-    RuntimeCoordinator --> KanataService
+    RuntimeCoordinator --> RuntimeHost
     RuntimeCoordinator --> PermissionOracle
     RuntimeCoordinator --> DiagnosticsService
     RuntimeCoordinator --> ProcessLifecycleMgr
@@ -72,10 +73,10 @@ graph TB
     InstallerEngine --> ProcessLifecycleMgr
 
     %% Services → System
-    KanataService --> LaunchDaemon
-    TCPClient --> LaunchDaemon
+    RecoveryDaemonService --> RuntimeHostProcess
+    TCPClient --> RuntimeHostProcess
     SystemReqChecker --> SystemSettings
-    PrivilegedOpsCoord --> LaunchDaemon
+    PrivilegedOpsCoord --> OutputBridge
     KarabinerConflictSvc --> VHIDDriver
 
     %% PermissionOracle → System
@@ -190,7 +191,8 @@ sequenceDiagram
   - Reading/writing Kanata configs
   - Validation
   - Parsing
-- **KanataService**: Process lifecycle
+- **KeyPath Runtime Host**: Normal runtime lifecycle
+- **RecoveryDaemonService**: Internal recovery-daemon utility
   - Start/stop/restart
   - Health monitoring
 - **PermissionOracle**: Single source of truth for permissions
@@ -205,7 +207,7 @@ sequenceDiagram
 ### System Integration
 - **ProcessLifecycleManager**: PID tracking, conflict detection
 - **KarabinerConflictService**: Karabiner Elements detection/resolution
-- **TCPEngineClient**: Communication with Kanata daemon
+- **TCPEngineClient**: Communication with the active KeyPath runtime host
 
 ---
 
@@ -251,12 +253,12 @@ WizardView → InstallerEngine.inspectSystem()
 → PermissionOracle.currentSnapshot()
 ```
 
-### Start Kanata Service
+### Start KeyPath Runtime
 ```
 KanataViewModel.startKanata() 
 → RuntimeCoordinator.startKanata() 
-→ KanataService.start() 
-→ LaunchDaemon bootstrap
+→ KeyPath Runtime Host launch
+→ Output Bridge companion session bootstrap
 ```
 
 ---
@@ -274,7 +276,7 @@ Sources/KeyPathAppKit/
 │   ├── RuleCollectionsManager.swift (~406 lines)
 │   ├── SystemRequirementsChecker.swift (~292 lines)
 │   ├── ConfigurationService.swift
-│   ├── KanataService.swift
+│   ├── RecoveryDaemonService.swift
 │   ├── PermissionOracle.swift (in KeyPathPermissions/)
 │   └── ...
 ├── InstallationWizard/
@@ -303,4 +305,3 @@ Sources/KeyPathAppKit/
 - ✅ SystemRequirementsChecker (292 lines)
 
 **Target:** Continue reducing RuntimeCoordinator to ~800 lines by extracting more focused services.
-

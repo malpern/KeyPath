@@ -143,6 +143,9 @@ echo "🔬 Building kanata simulator..."
 # Build simulator for dry-run simulation
 ./Scripts/build-kanata-simulator.sh
 
+echo "🧩 Building kanata host bridge..."
+./Scripts/build-kanata-host-bridge.sh
+
 echo "🔐 Building privileged helper..."
 # Build and sign the helper tool
 ./Scripts/build-helper.sh
@@ -160,6 +163,8 @@ echo "🏗️  Building KeyPath and plugins..."
 # Build main app + insights plugin (KeyPathPluginKit is statically linked, no separate dylib needed)
 # Note: `swift build` accepts a single `--product`; passing it twice can skip the first one.
 swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
+swift build --configuration release --product KeyPathKanataLauncher -Xswiftc -no-whole-module-optimization
+swift build --configuration release --product KeyPathOutputBridge -Xswiftc -no-whole-module-optimization
 swift build --configuration release --product KeyPathInsights -Xswiftc -no-whole-module-optimization
 
 echo "📦 Creating app bundle..."
@@ -193,6 +198,9 @@ MACOS="${CONTENTS}/MacOS"
 	# Copy bundled kanata simulator binary
 	ditto "build/kanata-simulator" "$CONTENTS/Library/KeyPath/kanata-simulator"
 
+	# Copy bundled host bridge library used for in-process smoke checks and future runtime hosting
+	ditto "build/kanata-host-bridge/libkeypath_kanata_host_bridge.dylib" "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib"
+
 	# Embed Sparkle.framework (required at runtime for updates; otherwise dyld aborts at launch)
 	SPARKLE_FRAMEWORK_SRC="$BUILD_DIR/Sparkle.framework"
 	if [ -d "$SPARKLE_FRAMEWORK_SRC" ]; then
@@ -221,11 +229,11 @@ MACOS="${CONTENTS}/MacOS"
 	    exit 1
 	fi
 
-	# Copy kanata launcher script to enforce absolute config paths
-	KANATA_LAUNCHER_SRC="Scripts/kanata-launcher.sh"
-	KANATA_LAUNCHER_DST="$CONTENTS/Library/KeyPath/kanata-launcher"
-	ditto "$KANATA_LAUNCHER_SRC" "$KANATA_LAUNCHER_DST"
-	chmod 755 "$KANATA_LAUNCHER_DST"
+		# Copy the bundled runtime host executable used by SMAppService
+		KANATA_LAUNCHER_SRC="$BUILD_DIR/KeyPathKanataLauncher"
+		KANATA_LAUNCHER_DST="$CONTENTS/Library/KeyPath/kanata-launcher"
+		ditto "$KANATA_LAUNCHER_SRC" "$KANATA_LAUNCHER_DST"
+		chmod 755 "$KANATA_LAUNCHER_DST"
 
 # Embed privileged helper for SMJobBless
 echo "📦 Embedding privileged helper (SMAppService layout)..."
@@ -235,9 +243,11 @@ mkdir -p "$HELPER_TOOLS" "$LAUNCH_DAEMONS"
 
 # Copy helper binary into Contents/Library/HelperTools/
 ditto "$BUILD_DIR/KeyPathHelper" "$HELPER_TOOLS/KeyPathHelper"
+ditto "$BUILD_DIR/KeyPathOutputBridge" "$HELPER_TOOLS/KeyPathOutputBridge"
 
 # Copy daemon plist into bundle-local LaunchDaemons with final name
 ditto "Sources/KeyPathHelper/com.keypath.helper.plist" "$LAUNCH_DAEMONS/com.keypath.helper.plist"
+ditto "Sources/KeyPathOutputBridge/com.keypath.output-bridge.plist" "$LAUNCH_DAEMONS/com.keypath.output-bridge.plist"
 
 # Copy Kanata daemon plist for SMAppService
 ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath.kanata.plist"
@@ -246,12 +256,15 @@ ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath
 	    local missing=0
 	    for path in \
 	        "$HELPER_TOOLS/KeyPathHelper" \
+	        "$HELPER_TOOLS/KeyPathOutputBridge" \
 	        "$LAUNCH_DAEMONS/com.keypath.helper.plist" \
+	        "$LAUNCH_DAEMONS/com.keypath.output-bridge.plist" \
 	        "$LAUNCH_DAEMONS/com.keypath.kanata.plist" \
 	        "$FRAMEWORKS/Sparkle.framework" \
 	        "$INSIGHTS_BUNDLE/Contents/MacOS/libKeyPathInsights" \
 	        "$INSIGHTS_BUNDLE/Contents/Info.plist" \
 	        "$KANATA_LAUNCHER_DST" \
+	        "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" \
 	        "$CONTENTS/Library/KeyPath/kanata-simulator"; do
 	        if [ ! -e "$path" ]; then
 	            echo "❌ ERROR: Missing packaged artifact: $path" >&2
@@ -269,7 +282,9 @@ verify_embedded_artifacts
 ./Scripts/verify-kanata-plist.sh "$APP_BUNDLE"
 
 echo "✅ Helper embedded: $HELPER_TOOLS/KeyPathHelper"
+echo "✅ Output bridge embedded: $HELPER_TOOLS/KeyPathOutputBridge"
 echo "✅ Helper plist embedded: $LAUNCH_DAEMONS/com.keypath.helper.plist"
+echo "✅ Output bridge plist embedded: $LAUNCH_DAEMONS/com.keypath.output-bridge.plist"
 echo "✅ Kanata daemon plist embedded: $LAUNCH_DAEMONS/com.keypath.kanata.plist"
 
 # Copy main app Info.plist
@@ -349,8 +364,19 @@ else
         --entitlements "$HELPER_ENTITLEMENTS" \
         --sign "$SIGNING_IDENTITY"
 
+    OUTPUT_BRIDGE_ENTITLEMENTS="Sources/KeyPathOutputBridge/KeyPathOutputBridge.entitlements"
+    kp_sign "$HELPER_TOOLS/KeyPathOutputBridge" \
+        --force --options=runtime \
+        --identifier "com.keypath.output-bridge" \
+        --entitlements "$OUTPUT_BRIDGE_ENTITLEMENTS" \
+        --sign "$SIGNING_IDENTITY"
+
     # Sign bundled kanata binary (already signed in build-kanata.sh, but ensure consistency)
     kp_sign "$CONTENTS/Library/KeyPath/kanata" --force --options=runtime --sign "$SIGNING_IDENTITY"
+
+    # Sign the bundled runtime host pieces explicitly before the outer app sign.
+    kp_sign "$CONTENTS/Library/KeyPath/kanata-launcher" --force --options=runtime --sign "$SIGNING_IDENTITY"
+    kp_sign "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" --force --options=runtime --sign "$SIGNING_IDENTITY"
 
     # Sign bundled kanata simulator binary
     kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"

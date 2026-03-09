@@ -155,11 +155,18 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     }
 
     let configDirectory = KeyPathConstants.Config.directory
+
+    private static var isOneShotProbeMode: Bool {
+        let environment = ProcessInfo.processInfo.environment
+        return environment["KEYPATH_ENABLE_HOST_PASSTHRU_DIAGNOSTIC"] == "1"
+            || environment["KEYPATH_PREPARE_HOST_PASSTHRU_BRIDGE"] == "1"
+            || environment["KEYPATH_RUN_HELPER_REPAIR"] == "1"
+            || environment["KEYPATH_EXERCISE_OUTPUT_BRIDGE_COMPANION_RESTART"] == "1"
+    }
     let configFileName = "keypath.kbd"
 
     // MARK: - Manager Dependencies (Refactored Architecture)
 
-    let processManager: ProcessManaging
     let configurationManager: ConfigurationManaging
     let diagnosticsManager: DiagnosticsManaging
     let configRepairService: ConfigRepairService
@@ -172,10 +179,9 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     let processLifecycleManager: ProcessLifecycleManager
 
     // Additional dependencies needed by extensions
-    let processCoordinator: ProcessCoordinating
     let installerEngine: InstallerEngine
     let privilegeBroker: PrivilegeBroker
-    let kanataService: KanataService
+    let recoveryDaemonService: RecoveryDaemonService
     nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     let reloadSafetyMonitor = ReloadSafetyMonitor() // internal for use by extensions
     let karabinerConflictService: KarabinerConflictManaging
@@ -194,9 +200,12 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     let recoveryCoordinator: RecoveryCoordinator // internal for extension access
     let installationCoordinator: InstallationCoordinator
     let ruleCollectionsCoordinator: RuleCollectionsCoordinator
+    let serviceHealthMonitor: ServiceHealthMonitor
 
     var isStartingKanata = false
     var isInitializing = false
+    var isRecoveringSplitRuntimeCompanion = false
+    var splitRuntimeCompanionMonitorTask: Task<Void, Never>?
     let isHeadlessMode: Bool
 
     // MARK: - Process Synchronization (Phase 1)
@@ -214,6 +223,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     init(engineClient: EngineClient? = nil, injectedConfigurationService: ConfigurationService? = nil, configRepairService: ConfigRepairService? = nil) {
         AppLogger.shared.log("🏗️ [RuntimeCoordinator] init() called")
+        let isOneShotProbeMode = Self.isOneShotProbeMode
 
         // Check if running in headless mode
         isHeadlessMode =
@@ -233,8 +243,8 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             )
         }
 
-        // Phase 3: Use shared KanataService for dependencies
-        let kanataService = KanataService.shared
+        // Phase 3: Use shared RecoveryDaemonService for dependencies
+        let recoveryDaemonService = RecoveryDaemonService.shared
         let lifecycleManager = ProcessLifecycleManager()
         processLifecycleManager = lifecycleManager
 
@@ -251,15 +261,8 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         let diagnosticsService = DiagnosticsService(processLifecycleManager: lifecycleManager)
         privilegeBroker = PrivilegeBroker()
         installerEngine = InstallerEngine()
-        let processCoordinator = ProcessCoordinator(
-            kanataService: kanataService,
-            installerEngine: installerEngine,
-            privilegeBroker: privilegeBroker
-        )
-
         // Store for extensions
-        self.processCoordinator = processCoordinator
-        self.kanataService = kanataService
+        self.recoveryDaemonService = recoveryDaemonService
         self.diagnosticsService = diagnosticsService
         self.karabinerConflictService = karabinerConflictService
         self.configBackupManager = configBackupManager
@@ -281,12 +284,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             configFileWatcher: configFileWatcher
         )
         installationCoordinator = InstallationCoordinator()
-
-        // Initialize ProcessManager
-        processManager = ProcessManager(
-            processLifecycleManager: lifecycleManager,
-            karabinerConflictService: karabinerConflictService
-        )
+        serviceHealthMonitor = ServiceHealthMonitor(processLifecycle: lifecycleManager)
 
         // Initialize ConfigurationManager
         configurationManager = ConfigurationManager(
@@ -298,7 +296,13 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Initialize DiagnosticsManager
         diagnosticsManager = DiagnosticsManager(
             diagnosticsService: diagnosticsService,
-            kanataService: kanataService
+            healthMonitor: serviceHealthMonitor,
+            processStatusProvider: {
+                if let splitHostPID = KanataSplitRuntimeHostService.shared.activePersistentHostPID {
+                    return ProcessHealthStatus(isRunning: true, pid: Int(splitHostPID))
+                }
+                return ProcessHealthStatus(isRunning: false, pid: nil)
+            }
         )
 
         // Initialize ConfigRepairService
@@ -317,7 +321,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Dispatch heavy initialization work to background thread (skip during unit tests)
         // Prefer structured concurrency; a plain Task{} runs off the main actor by default
-        if !TestEnvironment.isRunningTests {
+        if !TestEnvironment.isRunningTests && !isOneShotProbeMode {
             Task { [weak self] in
                 // Clean up any orphaned processes first
                 await self?.processLifecycleManager.cleanupOrphanedProcesses()
@@ -325,7 +329,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             }
         } else {
             AppLogger.shared.debug(
-                "🧪 [RuntimeCoordinator] Skipping background initialization in test environment"
+                "🧪 [RuntimeCoordinator] Skipping background initialization in \(isOneShotProbeMode ? "one-shot probe" : "test") mode"
             )
         }
 
@@ -367,7 +371,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
                 await self?.restartKarabinerDaemon() ?? false
             },
             restartService: { [weak self] reason in
-                await self?.restartServiceWithFallback(reason: reason) ?? false
+                await self?.restartKanata(reason: reason) ?? false
             }
         )
 
@@ -418,27 +422,61 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             self?.configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal rule change")
         }
 
-        AppLogger.shared.log(
-            "🏗️ [RuntimeCoordinator] About to call bootstrapRuleCollections and startEventMonitoring"
-        )
-        Task { await ruleCollectionsManager.bootstrap() }
-        ruleCollectionsManager.startEventMonitoring(port: PreferencesService.shared.tcpServerPort)
-        HrmObservabilityService.shared.startMonitoring(port: PreferencesService.shared.tcpServerPort)
+        if !isOneShotProbeMode {
+            AppLogger.shared.log(
+                "🏗️ [RuntimeCoordinator] About to call bootstrapRuleCollections and startEventMonitoring"
+            )
+            Task { await ruleCollectionsManager.bootstrap() }
+            ruleCollectionsManager.startEventMonitoring(port: PreferencesService.shared.tcpServerPort)
+            HrmObservabilityService.shared.startMonitoring(port: PreferencesService.shared.tcpServerPort)
+            startSplitRuntimeCompanionMonitor()
+        } else {
+            AppLogger.shared.log("🧪 [RuntimeCoordinator] One-shot probe mode - skipping bootstrap and event monitoring")
+        }
 
         // Observe config-affecting preference changes (e.g., nav trigger mode) to regenerate config
-        NotificationCenter.default.addObserver(
-            forName: .configAffectingPreferenceChanged,
-            object: nil,
-            queue: .main
-        ) { @Sendable [weak self] _ in
-            guard let self else { return }
-            Task { @MainActor in
-                AppLogger.shared.log("🔄 [RuntimeCoordinator] Config-affecting preference changed, regenerating config...")
-                await self.ruleCollectionsManager.regenerateConfigFromCollections()
+        if !isOneShotProbeMode {
+            NotificationCenter.default.addObserver(
+                forName: .configAffectingPreferenceChanged,
+                object: nil,
+                queue: .main
+            ) { @Sendable [weak self] _ in
+                guard let self else { return }
+                Task { @MainActor in
+                    AppLogger.shared.log("🔄 [RuntimeCoordinator] Config-affecting preference changed, regenerating config...")
+                    await self.ruleCollectionsManager.regenerateConfigFromCollections()
+                }
+            }
+
+            NotificationCenter.default.addObserver(
+                forName: .splitRuntimeHostExited,
+                object: nil,
+                queue: .main
+            ) { @Sendable [weak self] note in
+                guard let self else { return }
+                let pid = note.userInfo?[KanataSplitRuntimeHostExitInfo.pidUserInfoKey] as? pid_t ?? 0
+                let exitCode = note.userInfo?[KanataSplitRuntimeHostExitInfo.exitCodeUserInfoKey] as? Int32 ?? 0
+                let terminationReason =
+                    note.userInfo?[KanataSplitRuntimeHostExitInfo.terminationReasonUserInfoKey] as? String ?? "unknown"
+                let expected = note.userInfo?[KanataSplitRuntimeHostExitInfo.expectedUserInfoKey] as? Bool ?? false
+                let stderrLogPath = note.userInfo?[KanataSplitRuntimeHostExitInfo.stderrLogPathUserInfoKey] as? String
+                Task { @MainActor in
+                    await self.handleSplitRuntimeHostExit(
+                        pid: pid,
+                        exitCode: exitCode,
+                        terminationReason: terminationReason,
+                        expected: expected,
+                        stderrLogPath: stderrLogPath
+                    )
+                }
             }
         }
 
         AppLogger.shared.log("🏗️ [RuntimeCoordinator] init() completed")
+    }
+
+    deinit {
+        splitRuntimeCompanionMonitorTask?.cancel()
     }
 
     // Note: RuleCollectionsManager handles its own cleanup in deinit
@@ -517,7 +555,6 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     }
 
     /// Run full installation via InstallerEngine façade.
-    /// This replaces direct calls to PrivilegedOperationsCoordinator.installAllLaunchDaemonServices().
     func runFullInstall(reason: String = "RuntimeCoordinator install request") async -> InstallerReport {
         AppLogger.shared.log("🔧 [RuntimeCoordinator] runFullInstall invoked (\(reason))")
         return await installerEngine.run(intent: .install, using: privilegeBroker)
@@ -555,10 +592,9 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     /// Stop Kanata when the app is terminating (async version).
     func cleanup() async {
-        do {
-            try await kanataService.stop()
-        } catch {
-            AppLogger.shared.warn("⚠️ [RuntimeCoordinator] Failed to stop Kanata during cleanup: \(error.localizedDescription)")
+        let stopped = await stopKanata(reason: "App termination cleanup")
+        if !stopped {
+            AppLogger.shared.warn("⚠️ [RuntimeCoordinator] Failed to stop runtime during cleanup")
         }
     }
 
@@ -837,9 +873,9 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             return
         }
 
-        // Apply changes immediately via TCP reload if service is running
-        let serviceState = await kanataService.refreshStatus()
-        if serviceState.isRunning {
+        // Apply changes immediately via TCP reload if the real runtime is running
+        let runtimeStatus = await currentRuntimeStatus()
+        if runtimeStatus.isRunning {
             AppLogger.shared.info("🔄 [Reset] Triggering immediate config reload via TCP...")
             let reloadResult = await triggerConfigReload()
 
@@ -860,7 +896,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
                     saveStatus = .failed("Reset reload failed: \(error)")
                 }
                 // If TCP reload fails, fall back to service restart
-                _ = await restartServiceWithFallback(reason: "Default config reload fallback")
+                _ = await restartKanata(reason: "Default config reload fallback")
             }
 
             // Reset to idle after a delay
@@ -901,7 +937,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         for event in events {
             switch event {
             case .virtualHIDConnectionFailed:
-                let shouldTriggerRecovery = await kanataService.recordConnectionFailure()
+                let shouldTriggerRecovery = await diagnosticsManager.recordConnectionFailure()
                 if shouldTriggerRecovery {
                     AppLogger.shared.log(
                         "🚨 [LogMonitor] Maximum connection failures reached - triggering recovery"
@@ -909,7 +945,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
                     await triggerVirtualHIDRecovery()
                 }
             case .virtualHIDConnected:
-                await kanataService.recordConnectionSuccess()
+                await diagnosticsManager.recordConnectionSuccess()
             }
         }
     }

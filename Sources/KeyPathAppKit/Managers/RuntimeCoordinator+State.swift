@@ -2,6 +2,17 @@ import Foundation
 import KeyPathCore
 
 extension RuntimeCoordinator {
+    private func currentRuntimePathStatus() -> (title: String, detail: String)? {
+        if KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning {
+            let pid = KanataSplitRuntimeHostService.shared.activePersistentHostPID ?? 0
+            return (
+                title: "Split Runtime Host",
+                detail: "Bundled user-session host active (PID \(pid)) with privileged output companion"
+            )
+        }
+        return nil
+    }
+
     // MARK: - SaveCoordinatorDelegate
 
     func saveStatusDidChange(_ status: SaveStatus) {
@@ -43,6 +54,7 @@ extension RuntimeCoordinator {
     func buildUIState() -> KanataUIState {
         // Sync diagnostics from DiagnosticsManager
         diagnostics = diagnosticsManager.getDiagnostics()
+        let runtimePathStatus = currentRuntimePathStatus()
 
         // Debug: Log custom rules count when building state
         AppLogger.shared.log("📊 [RuntimeCoordinator] buildUIState: customRules.count = \(customRules.count)")
@@ -61,6 +73,8 @@ extension RuntimeCoordinator {
             diagnostics: diagnostics,
             lastProcessExitCode: lastProcessExitCode,
             lastConfigUpdate: lastConfigUpdate,
+            activeRuntimePathTitle: runtimePathStatus?.title,
+            activeRuntimePathDetail: runtimePathStatus?.detail,
 
             // Validation & Save Status
             validationError: validationError,

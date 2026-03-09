@@ -128,7 +128,20 @@ public enum PrivilegedCommandRunner {
 
     /// Execute a command using osascript with admin privileges dialog.
     private static func executeWithOsascript(command: String, prompt: String) -> Result {
-        let escapedCommand = escapeForAppleScript(command)
+        let scriptURL: URL
+        do {
+            scriptURL = try writeTemporaryShellScript(command: command)
+        } catch {
+            let errorMsg = "failed to prepare privileged script: \(error.localizedDescription)"
+            AppLogger.shared.log("❌ [PrivilegedCommandRunner] \(errorMsg)")
+            return Result(success: false, output: errorMsg, exitCode: -1)
+        }
+
+        defer {
+            try? FileManager.default.removeItem(at: scriptURL)
+        }
+
+        let escapedCommand = escapeForAppleScript("/bin/bash \(shellSingleQuoted(scriptURL.path))")
         let escapedPrompt = prompt.replacingOccurrences(of: "\"", with: "\\\"")
         let osascriptCommand = """
         do shell script "\(escapedCommand)" with administrator privileges with prompt "\(escapedPrompt)"
@@ -137,6 +150,7 @@ public enum PrivilegedCommandRunner {
         AppLogger.shared.log("🔐 [PRIVILEGED-TRIGGER] Requesting admin privileges via osascript")
         AppLogger.shared.log("🔐 [PRIVILEGED-TRIGGER] Command: \(command.prefix(100))...")
         AppLogger.shared.log("🔐 [PRIVILEGED-TRIGGER] Prompt: \(prompt)")
+        AppLogger.shared.log("🔐 [PRIVILEGED-TRIGGER] Script path: \(scriptURL.path)")
         // Log stack trace to identify caller
         let callStack = Thread.callStackSymbols.prefix(10).joined(separator: "\n")
         AppLogger.shared.log("🔐 [PRIVILEGED-TRIGGER] Call stack:\n\(callStack)")
@@ -177,6 +191,22 @@ public enum PrivilegedCommandRunner {
         escaped = escaped.replacingOccurrences(of: "\\", with: "\\\\")
         escaped = escaped.replacingOccurrences(of: "\"", with: "\\\"")
         return escaped
+    }
+
+    private static func writeTemporaryShellScript(command: String) throws -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keypath-privileged-\(UUID().uuidString).sh")
+        let script = """
+        #!/bin/bash
+        \(command)
+        """
+        try script.write(to: url, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
+        return url
+    }
+
+    private static func shellSingleQuoted(_ value: String) -> String {
+        "'\(value.replacingOccurrences(of: "'", with: "'\"'\"'"))'"
     }
 }
 

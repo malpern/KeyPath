@@ -75,13 +75,13 @@ extension WizardOperations {
             category: .daemon,
             title: "System check timed out",
             description: "KeyPath couldn't finish checking system status. This can happen if the helper or services are unresponsive.",
-            autoFixAction: .restartUnhealthyServices,
-            userAction: "Try restarting KeyPath or click Restart Services."
+            autoFixAction: nil,
+            userAction: "Try restarting KeyPath."
         )
         return SystemStateResult(
             state: .serviceNotRunning,
             issues: [issue],
-            autoFixActions: [.restartUnhealthyServices],
+            autoFixActions: [],
             detectionTimestamp: Date()
         )
     }

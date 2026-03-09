@@ -40,7 +40,6 @@ final class SystemContextAdapterPermissionSeverityTests: XCTestCase {
                 karabinerDaemonRunning: true,
                 vhidDeviceInstalled: true,
                 vhidDeviceHealthy: true,
-                launchDaemonServicesHealthy: true,
                 vhidServicesHealthy: true,
                 vhidVersionMismatch: false
             ),

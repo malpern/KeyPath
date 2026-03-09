@@ -66,7 +66,7 @@ class MainAppStateController {
     // MARK: - Service Health Monitoring (Fix for stale overlay state)
 
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
-    @ObservationIgnored private var lastKnownServiceHealthy: Bool?
+    @ObservationIgnored private var lastKnownRuntimeHealthy: Bool?
     @ObservationIgnored private var serviceHealthTask: Task<Void, Never>?
     @ObservationIgnored private var periodicRefreshTask: Task<Void, Never>?
     @ObservationIgnored private let definitiveStartupGracePeriod: TimeInterval = 3.0
@@ -269,7 +269,7 @@ class MainAppStateController {
 
     // MARK: - Service Health Monitoring
 
-    /// Subscribe to KanataService state changes to trigger revalidation when service health changes.
+    /// Subscribe to runtime state changes to trigger revalidation when runtime health changes.
     /// This fixes the "System Not Ready" stale state bug where the overlay shows stale state.
     private func subscribeToServiceHealth() {
         guard let kanataManager else { return }
@@ -277,17 +277,17 @@ class MainAppStateController {
         // Cancel any previous polling task to prevent duplicate loops
         serviceHealthTask?.cancel()
 
-        // Poll KanataService.state for health transitions
+        // Poll runtime status for health transitions.
         serviceHealthTask = Task { @MainActor [weak self] in
             while let self, !Task.isCancelled {
-                let newState = kanataManager.kanataService.state
-                let isHealthy = if case .running = newState { true } else { false }
-                let wasHealthy = lastKnownServiceHealthy
+                let runtimeStatus = await kanataManager.currentRuntimeStatus()
+                let isHealthy = runtimeStatus.isRunning
+                let wasHealthy = lastKnownRuntimeHealthy
 
                 if wasHealthy != isHealthy {
-                    lastKnownServiceHealthy = isHealthy
+                    lastKnownRuntimeHealthy = isHealthy
                     AppLogger.shared.log(
-                        "🔄 [MainAppStateController] Service health changed: \(wasHealthy.map { String($0) } ?? "nil") → \(isHealthy)"
+                        "🔄 [MainAppStateController] Runtime health changed: \(wasHealthy.map { String($0) } ?? "nil") → \(isHealthy)"
                     )
                     await revalidate()
                 }
@@ -296,7 +296,7 @@ class MainAppStateController {
             }
         }
 
-        AppLogger.shared.log("🔄 [MainAppStateController] Subscribed to KanataService health changes")
+        AppLogger.shared.log("🔄 [MainAppStateController] Subscribed to runtime health changes")
     }
 
     /// Start periodic background refresh (60s) as a fallback for cases where service state
@@ -353,7 +353,7 @@ class MainAppStateController {
             // Wait for services to be ready (first time only)
             // Optimized: Reduced timeout from 10s to 3s, fast process check added
             // NOTE: Don't show spinner during service wait - only show during actual validation
-            AppLogger.shared.log("⏳ [MainAppStateController] Waiting for kanata service to be ready...")
+            AppLogger.shared.log("⏳ [MainAppStateController] Waiting for KeyPath runtime to be ready...")
             AppLogger.shared.log("⏱️ [TIMING] Service wait START")
             let serviceWaitStart = Date()
 
@@ -488,12 +488,12 @@ class MainAppStateController {
             )
             validationState = .failed(blockingCount: 1, totalCount: 1)
             issues = [WizardIssue(
-                identifier: .component(.kanataService),
+                identifier: .component(.keyPathRuntime),
                 severity: .error,
                 category: .daemon,
                 title: "Kanata service not running",
                 description: "The Kanata service failed to start or is not healthy.",
-                autoFixAction: .restartUnhealthyServices,
+                autoFixAction: nil,
                 userAction: "Click System to open the setup wizard and diagnose the issue."
             )]
             // Even failed validations should update "last checked" timestamps.
@@ -528,7 +528,7 @@ class MainAppStateController {
             }
         } catch {
             validationState = .failed(blockingCount: 1, totalCount: 1)
-            // Use .validationTimeout — NOT .component(.kanataService) — so this doesn't
+            // Use .validationTimeout — NOT .component(.keyPathRuntime) — so this doesn't
             // trigger the "Kanata Service Stopped" alert dialog. The timeout may be caused
             // by any validation step (e.g., slow Helper XPC), not necessarily Kanata.
             issues = [WizardIssue(
@@ -588,9 +588,6 @@ class MainAppStateController {
         )
         AppLogger.shared.debug(
             "📊 [MainAppStateController] Components.vhidHealthy: \(snapshot.components.vhidDeviceHealthy)"
-        )
-        AppLogger.shared.debug(
-            "📊 [MainAppStateController] Components.daemonServicesHealthy: \(snapshot.components.launchDaemonServicesHealthy)"
         )
         AppLogger.shared.debug(
             "📊 [MainAppStateController] Blocking issues: \(snapshot.blockingIssues.count)"
@@ -724,7 +721,7 @@ class MainAppStateController {
 
         while Date() < transientDeadline {
             let health = await currentKanataStartupHealth()
-            let isReady = health.isRunning && health.isResponding
+            let isReady = health.isReady
             if isReady {
                 if checks > 0 {
                     AppLogger.shared.log(
@@ -741,7 +738,7 @@ class MainAppStateController {
 
             checks += 1
             AppLogger.shared.debug(
-                "⏳ [MainAppStateController] Waiting for Kanata service (\(checks)) transient=\(inTransientWindow), running=\(health.isRunning), responding=\(health.isResponding)"
+                "⏳ [MainAppStateController] Waiting for Kanata service (\(checks)) transient=\(inTransientWindow), running=\(health.isRunning), responding=\(health.isResponding), inputCaptureReady=\(health.inputCaptureReady)"
             )
             try? await Task.sleep(for: .seconds(timing.checkInterval))
         }

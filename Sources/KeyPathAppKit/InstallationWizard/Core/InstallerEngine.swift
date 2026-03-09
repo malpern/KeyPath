@@ -64,17 +64,53 @@ public final class InstallerEngine {
 
         // Get system compatibility info from SystemRequirements
         let systemInfo = systemRequirements.getSystemInfo()
+        let runtimePathDecision: KanataRuntimePathDecision? =
+            if TestEnvironment.isRunningTests {
+                nil
+            } else {
+                await KanataRuntimePathCoordinator.evaluateCurrentPath()
+            }
+        let outputBridgeStatus: KanataOutputBridgeStatus? =
+            if TestEnvironment.isRunningTests {
+                nil
+            } else {
+                try? await HelperManager.shared.getKanataOutputBridgeStatus()
+            }
 
         // Convert SystemInfo to EngineSystemInfo
         let engineSystemInfo = EngineSystemInfo(
             macOSVersion: systemInfo.macosVersion.versionString,
-            driverCompatible: systemInfo.compatibilityResult.isCompatible
+            driverCompatible: systemInfo.compatibilityResult.isCompatible,
+            runtimePathDecision: runtimePathDecision,
+            outputBridgeStatus: outputBridgeStatus
+        )
+
+        let activeRuntimePathStatus: (title: String, detail: String)? = {
+            if KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning {
+                let pid = KanataSplitRuntimeHostService.shared.activePersistentHostPID ?? 0
+                return (
+                    title: "Split Runtime Host",
+                    detail: "Bundled user-session host active (PID \(pid)) with privileged output companion"
+                )
+            }
+
+            return nil
+        }()
+
+        let services = HealthStatus(
+            kanataRunning: snapshot.health.kanataRunning,
+            karabinerDaemonRunning: snapshot.health.karabinerDaemonRunning,
+            vhidHealthy: snapshot.health.vhidHealthy,
+            kanataInputCaptureReady: snapshot.health.kanataInputCaptureReady,
+            kanataInputCaptureIssue: snapshot.health.kanataInputCaptureIssue,
+            activeRuntimePathTitle: activeRuntimePathStatus?.title,
+            activeRuntimePathDetail: activeRuntimePathStatus?.detail
         )
 
         // Convert SystemSnapshot to SystemContext
         let context = SystemContext(
             permissions: snapshot.permissions,
-            services: snapshot.health,
+            services: services,
             conflicts: snapshot.conflicts,
             components: snapshot.components,
             helper: snapshot.helper,
@@ -401,7 +437,7 @@ public final class InstallerEngine {
         // Ensure canonical Kanata binary exists at /Library/KeyPath/bin/kanata before installing services.
         // This prevents "service installed" while the daemon runs with a different path (bundle fallback),
         // which would cause permission identity drift (AX/IM entries keyed by executable path).
-        if recipe.id == InstallerRecipeID.installLaunchDaemonServices,
+        if recipe.id == InstallerRecipeID.installRequiredRuntimeServices,
            KanataBinaryDetector.shared.needsInstallation()
         {
             AppLogger.shared.log(
@@ -410,8 +446,7 @@ public final class InstallerEngine {
             try await broker.installBundledKanata()
         }
 
-        // Install all LaunchDaemon services
-        try await broker.installAllLaunchDaemonServices()
+        try await broker.installRequiredRuntimeServices()
     }
 
     /// Execute restartService recipe
@@ -436,8 +471,7 @@ public final class InstallerEngine {
                 throw InstallerError.healthCheckFailed("Karabiner daemon restart verification failed")
             }
         } else {
-            // Restart all unhealthy services
-            try await broker.restartUnhealthyServices()
+            throw InstallerError.healthCheckFailed("Unsupported restart recipe: \(recipe.id)")
         }
     }
 
@@ -471,6 +505,9 @@ public final class InstallerEngine {
         case InstallerRecipeID.activateVHIDManager:
             try await broker.activateVirtualHIDManager()
 
+        case InstallerRecipeID.installRequiredRuntimeServices:
+            try await broker.installRequiredRuntimeServices()
+
         case InstallerRecipeID.repairVHIDDaemonServices:
             try await broker.repairVHIDDaemonServices()
 
@@ -481,14 +518,7 @@ public final class InstallerEngine {
             try await broker.regenerateServiceConfiguration()
 
         case InstallerRecipeID.restartCommServer:
-            try await broker.restartUnhealthyServices()
-
-        case InstallerRecipeID.adoptOrphanedProcess:
-            try await broker.installAllLaunchDaemonServices()
-
-        case InstallerRecipeID.replaceOrphanedProcess:
-            try await broker.killAllKanataProcesses()
-            try await broker.installAllLaunchDaemonServices()
+            try await broker.regenerateServiceConfiguration()
 
         case InstallerRecipeID.replaceKanataWithBundled:
             try await broker.installBundledKanata()
@@ -533,10 +563,10 @@ public final class InstallerEngine {
                 return true
             }
 
-            let health = await checkKanataServiceHealth()
-            let ready = health.isRunning && health.isResponding
+            let runtimeSnapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot()
+            let ready = ServiceHealthChecker.decideKanataHealth(for: runtimeSnapshot).isHealthy
             AppLogger.shared.log(
-                "🔍 [InstallerEngine] Kanata strict health check: state=\(managementState.description), running=\(health.isRunning), responding=\(health.isResponding), ready=\(ready)"
+                "🔍 [InstallerEngine] Kanata strict health check: state=\(managementState.description), running=\(runtimeSnapshot.isRunning), responding=\(runtimeSnapshot.isResponding), inputCaptureReady=\(runtimeSnapshot.inputCaptureReady), ready=\(ready)"
             )
             return ready
         }
@@ -564,8 +594,14 @@ public final class InstallerEngine {
 
     /// Check Kanata service health (running + TCP responsive)
     public func checkKanataServiceHealth(tcpPort: Int = 37001) async -> KanataHealthSnapshot {
-        let health = await ServiceHealthChecker.shared.checkKanataServiceHealth(tcpPort: tcpPort)
-        return KanataHealthSnapshot(isRunning: health.isRunning, isResponding: health.isResponding)
+        let runtimeSnapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot(
+            tcpPort: tcpPort
+        )
+        return KanataHealthSnapshot(
+            isRunning: runtimeSnapshot.isRunning,
+            isResponding: runtimeSnapshot.isResponding,
+            inputCaptureReady: runtimeSnapshot.inputCaptureReady
+        )
     }
 
     /// Convenience wrapper that chains inspectSystem() → makePlan() → execute() internally.
@@ -621,16 +657,15 @@ public final class InstallerEngine {
 
     /// Execute a single AutoFixAction by generating a plan that includes that specific action
     /// This is useful for GUI single-action fixes where the user clicks a specific "Fix" button
-    /// Note: Some actions (like installLaunchDaemonServices) are only in install plans, not repair plans
+    /// Note: Some actions (like installRequiredRuntimeServices) are only in install plans, not repair plans.
     public func runSingleAction(_ action: AutoFixAction, using broker: PrivilegeBroker) async
         -> InstallerReport
     {
         AppLogger.shared.log("🔧 [InstallerEngine] runSingleAction(\(action), using:) starting")
         let context = await inspectSystem()
 
-        // Determine which intent would include this action
-        // installLaunchDaemonServices is install-specific, others are typically repair
-        let intent: InstallIntent = action == .installLaunchDaemonServices ? .install : .repair
+        // Determine which intent would include this action.
+        let intent: InstallIntent = action == .installRequiredRuntimeServices ? .install : .repair
 
         let basePlan = await makePlan(for: intent, context: context)
 

@@ -8,6 +8,7 @@ struct SystemContextBuilder {
     var permissionsStatus: PermissionOracle.Status = .granted
     var helperReady: Bool = true
     var servicesHealthy: Bool = false
+    var kanataInputCaptureReady: Bool = true
     var componentsInstalled: Bool = false
     var conflicts: [SystemConflict] = []
     var driverCompatible: Bool = true
@@ -35,7 +36,6 @@ struct SystemContextBuilder {
                 karabinerDaemonRunning: servicesHealthy,
                 vhidDeviceInstalled: true,
                 vhidDeviceHealthy: servicesHealthy,
-                launchDaemonServicesHealthy: servicesHealthy,
                 vhidServicesHealthy: servicesHealthy,
                 vhidVersionMismatch: false
             )
@@ -44,7 +44,14 @@ struct SystemContextBuilder {
         }
 
         let services = servicesHealthy
-            ? HealthStatus(kanataRunning: true, karabinerDaemonRunning: true, vhidHealthy: true)
+            ? HealthStatus(
+                kanataRunning: true,
+                karabinerDaemonRunning: true,
+                vhidHealthy: true,
+                kanataInputCaptureReady: kanataInputCaptureReady,
+                kanataInputCaptureIssue: kanataInputCaptureReady
+                    ? nil : "kanata-cannot-open-built-in-keyboard"
+            )
             : HealthStatus.empty
 
         let conflictStatus = ConflictStatus(conflicts: conflicts, canAutoResolve: !conflicts.isEmpty)

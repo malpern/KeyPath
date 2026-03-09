@@ -473,10 +473,10 @@ final class KeyPathTests: XCTestCase {
 
     // MARK: - Root Privilege Tests
 
-    func testLaunchDaemonRootConfiguration() throws {
+    func testKanataAgentBundleConfiguration() throws {
         // This test validates real system state - skip in automated test mode
         // since the plist may not actually be installed
-        let plistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
+        let plistPath = "/Applications/KeyPath.app/Contents/Library/LaunchAgents/com.keypath.kanata.plist"
         let plistExists = FileManager.default.fileExists(atPath: plistPath)
 
         guard plistExists else {
@@ -485,14 +485,14 @@ final class KeyPathTests: XCTestCase {
 
         let manager = RuntimeCoordinator()
 
-        // Test that LaunchDaemon components exist
+        // Test that Kanata service components exist
         XCTAssertNotNil(manager.isServiceInstalled())
 
-        // The LaunchDaemon plist should exist when service is installed
+        // The packaged LaunchAgent plist should exist when service is installed
         if manager.isServiceInstalled() {
             XCTAssertTrue(
                 plistExists,
-                "LaunchDaemon plist should exist"
+                "Kanata LaunchAgent plist should exist"
             )
         }
     }

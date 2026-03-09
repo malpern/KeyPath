@@ -158,7 +158,6 @@ struct WizardStateInterpreter {
                          .component(.vhidDeviceManager),
                          .component(.vhidDeviceActivation),
                          .component(.vhidDeviceRunning),
-                         .component(.launchDaemonServices),
                          .component(.vhidDaemonMisconfigured),
                          .component(.vhidDriverVersionMismatch):
                         return true
@@ -166,8 +165,8 @@ struct WizardStateInterpreter {
                         return false
                     }
                 }
-                // Include daemon and background services issues
-                return issue.category == .daemon || issue.category == .backgroundServices
+                // Include daemon issues only. Legacy recovery services are reported elsewhere.
+                return issue.category == .daemon
             }
         case .kanataComponents:
             // Kanata-related components
@@ -175,7 +174,7 @@ struct WizardStateInterpreter {
                 if issue.category == .installation {
                     switch issue.identifier {
                     case .component(.kanataBinaryMissing),
-                         .component(.kanataService):
+                         .component(.keyPathRuntime):
                         return true
                     default:
                         return false

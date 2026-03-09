@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-extension KeyPathTool {
+extension KeyPathCLI {
     struct Status: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             abstract: "Check system status and health"

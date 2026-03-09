@@ -99,7 +99,7 @@ enum SettingsSystemStatusRowsBuilder {
             )
         )
 
-        // 5) Kanata Service
+        // 5) KeyPath Runtime
         let daemonIssues = wizardIssues.filter(\.identifier.isDaemon)
         let blockingPermissionIssue = ServiceStatusEvaluator.blockingIssueMessage(from: wizardIssues)
         let serviceStatus: InstallationStatus = {
@@ -124,7 +124,7 @@ enum SettingsSystemStatusRowsBuilder {
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "kanata-service",
-                title: "Kanata Service",
+                title: "KeyPath Runtime",
                 icon: "app.badge.checkmark",
                 status: serviceStatus,
                 targetPage: .service,
@@ -138,8 +138,7 @@ enum SettingsSystemStatusRowsBuilder {
                 if issue.category == .installation {
                     switch issue.identifier {
                     case .component(.kanataBinaryMissing),
-                         .component(.kanataService),
-                         .component(.orphanedKanataProcess):
+                         .component(.keyPathRuntime):
                         return true
                     default:
                         return false
