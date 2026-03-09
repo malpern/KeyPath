@@ -293,6 +293,8 @@ pub extern "C" fn keypath_kanata_bridge_start_passthru_runtime(
     let (tx, rx) = std::sync::mpsc::sync_channel(100);
     let (ntx, has_tcp_server) = if let Some(address) = runtime.tcp_server_address.clone() {
         let socket_addr = *address.get_ref();
+        // This preflight bind catches an obviously unavailable port for diagnostics.
+        // TcpServer::new binds again below, so there is still a small TOCTOU window.
         match std::net::TcpListener::bind(socket_addr) {
             Ok(listener) => drop(listener),
             Err(error) => {
@@ -627,7 +629,7 @@ fn write_error(buffer: *mut c_char, buffer_len: usize, message: &str) {
 mod tests {
     use super::*;
     use std::ffi::CString;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
     fn passthru_cfg_path() -> CString {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -723,14 +725,30 @@ mod tests {
         ));
         assert_eq!(read_error_buffer(&error_buffer), "");
 
-        let runtime_ref = unsafe { &mut *(runtime.cast::<PassthruRuntime>()) };
-        let event = runtime_ref
-            .output_rx
-            .recv_timeout(Duration::from_millis(250))
-            .expect("output event");
-        assert_eq!(event.value, 1);
-        assert_eq!(event.page, page_code.page);
-        assert_eq!(event.code, page_code.code);
+        let mut value = 0u64;
+        let mut page = 0u32;
+        let mut code = 0u32;
+        let deadline = Instant::now() + Duration::from_millis(250);
+        let mut recv_status = 0;
+        while Instant::now() < deadline {
+            recv_status = keypath_kanata_bridge_passthru_try_recv_output(
+                runtime,
+                &mut value,
+                &mut page,
+                &mut code,
+                error_buffer.as_mut_ptr(),
+                error_buffer.len(),
+            );
+            if recv_status != 0 {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+
+        assert_eq!(recv_status, 1, "unexpected error: {}", read_error_buffer(&error_buffer));
+        assert_eq!(value, 1);
+        assert_eq!(page, page_code.page);
+        assert_eq!(code, page_code.code);
 
         keypath_kanata_bridge_destroy_passthru_runtime(runtime);
     }

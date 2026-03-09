@@ -157,11 +157,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     let configDirectory = KeyPathConstants.Config.directory
 
     private static var isOneShotProbeMode: Bool {
-        let environment = ProcessInfo.processInfo.environment
-        return environment["KEYPATH_ENABLE_HOST_PASSTHRU_DIAGNOSTIC"] == "1"
-            || environment["KEYPATH_PREPARE_HOST_PASSTHRU_BRIDGE"] == "1"
-            || environment["KEYPATH_RUN_HELPER_REPAIR"] == "1"
-            || environment["KEYPATH_EXERCISE_OUTPUT_BRIDGE_COMPANION_RESTART"] == "1"
+        AppDelegate.isOneShotProbeEnvironment()
     }
     let configFileName = "keypath.kbd"
 

@@ -14,6 +14,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BRIDGE_ROOT="$PROJECT_ROOT/Rust/KeyPathKanataHostBridge"
 BUILD_DIR="$PROJECT_ROOT/build/kanata-host-bridge"
 BRIDGE_FEATURES="${KEYPATH_KANATA_HOST_BRIDGE_FEATURES:-passthru-output-spike}"
+# KeyPath currently packages Apple Silicon-only local builds, so the bridge intentionally targets
+# aarch64-apple-darwin here to match the shipped app/runtime artifacts.
 
 echo "🧩 Building KeyPath Kanata host bridge..."
 

@@ -749,7 +749,19 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         }
 
         do {
-            let logContent = try String(contentsOfFile: path, encoding: .utf8)
+            let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
+            defer { try? handle.close() }
+            let fileSize = (try? handle.seekToEnd()) ?? 0
+            let tailWindow = min(fileSize, 64 * 1024)
+            try handle.seek(toOffset: fileSize - tailWindow)
+            let logData = try handle.readToEnd() ?? Data()
+            guard let logContent = String(data: logData, encoding: .utf8) else {
+                throw NSError(
+                    domain: "KeyPath.Diagnostics",
+                    code: 1,
+                    userInfo: [NSLocalizedDescriptionKey: "Log file is not valid UTF-8"]
+                )
+            }
             let lines = logContent.components(separatedBy: .newlines)
 
             // Look for common error patterns

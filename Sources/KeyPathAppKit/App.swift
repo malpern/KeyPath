@@ -23,11 +23,7 @@ public struct KeyPathApp: App {
         let args = ProcessInfo.processInfo.arguments
         isHeadlessMode =
             args.contains("--headless") || environment["KEYPATH_HEADLESS"] == "1"
-        isOneShotProbeMode =
-            environment[AppDelegate.hostPassthruDiagnosticEnvKey] == "1"
-            || environment[AppDelegate.hostPassthruBridgePrepEnvKey] == "1"
-            || environment[AppDelegate.helperRepairEnvKey] == "1"
-            || environment[AppDelegate.companionRestartProbeEnvKey] == "1"
+        isOneShotProbeMode = AppDelegate.isOneShotProbeEnvironment(environment)
 
         AppLogger.shared.info(
             "🔍 [App] Initializing KeyPath - headless: \(isHeadlessMode), oneShotProbe: \(isOneShotProbeMode), args: \(args)"
@@ -400,6 +396,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     static let helperRepairEnvKey = "KEYPATH_RUN_HELPER_REPAIR"
     static let companionRestartProbeEnvKey = "KEYPATH_EXERCISE_OUTPUT_BRIDGE_COMPANION_RESTART"
     static let hostPassthruCaptureEnvKey = "KEYPATH_ENABLE_HOST_PASSTHRU_CAPTURE"
+    static func isOneShotProbeEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment)
+        -> Bool
+    {
+        environment[hostPassthruDiagnosticEnvKey] == "1"
+            || environment[hostPassthruBridgePrepEnvKey] == "1"
+            || environment[helperRepairEnvKey] == "1"
+            || environment[companionRestartProbeEnvKey] == "1"
+    }
     private static let hostPassthruDiagnosticTriggerPath = "/var/tmp/keypath-host-passthru-diagnostic"
     private static let hostPassthruBridgePrepTriggerPath = "/var/tmp/keypath-host-passthru-bridge-prep"
     private static let hostPassthruBridgePrepOutputPath = "/var/tmp/keypath-host-passthru-bridge-env.txt"

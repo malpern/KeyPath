@@ -16,7 +16,7 @@ extension RuntimeCoordinator {
         }
     }
 
-    private func currentSplitRuntimeDecision() async -> KanataRuntimePathDecision {
+    func currentSplitRuntimeDecision() async -> KanataRuntimePathDecision {
         return await KanataRuntimePathCoordinator.evaluateCurrentPath()
     }
 
@@ -68,9 +68,9 @@ extension RuntimeCoordinator {
         switch decision {
         case .useSplitRuntime:
             break
-        case let .useLegacySystemBinary(reason), let .blocked(reason):
+        case let .useLegacySystemBinary(evalReason), let .blocked(evalReason):
             let message =
-                "Split runtime host is enabled, but KeyPath could not start it: \(reason). " +
+                "Split runtime host is enabled, but KeyPath could not start it: \(evalReason). " +
                 "The legacy recovery daemon is no longer used for ordinary startup."
             AppLogger.shared.error("❌ [Service] \(message)")
             lastError = message
@@ -166,9 +166,9 @@ extension RuntimeCoordinator {
                 guard stopped else { return false }
             }
             return await startKanata(reason: "\(reason) (start split runtime)")
-        case let .useLegacySystemBinary(reason), let .blocked(reason):
+        case let .useLegacySystemBinary(evalReason), let .blocked(evalReason):
             let message =
-                "Split runtime host is enabled, but KeyPath could not restart it: \(reason). " +
+                "Split runtime host is enabled, but KeyPath could not restart it: \(evalReason). " +
                 "The legacy recovery daemon is no longer used for ordinary restart."
             AppLogger.shared.error("❌ [Service] \(message)")
             lastError = message
@@ -178,6 +178,10 @@ extension RuntimeCoordinator {
     }
 
     func currentRuntimeStatus() async -> RuntimeStatus {
+        if isStartingKanata {
+            return .starting
+        }
+
         if KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning {
             return .running(pid: Int(KanataSplitRuntimeHostService.shared.activePersistentHostPID ?? 0))
         }

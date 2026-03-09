@@ -63,6 +63,9 @@ extension RuntimeCoordinator {
             notifyStateChanged()
             return
         } catch {
+            AppLogger.shared.error(
+                "❌ [SplitRuntime] Failed to recover split runtime host after output bridge companion interruption: \(error.localizedDescription)"
+            )
             let failedPID = KanataSplitRuntimeHostService.shared.activePersistentHostPID ?? 0
             KanataSplitRuntimeHostService.shared.stopPersistentPassthruHost()
             await handleSplitRuntimeHostExit(
@@ -107,6 +110,14 @@ extension RuntimeCoordinator {
 
         // Try to start Kanata automatically on launch if environment allows
         let context = await engine.inspectSystem()
+        let splitRuntimeDecision = await currentSplitRuntimeDecision()
+        let splitRuntimePreferred: Bool
+        switch splitRuntimeDecision {
+        case .useSplitRuntime:
+            splitRuntimePreferred = true
+        case .useLegacySystemBinary, .blocked:
+            splitRuntimePreferred = false
+        }
 
         // Check if Kanata is already running. If split runtime is the preferred healthy path but
         // the active runtime is still the legacy daemon, use normal startup to cut over instead
@@ -119,7 +130,7 @@ extension RuntimeCoordinator {
                 return
             }
 
-            if await shouldUseSplitRuntimeHost() {
+            if splitRuntimePreferred {
                 AppLogger.shared.log(
                     "🔀 [Init] Kanata is already running via \(activeRuntimeTitle ?? "an unknown runtime path"); cutting over to split runtime host"
                 )

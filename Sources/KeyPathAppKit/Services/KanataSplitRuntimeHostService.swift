@@ -33,8 +33,6 @@ final class KanataSplitRuntimeHostService {
     nonisolated(unsafe) static var testStartPersistentError: Error?
 #endif
 
-    private static let outputBridgeSessionEnvKey = "KEYPATH_EXPERIMENTAL_OUTPUT_BRIDGE_SESSION"
-    private static let outputBridgeSocketEnvKey = "KEYPATH_EXPERIMENTAL_OUTPUT_BRIDGE_SOCKET"
     private static let inProcessRuntimeEnvKey = "KEYPATH_EXPERIMENTAL_HOST_RUNTIME"
     private static let passthruRuntimeEnvKey = "KEYPATH_EXPERIMENTAL_HOST_PASSTHRU_RUNTIME"
     private static let passthruForwardEnvKey = "KEYPATH_EXPERIMENTAL_HOST_PASSTHRU_FORWARD"
@@ -54,6 +52,27 @@ final class KanataSplitRuntimeHostService {
         self.companionManager = companionManager
     }
 
+    private actor ProcessExitLatch {
+        private var didExit = false
+        private var continuation: CheckedContinuation<Void, Never>?
+
+        func markExited() {
+            didExit = true
+            continuation?.resume()
+            continuation = nil
+        }
+
+        func wait() async {
+            if didExit {
+                return
+            }
+
+            await withCheckedContinuation { continuation in
+                self.continuation = continuation
+            }
+        }
+    }
+
     private func launcherArguments(configPath: String) -> [String] {
         [
             "--cfg",
@@ -62,6 +81,36 @@ final class KanataSplitRuntimeHostService {
             "\(PreferencesService.shared.tcpServerPort)",
             "--log-layer-changes"
         ]
+    }
+
+    private func buildPassthruEnvironment(
+        session: KanataOutputBridgeSession,
+        includeCapture: Bool,
+        pollMilliseconds: Int,
+        persist: Bool
+    ) -> [String: String] {
+        var environment = ProcessInfo.processInfo.environment
+        environment[KanataRuntimePathCoordinator.experimentalOutputBridgeSessionEnvKey] = session.sessionID
+        environment[KanataRuntimePathCoordinator.experimentalOutputBridgeSocketEnvKey] = session.socketPath
+        environment[Self.inProcessRuntimeEnvKey] = "1"
+        environment[Self.passthruRuntimeEnvKey] = "1"
+        environment[Self.passthruForwardEnvKey] = "1"
+        environment[Self.passthruOnlyEnvKey] = "1"
+        if persist {
+            environment[Self.passthruPersistEnvKey] = "1"
+        } else {
+            environment.removeValue(forKey: Self.passthruPersistEnvKey)
+        }
+        if includeCapture {
+            environment[Self.passthruCaptureEnvKey] = "1"
+            environment.removeValue(forKey: Self.passthruInjectEnvKey)
+        } else {
+            environment[Self.passthruInjectEnvKey] = "1"
+            environment.removeValue(forKey: Self.passthruCaptureEnvKey)
+        }
+        environment[Self.passthruPollEnvKey] = "\(pollMilliseconds)"
+        environment["HOME"] = NSHomeDirectory()
+        return environment
     }
 
     var isPersistentPassthruHostRunning: Bool {
@@ -104,24 +153,12 @@ final class KanataSplitRuntimeHostService {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: launcherPath)
         process.arguments = launcherArguments(configPath: configPath)
-
-        var environment = ProcessInfo.processInfo.environment
-        environment[Self.outputBridgeSessionEnvKey] = session.sessionID
-        environment[Self.outputBridgeSocketEnvKey] = session.socketPath
-        environment[Self.inProcessRuntimeEnvKey] = "1"
-        environment[Self.passthruRuntimeEnvKey] = "1"
-        environment[Self.passthruForwardEnvKey] = "1"
-        environment[Self.passthruOnlyEnvKey] = "1"
-        if includeCapture {
-            environment[Self.passthruCaptureEnvKey] = "1"
-            environment.removeValue(forKey: Self.passthruInjectEnvKey)
-        } else {
-            environment[Self.passthruInjectEnvKey] = "1"
-            environment.removeValue(forKey: Self.passthruCaptureEnvKey)
-        }
-        environment[Self.passthruPollEnvKey] = "\(pollMilliseconds)"
-        environment["HOME"] = NSHomeDirectory()
-        process.environment = environment
+        process.environment = buildPassthruEnvironment(
+            session: session,
+            includeCapture: includeCapture,
+            pollMilliseconds: pollMilliseconds,
+            persist: false
+        )
         process.currentDirectoryURL = URL(fileURLWithPath: (configPath as NSString).deletingLastPathComponent)
 
         let stderrLogURL = URL(fileURLWithPath: NSTemporaryDirectory())
@@ -130,6 +167,12 @@ final class KanataSplitRuntimeHostService {
         let stderrHandle = try FileHandle(forWritingTo: stderrLogURL)
         process.standardError = stderrHandle
         process.standardOutput = Pipe()
+        let exitLatch = ProcessExitLatch()
+        process.terminationHandler = { _ in
+            Task {
+                await exitLatch.markExited()
+            }
+        }
 
         AppLogger.shared.info("🧪 [HostService] Launching split-runtime host child: \(launcherPath)")
         try process.run()
@@ -152,7 +195,7 @@ final class KanataSplitRuntimeHostService {
             }
         }
 
-        process.waitUntilExit()
+        await exitLatch.wait()
         try? stderrHandle.close()
         let terminationReason: String = switch process.terminationReason {
         case .exit:
@@ -204,8 +247,8 @@ final class KanataSplitRuntimeHostService {
             return pid
         }
 #endif
-        guard activeHostProcess?.isRunning != true else {
-            return activeHostProcess?.processIdentifier ?? 0
+        if let activeHostProcess, activeHostProcess.isRunning {
+            return activeHostProcess.processIdentifier
         }
 
         let runtimeHost = KanataRuntimeHost.current()
@@ -216,25 +259,12 @@ final class KanataSplitRuntimeHostService {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: launcherPath)
         process.arguments = launcherArguments(configPath: configPath)
-
-        var environment = ProcessInfo.processInfo.environment
-        environment[Self.outputBridgeSessionEnvKey] = session.sessionID
-        environment[Self.outputBridgeSocketEnvKey] = session.socketPath
-        environment[Self.inProcessRuntimeEnvKey] = "1"
-        environment[Self.passthruRuntimeEnvKey] = "1"
-        environment[Self.passthruForwardEnvKey] = "1"
-        environment[Self.passthruOnlyEnvKey] = "1"
-        environment[Self.passthruPersistEnvKey] = "1"
-        if includeCapture {
-            environment[Self.passthruCaptureEnvKey] = "1"
-            environment.removeValue(forKey: Self.passthruInjectEnvKey)
-        } else {
-            environment[Self.passthruInjectEnvKey] = "1"
-            environment.removeValue(forKey: Self.passthruCaptureEnvKey)
-        }
-        environment[Self.passthruPollEnvKey] = "\(pollMilliseconds)"
-        environment["HOME"] = NSHomeDirectory()
-        process.environment = environment
+        process.environment = buildPassthruEnvironment(
+            session: session,
+            includeCapture: includeCapture,
+            pollMilliseconds: pollMilliseconds,
+            persist: true
+        )
         process.currentDirectoryURL = URL(fileURLWithPath: (configPath as NSString).deletingLastPathComponent)
 
         let stderrLogURL = URL(fileURLWithPath: NSTemporaryDirectory())

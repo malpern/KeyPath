@@ -806,14 +806,15 @@ final class PrivilegedOperationsCoordinator {
             .split(separator: "\n", omittingEmptySubsequences: true)
             .map(String.init)
         guard lines.count >= 2 else { return false }
+        let output = result.stdout.lowercased()
 
-        if result.stdout.localizedCaseInsensitiveContains("/Library/KeyPath/bin/kanata") {
+        if output.contains("/library/keypath/bin/kanata") {
             return true
         }
-        if result.stdout.localizedCaseInsensitiveContains("/Applications/KeyPath.app/Contents/Library/KeyPath/kanata") {
+        if output.contains("/applications/keypath.app/contents/library/keypath/kanata") {
             return true
         }
-        if result.stdout.localizedCaseInsensitiveContains("kanata") {
+        if output.contains("kanata") {
             return true
         }
 

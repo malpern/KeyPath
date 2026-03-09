@@ -524,6 +524,9 @@ final class ServiceHealthChecker: @unchecked Sendable {
             return await override()
         }
 #endif
+        // There is no stable Apple API here for "the live runtime can capture the built-in
+        // keyboard right now," so we use Kanata's known stderr denial line as a runtime fallback
+        // signal and fail closed when macOS is actively denying capture.
 
         guard let logChunk = readRecentKanataStderrLog(), !logChunk.isEmpty else {
             return .ready
