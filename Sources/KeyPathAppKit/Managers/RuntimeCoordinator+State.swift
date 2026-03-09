@@ -56,8 +56,7 @@ extension RuntimeCoordinator {
         diagnostics = diagnosticsManager.getDiagnostics()
         let runtimePathStatus = currentRuntimePathStatus()
 
-        // Debug: Log custom rules count when building state
-        AppLogger.shared.log("📊 [RuntimeCoordinator] buildUIState: customRules.count = \(customRules.count)")
+        AppLogger.shared.debug("📊 [RuntimeCoordinator] buildUIState: customRules.count = \(customRules.count)")
         if let error = lastError {
             AppLogger.shared.debug("🚨 [RuntimeCoordinator] buildUIState: lastError = \(error)")
         }

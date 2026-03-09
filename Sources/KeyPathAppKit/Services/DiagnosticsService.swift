@@ -378,8 +378,10 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         // NOTE: Permission checks are handled by the Installation Wizard
         // We don't duplicate permission diagnostics here to avoid confusion
 
+        let karabinerElementsRunning = await isKarabinerElementsRunning()
+
         // Check for conflicts
-        if await isKarabinerElementsRunning() {
+        if karabinerElementsRunning {
             diagnostics.append(
                 KanataDiagnostic(
                     timestamp: Date(),
@@ -424,7 +426,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         }
 
         // Check for karabiner_grabber conflict
-        if await isKarabinerElementsRunning() {
+        if karabinerElementsRunning {
             diagnostics.append(
                 KanataDiagnostic(
                     timestamp: Date(),
@@ -881,28 +883,9 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         }
     }
 
-    // MARK: - TCP helpers (best-effort)
-
-    private func fetchTcpStatusInfo() async -> KanataTCPClient.TcpStatusInfo? {
-        let client = KanataTCPClient(port: 37001)
-
-        do {
-            _ = try await client.hello()
-            let status = try await client.getStatus()
-
-            // FIX #1: Explicitly close connection to prevent file descriptor leak
-            await client.cancelInflightAndCloseConnection()
-
-            return status
-        } catch {
-            // FIX #1: Clean up connection even on error path
-            await client.cancelInflightAndCloseConnection()
-            return nil
-        }
-    }
-
     private func fetchTcpHello() async -> KanataTCPClient.TcpHelloOk? {
-        let client = KanataTCPClient(port: 37001)
+        let tcpPort = await MainActor.run { PreferencesService.shared.tcpServerPort }
+        let client = KanataTCPClient(port: tcpPort)
 
         do {
             let hello = try await client.hello()

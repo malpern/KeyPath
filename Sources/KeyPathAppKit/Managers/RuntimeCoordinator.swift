@@ -11,51 +11,51 @@ import Network
 
 // Manages the Kanata process lifecycle and configuration directly.
 //
-// # Architecture: Main Coordinator + Extension Files (~1,800 lines total)
+// # Architecture: Main Coordinator + Extension Files
 //
 // RuntimeCoordinator is the main orchestrator for Kanata process management and configuration.
 // It's split across multiple extension files for maintainability:
 //
 // ## Extension Files (organized by concern):
 //
-// **RuntimeCoordinator.swift** (main file, ~960 lines)
+// **RuntimeCoordinator.swift** (main file)
 // - Core initialization and state management
 // - UI state snapshots and ViewModel interface
 // - Health monitoring and auto-start logic
 // - Diagnostics and error handling
 //
-// **RuntimeCoordinator+Configuration.swift** (~184 lines)
+// **RuntimeCoordinator+Configuration.swift**
 // - Config reload triggering and TCP communication
 // - Key mapping save operations
 //
-// **RuntimeCoordinator+RuleCollections.swift** (~112 lines)
+// **RuntimeCoordinator+RuleCollections.swift**
 // - Rule collection CRUD and persistence
 //
-// **RuntimeCoordinator+ServiceManagement.swift** (~119 lines)
-// - LaunchDaemon service start/stop/restart
+// **RuntimeCoordinator+ServiceManagement.swift**
+// - Runtime host start/stop/restart
 //
-// **RuntimeCoordinator+ConfigMaintenance.swift** (~89 lines)
+// **RuntimeCoordinator+ConfigMaintenance.swift**
 // - Config backup, repair, and safe-config fallback
 //
-// **RuntimeCoordinator+Lifecycle.swift** (~77 lines)
+// **RuntimeCoordinator+Lifecycle.swift**
 // - Process lifecycle state transitions
 //
-// **RuntimeCoordinator+State.swift** (~73 lines)
+// **RuntimeCoordinator+State.swift**
 // - UI state snapshot building
 //
-// **RuntimeCoordinator+ConfigHotReload.swift** (~68 lines)
+// **RuntimeCoordinator+ConfigHotReload.swift**
 // - File-change-driven hot reload
 //
-// **RuntimeCoordinator+Diagnostics.swift** (~64 lines)
+// **RuntimeCoordinator+Diagnostics.swift**
 // - System analysis and failure diagnosis
 //
-// **RuntimeCoordinator+ConflictResolution.swift** (~29 lines)
+// **RuntimeCoordinator+ConflictResolution.swift**
 // - Karabiner conflict detection helpers
 //
-// **RuntimeCoordinator+Engine.swift** (~13 lines)
+// **RuntimeCoordinator+Engine.swift**
 // - Kanata engine communication (stub)
 //
-// **RuntimeCoordinator+Output.swift** (~13 lines)
+// **RuntimeCoordinator+Output.swift**
 // - Log parsing and monitoring (stub)
 //
 // ## Key Dependencies (used by extensions):
@@ -308,7 +308,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Initialize ConfigRepairService
         self.configRepairService = configRepairService ?? AnthropicConfigRepairService()
 
-        // Initialize EngineClien
+        // Initialize EngineClient
         self.engineClient = engineClient ?? TCPEngineClient()
 
         // Initialize RecoveryCoordinator (will be configured after all initialization)
@@ -904,6 +904,11 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
                 try? await Task.sleep(for: .seconds(2))
                 self?.saveStatus = .idle
             }
+        } else if await recoveryDaemonService.isRecoveryDaemonRunning() {
+            AppLogger.shared.warn(
+                "⚠️ [Reset] Skipping TCP reload because only the recovery daemon is active. " +
+                    "The split runtime host is not running."
+            )
         }
     }
 

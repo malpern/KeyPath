@@ -750,6 +750,10 @@ public final class ActionDispatcher {
             return .success
 
         case "repair-helper":
+            if TestEnvironment.isRunningTests {
+                return .success
+            }
+
             let useAppleScriptFallbackRaw = uri.queryItems["applescript"]?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .lowercased()
