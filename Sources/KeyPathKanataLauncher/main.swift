@@ -190,6 +190,8 @@ private func experimentalOutputBridgeSession() -> KanataOutputBridgeSession? {
         socketPath: socketPath,
         socketDirectory: (socketPath as NSString).deletingLastPathComponent,
         hostPID: getpid(),
+        hostUID: getuid(),
+        hostGID: getgid(),
         detail: "environment-provided experimental bridge session"
     )
 }

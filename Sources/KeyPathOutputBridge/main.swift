@@ -7,13 +7,17 @@ private struct CompanionPreparedSession: Codable, Sendable {
     let sessionID: String
     let socketPath: String
     let hostPID: Int32
+    let hostUID: UInt32
+    let hostGID: UInt32
 
     var session: KanataOutputBridgeSession {
         KanataOutputBridgeSession(
             sessionID: sessionID,
             socketPath: socketPath,
             socketDirectory: (socketPath as NSString).deletingLastPathComponent,
-            hostPID: hostPID
+            hostPID: hostPID,
+            hostUID: hostUID,
+            hostGID: hostGID
         )
     }
 }
@@ -215,6 +219,12 @@ private enum OutputBridgeEmitter {
 }
 
 private final class CompanionServer: @unchecked Sendable {
+    private struct PeerCredentials {
+        let uid: uid_t
+        let gid: gid_t
+        let pid: pid_t
+    }
+
     private let session: KanataOutputBridgeSession
     private let queue: DispatchQueue
     private var listenerFD: Int32 = -1
@@ -261,7 +271,8 @@ private final class CompanionServer: @unchecked Sendable {
             throw NSError(domain: "KeyPathOutputBridge", code: Int(code), userInfo: [NSLocalizedDescriptionKey: "failed to bind output bridge socket: \(code)"])
         }
 
-        chmod(session.socketPath, 0o666)
+        chown(session.socketPath, uid_t(session.hostUID), gid_t(session.hostGID))
+        chmod(session.socketPath, 0o600)
 
         guard listen(fd, 8) == 0 else {
             let code = errno
@@ -303,44 +314,97 @@ private final class CompanionServer: @unchecked Sendable {
 
     private func handle(clientFD: Int32) {
         do {
-            let request = try readRequest(from: clientFD)
-            let response: KanataOutputBridgeResponse
-            switch request {
-            case let .handshake(handshake):
-                response = handshake.sessionID == session.sessionID
-                    ? .ready(version: KanataOutputBridgeProtocol.version)
-                    : .error(.init(code: "invalid_session", message: "handshake session mismatch", detail: "expected sessionID \(session.sessionID)"))
-            case .ping:
-                response = .pong
-            case let .emitKey(event):
-                switch OutputBridgeEmitter.emitKey(event) {
-                case .success:
-                    response = .acknowledged(sequence: event.sequence)
-                case let .failure(error):
-                    response = .error(.init(code: "emit_key_failed", message: "failed to emit key through privileged output bridge", detail: error.message))
+            let credentials = try peerCredentials(for: clientFD)
+            var authenticated = false
+            while true {
+                let request = try readRequest(from: clientFD)
+                let response: KanataOutputBridgeResponse
+                let keepOpen: Bool
+
+                switch request {
+                case let .handshake(handshake):
+                    if handshake.sessionID != session.sessionID {
+                        response = .error(.init(code: "invalid_session", message: "handshake session mismatch", detail: "expected sessionID \(session.sessionID)"))
+                    } else if handshake.hostPID != session.hostPID {
+                        response = .error(.init(code: "invalid_host_pid", message: "handshake host PID mismatch", detail: "expected hostPID \(session.hostPID)"))
+                    } else if credentials.uid != uid_t(session.hostUID) || credentials.gid != gid_t(session.hostGID) {
+                        response = .error(.init(code: "invalid_peer", message: "socket peer credentials did not match prepared host", detail: "expected uid/gid \(session.hostUID):\(session.hostGID)"))
+                    } else if credentials.pid != pid_t(session.hostPID) {
+                        response = .error(.init(code: "invalid_peer_pid", message: "socket peer PID did not match prepared host", detail: "expected pid \(session.hostPID)"))
+                    } else {
+                        authenticated = true
+                        response = .ready(version: KanataOutputBridgeProtocol.version)
+                    }
+                    keepOpen = true
+                case .ping:
+                    response = .pong
+                    keepOpen = false
+                case let .emitKey(event):
+                    guard authenticated else {
+                        try writeResponse(.error(.init(code: "unauthenticated", message: "output bridge handshake required before privileged requests")), to: clientFD)
+                        return
+                    }
+                    switch OutputBridgeEmitter.emitKey(event) {
+                    case .success:
+                        response = .acknowledged(sequence: event.sequence)
+                    case let .failure(error):
+                        response = .error(.init(code: "emit_key_failed", message: "failed to emit key through privileged output bridge", detail: error.message))
+                    }
+                    keepOpen = false
+                case let .syncModifiers(modifiers):
+                    guard authenticated else {
+                        try writeResponse(.error(.init(code: "unauthenticated", message: "output bridge handshake required before privileged requests")), to: clientFD)
+                        return
+                    }
+                    switch OutputBridgeEmitter.syncModifiers(from: currentModifierState, to: modifiers) {
+                    case .success:
+                        currentModifierState = modifiers
+                        response = .acknowledged(sequence: nil)
+                    case let .failure(error):
+                        response = .error(.init(code: "sync_modifiers_failed", message: "failed to sync modifier state through privileged output bridge", detail: error.message))
+                    }
+                    keepOpen = false
+                case .reset:
+                    guard authenticated else {
+                        try writeResponse(.error(.init(code: "unauthenticated", message: "output bridge handshake required before privileged requests")), to: clientFD)
+                        return
+                    }
+                    switch OutputBridgeEmitter.reset() {
+                    case .success:
+                        currentModifierState = .init()
+                        response = .acknowledged(sequence: nil)
+                    case let .failure(error):
+                        response = .error(.init(code: "vhid_activate_failed", message: "failed to reset privileged output bridge", detail: error.message))
+                    }
+                    keepOpen = false
                 }
-            case let .syncModifiers(modifiers):
-                switch OutputBridgeEmitter.syncModifiers(from: currentModifierState, to: modifiers) {
-                case .success:
-                    currentModifierState = modifiers
-                    response = .acknowledged(sequence: nil)
-                case let .failure(error):
-                    response = .error(.init(code: "sync_modifiers_failed", message: "failed to sync modifier state through privileged output bridge", detail: error.message))
-                }
-            case .reset:
-                switch OutputBridgeEmitter.reset() {
-                case .success:
-                    currentModifierState = .init()
-                    response = .acknowledged(sequence: nil)
-                case let .failure(error):
-                    response = .error(.init(code: "vhid_activate_failed", message: "failed to reset privileged output bridge", detail: error.message))
-                }
+
+                try writeResponse(response, to: clientFD)
+                guard keepOpen else { return }
             }
-            try writeResponse(response, to: clientFD)
         } catch {
             let response = KanataOutputBridgeResponse.error(.init(code: "server_error", message: "output bridge request handling failed", detail: error.localizedDescription))
             try? writeResponse(response, to: clientFD)
         }
+    }
+
+    private func peerCredentials(for fd: Int32) throws -> PeerCredentials {
+        var uid: uid_t = 0
+        var gid: gid_t = 0
+        guard getpeereid(fd, &uid, &gid) == 0 else {
+            throw NSError(domain: "KeyPathOutputBridge", code: Int(errno), userInfo: [NSLocalizedDescriptionKey: "failed to read peer uid/gid: \(errno)"])
+        }
+
+        var pid: pid_t = 0
+        var pidSize = socklen_t(MemoryLayout<pid_t>.size)
+        let pidResult = withUnsafeMutablePointer(to: &pid) { pidPtr in
+            getsockopt(fd, 0, LOCAL_PEERPID, pidPtr, &pidSize)
+        }
+        guard pidResult == 0 else {
+            throw NSError(domain: "KeyPathOutputBridge", code: Int(errno), userInfo: [NSLocalizedDescriptionKey: "failed to read peer pid: \(errno)"])
+        }
+
+        return PeerCredentials(uid: uid, gid: gid, pid: pid)
     }
 
     private func readRequest(from fd: Int32) throws -> KanataOutputBridgeRequest {
@@ -441,8 +505,10 @@ private final class OutputBridgeCompanion {
             if !fileManager.fileExists(atPath: path) {
                 try fileManager.createDirectory(atPath: path, withIntermediateDirectories: true)
             }
-            chmod(path, 0o755)
         }
+        chmod(KeyPathConstants.OutputBridge.runDirectory, 0o755)
+        chmod(KeyPathConstants.OutputBridge.socketDirectory, 0o711)
+        chmod(KeyPathConstants.OutputBridge.sessionDirectory, 0o700)
     }
 
     private func retireSessionFile(_ sessionID: String) {

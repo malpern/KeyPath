@@ -299,7 +299,9 @@ final class DiagnosticsServiceTests: XCTestCase {
                 sessionID: "session-42",
                 socketPath: "/tmp/session-42.sock",
                 socketDirectory: "/tmp",
-                hostPID: 42
+                hostPID: 42,
+                hostUID: 501,
+                hostGID: 20
             ),
             handshake: .ready(version: 1),
             ping: .pong,

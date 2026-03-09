@@ -312,21 +312,28 @@ class HelperService: NSObject, HelperProtocol {
                 try FileManager.default.removeItem(atPath: socketPath)
             }
 
+            let hostUID = try Self.userID(for: hostPID)
+            let hostGID = try Self.groupID(for: hostPID)
+
             let session = KanataOutputBridgeSession(
                 sessionID: sessionID,
                 socketPath: socketPath,
                 socketDirectory: Self.kanataOutputBridgeDirectory,
-                hostPID: hostPID
+                hostPID: hostPID,
+                hostUID: hostUID,
+                hostGID: hostGID
             )
             try Self.writePreparedOutputBridgeSession(session)
             NSLog(
-                "[KeyPathHelper] prepared output bridge session %@ socket=%@ hostPID=%d",
+                "[KeyPathHelper] prepared output bridge session %@ socket=%@ hostPID=%d uid=%u gid=%u",
                 session.sessionID,
                 session.socketPath,
-                session.hostPID
+                session.hostPID,
+                session.hostUID,
+                session.hostGID
             )
             logger.info(
-                "prepared output bridge session \(session.sessionID) socket=\(session.socketPath) hostPID=\(session.hostPID)"
+                "prepared output bridge session \(session.sessionID) socket=\(session.socketPath) hostPID=\(session.hostPID) uid=\(session.hostUID) gid=\(session.hostGID)"
             )
 
             let payload = try JSONEncoder().encode(session)
@@ -377,25 +384,18 @@ class HelperService: NSObject, HelperProtocol {
     ) {
         NSLog("[KeyPathHelper] restartKanataOutputBridgeCompanion requested")
         logger.info("restartKanataOutputBridgeCompanion requested")
-        reply(true, nil)
-        NSLog("[KeyPathHelper] restartKanataOutputBridgeCompanion acknowledged, scheduling async restart")
-
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.5) {
-            do {
+        executePrivilegedOperation(
+            name: "restartKanataOutputBridgeCompanion",
+            operation: {
                 if Self.isServiceLoaded(Self.outputBridgeServiceID) {
                     try Self.activateOutputBridgeCompanion()
                 } else {
                     try Self.ensureOutputBridgeCompanionInstalled()
                     try Self.activateOutputBridgeCompanion()
                 }
-                NSLog("[KeyPathHelper] restartKanataOutputBridgeCompanion completed asynchronously")
-            } catch {
-                NSLog(
-                    "[KeyPathHelper] restartKanataOutputBridgeCompanion async restart failed: %@",
-                    error.localizedDescription
-                )
-            }
-        }
+            },
+            reply: reply
+        )
     }
 
     func installBundledVHIDDriver(pkgPath: String, reply: @escaping (Bool, String?) -> Void) {
@@ -573,7 +573,9 @@ class HelperService: NSObject, HelperProtocol {
         let prepared = PreparedOutputBridgeSession(
             sessionID: session.sessionID,
             socketPath: session.socketPath,
-            hostPID: session.hostPID
+            hostPID: session.hostPID,
+            hostUID: session.hostUID,
+            hostGID: session.hostGID
         )
         let data = try JSONEncoder().encode(prepared)
         try data.write(
@@ -612,6 +614,26 @@ class HelperService: NSObject, HelperProtocol {
         _ = run("/bin/launchctl", ["bootout", "system/\(outputBridgeServiceID)"])
         try bootstrapOutputBridgeCompanion(destination: destination)
         _ = run("/bin/launchctl", ["enable", "system/\(outputBridgeServiceID)"])
+    }
+
+    private static func userID(for pid: Int32) throws -> UInt32 {
+        let result = run("/bin/ps", ["-o", "uid=", "-p", String(pid)])
+        guard result.status == 0,
+              let value = UInt32(result.out.trimmingCharacters(in: .whitespacesAndNewlines))
+        else {
+            throw HelperError.operationFailed("failed to resolve uid for pid \(pid): \(result.out)")
+        }
+        return value
+    }
+
+    private static func groupID(for pid: Int32) throws -> UInt32 {
+        let result = run("/bin/ps", ["-o", "gid=", "-p", String(pid)])
+        guard result.status == 0,
+              let value = UInt32(result.out.trimmingCharacters(in: .whitespacesAndNewlines))
+        else {
+            throw HelperError.operationFailed("failed to resolve gid for pid \(pid): \(result.out)")
+        }
+        return value
     }
 
     private static func bootstrapOutputBridgeCompanion(destination: String) throws {
@@ -1170,6 +1192,8 @@ private struct PreparedOutputBridgeSession: Codable, Sendable {
     let sessionID: String
     let socketPath: String
     let hostPID: Int32
+    let hostUID: UInt32
+    let hostGID: UInt32
 }
 
 // MARK: - Error Types

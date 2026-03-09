@@ -54,6 +54,7 @@ final class KanataOutputBridgeProtocolTests: XCTestCase {
         defer { close(serverFD) }
 
         let handshakeExpectation = expectation(description: "handshake")
+        handshakeExpectation.expectedFulfillmentCount = 5
         let pingExpectation = expectation(description: "ping")
         let emitExpectation = expectation(description: "emitKey")
         let modifiersExpectation = expectation(description: "syncModifiers")
@@ -67,34 +68,53 @@ final class KanataOutputBridgeProtocolTests: XCTestCase {
                 defer { close(clientFD) }
 
                 do {
-                    let request = try Self.readRequest(from: clientFD)
-                    switch request {
-                    case let .handshake(handshake):
-                        XCTAssertEqual(handshake.sessionID, "session-123")
-                        XCTAssertEqual(handshake.hostPID, 4242)
-                        try Self.writeResponse(.ready(version: KanataOutputBridgeProtocol.version), to: clientFD)
-                        handshakeExpectation.fulfill()
-                    case .ping:
-                        try Self.writeResponse(.pong, to: clientFD)
-                        pingExpectation.fulfill()
-                    case let .emitKey(event):
-                        XCTAssertEqual(event.sequence, 7)
-                        XCTAssertEqual(event.usagePage, 0x07)
-                        XCTAssertEqual(event.usage, 0x04)
-                        XCTAssertEqual(event.action, .keyDown)
-                        try Self.writeResponse(.acknowledged(sequence: event.sequence), to: clientFD)
-                        emitExpectation.fulfill()
-                    case let .syncModifiers(modifiers):
-                        XCTAssertTrue(modifiers.leftShift)
-                        XCTAssertTrue(modifiers.rightCommand)
-                        XCTAssertFalse(modifiers.leftControl)
-                        try Self.writeResponse(.acknowledged(sequence: nil), to: clientFD)
-                        modifiersExpectation.fulfill()
-                    case .reset:
-                        try Self.writeResponse(.acknowledged(sequence: nil), to: clientFD)
-                        resetExpectation.fulfill()
-                    default:
-                        XCTFail("Unexpected request: \(request)")
+                    var sawHandshake = false
+                    while true {
+                        let request: KanataOutputBridgeRequest
+                        do {
+                            request = try Self.readRequest(from: clientFD)
+                        } catch KanataOutputBridgeClientError.connectionClosed where sawHandshake {
+                            break
+                        }
+                        var shouldClose = false
+                        switch request {
+                        case let .handshake(handshake):
+                            XCTAssertFalse(sawHandshake)
+                            sawHandshake = true
+                            XCTAssertEqual(handshake.sessionID, "session-123")
+                            XCTAssertEqual(handshake.hostPID, 4242)
+                            try Self.writeResponse(.ready(version: KanataOutputBridgeProtocol.version), to: clientFD)
+                            handshakeExpectation.fulfill()
+                        case .ping:
+                            try Self.writeResponse(.pong, to: clientFD)
+                            pingExpectation.fulfill()
+                            shouldClose = true
+                        case let .emitKey(event):
+                            XCTAssertTrue(sawHandshake)
+                            XCTAssertEqual(event.sequence, 7)
+                            XCTAssertEqual(event.usagePage, 0x07)
+                            XCTAssertEqual(event.usage, 0x04)
+                            XCTAssertEqual(event.action, .keyDown)
+                            try Self.writeResponse(.acknowledged(sequence: event.sequence), to: clientFD)
+                            emitExpectation.fulfill()
+                            shouldClose = true
+                        case let .syncModifiers(modifiers):
+                            XCTAssertTrue(sawHandshake)
+                            XCTAssertTrue(modifiers.leftShift)
+                            XCTAssertTrue(modifiers.rightCommand)
+                            XCTAssertFalse(modifiers.leftControl)
+                            try Self.writeResponse(.acknowledged(sequence: nil), to: clientFD)
+                            modifiersExpectation.fulfill()
+                            shouldClose = true
+                        case .reset:
+                            XCTAssertTrue(sawHandshake)
+                            try Self.writeResponse(.acknowledged(sequence: nil), to: clientFD)
+                            resetExpectation.fulfill()
+                            shouldClose = true
+                        }
+                        if shouldClose {
+                            break
+                        }
                     }
                 } catch {
                     XCTFail("Server error: \(error)")
@@ -106,7 +126,9 @@ final class KanataOutputBridgeProtocolTests: XCTestCase {
             sessionID: "session-123",
             socketPath: socketPath,
             socketDirectory: (socketPath as NSString).deletingLastPathComponent,
-            hostPID: 4242
+            hostPID: 4242,
+            hostUID: UInt32(getuid()),
+            hostGID: UInt32(getgid())
         )
 
         let handshake = try KanataOutputBridgeClient.performHandshake(session: session)

@@ -10,7 +10,9 @@ final class KanataOutputBridgeSmokeServiceTests: XCTestCase {
             sessionID: "session-123",
             socketPath: "/tmp/session-123.sock",
             socketDirectory: "/tmp",
-            hostPID: 4242
+            hostPID: 4242,
+            hostUID: 501,
+            hostGID: 20
         )
         helper.preparedSession = session
 
@@ -52,7 +54,9 @@ final class KanataOutputBridgeSmokeServiceTests: XCTestCase {
             sessionID: "session-reset",
             socketPath: "/tmp/session-reset.sock",
             socketDirectory: "/tmp",
-            hostPID: 777
+            hostPID: 777,
+            hostUID: 501,
+            hostGID: 20
         )
 
         let operations = SendableOperationRecorder()
@@ -88,7 +92,9 @@ final class KanataOutputBridgeSmokeServiceTests: XCTestCase {
             sessionID: "session-emit",
             socketPath: "/tmp/session-emit.sock",
             socketDirectory: "/tmp",
-            hostPID: 909
+            hostPID: 909,
+            hostUID: 501,
+            hostGID: 20
         )
 
         let probeEvent = KanataOutputBridgeKeyEvent(
@@ -140,7 +146,9 @@ final class KanataOutputBridgeSmokeServiceTests: XCTestCase {
             sessionID: "session-modifiers",
             socketPath: "/tmp/session-modifiers.sock",
             socketDirectory: "/tmp",
-            hostPID: 313
+            hostPID: 313,
+            hostUID: 501,
+            hostGID: 20
         )
 
         let probeState = KanataOutputBridgeModifierState(leftShift: true, rightCommand: true)
@@ -190,7 +198,9 @@ private final class MockKanataOutputBridgeSmokeHelper: KanataOutputBridgeSmokeHe
         sessionID: "default-session",
         socketPath: "/tmp/default-session.sock",
         socketDirectory: "/tmp",
-        hostPID: 1
+        hostPID: 1,
+        hostUID: 501,
+        hostGID: 20
     )
     private(set) var preparedHostPIDs: [Int32] = []
     private(set) var activatedSessionIDs: [String] = []

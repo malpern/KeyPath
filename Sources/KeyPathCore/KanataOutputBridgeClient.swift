@@ -48,7 +48,7 @@ public enum KanataOutputBridgeClient {
     }
 
     public static func ping(session: KanataOutputBridgeSession) throws -> KanataOutputBridgeResponse {
-        let fd = try connect(to: session.socketPath)
+        let fd = try authenticatedConnect(session: session)
         defer { close(fd) }
 
         try send(.ping, over: fd)
@@ -67,7 +67,7 @@ public enum KanataOutputBridgeClient {
         _ event: KanataOutputBridgeKeyEvent,
         session: KanataOutputBridgeSession
     ) throws -> KanataOutputBridgeResponse {
-        let fd = try connect(to: session.socketPath)
+        let fd = try authenticatedConnect(session: session)
         defer { close(fd) }
 
         try send(.emitKey(event), over: fd)
@@ -78,7 +78,7 @@ public enum KanataOutputBridgeClient {
         _ state: KanataOutputBridgeModifierState,
         session: KanataOutputBridgeSession
     ) throws -> KanataOutputBridgeResponse {
-        let fd = try connect(to: session.socketPath)
+        let fd = try authenticatedConnect(session: session)
         defer { close(fd) }
 
         try send(.syncModifiers(state), over: fd)
@@ -86,11 +86,27 @@ public enum KanataOutputBridgeClient {
     }
 
     public static func reset(session: KanataOutputBridgeSession) throws -> KanataOutputBridgeResponse {
-        let fd = try connect(to: session.socketPath)
+        let fd = try authenticatedConnect(session: session)
         defer { close(fd) }
 
         try send(.reset, over: fd)
         return try receive(from: fd)
+    }
+
+    private static func authenticatedConnect(session: KanataOutputBridgeSession) throws -> Int32 {
+        let fd = try connect(to: session.socketPath)
+        do {
+            try send(.handshake(.init(sessionID: session.sessionID, hostPID: session.hostPID)), over: fd)
+            let response = try receive(from: fd)
+            guard case .ready = response else {
+                close(fd)
+                throw KanataOutputBridgeClientError.unexpectedResponse
+            }
+            return fd
+        } catch {
+            close(fd)
+            throw error
+        }
     }
 
     public static func connect(to socketPath: String) throws -> Int32 {
