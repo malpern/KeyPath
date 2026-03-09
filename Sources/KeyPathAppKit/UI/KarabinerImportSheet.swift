@@ -473,7 +473,7 @@ struct KarabinerImportSheet: View {
         switch source {
         case .autoDetect:
             let path = WizardSystemPaths.karabinerConfigPath
-            return FileManager.default.contents(atPath: path)
+            return Foundation.FileManager.default.contents(atPath: path)
         case .file:
             guard let url = selectedFileURL else { return nil }
             let accessing = url.startAccessingSecurityScopedResource()

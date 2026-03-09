@@ -111,13 +111,13 @@ extension KeyboardVisualizationViewModel {
 
         // Fall back to app name in /Applications
         let directPath = "/Applications/\(name).app"
-        if FileManager.default.fileExists(atPath: directPath) {
+        if Foundation.FileManager.default.fileExists(atPath: directPath) {
             return true
         }
 
         // Try capitalized name
         let capitalizedPath = "/Applications/\(name.capitalized).app"
-        if FileManager.default.fileExists(atPath: capitalizedPath) {
+        if Foundation.FileManager.default.fileExists(atPath: capitalizedPath) {
             return true
         }
 

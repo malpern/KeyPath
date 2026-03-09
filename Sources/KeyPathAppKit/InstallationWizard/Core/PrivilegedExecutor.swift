@@ -184,7 +184,7 @@ final class PrivilegedExecutor: @unchecked Sendable {
     func testAdminDialog() -> Bool {
         AppLogger.shared.log("🔧 [PrivilegedExecutor] Testing admin dialog capability...")
         AppLogger.shared.log(
-            "🔧 [PrivilegedExecutor] Current thread: \(Thread.isMainThread ? "main" : "background")"
+            "🔧 [PrivilegedExecutor] Current thread: \(Foundation.Thread.isMainThread ? "main" : "background")"
         )
 
         // Skip test if called during startup to prevent freezes

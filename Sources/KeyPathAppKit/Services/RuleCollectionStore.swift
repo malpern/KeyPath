@@ -9,12 +9,12 @@ actor RuleCollectionStore {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private let fileURL: URL
-    private let fileManager: FileManager
+    private let fileManager: Foundation.FileManager
     private let catalog: RuleCollectionCatalog
 
     init(
         fileURL: URL? = nil,
-        fileManager: FileManager = .default,
+        fileManager: Foundation.FileManager = .default,
         catalog: RuleCollectionCatalog = RuleCollectionCatalog()
     ) {
         self.fileManager = fileManager

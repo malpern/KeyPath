@@ -13,7 +13,7 @@ extension KeyboardVisualizationViewModel {
         keyInputObserver = NotificationCenter.default.addObserver(
             forName: .kanataKeyInput,
             object: nil,
-            queue: .main
+            queue: Foundation.OperationQueue.main
         ) { [weak self] notification in
             guard let self else { return }
             guard let key = notification.userInfo?["key"] as? String,
@@ -32,7 +32,7 @@ extension KeyboardVisualizationViewModel {
         tcpHeartbeatObserver = NotificationCenter.default.addObserver(
             forName: .kanataTcpHeartbeat,
             object: nil,
-            queue: .main
+            queue: Foundation.OperationQueue.main
         ) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
@@ -47,7 +47,7 @@ extension KeyboardVisualizationViewModel {
         holdActivatedObserver = NotificationCenter.default.addObserver(
             forName: .kanataHoldActivated,
             object: nil,
-            queue: .main
+            queue: Foundation.OperationQueue.main
         ) { [weak self] notification in
             guard let self else { return }
             guard let key = notification.userInfo?["key"] as? String,
@@ -66,7 +66,7 @@ extension KeyboardVisualizationViewModel {
         tapActivatedObserver = NotificationCenter.default.addObserver(
             forName: .kanataTapActivated,
             object: nil,
-            queue: .main
+            queue: Foundation.OperationQueue.main
         ) { [weak self] notification in
             guard let self else { return }
             guard let key = notification.userInfo?["key"] as? String,
@@ -85,7 +85,7 @@ extension KeyboardVisualizationViewModel {
         messagePushObserver = NotificationCenter.default.addObserver(
             forName: .kanataMessagePush,
             object: nil,
-            queue: .main
+            queue: Foundation.OperationQueue.main
         ) { [weak self] notification in
             guard let self else { return }
             guard let message = notification.userInfo?["message"] as? String else { return }
@@ -102,7 +102,7 @@ extension KeyboardVisualizationViewModel {
         ruleCollectionsObserver = NotificationCenter.default.addObserver(
             forName: .ruleCollectionsChanged,
             object: nil,
-            queue: .main
+            queue: Foundation.OperationQueue.main
         ) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
@@ -122,7 +122,7 @@ extension KeyboardVisualizationViewModel {
         oneShotObserver = NotificationCenter.default.addObserver(
             forName: .kanataOneShotActivated,
             object: nil,
-            queue: .main
+            queue: Foundation.OperationQueue.main
         ) { [weak self] notification in
             guard let self else { return }
             guard let modifiers = notification.userInfo?["modifiers"] as? String else { return }

@@ -205,7 +205,7 @@ extension KanataTCPClient {
         AppLogger.shared.log("🔌 [TCP] closeConnection() called (current state=\(currentState))")
 
         // Log call stack for debugging (first 5 frames)
-        let stackSymbols = Thread.callStackSymbols.prefix(5).joined(separator: "\n  ")
+        let stackSymbols = Foundation.Thread.callStackSymbols.prefix(5).joined(separator: "\n  ")
         AppLogger.shared.debug("🔌 [TCP] closeConnection() stack trace:\n  \(stackSymbols)")
 
         connection?.cancel()

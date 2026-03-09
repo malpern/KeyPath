@@ -163,7 +163,7 @@ final class KanataSplitRuntimeHostService {
 
         let stderrLogURL = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("keypath-host-passthru-child-stderr.log")
-        FileManager.default.createFile(atPath: stderrLogURL.path, contents: Data())
+        Foundation.FileManager.default.createFile(atPath: stderrLogURL.path, contents: Data())
         let stderrHandle = try FileHandle(forWritingTo: stderrLogURL)
         process.standardError = stderrHandle
         process.standardOutput = Pipe()
@@ -269,7 +269,7 @@ final class KanataSplitRuntimeHostService {
 
         let stderrLogURL = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("keypath-host-passthru-live-stderr.log")
-        FileManager.default.createFile(atPath: stderrLogURL.path, contents: Data())
+        Foundation.FileManager.default.createFile(atPath: stderrLogURL.path, contents: Data())
         process.standardError = try FileHandle(forWritingTo: stderrLogURL)
         process.standardOutput = Pipe()
         expectedPersistentHostTermination = false

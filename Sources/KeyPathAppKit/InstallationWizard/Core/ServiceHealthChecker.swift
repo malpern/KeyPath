@@ -94,7 +94,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
         if serviceID == Self.kanataServiceID {
             if TestEnvironment.shouldSkipAdminOperations {
                 let plistPath = getPlistPath(for: serviceID)
-                let exists = FileManager.default.fileExists(atPath: plistPath)
+                let exists = Foundation.FileManager.default.fileExists(atPath: plistPath)
                 AppLogger.shared.log(
                     "🔍 [ServiceHealthChecker] (test) Kanata service loaded via file existence: \(exists)"
                 )
@@ -150,7 +150,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
         // For non-Kanata services or Kanata in legacy mode, use launchctl print
         if TestEnvironment.shouldSkipAdminOperations {
             let plistPath = getPlistPath(for: serviceID)
-            let exists = FileManager.default.fileExists(atPath: plistPath)
+            let exists = Foundation.FileManager.default.fileExists(atPath: plistPath)
             AppLogger.shared.log(
                 "🔍 [ServiceHealthChecker] (test) Service \(serviceID) considered loaded: \(exists)"
             )
@@ -203,7 +203,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
 
         if TestEnvironment.shouldSkipAdminOperations {
             let plistPath = getPlistPath(for: serviceID)
-            let exists = FileManager.default.fileExists(atPath: plistPath)
+            let exists = Foundation.FileManager.default.fileExists(atPath: plistPath)
             AppLogger.shared.log(
                 "🔍 [ServiceHealthChecker] (test) Service \(serviceID) considered healthy: \(exists)"
             )
@@ -559,7 +559,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
     /// - Returns: `true` if the plist file exists
     func isKanataPlistInstalled() -> Bool {
         let plistPath = getKanataPlistPath()
-        return FileManager.default.fileExists(atPath: plistPath)
+        return Foundation.FileManager.default.fileExists(atPath: plistPath)
     }
 
     /// Verifies that the installed VHID LaunchDaemon plist points to the DriverKit daemon path.

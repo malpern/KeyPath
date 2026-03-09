@@ -13,7 +13,7 @@ extension KeyboardCapture {
         tcpKeyInputObserver = NotificationCenter.default.addObserver(
             forName: .kanataKeyInput,
             object: nil,
-            queue: .main
+            queue: Foundation.OperationQueue.main
         ) { [weak self] notification in
             guard let self else { return }
             // Extract values from notification before crossing actor boundary

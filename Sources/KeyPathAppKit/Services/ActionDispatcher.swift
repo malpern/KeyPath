@@ -158,7 +158,7 @@ public final class ActionDispatcher {
 
         for path in commonPaths {
             let url = URL(fileURLWithPath: path)
-            if FileManager.default.fileExists(atPath: path), !urlsToTry.contains(url) {
+            if Foundation.FileManager.default.fileExists(atPath: path), !urlsToTry.contains(url) {
                 urlsToTry.append(url)
             }
         }
@@ -808,7 +808,7 @@ public final class ActionDispatcher {
                 "/Applications/Mission Control.app"
             ]
             for path in missionControlPaths {
-                if FileManager.default.fileExists(atPath: path) {
+                if Foundation.FileManager.default.fileExists(atPath: path) {
                     workspace.openApplication(at: URL(fileURLWithPath: path), configuration: NSWorkspace.OpenConfiguration()) { _, _ in }
                     return .success
                 }
@@ -978,7 +978,7 @@ public final class ActionDispatcher {
 
         // Check if path exists
         var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: expandedPath, isDirectory: &isDirectory) else {
+        guard Foundation.FileManager.default.fileExists(atPath: expandedPath, isDirectory: &isDirectory) else {
             let message = "Folder not found: \(expandedPath)"
             AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
             onError?(message)
@@ -1203,9 +1203,9 @@ public final class ActionDispatcher {
         switch ext {
         case "py":
             // Try python3 first, fall back to python
-            if FileManager.default.fileExists(atPath: "/usr/bin/python3") {
+            if Foundation.FileManager.default.fileExists(atPath: "/usr/bin/python3") {
                 process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
-            } else if FileManager.default.fileExists(atPath: "/usr/local/bin/python3") {
+            } else if Foundation.FileManager.default.fileExists(atPath: "/usr/local/bin/python3") {
                 process.executableURL = URL(fileURLWithPath: "/usr/local/bin/python3")
             } else {
                 process.executableURL = URL(fileURLWithPath: "/usr/bin/python")
@@ -1222,9 +1222,9 @@ public final class ActionDispatcher {
 
         case "lua":
             // Lua is typically installed via Homebrew
-            if FileManager.default.fileExists(atPath: "/usr/local/bin/lua") {
+            if Foundation.FileManager.default.fileExists(atPath: "/usr/local/bin/lua") {
                 process.executableURL = URL(fileURLWithPath: "/usr/local/bin/lua")
-            } else if FileManager.default.fileExists(atPath: "/opt/homebrew/bin/lua") {
+            } else if Foundation.FileManager.default.fileExists(atPath: "/opt/homebrew/bin/lua") {
                 process.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/lua")
             } else {
                 throw NSError(domain: "InterpretedScript", code: 1, userInfo: [

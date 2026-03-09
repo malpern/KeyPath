@@ -13,7 +13,7 @@ enum KanataRuntimePathCoordinator {
     static func evaluateCurrentPath(
         configPath: String = KeyPathConstants.Config.mainConfigPath,
         runtimeHost: KanataRuntimeHost = .current(),
-        fileManager: FileManager = .default,
+        fileManager: Foundation.FileManager = .default,
         helperManager: HelperManager = .shared
     ) async -> KanataRuntimePathDecision {
 #if DEBUG
