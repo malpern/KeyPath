@@ -2,6 +2,7 @@
 layout: default
 title: Split Runtime Cutover
 description: An interactive explanation of why KeyPath moved from a single Kanata runtime path to a split runtime architecture on macOS.
+permalink: /architecture/split-runtime-cutover/
 max_width: 1160px
 content_class: architecture-cutover-page
 ---
