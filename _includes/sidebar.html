@@ -60,6 +60,19 @@
             </ul>
         </li>
 
+        <!-- Architecture -->
+        <li class="nav-section">
+            <div class="nav-section-title">Architecture</div>
+            <ul class="nav-section-items">
+                <li class="nav-item {% if page.url contains '/architecture/overview/' %}active{% endif %}">
+                    <a href="{{ '/architecture/overview/' | relative_url }}" class="nav-link">Overview</a>
+                </li>
+                <li class="nav-item {% if page.url contains '/architecture/split-runtime-cutover/' %}active{% endif %}">
+                    <a href="{{ '/architecture/split-runtime-cutover/' | relative_url }}" class="nav-link">Split Runtime Cutover</a>
+                </li>
+            </ul>
+        </li>
+
         <!-- Switching Tools -->
         <li class="nav-section">
             <div class="nav-section-title">Switching Tools</div>
