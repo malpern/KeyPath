@@ -8,6 +8,8 @@ use std::sync::mpsc::{self, Receiver};
 use std::sync::mpsc::SyncSender;
 #[cfg(feature = "passthru-output-spike")]
 use std::sync::Arc;
+#[cfg(feature = "passthru-output-spike")]
+use std::sync::atomic::{AtomicBool, Ordering};
 
 const BRIDGE_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
 
@@ -21,9 +23,9 @@ unsafe extern "C" {
 struct PassthruRuntime {
     runtime: Arc<parking_lot::Mutex<kanata_state_machine::Kanata>>,
     output_rx: Receiver<kanata_state_machine::oskbd::InputEvent>,
-    processing_tx: Option<SyncSender<kanata_state_machine::oskbd::KeyEvent>>,
+    processing_tx: parking_lot::Mutex<Option<SyncSender<kanata_state_machine::oskbd::KeyEvent>>>,
     tcp_server_address: Option<kanata_state_machine::SocketAddrWrapper>,
-    started: bool,
+    started: AtomicBool,
 }
 
 #[unsafe(no_mangle)]
@@ -147,9 +149,9 @@ pub extern "C" fn keypath_kanata_bridge_create_passthru_runtime(
             Box::into_raw(Box::new(PassthruRuntime {
                 runtime,
                 output_rx: rx_kout,
-                processing_tx: None,
+                processing_tx: parking_lot::Mutex::new(None),
                 tcp_server_address,
-                started: false,
+                started: AtomicBool::new(false),
             }))
             .cast()
         }
@@ -224,7 +226,7 @@ pub extern "C" fn keypath_kanata_bridge_passthru_try_recv_output(
         return -1;
     }
 
-    let runtime = unsafe { &mut *(runtime.cast::<PassthruRuntime>()) };
+    let runtime = unsafe { &*(runtime.cast::<PassthruRuntime>()) };
     match runtime.output_rx.try_recv() {
         Ok(event) => {
             if !value_out.is_null() {
@@ -284,8 +286,8 @@ pub extern "C" fn keypath_kanata_bridge_start_passthru_runtime(
         return false;
     }
 
-    let runtime = unsafe { &mut *(runtime.cast::<PassthruRuntime>()) };
-    if runtime.started {
+    let runtime = unsafe { &*(runtime.cast::<PassthruRuntime>()) };
+    if runtime.started.load(Ordering::Acquire) {
         write_error(error_buffer, error_buffer_len, "");
         return true;
     }
@@ -293,19 +295,6 @@ pub extern "C" fn keypath_kanata_bridge_start_passthru_runtime(
     let (tx, rx) = std::sync::mpsc::sync_channel(100);
     let (ntx, has_tcp_server) = if let Some(address) = runtime.tcp_server_address.clone() {
         let socket_addr = *address.get_ref();
-        // This preflight bind catches an obviously unavailable port for diagnostics.
-        // TcpServer::new binds again below, so there is still a small TOCTOU window.
-        match std::net::TcpListener::bind(socket_addr) {
-            Ok(listener) => drop(listener),
-            Err(error) => {
-                write_error(
-                    error_buffer,
-                    error_buffer_len,
-                    &format!("tcp server port unavailable: {error}"),
-                );
-                return false;
-            }
-        }
 
         let mut server = kanata_state_machine::TcpServer::new(socket_addr, tx.clone());
         server.start(runtime.runtime.clone());
@@ -316,12 +305,15 @@ pub extern "C" fn keypath_kanata_bridge_start_passthru_runtime(
         (None, false)
     };
 
+    // Assign processing_tx BEFORE starting the processing loop so the channel
+    // is available to send_input as soon as the loop thread begins.
+    *runtime.processing_tx.lock() = Some(tx);
+
     // Intentionally avoid `Kanata::event_loop` in this passthrough spike path.
     // On macOS that would construct `KbdIn`, which still uses DriverKit input APIs
     // and can instantiate the pqrs client in the user-session host process.
     kanata_state_machine::Kanata::start_processing_loop(runtime.runtime.clone(), rx, ntx, true);
-    runtime.processing_tx = Some(tx);
-    runtime.started = true;
+    runtime.started.store(true, Ordering::Release);
     let _ = has_tcp_server;
     write_error(error_buffer, error_buffer_len, "");
     true
@@ -357,8 +349,9 @@ pub extern "C" fn keypath_kanata_bridge_passthru_send_input(
         return false;
     }
 
-    let runtime = unsafe { &mut *(runtime.cast::<PassthruRuntime>()) };
-    let Some(tx) = &runtime.processing_tx else {
+    let runtime = unsafe { &*(runtime.cast::<PassthruRuntime>()) };
+    let tx_guard = runtime.processing_tx.lock();
+    let Some(tx) = tx_guard.as_ref() else {
         write_error(
             error_buffer,
             error_buffer_len,

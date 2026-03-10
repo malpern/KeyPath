@@ -395,7 +395,9 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         ruleCollectionsManager.onRulesChanged = { [weak self] in
             guard let self else { return }
             _ = await triggerConfigReload()
-            notifyStateChanged()
+            await MainActor.run {
+                self.notifyStateChanged()
+            }
             // Notify overlay to rebuild layer mapping
             AppLogger.shared.debug("🔔 [RuntimeCoordinator] Posting kanataConfigChanged notification")
 
@@ -442,8 +444,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             AppLogger.shared.log(
                 "🏗️ [RuntimeCoordinator] About to call bootstrapRuleCollections and startEventMonitoring"
             )
-            Task { await ruleCollectionsManager.bootstrap() }
-            ruleCollectionsManager.startEventMonitoring(port: PreferencesService.shared.tcpServerPort)
+            Task {
+                await ruleCollectionsManager.bootstrap()
+                ruleCollectionsManager.startEventMonitoring(port: PreferencesService.shared.tcpServerPort)
+            }
             HrmObservabilityService.shared.startMonitoring(port: PreferencesService.shared.tcpServerPort)
             startSplitRuntimeCompanionMonitor()
         } else {
