@@ -121,7 +121,7 @@ run_diagnostics_snapshot() {
     SKIP_EVENT_TAP_TESTS=1 \
     SWIFT_TEST=1 \
     CI_ENVIRONMENT="${CI_ENVIRONMENT:-false}" \
-    swift run KeyPath inspect >"$DIAGNOSTIC_LOG" 2>&1
+    swift run keypath-cli inspect >"$DIAGNOSTIC_LOG" 2>&1
     DIAGNOSTIC_EXIT_CODE=$?
     set -e
 
@@ -166,7 +166,7 @@ write_json_report() {
 
         echo "  ],"
         echo "  \"diagnosticSnapshot\": {"
-        echo "    \"command\": \"swift run KeyPath inspect\","
+        echo "    \"command\": \"swift run keypath-cli inspect\","
         echo "    \"status\": \"$(json_escape "$DIAGNOSTIC_STATUS")\","
         echo "    \"exitCode\": $DIAGNOSTIC_EXIT_CODE,"
         echo "    \"logPath\": \"$(json_escape "$DIAGNOSTIC_LOG")\""
@@ -199,7 +199,7 @@ write_markdown_summary() {
         echo
         echo "### Diagnostic Snapshot"
         echo
-        echo "- Command: \`swift run KeyPath inspect\`"
+        echo "- Command: \`swift run keypath-cli inspect\`"
         echo "- Status: **$DIAGNOSTIC_STATUS** (exit $DIAGNOSTIC_EXIT_CODE)"
         echo "- Log: \`$DIAGNOSTIC_LOG\`"
     } > "$summary_file"

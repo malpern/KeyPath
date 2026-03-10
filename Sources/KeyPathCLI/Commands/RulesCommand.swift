@@ -45,6 +45,9 @@ extension KeyPathCLI {
             @Argument(help: "Collection name or ID")
             var nameOrId: String
 
+            @Flag(help: "Regenerate config and reload Kanata after saving")
+            var apply: Bool = false
+
             mutating func run() async throws {
                 let facade = await MainActor.run { CLIFacade() }
                 guard let name = try await facade.enableCollection(nameOrId: nameOrId) else {
@@ -52,7 +55,7 @@ extension KeyPathCLI {
                     throw ExitCode.failure
                 }
                 print("Enabled '\(name)'")
-                print("Run 'keypath apply' to regenerate config and reload Kanata.")
+                try await applyConfigurationOrHint(facade: facade, apply: apply)
             }
         }
 
@@ -64,6 +67,9 @@ extension KeyPathCLI {
             @Argument(help: "Collection name or ID")
             var nameOrId: String
 
+            @Flag(help: "Regenerate config and reload Kanata after saving")
+            var apply: Bool = false
+
             mutating func run() async throws {
                 let facade = await MainActor.run { CLIFacade() }
                 guard let name = try await facade.disableCollection(nameOrId: nameOrId) else {
@@ -71,7 +77,7 @@ extension KeyPathCLI {
                     throw ExitCode.failure
                 }
                 print("Disabled '\(name)'")
-                print("Run 'keypath apply' to regenerate config and reload Kanata.")
+                try await applyConfigurationOrHint(facade: facade, apply: apply)
             }
         }
 
