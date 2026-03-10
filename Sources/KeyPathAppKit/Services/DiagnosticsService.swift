@@ -380,18 +380,18 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
 
         let karabinerElementsRunning = await isKarabinerElementsRunning()
 
-        // Check for conflicts
+        // Check for karabiner_grabber conflict (single diagnostic for the condition)
         if karabinerElementsRunning {
             diagnostics.append(
                 KanataDiagnostic(
                     timestamp: Date(),
-                    severity: .warning,
+                    severity: .error,
                     category: .conflict,
-                    title: "Karabiner-Elements Conflict",
-                    description: "Karabiner-Elements grabber is running and may conflict with Kanata",
-                    technicalDetails: "karabiner_grabber process detected",
-                    suggestedAction: "Stop Karabiner-Elements or configure it to not interfere",
-                    canAutoFix: false
+                    title: "Karabiner Grabber Conflict",
+                    description: "karabiner_grabber is running and will prevent Kanata from starting",
+                    technicalDetails: "karabiner_grabber process detected — causes 'exclusive access and device already open' errors",
+                    suggestedAction: "Quit Karabiner-Elements or disable its key remapping",
+                    canAutoFix: true
                 )
             )
         }
@@ -421,22 +421,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: "VirtualHIDDevice-Daemon process not found",
                     suggestedAction: "The app will try to start the daemon automatically",
                     canAutoFix: true
-                )
-            )
-        }
-
-        // Check for karabiner_grabber conflict
-        if karabinerElementsRunning {
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .error,
-                    category: .conflict,
-                    title: "Karabiner Grabber Conflict",
-                    description: "karabiner_grabber is running and will prevent Kanata from starting",
-                    technicalDetails: "This causes 'exclusive access and device already open' errors",
-                    suggestedAction: "Quit Karabiner-Elements or disable its key remapping",
-                    canAutoFix: true // We can kill it
                 )
             )
         }

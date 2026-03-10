@@ -69,13 +69,8 @@ enum KanataRuntimePathCoordinator {
 
     static func prepareExperimentalOutputBridgeEnvironment(
         hostPID: Int32,
-        helperManager: HelperManager = .shared
+        helperManager _: HelperManager = .shared
     ) async throws -> [String: String] {
-        if helperManager === HelperManager.shared {
-            return try await KanataOutputBridgeCompanionManager.shared.prepareEnvironment(hostPID: hostPID)
-        }
-
-        let companionManager = KanataOutputBridgeCompanionManager(helperManager: helperManager)
-        return try await companionManager.prepareEnvironment(hostPID: hostPID)
+        try await KanataOutputBridgeCompanionManager.shared.prepareEnvironment(hostPID: hostPID)
     }
 }

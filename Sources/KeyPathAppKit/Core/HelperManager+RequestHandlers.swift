@@ -312,8 +312,9 @@ extension HelperManager {
     }
 
     func activateKanataOutputBridgeSession(sessionID: String) async throws {
-        // Companion activation must allow time for launchd kickstart plus socket bootstrap
-        // on slower CI and freshly repaired systems.
+        // 45s instead of the default 30s: companion activation performs launchd kickstart
+        // followed by socket bootstrap, which can take significantly longer on slower CI
+        // machines and freshly repaired systems where the companion must cold-start.
         try await executeXPCCall("activateKanataOutputBridgeSession", timeout: 45.0) { proxy, reply in
             proxy.activateKanataOutputBridgeSession(sessionID: sessionID, reply: reply)
         }
