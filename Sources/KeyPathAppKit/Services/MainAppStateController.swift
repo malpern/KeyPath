@@ -129,9 +129,15 @@ class MainAppStateController {
         OrphanDetector.shared.checkForOrphans()
 
         // Start service health monitoring to fix stale overlay state
-        subscribeToServiceHealth()
-        subscribeToErrorDetection()
-        startPeriodicRefresh()
+        if TestEnvironment.isRunningTests {
+            AppLogger.shared.debug(
+                "🧪 [MainAppStateController] Skipping background monitoring setup in test mode"
+            )
+        } else {
+            subscribeToServiceHealth()
+            subscribeToErrorDetection()
+            startPeriodicRefresh()
+        }
     }
 
     /// Subscribe to KanataErrorMonitor crash detection to trigger immediate revalidation.
