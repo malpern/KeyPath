@@ -1,13 +1,22 @@
 # Kanata HRM Improvement Roadmap
 
 Analysis of upstream improvements to Home Row Mod (HRM) behavior in kanata,
-prioritized by impact, feasibility, and likelihood of maintainer acceptance.
+updated to reflect what is already implemented and what remains to reach
+"timeless HRM" parity with the strongest ZMK/QMK setups.
 
-## Status
+## Current Baseline
 
-- **PR #1955** (`defhands` + `tap-hold-opposite-hand`): Merged / under review.
-  Adds hand-awareness to tap-hold resolution — opposite-hand key press triggers
-  hold, same-hand triggers tap. This is the foundation for further HRM work.
+These primitives are already implemented in the vendored kanata fork:
+
+- **`tap-hold-opposite-hand` + `defhands`**: merged in commit `d047516`.
+  This eliminates the most common false holds from same-hand rolls by making
+  cross-hand presses trigger hold and same-hand presses resolve as tap.
+- **`require-prior-idle` `defcfg` option**: merged in commit `4c569f1`.
+  This short-circuits tap-hold resolution to tap when the key press occurs
+  during a typing streak.
+
+This is already a strong HRM baseline. The next gains come from improving how
+kanata resolves edge cases that remain after those two heuristics.
 
 ## The Three HRM Failure Modes
 
@@ -19,90 +28,136 @@ Every HRM improvement targets one or more of these:
 | **False tap** | Intended Ctrl+C produces "fc" | Hold key released too quickly |
 | **Perceived latency** | Key output feels delayed | Tap-hold waits for timeout before emitting |
 
-`tap-hold-opposite-hand` (PR #1955) primarily eliminates **false holds** from
+`tap-hold-opposite-hand` primarily eliminates **false holds** from
 same-hand rolls.
 
 ## Proposed Phases
 
-### Phase 1: Typing Streak Detection (`require-prior-idle`)
+### Phase 1: Release-Time Positional Hold-Tap
 
-**Impact: High | Effort: Medium | Acceptance: High**
+**Impact: High | Effort: Medium-High | Acceptance: Medium**
 
-If any key was pressed within N ms before a tap-hold key, resolve immediately
-as tap. Rationale: during fast typing, the user is never trying to hold a
-modifier — they're mid-word.
+This is now the highest-value missing primitive.
 
-This is proven in ZMK (`require-prior-idle-ms`) and frequently requested by
-the kanata community. It would be the single highest-impact addition after
-opposite-hand detection.
+The goal is to defer part of the positional decision until release time so that
+same-side rolls still resolve as taps, while deliberate same-hand shortcuts can
+still succeed if the home-row mod is actually held long enough.
 
-**Implementation approach**: Kanata-layer short-circuit in the processing loop,
-not a keyberon `Custom` closure change. The kanata layer already tracks
-timestamps for each key event and can check
-`now - last_press_timestamp < idle_threshold` before entering the tap-hold
-waiting state at all. This avoids any latency from the Custom closure queue
-and keeps keyberon generic.
+This is the main gap between kanata's current HRM behavior and the "timeless
+HRM" ZMK approach. Today, opposite-hand detection is a strong approximation,
+but it is coarser than release-time positional logic.
 
-**Configuration sketch**:
-```lisp
-(defalias
-  a (tap-hold-opposite-hand 180 a lmet
-      (require-prior-idle 150)))
-```
+Potential directions:
 
-Or as a global/per-key option in `defcfg`:
-```lisp
-(defcfg
-  tap-hold-prior-idle 150)
-```
+- Add a dedicated tap-hold variant with explicit release-time positional
+  semantics.
+- Generalize positional trigger logic so "which keys may trigger hold" and
+  "when to finalize the decision" are both first-class concepts.
 
-**Why kanata-layer, not keyberon**: The `Custom` closure only sees the queued
-events *after* the tap-hold key. It cannot see whether a key was pressed
-*before* the tap-hold key was pressed. The kanata processing layer has access
-to the full event history.
+This belongs in kanata's event engine, not in KeyPath. It changes the tap
+versus hold decision itself, not just configuration shape.
 
-### Phase 2: Adaptive Timeout
+### Phase 2: Generalized Positional Hold Predicates
+
+**Impact: High | Effort: Medium | Acceptance: Medium**
+
+`tap-hold-opposite-hand` proves that hand-aware HRM works well. The next step
+is to make positional triggering more expressive without turning the config
+surface into a generic DSL.
+
+Examples of useful targeted extensions:
+
+- opposite-hand versus same-hand
+- explicit allowed trigger positions
+- left/right overrides for unusual layouts
+- per-key hand overrides for splits, columns, and thumb clusters
+
+The important constraint is to keep these as named behaviors or named options,
+not a free-form predicate language.
+
+### Phase 3: Per-Modifier Policy and Shift Exemptions
+
+**Impact: High | Effort: Medium | Acceptance: Medium**
+
+Not all modifiers should be suppressed equally during typing streaks.
+
+Shift is special:
+
+- capital letters are part of normal typing
+- punctuation often depends on Shift
+- users tolerate more conservatism for Ctrl / Alt / Cmd than for Shift
+
+A clean implementation would allow per-hold-action policy such as:
+
+- Shift exempt from certain streak suppression rules
+- different positional rules by modifier class
+- more forgiving timing for some actions than others
+
+This is likely more valuable than adaptive timing because it improves real text
+entry behavior directly.
+
+### Phase 4: Telemetry / Decision Tracing
+
+**Impact: Medium | Effort: Low-Medium | Acceptance: Low-Medium**
+
+Expose why a tap-hold resolved the way it did:
+
+- resolved as tap due to prior-idle
+- resolved as tap due to same-hand roll
+- resolved as hold due to opposite-hand trigger
+- resolved as hold due to timeout
+
+This is primarily valuable for downstream tooling such as KeyPath:
+
+- tuning assistants
+- misfire reports
+- simulator validation
+- regression detection during engine changes
+
+Upstream may prefer minimal logging, but even a debug-only or TCP-only trace
+mode would substantially improve confidence in future HRM work.
+
+### Phase 5: Adaptive Timeout
 
 **Impact: Medium | Effort: Medium | Acceptance: Medium**
 
-Adjust the tap-hold timeout dynamically based on recent typing speed. Fast
-typists get shorter timeouts (less latency), slow/deliberate typing gets
-longer timeouts (fewer false taps).
+Adjust the tap-hold timeout dynamically based on recent typing cadence. Fast
+typists get shorter timeouts for less latency; slower or more deliberate input
+gets longer timeouts for fewer false taps.
 
-This is more complex than Phase 1 and harder to tune. Phase 1 covers the
-most common case (typing streaks) with a simpler mechanism. Phase 2 becomes
-valuable for the remaining edge cases where the user pauses mid-word.
+This remains attractive, but it should follow positional and policy work rather
+than precede it. The simpler heuristics cover more failures with less tuning.
 
-### Phase 3: Global `defhands` + Per-Key Overrides
+### Phase 6: Global `defhands` Reuse + Per-Key Overrides
 
 **Impact: Low-Medium | Effort: Low | Acceptance: High**
 
-Allow `defhands` to be referenced by multiple tap-hold variants, not just
-`tap-hold-opposite-hand`. This lets other custom tap-hold functions also
-benefit from hand-awareness without duplicating hand assignments.
+Allow `defhands` to be referenced by more tap-hold variants and support
+per-key hand overrides where the physical split position varies. This is useful
+in advanced layouts, but it is no longer a top-priority blocker now that the
+base `defhands` support already exists.
 
-Also add per-key hand overrides for split keyboards where the physical
-split position varies.
+### Phase 7: Bilateral Combinations / Multi-HRM Interaction Rules
 
-### Phase 4: Bilateral Combinations (Stenography-Inspired)
+**Impact: Medium | Effort: High | Acceptance: Medium**
 
-**Impact: Niche | Effort: High | Acceptance: Medium**
+Only activate modifiers when keys from both hands are meaningfully involved, or
+add explicit rules for interactions between multiple simultaneous home-row mods.
 
-Only activate modifiers when keys from *both* hands are held simultaneously.
-Inspired by stenography and used in some QMK/ZMK setups. Niche but powerful
-for users who want aggressive misfire prevention.
+This is powerful for advanced users but architecturally complex. It should come
+after the simpler release-time and positional improvements.
 
-This is architecturally complex because it requires tracking multiple
-simultaneous tap-hold keys and their interactions.
+## Ranking Summary
 
-### Phase 5: Telemetry / Statistics (Optional)
-
-**Impact: Low | Effort: Medium | Acceptance: Low**
-
-Expose misfire statistics (false hold rate, false tap rate, average hold
-duration) via TCP or log output. Useful for tuning but unlikely to be
-accepted upstream — jtroo prefers kanata to stay focused on key remapping,
-not analytics. Better suited for KeyPath's fork or a separate tool.
+| Rank | Improvement | Value | Effort | Risk |
+|------|-------------|-------|--------|------|
+| 1 | Release-time positional hold-tap | High | Medium-High | Medium |
+| 2 | Generalized positional hold predicates | High | Medium | Medium |
+| 3 | Per-modifier policy / Shift exemption | High | Medium | Medium |
+| 4 | Telemetry / decision tracing | Medium | Low-Medium | Low |
+| 5 | Adaptive timeout | Medium | Medium | Medium |
+| 6 | `defhands` reuse + per-key overrides | Low-Medium | Low | Low |
+| 7 | Bilateral combinations / multi-HRM interaction | Medium | High | High |
 
 ## What NOT to Propose
 
@@ -114,7 +169,8 @@ This would be rejected by the kanata community for several reasons:
 - Adds heavy dependencies (model runtime) to a lean system tool
 - Non-deterministic behavior violates user expectations
 - Training data requirements create privacy concerns
-- The simpler heuristics (opposite-hand + prior-idle) cover 95%+ of cases
+- The simpler heuristics (opposite-hand + prior-idle + positional rules) cover
+  the vast majority of cases
 
 ### Full Predicate API
 
@@ -128,7 +184,7 @@ predicate should be its own named option.
 
 | Reference | Topic | Status |
 |-----------|-------|--------|
-| [#1602](https://github.com/jtroo/kanata/issues/1602) | Opposite-hand HRM | Closed by PR #1955 |
+| [#1602](https://github.com/jtroo/kanata/issues/1602) | Opposite-hand HRM | Implemented via `d047516` |
 | [#128](https://github.com/jtroo/kanata/issues/128) | Custom tap-hold expansion | Open |
 | [Discussion #1086](https://github.com/jtroo/kanata/discussions/1086) | HRM general discussion | Active |
 | [Discussion #1024](https://github.com/jtroo/kanata/discussions/1024) | Bilateral combinations | Active |
@@ -137,14 +193,36 @@ predicate should be its own named option.
 
 Kanata has two layers where tap-hold logic can live:
 
-1. **keyberon layer** (`HoldTapConfig::Custom` closure): Sees only the
-   queued events *after* the tap-hold key was pressed. Generic, reusable,
-   but limited to what's in the queue.
+1. **keyberon layer** (`HoldTapConfig::Custom` closure): Sees only the queued
+   events after the tap-hold key was pressed. Generic and reusable, but
+   limited to what is visible in that queue.
 
 2. **kanata processing layer**: Has access to full event history, timestamps,
    global state (current layer, active modifiers, recent key timings). Can
    short-circuit *before* entering the tap-hold waiting state.
 
-Phase 1 (prior-idle) and Phase 2 (adaptive timeout) **must** use the kanata
-layer because they need pre-press timing data. Phase 3 and Phase 4 can use
-either layer depending on the specific logic needed.
+Rules that depend on pre-press history or richer global state must live in the
+kanata processing layer. That includes:
+
+- prior-idle typing streak detection
+- adaptive timeout
+- per-modifier policy based on recent context
+
+Rules that depend on queued post-press events may fit in keyberon, but once the
+behavior needs release-time disambiguation or multi-key interaction awareness,
+it likely belongs in the kanata layer for clarity.
+
+## Practical Constraint: Host-Side, Not Firmware
+
+These improvements are all achievable in host-side software. Kanata can inspect
+event order, timing, active modifiers, and recent history well enough to get
+very close to firmware-quality HRM behavior for real users.
+
+What it cannot fully match is firmware-level determinism:
+
+- no access to keyboard matrix scan timing
+- subject to OS scheduler jitter and system load
+- less precise under adverse conditions than QMK/ZMK running on-device
+
+That is a limit on worst-case timing consistency, not on correctness of the
+decision logic. The remaining roadmap items are still worth doing in kanata.
