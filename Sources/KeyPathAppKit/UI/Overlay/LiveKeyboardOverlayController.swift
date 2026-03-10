@@ -150,7 +150,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         NotificationCenter.default.addObserver(
             forName: .openOverlayWithMapper,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.openWithMapperTab()
@@ -160,7 +160,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         NotificationCenter.default.addObserver(
             forName: .openOverlayWithMapperPreset,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] notification in
             // Extract sendable values before entering Task to avoid data race
             let inputKey = notification.userInfo?["inputKey"] as? String
@@ -198,7 +198,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         NotificationCenter.default.addObserver(
             forName: .accessibilityTestModeChanged,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.recreateWindowForTestModeChange()
@@ -336,7 +336,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         NotificationCenter.default.addObserver(
             forName: .kanataLayerChanged,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] notification in
             guard let layerName = notification.userInfo?["layerName"] as? String else { return }
             let sourceRaw = notification.userInfo?["source"] as? String
@@ -351,7 +351,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         NotificationCenter.default.addObserver(
             forName: .kanataConfigChanged,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             AppLogger.shared.info("🔔 [OverlayController] Received kanataConfigChanged notification - invalidating layer mappings")
             Task { @MainActor in
@@ -364,7 +364,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         NotificationCenter.default.addObserver(
             forName: .kanataKeyInput,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] notification in
             let key = notification.userInfo?["key"] as? String
             let action = notification.userInfo?["action"] as? String

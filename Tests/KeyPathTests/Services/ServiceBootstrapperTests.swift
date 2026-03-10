@@ -178,7 +178,7 @@ final class ServiceBootstrapperTests: XCTestCase {
 
     func testLoadServiceInTestModeReturnsTrueWhenPlistExists() async {
         let bootstrapper = ServiceBootstrapper.shared
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("ServiceBootstrapperTests-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
@@ -202,7 +202,7 @@ final class ServiceBootstrapperTests: XCTestCase {
 
     func testLoadServicesInTestModeReturnsFalseWhenAnyPlistMissing() async {
         let bootstrapper = ServiceBootstrapper.shared
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("ServiceBootstrapperTests-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }

@@ -14,7 +14,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
         checker = ServiceHealthChecker.shared
         originalSMFactory = KanataDaemonManager.smServiceFactory
 
-        tempLaunchDaemonsDir = FileManager.default.temporaryDirectory
+        tempLaunchDaemonsDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("ServiceHealthCheckerTests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempLaunchDaemonsDir, withIntermediateDirectories: true)
 
@@ -62,11 +62,12 @@ final class ServiceHealthCheckerTests: XCTestCase {
     }
 
     private func writeVHIDPlist(programPath: String) throws {
-        let dict: NSDictionary = [
+        let dict: [String: Any] = [
             "ProgramArguments": [programPath]
         ]
         let url = tempLaunchDaemonsDir.appendingPathComponent("\(ServiceHealthChecker.vhidDaemonServiceID).plist")
-        XCTAssertTrue(dict.write(to: url, atomically: true))
+        let data = try PropertyListSerialization.data(fromPropertyList: dict, format: .xml, options: 0)
+        try data.write(to: url)
     }
 
     func testServiceIdentifiers() {

@@ -16,6 +16,11 @@ struct KanataSplitRuntimeCompanionRecoveryResult: Sendable, Equatable {
     let recoveredHostPID: pid_t?
 }
 
+enum SplitRuntimeIdentity {
+    static let hostTitle = "Split Runtime Host"
+    static let hostDetailPrefix = "Bundled user-session host active"
+}
+
 enum KanataSplitRuntimeHostExitInfo {
     static let pidUserInfoKey = "pid"
     static let exitCodeUserInfoKey = "exitCode"
@@ -70,6 +75,16 @@ final class KanataSplitRuntimeHostService {
             await withCheckedContinuation { continuation in
                 self.continuation = continuation
             }
+        }
+    }
+
+    private func waitForPersistentHostExit(
+        process: Process,
+        timeoutSeconds: TimeInterval = 5
+    ) async {
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        while process.isRunning, Date() < deadline {
+            try? await Task.sleep(for: .milliseconds(50))
         }
     }
 
@@ -286,7 +301,7 @@ final class KanataSplitRuntimeHostService {
                     "unknown"
                 }
 
-                NotificationCenter.default.post(
+                Foundation.NotificationCenter.default.post(
                     name: .splitRuntimeHostExited,
                     object: nil,
                     userInfo: [
@@ -300,8 +315,8 @@ final class KanataSplitRuntimeHostService {
 
                 if self.activeHostProcess?.processIdentifier == process.processIdentifier {
                     self.activeHostProcess = nil
-                    self.expectedPersistentHostTermination = false
                 }
+                self.expectedPersistentHostTermination = false
             }
         }
 
@@ -338,8 +353,11 @@ final class KanataSplitRuntimeHostService {
         AppLogger.shared.info(
             "🧪 [HostService] Restarting persistent split-runtime host after output bridge companion restart"
         )
+        let priorProcess = activeHostProcess
         stopPersistentPassthruHost()
-        try await Task.sleep(for: .milliseconds(250))
+        if let priorProcess {
+            await waitForPersistentHostExit(process: priorProcess)
+        }
         return try await startPersistentPassthruHost(
             includeCapture: includeCapture,
             pollMilliseconds: pollMilliseconds
@@ -375,8 +393,10 @@ final class KanataSplitRuntimeHostService {
         if process.isRunning {
             expectedPersistentHostTermination = true
             process.terminate()
+            return
         }
         activeHostProcess = nil
+        expectedPersistentHostTermination = false
         activePersistentHostIncludesCapture = true
         activePersistentHostPollMilliseconds = 1000
     }

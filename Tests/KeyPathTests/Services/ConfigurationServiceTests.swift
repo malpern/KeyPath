@@ -6,7 +6,7 @@ import Foundation
 @MainActor
 class ConfigurationServiceTests: XCTestCase {
     lazy var tempDirectory: URL = {
-        let url = FileManager.default.temporaryDirectory
+        let url = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("KeyPathConfigTests_\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
@@ -1345,10 +1345,12 @@ class ConfigurationServiceTests: XCTestCase {
         process.standardError = errorPipe
 
         try process.run()
-        process.waitUntilExit()
+        while process.isRunning {
+            usleep(1_000)
+        }
 
-        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-        let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+        let outputData = try outputPipe.fileHandleForReading.readToEnd() ?? Data()
+        let errorData = try errorPipe.fileHandleForReading.readToEnd() ?? Data()
         let output = String(data: outputData, encoding: .utf8) ?? ""
         let errorOutput = String(data: errorData, encoding: .utf8) ?? ""
 

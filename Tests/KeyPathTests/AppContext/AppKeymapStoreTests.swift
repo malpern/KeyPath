@@ -6,7 +6,7 @@ final class AppKeymapStoreTests: XCTestCase {
     private var store: AppKeymapStore!
 
     override func setUpWithError() throws {
-        tempDirectory = FileManager.default.temporaryDirectory
+        tempDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
         store = AppKeymapStore.testStore(at: tempDirectory.appendingPathComponent("AppKeymaps.json"))

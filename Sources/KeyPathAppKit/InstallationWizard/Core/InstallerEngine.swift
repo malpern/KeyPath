@@ -89,8 +89,8 @@ public final class InstallerEngine {
             if KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning {
                 let pid = KanataSplitRuntimeHostService.shared.activePersistentHostPID ?? 0
                 return (
-                    title: "Split Runtime Host",
-                    detail: "Bundled user-session host active (PID \(pid)) with privileged output companion"
+                    title: SplitRuntimeIdentity.hostTitle,
+                    detail: "\(SplitRuntimeIdentity.hostDetailPrefix) (PID \(pid)) with privileged output companion"
                 )
             }
 

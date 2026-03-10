@@ -32,6 +32,7 @@ func withIsolatedDefaults(
     body: () throws -> Void
 ) rethrows {
     let suite = UserDefaults(suiteName: suiteName)!
+    let standardDefaults = Foundation.UserDefaults()
     suite.removePersistentDomain(forName: suiteName)
 
     // Set known defaults for @AppStorage keys
@@ -49,9 +50,9 @@ func withIsolatedDefaults(
     }
 
     // Swap standard defaults
-    UserDefaults.standard.removePersistentDomain(forName: Bundle.main.bundleIdentifier ?? "")
+    standardDefaults.removePersistentDomain(forName: suiteName + ".standard")
     for (key, value) in baseDefaults.merging(defaults, uniquingKeysWith: { _, new in new }) {
-        UserDefaults.standard.set(value, forKey: key)
+        standardDefaults.set(value, forKey: key)
     }
 
     defer {
@@ -150,7 +151,7 @@ class ScreenshotTestCase: XCTestCase {
             "launcherWelcomeSeenForBuild": "999",
         ]
         for (key, value) in defaults {
-            UserDefaults.standard.set(value, forKey: key)
+            Foundation.UserDefaults().set(value, forKey: key)
         }
     }
 
@@ -165,7 +166,7 @@ class ScreenshotTestCase: XCTestCase {
             "launcherWelcomeSeenForBuild",
         ]
         for key in keys {
-            UserDefaults.standard.removeObject(forKey: key)
+            Foundation.UserDefaults().removeObject(forKey: key)
         }
         super.tearDown()
     }

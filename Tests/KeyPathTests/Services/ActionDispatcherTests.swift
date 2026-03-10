@@ -747,7 +747,7 @@ struct ActionDispatcherScriptTests {
             ScriptSecurityService.shared.bypassFirstRunDialog = false
         }
 
-        let tempPath = FileManager.default.temporaryDirectory
+        let tempPath = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("action-dispatcher-not-executable-\(UUID().uuidString).txt").path
         FileManager.default.createFile(atPath: tempPath, contents: Data("plain text".utf8))
         defer {

@@ -509,7 +509,7 @@ private struct LauncherMappingEditor: View {
             // Sync state with security service
             isScriptExecutionEnabled = ScriptSecurityService.shared.isScriptExecutionEnabled
         }
-        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+        .onReceive(NotificationObserverManager.defaultCenter.publisher(for: UserDefaults.didChangeNotification)) { _ in
             // Update when settings change
             let newValue = ScriptSecurityService.shared.isScriptExecutionEnabled
             if isScriptExecutionEnabled != newValue {
@@ -630,7 +630,7 @@ private struct LauncherMappingEditor: View {
 
     private func openSettings() {
         // Open Settings window on General tab (where script execution toggle is)
-        NotificationCenter.default.post(name: .openSettingsGeneral, object: nil)
+        NotificationObserverManager.defaultCenter.post(name: Notification.Name.openSettingsGeneral, object: nil)
         // Also open the settings window if it's not already open
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }

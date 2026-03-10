@@ -9,6 +9,8 @@ enum KeyPathAppKitResources {
         let candidates = [
             mainBundle.resourceURL?.appendingPathComponent("KeyPath_KeyPathAppKit.bundle"),
             codeBundle.resourceURL?.appendingPathComponent("KeyPath_KeyPathAppKit.bundle"),
+            mainBundle.bundleURL.deletingLastPathComponent().appendingPathComponent("KeyPath_KeyPathAppKit.bundle"),
+            codeBundle.bundleURL.deletingLastPathComponent().appendingPathComponent("KeyPath_KeyPathAppKit.bundle"),
             mainBundle.resourceURL,
             codeBundle.resourceURL,
         ].compactMap { $0 }

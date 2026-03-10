@@ -242,7 +242,7 @@ final class PackageManagerTests: XCTestCase {
 
     func testCodeSigningCache_Hit() {
         // Create a temporary file
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         let testFile = tempDir.appendingPathComponent("test-binary-\(UUID().uuidString)")
         FileManager.default.createFile(atPath: testFile.path, contents: Data("test".utf8))
 
@@ -262,7 +262,7 @@ final class PackageManagerTests: XCTestCase {
 
     func testCodeSigningCache_InvalidationOnFileChange() {
         // Create a temporary file
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         let testFile = tempDir.appendingPathComponent("test-binary-\(UUID().uuidString)")
         FileManager.default.createFile(atPath: testFile.path, contents: Data("test1".utf8))
 
@@ -284,7 +284,7 @@ final class PackageManagerTests: XCTestCase {
 
     func testCodeSigningCache_SizeLimit() throws {
         // Create multiple temporary files
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         var testFiles: [URL] = []
 
         // Create more files than maxCacheSize (50)

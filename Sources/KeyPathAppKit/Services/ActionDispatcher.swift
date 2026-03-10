@@ -40,6 +40,32 @@ public final class ActionDispatcher {
     private static let coordinatorSplitRuntimeRecoveryOutputPath = "/var/tmp/keypath-runtime-coordinator-companion-recovery.txt"
     private static let coordinatorSplitRuntimeRestartSoakOutputPath = "/var/tmp/keypath-runtime-coordinator-companion-restart-soak.txt"
     private static let helperRepairOutputPath = "/var/tmp/keypath-helper-repair.txt"
+    private static let diagnosticSystemActions: Set<String> = [
+        "prepare-host-passthru-bridge",
+        "prepare-host-bridge",
+        "prep-host-passthru-bridge",
+        "run-host-passthru-diagnostic",
+        "run-host-diagnostic",
+        "host-passthru-diagnostic",
+        "start-host-passthru",
+        "stop-host-passthru",
+        "exercise-host-passthru-cycle",
+        "exercise-output-bridge-companion-restart",
+        "exercise-host-passthru-soak",
+        "exercise-output-bridge-companion-restart-soak",
+        "exercise-coordinator-split-runtime-recovery",
+        "exercise-coordinator-split-runtime-restart-soak",
+        "repair-helper"
+    ]
+
+    private static var diagnosticActionsEnabled: Bool {
+#if DEBUG
+        if TestEnvironment.isRunningTests {
+            return true
+        }
+#endif
+        return ProcessInfo.processInfo.environment["KEYPATH_ENABLE_DIAGNOSTIC_ACTIONS"] == "1"
+    }
 
     // MARK: - Singleton
 
@@ -376,6 +402,15 @@ public final class ActionDispatcher {
         }
 
         AppLogger.shared.log("⚙️ [ActionDispatcher] System action: \(action)")
+
+        if Self.diagnosticSystemActions.contains(action.lowercased()), !Self.diagnosticActionsEnabled {
+            let message = "Diagnostic system action '\(action)' is disabled in this build context."
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .failed("system", NSError(domain: "ActionDispatcher", code: 5, userInfo: [
+                NSLocalizedDescriptionKey: message
+            ]))
+        }
 
         switch action.lowercased() {
         case "prepare-host-passthru-bridge", "prepare-host-bridge", "prep-host-passthru-bridge":

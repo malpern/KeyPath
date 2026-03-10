@@ -105,6 +105,28 @@ import Network
 
 @MainActor
 class RuntimeCoordinator: SaveCoordinatorDelegate {
+    final class NotificationTokenStore: @unchecked Sendable {
+        private var tokens: [NSObjectProtocol] = []
+        private let lock = NSLock()
+
+        func append(_ token: NSObjectProtocol) {
+            lock.lock()
+            defer { lock.unlock() }
+            tokens.append(token)
+        }
+
+        func removeAll() {
+            lock.lock()
+            let tokens = self.tokens
+            self.tokens.removeAll()
+            lock.unlock()
+
+            for token in tokens {
+                NotificationCenter.default.removeObserver(token)
+            }
+        }
+    }
+
     // MARK: - Internal State Properties
 
     // Note: These are internal (not private) to allow extensions to access them
@@ -156,9 +178,6 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     let configDirectory = KeyPathConstants.Config.directory
 
-    private static var isOneShotProbeMode: Bool {
-        AppDelegate.isOneShotProbeEnvironment()
-    }
     let configFileName = "keypath.kbd"
 
     // MARK: - Manager Dependencies (Refactored Architecture)
@@ -202,6 +221,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     var isInitializing = false
     var isRecoveringSplitRuntimeCompanion = false
     var splitRuntimeCompanionMonitorTask: Task<Void, Never>?
+    let notificationObserverTokens = NotificationTokenStore()
     let isHeadlessMode: Bool
 
     // MARK: - Process Synchronization (Phase 1)
@@ -219,7 +239,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     init(engineClient: EngineClient? = nil, injectedConfigurationService: ConfigurationService? = nil, configRepairService: ConfigRepairService? = nil) {
         AppLogger.shared.log("🏗️ [RuntimeCoordinator] init() called")
-        let isOneShotProbeMode = Self.isOneShotProbeMode
+        let isOneShotProbeMode = AppDelegate.isOneShotProbeEnvironment()
 
         // Check if running in headless mode
         isHeadlessMode =
@@ -432,7 +452,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Observe config-affecting preference changes (e.g., nav trigger mode) to regenerate config
         if !isOneShotProbeMode {
-            NotificationCenter.default.addObserver(
+            notificationObserverTokens.append(NotificationCenter.default.addObserver(
                 forName: .configAffectingPreferenceChanged,
                 object: nil,
                 queue: NotificationObserverManager.mainOperationQueue
@@ -442,9 +462,9 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
                     AppLogger.shared.log("🔄 [RuntimeCoordinator] Config-affecting preference changed, regenerating config...")
                     await self.ruleCollectionsManager.regenerateConfigFromCollections()
                 }
-            }
+            })
 
-            NotificationCenter.default.addObserver(
+            notificationObserverTokens.append(NotificationCenter.default.addObserver(
                 forName: .splitRuntimeHostExited,
                 object: nil,
                 queue: NotificationObserverManager.mainOperationQueue
@@ -465,7 +485,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
                         stderrLogPath: stderrLogPath
                     )
                 }
-            }
+            })
         }
 
         AppLogger.shared.log("🏗️ [RuntimeCoordinator] init() completed")
@@ -473,6 +493,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     deinit {
         splitRuntimeCompanionMonitorTask?.cancel()
+        notificationObserverTokens.removeAll()
     }
 
     // Note: RuleCollectionsManager handles its own cleanup in deinit

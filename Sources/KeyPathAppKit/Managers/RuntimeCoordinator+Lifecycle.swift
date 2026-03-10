@@ -125,7 +125,7 @@ extension RuntimeCoordinator {
         if context.services.kanataRunning {
             let activeRuntimeTitle = context.services.activeRuntimePathTitle?
                 .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
-            if activeRuntimeTitle == "Split Runtime Host" {
+            if activeRuntimeTitle == SplitRuntimeIdentity.hostTitle {
                 AppLogger.shared.info("✅ [Init] Split runtime host is already running - skipping initialization")
                 return
             }

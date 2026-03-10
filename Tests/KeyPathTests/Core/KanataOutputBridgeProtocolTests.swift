@@ -125,17 +125,20 @@ final class KanataOutputBridgeProtocolTests: XCTestCase {
         let session = KanataOutputBridgeSession(
             sessionID: "session-123",
             socketPath: socketPath,
-            socketDirectory: (socketPath as NSString).deletingLastPathComponent,
+            socketDirectory: URL(fileURLWithPath: socketPath).deletingLastPathComponent().path,
             hostPID: 4242,
             hostUID: UInt32(getuid()),
             hostGID: UInt32(getgid())
         )
 
         let handshake = try KanataOutputBridgeClient.performHandshake(session: session)
-        XCTAssertEqual(handshake, .ready(version: KanataOutputBridgeProtocol.version))
+        XCTAssertEqual(
+            handshake,
+            KanataOutputBridgeResponse.ready(version: KanataOutputBridgeProtocol.version)
+        )
 
         let pong = try KanataOutputBridgeClient.ping(session: session)
-        XCTAssertEqual(pong, .pong)
+        XCTAssertEqual(pong, KanataOutputBridgeResponse.pong)
 
         let emitAck = try KanataOutputBridgeClient.emitKey(
             KanataOutputBridgeKeyEvent(
@@ -146,16 +149,16 @@ final class KanataOutputBridgeProtocolTests: XCTestCase {
             ),
             session: session
         )
-        XCTAssertEqual(emitAck, .acknowledged(sequence: 7))
+        XCTAssertEqual(emitAck, KanataOutputBridgeResponse.acknowledged(sequence: 7))
 
         let modifiersAck = try KanataOutputBridgeClient.syncModifiers(
             KanataOutputBridgeModifierState(leftShift: true, rightCommand: true),
             session: session
         )
-        XCTAssertEqual(modifiersAck, .acknowledged(sequence: nil))
+        XCTAssertEqual(modifiersAck, KanataOutputBridgeResponse.acknowledged(sequence: nil))
 
         let resetAck = try KanataOutputBridgeClient.reset(session: session)
-        XCTAssertEqual(resetAck, .acknowledged(sequence: nil))
+        XCTAssertEqual(resetAck, KanataOutputBridgeResponse.acknowledged(sequence: nil))
 
         wait(
             for: [

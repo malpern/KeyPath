@@ -82,7 +82,7 @@ final class UnitTestSuite: XCTestCase {
 
     func testBasicPathGeneration() {
         // Test basic path operations work
-        let homePath = FileManager.default.homeDirectoryForCurrentUser.path
+        let homePath = NSHomeDirectory()
         let configPath = homePath + "/.config/keypath/keypath.kbd"
 
         XCTAssertTrue(configPath.hasSuffix(".kbd"))

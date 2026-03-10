@@ -596,7 +596,7 @@ class AboutWindowController {
         NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: window,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.window = nil

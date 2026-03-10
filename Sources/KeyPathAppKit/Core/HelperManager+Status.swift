@@ -91,9 +91,8 @@ extension HelperManager {
 
                 AppLogger.shared.log("📤 [HelperManager] Calling proxy.getVersion()")
                 proxy.getVersion { version, error in
-                    let threadName = Thread.current.isMainThread ? "main" : "background"
                     AppLogger.shared.log(
-                        "📥 [HelperManager] getVersion callback received on \(threadName) thread"
+                        "📥 [HelperManager] getVersion callback received"
                     )
 
                     // Cancel the timeout since the callback arrived.

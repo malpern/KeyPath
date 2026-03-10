@@ -110,7 +110,7 @@ final class HrmObservabilityService {
     private let traceBreakdownDebounce: Duration = .milliseconds(100)
 
     private init(
-        notificationCenter: NotificationCenter = .default,
+        notificationCenter: NotificationCenter = NotificationObserverManager.defaultCenter,
         now: @escaping () -> Date = Date.init
     ) {
         self.notificationCenter = notificationCenter

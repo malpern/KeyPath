@@ -6,7 +6,7 @@ final class CustomRulesStoreTests: XCTestCase {
     private var store: CustomRulesStore!
 
     override func setUpWithError() throws {
-        tempDirectory = FileManager.default.temporaryDirectory
+        tempDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
         store = CustomRulesStore(fileURL: tempDirectory.appendingPathComponent("CustomRules.json"))

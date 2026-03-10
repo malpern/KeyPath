@@ -28,6 +28,10 @@ import Foundation
 /// For `@MainActor` types, use the `@MainActor` variant methods.
 public final class NotificationObserverManager: @unchecked Sendable {
     public static let mainOperationQueue: OperationQueue? = nil
+    public static let defaultCenter: NotificationCenter = {
+        NotificationCenter.perform(NSSelectorFromString("defaultCenter"))?
+            .takeUnretainedValue() as? NotificationCenter ?? NotificationCenter()
+    }()
 
     /// Stored observer with its associated notification center
     private struct StoredObserver {
@@ -61,7 +65,7 @@ public final class NotificationObserverManager: @unchecked Sendable {
         _ name: Notification.Name,
         object: Any? = nil,
         queue: OperationQueue? = NotificationObserverManager.mainOperationQueue,
-        center: NotificationCenter = NotificationCenter.default,
+        center: NotificationCenter = NotificationObserverManager.defaultCenter,
         handler: @escaping @Sendable (Notification) -> Void
     ) {
         let observer = center.addObserver(

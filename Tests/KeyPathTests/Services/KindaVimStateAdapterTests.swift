@@ -93,7 +93,7 @@ final class KindaVimStateAdapterTests: XCTestCase {
     }
 
     func testMissingFileFallsBackToUnknown() async {
-        let missingURL = FileManager.default.temporaryDirectory
+        let missingURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent(UUID().uuidString)
             .appendingPathComponent("environment.json")
 
@@ -111,7 +111,7 @@ final class KindaVimStateAdapterTests: XCTestCase {
     }
 
     private func makeTempEnvironmentFile(contents: String) throws -> URL {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let fileURL = dir.appendingPathComponent("environment.json")
         try contents.write(to: fileURL, atomically: true, encoding: .utf8)

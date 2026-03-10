@@ -160,7 +160,7 @@ actor AppKeymapStore {
     /// Post notification on main thread that keymaps have changed
     private func postChangeNotification() {
         Task { @MainActor in
-            NotificationCenter.default.post(
+            NotificationObserverManager.defaultCenter.post(
                 name: Notification.Name.appKeymapsDidChange,
                 object: nil as AnyObject?
             )

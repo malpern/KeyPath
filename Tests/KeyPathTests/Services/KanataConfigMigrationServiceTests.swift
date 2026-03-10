@@ -9,7 +9,7 @@ final class KanataConfigMigrationServiceTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        tempDirectory = FileManager.default.temporaryDirectory
+        tempDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
 

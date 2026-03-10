@@ -840,7 +840,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Startup + post-wizard validation trigger.
         NotificationCenter.default.addObserver(
-            forName: .kp_startupRevalidate, object: nil, queue: .main
+            forName: .kp_startupRevalidate, object: nil, queue: NotificationObserverManager.mainOperationQueue
         ) { _ in
             Task { @MainActor in
                 await MainAppStateController.shared.performInitialValidation()
@@ -850,7 +850,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Settings/permission flows sometimes post a “toast” message; show as a user notification now that
         // the main window is a splash.
         NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("ShowUserFeedback"), object: nil, queue: .main
+            forName: NSNotification.Name("ShowUserFeedback"), object: nil, queue: NotificationObserverManager.mainOperationQueue
         ) { notification in
             if let message = notification.userInfo?["message"] as? String {
                 Task { @MainActor in
@@ -861,7 +861,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Reset-to-safe config action (used by notification buttons).
         NotificationCenter.default.addObserver(
-            forName: .resetToSafeConfig, object: nil, queue: .main
+            forName: .resetToSafeConfig, object: nil, queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             Task { @MainActor in
                 _ = await self?.viewModel?.createDefaultUserConfigIfMissing()
@@ -960,7 +960,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Observe notification action events
-        NotificationCenter.default.addObserver(forName: .retryStartService, object: nil, queue: .main) { [weak self] _ in
+        NotificationCenter.default.addObserver(forName: .retryStartService, object: nil, queue: NotificationObserverManager.mainOperationQueue) { [weak self] _ in
             Task { @MainActor in
                 AppLogger.shared.log("🔄 [App] Retry start requested via notification")
                 guard let manager = self?.kanataManager else {
@@ -975,7 +975,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         NotificationCenter.default.addObserver(
-            forName: .openInputMonitoringSettings, object: nil, queue: .main
+            forName: .openInputMonitoringSettings, object: nil, queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.kanataManager?.openInputMonitoringSettings()
@@ -983,7 +983,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         NotificationCenter.default.addObserver(
-            forName: .openAccessibilitySettings, object: nil, queue: .main
+            forName: .openAccessibilitySettings, object: nil, queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.kanataManager?.openAccessibilitySettings()
@@ -993,7 +993,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(
             forName: .exerciseCoordinatorSplitRuntimeRecovery,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] note in
             let outputPath =
                 note.userInfo?["outputPath"] as? String
@@ -1060,7 +1060,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(
             forName: .exerciseCoordinatorSplitRuntimeRestartSoak,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] note in
             let outputPath =
                 note.userInfo?["outputPath"] as? String

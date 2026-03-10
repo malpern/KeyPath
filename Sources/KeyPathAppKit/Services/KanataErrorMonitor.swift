@@ -390,7 +390,10 @@ final class KanataErrorMonitor {
         Task { @MainActor in
             UserFeedbackService.show(message: message)
             // Also post notification to make health indicator more visible
-            NotificationCenter.default.post(name: .kanataErrorDetected, object: error)
+            NotificationObserverManager.defaultCenter.post(
+                name: Notification.Name.kanataErrorDetected,
+                object: error
+            )
         }
     }
 

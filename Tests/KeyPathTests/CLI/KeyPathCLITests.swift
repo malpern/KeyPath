@@ -122,9 +122,12 @@ final class KeyPathCLITests: XCTestCase {
 private func captureStandardOutput(
     _ operation: () async throws -> Void
 ) async throws -> String {
-    let pipe = Pipe()
+    var pipeDescriptors = [Int32](repeating: 0, count: 2)
+    guard pipe(&pipeDescriptors) == 0 else {
+        throw POSIXError(.EIO)
+    }
     let originalStdout = dup(STDOUT_FILENO)
-    dup2(pipe.fileHandleForWriting.fileDescriptor, STDOUT_FILENO)
+    dup2(pipeDescriptors[1], STDOUT_FILENO)
 
     do {
         try await operation()
@@ -133,14 +136,16 @@ private func captureStandardOutput(
         fflush(stdout)
         dup2(originalStdout, STDOUT_FILENO)
         close(originalStdout)
-        pipe.fileHandleForWriting.closeFile()
+        close(pipeDescriptors[1])
+        close(pipeDescriptors[0])
         throw error
     }
 
     dup2(originalStdout, STDOUT_FILENO)
     close(originalStdout)
-    pipe.fileHandleForWriting.closeFile()
-    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    close(pipeDescriptors[1])
+    let readHandle = FileHandle(fileDescriptor: pipeDescriptors[0], closeOnDealloc: true)
+    let data = (try? readHandle.readToEnd()) ?? Data()
     return String(decoding: data, as: UTF8.self)
 }
 

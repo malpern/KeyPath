@@ -6,6 +6,9 @@ import KeyPathCore
 
 @MainActor
 final class KeyboardCaptureTests: XCTestCase {
+    private let defaultNotificationCenter = NotificationCenter
+        .perform(NSSelectorFromString("defaultCenter"))?
+        .takeUnretainedValue() as? NotificationCenter
     lazy var capture: KeyboardCapture = .init()
     var receivedNotifications: [Notification] = []
 
@@ -13,7 +16,7 @@ final class KeyboardCaptureTests: XCTestCase {
         super.setUp()
 
         // Set up notification observer
-        NotificationCenter.default.addObserver(
+        defaultNotificationCenter?.addObserver(
             self,
             selector: #selector(notificationReceived(_:)),
             name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
@@ -22,7 +25,7 @@ final class KeyboardCaptureTests: XCTestCase {
     }
 
     deinit {
-        NotificationCenter.default.removeObserver(self)
+        defaultNotificationCenter?.removeObserver(self)
     }
 
     @objc private func notificationReceived(_ notification: Notification) {
