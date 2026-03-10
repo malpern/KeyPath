@@ -80,3 +80,7 @@ test-results/
 
 # UI test screenshots and logs
 Scripts/ui-tests/results/
+
+# Local agent/editor state
+.claude/
+tmp/
