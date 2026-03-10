@@ -10,12 +10,14 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
         KanataRuntimePathCoordinator.testDecision = nil
         KanataSplitRuntimeHostService.testPersistentHostPID = nil
         KanataSplitRuntimeHostService.testStartPersistentError = nil
+        KarabinerConflictService.testDaemonRunning = nil
     }
 
     override func tearDown() {
         KanataRuntimePathCoordinator.testDecision = nil
         KanataSplitRuntimeHostService.testPersistentHostPID = nil
         KanataSplitRuntimeHostService.testStartPersistentError = nil
+        KarabinerConflictService.testDaemonRunning = nil
         super.tearDown()
     }
 
@@ -140,6 +142,7 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
     }
 
     func testSuccessfulSplitRuntimeStartClearsPreviousExitError() async throws {
+        KarabinerConflictService.testDaemonRunning = true
         await manager.handleSplitRuntimeHostExit(
             pid: 12345,
             exitCode: 9,
@@ -162,6 +165,7 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
     }
 
     func testSplitRuntimeStartStopRestartCycle() async {
+        KarabinerConflictService.testDaemonRunning = true
         KanataRuntimePathCoordinator.testDecision = .useSplitRuntime(reason: "test split runtime")
         KanataSplitRuntimeHostService.testPersistentHostPID = 4242
 
@@ -188,6 +192,7 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
     }
 
     func testRestartCutsOverToSplitRuntimeWhenPreferred() async {
+        KarabinerConflictService.testDaemonRunning = true
         KanataRuntimePathCoordinator.testDecision = .useSplitRuntime(reason: "test split runtime")
         KanataSplitRuntimeHostService.testPersistentHostPID = 5252
 
@@ -200,6 +205,7 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
     }
 
     func testSplitRuntimeStartFailureDoesNotSilentlyFallBackToLegacy() async {
+        KarabinerConflictService.testDaemonRunning = true
         struct SplitStartFailure: LocalizedError {
             var errorDescription: String? { "simulated split host start failure" }
         }

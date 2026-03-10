@@ -26,6 +26,10 @@ protocol KarabinerConflictManaging: AnyObject {
 /// Manages detection and resolution of conflicts with Karabiner-Elements
 @MainActor
 final class KarabinerConflictService: KarabinerConflictManaging {
+    /// Test seam: when set, `isKarabinerDaemonRunning()` returns this value
+    /// instead of running a real pgrep.
+    nonisolated(unsafe) static var testDaemonRunning: Bool?
+
     // MARK: - Dependencies
 
     private let engineFactory: () -> (any InstallerEnginePrivilegedRouting)
@@ -150,6 +154,11 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     }
 
     func isKarabinerDaemonRunning() async -> Bool {
+        // Test seam: return injected value in tests to avoid real pgrep
+        if TestEnvironment.isRunningTests, let testValue = Self.testDaemonRunning {
+            return testValue
+        }
+
         // Skip daemon check during startup to prevent blocking
         if FeatureFlags.shared.startupModeActive {
             AppLogger.shared.log(
