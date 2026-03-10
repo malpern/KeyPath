@@ -23,8 +23,8 @@ extension OverlayInspectorPanel {
                                 // Switch to mapper with no app condition (global/everywhere)
                                 onSelectSection(.mapper)
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: DispatchWorkItem {
-                                    NotificationCenter.default.post(
-                                        name: .mapperSetAppCondition,
+                                    Foundation.NotificationCenter.default.post(
+                                        name: Notification.Name.mapperSetAppCondition,
                                         object: nil,
                                         userInfo: ["bundleId": "", "displayName": ""]
                                     )
@@ -100,8 +100,8 @@ extension OverlayInspectorPanel {
                 "appBundleId": keymap.mapping.bundleIdentifier,
                 "appDisplayName": keymap.mapping.displayName
             ]
-            NotificationCenter.default.post(
-                name: .mapperDrawerKeySelected,
+            Foundation.NotificationCenter.default.post(
+                name: Notification.Name.mapperDrawerKeySelected,
                 object: nil,
                 userInfo: userInfo
             )
@@ -114,8 +114,8 @@ extension OverlayInspectorPanel {
         UserDefaults.standard.set(InspectorSection.mapper.rawValue, forKey: "inspectorSection")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: DispatchWorkItem {
             // Set the app condition on the mapper view model
-            NotificationCenter.default.post(
-                name: .mapperSetAppCondition,
+            Foundation.NotificationCenter.default.post(
+                name: Notification.Name.mapperSetAppCondition,
                 object: nil,
                 userInfo: [
                     "bundleId": keymap.mapping.bundleIdentifier,
@@ -140,8 +140,8 @@ extension OverlayInspectorPanel {
             if let shiftedOutput = rule.shiftedOutput {
                 userInfo["shiftedOutputKey"] = shiftedOutput
             }
-            NotificationCenter.default.post(
-                name: .mapperDrawerKeySelected,
+            Foundation.NotificationCenter.default.post(
+                name: Notification.Name.mapperDrawerKeySelected,
                 object: nil,
                 userInfo: userInfo
             )
