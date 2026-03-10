@@ -23,10 +23,12 @@ final class SigningPipelineTests: XCTestCase {
         } catch {
             return (code: -1, stdout: "", stderr: "Failed to start process: \(error)")
         }
-        process.waitUntilExit()
+        while process.isRunning {
+            usleep(1_000)
+        }
 
-        let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+        let stdoutData = (try? stdoutPipe.fileHandleForReading.readToEnd()) ?? Data()
+        let stderrData = (try? stderrPipe.fileHandleForReading.readToEnd()) ?? Data()
 
         return (
             code: process.terminationStatus,
@@ -36,7 +38,7 @@ final class SigningPipelineTests: XCTestCase {
     }
 
     func testCodesignWrapperRespectsDryRun() {
-        let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent(UUID().uuidString)
         FileManager.default.createFile(atPath: tempFile.path, contents: Data())
 
         let script = """
@@ -49,7 +51,7 @@ final class SigningPipelineTests: XCTestCase {
     }
 
     func testCodesignWrapperPropagatesFailures() {
-        let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent(UUID().uuidString)
         FileManager.default.createFile(atPath: tempFile.path, contents: Data())
 
         // Explicitly unset KP_SIGN_DRY_RUN to test real failure propagation

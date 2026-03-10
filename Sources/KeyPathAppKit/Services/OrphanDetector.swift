@@ -36,18 +36,18 @@ final class OrphanDetector {
     func detectOrphanedInstall() -> Bool {
         // Check for leftover files from manual app deletion
         let orphanedPaths = [
-            FileManager.default.homeDirectoryForCurrentUser
+            Foundation.FileManager().homeDirectoryForCurrentUser
                 .appendingPathComponent("Library/Application Support/KeyPath"),
-            FileManager.default.homeDirectoryForCurrentUser
+            Foundation.FileManager().homeDirectoryForCurrentUser
                 .appendingPathComponent("Library/Logs/KeyPath"),
-            FileManager.default.homeDirectoryForCurrentUser
+            Foundation.FileManager().homeDirectoryForCurrentUser
                 .appendingPathComponent("Library/Preferences")
                 .appendingPathComponent("com.keypath.KeyPath.plist")
         ]
 
         // Count how many orphaned paths exist
         let orphanCount = orphanedPaths.filter {
-            FileManager.default.fileExists(atPath: $0.path)
+            Foundation.FileManager().fileExists(atPath: $0.path)
         }.count
 
         // If 2 or more paths exist, this is likely an orphaned install
@@ -58,7 +58,7 @@ final class OrphanDetector {
 
     /// Detects if orphaned VHID daemon plists exist
     private func detectOrphanedVHIDDaemons() -> Bool {
-        Self.vhidDaemonPlists.contains { FileManager.default.fileExists(atPath: $0) }
+        Self.vhidDaemonPlists.contains { Foundation.FileManager().fileExists(atPath: $0) }
     }
 
     /// Check for orphans and show cleanup alert if needed
@@ -157,17 +157,17 @@ final class OrphanDetector {
         // it's silently deferred to next uninstall rather than shown as a failure.
         if cleanFiles {
             let pathsToClean: [(url: URL, canCleanWhileRunning: Bool)] = [
-                (FileManager.default.homeDirectoryForCurrentUser
+                (Foundation.FileManager().homeDirectoryForCurrentUser
                     .appendingPathComponent("Library/Application Support/KeyPath"), false),
-                (FileManager.default.homeDirectoryForCurrentUser
+                (Foundation.FileManager().homeDirectoryForCurrentUser
                     .appendingPathComponent("Library/Logs/KeyPath"), true),
-                (FileManager.default.homeDirectoryForCurrentUser
+                (Foundation.FileManager().homeDirectoryForCurrentUser
                     .appendingPathComponent("Library/Preferences")
                     .appendingPathComponent("com.keypath.KeyPath.plist"), true)
             ]
 
             for (path, canCleanWhileRunning) in pathsToClean {
-                guard FileManager.default.fileExists(atPath: path.path) else { continue }
+                guard Foundation.FileManager().fileExists(atPath: path.path) else { continue }
 
                 if !canCleanWhileRunning {
                     AppLogger.shared.log("⏭️ [OrphanDetector] Deferring \(path.lastPathComponent) - will be cleaned on next uninstall")
@@ -176,7 +176,7 @@ final class OrphanDetector {
                 }
 
                 do {
-                    try FileManager.default.removeItem(at: path)
+                    try Foundation.FileManager().removeItem(at: path)
                     userFilesCleaned += 1
                     AppLogger.shared.log("🧹 [OrphanDetector] Removed: \(path.path)")
                 } catch {

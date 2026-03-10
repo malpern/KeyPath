@@ -104,7 +104,7 @@ final class ServiceBootstrapper {
         // Test mode: just check if plist exists
         if TestEnvironment.shouldSkipAdminOperations {
             let plistPath = getPlistPath(for: serviceID)
-            let exists = FileManager.default.fileExists(atPath: plistPath)
+                let exists = Foundation.FileManager().fileExists(atPath: plistPath)
             AppLogger.shared.log(
                 "🧪 [ServiceBootstrapper] Test mode - service \(serviceID) loaded: \(exists)"
             )
@@ -329,8 +329,8 @@ final class ServiceBootstrapper {
         let daemonPlistPath = getPlistPath(for: Self.vhidDaemonServiceID)
         let managerPlistPath = getPlistPath(for: Self.vhidManagerServiceID)
         let snapshot = VHIDInstallSnapshot(
-            daemonPlistExisted: FileManager.default.fileExists(atPath: daemonPlistPath),
-            managerPlistExisted: FileManager.default.fileExists(atPath: managerPlistPath),
+            daemonPlistExisted: Foundation.FileManager().fileExists(atPath: daemonPlistPath),
+            managerPlistExisted: Foundation.FileManager().fileExists(atPath: managerPlistPath),
             daemonLoaded: await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID),
             managerLoaded: await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
         )
@@ -441,7 +441,7 @@ final class ServiceBootstrapper {
                 prompt: "KeyPath needs to install the log rotation config."
             )
 
-            try? FileManager.default.removeItem(atPath: tempPath)
+            try? Foundation.FileManager().removeItem(atPath: tempPath)
 
             if result.success {
                 AppLogger.shared.log("✅ [ServiceBootstrapper] Newsyslog config installed successfully")
@@ -471,7 +471,7 @@ final class ServiceBootstrapper {
 
     /// Check if newsyslog config is installed
     func isNewsyslogConfigInstalled() -> Bool {
-        FileManager.default.fileExists(atPath: "/etc/newsyslog.d/com.keypath.conf")
+        Foundation.FileManager().fileExists(atPath: "/etc/newsyslog.d/com.keypath.conf")
     }
 
     // MARK: - Restart Unhealthy Services
@@ -486,7 +486,7 @@ final class ServiceBootstrapper {
     ///
     /// - Returns: `true` if all services are healthy after the operation
     @MainActor
-    func restartUnhealthyServices() async -> Bool {
+    func recoverRequiredRuntimeServices() async -> Bool {
         AppLogger.shared.log("🔧 [ServiceBootstrapper] Starting comprehensive service health fix")
 
         // Skip in test mode
@@ -764,7 +764,7 @@ final class ServiceBootstrapper {
 
         defer {
             for tempFile in prepared.tempFiles {
-                try? FileManager.default.removeItem(atPath: tempFile)
+                try? Foundation.FileManager().removeItem(atPath: tempFile)
             }
         }
 
@@ -985,65 +985,4 @@ final class ServiceBootstrapper {
         }
     }
 
-    /// Install all LaunchDaemon service plists without loading them
-    ///
-    /// Used for adopting orphan processes where we want the plist in place
-    /// but don't want to load services yet.
-    ///
-    /// - Parameter binaryPath: Unused (retained for call-site compatibility)
-    /// - Returns: `true` if all plists were installed successfully
-    func installAllServicesWithoutLoading(binaryPath _: String) async -> Bool {
-        AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing service plists (no loading)")
-
-        // Skip admin operations in test environment
-        if TestEnvironment.shouldSkipAdminOperations {
-            AppLogger.shared.log("🧪 [TestEnvironment] Skipping service installation - returning mock success")
-            return true
-        }
-
-        // Generate plists
-        let vhidDaemonPlist = PlistGenerator.generateVHIDDaemonPlist()
-        let vhidManagerPlist = PlistGenerator.generateVHIDManagerPlist()
-
-        let launchDaemonsDir = getLaunchDaemonsPath()
-        let vhidDaemonPlistPath = "\(launchDaemonsDir)/\(Self.vhidDaemonServiceID).plist"
-        let vhidManagerPlistPath = "\(launchDaemonsDir)/\(Self.vhidManagerServiceID).plist"
-
-        let specs = [
-            PlistInstallSpec(
-                content: vhidDaemonPlist,
-                path: vhidDaemonPlistPath,
-                serviceID: Self.vhidDaemonServiceID
-            ),
-            PlistInstallSpec(
-                content: vhidManagerPlist,
-                path: vhidManagerPlistPath,
-                serviceID: Self.vhidManagerServiceID
-            )
-        ]
-
-        let prepared: (tempFiles: [String], commands: [String])
-        do {
-            prepared = try preparePlistInstall(specs: specs)
-        } catch {
-            AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to prepare service plists: \(error)")
-            return false
-        }
-
-        defer {
-            for tempFile in prepared.tempFiles {
-                try? FileManager.default.removeItem(atPath: tempFile)
-            }
-        }
-
-        let result = await executePrivilegedBatch(
-            label: "install VirtualHID service plists",
-            commands: prepared.commands,
-            prompt: "KeyPath needs to install the VirtualHID service plists."
-        )
-        AppLogger.shared.log(
-            "🔧 [ServiceBootstrapper] Install-only result: success=\(result.success)"
-        )
-        return result.success
-    }
 }

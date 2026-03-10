@@ -243,7 +243,7 @@ struct WizardKarabinerImportPage: View {
         isConverting = true
 
         let path = WizardSystemPaths.karabinerConfigPath
-        guard let data = FileManager.default.contents(atPath: path) else {
+        guard let data = Foundation.FileManager().contents(atPath: path) else {
             errorMessage = "Could not read Karabiner config file"
             isConverting = false
             return
@@ -252,8 +252,8 @@ struct WizardKarabinerImportPage: View {
         do {
             let result = try converterService.convert(data: data, profileIndex: nil)
             conversionResult = result
-            selectedCollectionIds = Set(result.collections.map(\.id))
-            selectedAppKeymapIds = Set(result.appKeymaps.map(\.id))
+            selectedCollectionIds = Set(result.collections.map { $0.id })
+            selectedAppKeymapIds = Set(result.appKeymaps.map { $0.id })
         } catch {
             errorMessage = error.localizedDescription
         }

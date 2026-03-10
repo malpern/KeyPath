@@ -166,7 +166,7 @@ struct EmergencyStopDialog: View {
                             Image(systemName: "arrow.clockwise.circle.fill")
                                 .font(.title3)
                                 .foregroundColor(.orange)
-                            Text("Restart the Kanata service to re-enable remapping")
+                            Text("Restart the KeyPath runtime to re-enable remapping")
                                 .font(.body)
                             Spacer()
                         }

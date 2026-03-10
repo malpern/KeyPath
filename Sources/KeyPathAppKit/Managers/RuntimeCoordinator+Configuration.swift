@@ -44,8 +44,15 @@ extension RuntimeCoordinator {
 
     /// Main reload method using TCP protocol
     func triggerConfigReload() async -> ReloadResult {
-        // Skip reloads if SMAppService is awaiting approval; avoid long TCP timeouts
-        let smState = await KanataDaemonManager.shared.refreshManagementState()
+        // Use cached state to avoid synchronous IPC to SMAppService in hot path (see CLAUDE.md)
+        // Only refresh if we have no cached state yet
+        let smState: KanataDaemonManager.ServiceManagementState
+        let cached = await MainActor.run { KanataDaemonManager.shared.currentManagementState }
+        if cached == .unknown {
+            smState = await KanataDaemonManager.shared.refreshManagementState()
+        } else {
+            smState = cached
+        }
         if smState == .smappservicePending {
             AppLogger.shared.warn(
                 "⚠️ [Reload] Skipping TCP reload because SMAppService requires approval"
@@ -59,7 +66,7 @@ extension RuntimeCoordinator {
         }
 
         // Skip reloads if Kanata service isn't healthy yet; avoid connection-refused storm
-        let healthStatus = await kanataService.checkHealth(
+        let healthStatus = await diagnosticsManager.checkHealth(
             tcpPort: PreferencesService.shared.tcpServerPort
         )
         if !healthStatus.isHealthy {

@@ -13,7 +13,7 @@ public final class SimpleModsWriter: Sendable {
     public func writeBlock(mappings: [SimpleMapping]) throws {
         // Read current content
         let content: String =
-            if FileManager.default.fileExists(atPath: configPath) {
+            if Foundation.FileManager().fileExists(atPath: configPath) {
                 try String(contentsOfFile: configPath, encoding: .utf8)
             } else {
                 ""

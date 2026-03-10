@@ -216,7 +216,7 @@ extension InstallationWizardView {
         }
     }
 
-    func startKanataService() {
+    func startKeyPathRuntime() {
         Task {
             // Show safety confirmation before starting
             let shouldStart = await showStartConfirmation()
@@ -227,19 +227,19 @@ extension InstallationWizardView {
 
                     asyncOperationManager.execute(operation: operation) { (success: Bool) in
                         if success {
-                            AppLogger.shared.log("✅ [Wizard] Kanata service started successfully")
-                            toastManager.showSuccess("Kanata service started")
+                            AppLogger.shared.log("✅ [Wizard] KeyPath Runtime started successfully")
+                            toastManager.showSuccess("KeyPath Runtime started")
                             dismissAndRefreshMainScreen()
                         } else {
-                            AppLogger.shared.log("❌ [Wizard] Failed to start Kanata service")
+                            AppLogger.shared.log("❌ [Wizard] Failed to start KeyPath Runtime")
                             let failureMessage =
                                 kanataManager.lastError
-                                    ?? "Kanata service failed to stay running. Review /var/log/com.keypath.kanata.stderr.log for details."
+                                    ?? "KeyPath Runtime failed to stay running. Review /var/log/com.keypath.kanata.stderr.log for details."
                             toastManager.showError(failureMessage)
                         }
                     } onFailure: { error in
                         AppLogger.shared.log(
-                            "❌ [Wizard] Error starting Kanata service: \(error.localizedDescription)"
+                            "❌ [Wizard] Error starting KeyPath Runtime: \(error.localizedDescription)"
                         )
                         toastManager.showError("Start failed: \(error.localizedDescription)")
                     }

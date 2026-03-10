@@ -63,7 +63,7 @@ struct KeymapCard: View {
 
     private func loadSVG() {
         // SVGs are at bundle root (not in subdirectory) due to .process() flattening
-        guard let svgURL = Bundle.module.url(
+        guard let svgURL = KeyPathAppKitResources.url(
             forResource: keymap.iconFilename,
             withExtension: "svg"
         ) else { return }

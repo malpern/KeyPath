@@ -40,7 +40,7 @@ enum AppIconResolver {
         ]
 
         for path in searchPaths {
-            if FileManager.default.fileExists(atPath: path) {
+            if Foundation.FileManager().fileExists(atPath: path) {
                 return NSWorkspace.shared.icon(forFile: path)
             }
         }
@@ -53,7 +53,7 @@ enum AppIconResolver {
                 "/System/Applications/\(variation).app"
             ]
             for path in paths {
-                if FileManager.default.fileExists(atPath: path) {
+                if Foundation.FileManager().fileExists(atPath: path) {
                     return NSWorkspace.shared.icon(forFile: path)
                 }
             }
@@ -94,7 +94,7 @@ enum AppIconResolver {
         let expandedPath = (path as NSString).expandingTildeInPath
 
         // If folder exists, get its actual icon (may have custom icon)
-        if FileManager.default.fileExists(atPath: expandedPath) {
+        if Foundation.FileManager().fileExists(atPath: expandedPath) {
             return NSWorkspace.shared.icon(forFile: expandedPath)
         }
 
@@ -116,7 +116,7 @@ enum AppIconResolver {
         let ext = URL(fileURLWithPath: expandedPath).pathExtension.lowercased()
 
         // If file exists, get its actual icon
-        if FileManager.default.fileExists(atPath: expandedPath) {
+        if Foundation.FileManager().fileExists(atPath: expandedPath) {
             return NSWorkspace.shared.icon(forFile: expandedPath)
         }
 

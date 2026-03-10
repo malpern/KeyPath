@@ -280,7 +280,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
     // MARK: - Helper Methods
 
     private func createTempConfigFile(content: String) -> URL {
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         let tempFile = tempDir.appendingPathComponent("test-config-\(UUID().uuidString).kbd")
 
         try! content.write(to: tempFile, atomically: true, encoding: .utf8)

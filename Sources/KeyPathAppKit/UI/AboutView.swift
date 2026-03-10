@@ -425,7 +425,7 @@ struct AboutView: View {
 
     private func revealConfigFile() {
         let configPath = KeyPathConstants.Config.mainConfigPath
-        let exists = FileManager.default.fileExists(atPath: configPath)
+        let exists = Foundation.FileManager().fileExists(atPath: configPath)
 
         if exists {
             NSWorkspace.shared.selectFile(configPath, inFileViewerRootedAtPath: "")
@@ -596,7 +596,7 @@ class AboutWindowController {
         NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: window,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.window = nil

@@ -45,7 +45,7 @@ public final class PluginManager {
     private var loadedBundlePaths: Set<String> = []
 
     private var userPluginsDirectory: URL {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let appSupport = Foundation.FileManager().urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         return appSupport.appendingPathComponent("KeyPath/Plugins", isDirectory: true)
     }
 
@@ -76,13 +76,13 @@ public final class PluginManager {
         }
 
         for searchPath in searchPaths {
-            guard FileManager.default.fileExists(atPath: searchPath.path) else {
+            guard Foundation.FileManager().fileExists(atPath: searchPath.path) else {
                 AppLogger.shared.debug("🔌 [PluginManager] Plugin path does not exist: \(searchPath.path)")
                 continue
             }
 
             do {
-                let contents = try FileManager.default.contentsOfDirectory(
+                let contents = try Foundation.FileManager().contentsOfDirectory(
                     at: searchPath,
                     includingPropertiesForKeys: nil,
                     options: [.skipsHiddenFiles]
@@ -180,11 +180,11 @@ public final class PluginManager {
             installProgressMessage = "Installing\u{2026}"
 
             // Ensure plugins directory exists
-            try FileManager.default.createDirectory(at: userPluginsDirectory, withIntermediateDirectories: true)
+            try Foundation.FileManager().createDirectory(at: userPluginsDirectory, withIntermediateDirectories: true)
 
             // Unzip
-            let unzipDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-            try FileManager.default.createDirectory(at: unzipDir, withIntermediateDirectories: true)
+            let unzipDir = Foundation.FileManager().temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            try Foundation.FileManager().createDirectory(at: unzipDir, withIntermediateDirectories: true)
 
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
@@ -198,7 +198,7 @@ public final class PluginManager {
             }
 
             // Find the .bundle in unzipped contents
-            let unzippedContents = try FileManager.default.contentsOfDirectory(
+            let unzippedContents = try Foundation.FileManager().contentsOfDirectory(
                 at: unzipDir,
                 includingPropertiesForKeys: nil,
                 options: [.skipsHiddenFiles]
@@ -212,15 +212,15 @@ public final class PluginManager {
             let destination = userPluginsDirectory.appendingPathComponent(bundleSource.lastPathComponent)
 
             // Remove existing if present
-            if FileManager.default.fileExists(atPath: destination.path) {
-                try FileManager.default.removeItem(at: destination)
+            if Foundation.FileManager().fileExists(atPath: destination.path) {
+                try Foundation.FileManager().removeItem(at: destination)
             }
 
-            try FileManager.default.moveItem(at: bundleSource, to: destination)
+            try Foundation.FileManager().moveItem(at: bundleSource, to: destination)
 
             // Clean up temp files
-            try? FileManager.default.removeItem(at: tempFileURL)
-            try? FileManager.default.removeItem(at: unzipDir)
+            try? Foundation.FileManager().removeItem(at: tempFileURL)
+            try? Foundation.FileManager().removeItem(at: unzipDir)
 
             // Load immediately
             loadPlugin(from: destination)
@@ -263,7 +263,7 @@ public final class PluginManager {
         if let path = bundlePath {
             loadedBundlePaths.remove(path)
             do {
-                try FileManager.default.removeItem(atPath: path)
+                try Foundation.FileManager().removeItem(atPath: path)
                 AppLogger.shared.info("🔌 [PluginManager] Deleted bundle: \(path)")
             } catch {
                 AppLogger.shared.error("🔌 [PluginManager] Failed to delete bundle: \(error)")

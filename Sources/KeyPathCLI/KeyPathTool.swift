@@ -3,9 +3,9 @@ import Foundation
 import KeyPathAppKit
 
 @main
-struct KeyPathTool: AsyncParsableCommand {
+struct KeyPathCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "keypath",
+        commandName: "keypath-cli",
         abstract: "KeyPath keyboard configuration CLI",
         version: CLIVersion.current,
         subcommands: [

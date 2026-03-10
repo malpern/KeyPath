@@ -58,7 +58,7 @@ final class KindaVimStateAdapter {
     static let shared = KindaVimStateAdapter()
 
     static var defaultEnvironmentURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
+        URL(fileURLWithPath: NSHomeDirectory())
             .appendingPathComponent("Library")
             .appendingPathComponent("Application Support")
             .appendingPathComponent("kindaVim")
@@ -157,7 +157,7 @@ final class KindaVimStateAdapter {
     private func refreshWithRetries(remainingRetries: Int) async {
         guard !Task.isCancelled else { return }
 
-        let fileExists = FileManager.default.fileExists(atPath: environmentURL.path)
+        let fileExists = Foundation.FileManager().fileExists(atPath: environmentURL.path)
         isEnvironmentFilePresent = fileExists
 
         if fileExists {

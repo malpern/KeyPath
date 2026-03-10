@@ -58,7 +58,7 @@ final class ContextHUDController {
         NotificationCenter.default.addObserver(
             forName: .kanataLayerChanged,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] notification in
             guard let layerName = notification.userInfo?["layerName"] as? String else { return }
             let sourceRaw = notification.userInfo?["source"] as? String
@@ -74,7 +74,7 @@ final class ContextHUDController {
         NotificationCenter.default.addObserver(
             forName: .kanataMessagePush,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] notification in
             guard let message = notification.userInfo?["message"] as? String,
                   message.hasPrefix("layer:")
@@ -89,7 +89,7 @@ final class ContextHUDController {
         NotificationCenter.default.addObserver(
             forName: .kanataKeyInput,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] notification in
             let key = notification.userInfo?["key"] as? String
             let action = notification.userInfo?["action"] as? String
@@ -102,7 +102,7 @@ final class ContextHUDController {
         NotificationCenter.default.addObserver(
             forName: .kanataHoldActivated,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] notification in
             let key = notification.userInfo?["key"] as? String
             let action = notification.userInfo?["action"] as? String
@@ -115,7 +115,7 @@ final class ContextHUDController {
         NotificationCenter.default.addObserver(
             forName: .kanataConfigChanged,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
@@ -131,7 +131,7 @@ final class ContextHUDController {
         NotificationCenter.default.addObserver(
             forName: .ruleCollectionsChanged,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }

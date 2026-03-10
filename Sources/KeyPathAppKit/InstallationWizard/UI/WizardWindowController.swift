@@ -105,7 +105,7 @@ final class WizardWindowController {
         sizeObserver = NotificationCenter.default.addObserver(
             forName: .wizardContentSizeChanged,
             object: nil,
-            queue: .main
+            queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.scheduleResizeDebouncedUpdate()

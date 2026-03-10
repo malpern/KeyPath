@@ -51,7 +51,7 @@ enum BlessDiagnostics {
         var helperReq = ""
         var notes: [String] = []
 
-        let helperExists = FileManager.default.fileExists(atPath: helperPath)
+        let helperExists = Foundation.FileManager().fileExists(atPath: helperPath)
         if helperExists {
             let cs = runCmd("/usr/bin/codesign", ["-d", "-r-", helperPath])
             helperReq =
@@ -62,7 +62,7 @@ enum BlessDiagnostics {
             notes.append("Embedded helper not found at \(helperPath)")
         }
 
-        let plistExists = FileManager.default.fileExists(atPath: plistPath)
+        let plistExists = Foundation.FileManager().fileExists(atPath: plistPath)
 
         var statusText = "unknown"
         if #available(macOS 13, *) {

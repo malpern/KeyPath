@@ -49,7 +49,7 @@ extension RuntimeCoordinator {
             }
 
         case .restartService:
-            success = await restartServiceWithFallback(
+            success = await restartKanata(
                 reason: "AutoFix diagnostic: \(diagnostic.title)"
             )
         }

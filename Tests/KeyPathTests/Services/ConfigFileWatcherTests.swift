@@ -4,7 +4,7 @@
 @MainActor
 final class ConfigFileWatcherTests: XCTestCase {
     func testDebouncePreventsMultipleCallbacks() async throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let filePath = tempDir.appendingPathComponent("config.kbd").path
         FileManager.default.createFile(atPath: filePath, contents: Data())

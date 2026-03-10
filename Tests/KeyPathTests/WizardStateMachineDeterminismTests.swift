@@ -63,7 +63,6 @@ final class WizardStateMachineDeterminismTests: XCTestCase {
             karabinerDaemonRunning: false,
             vhidDeviceInstalled: false,
             vhidDeviceHealthy: false,
-            launchDaemonServicesHealthy: false,
             vhidServicesHealthy: false,
             vhidVersionMismatch: false
         )
@@ -76,7 +75,6 @@ final class WizardStateMachineDeterminismTests: XCTestCase {
             karabinerDaemonRunning: true,
             vhidDeviceInstalled: true,
             vhidDeviceHealthy: true,
-            launchDaemonServicesHealthy: true,
             vhidServicesHealthy: true,
             vhidVersionMismatch: false
         )

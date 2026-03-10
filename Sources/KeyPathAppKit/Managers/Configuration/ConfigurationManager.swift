@@ -103,7 +103,7 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging { // @pr
     }
 
     func validateConfigFile() async -> (isValid: Bool, errors: [String]) {
-        guard FileManager.default.fileExists(atPath: configPath) else {
+        guard Foundation.FileManager().fileExists(atPath: configPath) else {
             return (false, ["Config file does not exist at: \(configPath)"])
         }
 
@@ -140,7 +140,7 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging { // @pr
 
         // Ensure config directory exists
         let configDirectoryURL = URL(fileURLWithPath: configDirectory)
-        try FileManager.default.createDirectory(
+        try Foundation.FileManager().createDirectory(
             at: configDirectoryURL, withIntermediateDirectories: true
         )
 
@@ -158,13 +158,13 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging { // @pr
         AppLogger.shared.log("📡 [ConfigManager] Saving validated config (TCP-only mode)")
 
         let configDir = URL(fileURLWithPath: configDirectory)
-        try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+        try Foundation.FileManager().createDirectory(at: configDir, withIntermediateDirectories: true)
         AppLogger.shared.log("🔍 [ConfigManager] Config directory created/verified: \(configDirectory)")
 
         let configURL = URL(fileURLWithPath: configPath)
 
         // Check if file exists before writing
-        let fileExists = FileManager.default.fileExists(atPath: configPath)
+        let fileExists = Foundation.FileManager().fileExists(atPath: configPath)
         AppLogger.shared.log("🔍 [ConfigManager] Config file exists before write: \(fileExists)")
 
         // Write the config
@@ -172,9 +172,9 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging { // @pr
         AppLogger.shared.log("✅ [ConfigManager] Config written to file successfully")
 
         // Get modification time after write
-        let afterAttributes = try FileManager.default.attributesOfItem(atPath: configPath)
-        let afterModTime = afterAttributes[.modificationDate] as? Date
-        let fileSize = afterAttributes[.size] as? Int ?? 0
+        let afterAttributes = try Foundation.FileManager().attributesOfItem(atPath: configPath)
+        let afterModTime = afterAttributes[Foundation.FileAttributeKey.modificationDate] as? Date
+        let fileSize = afterAttributes[Foundation.FileAttributeKey.size] as? Int ?? 0
         AppLogger.shared.log(
             "🔍 [ConfigManager] Modification time after write: \(afterModTime?.description ?? "unknown")"
         )
@@ -235,7 +235,7 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging { // @pr
     func ensureValidStartupConfig() async -> (mappings: [KeyMapping], validationError: ConfigValidationError?) {
         AppLogger.shared.log("📂 [ConfigManager] Ensuring valid startup configuration")
 
-        guard FileManager.default.fileExists(atPath: configPath) else {
+        guard Foundation.FileManager().fileExists(atPath: configPath) else {
             AppLogger.shared.log("ℹ️ [ConfigManager] No existing config file found at: \(configPath)")
             AppLogger.shared.log("ℹ️ [ConfigManager] Starting with empty mappings")
             return ([], nil)
@@ -352,7 +352,7 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging { // @pr
             return false
         }
 
-        let exists = FileManager.default.fileExists(atPath: configPath)
+        let exists = Foundation.FileManager().fileExists(atPath: configPath)
         if exists {
             AppLogger.shared.log("✅ [ConfigManager] Verified user config exists at \(configPath)")
         } else {

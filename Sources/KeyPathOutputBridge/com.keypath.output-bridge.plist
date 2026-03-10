@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.keypath.output-bridge</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Applications/KeyPath.app/Contents/Library/HelperTools/KeyPathOutputBridge</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/var/log/com.keypath.output-bridge.stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/com.keypath.output-bridge.stderr.log</string>
+    <key>UserName</key>
+    <string>root</string>
+    <key>GroupName</key>
+    <string>wheel</string>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <key>AssociatedBundleIdentifiers</key>
+    <array>
+        <string>com.keypath.KeyPath</string>
+    </array>
+</dict>
+</plist>

@@ -194,7 +194,7 @@ enum QMKLayoutParser {
         idOverride: String? = nil,
         nameOverride: String? = nil
     ) -> PhysicalLayout? {
-        guard let url = Bundle.module.url(forResource: filename, withExtension: "json") else {
+        guard let url = KeyPathAppKitResources.url(forResource: filename, withExtension: "json") else {
             print("QMKLayoutParser: Could not find \(filename).json in bundle")
             return nil
         }

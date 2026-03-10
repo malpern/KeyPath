@@ -7,7 +7,6 @@ import KeyPathWizardCore
 /// Individual Karabiner components that can be checked independently
 enum KarabinerComponent {
     case driver // Karabiner VirtualHID driver and related components
-    case backgroundServices // LaunchDaemon services for automatic startup
 }
 
 // MARK: - Karabiner Components Status Evaluator
@@ -31,7 +30,8 @@ enum KarabinerComponentsStatusEvaluator {
 
         // Use WizardStateInterpreter to check for comprehensive Karabiner-related component issues
         let hasKarabinerIssues = issues.contains { issue in
-            // Check for installation issues related to Karabiner/VHID/background services
+            // Check for installation issues related to Karabiner/VHID only.
+            // Legacy recovery services are no longer part of normal Karabiner readiness.
             if issue.category == .installation {
                 switch issue.identifier {
                 case .component(.karabinerDriver),
@@ -40,16 +40,13 @@ enum KarabinerComponentsStatusEvaluator {
                      .component(.vhidDeviceActivation),
                      .component(.vhidDeviceRunning),
                      .component(.vhidDaemonMisconfigured),
-                     .component(.vhidDriverVersionMismatch),
-                     .component(.launchDaemonServices),
-                     .component(.launchDaemonServicesUnhealthy):
+                     .component(.vhidDriverVersionMismatch):
                     return true
                 default:
                     return false
                 }
             }
-            // Background services category maps here; Kanata service (.daemon) is handled separately.
-            return issue.category == .backgroundServices
+            return false
         }
 
         return hasKarabinerIssues ? .failed : .completed
@@ -84,26 +81,6 @@ enum KarabinerComponentsStatusEvaluator {
                 return false
             }
             return hasDriverIssues ? .failed : .completed
-
-        case .backgroundServices:
-            // Check for background services issues
-            let hasBackgroundServiceIssues = issues.contains { issue in
-                if issue.category == .installation {
-                    switch issue.identifier {
-                    case .component(.launchDaemonServices),
-                         .component(.launchDaemonServicesUnhealthy):
-                        return true
-                    default:
-                        return false
-                    }
-                }
-                // Daemon issues also bubble into this section for user clarity
-                if case .component(.karabinerDaemon) = issue.identifier, issue.category == .daemon {
-                    return true
-                }
-                return issue.category == .backgroundServices
-            }
-            return hasBackgroundServiceIssues ? .failed : .completed
         }
     }
 
@@ -112,7 +89,7 @@ enum KarabinerComponentsStatusEvaluator {
     /// - Returns: Array of issues related to Karabiner components
     static func getKarabinerRelatedIssues(from issues: [WizardIssue]) -> [WizardIssue] {
         issues.filter { issue in
-            // Include installation issues related to Karabiner
+            // Include installation issues related to Karabiner/VHID only.
             if issue.category == .installation {
                 switch issue.identifier {
                 case .component(.karabinerDriver),
@@ -120,8 +97,6 @@ enum KarabinerComponentsStatusEvaluator {
                      .component(.vhidDeviceManager),
                      .component(.vhidDeviceActivation),
                      .component(.vhidDeviceRunning),
-                     .component(.launchDaemonServices),
-                     .component(.launchDaemonServicesUnhealthy),
                      .component(.vhidDaemonMisconfigured),
                      .component(.vhidDriverVersionMismatch):
                     return true
@@ -129,8 +104,7 @@ enum KarabinerComponentsStatusEvaluator {
                     return false
                 }
             }
-            // Background services issues only (Kanata service is separate)
-            return issue.category == .backgroundServices
+            return false
         }
     }
 

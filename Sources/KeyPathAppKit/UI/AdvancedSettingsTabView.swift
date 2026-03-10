@@ -307,7 +307,7 @@ struct AdvancedSettingsTabView: View {
         }
 
         let keepPath = "/Applications/KeyPath.app"
-        let manager = FileManager.default
+        let manager = Foundation.FileManager()
         var removed = 0
         for path in duplicateAppCopies where path != keepPath {
             let url = URL(fileURLWithPath: path)
@@ -336,7 +336,7 @@ struct AdvancedSettingsTabView: View {
 
     private func performResetEverything() async {
         let report = await InstallerEngine()
-            .runSingleAction(.restartUnhealthyServices, using: PrivilegeBroker())
+            .runSingleAction(.terminateConflictingProcesses, using: PrivilegeBroker())
         await MainActor.run {
             if report.success {
                 settingsToastManager.showInfo("Reset everything complete")

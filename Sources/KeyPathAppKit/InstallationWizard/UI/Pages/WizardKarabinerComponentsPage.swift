@@ -70,26 +70,6 @@ struct WizardKarabinerComponentsPage: View {
                                 }
                             }
 
-                            // Show Background Services only if showAllItems OR if it has issues
-                            if showAllItems || componentStatus(for: .backgroundServices) != .completed {
-                                HStack(spacing: 12) {
-                                    Image(
-                                        systemName: componentStatus(for: .backgroundServices) == .completed
-                                            ? "checkmark.circle.fill" : "xmark.circle.fill"
-                                    )
-                                    .foregroundColor(
-                                        componentStatus(for: .backgroundServices) == .completed ? .green : .red
-                                    )
-                                    HStack(spacing: 0) {
-                                        Text("Background Services")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Text(" - Karabiner services in Login Items for startup")
-                                            .font(.headline)
-                                            .fontWeight(.regular)
-                                    }
-                                }
-                            }
                         }
                         .frame(maxWidth: .infinity)
                         .padding(WizardDesign.Spacing.cardPadding)
@@ -214,9 +194,7 @@ struct WizardKarabinerComponentsPage: View {
         )
     }
 
-    private var needsManualAction: Bool {
-        componentStatus(for: .backgroundServices) == .failed
-    }
+    private var needsManualAction: Bool { false }
 
     private func navigateToNextStep() {
         if issues.isEmpty {
@@ -471,14 +449,10 @@ struct WizardKarabinerComponentsPage: View {
         }
 
         let needsDaemonRepair = vhidIssues.contains(where: { $0.identifier == .component(.vhidDeviceRunning) }) ||
-            issues.contains(where: { $0.identifier == .component(.karabinerDaemon) }) ||
-            issues.contains(where: { $0.identifier == .component(.launchDaemonServicesUnhealthy) })
+            issues.contains(where: { $0.identifier == .component(.karabinerDaemon) })
         if needsDaemonRepair {
             AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: repairVHIDDaemonServices (daemon not running)")
             success = await performAutoFix(.repairVHIDDaemonServices) || success
-        } else if vhidIssues.contains(where: { $0.identifier == .component(.launchDaemonServices) }) {
-            AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: installLaunchDaemonServices")
-            success = await performAutoFix(.installLaunchDaemonServices) || success
         }
 
         // Always run a verified restart last to ensure single-owner state
@@ -609,8 +583,8 @@ struct WizardKarabinerComponentsPage: View {
 
     /// Attempts automatic repair of background services
     private func performAutomaticServiceRepair() async -> Bool {
-        AppLogger.shared.log("🔧 [Service Repair] Installing/repairing LaunchDaemon services")
-        let success = await performAutoFix(.installLaunchDaemonServices)
+        AppLogger.shared.log("🔧 [Service Repair] Installing required runtime services")
+        let success = await performAutoFix(.installRequiredRuntimeServices)
 
         if success {
             AppLogger.shared.log("✅ [Service Repair] Service repair succeeded")
@@ -658,10 +632,10 @@ struct WizardKarabinerComponentsPage: View {
         AppLogger.shared.log("🔄 [Karabiner Fix] State refresh \(refreshCompleted ? "completed" : "timed out") after \(refreshElapsed)s")
 
         // Check if service is already running - if so, we're done.
-        let serviceState = await kanataManager.currentServiceState()
-        if serviceState.isRunning {
+        let runtimeStatus = await kanataManager.currentRuntimeStatus()
+        if runtimeStatus.isRunning {
             let totalElapsed = String(format: "%.2f", Date().timeIntervalSince(t0))
-            AppLogger.shared.log("🔄 [Karabiner Fix] refreshAndWait() completed - service already running (elapsed=\(totalElapsed)s)")
+            AppLogger.shared.log("🔄 [Karabiner Fix] refreshAndWait() completed - runtime already running (elapsed=\(totalElapsed)s)")
             return
         }
 

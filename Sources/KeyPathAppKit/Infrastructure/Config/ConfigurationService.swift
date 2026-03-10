@@ -132,8 +132,8 @@ public final class ConfigurationService: FileConfigurationProviding {
         }
 
         // Get file modification date
-        let attributes = try? FileManager.default.attributesOfItem(atPath: configurationPath)
-        let lastModified = (attributes?[.modificationDate] as? Date) ?? Date()
+        let attributes = try? Foundation.FileManager().attributesOfItem(atPath: configurationPath)
+        let lastModified = (attributes?[FileAttributeKey.modificationDate] as? Date) ?? Date()
 
         // Extract key mappings from content (simplified - could be enhanced)
         let keyMappings = extractKeyMappingsFromContent(content)
@@ -347,7 +347,7 @@ public final class ConfigurationService: FileConfigurationProviding {
         // Create backup directory if it doesn't exist
         let backupDir = "\(configDirectory)/backups"
         let backupDirURL = URL(fileURLWithPath: backupDir)
-        try FileManager.default.createDirectory(at: backupDirURL, withIntermediateDirectories: true)
+        try Foundation.FileManager().createDirectory(at: backupDirURL, withIntermediateDirectories: true)
 
         // Create timestamped backup filename
         let formatter = DateFormatter()
@@ -447,7 +447,7 @@ public final class ConfigurationService: FileConfigurationProviding {
         // Create backup directory if it doesn't exist
         let backupDir = "\(configDirectory)/backups"
         let backupDirURL = URL(fileURLWithPath: backupDir)
-        try FileManager.default.createDirectory(at: backupDirURL, withIntermediateDirectories: true)
+        try Foundation.FileManager().createDirectory(at: backupDirURL, withIntermediateDirectories: true)
 
         // Create timestamped backup filename
         let formatter = DateFormatter()
@@ -525,7 +525,7 @@ extension ConfigurationService {
             return current.chordGroups
         }
 
-        guard FileManager.default.fileExists(atPath: configurationPath),
+        guard Foundation.FileManager().fileExists(atPath: configurationPath),
               let content = try? String(contentsOfFile: configurationPath, encoding: .utf8)
         else {
             return []
@@ -538,7 +538,7 @@ extension ConfigurationService {
         let sequences: [KanataDefseqParser.ParsedSequence]
         if let current = withLockedCurrentConfig(), !current.sequences.isEmpty {
             sequences = current.sequences
-        } else if FileManager.default.fileExists(atPath: configurationPath),
+        } else if Foundation.FileManager().fileExists(atPath: configurationPath),
                   let content = try? String(contentsOfFile: configurationPath, encoding: .utf8)
         {
             sequences = KanataDefseqParser.parseSequences(from: content)
@@ -562,7 +562,7 @@ extension ConfigurationService {
     }
 
     func readFileAsync(path: String) async throws -> String {
-        try await withCheckedThrowingContinuation { cont in
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<String, Error>) in
             ioQueue.async {
                 do {
                     let content = try String(contentsOfFile: path, encoding: .utf8)
@@ -591,7 +591,7 @@ extension ConfigurationService {
             }
         }
 
-        try await withCheckedThrowingContinuation { cont in
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
                 do {
                     try string.write(toFile: path, atomically: true, encoding: .utf8)
@@ -604,7 +604,7 @@ extension ConfigurationService {
     }
 
     func writeFileURLAsync(string: String, to url: URL) async throws {
-        try await withCheckedThrowingContinuation { cont in
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
                 do {
                     try string.write(to: url, atomically: true, encoding: .utf8)
@@ -617,13 +617,13 @@ extension ConfigurationService {
     }
 
     func createDirectoryAsync(path: String) async throws {
-        try await withCheckedThrowingContinuation { cont in
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
                 do {
-                    try FileManager.default.createDirectory(
+                    try Foundation.FileManager().createDirectory(
                         atPath: path,
                         withIntermediateDirectories: true,
-                        attributes: [.posixPermissions: 0o755]
+                        attributes: [FileAttributeKey.posixPermissions: 0o755]
                     )
                     cont.resume()
                 } catch {
@@ -636,7 +636,7 @@ extension ConfigurationService {
     func fileExistsAsync(path: String) async -> Bool {
         await withCheckedContinuation { cont in
             ioQueue.async {
-                cont.resume(returning: FileManager.default.fileExists(atPath: path))
+                cont.resume(returning: Foundation.FileManager().fileExists(atPath: path))
             }
         }
     }

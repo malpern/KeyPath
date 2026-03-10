@@ -31,9 +31,18 @@ final class ServiceHealthChecker: @unchecked Sendable {
         let managementState: KanataDaemonManager.ServiceManagementState
         let isRunning: Bool
         let isResponding: Bool
+        let inputCaptureReady: Bool
+        let inputCaptureIssue: String?
         let launchctlExitCode: Int32?
         let staleEnabledRegistration: Bool
         let recentlyRestarted: Bool
+    }
+
+    struct KanataInputCaptureStatus: Sendable, Equatable {
+        let isReady: Bool
+        let issue: String?
+
+        static let ready = KanataInputCaptureStatus(isReady: true, issue: nil)
     }
 
     enum KanataHealthDecision: Equatable {
@@ -56,6 +65,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
             (() async -> KanataServiceRuntimeSnapshot)?
         nonisolated(unsafe) static var recentlyRestartedOverride:
             ((String, TimeInterval?) -> Bool)?
+        nonisolated(unsafe) static var inputCaptureStatusOverride:
+            (() async -> KanataInputCaptureStatus)?
 #endif
 
     // MARK: - Service Identifiers
@@ -83,7 +94,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
         if serviceID == Self.kanataServiceID {
             if TestEnvironment.shouldSkipAdminOperations {
                 let plistPath = getPlistPath(for: serviceID)
-                let exists = FileManager.default.fileExists(atPath: plistPath)
+                let exists = Foundation.FileManager().fileExists(atPath: plistPath)
                 AppLogger.shared.log(
                     "🔍 [ServiceHealthChecker] (test) Kanata service loaded via file existence: \(exists)"
                 )
@@ -139,7 +150,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
         // For non-Kanata services or Kanata in legacy mode, use launchctl print
         if TestEnvironment.shouldSkipAdminOperations {
             let plistPath = getPlistPath(for: serviceID)
-            let exists = FileManager.default.fileExists(atPath: plistPath)
+            let exists = Foundation.FileManager().fileExists(atPath: plistPath)
             AppLogger.shared.log(
                 "🔍 [ServiceHealthChecker] (test) Service \(serviceID) considered loaded: \(exists)"
             )
@@ -192,7 +203,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
 
         if TestEnvironment.shouldSkipAdminOperations {
             let plistPath = getPlistPath(for: serviceID)
-            let exists = FileManager.default.fileExists(atPath: plistPath)
+            let exists = Foundation.FileManager().fileExists(atPath: plistPath)
             AppLogger.shared.log(
                 "🔍 [ServiceHealthChecker] (test) Service \(serviceID) considered healthy: \(exists)"
             )
@@ -346,8 +357,10 @@ final class ServiceHealthChecker: @unchecked Sendable {
             return KanataHealthSnapshot(isRunning: false, isResponding: false)
         }
 
+        let managementState = await KanataDaemonManager.shared.refreshManagementState()
+
         // 1) launchctl check for PID using SubprocessRunner
-        let runningState = await evaluateKanataLaunchctlRunningState()
+        let runningState = await evaluateKanataLaunchctlRunningState(managementState: managementState)
         let isRunning = runningState.isRunning
 
         // 2) TCP probe (Hello/Status) - runs off MainActor via Task.detached for blocking socket ops
@@ -406,7 +419,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
         }
 #endif
 
-        let runningState = await evaluateKanataLaunchctlRunningState()
+        let runningState = await evaluateKanataLaunchctlRunningState(managementState: managementState)
+        let inputCaptureStatus = await checkKanataInputCaptureStatus()
         let tcpOK = await Task.detached { [self] in
             if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
                let overridePort = Int(portEnv)
@@ -420,6 +434,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
             managementState: managementState,
             isRunning: runningState.isRunning,
             isResponding: tcpOK,
+            inputCaptureReady: inputCaptureStatus.isReady,
+            inputCaptureIssue: inputCaptureStatus.issue,
             launchctlExitCode: runningState.exitCode,
             staleEnabledRegistration: staleEnabledRegistration,
             recentlyRestarted: Self.wasRecentlyRestarted(
@@ -429,35 +445,42 @@ final class ServiceHealthChecker: @unchecked Sendable {
         )
     }
 
-    private nonisolated func evaluateKanataLaunchctlRunningState() async
+    private nonisolated func evaluateKanataLaunchctlRunningState(
+        managementState: KanataDaemonManager.ServiceManagementState
+    ) async
         -> (isRunning: Bool, exitCode: Int32?)
     {
-        do {
-            let result = try await SubprocessRunner.shared.launchctl(
-                "print", ["system/\(Self.kanataServiceID)"]
-            )
-            if result.exitCode != 0 {
-                return (false, result.exitCode)
-            }
-
-            for line in result.stdout.components(separatedBy: "\n") where line.contains("pid =") {
-                let components = line.components(separatedBy: "=")
-                if components.count == 2,
-                   Int(components[1].trimmingCharacters(in: .whitespaces)) != nil
-                {
-                    return (true, result.exitCode)
+        var lastExitCode: Int32?
+        for target in KanataDaemonManager.preferredLaunchctlTargets(for: managementState) {
+            do {
+                let result = try await SubprocessRunner.shared.launchctl("print", [target])
+                lastExitCode = result.exitCode
+                if result.exitCode != 0 {
+                    continue
                 }
+
+                for line in result.stdout.components(separatedBy: "\n") where line.contains("pid =") {
+                    let components = line.components(separatedBy: "=")
+                    if components.count == 2,
+                       Int(components[1].trimmingCharacters(in: .whitespaces)) != nil
+                    {
+                        return (true, result.exitCode)
+                    }
+                }
+            } catch {
+                AppLogger.shared.warn("⚠️ [ServiceHealthChecker] launchctl check failed for \(target): \(error)")
             }
-            return (false, result.exitCode)
-        } catch {
-            AppLogger.shared.warn("⚠️ [ServiceHealthChecker] launchctl check failed: \(error)")
-            return (false, nil)
         }
+        return (false, lastExitCode)
     }
 
     nonisolated static func decideKanataHealth(
         for runtimeSnapshot: KanataServiceRuntimeSnapshot
     ) -> KanataHealthDecision {
+        if !runtimeSnapshot.inputCaptureReady {
+            return .unhealthy(reason: runtimeSnapshot.inputCaptureIssue ?? "input-capture-not-ready")
+        }
+
         if runtimeSnapshot.isRunning, runtimeSnapshot.isResponding {
             return .healthy
         }
@@ -495,6 +518,40 @@ final class ServiceHealthChecker: @unchecked Sendable {
         return ServiceBootstrapper.wasRecentlyRestarted(serviceID, within: window)
     }
 
+    nonisolated func checkKanataInputCaptureStatus() async -> KanataInputCaptureStatus {
+#if DEBUG
+        if let override = Self.inputCaptureStatusOverride {
+            return await override()
+        }
+#endif
+        // There is no stable Apple API here for "the live runtime can capture the built-in
+        // keyboard right now," so we use Kanata's known stderr denial line as a runtime fallback
+        // signal and fail closed when macOS is actively denying capture.
+
+        guard let logChunk = readRecentKanataStderrLog(), !logChunk.isEmpty else {
+            return .ready
+        }
+
+        for rawLine in logChunk.components(separatedBy: .newlines).reversed() {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty else { continue }
+            let lower = line.lowercased()
+            guard lower.contains("iohiddeviceopen error"),
+                  lower.contains("not permitted"),
+                  lower.contains("apple internal keyboard / trackpad")
+            else {
+                continue
+            }
+
+            return KanataInputCaptureStatus(
+                isReady: false,
+                issue: "kanata-cannot-open-built-in-keyboard"
+            )
+        }
+
+        return .ready
+    }
+
     // MARK: - Configuration Checks
 
     /// Check if Kanata service plist file exists (but may not be loaded).
@@ -502,7 +559,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
     /// - Returns: `true` if the plist file exists
     func isKanataPlistInstalled() -> Bool {
         let plistPath = getKanataPlistPath()
-        return FileManager.default.fileExists(atPath: plistPath)
+        return Foundation.FileManager().fileExists(atPath: plistPath)
     }
 
     /// Verifies that the installed VHID LaunchDaemon plist points to the DriverKit daemon path.
@@ -544,6 +601,23 @@ final class ServiceHealthChecker: @unchecked Sendable {
     /// Get the Kanata service plist path
     private func getKanataPlistPath() -> String {
         getPlistPath(for: Self.kanataServiceID)
+    }
+
+    private nonisolated func readRecentKanataStderrLog(maxBytes: Int = 64 * 1024) -> String? {
+        let stderrPath = ProcessInfo.processInfo.environment["KEYPATH_KANATA_STDERR_PATH"]
+            ?? KeyPathConstants.Logs.kanataStderr
+        guard let fileHandle = FileHandle(forReadingAtPath: stderrPath) else {
+            return nil
+        }
+        defer { try? fileHandle.close() }
+
+        let fileSize: UInt64 = (try? fileHandle.seekToEnd()) ?? 0
+        let offset = fileSize > UInt64(maxBytes) ? fileSize - UInt64(maxBytes) : 0
+        try? fileHandle.seek(toOffset: offset)
+        guard let data = try? fileHandle.readToEnd(), !data.isEmpty else {
+            return nil
+        }
+        return String(decoding: data, as: UTF8.self)
     }
 
     /// Get the launchd daemons directory path

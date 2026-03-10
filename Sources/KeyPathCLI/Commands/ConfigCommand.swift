@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-extension KeyPathTool {
+extension KeyPathCLI {
     struct Config: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             abstract: "Inspect and manage Kanata configuration",

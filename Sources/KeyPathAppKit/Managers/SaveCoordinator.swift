@@ -205,7 +205,7 @@ final class SaveCoordinator {
             let configDir = configurationService.configDirectory
 
             let configDirURL = URL(fileURLWithPath: configDir)
-            try FileManager.default.createDirectory(
+            try Foundation.FileManager().createDirectory(
                 at: configDirURL, withIntermediateDirectories: true
             )
 
@@ -308,7 +308,7 @@ final class SaveCoordinator {
         let configPath = configurationService.configurationPath
         let configURL = URL(fileURLWithPath: configPath)
         let configDir = URL(fileURLWithPath: configurationService.configDirectory)
-        try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+        try Foundation.FileManager().createDirectory(at: configDir, withIntermediateDirectories: true)
         try safeConfig.write(to: configURL, atomically: true, encoding: .utf8)
         AppLogger.shared.warn("🛡️ [SaveCoordinator] Wrote minimal safe config to \(configPath)")
     }

@@ -53,6 +53,13 @@ struct SystemContextAdapter {
             return .missingPermissions(missing: missingPerms)
         }
 
+        if !context.services.kanataInputCaptureReady {
+            AppLogger.shared.log(
+                "📊 [SystemContextAdapter] Decision: MISSING PERMISSIONS (Kanata cannot open built-in keyboard)"
+            )
+            return .missingPermissions(missing: [.kanataInputMonitoring])
+        }
+
         // 4. Check if Kanata is running - components exist and permissions granted
         if context.services.kanataRunning {
             AppLogger.shared.log("📊 [SystemContextAdapter] Decision: ACTIVE (kanata running)")
@@ -122,12 +129,6 @@ struct SystemContextAdapter {
         if !context.components.vhidDeviceHealthy {
             missing.append(.vhidDeviceRunning)
         }
-        // Use vhidServicesHealthy for Karabiner-related missing components
-        // (Kanata service health is checked separately on the Kanata Components page)
-        if !context.components.vhidServicesHealthy {
-            missing.append(.launchDaemonServices)
-        }
-
         return missing
     }
 
@@ -165,9 +166,9 @@ struct SystemContextAdapter {
                     // This commonly occurs when KeyPath lacks Full Disk Access and cannot read TCC.db for Kanata.
                     return switch identifier {
                     case .permission(.kanataInputMonitoring):
-                        "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring."
+                        "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add the Kanata engine binary used by KeyPath at /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring."
                     case .permission(.kanataAccessibility):
-                        "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Accessibility."
+                        "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add the Kanata engine binary used by KeyPath at /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Accessibility."
                     default:
                         "Not verified (grant Full Disk Access to verify)."
                     }
@@ -209,19 +210,36 @@ struct SystemContextAdapter {
         appendPermissionIssue(
             context.permissions.kanata.inputMonitoring,
             identifier: .permission(.kanataInputMonitoring),
-            title: "Kanata Input Monitoring Permission",
-            deniedDescription: "Kanata needs Input Monitoring permission",
-            userAction: "Grant Input Monitoring permission to kanata in System Settings",
+            title: "Kanata Engine Input Monitoring Permission",
+            deniedDescription: "The Kanata engine used by KeyPath needs Input Monitoring permission",
+            userAction: "Grant Input Monitoring permission to the Kanata engine binary in System Settings",
             includeUnknown: true
         )
         appendPermissionIssue(
             context.permissions.kanata.accessibility,
             identifier: .permission(.kanataAccessibility),
-            title: "Kanata Accessibility Permission",
-            deniedDescription: "Kanata needs Accessibility permission",
-            userAction: "Grant Accessibility permission to kanata in System Settings",
+            title: "Kanata Engine Accessibility Permission",
+            deniedDescription: "The Kanata engine used by KeyPath needs Accessibility permission",
+            userAction: "Grant Accessibility permission to the Kanata engine binary in System Settings",
             includeUnknown: true
         )
+        if !context.services.kanataInputCaptureReady,
+           !issues.contains(where: { $0.identifier == .permission(.kanataInputMonitoring) })
+        {
+            issues.append(
+                WizardIssue(
+                    identifier: .permission(.kanataInputMonitoring),
+                    severity: .error,
+                    category: .permissions,
+                    title: "KeyPath Runtime Cannot Open Built-In Keyboard",
+                    description:
+                    "KeyPath Runtime is running but cannot open the built-in keyboard device, so remapping will not work on this laptop.",
+                    autoFixAction: nil,
+                    userAction:
+                    "Regrant Input Monitoring for the Kanata engine binary at /Library/KeyPath/bin/kanata and restart KeyPath"
+                )
+            )
+        }
 
         // Component issues
         if !context.components.kanataBinaryInstalled {
@@ -230,8 +248,8 @@ struct SystemContextAdapter {
                     identifier: .component(.kanataBinaryMissing),
                     severity: .error,
                     category: .installation,
-                    title: "Kanata Binary Missing",
-                    description: "Kanata binary is not installed",
+                    title: "Kanata Engine Missing",
+                    description: "The Kanata engine binary used by KeyPath is not installed",
                     autoFixAction: .installBundledKanata,
                     userAction: nil
                 )
@@ -290,17 +308,17 @@ struct SystemContextAdapter {
                 )
             )
         }
-        // Use vhidServicesHealthy for the issue shown on Karabiner Components page
-        // (Kanata service health is handled separately - see kanataService issue below)
+        // Use a VHID-specific issue for the Karabiner Components page.
+        // Legacy recovery services are reported separately and should not be the primary signal here.
         if !context.components.vhidServicesHealthy {
             issues.append(
                 WizardIssue(
-                    identifier: .component(.launchDaemonServices),
+                    identifier: .component(.vhidDeviceManager),
                     severity: .error,
                     category: .installation,
                     title: "VHID Services Unhealthy",
                     description: "Karabiner VirtualHID services (daemon and manager) are not healthy",
-                    autoFixAction: .installLaunchDaemonServices,
+                    autoFixAction: .installRequiredRuntimeServices,
                     userAction: nil
                 )
             )
@@ -337,34 +355,21 @@ struct SystemContextAdapter {
                 )
             )
         }
-        // Background services should only depend on Karabiner daemon + VHID, not Kanata runtime
-        if !context.services.backgroundServicesHealthy {
-            issues.append(
-                WizardIssue(
-                    identifier: .component(.launchDaemonServices),
-                    severity: .warning,
-                    category: .backgroundServices,
-                    title: "Services Unhealthy",
-                    description: "Some services are not healthy",
-                    autoFixAction: .restartUnhealthyServices,
-                    userAction: nil
-                )
-            )
-        }
-
         // Kanata service health issue - separate from VHID services (shown on Kanata Components page)
-        if !context.services.kanataRunning, context.components.vhidServicesHealthy {
+        if !context.services.kanataRunning, context.components.vhidServicesHealthy,
+           context.services.kanataInputCaptureReady
+        {
             // Only show if VHID is healthy but Kanata isn't running
             // (if VHID is unhealthy, that's the primary issue to fix first)
             issues.append(
                 WizardIssue(
-                    identifier: .component(.kanataService),
+                    identifier: .component(.keyPathRuntime),
                     severity: .error,
                     category: .daemon,
-                    title: "Kanata Service Not Running",
-                    description: "Kanata keyboard remapping service is not running",
-                    autoFixAction: .installLaunchDaemonServices,
-                    userAction: nil
+                    title: "KeyPath Runtime Not Running",
+                    description: "KeyPath keyboard remapping runtime is not running",
+                    autoFixAction: nil,
+                    userAction: "Start KeyPath Runtime from the wizard or app status controls"
                 )
             )
         }

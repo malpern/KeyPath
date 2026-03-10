@@ -509,7 +509,7 @@ private struct LauncherMappingEditor: View {
             // Sync state with security service
             isScriptExecutionEnabled = ScriptSecurityService.shared.isScriptExecutionEnabled
         }
-        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+        .onReceive(NotificationObserverManager.defaultCenter.publisher(for: UserDefaults.didChangeNotification)) { _ in
             // Update when settings change
             let newValue = ScriptSecurityService.shared.isScriptExecutionEnabled
             if isScriptExecutionEnabled != newValue {
@@ -572,7 +572,7 @@ private struct LauncherMappingEditor: View {
         let expandedPath = (folderPath as NSString).expandingTildeInPath
         var isDirectory: ObjCBool = false
 
-        if !FileManager.default.fileExists(atPath: expandedPath, isDirectory: &isDirectory) {
+        if !Foundation.FileManager().fileExists(atPath: expandedPath, isDirectory: &isDirectory) {
             return "Folder not found at this path"
         }
 
@@ -589,14 +589,14 @@ private struct LauncherMappingEditor: View {
 
         let expandedPath = (scriptPath as NSString).expandingTildeInPath
 
-        if !FileManager.default.fileExists(atPath: expandedPath) {
+        if !Foundation.FileManager().fileExists(atPath: expandedPath) {
             return "Script not found at this path"
         }
 
         // Check if it's a recognized script type or executable
         let securityService = ScriptSecurityService.shared
         let isScript = securityService.isRecognizedScript(expandedPath)
-        let isExecutable = FileManager.default.isExecutableFile(atPath: expandedPath)
+        let isExecutable = Foundation.FileManager().isExecutableFile(atPath: expandedPath)
 
         if !isScript, !isExecutable {
             return "File may not be executable"
@@ -630,7 +630,7 @@ private struct LauncherMappingEditor: View {
 
     private func openSettings() {
         // Open Settings window on General tab (where script execution toggle is)
-        NotificationCenter.default.post(name: .openSettingsGeneral, object: nil)
+        NotificationObserverManager.defaultCenter.post(name: Notification.Name.openSettingsGeneral, object: nil)
         // Also open the settings window if it's not already open
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }

@@ -220,6 +220,8 @@ public struct CLIFacade: Sendable {
             kanataRunning: context.services.kanataRunning,
             karabinerDaemonRunning: context.services.karabinerDaemonRunning,
             vhidHealthy: context.services.vhidHealthy,
+            activeRuntimePathTitle: context.services.activeRuntimePathTitle,
+            activeRuntimePathDetail: context.services.activeRuntimePathDetail,
             hasConflicts: context.conflicts.hasConflicts,
             timestamp: context.timestamp
         )
@@ -362,6 +364,8 @@ public struct CLIStatusResult: Codable, Sendable {
     public let kanataRunning: Bool
     public let karabinerDaemonRunning: Bool
     public let vhidHealthy: Bool
+    public let activeRuntimePathTitle: String?
+    public let activeRuntimePathDetail: String?
     public let hasConflicts: Bool
     public let timestamp: Date
 }

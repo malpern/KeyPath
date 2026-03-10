@@ -618,11 +618,11 @@ struct ExpandableCollectionRow: View {
                 .frame(width: iconSize, height: iconSize)
         } else if icon.hasPrefix("resource:") {
             let resourceName = String(icon.dropFirst(9))
-            // Try Bundle.module first (Swift Package resources), then Bundle.main
+            // Try the app kit resource bundle first, then Bundle.main.
             // Support both SVG and PNG formats
-            let resourceURL = Bundle.module.url(forResource: resourceName, withExtension: "svg")
+            let resourceURL = KeyPathAppKitResources.url(forResource: resourceName, withExtension: "svg")
                 ?? Bundle.main.url(forResource: resourceName, withExtension: "svg")
-                ?? Bundle.module.url(forResource: resourceName, withExtension: "png")
+                ?? KeyPathAppKitResources.url(forResource: resourceName, withExtension: "png")
                 ?? Bundle.main.url(forResource: resourceName, withExtension: "png")
             if let url = resourceURL, let image = NSImage(contentsOf: url) {
                 Image(nsImage: image)

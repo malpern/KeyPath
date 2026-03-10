@@ -90,6 +90,16 @@ public struct SystemSnapshot: Sendable {
                 )
             }
         }
+        if !health.kanataInputCaptureReady {
+            issues.append(
+                    .permissionMissing(
+                        app: "Kanata",
+                        permission: "Input Monitoring",
+                        action:
+                    "Regrant permission for /Library/KeyPath/bin/kanata and ensure it can open the built-in keyboard"
+                )
+            )
+        }
 
         // Conflict issues
         for conflict in conflicts.conflicts {
@@ -163,7 +173,6 @@ public struct ComponentStatus: Sendable {
     public let karabinerDaemonRunning: Bool
     public let vhidDeviceInstalled: Bool
     public let vhidDeviceHealthy: Bool
-    public let launchDaemonServicesHealthy: Bool
     /// VHID services health (daemon + manager) independent of Kanata service
     /// Use for Karabiner Components page which should only care about VHID, not Kanata
     public let vhidServicesHealthy: Bool
@@ -176,7 +185,6 @@ public struct ComponentStatus: Sendable {
         karabinerDaemonRunning: Bool,
         vhidDeviceInstalled: Bool,
         vhidDeviceHealthy: Bool,
-        launchDaemonServicesHealthy: Bool,
         vhidServicesHealthy: Bool,
         vhidVersionMismatch: Bool,
         kanataBinaryVersionMismatch: Bool = false
@@ -186,15 +194,15 @@ public struct ComponentStatus: Sendable {
         self.karabinerDaemonRunning = karabinerDaemonRunning
         self.vhidDeviceInstalled = vhidDeviceInstalled
         self.vhidDeviceHealthy = vhidDeviceHealthy
-        self.launchDaemonServicesHealthy = launchDaemonServicesHealthy
         self.vhidServicesHealthy = vhidServicesHealthy
         self.vhidVersionMismatch = vhidVersionMismatch
         self.kanataBinaryVersionMismatch = kanataBinaryVersionMismatch
     }
 
+    /// Required components for the normal split-runtime architecture.
     public var hasAllRequired: Bool {
         kanataBinaryInstalled && karabinerDriverInstalled && karabinerDaemonRunning && vhidDeviceHealthy
-            && launchDaemonServicesHealthy && !vhidVersionMismatch && !kanataBinaryVersionMismatch
+            && vhidServicesHealthy && !vhidVersionMismatch && !kanataBinaryVersionMismatch
     }
 
     /// Convenience factory for empty/fallback state
@@ -205,7 +213,6 @@ public struct ComponentStatus: Sendable {
             karabinerDaemonRunning: false,
             vhidDeviceInstalled: false,
             vhidDeviceHealthy: false,
-            launchDaemonServicesHealthy: false,
             vhidServicesHealthy: false,
             vhidVersionMismatch: false,
             kanataBinaryVersionMismatch: false
@@ -244,16 +251,32 @@ public struct HealthStatus: Sendable {
     public let kanataRunning: Bool
     public let karabinerDaemonRunning: Bool
     public let vhidHealthy: Bool
+    public let kanataInputCaptureReady: Bool
+    public let kanataInputCaptureIssue: String?
+    public let activeRuntimePathTitle: String?
+    public let activeRuntimePathDetail: String?
 
-    public init(kanataRunning: Bool, karabinerDaemonRunning: Bool, vhidHealthy: Bool) {
+    public init(
+        kanataRunning: Bool,
+        karabinerDaemonRunning: Bool,
+        vhidHealthy: Bool,
+        kanataInputCaptureReady: Bool = true,
+        kanataInputCaptureIssue: String? = nil,
+        activeRuntimePathTitle: String? = nil,
+        activeRuntimePathDetail: String? = nil
+    ) {
         self.kanataRunning = kanataRunning
         self.karabinerDaemonRunning = karabinerDaemonRunning
         self.vhidHealthy = vhidHealthy
+        self.kanataInputCaptureReady = kanataInputCaptureReady
+        self.kanataInputCaptureIssue = kanataInputCaptureIssue
+        self.activeRuntimePathTitle = activeRuntimePathTitle
+        self.activeRuntimePathDetail = activeRuntimePathDetail
     }
 
     /// Overall health (includes Kanata runtime)
     public var isHealthy: Bool {
-        kanataRunning && karabinerDaemonRunning && vhidHealthy
+        kanataRunning && karabinerDaemonRunning && vhidHealthy && kanataInputCaptureReady
     }
 
     /// Health of background services only (Karabiner daemon + VHID driver)

@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-extension KeyPathTool {
+extension KeyPathCLI {
     struct Remap: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             abstract: "Create or modify key remappings"

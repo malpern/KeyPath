@@ -18,6 +18,7 @@ APP_BUNDLE="/Applications/${APP_NAME}.app"
 MACOS_DIR="$APP_BUNDLE/Contents/MacOS"
 RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
 ENTITLEMENTS="$PROJECT_DIR/KeyPath.entitlements"
+WAS_RUNNING=0
 
 # Local module cache to avoid invalidations and sandboxed cache paths.
 MODULE_CACHE="$PROJECT_DIR/.build/ModuleCache.noindex"
@@ -115,12 +116,32 @@ if [[ -f "$SWIFTPM_LOCK" ]] && lsof "$SWIFTPM_LOCK" 2>/dev/null | grep -q swift;
     exit 0
 fi
 
+# Stop the currently running app before mutating the bundle on disk.
+#
+# Replacing binaries and re-signing a live .app can invalidate pages that the old
+# process still has mapped, which shows up as a crash report with:
+#   SIGKILL (Code Signature Invalid)
+#   namespace CODESIGNING / Invalid Page
+#
+# We intentionally stop the app up front, then rebuild/copy/sign, then relaunch.
+if pgrep -x "$APP_NAME" > /dev/null; then
+    WAS_RUNNING=1
+    echo "🛑 Stopping running $APP_NAME before deploy..."
+    pkill -x "$APP_NAME" 2>/dev/null || true
+    for _ in {1..120}; do
+        if ! pgrep -x "$APP_NAME" >/dev/null; then
+            break
+        fi
+        sleep 0.05
+    done
+fi
+
 # Build debug (fast - incremental)
 echo "🔨 Building..."
 BUILD_LOG=$(mktemp -t keypath-build.XXXXXX)
 # NOTE: `swift build --show-bin-path` does not reliably trigger a rebuild.
 # Always build first, then query the bin dir.
-if ! swift build --product KeyPath --product KeyPathInsights "${MODULE_CACHE_FLAGS[@]}" 2> "$BUILD_LOG"; then
+if ! swift build --product KeyPath --product KeyPathKanataLauncher --product KeyPathOutputBridge --product KeyPathInsights "${MODULE_CACHE_FLAGS[@]}" 2> "$BUILD_LOG"; then
     BUILD_END_MS=$(get_time_ms)
     DURATION=$((BUILD_END_MS - BUILD_START_MS))
     echo "❌ Build failed"
@@ -146,6 +167,61 @@ fi
 # Copy binary to app bundle
 echo "📦 Deploying..."
 cp "$DEBUG_BIN" "$MACOS_DIR/$APP_NAME"
+
+# Do not hot-swap the embedded privileged helper by default.
+#
+# The helper is registered via SMAppService and launchd keeps launch constraints
+# tied to the previously blessed bundle contents. Replacing the helper binary
+# inside /Applications during quick iteration can leave the registered helper in
+# a spawn-failed state until it is explicitly re-registered. Opt in only when
+# you intend to follow with a helper reinstall/repair flow.
+if [[ "${KEYPATH_DEPLOY_HELPER:-0}" == "1" ]]; then
+    ./Scripts/build-helper.sh >/dev/null
+
+    HELPER_BIN="$PROJECT_DIR/.build/arm64-apple-macosx/release/KeyPathHelper"
+    HELPER_DST="$APP_BUNDLE/Contents/Library/HelperTools/KeyPathHelper"
+    if [[ -f "$HELPER_BIN" ]]; then
+        mkdir -p "$(dirname "$HELPER_DST")"
+        cp "$HELPER_BIN" "$HELPER_DST"
+        chmod 755 "$HELPER_DST"
+        echo "⚠️  Deployed embedded helper. Re-register the privileged helper before testing XPC."
+    fi
+fi
+
+# Sync the current bundled runtime host executable.
+KANATA_LAUNCHER_BIN="$BIN_DIR/KeyPathKanataLauncher"
+KANATA_LAUNCHER_DST="$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher"
+if [[ -f "$KANATA_LAUNCHER_BIN" ]]; then
+    mkdir -p "$(dirname "$KANATA_LAUNCHER_DST")"
+    cp "$KANATA_LAUNCHER_BIN" "$KANATA_LAUNCHER_DST"
+    chmod 755 "$KANATA_LAUNCHER_DST"
+fi
+
+OUTPUT_BRIDGE_BIN="$BIN_DIR/KeyPathOutputBridge"
+OUTPUT_BRIDGE_DST="$APP_BUNDLE/Contents/Library/HelperTools/KeyPathOutputBridge"
+if [[ -f "$OUTPUT_BRIDGE_BIN" ]]; then
+    mkdir -p "$(dirname "$OUTPUT_BRIDGE_DST")"
+    cp "$OUTPUT_BRIDGE_BIN" "$OUTPUT_BRIDGE_DST"
+    chmod 755 "$OUTPUT_BRIDGE_DST"
+fi
+
+OUTPUT_BRIDGE_PLIST_SRC="$PROJECT_DIR/Sources/KeyPathOutputBridge/com.keypath.output-bridge.plist"
+OUTPUT_BRIDGE_PLIST_DST="$APP_BUNDLE/Contents/Library/LaunchDaemons/com.keypath.output-bridge.plist"
+if [[ -f "$OUTPUT_BRIDGE_PLIST_SRC" ]]; then
+    mkdir -p "$(dirname "$OUTPUT_BRIDGE_PLIST_DST")"
+    cp "$OUTPUT_BRIDGE_PLIST_SRC" "$OUTPUT_BRIDGE_PLIST_DST"
+fi
+
+# Rebuild the Rust host bridge so the installed app does not silently reuse a stale
+# dylib without the passthru runtime feature set required by the split-runtime host.
+./Scripts/build-kanata-host-bridge.sh >/dev/null
+
+KANATA_HOST_BRIDGE_SRC="$PROJECT_DIR/build/kanata-host-bridge/libkeypath_kanata_host_bridge.dylib"
+KANATA_HOST_BRIDGE_DST="$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib"
+if [[ -f "$KANATA_HOST_BRIDGE_SRC" ]]; then
+    mkdir -p "$(dirname "$KANATA_HOST_BRIDGE_DST")"
+    cp "$KANATA_HOST_BRIDGE_SRC" "$KANATA_HOST_BRIDGE_DST"
+fi
 
 # Sync app resources for fast iteration (quick-deploy doesn't rebuild the bundle).
 # This ensures new images/scripts added under Sources/KeyPathApp/Resources show up
@@ -182,27 +258,31 @@ fi
 echo "✍️  Signing..."
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
 if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
+    if [[ -f "$APP_BUNDLE/Contents/Library/HelperTools/KeyPathHelper" ]]; then
+        codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/HelperTools/KeyPathHelper" 2>/dev/null || true
+    fi
+    if [[ -f "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher" ]]; then
+        codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher" 2>/dev/null || true
+    fi
+    if [[ -f "$APP_BUNDLE/Contents/Library/HelperTools/KeyPathOutputBridge" ]]; then
+        codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/HelperTools/KeyPathOutputBridge" 2>/dev/null || true
+    fi
+    if [[ -f "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" ]]; then
+        codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" 2>/dev/null || true
+    fi
     codesign --force --options=runtime --sign "$SIGNING_IDENTITY" --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE" 2>/dev/null
 else
     echo "⚠️  Developer ID identity not found; using ad-hoc signing (helper may reject this build)."
     codesign --force --sign - --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE" 2>/dev/null
 fi
 
-# Restart the app
-echo "🔄 Restarting..."
-if pgrep -x "$APP_NAME" > /dev/null; then
-    # Be strict about restarting; stale running processes are the #1 source of
-    # “my change didn’t apply” confusion during fast iteration.
-    pkill -x "$APP_NAME" 2>/dev/null || true
-    for _ in {1..60}; do
-        if ! pgrep -x "$APP_NAME" >/dev/null; then
-            break
-        fi
-        sleep 0.05
-    done
+# Restart the app only if it was running when deploy began.
+if [[ "$WAS_RUNNING" == "1" ]]; then
+    echo "🔄 Restarting..."
+    open "$APP_BUNDLE"
+else
+    echo "ℹ️  Deploy complete; app was not running, so it was not relaunched."
 fi
-
-open "$APP_BUNDLE"
 
 BUILD_END_MS=$(get_time_ms)
 DURATION=$((BUILD_END_MS - BUILD_START_MS))

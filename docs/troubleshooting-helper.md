@@ -40,6 +40,15 @@ Hypotheses To Investigate
 4) Timing/race at first launch. Ensure the app is fully launched (not translocated) from `/Applications` before attempting registration.
 5) Possible Sequoia regression (macOS 15). If reproducible with a clean system cache and a fresh build, capture the full diagnostics and consider filing a DTS.
 
+Development Caveat
+- `Scripts/quick-deploy.sh` should not hot-swap the embedded helper by default.
+- Replacing `/Applications/KeyPath.app/Contents/Library/HelperTools/KeyPathHelper` during fast iteration can leave the registered helper in a `spawn failed` state even when `codesign --verify --deep --strict /Applications/KeyPath.app` still passes.
+- Symptom:
+  - `launchctl print system/com.keypath.helper` shows `job state = spawn failed`
+  - `last exit code = 78: EX_CONFIG`
+  - helper XPC calls degrade from selector-specific timeouts to a fully unresponsive helper
+- If you intentionally deploy a helper change, follow with an explicit helper unregister/register or repair flow from the signed app before trusting XPC diagnostics.
+
 Next Steps
 - Reproduce with the updated app and collect the full error details in logs.
 - Attach the script output and `BlessDiagnostics` report (from the app’s Diagnostics view) to any DTS report.

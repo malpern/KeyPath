@@ -1,4 +1,5 @@
 import AppKit
+import Foundation
 import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
@@ -147,21 +148,21 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     private func setupOpenOverlayWithMapperObserver() {
-        NotificationCenter.default.addObserver(
-            forName: .openOverlayWithMapper,
+        Foundation.NotificationCenter.default.addObserver(
+            forName: Foundation.Notification.Name.openOverlayWithMapper,
             object: nil,
-            queue: .main
-        ) { [weak self] _ in
+            queue: NotificationObserverManager.mainOperationQueue
+        ) { [weak self] (_: Foundation.Notification) in
             Task { @MainActor in
                 self?.openWithMapperTab()
             }
         }
 
-        NotificationCenter.default.addObserver(
-            forName: .openOverlayWithMapperPreset,
+        Foundation.NotificationCenter.default.addObserver(
+            forName: Foundation.Notification.Name.openOverlayWithMapperPreset,
             object: nil,
-            queue: .main
-        ) { [weak self] notification in
+            queue: NotificationObserverManager.mainOperationQueue
+        ) { [weak self] (notification: Foundation.Notification) in
             // Extract sendable values before entering Task to avoid data race
             let inputKey = notification.userInfo?["inputKey"] as? String
             let outputKey = notification.userInfo?["outputKey"] as? String
@@ -195,11 +196,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     private func setupAccessibilityTestModeObserver() {
-        NotificationCenter.default.addObserver(
-            forName: .accessibilityTestModeChanged,
+        Foundation.NotificationCenter.default.addObserver(
+            forName: Foundation.Notification.Name.accessibilityTestModeChanged,
             object: nil,
-            queue: .main
-        ) { [weak self] _ in
+            queue: NotificationObserverManager.mainOperationQueue
+        ) { [weak self] (_: Foundation.Notification) in
             Task { @MainActor in
                 self?.recreateWindowForTestModeChange()
             }
@@ -256,9 +257,15 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         openInspector(animated: true)
 
         // Post notification for view to switch to mapper tab
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            NotificationCenter.default.post(name: .switchToMapperTab, object: nil)
-        }
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + 0.1,
+            execute: DispatchWorkItem {
+                Foundation.NotificationCenter.default.post(
+                    name: Foundation.Notification.Name.switchToMapperTab,
+                    object: nil
+                )
+            }
+        )
     }
 
     /// Opens the overlay centered on screen with drawer open, mapper tab selected, and preset values
@@ -282,7 +289,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         openInspector(animated: true)
 
         // Post notification for view to switch to mapper tab with preset values
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: DispatchWorkItem {
             var notificationUserInfo: [String: Any] = [:]
             if let inputKey {
                 notificationUserInfo["inputKey"] = inputKey
@@ -299,12 +306,12 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             if let appDisplayName {
                 notificationUserInfo["appDisplayName"] = appDisplayName
             }
-            NotificationCenter.default.post(
-                name: .switchToMapperTab,
+            Foundation.NotificationCenter.default.post(
+                name: Foundation.Notification.Name.switchToMapperTab,
                 object: nil,
                 userInfo: notificationUserInfo.isEmpty ? nil : notificationUserInfo
             )
-        }
+        })
     }
 
     // MARK: - Layer State
@@ -333,11 +340,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     private func setupLayerChangeObserver() {
-        NotificationCenter.default.addObserver(
-            forName: .kanataLayerChanged,
+        Foundation.NotificationCenter.default.addObserver(
+            forName: Foundation.Notification.Name.kanataLayerChanged,
             object: nil,
-            queue: .main
-        ) { [weak self] notification in
+            queue: NotificationObserverManager.mainOperationQueue
+        ) { [weak self] (notification: Foundation.Notification) in
             guard let layerName = notification.userInfo?["layerName"] as? String else { return }
             let sourceRaw = notification.userInfo?["source"] as? String
             Task { @MainActor in
@@ -348,11 +355,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
 
         // Listen for config changes to rebuild layer mapping
-        NotificationCenter.default.addObserver(
-            forName: .kanataConfigChanged,
+        Foundation.NotificationCenter.default.addObserver(
+            forName: Foundation.Notification.Name.kanataConfigChanged,
             object: nil,
-            queue: .main
-        ) { [weak self] _ in
+            queue: NotificationObserverManager.mainOperationQueue
+        ) { [weak self] (_: Foundation.Notification) in
             AppLogger.shared.info("🔔 [OverlayController] Received kanataConfigChanged notification - invalidating layer mappings")
             Task { @MainActor in
                 self?.viewModel.invalidateLayerMappings()
@@ -361,11 +368,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     private func setupKeyInputObserver() {
-        NotificationCenter.default.addObserver(
-            forName: .kanataKeyInput,
+        Foundation.NotificationCenter.default.addObserver(
+            forName: Foundation.Notification.Name.kanataKeyInput,
             object: nil,
-            queue: .main
-        ) { [weak self] notification in
+            queue: NotificationObserverManager.mainOperationQueue
+        ) { [weak self] (notification: Foundation.Notification) in
             let key = notification.userInfo?["key"] as? String
             let action = notification.userInfo?["action"] as? String
             Task { @MainActor in
@@ -658,7 +665,10 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
 
         // Post notification to show wizard (handled by AppDelegate wiring).
-        NotificationCenter.default.post(name: .showWizard, object: nil)
+        Foundation.NotificationCenter.default.post(
+            name: Foundation.Notification.Name.showWizard,
+            object: nil
+        )
 
         withAnimation {
             uiState.healthIndicatorState = .dismissed
@@ -720,7 +730,10 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                 } else {
                     // System not ready - launch wizard instead
                     AppLogger.shared.log("⚠️ [OverlayController] Cannot show overlay - Kanata not running, launching wizard")
-                    NotificationCenter.default.post(name: .showWizard, object: nil)
+                    Foundation.NotificationCenter.default.post(
+                        name: Foundation.Notification.Name.showWizard,
+                        object: nil
+                    )
                 }
             }
         }
@@ -1049,8 +1062,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         if let shiftedOutput = kanataViewModel?.underlyingManager.getCustomRule(forInput: inputKey)?.shiftedOutput {
             userInfo["shiftedOutputKey"] = shiftedOutput
         }
-        NotificationCenter.default.post(
-            name: .mapperDrawerKeySelected,
+        Foundation.NotificationCenter.default.post(
+            name: Foundation.Notification.Name.mapperDrawerKeySelected,
             object: nil,
             userInfo: userInfo
         )

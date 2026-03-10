@@ -22,10 +22,13 @@ final class FaviconFetcher {
 
     /// Directory where favicons are cached on disk
     private let cacheDirectory: URL = {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let appSupport = Foundation.FileManager().urls(
+            for: FileManager.SearchPathDirectory.applicationSupportDirectory,
+            in: FileManager.SearchPathDomainMask.userDomainMask
+        ).first!
         let faviconDir = appSupport.appendingPathComponent("KeyPath/Favicons", isDirectory: true)
         // Create directory if it doesn't exist
-        try? FileManager.default.createDirectory(at: faviconDir, withIntermediateDirectories: true)
+        try? Foundation.FileManager().createDirectory(at: faviconDir, withIntermediateDirectories: true)
         return faviconDir
     }()
 
@@ -84,9 +87,9 @@ final class FaviconFetcher {
         memoryCache.removeAll()
 
         do {
-            let contents = try FileManager.default.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil)
+            let contents = try Foundation.FileManager().contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil)
             for fileURL in contents {
-                try? FileManager.default.removeItem(at: fileURL)
+                try? Foundation.FileManager().removeItem(at: fileURL)
             }
             AppLogger.shared.log("🧹 [FaviconFetcher] Cleared all favicon cache")
         } catch {
@@ -323,7 +326,7 @@ final class FaviconFetcher {
     private func loadFromDiskCache(domain: String) -> NSImage? {
         let fileURL = cacheDirectory.appendingPathComponent("\(domain)-v\(cacheVersion).png")
 
-        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+        guard Foundation.FileManager().fileExists(atPath: fileURL.path) else {
             return nil
         }
 
@@ -402,7 +405,7 @@ final class FaviconFetcher {
 
     private init() {
         // Create cache directory if needed
-        try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        try? Foundation.FileManager().createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         AppLogger.shared.log("🖼️ [FaviconFetcher] Initialized with cache at \(cacheDirectory.path)")
     }
 }

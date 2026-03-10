@@ -77,7 +77,7 @@ final class QMKImportServiceTests: XCTestCase {
 
     func testParseValidQMKJSON() async throws {
         // Create temporary file with QMK JSON
-        let tempFile = FileManager.default.temporaryDirectory
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("test-qmk-\(UUID().uuidString).json")
         try sampleQMKJSON.write(to: tempFile)
         defer { try? FileManager.default.removeItem(at: tempFile) }
@@ -94,7 +94,7 @@ final class QMKImportServiceTests: XCTestCase {
 
     func testParseInvalidJSON() async throws {
         // Create temporary file with invalid JSON
-        let tempFile = FileManager.default.temporaryDirectory
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("test-invalid-\(UUID().uuidString).json")
         try invalidJSON.write(to: tempFile)
         defer { try? FileManager.default.removeItem(at: tempFile) }
@@ -119,7 +119,7 @@ final class QMKImportServiceTests: XCTestCase {
 
     func testParseNoLayouts() async throws {
         // Create temporary file with no layouts JSON
-        let tempFile = FileManager.default.temporaryDirectory
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("test-no-layouts-\(UUID().uuidString).json")
         try noLayoutsJSON.write(to: tempFile)
         defer { try? FileManager.default.removeItem(at: tempFile) }
@@ -153,7 +153,7 @@ final class QMKImportServiceTests: XCTestCase {
 
     func testSaveAndLoadCustomLayout() async throws {
         // Create temporary file
-        let tempFile = FileManager.default.temporaryDirectory
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("test-save-\(UUID().uuidString).json")
         try sampleQMKJSON.write(to: tempFile)
         defer { try? FileManager.default.removeItem(at: tempFile) }
@@ -181,7 +181,7 @@ final class QMKImportServiceTests: XCTestCase {
 
     func testDeleteCustomLayout() async throws {
         // Create temporary file
-        let tempFile = FileManager.default.temporaryDirectory
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("test-delete-\(UUID().uuidString).json")
         try sampleQMKJSON.write(to: tempFile)
         defer { try? FileManager.default.removeItem(at: tempFile) }
@@ -224,7 +224,7 @@ final class QMKImportServiceTests: XCTestCase {
 
     func testANSIMapping() async throws {
         // Create temporary file
-        let tempFile = FileManager.default.temporaryDirectory
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("test-ansi-\(UUID().uuidString).json")
         try sampleQMKJSON.write(to: tempFile)
         defer { try? FileManager.default.removeItem(at: tempFile) }
@@ -246,7 +246,7 @@ final class QMKImportServiceTests: XCTestCase {
 
     func testISOMapping() async throws {
         // Create temporary file
-        let tempFile = FileManager.default.temporaryDirectory
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("test-iso-\(UUID().uuidString).json")
         try sampleQMKJSON.write(to: tempFile)
         defer { try? FileManager.default.removeItem(at: tempFile) }

@@ -21,7 +21,7 @@ final class InstallationCoordinator {
         }
 
         // Check for user config file
-        let hasUserConfig = FileManager.default.fileExists(atPath: configPath)
+        let hasUserConfig = Foundation.FileManager().fileExists(atPath: configPath)
 
         if !hasUserConfig {
             AppLogger.shared.log("🆕 [InstallCoordinator] No user config found at \(configPath) - fresh install detected")
@@ -66,7 +66,7 @@ final class InstallationCoordinator {
         AppLogger.shared.log("🔧 [Installation] Step \(stepNumber)/\(totalSteps): Checking Karabiner driver...")
 
         let driverPath = KeyPathConstants.VirtualHID.driverPath
-        if !FileManager.default.fileExists(atPath: driverPath) {
+        if !Foundation.FileManager().fileExists(atPath: driverPath) {
             AppLogger.shared.log("⚠️ [Installation] Step \(stepNumber) WARNING: Karabiner driver not found at \(driverPath)")
             AppLogger.shared.log("ℹ️ [Installation] User should install Karabiner-Elements first")
             return StepResult(stepNumber: stepNumber, totalSteps: totalSteps, success: true, warning: true)
@@ -89,7 +89,7 @@ final class InstallationCoordinator {
     func checkConfigFile(configPath: String, stepNumber: Int = 4, totalSteps: Int = 5) -> StepResult {
         AppLogger.shared.log("🔧 [Installation] Step \(stepNumber)/\(totalSteps): Creating user configuration...")
 
-        if FileManager.default.fileExists(atPath: configPath) {
+        if Foundation.FileManager().fileExists(atPath: configPath) {
             AppLogger.shared.log("✅ [Installation] Step \(stepNumber) SUCCESS: User config available at \(configPath)")
             return StepResult(stepNumber: stepNumber, totalSteps: totalSteps, success: true, warning: false)
         } else {

@@ -62,7 +62,7 @@ struct BuildInfo {
         ]
 
         for path in paths {
-            guard FileManager.default.fileExists(atPath: path) else { continue }
+            guard Foundation.FileManager().fileExists(atPath: path) else { continue }
 
             do {
                 let result = try await SubprocessRunner.shared.run(

@@ -100,7 +100,7 @@ extension InstallationWizardView {
         AppLogger.shared.log("🔧 [Wizard] Auto-fix for specific action: \(action)")
 
         // Short-circuit service installs when Login Items approval is pending
-        if action == .installLaunchDaemonServices || action == .restartUnhealthyServices,
+        if action == .installRequiredRuntimeServices,
            await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending
         {
             if !suppressToast {
@@ -116,7 +116,7 @@ extension InstallationWizardView {
         // Give VHID/launch-service operations more time
         let timeoutSeconds = switch action {
         case .restartVirtualHIDDaemon, .installCorrectVHIDDriver, .repairVHIDDaemonServices,
-             .installLaunchDaemonServices:
+             .installRequiredRuntimeServices:
             30.0
         default:
             12.0
@@ -127,7 +127,7 @@ extension InstallationWizardView {
 
         let deferToastActions: Set<AutoFixAction> = [
             .restartVirtualHIDDaemon, .installCorrectVHIDDriver, .repairVHIDDaemonServices,
-            .installLaunchDaemonServices
+            .installRequiredRuntimeServices
         ]
         let deferSuccessToast = deferToastActions.contains(action)
         var successToastPending = false

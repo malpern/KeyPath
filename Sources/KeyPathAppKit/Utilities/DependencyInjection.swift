@@ -48,18 +48,3 @@ extension EnvironmentValues {
     }
 }
 
-// MARK: - Privileged Operations DI
-
-/// EnvironmentKey for PrivilegedOperations (DI)
-private struct PrivilegedOperationsKey: EnvironmentKey {
-    static var defaultValue: any PrivilegedOperations {
-        HelperBackedPrivilegedOperations()
-    }
-}
-
-extension EnvironmentValues {
-    var privilegedOperations: any PrivilegedOperations {
-        get { self[PrivilegedOperationsKey.self] }
-        set { self[PrivilegedOperationsKey.self] = newValue }
-    }
-}

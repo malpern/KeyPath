@@ -35,6 +35,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | [ADR-029](/adr/adr-029-eliminate-fake-key-layer-notifications) | Eliminate Fake Key Layer Notifications via Native LayerChange | Proposed |
 | [ADR-030](/adr/adr-030-insights-companion-app) | Separate Activity Logging and AI Features into KeyPath Insights Companion App | Accepted |
 | [ADR-031](/adr/adr-031-kanata-service-lifecycle-invariants-and-postcondition-enforcement) | Kanata Service Lifecycle Invariants and Postcondition Enforcement | Accepted |
+| [ADR-032](/adr/adr-032-macos-kanata-runtime-identity) | Stable App-Bundled Runtime Identity for macOS Kanata Input Capture | Proposed |
 
 ## Key Decisions Summary
 

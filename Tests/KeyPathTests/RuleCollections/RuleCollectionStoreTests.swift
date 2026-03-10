@@ -3,7 +3,7 @@
 
 final class RuleCollectionStoreTests: XCTestCase {
     func testLoadFallsBackToDefaultsWhenFileMissing() async {
-        let tempURL = FileManager.default.temporaryDirectory
+        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("rule-collections-\(UUID().uuidString)")
         let store = RuleCollectionStore.testStore(at: tempURL)
 
@@ -14,7 +14,7 @@ final class RuleCollectionStoreTests: XCTestCase {
     }
 
     func testSaveAndLoadRoundTrip() async throws {
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("rule-collections-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let fileURL = tempDir.appendingPathComponent("collections.json")
@@ -54,7 +54,7 @@ final class RuleCollectionStoreTests: XCTestCase {
     }
 
     func testLoadUpgradesBuiltInCollectionsWithLatestMetadata() async throws {
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("rule-collections-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let fileURL = tempDir.appendingPathComponent("collections.json")
@@ -87,7 +87,7 @@ final class RuleCollectionStoreTests: XCTestCase {
     }
 
     func testLoadAddsMissingCatalogDefaultsWhenFileHasSubset() async throws {
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("rule-collections-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let fileURL = tempDir.appendingPathComponent("collections.json")

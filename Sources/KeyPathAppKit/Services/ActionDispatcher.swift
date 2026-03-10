@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathDaemonLifecycle
 import KeyPathPluginKit
 
 // MARK: - Action Dispatch Result
@@ -30,6 +31,42 @@ public enum ActionDispatchResult: Sendable {
 /// - `keypath://script/{path}` - Execute a script (requires security approval)
 @MainActor
 public final class ActionDispatcher {
+    private static let hostPassthruDiagnosticOutputPath = "/var/tmp/keypath-host-passthru-diagnostic.txt"
+    private static let hostPassthruLiveOutputPath = "/var/tmp/keypath-host-passthru-live.txt"
+    private static let hostPassthruCycleOutputPath = "/var/tmp/keypath-host-passthru-cycle.txt"
+    private static let hostPassthruCompanionRestartOutputPath = "/var/tmp/keypath-host-passthru-companion-restart.txt"
+    private static let hostPassthruSoakOutputPath = "/var/tmp/keypath-host-passthru-soak.txt"
+    private static let hostPassthruCompanionRestartSoakOutputPath = "/var/tmp/keypath-host-passthru-companion-restart-soak.txt"
+    private static let coordinatorSplitRuntimeRecoveryOutputPath = "/var/tmp/keypath-runtime-coordinator-companion-recovery.txt"
+    private static let coordinatorSplitRuntimeRestartSoakOutputPath = "/var/tmp/keypath-runtime-coordinator-companion-restart-soak.txt"
+    private static let helperRepairOutputPath = "/var/tmp/keypath-helper-repair.txt"
+    private static let diagnosticSystemActions: Set<String> = [
+        "prepare-host-passthru-bridge",
+        "prepare-host-bridge",
+        "prep-host-passthru-bridge",
+        "run-host-passthru-diagnostic",
+        "run-host-diagnostic",
+        "host-passthru-diagnostic",
+        "start-host-passthru",
+        "stop-host-passthru",
+        "exercise-host-passthru-cycle",
+        "exercise-output-bridge-companion-restart",
+        "exercise-host-passthru-soak",
+        "exercise-output-bridge-companion-restart-soak",
+        "exercise-coordinator-split-runtime-recovery",
+        "exercise-coordinator-split-runtime-restart-soak",
+        "repair-helper"
+    ]
+
+    private static var diagnosticActionsEnabled: Bool {
+#if DEBUG
+        if TestEnvironment.isRunningTests {
+            return true
+        }
+#endif
+        return ProcessInfo.processInfo.environment["KEYPATH_ENABLE_DIAGNOSTIC_ACTIONS"] == "1"
+    }
+
     // MARK: - Singleton
 
     public static let shared = ActionDispatcher()
@@ -147,7 +184,7 @@ public final class ActionDispatcher {
 
         for path in commonPaths {
             let url = URL(fileURLWithPath: path)
-            if FileManager.default.fileExists(atPath: path), !urlsToTry.contains(url) {
+            if Foundation.FileManager().fileExists(atPath: path), !urlsToTry.contains(url) {
                 urlsToTry.append(url)
             }
         }
@@ -355,7 +392,7 @@ public final class ActionDispatcher {
 
     /// Trigger a macOS system action
     /// Format: keypath://system/{action}
-    /// Actions: mission-control, spotlight, dictation, dnd, launchpad, notification-center, siri
+    /// Actions: mission-control, spotlight, dictation, dnd, launchpad, notification-center, siri, prepare-host-passthru-bridge, run-host-passthru-diagnostic, start-host-passthru, stop-host-passthru, exercise-host-passthru-cycle, exercise-output-bridge-companion-restart, exercise-coordinator-split-runtime-recovery, exercise-coordinator-split-runtime-restart-soak, repair-helper
     private func handleSystem(_ uri: KeyPathActionURI) -> ActionDispatchResult {
         guard let action = uri.target else {
             let message = "system action requires action name: keypath://system/{action}"
@@ -366,7 +403,432 @@ public final class ActionDispatcher {
 
         AppLogger.shared.log("⚙️ [ActionDispatcher] System action: \(action)")
 
+        if Self.diagnosticSystemActions.contains(action.lowercased()), !Self.diagnosticActionsEnabled {
+            let message = "Diagnostic system action '\(action)' is disabled in this build context."
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .failed("system", NSError(domain: "ActionDispatcher", code: 5, userInfo: [
+                NSLocalizedDescriptionKey: message
+            ]))
+        }
+
+        if TestEnvironment.isRunningTests, Self.diagnosticSystemActions.contains(action.lowercased()) {
+            return .success
+        }
+
         switch action.lowercased() {
+        case "prepare-host-passthru-bridge", "prepare-host-bridge", "prep-host-passthru-bridge":
+            Task { @MainActor in
+                do {
+                    let session = try await KanataOutputBridgeCompanionManager.shared
+                        .prepareEnvironmentAndPersist(
+                            hostPID: getpid(),
+                            outputPath: KanataOutputBridgeCompanionManager.bridgeEnvironmentOutputPath
+                        )
+                    AppLogger.shared.info(
+                        "🧪 [ActionDispatcher] Prepared host passthru bridge session=\(session.sessionID) socket=\(session.socketPath) output=\(KanataOutputBridgeCompanionManager.bridgeEnvironmentOutputPath)"
+                    )
+                } catch {
+                    AppLogger.shared.error(
+                        "❌ [ActionDispatcher] Failed to prepare host passthru bridge: \(error.localizedDescription)"
+                    )
+                    self.onError?("Failed to prepare host passthru bridge: \(error.localizedDescription)")
+                }
+            }
+            return .success
+
+        case "run-host-passthru-diagnostic", "run-host-diagnostic", "host-passthru-diagnostic":
+            let captureRaw = uri.queryItems["capture"]?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            let includeCapture = captureRaw == "1" || captureRaw == "true" || captureRaw == "yes"
+            Task { @MainActor in
+                let diagnosticsService = DiagnosticsService(
+                    processLifecycleManager: ProcessLifecycleManager()
+                )
+                let diagnostic = await diagnosticsService.runHostPassthruDiagnostic(includeCapture: includeCapture)
+                let payload = """
+                title=\(diagnostic.title)
+                severity=\(diagnostic.severity.rawValue)
+                details=\(diagnostic.technicalDetails)
+                """
+                do {
+                    try payload.write(
+                        toFile: Self.hostPassthruDiagnosticOutputPath,
+                        atomically: true,
+                        encoding: .utf8
+                    )
+                    AppLogger.shared.info(
+                        "🧪 [ActionDispatcher] Host passthru diagnostic completed capture=\(includeCapture) output=\(Self.hostPassthruDiagnosticOutputPath)"
+                    )
+                } catch {
+                    AppLogger.shared.error(
+                        "❌ [ActionDispatcher] Failed to write host passthru diagnostic output: \(error.localizedDescription)"
+                    )
+                    self.onError?("Failed to write host passthru diagnostic output: \(error.localizedDescription)")
+                }
+            }
+            return .success
+
+        case "start-host-passthru", "start-host-runtime":
+            let captureRaw = uri.queryItems["capture"]?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            let includeCapture = captureRaw == nil || captureRaw == "1" || captureRaw == "true" || captureRaw == "yes"
+            Task { @MainActor in
+                do {
+                    let pid = try await KanataSplitRuntimeHostService.shared.startPersistentPassthruHost(
+                        includeCapture: includeCapture
+                    )
+                    let payload = """
+                    pid=\(pid)
+                    capture=\(includeCapture)
+                    """
+                    try payload.write(
+                        toFile: Self.hostPassthruLiveOutputPath,
+                        atomically: true,
+                        encoding: .utf8
+                    )
+                    AppLogger.shared.info(
+                        "🧪 [ActionDispatcher] Started persistent host passthru pid=\(pid) capture=\(includeCapture) output=\(Self.hostPassthruLiveOutputPath)"
+                    )
+                } catch {
+                    AppLogger.shared.error(
+                        "❌ [ActionDispatcher] Failed to start persistent host passthru: \(error.localizedDescription)"
+                    )
+                    self.onError?("Failed to start persistent host passthru: \(error.localizedDescription)")
+                }
+            }
+            return .success
+
+        case "stop-host-passthru", "stop-host-runtime":
+            Task { @MainActor in
+                KanataSplitRuntimeHostService.shared.stopPersistentPassthruHost()
+                let payload = "stopped=1\n"
+                try? payload.write(
+                    toFile: Self.hostPassthruLiveOutputPath,
+                    atomically: true,
+                    encoding: .utf8
+                )
+                AppLogger.shared.info("🧪 [ActionDispatcher] Stopped persistent host passthru")
+            }
+            return .success
+
+        case "exercise-host-passthru-cycle", "exercise-host-runtime-cycle":
+            let captureRaw = uri.queryItems["capture"]?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            let includeCapture = captureRaw == nil || captureRaw == "1" || captureRaw == "true" || captureRaw == "yes"
+            Task { @MainActor in
+                do {
+                    var lines: [String] = []
+                    let firstPID = try await KanataSplitRuntimeHostService.shared.startPersistentPassthruHost(
+                        includeCapture: includeCapture
+                    )
+                    lines.append("first_pid=\(firstPID)")
+                    lines.append("capture=\(includeCapture)")
+                    try await Task.sleep(for: .milliseconds(250))
+
+                    KanataSplitRuntimeHostService.shared.stopPersistentPassthruHost()
+                    lines.append("stopped_first=1")
+                    try await Task.sleep(for: .milliseconds(250))
+
+                    let secondPID = try await KanataSplitRuntimeHostService.shared.startPersistentPassthruHost(
+                        includeCapture: includeCapture
+                    )
+                    lines.append("second_pid=\(secondPID)")
+                    try await Task.sleep(for: .milliseconds(250))
+
+                    KanataSplitRuntimeHostService.shared.stopPersistentPassthruHost()
+                    lines.append("stopped_second=1")
+
+                    let payload = lines.joined(separator: "\n") + "\n"
+                    try payload.write(
+                        toFile: Self.hostPassthruCycleOutputPath,
+                        atomically: true,
+                        encoding: .utf8
+                    )
+                    AppLogger.shared.info(
+                        "🧪 [ActionDispatcher] Exercised persistent host passthru cycle capture=\(includeCapture) output=\(Self.hostPassthruCycleOutputPath)"
+                    )
+                } catch {
+                    AppLogger.shared.error(
+                        "❌ [ActionDispatcher] Failed to exercise persistent host passthru cycle: \(error.localizedDescription)"
+                    )
+                    self.onError?("Failed to exercise persistent host passthru cycle: \(error.localizedDescription)")
+                }
+            }
+            return .success
+
+        case "exercise-host-passthru-soak", "exercise-host-runtime-soak":
+            let captureRaw = uri.queryItems["capture"]?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            let includeCapture = captureRaw == nil || captureRaw == "1" || captureRaw == "true" || captureRaw == "yes"
+            let durationSeconds = max(1, Int(uri.queryItems["seconds"] ?? "") ?? 30)
+            Task { @MainActor in
+                do {
+                    var lines: [String] = []
+                    let pid = try await KanataSplitRuntimeHostService.shared.startPersistentPassthruHost(
+                        includeCapture: includeCapture
+                    )
+                    lines.append("host_pid=\(pid)")
+                    lines.append("capture=\(includeCapture)")
+                    lines.append("duration_seconds=\(durationSeconds)")
+
+                    if let statusBefore = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
+                        lines.append("companion_running_before=\(statusBefore.companionRunning)")
+                    } else {
+                        lines.append("companion_running_before=unknown")
+                    }
+
+                    try await Task.sleep(for: .seconds(durationSeconds))
+
+                    let hostAliveAtEnd = KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning
+                    lines.append("host_alive_at_end=\(hostAliveAtEnd)")
+                    if let activePID = KanataSplitRuntimeHostService.shared.activePersistentHostPID {
+                        lines.append("host_pid_at_end=\(activePID)")
+                    }
+
+                    if let statusAfter = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
+                        lines.append("companion_running_after=\(statusAfter.companionRunning)")
+                    } else {
+                        lines.append("companion_running_after=unknown")
+                    }
+
+                    KanataSplitRuntimeHostService.shared.stopPersistentPassthruHost()
+                    lines.append("host_stopped=1")
+
+                    let payload = lines.joined(separator: "\n") + "\n"
+                    try payload.write(
+                        toFile: Self.hostPassthruSoakOutputPath,
+                        atomically: true,
+                        encoding: .utf8
+                    )
+                    AppLogger.shared.info(
+                        "🧪 [ActionDispatcher] Exercised persistent host passthru soak capture=\(includeCapture) seconds=\(durationSeconds) output=\(Self.hostPassthruSoakOutputPath)"
+                    )
+                } catch {
+                    AppLogger.shared.error(
+                        "❌ [ActionDispatcher] Failed to exercise persistent host passthru soak: \(error.localizedDescription)"
+                    )
+                    self.onError?("Failed to exercise persistent host passthru soak: \(error.localizedDescription)")
+                }
+            }
+            return .success
+
+        case "exercise-output-bridge-companion-restart", "exercise-host-passthru-companion-restart":
+            let captureRaw = uri.queryItems["capture"]?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            let includeCapture = captureRaw == nil || captureRaw == "1" || captureRaw == "true" || captureRaw == "yes"
+            Task { @MainActor in
+                do {
+                    var lines: [String] = []
+                    if let statusBefore = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
+                        lines.append("companion_running_before=\(statusBefore.companionRunning)")
+                    } else {
+                        lines.append("companion_running_before=unknown")
+                    }
+                    lines.append("capture=\(includeCapture)")
+
+                    let pid = try await KanataSplitRuntimeHostService.shared.startPersistentPassthruHost(
+                        includeCapture: includeCapture
+                    )
+                    lines.append("host_pid=\(pid)")
+                    try await Task.sleep(for: .milliseconds(300))
+
+                    do {
+                        let recovery = try await KanataSplitRuntimeHostService.shared
+                            .restartCompanionAndRecoverPersistentHost()
+                        lines.append("companion_restarted=1")
+                        lines.append("companion_running_after=\(recovery.companionRunningAfterRestart)")
+                        if let recoveredHostPID = recovery.recoveredHostPID {
+                            lines.append("host_recovered=1")
+                            lines.append("host_pid_after_recovery=\(recoveredHostPID)")
+                        } else {
+                            lines.append("host_recovered=0")
+                            lines.append("host_recovery_reason=no-active-host")
+                        }
+                    } catch {
+                        lines.append("companion_restarted=0")
+                        lines.append(
+                            "companion_restart_error=\(error.localizedDescription.replacingOccurrences(of: "\n", with: " "))"
+                        )
+                        lines.append("host_recovered=0")
+                        lines.append(
+                            "host_recovery_error=\(error.localizedDescription.replacingOccurrences(of: "\n", with: " "))"
+                        )
+                    }
+                    try await Task.sleep(for: .milliseconds(300))
+
+                    KanataSplitRuntimeHostService.shared.stopPersistentPassthruHost()
+                    lines.append("host_stopped=1")
+
+                    let payload = lines.joined(separator: "\n") + "\n"
+                    try payload.write(
+                        toFile: Self.hostPassthruCompanionRestartOutputPath,
+                        atomically: true,
+                        encoding: .utf8
+                    )
+                    AppLogger.shared.info(
+                        "🧪 [ActionDispatcher] Exercised output bridge companion restart capture=\(includeCapture) output=\(Self.hostPassthruCompanionRestartOutputPath)"
+                    )
+                } catch {
+                    AppLogger.shared.error(
+                        "❌ [ActionDispatcher] Failed to exercise output bridge companion restart: \(error.localizedDescription)"
+                    )
+                    self.onError?("Failed to exercise output bridge companion restart: \(error.localizedDescription)")
+                }
+            }
+            return .success
+
+        case "exercise-output-bridge-companion-restart-soak", "exercise-host-passthru-companion-restart-soak":
+            let captureRaw = uri.queryItems["capture"]?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            let includeCapture = captureRaw == nil || captureRaw == "1" || captureRaw == "true" || captureRaw == "yes"
+            let durationSeconds = max(2, Int(uri.queryItems["seconds"] ?? "") ?? 30)
+            Task { @MainActor in
+                do {
+                    var lines: [String] = []
+                    if let statusBefore = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
+                        lines.append("companion_running_before=\(statusBefore.companionRunning)")
+                    } else {
+                        lines.append("companion_running_before=unknown")
+                    }
+                    lines.append("capture=\(includeCapture)")
+                    lines.append("duration_seconds=\(durationSeconds)")
+
+                    let pid = try await KanataSplitRuntimeHostService.shared.startPersistentPassthruHost(
+                        includeCapture: includeCapture
+                    )
+                    lines.append("host_pid=\(pid)")
+
+                    let preRestartDelayMilliseconds = max(250, (durationSeconds * 1000) / 2)
+                    let postRestartDelayMilliseconds = max(250, durationSeconds * 1000 - preRestartDelayMilliseconds)
+
+                    try await Task.sleep(for: .milliseconds(preRestartDelayMilliseconds))
+
+                    do {
+                        let recovery = try await KanataSplitRuntimeHostService.shared
+                            .restartCompanionAndRecoverPersistentHost()
+                        lines.append("companion_restarted=1")
+                        lines.append("companion_running_after_restart=\(recovery.companionRunningAfterRestart)")
+                        if let recoveredHostPID = recovery.recoveredHostPID {
+                            lines.append("host_recovered=1")
+                            lines.append("host_pid_after_recovery=\(recoveredHostPID)")
+                        } else {
+                            lines.append("host_recovered=0")
+                            lines.append("host_recovery_reason=no-active-host")
+                        }
+                    } catch {
+                        lines.append("companion_restarted=0")
+                        lines.append(
+                            "companion_restart_error=\(error.localizedDescription.replacingOccurrences(of: "\n", with: " "))"
+                        )
+                        lines.append("host_recovered=0")
+                        lines.append(
+                            "host_recovery_error=\(error.localizedDescription.replacingOccurrences(of: "\n", with: " "))"
+                        )
+                    }
+
+                    try await Task.sleep(for: .milliseconds(postRestartDelayMilliseconds))
+
+                    let hostAliveAtEnd = KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning
+                    lines.append("host_alive_at_end=\(hostAliveAtEnd)")
+                    if let activePID = KanataSplitRuntimeHostService.shared.activePersistentHostPID {
+                        lines.append("host_pid_at_end=\(activePID)")
+                    }
+
+                    if let statusAfter = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
+                        lines.append("companion_running_after=\(statusAfter.companionRunning)")
+                    } else {
+                        lines.append("companion_running_after=unknown")
+                    }
+
+                    KanataSplitRuntimeHostService.shared.stopPersistentPassthruHost()
+                    lines.append("host_stopped=1")
+
+                    let payload = lines.joined(separator: "\n") + "\n"
+                    try payload.write(
+                        toFile: Self.hostPassthruCompanionRestartSoakOutputPath,
+                        atomically: true,
+                        encoding: .utf8
+                    )
+                    AppLogger.shared.info(
+                        "🧪 [ActionDispatcher] Exercised output bridge companion restart soak capture=\(includeCapture) seconds=\(durationSeconds) output=\(Self.hostPassthruCompanionRestartSoakOutputPath)"
+                    )
+                } catch {
+                    AppLogger.shared.error(
+                        "❌ [ActionDispatcher] Failed to exercise output bridge companion restart soak: \(error.localizedDescription)"
+                    )
+                    self.onError?("Failed to exercise output bridge companion restart soak: \(error.localizedDescription)")
+                }
+            }
+            return .success
+
+        case "exercise-coordinator-split-runtime-recovery", "exercise-runtime-coordinator-companion-recovery":
+            NotificationCenter.default.post(
+                name: .exerciseCoordinatorSplitRuntimeRecovery,
+                object: nil,
+                userInfo: ["outputPath": Self.coordinatorSplitRuntimeRecoveryOutputPath]
+            )
+            return .success
+
+        case "exercise-coordinator-split-runtime-restart-soak", "exercise-runtime-coordinator-companion-restart-soak":
+            let durationSeconds = max(2, Int(uri.queryItems["seconds"] ?? "") ?? 20)
+            NotificationCenter.default.post(
+                name: .exerciseCoordinatorSplitRuntimeRestartSoak,
+                object: nil,
+                userInfo: [
+                    "outputPath": Self.coordinatorSplitRuntimeRestartSoakOutputPath,
+                    "durationSeconds": durationSeconds
+                ]
+            )
+            return .success
+
+        case "repair-helper":
+            if TestEnvironment.isRunningTests {
+                return .success
+            }
+
+            let useAppleScriptFallbackRaw = uri.queryItems["applescript"]?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            let useAppleScriptFallback = useAppleScriptFallbackRaw == nil
+                || useAppleScriptFallbackRaw == "1"
+                || useAppleScriptFallbackRaw == "true"
+                || useAppleScriptFallbackRaw == "yes"
+
+            Task { @MainActor in
+                let repaired = await HelperMaintenance.shared.runCleanupAndRepair(
+                    useAppleScriptFallback: useAppleScriptFallback
+                )
+                let details = HelperMaintenance.shared.logLines.joined(separator: " | ")
+                let payload = """
+                success=\(repaired)
+                use_apple_script_fallback=\(useAppleScriptFallback)
+                details=\(details)
+                """
+                do {
+                    try payload.write(
+                        toFile: Self.helperRepairOutputPath,
+                        atomically: true,
+                        encoding: .utf8
+                    )
+                    AppLogger.shared.info(
+                        "🧪 [ActionDispatcher] Helper repair completed success=\(repaired) output=\(Self.helperRepairOutputPath)"
+                    )
+                } catch {
+                    AppLogger.shared.error(
+                        "❌ [ActionDispatcher] Failed to write helper repair output: \(error.localizedDescription)"
+                    )
+                    self.onError?("Failed to write helper repair output: \(error.localizedDescription)")
+                }
+            }
+            return .success
+
         case "mission-control", "missioncontrol", "expose":
             // Mission Control - open the expose launcher app
             let workspace = NSWorkspace.shared
@@ -385,7 +847,7 @@ public final class ActionDispatcher {
                 "/Applications/Mission Control.app"
             ]
             for path in missionControlPaths {
-                if FileManager.default.fileExists(atPath: path) {
+                if Foundation.FileManager().fileExists(atPath: path) {
                     workspace.openApplication(at: URL(fileURLWithPath: path), configuration: NSWorkspace.OpenConfiguration()) { _, _ in }
                     return .success
                 }
@@ -484,7 +946,7 @@ public final class ActionDispatcher {
             return .success
 
         default:
-            let message = "Unknown system action: \(action). Supported: mission-control, spotlight, dictation, dnd, launchpad, notification-center, siri"
+            let message = "Unknown system action: \(action). Supported: mission-control, spotlight, dictation, dnd, launchpad, notification-center, siri, prepare-host-passthru-bridge, run-host-passthru-diagnostic, start-host-passthru, stop-host-passthru, exercise-host-passthru-cycle, exercise-output-bridge-companion-restart, exercise-coordinator-split-runtime-recovery, exercise-coordinator-split-runtime-restart-soak, repair-helper"
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .unknownAction(action)
@@ -555,7 +1017,7 @@ public final class ActionDispatcher {
 
         // Check if path exists
         var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: expandedPath, isDirectory: &isDirectory) else {
+        guard Foundation.FileManager().fileExists(atPath: expandedPath, isDirectory: &isDirectory) else {
             let message = "Folder not found: \(expandedPath)"
             AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
             onError?(message)
@@ -780,9 +1242,9 @@ public final class ActionDispatcher {
         switch ext {
         case "py":
             // Try python3 first, fall back to python
-            if FileManager.default.fileExists(atPath: "/usr/bin/python3") {
+            if Foundation.FileManager().fileExists(atPath: "/usr/bin/python3") {
                 process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
-            } else if FileManager.default.fileExists(atPath: "/usr/local/bin/python3") {
+            } else if Foundation.FileManager().fileExists(atPath: "/usr/local/bin/python3") {
                 process.executableURL = URL(fileURLWithPath: "/usr/local/bin/python3")
             } else {
                 process.executableURL = URL(fileURLWithPath: "/usr/bin/python")
@@ -799,9 +1261,9 @@ public final class ActionDispatcher {
 
         case "lua":
             // Lua is typically installed via Homebrew
-            if FileManager.default.fileExists(atPath: "/usr/local/bin/lua") {
+            if Foundation.FileManager().fileExists(atPath: "/usr/local/bin/lua") {
                 process.executableURL = URL(fileURLWithPath: "/usr/local/bin/lua")
-            } else if FileManager.default.fileExists(atPath: "/opt/homebrew/bin/lua") {
+            } else if Foundation.FileManager().fileExists(atPath: "/opt/homebrew/bin/lua") {
                 process.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/lua")
             } else {
                 throw NSError(domain: "InterpretedScript", code: 1, userInfo: [

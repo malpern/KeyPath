@@ -272,7 +272,7 @@ final class LayerKeyMapperCollectionTests: XCTestCase {
     // MARK: - Helper Methods
 
     private func createTempConfig(_ content: String, name: String) throws -> String {
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         let configPath = tempDir.appendingPathComponent(name).path
         try content.write(toFile: configPath, atomically: true, encoding: .utf8)
         return configPath

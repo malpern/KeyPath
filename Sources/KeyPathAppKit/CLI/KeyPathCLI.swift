@@ -138,6 +138,40 @@ public struct KeyPathCLI {
         print("Kanata Running: \(context.services.kanataRunning ? "✅" : "❌")")
         print("Karabiner Daemon: \(context.services.karabinerDaemonRunning ? "✅" : "❌")")
         print("VHID Healthy: \(context.services.vhidHealthy ? "✅" : "❌")")
+        if let runtimePathTitle = context.services.activeRuntimePathTitle {
+            print("Active Runtime Path: \(runtimePathTitle)")
+            if let runtimePathDetail = context.services.activeRuntimePathDetail {
+                print("Runtime Detail: \(runtimePathDetail)")
+            }
+        }
+
+        if let runtimePathDecision = context.system.runtimePathDecision {
+            print("\n--- Runtime Path ---")
+            switch runtimePathDecision {
+            case let .useSplitRuntime(reason):
+                print("Mode: Split Runtime Ready")
+                print("Reason: \(reason)")
+            case let .useLegacySystemBinary(reason):
+                print("Mode: Legacy Fallback")
+                print("Reason: \(reason)")
+            case let .blocked(reason):
+                print("Mode: Blocked")
+                print("Reason: \(reason)")
+            }
+        }
+
+        if let outputBridgeStatus = context.system.outputBridgeStatus {
+            print("\n--- Output Bridge Companion ---")
+            print("Available: \(outputBridgeStatus.available ? "✅" : "❌")")
+            print("Running: \(outputBridgeStatus.companionRunning ? "✅" : "❌")")
+            print("Requires Privileged Bridge: \(outputBridgeStatus.requiresPrivilegedBridge ? "✅" : "❌")")
+            if let socketDirectory = outputBridgeStatus.socketDirectory {
+                print("Socket Directory: \(socketDirectory)")
+            }
+            if let detail = outputBridgeStatus.detail, !detail.isEmpty {
+                print("Detail: \(detail)")
+            }
+        }
 
         // Conflicts
         if context.conflicts.hasConflicts {
@@ -208,11 +242,6 @@ public struct KeyPathCLI {
     private func runRepair() async -> Int32 {
         print("Starting repair...")
 
-        if await attemptFastRepair() {
-            print("\n✅ Repair completed via KanataService restart")
-            return 0
-        }
-
         let broker = privilegeBrokerFactory()
         let report = await installerEngine.run(intent: .repair, using: broker)
 
@@ -249,26 +278,6 @@ public struct KeyPathCLI {
         } else {
             print("\n❌ Repair failed")
             return 1
-        }
-    }
-
-    private func attemptFastRepair() async -> Bool {
-        print("Attempting KanataService restart before full repair...")
-        let coordinator = ProcessCoordinator()
-        let restarted = await coordinator.restartService()
-
-        guard restarted else {
-            print("Fast-path restart failed; continuing with InstallerEngine repair.")
-            return false
-        }
-
-        let context = await installerEngine.inspectSystem()
-        if context.isOperational {
-            print("Kanata service healthy after restart; skipping InstallerEngine repair.")
-            return true
-        } else {
-            print("System still has issues after restart; running full repair.")
-            return false
         }
     }
 
@@ -325,6 +334,32 @@ public struct KeyPathCLI {
         print("\n--- System Info ---")
         print("macOS Version: \(context.system.macOSVersion)")
         print("Driver Compatible: \(context.system.driverCompatible ? "✅" : "❌")")
+        if let runtimePathDecision = context.system.runtimePathDecision {
+            print("\n--- Runtime Path ---")
+            switch runtimePathDecision {
+            case let .useSplitRuntime(reason):
+                print("Mode: Split Runtime Ready")
+                print("Reason: \(reason)")
+            case let .useLegacySystemBinary(reason):
+                print("Mode: Legacy Fallback")
+                print("Reason: \(reason)")
+            case let .blocked(reason):
+                print("Mode: Blocked")
+                print("Reason: \(reason)")
+            }
+        }
+        if let outputBridgeStatus = context.system.outputBridgeStatus {
+            print("\n--- Output Bridge Companion ---")
+            print("Available: \(outputBridgeStatus.available ? "✅" : "❌")")
+            print("Running: \(outputBridgeStatus.companionRunning ? "✅" : "❌")")
+            print("Requires Privileged Bridge: \(outputBridgeStatus.requiresPrivilegedBridge ? "✅" : "❌")")
+            if let socketDirectory = outputBridgeStatus.socketDirectory {
+                print("Socket Directory: \(socketDirectory)")
+            }
+            if let detail = outputBridgeStatus.detail, !detail.isEmpty {
+                print("Detail: \(detail)")
+            }
+        }
 
         print("\n--- Plan Status ---")
         switch plan.status {

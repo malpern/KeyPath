@@ -78,7 +78,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
     /// Checks if the VirtualHIDDevice Manager application is installed
     func detectInstallation() -> Bool {
-        let fileManager = FileManager.default
+        let fileManager = Foundation.FileManager()
         let appExists = fileManager.fileExists(atPath: Self.vhidManagerPath)
 
         AppLogger.shared.log(
@@ -90,7 +90,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
     /// Checks if the VirtualHIDDevice Manager has been activated
     /// This involves checking if the daemon binaries are in place
     func detectActivation() -> Bool {
-        let fileManager = FileManager.default
+        let fileManager = Foundation.FileManager()
         let daemonExists = fileManager.fileExists(atPath: Self.vhidDeviceDaemonPath)
 
         AppLogger.shared.log(
@@ -109,7 +109,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
         var issues: [String] = []
         for target in targets {
-            guard FileManager.default.fileExists(atPath: target.path) else { continue }
+            guard Foundation.FileManager().fileExists(atPath: target.path) else { continue }
 
             if await isQuarantined(at: target.path) {
                 issues.append("\(target.label) appears quarantined: \(target.path)")
@@ -434,22 +434,21 @@ final class VHIDDeviceManager: @unchecked Sendable {
             }
         #endif
 
-        guard FileManager.default.fileExists(atPath: Self.vhidDeviceDaemonInfoPlistPath) else {
+        guard Foundation.FileManager().fileExists(atPath: Self.vhidDeviceDaemonInfoPlistPath) else {
             AppLogger.shared.log(
                 "🔍 [VHIDManager] Info.plist not found at \(Self.vhidDeviceDaemonInfoPlistPath)"
             )
             return nil
         }
 
-        guard let plistData = FileManager.default.contents(atPath: Self.vhidDeviceDaemonInfoPlistPath)
+        guard let plistData = Foundation.FileManager().contents(atPath: Self.vhidDeviceDaemonInfoPlistPath)
         else {
             AppLogger.shared.log("❌ [VHIDManager] Failed to read Info.plist")
             return nil
         }
 
         do {
-            let plist =
-                try PropertyListSerialization.propertyList(from: plistData, format: nil) as? [String: Any]
+            let plist = try PropertyListSerialization.propertyList(from: plistData, format: nil) as? [String: Any]
             let version = plist?["CFBundleShortVersionString"] as? String
             AppLogger.shared.log("🔍 [VHIDManager] Installed daemon version: \(version ?? "unknown")")
             return version

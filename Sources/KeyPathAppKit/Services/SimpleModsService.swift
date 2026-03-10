@@ -186,7 +186,7 @@ public final class SimpleModsService {
 
             // Snapshot original file for rollback
             let originalContent: String? = {
-                if FileManager.default.fileExists(atPath: configPath) {
+                if Foundation.FileManager().fileExists(atPath: configPath) {
                     return try? String(contentsOfFile: configPath, encoding: .utf8)
                 }
                 return nil

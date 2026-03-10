@@ -24,18 +24,16 @@ extension InstallationWizardView {
             return "Starting System Daemon"
         } else if operationId.contains("auto_fix_restartVirtualHIDDaemon") {
             return "Restarting Virtual HID Daemon"
-        } else if operationId.contains("auto_fix_installLaunchDaemonServices") {
-            return "Installing Launch Services"
+        } else if operationId.contains("auto_fix_installRequiredRuntimeServices") {
+            return "Installing Required Runtime Services"
         } else if operationId.contains("auto_fix_createConfigDirectories") {
             return "Creating Configuration Directories"
         } else if operationId.contains("state_detection") {
             return "Detecting System State"
         } else if operationId.contains("start_service") {
-            return "Starting Kanata Service"
+            return "Starting KeyPath Runtime"
         } else if operationId.contains("grant_permission") {
             return "Waiting for Permission Grant"
-        } else if operationId.contains("auto_fix_restartUnhealthyServices") {
-            return "Restarting Failing Services"
         } else {
             return "Processing Operation"
         }

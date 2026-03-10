@@ -253,7 +253,7 @@ class IssueGenerator {
 
         for mismatch in result.mismatches {
             let issue = WizardIssue(
-                identifier: .component(.kanataService), // Use existing identifier
+                identifier: .component(.keyPathRuntime),
                 severity: .error,
                 category: .installation,
                 title: "Config Path Mismatch",
@@ -290,9 +290,9 @@ class IssueGenerator {
     private func permissionDescription(for permission: PermissionRequirement) -> String {
         switch permission {
         case .kanataInputMonitoring:
-            "Kanata needs Input Monitoring permission to process keys. Add /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring."
+            "The KeyPath runtime needs Input Monitoring permission to process keys. Add the runtime binary at /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring."
         case .kanataAccessibility:
-            "Kanata needs Accessibility permission for system access. Add /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Accessibility."
+            "The KeyPath runtime needs Accessibility permission for system access. Add the runtime binary at /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Accessibility."
         case .driverExtensionEnabled:
             "Karabiner driver extension must be enabled in System Settings."
         case .backgroundServicesEnabled:
@@ -307,9 +307,9 @@ class IssueGenerator {
     private func userActionForPermission(_ permission: PermissionRequirement) -> String {
         switch permission {
         case .kanataInputMonitoring:
-            "Grant permission to /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring"
+            "Grant permission to the Kanata engine binary used by KeyPath at /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring"
         case .kanataAccessibility:
-            "Grant permission to /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Accessibility"
+            "Grant permission to the Kanata engine binary used by KeyPath at /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Accessibility"
         case .driverExtensionEnabled:
             "Enable in System Settings > Privacy & Security > Driver Extensions"
         case .backgroundServicesEnabled:
@@ -327,7 +327,7 @@ class IssueGenerator {
         case .privilegedHelperUnhealthy: "Privileged Helper Not Working"
         case .kanataBinaryMissing: WizardConstants.Titles.kanataBinaryMissing
         case .bundledKanataMissing: "⚠️ CRITICAL: App Bundle Corrupted"
-        case .kanataService: "Kanata Service Missing"
+        case .keyPathRuntime: "KeyPath Runtime Missing"
         case .karabinerDriver: WizardConstants.Titles.karabinerDriverMissing
         case .karabinerDaemon: WizardConstants.Titles.daemonNotRunning
         case .vhidDeviceManager: "VirtualHIDDevice Manager Missing"
@@ -336,10 +336,8 @@ class IssueGenerator {
         case .vhidDaemonMisconfigured: "VirtualHIDDevice Daemon Misconfigured"
         case .vhidDriverVersionMismatch: "Karabiner Driver Version Incompatible"
         case .kanataBinaryVersionMismatch: "Kanata Binary Trust Mismatch"
-        case .launchDaemonServices: "LaunchDaemon Services Not Installed"
-        case .launchDaemonServicesUnhealthy: "LaunchDaemon Services Failing"
         case .kanataTCPServer: "TCP Server Not Responding"
-        case .orphanedKanataProcess: "Orphaned Kanata Process"
+        case .orphanedKanataProcess: "External Kanata Conflict"
         case .communicationServerConfiguration: "Communication Server Configuration Outdated"
         case .communicationServerNotResponding: "Communication Server Not Responding"
         case .tcpServerConfiguration: "TCP Server Configuration Outdated"
@@ -358,8 +356,8 @@ class IssueGenerator {
             "The kanata binary needs to be installed to system location from KeyPath's bundled Developer ID signed version. This ensures proper code signing for Input Monitoring permission."
         case .bundledKanataMissing:
             "CRITICAL: The kanata binary is missing from the KeyPath app bundle. This indicates the app was not packaged correctly. Please download and reinstall KeyPath from the official release page."
-        case .kanataService:
-            "Kanata service configuration is missing."
+        case .keyPathRuntime:
+            "KeyPath runtime is not running."
         case .karabinerDriver:
             "Karabiner-Elements driver is required for virtual HID functionality."
         case .karabinerDaemon:
@@ -378,21 +376,13 @@ class IssueGenerator {
             "The installed Karabiner-DriverKit-VirtualHIDDevice version is incompatible with the current version of Kanata. Kanata v1.10.0 requires driver v\(VHIDDeviceManager.requiredDriverVersionString), but a different version is installed. KeyPath includes the correct driver version and can install it for you."
         case .kanataBinaryVersionMismatch:
             "The installed kanata binary at /Library/KeyPath/bin/kanata does not match KeyPath's trusted signing identity. This can happen if the binary was replaced by another distribution or signer. Click Fix to reinstall the trusted bundled binary."
-        case .launchDaemonServices:
-            "LaunchDaemon services are not installed or loaded. These provide reliable system-level service management for KeyPath components."
-        case .launchDaemonServicesUnhealthy:
-            "LaunchDaemon services are loaded but crashing or failing. This usually indicates a configuration problem or permission issue that can be fixed by restarting the services."
         case .kanataTCPServer:
             "Kanata TCP server is not responding on the configured port. This is used for config validation and external integration. Service may need restart with TCP enabled."
         case .orphanedKanataProcess:
             """
-            Kanata is running outside of LaunchDaemon management. This prevents reliable lifecycle control and hot-reload functionality.
+            Another Kanata runtime is already running outside KeyPath's split runtime architecture.
 
-            KeyPath can fix this by either:
-            • **Adopt** (Recommended): Install management without interrupting your current session
-            • **Replace**: Stop current process and start a managed one (cleaner but interrupts current mappings)
-
-            The wizard will automatically choose the best option based on your configuration.
+            KeyPath Runtime cannot safely take control while that external process is active. Stop the external Kanata process, then start KeyPath Runtime again.
             """
         case .communicationServerConfiguration:
             """
@@ -425,7 +415,7 @@ class IssueGenerator {
 
     private func getAutoFixAction(for component: ComponentRequirement) -> AutoFixAction? {
         switch component {
-        case .karabinerDriver, .vhidDeviceManager, .bundledKanataMissing:
+        case .karabinerDriver, .bundledKanataMissing:
             nil // These require manual intervention (bundledKanataMissing = reinstall app)
         case .vhidDeviceActivation:
             .activateVHIDDeviceManager
@@ -433,22 +423,20 @@ class IssueGenerator {
             .restartVirtualHIDDaemon
         case .vhidDaemonMisconfigured:
             .repairVHIDDaemonServices
+        case .vhidDeviceManager:
+            .installRequiredRuntimeServices
         case .vhidDriverVersionMismatch:
             .fixDriverVersionMismatch
         case .kanataBinaryVersionMismatch:
             .replaceKanataWithBundled
-        case .launchDaemonServices:
-            .installLaunchDaemonServices
-        case .launchDaemonServicesUnhealthy:
-            .restartUnhealthyServices
         case .kanataBinaryMissing:
             .installBundledKanata // Install bundled kanata binary to system location
-        case .kanataService:
-            .installLaunchDaemonServices // Service configuration files
+        case .keyPathRuntime:
+            nil
         case .kanataTCPServer:
-            .restartUnhealthyServices // TCP server requires service restart with updated config
+            nil
         case .orphanedKanataProcess:
-            .adoptOrphanedProcess // Default to adopting the orphaned process
+            .terminateConflictingProcesses
         case .communicationServerConfiguration:
             .regenerateCommServiceConfiguration // Update LaunchDaemon plist with communication settings
         case .communicationServerNotResponding:
@@ -468,6 +456,8 @@ class IssueGenerator {
         switch component {
         case .karabinerDriver:
             "Install Karabiner-Elements from website"
+        case .keyPathRuntime:
+            "Start KeyPath Runtime from the wizard or app status controls"
         case .vhidDeviceManager:
             "Install Karabiner-VirtualHIDDevice from website"
         case .kanataBinaryMissing:

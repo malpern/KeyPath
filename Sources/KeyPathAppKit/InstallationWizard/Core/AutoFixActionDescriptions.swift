@@ -24,20 +24,14 @@ enum AutoFixActionDescriptions {
             "Create configuration directories"
         case .activateVHIDDeviceManager:
             "Activate VirtualHID Device Manager"
-        case .installLaunchDaemonServices:
-            "Install LaunchDaemon services"
-        case .adoptOrphanedProcess:
-            "Connect existing Kanata to KeyPath management"
-        case .replaceOrphanedProcess:
-            "Replace orphaned process with managed service"
+        case .installRequiredRuntimeServices:
+            "Install required runtime services"
         case .installBundledKanata:
             "Install Kanata binary"
         case .repairVHIDDaemonServices:
             "Repair VHID LaunchDaemon services"
         case .synchronizeConfigPaths:
             "Fix config path mismatch between KeyPath and Kanata"
-        case .restartUnhealthyServices:
-            "Restart failing system services"
         case .installLogRotation:
             "Install newsyslog config to keep logs under 10MB"
         case .replaceKanataWithBundled:
@@ -62,8 +56,8 @@ enum AutoFixActionDescriptions {
     /// Get detailed error message for specific auto-fix failures
     static func errorMessage(for action: AutoFixAction) -> String {
         switch action {
-        case .installLaunchDaemonServices:
-            "Failed to install system services. Check that you provided admin password and try again."
+        case .installRequiredRuntimeServices:
+            "Failed to install required runtime services. Check that you provided admin password and try again."
         case .activateVHIDDeviceManager:
             "Failed to activate driver extensions. Please manually approve in System Settings > General > Login Items & Extensions."
         case .installBundledKanata:
@@ -74,10 +68,6 @@ enum AutoFixActionDescriptions {
             "Failed to create configuration directories. Check file system permissions."
         case .restartVirtualHIDDaemon:
             "Failed to restart Virtual HID daemon."
-        case .restartUnhealthyServices:
-            "Failed to restart system services. This usually means:\n\n• Admin password was not provided when prompted\n"
-                + "• Missing services could not be installed\n• System permission denied for service restart\n\n"
-                + "Try the Fix button again and provide admin password when prompted."
         default:
             "Failed to \(describe(action).lowercased()). Check logs for details and try again."
         }

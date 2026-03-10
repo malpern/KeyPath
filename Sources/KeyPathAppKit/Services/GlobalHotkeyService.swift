@@ -19,10 +19,10 @@ final class GlobalHotkeyService {
     /// Whether the global hotkey is enabled (user preference)
     var isEnabled: Bool {
         get {
-            UserDefaults.standard.object(forKey: DefaultsKey.globalHotkeyEnabled) as? Bool ?? true
+            Foundation.UserDefaults.standard.object(forKey: DefaultsKey.globalHotkeyEnabled) as? Bool ?? true
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: DefaultsKey.globalHotkeyEnabled)
+            Foundation.UserDefaults.standard.set(newValue, forKey: DefaultsKey.globalHotkeyEnabled)
             if newValue {
                 startMonitoring()
             } else {

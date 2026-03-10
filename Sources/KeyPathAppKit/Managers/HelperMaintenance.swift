@@ -59,14 +59,18 @@ final class HelperMaintenance {
             log("✅ App copy check: OK (\(copies.first ?? "unknown"))")
         }
 
-        // Step 1: Best-effort unregister via SMAppService
-        await unregisterHelperIfPresent()
-
-        // Step 2: Try to install/register helper first (preferred, no AppleScript)
+        // Step 1: Try to refresh/register the helper in-place first.
+        //
+        // If the helper is already healthy, tearing it down first can introduce its own
+        // SMAppService failure modes and makes fast iteration harder. Prefer an idempotent
+        // register/refresh attempt, then fall back to full unregister/cleanup only if needed.
         if await registerHelper() {
             log("✅ Helper registered via SMAppService on first attempt")
         } else {
-            log("⚠️ Primary registration failed; attempting cleanup then retry")
+            log("⚠️ Direct helper refresh failed; attempting cleanup then retry")
+
+            // Step 2: Best-effort unregister via SMAppService
+            await unregisterHelperIfPresent()
 
             // Step 3: Stop/bootout any launchd job remnants
             await bootoutHelperJob()
@@ -224,7 +228,7 @@ final class HelperMaintenance {
             return await override(useAppleScriptFallback)
         }
         let (removedDirectly, _) = await Task.detached { () -> (Bool, Bool) in
-            let fm = FileManager.default
+            let fm = Foundation.FileManager()
             let legacyBin = "/Library/PrivilegedHelperTools/com.keypath.helper"
             let legacyPlist = "/Library/LaunchDaemons/com.keypath.helper.plist"
 
@@ -303,7 +307,7 @@ final class HelperMaintenance {
             NSHomeDirectory() + "/Applications/KeyPath.app",
             NSHomeDirectory() + "/Downloads/KeyPath.app"
         ]
-        for p in defaults where FileManager.default.fileExists(atPath: p) {
+        for p in defaults where Foundation.FileManager().fileExists(atPath: p) {
             candidates.append(p)
         }
         return candidates.isEmpty ? defaults : candidates

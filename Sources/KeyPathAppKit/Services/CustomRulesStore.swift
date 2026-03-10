@@ -10,7 +10,7 @@ actor CustomRulesStore {
     private let fileURL: URL
     private let fileManager: FileManager
 
-    init(fileURL: URL? = nil, fileManager: FileManager = .default) {
+    init(fileURL: URL? = nil, fileManager: FileManager = Foundation.FileManager()) {
         self.fileManager = fileManager
         let defaultDirectory = URL(
             fileURLWithPath: WizardSystemPaths.userConfigDirectory, isDirectory: true

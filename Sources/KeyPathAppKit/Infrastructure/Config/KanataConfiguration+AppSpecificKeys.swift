@@ -14,12 +14,12 @@ extension KanataConfiguration {
 
         AppLogger.shared.log("🔍 [ConfigGen] loadAppSpecificKeys: checking path \(path)")
 
-        guard FileManager.default.fileExists(atPath: path) else {
+        guard Foundation.FileManager().fileExists(atPath: path) else {
             AppLogger.shared.log("⚠️ [ConfigGen] loadAppSpecificKeys: file does not exist")
             return []
         }
 
-        guard let data = FileManager.default.contents(atPath: path) else {
+        guard let data = Foundation.FileManager().contents(atPath: path) else {
             AppLogger.shared.log("⚠️ [ConfigGen] loadAppSpecificKeys: could not read file contents")
             return []
         }

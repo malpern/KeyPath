@@ -52,12 +52,12 @@ struct WizardKanataServicePage: View {
 
         var description: String {
             switch self {
-            case .running: "Service is running"
-            case .stopped: "Service is not running"
+            case .running: "Runtime is running"
+            case .stopped: "Runtime is not running"
             case .failed: "Service error"
-            case .starting: "Service is starting..."
-            case .stopping: "Service is stopping..."
-            case .unknown: "Checking service status..."
+            case .starting: "Runtime is starting..."
+            case .stopping: "Runtime is stopping..."
+            case .unknown: "Checking runtime status..."
             }
         }
     }
@@ -70,7 +70,7 @@ struct WizardKanataServicePage: View {
                 overlayIcon: serviceStatus.icon,
                 overlayColor: serviceStatus.color,
                 overlaySize: .large,
-                title: "Kanata Service",
+                title: "KeyPath Runtime",
                 subtitle: statusMessage,
                 iconTapAction: { refreshStatus() }
             )
@@ -183,17 +183,17 @@ struct WizardKanataServicePage: View {
     private var statusMessage: String {
         switch serviceStatus {
         case .running:
-            "Kanata is running and ready to process keyboard events."
+            "KeyPath Runtime, powered by Kanata, is running and ready to process keyboard events."
         case .stopped:
-            "Kanata service is not running. Click Fix to start it."
+            "KeyPath runtime is not running. Click Fix to start it."
         case .failed:
-            "Kanata failed to start. Click Fix to retry."
+            "KeyPath Runtime, powered by Kanata, failed to start. Click Fix to retry."
         case .starting:
-            "Starting Kanata service…"
+            "Starting KeyPath runtime…"
         case .stopping:
-            "Stopping Kanata service…"
+            "Stopping KeyPath runtime…"
         case .unknown:
-            "Checking Kanata service status… If this takes too long, click Fix."
+            "Checking KeyPath runtime status… If this takes too long, click Fix."
         }
     }
 
@@ -210,7 +210,7 @@ struct WizardKanataServicePage: View {
     private func startService() {
         isPerformingAction = true
         serviceStatus = .starting
-        actionStatus = .inProgress(message: "Starting Kanata service…")
+        actionStatus = .inProgress(message: "Starting KeyPath runtime…")
 
         Task { @MainActor in
             _ = await kanataManager.startKanata(reason: "Wizard service start button")
@@ -223,10 +223,10 @@ struct WizardKanataServicePage: View {
     private func restartService() {
         isPerformingAction = true
         serviceStatus = .stopping
-        actionStatus = .inProgress(message: "Restarting Kanata service…")
+        actionStatus = .inProgress(message: "Restarting KeyPath runtime…")
 
         Task { @MainActor in
-            _ = await kanataManager.restartServiceWithFallback(reason: "Wizard service restart button")
+            _ = await kanataManager.restartKanata(reason: "Wizard service restart button")
             isPerformingAction = false
             await refreshStatusAsync()
             evaluateServiceCompletion(target: .running, actionName: "Kanata restart")
@@ -236,7 +236,7 @@ struct WizardKanataServicePage: View {
     private func stopService() {
         isPerformingAction = true
         serviceStatus = .stopping
-        actionStatus = .inProgress(message: "Stopping Kanata service…")
+        actionStatus = .inProgress(message: "Stopping KeyPath runtime…")
 
         Task { @MainActor in
             _ = await kanataManager.stopKanata(reason: "Wizard service stop button")
@@ -254,10 +254,10 @@ struct WizardKanataServicePage: View {
     }
 
     private func refreshStatusAsync() async {
-        let serviceState = await kanataManager.currentServiceState()
+        let runtimeStatus = await kanataManager.currentRuntimeStatus()
 
         let processStatus = ServiceStatusEvaluator.evaluate(
-            kanataIsRunning: serviceState.isRunning,
+            kanataIsRunning: runtimeStatus.isRunning,
             systemState: systemState,
             issues: issues
         )
@@ -266,19 +266,19 @@ struct WizardKanataServicePage: View {
 
         await MainActor.run {
             withAnimation(.easeInOut(duration: 0.3)) {
-                applyStatusUpdate(serviceState: serviceState, processStatus: processStatus)
+                applyStatusUpdate(runtimeStatus: runtimeStatus, processStatus: processStatus)
             }
         }
     }
 
     @MainActor
     private func applyStatusUpdate(
-        serviceState: KanataService.ServiceState,
+        runtimeStatus: RuntimeCoordinator.RuntimeStatus,
         processStatus: ServiceProcessStatus
     ) {
         var derivedStatus: ServiceStatus
 
-        switch serviceState {
+        switch runtimeStatus {
         case .running:
             derivedStatus = .running
         case .stopped:
@@ -291,11 +291,8 @@ struct WizardKanataServicePage: View {
             } else {
                 derivedStatus = .failed(error: reason)
             }
-        case .maintenance:
+        case .starting:
             derivedStatus = .starting
-        case .requiresApproval:
-            let message = "Approval required in System Settings ▸ Privacy & Security"
-            derivedStatus = .failed(error: message)
         case .unknown:
             derivedStatus = .unknown
         }
@@ -406,8 +403,8 @@ struct WizardKanataServicePage: View {
     private nonisolated static func extractConfigError(from stderrPath: String) -> String? {
         // Ignore stale stderr logs so old config errors don't surface after reinstalls.
         let maxLogAge: TimeInterval = 10 * 60
-        if let attributes = try? FileManager.default.attributesOfItem(atPath: stderrPath),
-           let modifiedAt = attributes[.modificationDate] as? Date,
+        if let attributes = try? Foundation.FileManager().attributesOfItem(atPath: stderrPath),
+           let modifiedAt = attributes[Foundation.FileAttributeKey.modificationDate] as? Date,
            Date().timeIntervalSince(modifiedAt) > maxLogAge
         {
             return nil
@@ -571,21 +568,21 @@ struct WizardKanataServicePage_Previews: PreviewProvider {
                 issues: [],
                 onRefresh: {}
             )
-            .previewDisplayName("Kanata Service - Stopped")
+            .previewDisplayName("KeyPath Runtime - Stopped")
 
             WizardKanataServicePage(
-                systemState: .missingComponents(missing: [.kanataService]),
+                systemState: .missingComponents(missing: [.keyPathRuntime]),
                 issues: [],
                 onRefresh: {}
             )
-            .previewDisplayName("Kanata Service - Missing Component")
+            .previewDisplayName("KeyPath Runtime - Missing Component")
 
             WizardKanataServicePage(
                 systemState: .ready,
                 issues: [],
                 onRefresh: {}
             )
-            .previewDisplayName("Kanata Service - Ready")
+            .previewDisplayName("KeyPath Runtime - Ready")
         }
         .environment(viewModel)
         .environment(stateMachine)

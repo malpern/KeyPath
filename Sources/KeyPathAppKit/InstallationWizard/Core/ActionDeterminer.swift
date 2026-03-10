@@ -61,9 +61,8 @@ enum ActionDeterminer {
             }
         }
 
-        // If the SMAppService/launchd jobs are missing or Kanata isn't running, reinstall services
-        if !context.components.launchDaemonServicesHealthy || !context.services.kanataRunning {
-            actions.append(.installLaunchDaemonServices)
+        if !context.components.vhidServicesHealthy {
+            actions.append(.installRequiredRuntimeServices)
         }
 
         // Check if daemon needs starting
@@ -80,11 +79,6 @@ enum ActionDeterminer {
             actions.append(
                 context.helper.isInstalled ? .reinstallPrivilegedHelper : .installPrivilegedHelper
             )
-        }
-
-        // Restart unhealthy services
-        if !context.services.backgroundServicesHealthy {
-            actions.append(.restartUnhealthyServices)
         }
 
         return actions
@@ -137,9 +131,9 @@ enum ActionDeterminer {
             actions.append(.installPrivilegedHelper)
         }
 
-        // Always install services for fresh install
-        // NOTE: Manager activation must happen first (added above if needed)
-        actions.append(.installLaunchDaemonServices)
+        if !context.components.vhidServicesHealthy {
+            actions.append(.installRequiredRuntimeServices)
+        }
 
         return actions
     }

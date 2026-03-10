@@ -123,9 +123,7 @@ struct WizardKanataComponentsPage: View {
                 switch issue.identifier {
                 case .component(.kanataBinaryMissing),
                      .component(.kanataBinaryVersionMismatch),
-                     .component(.kanataService),
-                     .component(.launchDaemonServices),
-                     .component(.launchDaemonServicesUnhealthy):
+                     .component(.keyPathRuntime):
                     return true
                 default:
                     return false
@@ -149,12 +147,10 @@ struct WizardKanataComponentsPage: View {
             }
             return hasIssue ? .failed : .completed
 
-        case "Kanata Service":
+        case "KeyPath Runtime":
             let hasIssue = issues.contains { issue in
                 if case let .component(component) = issue.identifier {
-                    return component == .kanataService
-                        || component == .launchDaemonServices
-                        || component == .launchDaemonServicesUnhealthy
+                    return component == .keyPathRuntime
                 }
                 return false
             }
@@ -174,11 +170,11 @@ struct WizardKanataComponentsPage: View {
         if case let .component(component) = issue.identifier {
             switch component {
             case .kanataBinaryMissing:
-                return "Kanata Binary"
+                return "Kanata Engine"
             case .kanataBinaryVersionMismatch:
                 return "Kanata Binary Update"
-            case .kanataService:
-                return "Kanata Service Configuration"
+            case .keyPathRuntime:
+                return "KeyPath Runtime Configuration"
             default:
                 return issue.title
             }
@@ -191,12 +187,12 @@ struct WizardKanataComponentsPage: View {
         if case let .component(component) = issue.identifier {
             switch component {
             case .kanataBinaryMissing:
-                return "Kanata is required for remapping. Click Fix to install it."
+                return "Kanata powers KeyPath remapping. Click Fix to install the engine."
             case .kanataBinaryVersionMismatch:
                 return
                     "A newer version of Kanata is bundled with KeyPath. Click Fix to update."
-            case .kanataService:
-                return "Background service configuration required for Kanata."
+            case .keyPathRuntime:
+                return "KeyPath Runtime is not running."
             default:
                 return issue.description
             }
@@ -219,9 +215,7 @@ struct WizardKanataComponentsPage: View {
         }
         if let serviceIssue = kanataIssues.first(where: {
             switch $0.identifier {
-            case .component(.kanataService),
-                 .component(.launchDaemonServices),
-                 .component(.launchDaemonServicesUnhealthy):
+            case .component(.keyPathRuntime):
                 true
             default:
                 false
@@ -374,7 +368,7 @@ struct WizardKanataComponentsPage: View {
                 await MainActor.run {
                     actionStatus = .inProgress(message: "Restarting Kanata service…")
                 }
-                _ = await kanataManager.restartServiceWithFallback(
+                _ = await kanataManager.restartKanata(
                     reason: "Kanata binary updated"
                 )
                 await kanataManager.updateStatus()

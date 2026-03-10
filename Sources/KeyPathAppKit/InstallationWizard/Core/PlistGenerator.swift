@@ -45,19 +45,11 @@ enum PlistGenerator {
         tcpPort: Int = 37001,
         verboseLogging: Bool = false
     ) -> [String] {
-        var arguments = [binaryPath, "--cfg", configPath]
-
-        // Add TCP port for communication server
-        arguments.append(contentsOf: ["--port", "\(tcpPort)"])
-
-        // Keep production logging quiet by default.
-        // Trace logging is opt-in for advanced diagnostics.
-        if verboseLogging {
-            arguments.append("--trace")
-        }
-        arguments.append("--log-layer-changes")
-
-        return arguments
+        KanataRuntimeLaunchRequest(
+            configPath: configPath,
+            inheritedArguments: ["--port", "\(tcpPort)", "--log-layer-changes"],
+            addTraceLogging: verboseLogging
+        ).commandLine(binaryPath: binaryPath)
     }
 
     /// Generate the Kanata service launchd plist XML content.

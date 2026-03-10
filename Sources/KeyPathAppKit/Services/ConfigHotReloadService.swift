@@ -101,13 +101,12 @@ final class ConfigHotReloadService {
     /// - Returns: Result with success status and optional new content/mappings
     func handleExternalChange(configPath: String) async -> ReloadResult {
         AppLogger.shared.log("📝 [ConfigHotReload] External config file change detected")
-
         // Notify detection
         callbacks.onDetected?()
         callbacks.onValidating?()
 
         // Check file exists
-        guard FileManager.default.fileExists(atPath: configPath) else {
+        guard Foundation.FileManager().fileExists(atPath: configPath) else {
             AppLogger.shared.error("❌ [ConfigHotReload] Config file no longer exists: \(configPath)")
             let result = ReloadResult.failure("Config file was deleted")
             callbacks.onFailure?(result.message)

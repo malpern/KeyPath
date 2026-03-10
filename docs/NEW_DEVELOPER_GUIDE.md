@@ -6,7 +6,7 @@ Welcome to KeyPath! This guide will help you understand the codebase architectur
 
 KeyPath is a macOS application that provides keyboard remapping using Kanata as the backend engine. It features:
 - SwiftUI frontend for recording keypaths and managing configuration
-- LaunchDaemon architecture for reliable system-level key remapping
+- A split runtime architecture with a bundled user-session host and a dedicated privileged output companion
 - Installation Wizard for automated setup
 - Deep macOS system integration (TCC permissions, VirtualHID drivers, service management)
 
@@ -47,33 +47,24 @@ KEYPATH_USE_INSTALLER_ENGINE=1 swift test --filter InstallerEngine
 ```swift
 import KeyPathAppKit
 
-let coordinator = ProcessCoordinator()
-
-// Start/stop/restart always go through KanataService and only fall back to InstallerEngine if needed
-let restarted = await coordinator.restartService()
-if restarted {
-    print("Kanata service is healthy")
-} else {
-    print("Restart failed even after InstallerEngine fallback")
-}
-
-// Need a full repair? Go through RuntimeCoordinator so it can log + inspect system context for you.
 let runtimeCoordinator = RuntimeCoordinator()
-let report = await runtimeCoordinator.runFullRepair(reason: "CLI repair")
-if report.success {
-    print("Repair finished (\(report.executedRecipes.count) steps)")
+let started = await runtimeCoordinator.startKanata(reason: "Normal app start")
+if started {
+    print("Split runtime host is active")
 } else {
-    print("Repair failed: \(report.failureReason ?? "unknown")")
+    print(runtimeCoordinator.lastError ?? "Split runtime start failed")
 }
 ```
 
-`InstallerEngine` still powers installs/repairs under the hood, but new helpers should prefer `ProcessCoordinator` / `RuntimeCoordinator` so that cool-downs, health checks, and privilege handling stay centralized.
+`InstallerEngine` still powers installs/repairs under the hood, but ordinary runtime control should
+go through `RuntimeCoordinator`, which now treats the split runtime host as the normal path and the
+old launchd-managed daemon only as an explicit recovery seam.
 
 ### 3. Explore Key Components (10 minutes)
 
 Open these files in your editor to understand the core architecture:
 - `Services/PermissionOracle.swift` - Single source of truth for permissions
-- `Managers/KanataManager.swift` - Main process coordinator
+- `Managers/RuntimeCoordinator.swift` - Main runtime coordinator
 - `UI/ContentView.swift` - Main recording UI
 - `InstallationWizard/README.md` - Wizard overview (45% of codebase)
 
@@ -82,21 +73,20 @@ Open these files in your editor to understand the core architecture:
 ### System Design
 
 ```
-KeyPath.app (SwiftUI) → InstallerEngine → LaunchDaemon/PrivilegedHelper
-          ↓                    ↓
-    RuntimeCoordinator   SystemContext (State)
-          ↓
-   TCP/Runtime Control → Kanata daemon
-          ↓                    ↓
-   CGEvent Capture      VirtualHID Driver
-          ↓                    ↓
-   User Input Recording  System-wide Remapping
+KeyPath.app (SwiftUI) → RuntimeCoordinator → KeyPath Runtime Host
+          ↓                    ↓                    ↓
+   InstallerEngine       SystemContext (State)   Kanata engine in-process
+          ↓                                         ↓
+ Privileged Helper / Output Bridge Daemon   TCP/Event interface + CGEvent capture
+          ↓                                         ↓
+  VirtualHID / Driver management            System-wide remapping
 ```
 
 **Key Components:**
 - **InstallerEngine**: Unified façade for installation, repair, and system inspection
-- **RuntimeCoordinator**: Orchestrates active service, handles config reloading
-- **KanataService**: Manages service lifecycle (start/stop/restart)
+- **RuntimeCoordinator**: Orchestrates the active KeyPath runtime and handles config reloading
+- **KeyPath Runtime**: The normal bundled host runtime that the app starts, stops, and monitors.
+- **RecoveryDaemonService**: Narrow internal utility for the old recovery daemon only.
 - **SystemContext**: Snapshot of system state (permissions, services, components)
 
 ### Directory Structure
@@ -149,39 +139,25 @@ let updated = await PermissionOracle.shared.forceRefresh()
 
 **See also:** Oracle Quick Start section in the file (lines 13-53)
 
-### 2. KanataManager (Main Coordinator)
+### 2. RuntimeCoordinator (Main Coordinator)
 
-**Location:** `Managers/KanataManager.swift` + 5 extension files (2,820 lines total)
+**Location:** `Managers/RuntimeCoordinator.swift` + extension files
 
-**What it does:** Orchestrates Kanata process lifecycle, configuration, and communication.
-
-**Extension breakdown:**
-- `KanataManager.swift` - Core state, initialization, health monitoring
-- `+Lifecycle.swift` - Start/stop/restart operations
-- `+Configuration.swift` - Config file I/O and validation
-- `+Engine.swift` - UDP/TCP communication with Kanata
-- `+EventTaps.swift` - CGEvent monitoring for key recording
-- `+Output.swift` - Log parsing and monitoring
+**What it does:** Orchestrates the active KeyPath runtime, configuration, diagnostics, and recovery.
 
 **How to use it:**
 ```swift
-// KanataManager is NOT @ObservableObject
-// UI uses KanataViewModel for @Published properties
+let coordinator = RuntimeCoordinator.shared
 
-// Start Kanata
-try await manager.startKanata()
+let started = await coordinator.startKanata(reason: "Normal app start")
+let restarted = await coordinator.restartKanata(reason: "Manual restart")
+let stopped = await coordinator.stopKanata(reason: "App shutdown")
 
-// Stop Kanata
-try await manager.stopKanata()
-
-// Update config
-try await manager.updateConfiguration(newConfig)
-
-// Get UI state snapshot
-let uiState = manager.getCurrentUIState()
+let uiState = coordinator.buildUIState()
 ```
 
-**See also:** Navigation comment in the file (lines 74-135)
+**Naming note:** user-facing code says `KeyPath Runtime`, while engine-level code keeps `Kanata`
+for the actual remapping engine, config, and binary.
 
 ### 3. InstallationWizard (45% of Codebase!)
 
@@ -235,7 +211,8 @@ let health = await engine.checkKanataServiceHealth()
 | Service | Purpose | Lines |
 |---------|---------|-------|
 | **PermissionOracle** | Permission detection | 671 |
-| **KanataService** | Service lifecycle (start/stop/restart) | 400+ |
+| **KeyPath Runtime / RuntimeCoordinator** | Normal runtime lifecycle (start/stop/restart) | Primary path |
+| **RecoveryDaemonService** | Internal recovery-daemon stop/status utility | Narrow internal seam |
 | **KeyboardCapture** | CGEvent input recording | 622 |
 | **KarabinerConflictService** | Detect keyboard conflicts | 600 |
 | **DiagnosticsService** | System analysis | 537 |
@@ -261,7 +238,7 @@ KeyPath uses a clean MVVM separation:
 └─────────────────┬───────────────────────────────┘
                   │ Calls methods, reads snapshots
 ┌─────────────────▼───────────────────────────────┐
-│              KanataManager                      │
+│            RuntimeCoordinator                   │
 │      (Business logic, NO @ObservableObject)     │
 └─────────────────┬───────────────────────────────┘
                   │ Delegates to services
@@ -272,7 +249,7 @@ KeyPath uses a clean MVVM separation:
 ```
 
 **Key points:**
-- **Manager** = business logic & orchestration (NOT ObservableObject)
+- **Coordinator** = business logic & orchestration (NOT ObservableObject)
 - **ViewModel** = UI state with @Published properties
 - **Views** = SwiftUI, observe ViewModel only
 - **Services** = focused, reusable, independently testable
@@ -415,7 +392,7 @@ swift test --filter TestClassName.testMethodName
 **Requires careful consideration:**
 - PermissionOracle (critical architecture, check ADRs first)
 - WizardNavigationEngine (state-driven logic)
-- KanataManager core (coordinator pattern)
+- RuntimeCoordinator core (coordinator pattern)
 
 **Don't touch without team discussion:**
 - Core contracts/protocols (affects all consumers)
@@ -529,7 +506,7 @@ sudo ./Scripts/uninstall.sh
 - `CLAUDE.md` - ADRs, anti-patterns, critical architecture
 - `InstallationWizard/README.md` - Wizard flow and components
 - `Services/PermissionOracle.swift` - Permission detection guide
-- `Managers/KanataManager.swift` - Manager extension map
+- `Managers/RuntimeCoordinator.swift` - Coordinator extension map
 
 ### Debugging Resources
 
@@ -562,7 +539,7 @@ Now that you understand the architecture, here are suggested next steps:
 - [ ] Read all files in the "Quick Start" section
 - [ ] Run through the Installation Wizard
 - [ ] Check permission states in PermissionOracle
-- [ ] Explore KanataManager extension files
+- [ ] Explore RuntimeCoordinator extension files
 
 ### Week 2: Small Changes
 - [ ] Fix a small UI bug or add a minor feature
@@ -573,7 +550,7 @@ Now that you understand the architecture, here are suggested next steps:
 ### Week 3: Understanding Services
 - [ ] Pick one service (e.g., KeyboardCapture)
 - [ ] Read its implementation completely
-- [ ] Understand how it's used by KanataManager
+- [ ] Understand how it is used by RuntimeCoordinator
 - [ ] Write tests or improve existing tests
 
 ### Week 4: Larger Features

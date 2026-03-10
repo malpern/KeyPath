@@ -29,7 +29,7 @@ struct AppPickerView: View {
 
         for path in commonApps {
             let url = URL(fileURLWithPath: path)
-            if FileManager.default.fileExists(atPath: path) {
+            if Foundation.FileManager().fileExists(atPath: path) {
                 let name = url.deletingPathExtension().lastPathComponent
                 let bundleID = Bundle(url: url)?.bundleIdentifier ?? ""
                 let icon = workspace.icon(forFile: path)

@@ -229,6 +229,25 @@ final class RecentKeypressesServiceTests: XCTestCase {
         XCTAssertEqual(service.events[1].action, "press")
     }
 
+    func testMetadata_ListenerSessionAndKanataTimestamp_AreStoredOnEvent() async {
+        notificationCenter.post(
+            name: .kanataKeyInput,
+            object: nil,
+            userInfo: [
+                "key": "a",
+                "action": "press",
+                "listenerSessionID": 17,
+                "kanataTimestamp": UInt64(55),
+                "observedAt": Date(timeIntervalSince1970: 1)
+            ]
+        )
+
+        await waitForEventsCount(1)
+
+        XCTAssertEqual(service.events[0].listenerSessionID, 17)
+        XCTAssertEqual(service.events[0].kanataTimestamp, 55)
+    }
+
     // MARK: - Recording Toggle Tests
 
     func testRecordingToggle_WhenDisabled_EventsNotAdded() async {

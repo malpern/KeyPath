@@ -74,12 +74,12 @@ public final class ScriptSecurityService {
         let expandedPath = (path as NSString).expandingTildeInPath
 
         // Check file exists
-        guard FileManager.default.fileExists(atPath: expandedPath) else {
+        guard Foundation.FileManager().fileExists(atPath: expandedPath) else {
             return .fileNotFound(path: expandedPath)
         }
 
         // Check file is executable (or is a script type we can run)
-        let isExecutable = FileManager.default.isExecutableFile(atPath: expandedPath)
+        let isExecutable = Foundation.FileManager().isExecutableFile(atPath: expandedPath)
         let isScriptType = isRecognizedScript(expandedPath)
 
         guard isExecutable || isScriptType else {

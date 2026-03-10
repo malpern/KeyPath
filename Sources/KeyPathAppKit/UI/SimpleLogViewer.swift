@@ -140,7 +140,7 @@ struct SimpleLogViewer: View {
         ]
 
         for (editorPath, args) in editors {
-            if FileManager.default.fileExists(atPath: editorPath) {
+            if Foundation.FileManager().fileExists(atPath: editorPath) {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: editorPath)
                 process.arguments = args

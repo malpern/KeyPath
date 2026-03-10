@@ -220,7 +220,7 @@ final class KanataErrorMonitor {
         AppLogger.shared.info("[ErrorMonitor] Starting stderr monitoring")
 
         // Get current file size to start reading from end
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: stderrPath),
+        if let attrs = try? Foundation.FileManager().attributesOfItem(atPath: stderrPath),
            let fileSize = attrs[.size] as? UInt64
         {
             lastFilePosition = fileSize
@@ -390,7 +390,10 @@ final class KanataErrorMonitor {
         Task { @MainActor in
             UserFeedbackService.show(message: message)
             // Also post notification to make health indicator more visible
-            NotificationCenter.default.post(name: .kanataErrorDetected, object: error)
+            NotificationObserverManager.defaultCenter.post(
+                name: Notification.Name.kanataErrorDetected,
+                object: error
+            )
         }
     }
 

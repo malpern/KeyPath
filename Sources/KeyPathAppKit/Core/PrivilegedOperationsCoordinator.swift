@@ -4,13 +4,10 @@ import KeyPathCore
 
 @MainActor
 protocol PrivilegedOperationsCoordinating: AnyObject {
-    func installLaunchDaemon(plistPath: String, serviceID: String) async throws
     func cleanupPrivilegedHelper() async throws
-    func installAllLaunchDaemonServices(kanataBinaryPath: String, kanataConfigPath: String, tcpPort: Int) async throws
-    func installAllLaunchDaemonServices() async throws
-    func restartUnhealthyServices() async throws
+    func installRequiredRuntimeServices() async throws
+    func recoverRequiredRuntimeServices() async throws
     func installServicesIfUninstalled(context: String) async throws -> Bool
-    func installLaunchDaemonServicesWithoutLoading() async throws
     func installNewsyslogConfig() async throws
     func regenerateServiceConfiguration() async throws
     func repairVHIDDaemonServices() async throws
@@ -34,7 +31,7 @@ protocol PrivilegedOperationsCoordinating: AnyObject {
 /// **Usage:**
 /// ```swift
 /// let coordinator = PrivilegedOperationsCoordinator.shared
-/// try await coordinator.installLaunchDaemon(plistPath: path, serviceID: id)
+/// try await coordinator.installRequiredRuntimeServices()
 /// ```
 @MainActor
 final class PrivilegedOperationsCoordinator {
@@ -43,7 +40,9 @@ final class PrivilegedOperationsCoordinator {
     private static var lastServiceInstallAttempt: Date?
     private static var lastSMAppApprovalNotice: Date?
     private static let smAppApprovalNoticeThrottle: TimeInterval = 5
-    private static let kanataReadinessTimeout: TimeInterval = 8
+    // Clean macOS starts can legitimately take >10s because Kanata sleeps for 2s on startup
+    // and may wait up to 10s for the DriverKit virtual keyboard to become ready.
+    private static let kanataReadinessTimeout: TimeInterval = 20
     private static let kanataReadinessPollIntervalSeconds: TimeInterval = 0.5
     private static let kanataLaunchctlNotFoundExitCode: Int32 = 113
     private static let persistentLaunchctlNotFoundThreshold = 3
@@ -55,6 +54,7 @@ final class PrivilegedOperationsCoordinator {
         case pendingApproval
         case staleRegistration
         case launchctlNotFoundPersistent
+        case tcpPortInUse
         case timedOut
 
         var isSuccess: Bool {
@@ -71,6 +71,8 @@ final class PrivilegedOperationsCoordinator {
                 "SMAppService registration is enabled but launchd cannot load the service"
             case .launchctlNotFoundPersistent:
                 "launchctl repeatedly reported the Kanata service as not found"
+            case .tcpPortInUse:
+                "TCP port 37001 is already in use by an existing Kanata runtime"
             case .timedOut:
                 "Kanata did not become running + TCP responsive within readiness timeout"
             }
@@ -89,6 +91,8 @@ final class PrivilegedOperationsCoordinator {
             (() -> KanataDaemonManager.ServiceManagementState)?
         nonisolated(unsafe) static var installAllServicesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var installBundledKanataBinaryOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var recoverRequiredRuntimeServicesOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var killExistingKanataProcessesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var kanataReadinessOverride:
             ((String) async -> KanataReadinessResult)?
 
@@ -96,10 +100,14 @@ final class PrivilegedOperationsCoordinator {
             serviceStateOverride = nil
             installAllServicesOverride = nil
             installBundledKanataBinaryOverride = nil
+            recoverRequiredRuntimeServicesOverride = nil
+            killExistingKanataProcessesOverride = nil
             kanataReadinessOverride = nil
             lastServiceInstallAttempt = nil
             lastSMAppApprovalNotice = nil
             staleRecoveryAttemptCount = 0
+            KanataDaemonManager.registeredButNotLoadedOverride = nil
+            ServiceHealthChecker.runtimeSnapshotOverride = nil
         }
 #endif
 
@@ -133,20 +141,6 @@ final class PrivilegedOperationsCoordinator {
 
     // MARK: - Unified Privileged Operations API
 
-    // MARK: LaunchDaemon Operations
-
-    /// Install a LaunchDaemon plist file to /Library/LaunchDaemons/
-    func installLaunchDaemon(plistPath: String, serviceID: String) async throws {
-        AppLogger.shared.log("🔐 [PrivCoordinator] Installing LaunchDaemon: \(serviceID)")
-
-        switch Self.operationMode {
-        case .privilegedHelper:
-            try await helperInstallLaunchDaemon(plistPath: plistPath, serviceID: serviceID)
-        case .directSudo:
-            try await sudoInstallLaunchDaemon(plistPath: plistPath, serviceID: serviceID)
-        }
-    }
-
     /// Remove any installed SMJobBless helper and its daemon plist/logs (developer convenience)
     func cleanupPrivilegedHelper() async throws {
         AppLogger.shared.log("🧹 [PrivCoordinator] Cleaning up privileged helper (dev)")
@@ -164,47 +158,20 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Install all LaunchDaemon services with explicit parameters
-    func installAllLaunchDaemonServices(
-        kanataBinaryPath: String,
-        kanataConfigPath: String,
-        tcpPort: Int
-    ) async throws {
-        AppLogger.shared.log(
-            "🔐 [PrivCoordinator] Installing all LaunchDaemon services via SMAppService"
-        )
-        // Always use SMAppService path for Kanata
-        try await sudoInstallAllServices(
-            kanataBinaryPath: kanataBinaryPath,
-            kanataConfigPath: kanataConfigPath,
-            tcpPort: tcpPort
-        )
-        try await enforceKanataRuntimePostcondition(after: "installAllLaunchDaemonServices(explicit)")
-    }
-
-    /// Install all LaunchDaemon services (convenience overload - uses PreferencesService for config)
-    func installAllLaunchDaemonServices() async throws {
-        AppLogger.shared.log(
-            "🔐 [PrivCoordinator] Installing all LaunchDaemon services (using preferences)"
-        )
+    func installRequiredRuntimeServices() async throws {
+        AppLogger.shared.log("🔐 [PrivCoordinator] Installing required split-runtime services")
 
         switch Self.operationMode {
         case .privilegedHelper:
             do {
-                // VirtualHID is managed via launchctl (root); Kanata is managed via SMAppService.
-                // Ensure VHID services are present/healthy, then register Kanata via SMAppService.
-                try await HelperManager.shared.restartUnhealthyServices()
-                try await KanataDaemonManager.shared.register()
-                AppLogger.shared.log(
-                    "✅ [PrivCoordinator] Helper installed VHID services; Kanata registered via SMAppService"
-                )
+                try await HelperManager.shared.installRequiredRuntimeServices()
             } catch {
                 AppLogger.shared.log("⚠️ [PrivCoordinator] Helper failed (\(error)), falling back to sudo")
-                try await sudoInstallAllServicesWithPreferences()
+                try await sudoInstallRequiredRuntimeServices()
             }
         case .directSudo:
-            try await sudoInstallAllServicesWithPreferences()
+            try await sudoInstallRequiredRuntimeServices()
         }
-        try await enforceKanataRuntimePostcondition(after: "installAllLaunchDaemonServices")
     }
 
     private func currentServiceState() async -> KanataDaemonManager.ServiceManagementState {
@@ -223,7 +190,7 @@ final class PrivilegedOperationsCoordinator {
                 return
             }
         #endif
-        try await installAllLaunchDaemonServices()
+        try await installRequiredRuntimeServices()
     }
 
     private func enforceKanataRuntimePostcondition(after operation: String) async throws {
@@ -297,23 +264,32 @@ final class PrivilegedOperationsCoordinator {
         return .run(reason: "state=\(state.description)", bypassedThrottle: false)
     }
 
-    /// Restart unhealthy LaunchDaemon services
-    func restartUnhealthyServices() async throws {
-        AppLogger.shared.log("🔐 [PrivCoordinator] Restarting unhealthy services")
+    /// Recover runtime services after a failed or stale service state.
+    func recoverRequiredRuntimeServices() async throws {
+        AppLogger.shared.log("🔐 [PrivCoordinator] Recovering runtime services")
+
+#if DEBUG
+        if let override = Self.recoverRequiredRuntimeServicesOverride {
+            try await override()
+            return
+        }
+#endif
 
         // If the Kanata service is completely uninstalled, install everything first.
         if try await installServicesIfUninstalled(context: "pre-restart") {
             AppLogger.shared.log(
                 "✅ [PrivCoordinator] Installed services before restart request – skipping restart call"
             )
-            try await enforceKanataRuntimePostcondition(after: "restartUnhealthyServices(pre-restart)")
+            try await enforceKanataRuntimePostcondition(after: "recoverRequiredRuntimeServices(pre-restart)")
             return
         }
+
+        try await killExistingKanataProcessesForServiceRecovery()
 
         switch Self.operationMode {
         case .privilegedHelper:
             do {
-                try await HelperManager.shared.restartUnhealthyServices()
+                try await HelperManager.shared.recoverRequiredRuntimeServices()
                 AppLogger.shared.log("✅ [PrivCoordinator] Helper successfully restarted services")
             } catch {
                 AppLogger.shared.log("⚠️ [PrivCoordinator] Helper failed (\(error)), falling back to sudo")
@@ -328,7 +304,35 @@ final class PrivilegedOperationsCoordinator {
             AppLogger.shared.log("✅ [PrivCoordinator] Service installed after restart attempt")
         }
 
-        try await enforceKanataRuntimePostcondition(after: "restartUnhealthyServices")
+        try await enforceKanataRuntimePostcondition(after: "recoverRequiredRuntimeServices")
+    }
+
+    private func killExistingKanataProcessesForServiceRecovery() async throws {
+#if DEBUG
+        if let override = Self.killExistingKanataProcessesOverride {
+            try await override()
+            return
+        }
+#endif
+
+        AppLogger.shared.log(
+            "🧹 [PrivCoordinator] Clearing existing Kanata processes before service recovery to avoid TCP port collisions"
+        )
+
+        switch Self.operationMode {
+        case .privilegedHelper:
+            do {
+                try await HelperManager.shared.killAllKanataProcesses()
+                AppLogger.shared.log("✅ [PrivCoordinator] Helper cleared existing Kanata processes")
+            } catch {
+                AppLogger.shared.log(
+                    "⚠️ [PrivCoordinator] Helper killAllKanataProcesses failed (\(error)); falling back to sudo"
+                )
+                try await sudoKillAllKanata()
+            }
+        case .directSudo:
+            try await sudoKillAllKanata()
+        }
     }
 
     /// Installs all LaunchDaemon services via SMAppService when the Kanata daemon is missing.
@@ -436,25 +440,6 @@ final class PrivilegedOperationsCoordinator {
             }
         case .directSudo:
             try await sudoRepairVHIDServices()
-        }
-    }
-
-    /// Install LaunchDaemon services without loading them (for adopting orphaned processes)
-    func installLaunchDaemonServicesWithoutLoading() async throws {
-        AppLogger.shared.log(
-            "🔐 [PrivCoordinator] Installing LaunchDaemon services (install-only, no load)"
-        )
-
-        switch Self.operationMode {
-        case .privilegedHelper:
-            do { try await helperInstallServicesWithoutLoading() } catch {
-                AppLogger.shared.log(
-                    "🚨 [PrivCoordinator] FALLBACK: helper installLaunchDaemonServicesWithoutLoading failed: \(error.localizedDescription). Using AppleScript/sudo path."
-                )
-                try await sudoInstallServicesWithoutLoading()
-            }
-        case .directSudo:
-            try await sudoInstallServicesWithoutLoading()
         }
     }
 
@@ -596,7 +581,24 @@ final class PrivilegedOperationsCoordinator {
 
         // Ensure SMAppService launchd job exists after installing the binary
         // (common case: fresh reinstall leaves service missing even though binary is present)
-        try await installServicesIfUninstalled(context: "installBundledKanata")
+        let didInstallServices = try await installServicesIfUninstalled(context: "installBundledKanata")
+
+        // Fresh installs can already report SMAppService as active while the runtime is still down.
+        // In that state, binary install + registration metadata is not enough; kick the service once
+        // before enforcing the strict runtime readiness postcondition.
+        if !didInstallServices {
+            let managementState = await currentServiceState()
+            if managementState == .smappserviceActive {
+                AppLogger.shared.log(
+                    "🔐 [PrivCoordinator] Bundled Kanata installed while SMAppService was already active; restarting unhealthy services before readiness verification"
+                )
+                try await recoverRequiredRuntimeServices()
+                AppLogger.shared.log(
+                    "✅ [PrivCoordinator] Bundled Kanata install recovered runtime via recoverRequiredRuntimeServices"
+                )
+                return
+            }
+        }
 
         let readiness = await verifyKanataReadinessAfterInstall(context: "installBundledKanata")
         guard readiness.isSuccess else {
@@ -619,10 +621,6 @@ final class PrivilegedOperationsCoordinator {
     // implementation of specific operations.
 
     // MARK: - Privileged Helper Path (Phase 2 - Future Implementation)
-
-    private func helperInstallLaunchDaemon(plistPath: String, serviceID: String) async throws {
-        try await HelperManager.shared.installLaunchDaemon(plistPath: plistPath, serviceID: serviceID)
-    }
 
     private func helperRegenerateConfig() async throws {
         AppLogger.shared.log("🔧 [PrivCoordinator] Bypassing helper - using SMAppService path directly")
@@ -654,7 +652,7 @@ final class PrivilegedOperationsCoordinator {
 
     private func removeLegacyKanataPlist(reason: String) async {
         let path = KanataDaemonManager.legacyPlistPath
-        guard FileManager.default.fileExists(atPath: path) else { return }
+        guard Foundation.FileManager().fileExists(atPath: path) else { return }
 
         // Validate path is a safe LaunchDaemons plist before interpolating into shell
         guard path.hasPrefix("/Library/LaunchDaemons/"),
@@ -725,7 +723,9 @@ final class PrivilegedOperationsCoordinator {
                 timeoutMs: timeoutMs
             )
 
-            if runtimeSnapshot.isRunning && runtimeSnapshot.isResponding {
+            if runtimeSnapshot.isRunning && runtimeSnapshot.isResponding
+                && runtimeSnapshot.inputCaptureReady
+            {
                 return .ready
             }
 
@@ -775,11 +775,50 @@ final class PrivilegedOperationsCoordinator {
         AppLogger.shared.error(
             "❌ [PrivCoordinator] \(context): timed out waiting for Kanata readiness"
         )
+
+        if await detectKanataTCPPortConflict() {
+            AppLogger.shared.error(
+                "❌ [PrivCoordinator] \(context): detected TCP port 37001 conflict while Kanata remained down"
+            )
+            return .tcpPortInUse
+        }
+
         return .timedOut
     }
 
-    private func helperInstallServicesWithoutLoading() async throws {
-        try await HelperManager.shared.installLaunchDaemonServicesWithoutLoading()
+    private func detectKanataTCPPortConflict() async -> Bool {
+        let result: ProcessResult
+        do {
+            result = try await SubprocessRunner.shared.run(
+                "/usr/sbin/lsof",
+                args: ["-nP", "-iTCP:37001", "-sTCP:LISTEN"],
+                timeout: 2.0
+            )
+        } catch {
+            AppLogger.shared.log(
+                "⚠️ [PrivCoordinator] Failed to probe TCP port 37001 ownership: \(error.localizedDescription)"
+            )
+            return false
+        }
+
+        guard result.exitCode == 0 else { return false }
+        let lines = result.stdout
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map(String.init)
+        guard lines.count >= 2 else { return false }
+        let output = result.stdout.lowercased()
+
+        if output.contains("/library/keypath/bin/kanata") {
+            return true
+        }
+        if output.contains("/applications/keypath.app/contents/library/keypath/kanata") {
+            return true
+        }
+        if output.contains("kanata") {
+            return true
+        }
+
+        return false
     }
 
     private func helperActivateVHID() async throws {
@@ -865,13 +904,13 @@ final class PrivilegedOperationsCoordinator {
         }
 
         // 2) Ask helper to restart unhealthy services or install if missing
-        AppLogger.shared.log("🔎 [PrivCoordinator] Calling restartUnhealthyServices helper...")
+        AppLogger.shared.log("🔎 [PrivCoordinator] Calling recoverRequiredRuntimeServices helper...")
         do {
-            try await HelperManager.shared.restartUnhealthyServices()
-            AppLogger.shared.log("🔎 [PrivCoordinator] restartUnhealthyServices completed successfully")
+            try await HelperManager.shared.recoverRequiredRuntimeServices()
+            AppLogger.shared.log("🔎 [PrivCoordinator] recoverRequiredRuntimeServices completed successfully")
         } catch {
             AppLogger.shared.log(
-                "⚠️ [PrivCoordinator] Helper restartUnhealthyServices failed: \(error.localizedDescription)"
+                "⚠️ [PrivCoordinator] Helper recoverRequiredRuntimeServices failed: \(error.localizedDescription)"
             )
         }
 
@@ -937,53 +976,18 @@ final class PrivilegedOperationsCoordinator {
 
     // MARK: - Direct Sudo Path (Current Implementation)
 
-    /// Install LaunchDaemon plist using osascript with admin privileges
-    private func sudoInstallLaunchDaemon(plistPath: String, serviceID: String) async throws {
-        let launchDaemonsPath = "/Library/LaunchDaemons"
-        let finalPath = "\(launchDaemonsPath)/\(serviceID).plist"
-
-        let command = """
-        mkdir -p '\(launchDaemonsPath)' && \
-        cp '\(plistPath)' '\(finalPath)' && \
-        chown root:wheel '\(finalPath)' && \
-        chmod 644 '\(finalPath)'
-        """
-
-        try await sudoExecuteCommand(
-            command,
-            description: "Install LaunchDaemon: \(serviceID)"
-        )
-    }
-
-    /// Install all LaunchDaemon services using consolidated single-prompt method
-    /// Uses extracted ServiceBootstrapper for full installation orchestration
-    private func sudoInstallAllServices(
-        kanataBinaryPath _: String,
-        kanataConfigPath _: String,
-        tcpPort _: Int
-    ) async throws {
-        // Uses extracted ServiceBootstrapper for full installation
+    private func sudoInstallRequiredRuntimeServices() async throws {
         let success = await ServiceBootstrapper.shared.installAllServices()
 
         if !success {
-            throw PrivilegedOperationError.installationFailed("Service installation failed")
+            throw PrivilegedOperationError.installationFailed("Required runtime service installation failed")
         }
     }
 
-    /// Install all LaunchDaemon services (convenience - uses PreferencesService)
-    /// Uses extracted ServiceBootstrapper
-    private func sudoInstallAllServicesWithPreferences() async throws {
-        let success = await ServiceBootstrapper.shared.installAllServices()
-
-        if !success {
-            throw PrivilegedOperationError.installationFailed("Service installation failed")
-        }
-    }
-
-    /// Restart unhealthy services
+    /// Recover runtime services
     /// Uses extracted ServiceBootstrapper
     private func sudoRestartServices() async throws {
-        let success = await ServiceBootstrapper.shared.restartUnhealthyServices()
+        let success = await ServiceBootstrapper.shared.recoverRequiredRuntimeServices()
 
         if !success {
             throw PrivilegedOperationError.operationFailed("Service restart failed")
@@ -1018,17 +1022,6 @@ final class PrivilegedOperationsCoordinator {
 
         if !success {
             throw PrivilegedOperationError.operationFailed("VHID daemon repair failed")
-        }
-    }
-
-    /// Install LaunchDaemon services without loading them (for orphan adoption)
-    /// Uses extracted ServiceBootstrapper
-    private func sudoInstallServicesWithoutLoading() async throws {
-        let binaryPath = KanataBinaryInstaller.shared.getKanataBinaryPath()
-        let success = await ServiceBootstrapper.shared.installAllServicesWithoutLoading(binaryPath: binaryPath)
-
-        if !success {
-            throw PrivilegedOperationError.operationFailed("Service installation (install-only) failed")
         }
     }
 
@@ -1114,7 +1107,7 @@ final class PrivilegedOperationsCoordinator {
         let vhidPlist = "/Library/LaunchDaemons/\(vhidLabel).plist"
 
         // Determine if a LaunchDaemon is installed; prefer managed restart to prevent duplicates
-        let hasService = FileManager.default.fileExists(atPath: vhidPlist)
+        let hasService = Foundation.FileManager().fileExists(atPath: vhidPlist)
         AppLogger.shared.log("🔐 [PrivCoordinator] VHID LaunchDaemon installed: \(hasService)")
 
         // Log current PIDs before any action (for diagnostics)

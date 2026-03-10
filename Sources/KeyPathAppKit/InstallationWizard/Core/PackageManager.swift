@@ -84,7 +84,7 @@ class PackageManager {
             "/usr/local/bin/brew" // Intel Homebrew
         ]
 
-        for path in homebrewPaths where FileManager.default.fileExists(atPath: path) {
+        for path in homebrewPaths where Foundation.FileManager().fileExists(atPath: path) {
             AppLogger.shared.log("✅ [PackageManager] Homebrew found at: \(path)")
             return true
         }
@@ -105,7 +105,7 @@ class PackageManager {
             "/usr/local/bin/brew" // Intel Homebrew
         ]
 
-        for path in homebrewPaths where FileManager.default.fileExists(atPath: path) {
+        for path in homebrewPaths where Foundation.FileManager().fileExists(atPath: path) {
             return path
         }
 
@@ -114,9 +114,9 @@ class PackageManager {
 
     /// Gets the Homebrew bin directory for installed packages
     func getHomebrewBinPath() -> String? {
-        if FileManager.default.fileExists(atPath: "/opt/homebrew/bin/brew") {
+        if Foundation.FileManager().fileExists(atPath: "/opt/homebrew/bin/brew") {
             return "/opt/homebrew/bin" // ARM Homebrew
-        } else if FileManager.default.fileExists(atPath: "/usr/local/bin/brew") {
+        } else if Foundation.FileManager().fileExists(atPath: "/usr/local/bin/brew") {
             return "/usr/local/bin" // Intel Homebrew
         }
 
@@ -135,7 +135,7 @@ class PackageManager {
             "\(NSHomeDirectory())/.cargo/bin/kanata" // Rust cargo installation
         ]
 
-        for path in possiblePaths where FileManager.default.fileExists(atPath: path) {
+        for path in possiblePaths where Foundation.FileManager().fileExists(atPath: path) {
             let installationType = determineInstallationType(path: path)
             let codeSigningStatus = detectCodeSigningStatus(at: path)
             AppLogger.shared.log(
@@ -180,9 +180,9 @@ class PackageManager {
     /// Caches results based on file modification date and size for performance
     func getCodeSigningStatus(at path: String) -> CodeSigningStatus {
         // Read file attributes once (used for both cache validation and caching)
-        guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
-              let modDate = attributes[.modificationDate] as? Date,
-              let fileSize = attributes[.size] as? Int64
+        guard let attributes = try? Foundation.FileManager().attributesOfItem(atPath: path),
+              let modDate = attributes[FileAttributeKey.modificationDate] as? Date,
+              let fileSize = attributes[FileAttributeKey.size] as? Int64
         else {
             // Can't cache without metadata - perform check and return
             return detectCodeSigningStatus(at: path)
@@ -491,8 +491,8 @@ class PackageManager {
         // Check for partial Homebrew installation
         let homebrewDirs = ["/opt/homebrew", "/usr/local/Homebrew"]
         for dir in homebrewDirs {
-            if FileManager.default.fileExists(atPath: dir),
-               !FileManager.default.fileExists(atPath: "\(dir)/bin/brew")
+            if Foundation.FileManager().fileExists(atPath: dir),
+               !Foundation.FileManager().fileExists(atPath: "\(dir)/bin/brew")
             {
                 AppLogger.shared.log(
                     "⚠️ [PackageManager] Found \(dir) but no brew executable - possible incomplete installation"
@@ -502,8 +502,8 @@ class PackageManager {
 
         // Check for Cargo installation without Kanata
         let cargoPath = "\(NSHomeDirectory())/.cargo/bin"
-        if FileManager.default.fileExists(atPath: cargoPath),
-           !FileManager.default.fileExists(atPath: "\(cargoPath)/kanata")
+        if Foundation.FileManager().fileExists(atPath: cargoPath),
+           !Foundation.FileManager().fileExists(atPath: "\(cargoPath)/kanata")
         {
             AppLogger.shared.log(
                 "ℹ️ [PackageManager] Cargo detected but no Kanata binary - user may need to install via 'cargo install kanata'"

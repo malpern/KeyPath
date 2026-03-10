@@ -138,7 +138,7 @@ protocol FileConfigurationProviding: ConfigurationProviding {
 /// Default implementation for file-based configuration providers.
 extension FileConfigurationProviding {
     func reload() async throws -> Config {
-        guard FileManager.default.fileExists(atPath: configurationPath) else {
+        guard Foundation.FileManager().fileExists(atPath: configurationPath) else {
             throw KeyPathError.configuration(.fileNotFound(path: configurationPath))
         }
 

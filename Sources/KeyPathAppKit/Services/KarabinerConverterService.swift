@@ -952,7 +952,7 @@ struct KarabinerConverterService: Sendable {
         collection.configuration = .launcherGrid(config)
         collections[index] = collection
         try await RuleCollectionStore.shared.saveCollections(collections)
-        NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
+        Foundation.NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
     }
 
     // MARK: - Deduplication

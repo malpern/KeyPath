@@ -1,5 +1,6 @@
 import AppKit
 import KeyPathCore
+import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathPluginKit
 import KeyPathWizardCore
@@ -14,15 +15,18 @@ public struct KeyPathApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     private let isHeadlessMode: Bool
+    private let isOneShotProbeMode: Bool
 
     public init() {
+        let environment = ProcessInfo.processInfo.environment
         // Check if running in headless mode (started by LaunchAgent)
         let args = ProcessInfo.processInfo.arguments
         isHeadlessMode =
-            args.contains("--headless") || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
+            args.contains("--headless") || environment["KEYPATH_HEADLESS"] == "1"
+        isOneShotProbeMode = AppDelegate.isOneShotProbeEnvironment(environment)
 
         AppLogger.shared.info(
-            "🔍 [App] Initializing KeyPath - headless: \(isHeadlessMode), args: \(args)"
+            "🔍 [App] Initializing KeyPath - headless: \(isHeadlessMode), oneShotProbe: \(isOneShotProbeMode), args: \(args)"
         )
         let info = BuildInfo.current()
         AppLogger.shared.info(
@@ -53,7 +57,9 @@ public struct KeyPathApp: App {
         // Configure MainAppStateController early so it's ready when overlay starts observing.
         // Previously this was called in ContentView.onAppear which happens AFTER showForStartup(),
         // causing the health indicator to get stuck in "checking" state.
-        MainAppStateController.shared.configure(with: manager)
+        if !isOneShotProbeMode {
+            MainAppStateController.shared.configure(with: manager)
+        }
 
         // Ensure typing sounds manager is initialized so it can listen for key events
         // even before the overlay/settings UI is opened.
@@ -76,31 +82,35 @@ public struct KeyPathApp: App {
 
         // Request user notification authorization after app has fully launched
         // Delayed to avoid UNUserNotificationCenter initialization issues during bundle setup
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(100)) // 0.1s delay
-            UserNotificationService.shared.requestAuthorizationIfNeeded()
+        if !isOneShotProbeMode {
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(100)) // 0.1s delay
+                UserNotificationService.shared.requestAuthorizationIfNeeded()
 
-            // Start Kanata error monitoring
-            KanataErrorMonitor.shared.startMonitoring()
-            AppLogger.shared.info("🔍 [App] Started Kanata error monitoring")
+                // Start Kanata error monitoring
+                KanataErrorMonitor.shared.startMonitoring()
+                AppLogger.shared.info("🔍 [App] Started Kanata error monitoring")
 
-            // Initialize Sparkle update service
-            UpdateService.shared.initialize()
-            AppLogger.shared.info("🔄 [App] Sparkle update service initialized")
+                // Initialize Sparkle update service
+                UpdateService.shared.initialize()
+                AppLogger.shared.info("🔄 [App] Sparkle update service initialized")
 
-            // Discover and load plugin bundles
-            PluginManager.shared.discoverAndLoadPlugins()
+                // Discover and load plugin bundles
+                PluginManager.shared.discoverAndLoadPlugins()
 
-            // Fetch Kanata version for About panel
-            await BuildInfo.fetchKanataVersion()
+                // Fetch Kanata version for About panel
+                await BuildInfo.fetchKanataVersion()
 
-            // Start global hotkey monitoring (Option+Command+K to show/hide, Option+Command+L to reset/center)
-            GlobalHotkeyService.shared.startMonitoring()
+                // Start global hotkey monitoring (Option+Command+K to show/hide, Option+Command+L to reset/center)
+                GlobalHotkeyService.shared.startMonitoring()
 
-            // Initialize WindowManager with retry logic for CGS APIs
-            // initializeWithRetry() checks immediately, then uses exponential backoff if needed
-            await WindowManager.shared.initializeWithRetry()
-            AppLogger.shared.info("🪟 [App] WindowManager initialization complete")
+                // Initialize WindowManager with retry logic for CGS APIs
+                // initializeWithRetry() checks immediately, then uses exponential backoff if needed
+                await WindowManager.shared.initializeWithRetry()
+                AppLogger.shared.info("🪟 [App] WindowManager initialization complete")
+            }
+        } else {
+            AppLogger.shared.info("🧪 [App] One-shot probe mode active - skipping nonessential startup services")
         }
     }
 
@@ -381,6 +391,17 @@ private func openPreferencesTab(_ notification: Notification.Name) {
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
+    static let hostPassthruCaptureEnvKey = "KEYPATH_ENABLE_HOST_PASSTHRU_CAPTURE"
+    static func isOneShotProbeEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment)
+        -> Bool
+    {
+        OneShotProbeEnvironment.isActive(environment)
+    }
+    private static let hostPassthruDiagnosticTriggerPath = "/var/tmp/keypath-host-passthru-diagnostic"
+    private static let hostPassthruBridgePrepTriggerPath = "/var/tmp/keypath-host-passthru-bridge-prep"
+    private static let hostPassthruBridgePrepOutputPath = "/var/tmp/keypath-host-passthru-bridge-env.txt"
+    private static let helperRepairTriggerPath = "/var/tmp/keypath-helper-repair"
+    private static let companionRestartProbeOutputPath = "/var/tmp/keypath-host-passthru-companion-restart.txt"
     var kanataManager: RuntimeCoordinator?
     var viewModel: KanataViewModel?
     var isHeadlessMode = false
@@ -503,6 +524,227 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Set smart default keyboard layout on first launch
         setSmartKeyboardLayoutDefault()
 
+        let shouldRunHostPassthruDiagnostic =
+            ProcessInfo.processInfo.environment[OneShotProbeEnvironment.hostPassthruDiagnosticEnvKey] == "1"
+            || Foundation.FileManager().fileExists(atPath: Self.hostPassthruDiagnosticTriggerPath)
+
+        if shouldRunHostPassthruDiagnostic {
+            try? Foundation.FileManager().removeItem(atPath: Self.hostPassthruDiagnosticTriggerPath)
+            AppLogger.shared.info("🧪 [AppDelegate] Running experimental host passthru diagnostics and exiting")
+            Task { @MainActor in
+                let diagnosticsService = DiagnosticsService(
+                    processLifecycleManager: ProcessLifecycleManager()
+                )
+                let diagnostic = await diagnosticsService.runHostPassthruDiagnostic()
+                AppLogger.shared.info(
+                    "🧪 [AppDelegate] Host passthru diagnostic result: \(diagnostic.title) | severity=\(diagnostic.severity.rawValue) | details=\(diagnostic.technicalDetails)"
+                )
+                FileHandle.standardError.write(
+                    Data(
+                        """
+                        [keypath-host-passthru-diagnostic]
+                        title=\(diagnostic.title)
+                        severity=\(diagnostic.severity.rawValue)
+                        details=\(diagnostic.technicalDetails)
+
+                        """.utf8
+                    )
+                )
+                FileHandle.standardError.synchronizeFile()
+                Foundation.exit(0)
+            }
+            return
+        }
+
+        let shouldPrepareHostPassthruBridge =
+            ProcessInfo.processInfo.environment[OneShotProbeEnvironment.hostPassthruBridgePrepEnvKey] == "1"
+            || Foundation.FileManager().fileExists(atPath: Self.hostPassthruBridgePrepTriggerPath)
+
+        if shouldPrepareHostPassthruBridge {
+            try? Foundation.FileManager().removeItem(atPath: Self.hostPassthruBridgePrepTriggerPath)
+            AppLogger.shared.info("🧪 [AppDelegate] Preparing experimental host passthru bridge environment and exiting")
+            Task { @MainActor in
+                do {
+                    let bridgeEnvironment = try await KanataRuntimePathCoordinator.prepareExperimentalOutputBridgeEnvironment(
+                        hostPID: getpid()
+                    )
+                    let sessionID = bridgeEnvironment[KanataRuntimePathCoordinator.experimentalOutputBridgeSessionEnvKey] ?? "missing"
+                    let socketPath = bridgeEnvironment[KanataRuntimePathCoordinator.experimentalOutputBridgeSocketEnvKey] ?? "missing"
+                    let payload = """
+                        session=\(sessionID)
+                        socket=\(socketPath)
+
+                        """
+                    try payload.write(
+                        toFile: Self.hostPassthruBridgePrepOutputPath,
+                        atomically: true,
+                        encoding: .utf8
+                    )
+                    AppLogger.shared.info(
+                        "🧪 [AppDelegate] Prepared experimental host passthru bridge environment session=\(sessionID) socket=\(socketPath)"
+                    )
+                    FileHandle.standardError.write(
+                        Data(
+                            """
+                            [keypath-host-passthru-bridge]
+                            session=\(sessionID)
+                            socket=\(socketPath)
+                            output=\(Self.hostPassthruBridgePrepOutputPath)
+
+                            """.utf8
+                        )
+                    )
+                    FileHandle.standardError.synchronizeFile()
+                    Foundation.exit(0)
+                } catch {
+                    let message = error.localizedDescription
+                    AppLogger.shared.error("🧪 [AppDelegate] Host passthru bridge preparation failed: \(message)")
+                    FileHandle.standardError.write(
+                        Data(
+                            """
+                            [keypath-host-passthru-bridge]
+                            error=\(message)
+
+                            """.utf8
+                        )
+                    )
+                    FileHandle.standardError.synchronizeFile()
+                    Foundation.exit(1)
+                }
+            }
+            return
+        }
+
+        let shouldRunHelperRepair =
+            ProcessInfo.processInfo.environment[OneShotProbeEnvironment.helperRepairEnvKey] == "1"
+            || Foundation.FileManager().fileExists(atPath: Self.helperRepairTriggerPath)
+
+        if shouldRunHelperRepair {
+            try? Foundation.FileManager().removeItem(atPath: Self.helperRepairTriggerPath)
+            AppLogger.shared.info("🧪 [AppDelegate] Running helper cleanup/repair and exiting")
+            let useAppleScriptFallbackRaw = ProcessInfo.processInfo.environment["KEYPATH_HELPER_REPAIR_USE_APPLESCRIPT"]?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            let useAppleScriptFallback = useAppleScriptFallbackRaw == nil
+                || useAppleScriptFallbackRaw == "1"
+                || useAppleScriptFallbackRaw == "true"
+                || useAppleScriptFallbackRaw == "yes"
+            Task { @MainActor in
+                let repaired = await HelperMaintenance.shared.runCleanupAndRepair(
+                    useAppleScriptFallback: useAppleScriptFallback
+                )
+                let details = HelperMaintenance.shared.logLines.joined(separator: " | ")
+                FileHandle.standardError.write(
+                    Data(
+                        """
+                        [keypath-helper-repair]
+                        success=\(repaired)
+                        use_apple_script_fallback=\(useAppleScriptFallback)
+                        details=\(details)
+
+                        """.utf8
+                    )
+                )
+                NSApplication.shared.terminate(nil)
+            }
+            return
+        }
+
+        let shouldRunCompanionRestartProbe =
+            ProcessInfo.processInfo.environment[OneShotProbeEnvironment.companionRestartProbeEnvKey] == "1"
+
+        if shouldRunCompanionRestartProbe {
+            let captureRaw = ProcessInfo.processInfo.environment[Self.hostPassthruCaptureEnvKey]?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            let includeCapture = captureRaw == "1" || captureRaw == "true" || captureRaw == "yes"
+
+            AppLogger.shared.info(
+                "🧪 [AppDelegate] Running output bridge companion restart probe and exiting"
+            )
+            Task { @MainActor in
+                do {
+                    var lines: [String] = []
+                    if let statusBefore = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
+                        lines.append("companion_running_before=\(statusBefore.companionRunning)")
+                    } else {
+                        lines.append("companion_running_before=unknown")
+                    }
+                    lines.append("capture=\(includeCapture)")
+
+                    let pid = try await KanataSplitRuntimeHostService.shared.startPersistentPassthruHost(
+                        includeCapture: includeCapture
+                    )
+                    lines.append("host_pid=\(pid)")
+                    try await Task.sleep(for: .milliseconds(300))
+
+                    do {
+                        try await KanataOutputBridgeCompanionManager.shared.restartCompanion()
+                        lines.append("companion_restarted=1")
+                    } catch {
+                        lines.append("companion_restarted=0")
+                        lines.append(
+                            "companion_restart_error=\(error.localizedDescription.replacingOccurrences(of: "\n", with: " "))"
+                        )
+                    }
+                    try await Task.sleep(for: .milliseconds(500))
+
+                    if let statusAfter = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
+                        lines.append("companion_running_after=\(statusAfter.companionRunning)")
+                    } else {
+                        lines.append("companion_running_after=unknown")
+                    }
+
+                    KanataSplitRuntimeHostService.shared.stopPersistentPassthruHost()
+                    lines.append("host_stopped=1")
+
+                    let payload = lines.joined(separator: "\n") + "\n"
+                    try payload.write(
+                        toFile: Self.companionRestartProbeOutputPath,
+                        atomically: true,
+                        encoding: .utf8
+                    )
+                    FileHandle.standardError.write(
+                        Data(
+                            """
+                            [keypath-output-bridge-companion-restart]
+                            \(payload)
+                            """.utf8
+                        )
+                    )
+                    FileHandle.standardError.synchronizeFile()
+                    Foundation.exit(0)
+                } catch {
+                    let message = error.localizedDescription
+                    AppLogger.shared.error(
+                        "🧪 [AppDelegate] Output bridge companion restart probe failed: \(message)"
+                    )
+                    FileHandle.standardError.write(
+                        Data(
+                            """
+                            [keypath-output-bridge-companion-restart]
+                            error=\(message)
+
+                            """.utf8
+                        )
+                    )
+                    FileHandle.standardError.synchronizeFile()
+                    Foundation.exit(1)
+                }
+            }
+            return
+        }
+
+        if !isHeadlessMode, !ProcessInfo.processInfo.arguments.contains("--headless"),
+           let bundleIdentifier = Bundle.main.bundleIdentifier,
+           SingleInstanceCoordinator.activateExistingAndTerminateIfNeeded(
+               bundleIdentifier: bundleIdentifier
+           )
+        {
+            AppLogger.shared.info("🪟 [AppDelegate] Duplicate normal app launch detected; exiting early")
+            return
+        }
+
         // Phase 2/3: TCP-only mode (no authentication needed)
         AppLogger.shared.debug("📡 [AppDelegate] TCP communication mode - no auth token needed")
 
@@ -551,7 +793,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if isHeadlessMode {
-            AppLogger.shared.info("🤖 [AppDelegate] Headless mode - starting kanata service automatically")
+            AppLogger.shared.info("🤖 [AppDelegate] Headless mode - starting KeyPath runtime automatically")
 
             // In headless mode, ensure kanata starts
             Task {
@@ -562,7 +804,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 if let manager = self.kanataManager {
                     let started = await manager.startKanata(reason: "Headless auto-start")
                     if !started {
-                        AppLogger.shared.error("❌ [AppDelegate] Headless auto-start failed via KanataService")
+                        AppLogger.shared.error("❌ [AppDelegate] Headless auto-start failed via runtime coordinator")
                     }
                 } else {
                     AppLogger.shared.error("❌ [AppDelegate] Headless auto-start failed: RuntimeCoordinator unavailable")
@@ -591,7 +833,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Startup + post-wizard validation trigger.
         NotificationCenter.default.addObserver(
-            forName: .kp_startupRevalidate, object: nil, queue: .main
+            forName: .kp_startupRevalidate, object: nil, queue: NotificationObserverManager.mainOperationQueue
         ) { _ in
             Task { @MainActor in
                 await MainAppStateController.shared.performInitialValidation()
@@ -601,7 +843,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Settings/permission flows sometimes post a “toast” message; show as a user notification now that
         // the main window is a splash.
         NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("ShowUserFeedback"), object: nil, queue: .main
+            forName: NSNotification.Name("ShowUserFeedback"), object: nil, queue: NotificationObserverManager.mainOperationQueue
         ) { notification in
             if let message = notification.userInfo?["message"] as? String {
                 Task { @MainActor in
@@ -612,7 +854,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Reset-to-safe config action (used by notification buttons).
         NotificationCenter.default.addObserver(
-            forName: .resetToSafeConfig, object: nil, queue: .main
+            forName: .resetToSafeConfig, object: nil, queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             Task { @MainActor in
                 _ = await self?.viewModel?.createDefaultUserConfigIfMissing()
@@ -638,6 +880,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             mainWindowController = MainWindowController(viewModel: vm)
             AppLogger.shared.debug(
                 "🪟 [AppDelegate] Main window controller created (deferring show until activation)"
+            )
+            mainWindowController?.primeForActivation()
+            AppLogger.shared.debug(
+                "🪟 [AppDelegate] Primed main window so Finder launches have a visible surface to activate"
             )
 
             // Overlay is shown on the first application activation (after the brief splash),
@@ -675,7 +921,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         if started {
                             AppLogger.shared.log("✅ [AppDelegate] Auto-launch sequence completed (simple)")
                         } else {
-                            AppLogger.shared.error("❌ [AppDelegate] Auto-launch failed via KanataService")
+                            AppLogger.shared.error("❌ [AppDelegate] Auto-launch failed via runtime coordinator")
                         }
                     } else {
                         AppLogger.shared.error(
@@ -700,20 +946,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     // Small delay to ensure overlay is visible first and orphan cleanup dialog can show first
                     try? await Task.sleep(for: .seconds(1)) // 1s
                     NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
-
-                    // On first install, also open the help browser to the installation guide
-                    // so the user has context alongside the wizard
-                    if !UserDefaults.standard.bool(forKey: "KeyPath.hasShownInstallationHelp") {
-                        UserDefaults.standard.set(true, forKey: "KeyPath.hasShownInstallationHelp")
-                        try? await Task.sleep(for: .milliseconds(2500)) // Let wizard render first
-                        if let topic = HelpTopic.topic(forResource: "installation") {
-                            HelpWindowController.shared.showBrowser(
-                                selecting: topic,
-                                keepOverlayVisible: true
-                            )
-                            AppLogger.shared.info("📖 [AppDelegate] Opened installation help alongside wizard")
-                        }
-                    }
                 }
             }
         } else {
@@ -721,22 +953,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Observe notification action events
-        NotificationCenter.default.addObserver(forName: .retryStartService, object: nil, queue: .main) { [weak self] _ in
+        NotificationCenter.default.addObserver(forName: .retryStartService, object: nil, queue: NotificationObserverManager.mainOperationQueue) { [weak self] _ in
             Task { @MainActor in
                 AppLogger.shared.log("🔄 [App] Retry start requested via notification")
                 guard let manager = self?.kanataManager else {
                     AppLogger.shared.error("❌ [App] Retry start requested but RuntimeCoordinator unavailable")
                     return
                 }
-                let success = await manager.restartServiceWithFallback(reason: "Notification retryStartService")
+                let success = await manager.startKanata(reason: "Notification retryStartService")
                 if !success {
-                    AppLogger.shared.error("❌ [App] Retry start failed via KanataService fallback")
+                    AppLogger.shared.error("❌ [App] Retry start failed")
                 }
             }
         }
 
         NotificationCenter.default.addObserver(
-            forName: .openInputMonitoringSettings, object: nil, queue: .main
+            forName: .openInputMonitoringSettings, object: nil, queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.kanataManager?.openInputMonitoringSettings()
@@ -744,10 +976,150 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         NotificationCenter.default.addObserver(
-            forName: .openAccessibilitySettings, object: nil, queue: .main
+            forName: .openAccessibilitySettings, object: nil, queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.kanataManager?.openAccessibilitySettings()
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .exerciseCoordinatorSplitRuntimeRecovery,
+            object: nil,
+            queue: NotificationObserverManager.mainOperationQueue
+        ) { [weak self] note in
+            let outputPath =
+                note.userInfo?["outputPath"] as? String
+                ?? "/var/tmp/keypath-runtime-coordinator-companion-recovery.txt"
+            Task { @MainActor in
+                guard let self, let manager = self.kanataManager else { return }
+                var lines: [String] = []
+
+                lines.append("split_runtime_mode=always_on")
+
+                do {
+                    let started = await manager.startKanata(reason: "Coordinator split runtime recovery probe")
+                    lines.append("coordinator_start_success=\(started)")
+                    let startedState = manager.getCurrentUIState()
+                    lines.append("runtime_path_after_start=\(startedState.activeRuntimePathTitle ?? "none")")
+                    lines.append("runtime_detail_after_start=\(startedState.activeRuntimePathDetail ?? "none")")
+
+                    if let companionStatusBefore = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
+                        lines.append("companion_running_before=\(companionStatusBefore.companionRunning)")
+                    } else {
+                        lines.append("companion_running_before=unknown")
+                    }
+
+                    try await KanataOutputBridgeCompanionManager.shared.restartCompanion()
+                    lines.append("companion_restarted=1")
+
+                    try await Task.sleep(for: .seconds(12))
+
+                    let finalState = manager.getCurrentUIState()
+                    lines.append("runtime_path_after_recovery=\(finalState.activeRuntimePathTitle ?? "none")")
+                    lines.append("runtime_detail_after_recovery=\(finalState.activeRuntimePathDetail ?? "none")")
+                    lines.append("last_error=\(finalState.lastError ?? "none")")
+                    lines.append("last_warning=\(finalState.lastWarning ?? "none")")
+                    lines.append("split_host_running_after_recovery=\(KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning)")
+                    if let activePID = KanataSplitRuntimeHostService.shared.activePersistentHostPID {
+                        lines.append("split_host_pid_after_recovery=\(activePID)")
+                    }
+                    if let companionStatusAfter = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
+                        lines.append("companion_running_after=\(companionStatusAfter.companionRunning)")
+                    } else {
+                        lines.append("companion_running_after=unknown")
+                    }
+                } catch {
+                    lines.append("probe_error=\(error.localizedDescription.replacingOccurrences(of: "\n", with: " "))")
+                }
+
+                _ = await manager.stopKanata(reason: "Coordinator split runtime recovery probe cleanup")
+                lines.append("cleanup_complete=1")
+
+                let payload = lines.joined(separator: "\n") + "\n"
+                do {
+                    try payload.write(toFile: outputPath, atomically: true, encoding: .utf8)
+                    AppLogger.shared.info(
+                        "🧪 [AppDelegate] Coordinator split-runtime recovery probe completed output=\(outputPath)"
+                    )
+                } catch {
+                    AppLogger.shared.error(
+                        "❌ [AppDelegate] Failed to write coordinator split-runtime recovery probe output: \(error.localizedDescription)"
+                    )
+                }
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .exerciseCoordinatorSplitRuntimeRestartSoak,
+            object: nil,
+            queue: NotificationObserverManager.mainOperationQueue
+        ) { [weak self] note in
+            let outputPath =
+                note.userInfo?["outputPath"] as? String
+                ?? "/var/tmp/keypath-runtime-coordinator-companion-restart-soak.txt"
+            let durationSeconds = note.userInfo?["durationSeconds"] as? Int ?? 20
+            Task { @MainActor in
+                guard let self, let manager = self.kanataManager else { return }
+                var lines: [String] = []
+
+                lines.append("split_runtime_mode=always_on")
+                lines.append("duration_seconds=\(durationSeconds)")
+
+                do {
+                    let started = await manager.startKanata(reason: "Coordinator split runtime restart soak probe")
+                    lines.append("coordinator_start_success=\(started)")
+                    let startedState = manager.getCurrentUIState()
+                    lines.append("runtime_path_after_start=\(startedState.activeRuntimePathTitle ?? "none")")
+                    lines.append("runtime_detail_after_start=\(startedState.activeRuntimePathDetail ?? "none")")
+
+                    if let companionStatusBefore = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
+                        lines.append("companion_running_before=\(companionStatusBefore.companionRunning)")
+                    } else {
+                        lines.append("companion_running_before=unknown")
+                    }
+
+                    let preRestartDelaySeconds = max(1, durationSeconds / 2)
+                    let postRestartDelaySeconds = max(1, durationSeconds - preRestartDelaySeconds)
+                    try await Task.sleep(for: .seconds(preRestartDelaySeconds))
+
+                    try await KanataOutputBridgeCompanionManager.shared.restartCompanion()
+                    lines.append("companion_restarted=1")
+
+                    try await Task.sleep(for: .seconds(postRestartDelaySeconds))
+
+                    let finalState = manager.getCurrentUIState()
+                    lines.append("runtime_path_after_soak=\(finalState.activeRuntimePathTitle ?? "none")")
+                    lines.append("runtime_detail_after_soak=\(finalState.activeRuntimePathDetail ?? "none")")
+                    lines.append("last_error=\(finalState.lastError ?? "none")")
+                    lines.append("last_warning=\(finalState.lastWarning ?? "none")")
+                    lines.append("split_host_running_after_soak=\(KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning)")
+                    if let activePID = KanataSplitRuntimeHostService.shared.activePersistentHostPID {
+                        lines.append("split_host_pid_after_soak=\(activePID)")
+                    }
+                    if let companionStatusAfter = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
+                        lines.append("companion_running_after=\(companionStatusAfter.companionRunning)")
+                    } else {
+                        lines.append("companion_running_after=unknown")
+                    }
+                } catch {
+                    lines.append("probe_error=\(error.localizedDescription.replacingOccurrences(of: "\n", with: " "))")
+                }
+
+                _ = await manager.stopKanata(reason: "Coordinator split runtime restart soak probe cleanup")
+                lines.append("cleanup_complete=1")
+
+                let payload = lines.joined(separator: "\n") + "\n"
+                do {
+                    try payload.write(toFile: outputPath, atomically: true, encoding: .utf8)
+                    AppLogger.shared.info(
+                        "🧪 [AppDelegate] Coordinator split-runtime restart soak probe completed output=\(outputPath)"
+                    )
+                } catch {
+                    AppLogger.shared.error(
+                        "❌ [AppDelegate] Failed to write coordinator split-runtime restart soak probe output: \(error.localizedDescription)"
+                    )
+                }
             }
         }
 
@@ -939,6 +1311,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if let vm = viewModel {
                 mainWindowController = MainWindowController(viewModel: vm)
                 AppLogger.shared.debug("🪟 [AppDelegate] Created main window controller on reopen")
+                mainWindowController?.primeForActivation()
             } else {
                 AppLogger.shared.error(
                     "❌ [AppDelegate] Cannot create window on reopen: ViewModel is nil"
@@ -946,16 +1319,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        // During early startup, defer showing until first activation completed to avoid layout reentrancy
-        if !initialMainWindowShown {
-            pendingReopenShow = true
-            AppLogger.shared.debug(
-                "🪟 [AppDelegate] Reopen received before first activation; deferring show"
-            )
-        } else {
-            mainWindowController?.show(focus: true)
-            AppLogger.shared.debug("🪟 [AppDelegate] User-initiated reopen - showing main window")
+        // Finder/Dock reopen is an explicit user action. Show UI immediately rather than
+        // waiting for a separate activation callback, which may never arrive if the app is
+        // already running but has no visible windows.
+        suppressLaunchSplashAutoHide = true
+        pendingReopenShow = false
+        if NSApp.isHidden {
+            NSApp.unhide(nil)
         }
+        NSApp.activate(ignoringOtherApps: true)
+        mainWindowController?.show(focus: true)
+        initialMainWindowShown = true
+        AppLogger.shared.debug("🪟 [AppDelegate] User-initiated reopen - showing main window immediately")
 
         return true
     }

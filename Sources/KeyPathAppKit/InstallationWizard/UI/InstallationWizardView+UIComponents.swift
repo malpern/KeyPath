@@ -16,7 +16,7 @@ extension InstallationWizardView {
                     systemState: stateMachine.wizardState,
                     issues: stateMachine.wizardIssues,
                     stateInterpreter: stateInterpreter,
-                    onStartService: startKanataService,
+                    onStartService: startKeyPathRuntime,
                     onDismiss: { dismissAndRefreshMainScreen() },
                     onNavigateToPage: { page in
                         stateMachine.navigateToPage(page)

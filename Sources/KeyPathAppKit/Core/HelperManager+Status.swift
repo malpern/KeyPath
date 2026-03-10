@@ -91,9 +91,8 @@ extension HelperManager {
 
                 AppLogger.shared.log("📤 [HelperManager] Calling proxy.getVersion()")
                 proxy.getVersion { version, error in
-                    let threadName = Thread.current.isMainThread ? "main" : "background"
                     AppLogger.shared.log(
-                        "📥 [HelperManager] getVersion callback received on \(threadName) thread"
+                        "📥 [HelperManager] getVersion callback received"
                     )
 
                     // Cancel the timeout since the callback arrived.
@@ -300,7 +299,7 @@ extension HelperManager {
             "/var/log/com.keypath.helper.stdout.log",
             "/var/log/com.keypath.helper.stderr.log"
         ]
-        for path in fileCandidates where FileManager.default.fileExists(atPath: path) {
+        for path in fileCandidates where Foundation.FileManager().fileExists(atPath: path) {
             do {
                 let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
                 let data = try handle.readToEnd()

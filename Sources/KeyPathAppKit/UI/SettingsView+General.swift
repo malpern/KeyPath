@@ -269,7 +269,7 @@ struct VerboseLoggingToggle: View {
             Button("Later", role: .cancel) {}
             Button("Restart Now") {
                 Task {
-                    await restartKanataService()
+                    await restartKeyPathRuntime()
                 }
             }
         } message: {
@@ -279,11 +279,11 @@ struct VerboseLoggingToggle: View {
         }
     }
 
-    private func restartKanataService() async {
-        AppLogger.shared.log("\u{1F504} [VerboseLogging] Restarting Kanata service with new logging flags")
+    private func restartKeyPathRuntime() async {
+        AppLogger.shared.log("\u{1F504} [VerboseLogging] Restarting KeyPath Runtime with new logging flags")
         let success = await kanataManager.restartKanata(reason: "Verbose logging toggle")
         if !success {
-            AppLogger.shared.error("\u{274C} [VerboseLogging] Kanata restart failed after verbose toggle")
+            AppLogger.shared.error("\u{274C} [VerboseLogging] KeyPath Runtime restart failed after verbose toggle")
         }
     }
 }

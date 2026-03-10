@@ -38,6 +38,14 @@ let package = Package(
             targets: ["KeyPathHelper"]
         ),
         .executable(
+            name: "KeyPathOutputBridge",
+            targets: ["KeyPathOutputBridge"]
+        ),
+        .executable(
+            name: "KeyPathKanataLauncher",
+            targets: ["KeyPathKanataLauncher"]
+        ),
+        .executable(
             name: "smappservice-poc",
             targets: ["SMAppServicePOC"]
         ),
@@ -46,7 +54,7 @@ let package = Package(
             targets: ["KeyPathPluginKit"]
         ),
         .executable(
-            name: "keypath",
+            name: "keypath-cli",
             targets: ["KeyPathCLI"]
         ),
         .library(
@@ -153,13 +161,34 @@ let package = Package(
         // Privileged helper executable
         .executableTarget(
             name: "KeyPathHelper",
-            dependencies: [],
+            dependencies: ["KeyPathCore"],
             path: "Sources/KeyPathHelper",
             exclude: [
                 "Info.plist",
                 "com.keypath.helper.plist",
                 "KeyPathHelper.entitlements"
             ],
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .executableTarget(
+            name: "KeyPathOutputBridge",
+            dependencies: ["KeyPathCore"],
+            path: "Sources/KeyPathOutputBridge",
+            exclude: [
+                "Info.plist",
+                "com.keypath.output-bridge.plist",
+                "KeyPathOutputBridge.entitlements"
+            ],
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .executableTarget(
+            name: "KeyPathKanataLauncher",
+            dependencies: ["KeyPathCore"],
+            path: "Sources/KeyPathKanataLauncher",
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]

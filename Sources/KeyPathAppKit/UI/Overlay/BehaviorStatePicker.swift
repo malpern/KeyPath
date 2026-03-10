@@ -157,7 +157,7 @@ private struct BehaviorStateCell: View {
 
     private func loadBundleImage(named name: String) -> NSImage? {
         // Resources are at bundle root (process() flattens subdirectories)
-        guard let url = Bundle.module.url(
+        guard let url = KeyPathAppKitResources.url(
             forResource: name,
             withExtension: "png"
         ) else {

@@ -74,7 +74,6 @@ enum WizardRouter {
                      .component(.vhidDeviceManager),
                      .component(.vhidDeviceActivation),
                      .component(.vhidDeviceRunning),
-                     .component(.launchDaemonServices),
                      .component(.vhidDaemonMisconfigured),
                      .component(.vhidDriverVersionMismatch):
                     return true
@@ -92,7 +91,7 @@ enum WizardRouter {
                 switch $0.identifier {
                 case .component(.kanataBinaryMissing),
                      .component(.kanataBinaryVersionMismatch),
-                     .component(.kanataService):
+                     .component(.keyPathRuntime):
                     return true
                 default:
                     return false

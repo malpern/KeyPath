@@ -1,10 +1,11 @@
 @testable import KeyPathAppKit
+import KeyPathCore
 @testable import KeyPathWizardCore
 @preconcurrency import XCTest
 
 @MainActor
 final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
-    func testInstallPlanIncludesLaunchDaemonAndBundledKanata() async {
+    func testInstallPlanIncludesRuntimeServicesAndBundledKanata() async {
         let engine = InstallerEngine()
         let context = SystemContextBuilder.cleanInstall()
 
@@ -12,7 +13,7 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
         let ids = plan.recipes.map(\.id)
 
         XCTAssertFalse(ids.isEmpty, "Install plan should produce recipes for clean installs")
-        XCTAssertTrue(ids.contains(InstallerRecipeID.installLaunchDaemonServices), "Should install LaunchDaemon services")
+        XCTAssertTrue(ids.contains(InstallerRecipeID.installRequiredRuntimeServices), "Should install required runtime services")
         XCTAssertTrue(ids.contains(InstallerRecipeID.installBundledKanata), "Should install bundled Kanata binary")
     }
 
@@ -23,21 +24,25 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
         let plan = await engine.makePlan(for: .repair, context: context)
         let ids = plan.recipes.map(\.id)
 
-        XCTAssertTrue(ids.contains("restart-unhealthy-services") || ids.contains("repair-vhid-daemon-services"),
-                      "Repair plan should attempt to restart/repair unhealthy services")
+        XCTAssertTrue(
+            ids.contains(InstallerRecipeID.installRequiredRuntimeServices)
+                || ids.contains(InstallerRecipeID.repairVHIDDaemonServices)
+                || ids.contains(InstallerRecipeID.startKarabinerDaemon),
+            "Repair plan should use concrete split-runtime service repair actions"
+        )
     }
 
     func testExecuteSkipsRecipesAfterFailure() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
-        coordinator.failOnCall = "installAllLaunchDaemonServices"
+        coordinator.failOnCall = "installRequiredRuntimeServices"
         let broker = PrivilegeBroker(coordinator: coordinator)
         let engine = InstallerEngine()
 
         let plan = InstallPlan(
             recipes: [
-                ServiceRecipe(id: "install-daemons", type: .installService),
+                ServiceRecipe(id: InstallerRecipeID.installRequiredRuntimeServices, type: .installComponent),
                 ServiceRecipe(id: "install-bundled-kanata", type: .installComponent),
-                ServiceRecipe(id: "restart-unhealthy-services", type: .restartService)
+                ServiceRecipe(id: InstallerRecipeID.startKarabinerDaemon, type: .restartService, serviceID: KeyPathConstants.Bundle.vhidDaemonID)
             ],
             status: .ready,
             intent: .repair
@@ -47,7 +52,7 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
 
         XCTAssertFalse(report.success, "Failure should propagate")
         XCTAssertFalse(coordinator.calls.contains("installBundledKanata"), "Later recipes should not execute after failure")
-        XCTAssertFalse(coordinator.calls.contains("restartUnhealthyServices"), "Later recipes should not execute after failure")
+        XCTAssertFalse(coordinator.calls.contains("restartKarabinerDaemonVerified"), "Later recipes should not execute after failure")
         XCTAssertEqual(report.executedRecipes.count, 1, "Execution should stop immediately after first failure")
     }
 }

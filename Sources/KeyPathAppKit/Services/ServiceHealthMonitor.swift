@@ -158,7 +158,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
     init(processLifecycle: ProcessLifecycleManager) {
         self.processLifecycle = processLifecycle
         heartbeatObserver = NotificationCenter.default.addObserver(
-            forName: .kanataTcpHeartbeat, object: nil, queue: .main
+            forName: .kanataTcpHeartbeat, object: nil, queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.lastHeartbeatTime = Date()

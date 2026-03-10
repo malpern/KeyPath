@@ -167,8 +167,8 @@ public class KanataConfigGenerator {
 
     /// Get the project root directory
     private func getProjectRoot() -> String? {
-        let fileManager = FileManager.default
-        var currentPath = fileManager.currentDirectoryPath
+        let fileManager = Foundation.FileManager()
+        var currentPath = Foundation.ProcessInfo.processInfo.environment["PWD"] ?? "."
 
         // Look for characteristic files that indicate project roo
         let markers = ["Package.swift", "CLAUDE.md", "External/kanata"]

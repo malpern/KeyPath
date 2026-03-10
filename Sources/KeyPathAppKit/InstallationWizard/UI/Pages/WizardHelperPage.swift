@@ -383,7 +383,7 @@ struct WizardHelperPage: View {
         hasLoggedDiagnostics = true
 
         let mainURL = Bundle.main.url(forResource: "permissions-login-items", withExtension: "png")
-        let moduleURL = Bundle.module.url(forResource: "permissions-login-items", withExtension: "png")
+        let moduleURL = KeyPathAppKitResources.url(forResource: "permissions-login-items", withExtension: "png")
         let mainImageLoaded = mainURL.flatMap { NSImage(contentsOf: $0) } != nil
         let moduleImageLoaded = moduleURL.flatMap { NSImage(contentsOf: $0) } != nil
         let windowHeight = NSApp.keyWindow?.frame.height ?? 0
@@ -402,7 +402,7 @@ struct WizardHelperPage: View {
 
     private var loginItemsScreenshot: NSImage? {
         let resourceName = "permissions-login-items"
-        if let moduleURL = Bundle.module.url(forResource: resourceName, withExtension: "png"),
+        if let moduleURL = KeyPathAppKitResources.url(forResource: resourceName, withExtension: "png"),
            let image = NSImage(contentsOf: moduleURL)
         {
             return image
@@ -572,7 +572,7 @@ struct WizardHelperPage: View {
         // Try to read version from the helper's Info.plist sibling or embedded
         // For simplicity, we'll use a hardcoded version that matches HelperService.swift
         // In production, this should read from the helper's Info.plist
-        guard FileManager.default.fileExists(atPath: helperInfoPath) else { return nil }
+        guard Foundation.FileManager().fileExists(atPath: helperInfoPath) else { return nil }
 
         // Read version from helper's Info.plist in Sources
         // For now, return the known bundled version

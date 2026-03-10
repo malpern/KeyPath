@@ -10,7 +10,7 @@ final class SimpleModsWriterTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        tempDirectory = FileManager.default.temporaryDirectory
+        tempDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("SimpleModsWriterTests_\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
         configPath = tempDirectory.appendingPathComponent("keypath.kbd").path

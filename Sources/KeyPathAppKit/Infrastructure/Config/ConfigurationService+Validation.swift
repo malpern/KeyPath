@@ -12,7 +12,7 @@ extension ConfigurationService {
         }
 
         let binaryPath = WizardSystemPaths.kanataActiveBinary
-        guard FileManager.default.isExecutableFile(atPath: binaryPath) else {
+        guard Foundation.FileManager().isExecutableFile(atPath: binaryPath) else {
             let message = "Kanata binary missing at \(binaryPath)"
             AppLogger.shared.log("❌ [ConfigService] File validation skipped: \(message)")
             return (false, [message])
@@ -136,7 +136,7 @@ extension ConfigurationService {
         do {
             let tempConfigURL = URL(fileURLWithPath: tempConfigPath)
             let configDir = URL(fileURLWithPath: configDirectory)
-            try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+            try Foundation.FileManager().createDirectory(at: configDir, withIntermediateDirectories: true)
             try await writeFileURLAsync(string: config, to: tempConfigURL)
             AppLogger.shared.log(
                 "📝 [Validation-CLI] Temp config written successfully (\(config.count) characters)"
@@ -146,15 +146,15 @@ extension ConfigurationService {
             let kanataBinary = WizardSystemPaths.kanataActiveBinary
             AppLogger.shared.log("🔧 [Validation-CLI] Using kanata binary: \(kanataBinary)")
 
-            guard FileManager.default.isExecutableFile(atPath: kanataBinary) else {
+            guard Foundation.FileManager().isExecutableFile(atPath: kanataBinary) else {
                 let message = "Kanata binary missing at \(kanataBinary)"
                 AppLogger.shared.log("❌ [Validation-CLI] \(message)")
                 if TestEnvironment.isTestMode {
                     AppLogger.shared.log("🧪 [Validation-CLI] Skipping CLI validation in tests")
-                    try? FileManager.default.removeItem(at: tempConfigURL)
+                    try? Foundation.FileManager().removeItem(at: tempConfigURL)
                     return (true, [])
                 }
-                try? FileManager.default.removeItem(at: tempConfigURL)
+                try? Foundation.FileManager().removeItem(at: tempConfigURL)
                 return (false, [message])
             }
 
@@ -183,7 +183,7 @@ extension ConfigurationService {
 
             if result.exitCode == 0 {
                 AppLogger.shared.log("✅ [Validation-CLI] CLI validation PASSED")
-                try? FileManager.default.removeItem(at: tempConfigURL)
+                try? Foundation.FileManager().removeItem(at: tempConfigURL)
                 return (true, [])
             } else {
                 let errors = parseKanataErrors(output)
@@ -193,7 +193,7 @@ extension ConfigurationService {
                         "🧪 [Validation-CLI] Keeping temp config for debugging at \(tempConfigPath)"
                     )
                 } else {
-                    try? FileManager.default.removeItem(at: tempConfigURL)
+                    try? Foundation.FileManager().removeItem(at: tempConfigURL)
                 }
                 AppLogger.shared.log(
                     "❌ [Validation-CLI] CLI validation FAILED with \(errors.count) errors:"
@@ -206,7 +206,7 @@ extension ConfigurationService {
         } catch is CancellationError {
             // Task was cancelled (e.g., by debounce replacing this task) — not a real failure.
             // Clean up and return success so callers don't show a spurious error dialog.
-            try? FileManager.default.removeItem(atPath: tempConfigPath)
+            try? Foundation.FileManager().removeItem(atPath: tempConfigPath)
             AppLogger.shared.log("⚠️ [Validation-CLI] Validation cancelled (task superseded)")
             return (true, [])
         } catch {
@@ -216,7 +216,7 @@ extension ConfigurationService {
                     "🧪 [Validation-CLI] Keeping temp config for debugging at \(tempConfigPath)"
                 )
             } else {
-                try? FileManager.default.removeItem(atPath: tempConfigPath)
+                try? Foundation.FileManager().removeItem(atPath: tempConfigPath)
             }
             AppLogger.shared.log("❌ [Validation-CLI] Validation process failed: \(error)")
             AppLogger.shared.log("❌ [Validation-CLI] Error type: \(type(of: error))")

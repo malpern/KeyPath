@@ -103,7 +103,7 @@ final class RecoveryCoordinator {
             return
         }
 
-        // Try starting Kanata normally via KanataService
+        // Try starting the runtime normally via the runtime coordinator
         let started = await startKanata()
         if !started {
             AppLogger.shared.error("❌ [Recovery] Failed to start Kanata during validation")

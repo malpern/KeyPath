@@ -12,7 +12,7 @@ actor SimulatorService {
 
     init(
         simulatorPath: String? = nil,
-        fileManager: FileManager = .default
+        fileManager: FileManager = Foundation.FileManager()
     ) {
         self.simulatorPath = simulatorPath ?? WizardSystemPaths.bundledSimulatorPath
         self.fileManager = fileManager

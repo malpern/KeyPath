@@ -408,7 +408,6 @@ class SystemValidator {
         // This uses launchctl (fast) and provides VHID health, avoiding duplicate pgrep calls
         // that could contend with checkHealth()'s detectConnectionHealth() call
         let daemonStatus = await ServiceHealthChecker.shared.getServiceStatus()
-        let launchDaemonServicesHealthy = daemonStatus.allServicesHealthy
         let vhidServicesHealthy = daemonStatus.vhidServicesHealthy
         // Use launchctl-based VHID daemon health instead of pgrep-based detectConnectionHealth
         // to avoid concurrent pgrep calls that can cause hangs (see checkHealth which also calls it)
@@ -436,7 +435,6 @@ class SystemValidator {
             karabinerDaemonRunning: karabinerDaemonRunning,
             vhidDeviceInstalled: vhidInstalled,
             vhidDeviceHealthy: vhidHealthy,
-            launchDaemonServicesHealthy: launchDaemonServicesHealthy,
             vhidServicesHealthy: vhidServicesHealthy,
             vhidVersionMismatch: vhidVersionMismatch,
             kanataBinaryVersionMismatch: kanataBinaryVersionMismatch
@@ -525,9 +523,10 @@ class SystemValidator {
         AppLogger.shared.log("🔍 [SystemValidator] checkHealth() - About to check Kanata service health...")
         let kanataStart = Date()
         let kanataRunning = await ServiceHealthChecker.shared.isServiceHealthy(serviceID: "com.keypath.kanata")
+        let kanataInputCapture = await ServiceHealthChecker.shared.checkKanataInputCaptureStatus()
         let kanataDuration = Date().timeIntervalSince(kanataStart)
         AppLogger.shared.log(
-            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: \(kanataRunning) (took \(String(format: "%.3f", kanataDuration))s)"
+            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: \(kanataRunning), inputCaptureReady=\(kanataInputCapture.isReady) (took \(String(format: "%.3f", kanataDuration))s)"
         )
 
         // Use launchctl-based check instead of unreliable pgrep
@@ -567,7 +566,9 @@ class SystemValidator {
         return HealthStatus(
             kanataRunning: kanataRunning,
             karabinerDaemonRunning: karabinerDaemonRunning,
-            vhidHealthy: vhidHealthy
+            vhidHealthy: vhidHealthy,
+            kanataInputCaptureReady: kanataInputCapture.isReady,
+            kanataInputCaptureIssue: kanataInputCapture.issue
         )
     }
 
@@ -608,7 +609,6 @@ class SystemValidator {
                 karabinerDaemonRunning: true,
                 vhidDeviceInstalled: true,
                 vhidDeviceHealthy: true,
-                launchDaemonServicesHealthy: true,
                 vhidServicesHealthy: true,
                 vhidVersionMismatch: false,
                 kanataBinaryVersionMismatch: false
@@ -640,7 +640,6 @@ class SystemValidator {
                 karabinerDaemonRunning: false,
                 vhidDeviceInstalled: false,
                 vhidDeviceHealthy: false,
-                launchDaemonServicesHealthy: false,
                 vhidServicesHealthy: false,
                 vhidVersionMismatch: false,
                 kanataBinaryVersionMismatch: false

@@ -58,7 +58,7 @@ public enum WordlistStore {
     }
 
     private static func defaultAppSupportURL() -> URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        let base = Foundation.FileManager().urls(for: .applicationSupportDirectory, in: .userDomainMask).first
         return (base ?? URL(fileURLWithPath: NSTemporaryDirectory()))
             .appendingPathComponent("KeyPath", isDirectory: true)
     }

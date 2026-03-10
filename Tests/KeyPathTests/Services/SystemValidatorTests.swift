@@ -131,7 +131,6 @@ struct SystemValidatorTests {
                 karabinerDaemonRunning: false,
                 vhidDeviceInstalled: false,
                 vhidDeviceHealthy: false,
-                launchDaemonServicesHealthy: false,
                 vhidServicesHealthy: false,
                 vhidVersionMismatch: false
             ),

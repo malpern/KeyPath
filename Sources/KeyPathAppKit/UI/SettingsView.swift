@@ -154,11 +154,32 @@ struct StatusSettingsTabView: View {
                         .toggleStyle(.switch)
                         .controlSize(.large)
                         .accessibilityIdentifier("status-service-toggle")
-                        .accessibilityLabel("Kanata Service")
+                        .accessibilityLabel("KeyPath Runtime")
 
                         Text(effectiveServiceRunning ? "ON" : "OFF")
                             .font(.body.weight(.medium))
                             .foregroundColor(effectiveServiceRunning ? .green : .secondary)
+                    }
+
+                    if let runtimePathTitle = kanataManager.activeRuntimePathTitle {
+                        VStack(spacing: 4) {
+                            Text(runtimePathTitle)
+                                .font(.footnote.weight(.semibold))
+                                .foregroundColor(.secondary)
+
+                            if let runtimePathDetail = kanataManager.activeRuntimePathDetail {
+                                Text(runtimePathDetail)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .frame(maxWidth: 220)
+                        .accessibilityIdentifier("status-runtime-path")
+                        .accessibilityLabel(
+                            "Active runtime path: \(runtimePathTitle)\(kanataManager.activeRuntimePathDetail.map { ", \($0)" } ?? "")"
+                        )
                     }
                 }
                 .frame(minWidth: 220)
@@ -292,7 +313,7 @@ struct StatusSettingsTabView: View {
 
         // If services look “starting” (daemons loaded/healthy but kanata not yet running), retry once shortly.
         if !context.services.kanataRunning,
-           context.components.launchDaemonServicesHealthy || context.services.karabinerDaemonRunning,
+           context.services.karabinerDaemonRunning,
            refreshRetryScheduled == false
         {
             refreshRetryScheduled = true
@@ -339,7 +360,7 @@ struct StatusSettingsTabView: View {
     private func checkTCPConfiguration() async -> Bool {
         // Keep this fast and predictable: only verify the active plist contains a --port argument.
         let plistPath = KanataDaemonManager.getActivePlistPath()
-        guard FileManager.default.fileExists(atPath: plistPath) else { return false }
+        guard Foundation.FileManager().fileExists(atPath: plistPath) else { return false }
 
         let args: [String]
         do {

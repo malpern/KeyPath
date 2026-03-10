@@ -60,13 +60,13 @@ final class IconResolverService {
 
         // Try app name in /Applications
         let directPath = "/Applications/\(identifier).app"
-        if FileManager.default.fileExists(atPath: directPath) {
+        if Foundation.FileManager().fileExists(atPath: directPath) {
             return URL(fileURLWithPath: directPath)
         }
 
         // Try with capitalized first letter
         let capitalizedPath = "/Applications/\(identifier.capitalized).app"
-        if FileManager.default.fileExists(atPath: capitalizedPath) {
+        if Foundation.FileManager().fileExists(atPath: capitalizedPath) {
             return URL(fileURLWithPath: capitalizedPath)
         }
 

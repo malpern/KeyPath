@@ -14,7 +14,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
         checker = ServiceHealthChecker.shared
         originalSMFactory = KanataDaemonManager.smServiceFactory
 
-        tempLaunchDaemonsDir = FileManager.default.temporaryDirectory
+        tempLaunchDaemonsDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("ServiceHealthCheckerTests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempLaunchDaemonsDir, withIntermediateDirectories: true)
 
@@ -23,6 +23,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
         #if DEBUG
             ServiceHealthChecker.runtimeSnapshotOverride = nil
             ServiceHealthChecker.recentlyRestartedOverride = nil
+            ServiceHealthChecker.inputCaptureStatusOverride = nil
             KanataDaemonManager.registeredButNotLoadedOverride = nil
         #endif
     }
@@ -38,6 +39,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
         #if DEBUG
             ServiceHealthChecker.runtimeSnapshotOverride = nil
             ServiceHealthChecker.recentlyRestartedOverride = nil
+            ServiceHealthChecker.inputCaptureStatusOverride = nil
             KanataDaemonManager.registeredButNotLoadedOverride = nil
         #endif
         try? FileManager.default.removeItem(at: tempLaunchDaemonsDir)
@@ -60,11 +62,12 @@ final class ServiceHealthCheckerTests: XCTestCase {
     }
 
     private func writeVHIDPlist(programPath: String) throws {
-        let dict: NSDictionary = [
+        let dict: [String: Any] = [
             "ProgramArguments": [programPath]
         ]
         let url = tempLaunchDaemonsDir.appendingPathComponent("\(ServiceHealthChecker.vhidDaemonServiceID).plist")
-        XCTAssertTrue(dict.write(to: url, atomically: true))
+        let data = try PropertyListSerialization.data(fromPropertyList: dict, format: .xml, options: 0)
+        try data.write(to: url)
     }
 
     func testServiceIdentifiers() {
@@ -126,6 +129,8 @@ final class ServiceHealthCheckerTests: XCTestCase {
             managementState: .smappserviceActive,
             isRunning: false,
             isResponding: false,
+            inputCaptureReady: true,
+            inputCaptureIssue: nil,
             launchctlExitCode: 113,
             staleEnabledRegistration: false,
             recentlyRestarted: true
@@ -141,6 +146,8 @@ final class ServiceHealthCheckerTests: XCTestCase {
             managementState: .smappserviceActive,
             isRunning: true,
             isResponding: false,
+            inputCaptureReady: true,
+            inputCaptureIssue: nil,
             launchctlExitCode: 0,
             staleEnabledRegistration: false,
             recentlyRestarted: true
@@ -156,6 +163,8 @@ final class ServiceHealthCheckerTests: XCTestCase {
             managementState: .smappserviceActive,
             isRunning: false,
             isResponding: false,
+            inputCaptureReady: true,
+            inputCaptureIssue: nil,
             launchctlExitCode: nil,
             staleEnabledRegistration: true,
             recentlyRestarted: false
@@ -171,6 +180,8 @@ final class ServiceHealthCheckerTests: XCTestCase {
             managementState: .smappserviceActive,
             isRunning: true,
             isResponding: true,
+            inputCaptureReady: true,
+            inputCaptureIssue: nil,
             launchctlExitCode: 0,
             staleEnabledRegistration: true,
             recentlyRestarted: false
@@ -179,6 +190,36 @@ final class ServiceHealthCheckerTests: XCTestCase {
         let decision = ServiceHealthChecker.decideKanataHealth(for: snapshot)
         XCTAssertEqual(decision, .healthy)
         XCTAssertTrue(decision.isHealthy)
+    }
+
+    func testCheckKanataInputCaptureStatusReturnsNotReadyForBuiltInKeyboardPermissionError() async throws {
+        let stderrURL = tempLaunchDaemonsDir.appendingPathComponent("kanata-stderr.log")
+        try """
+        [2026-03-07T13:21:14Z] IOHIDDeviceOpen error: (iokit/common) not permitted Apple Internal Keyboard / Trackpad
+        """.write(to: stderrURL, atomically: true, encoding: .utf8)
+        setenv("KEYPATH_KANATA_STDERR_PATH", stderrURL.path, 1)
+        defer { unsetenv("KEYPATH_KANATA_STDERR_PATH") }
+
+        let status = await checker.checkKanataInputCaptureStatus()
+        XCTAssertFalse(status.isReady)
+        XCTAssertEqual(status.issue, "kanata-cannot-open-built-in-keyboard")
+    }
+
+    func testKanataDecisionTreatsMissingInputCaptureAsUnhealthy() {
+        let snapshot = ServiceHealthChecker.KanataServiceRuntimeSnapshot(
+            managementState: .smappserviceActive,
+            isRunning: true,
+            isResponding: true,
+            inputCaptureReady: false,
+            inputCaptureIssue: "kanata-cannot-open-built-in-keyboard",
+            launchctlExitCode: 0,
+            staleEnabledRegistration: false,
+            recentlyRestarted: false
+        )
+
+        let decision = ServiceHealthChecker.decideKanataHealth(for: snapshot)
+        XCTAssertEqual(decision, .unhealthy(reason: "kanata-cannot-open-built-in-keyboard"))
+        XCTAssertFalse(decision.isHealthy)
     }
 
     func testIsKanataPlistInstalledUsesLaunchDaemonsOverride() throws {

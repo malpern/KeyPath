@@ -9,7 +9,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
     private func createTestManager() async throws -> (RuleCollectionsManager, URL) {
         TestEnvironment.forceTestMode = true
 
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("rule-manager-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
@@ -37,7 +37,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("rule-manager-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
@@ -211,7 +211,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         let migrationKey = "RuleCollections.Migration.UnifiedHomeRowMods"
         UserDefaults.standard.removeObject(forKey: migrationKey)
 
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("rule-manager-migration-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 

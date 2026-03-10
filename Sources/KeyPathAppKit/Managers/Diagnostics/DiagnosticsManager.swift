@@ -24,6 +24,12 @@ protocol DiagnosticsManaging: Sendable {
     /// Check service health
     func checkHealth(tcpPort: Int) async -> ServiceHealthStatus
 
+    /// Record a VirtualHID connection failure and report whether recovery should trigger.
+    func recordConnectionFailure() async -> Bool
+
+    /// Record a VirtualHID connection success.
+    func recordConnectionSuccess() async
+
     /// Diagnose Kanata failure
     func diagnoseFailure(exitCode: Int32, output: String) -> [KanataDiagnostic]
 
@@ -36,16 +42,19 @@ protocol DiagnosticsManaging: Sendable {
 final class DiagnosticsManager: @preconcurrency DiagnosticsManaging { // @preconcurrency: @MainActor satisfies Sendable via isolation
     private var diagnostics: [KanataDiagnostic] = []
     private let diagnosticsService: DiagnosticsServiceProtocol
-    private let kanataService: KanataService
+    private let healthMonitor: ServiceHealthMonitorProtocol
+    private let processStatusProvider: @MainActor @Sendable () async -> ProcessHealthStatus
 
     private var logMonitorTask: Task<Void, Never>?
 
     init(
         diagnosticsService: DiagnosticsServiceProtocol,
-        kanataService: KanataService
+        healthMonitor: ServiceHealthMonitorProtocol,
+        processStatusProvider: @escaping @MainActor @Sendable () async -> ProcessHealthStatus
     ) {
         self.diagnosticsService = diagnosticsService
-        self.kanataService = kanataService
+        self.healthMonitor = healthMonitor
+        self.processStatusProvider = processStatusProvider
     }
 
     func addDiagnostic(_ diagnostic: KanataDiagnostic) {
@@ -76,7 +85,7 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging { // @precon
             guard let self else { return }
 
             let logPath = WizardSystemPaths.kanataLogFile
-            guard FileManager.default.fileExists(atPath: logPath) else {
+            guard Foundation.FileManager().fileExists(atPath: logPath) else {
                 AppLogger.shared.log("⚠️ [DiagnosticsManager] Kanata log file not found at \(logPath)")
                 return
             }
@@ -151,12 +160,24 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging { // @precon
         logMonitorTask?.cancel()
         logMonitorTask = nil
         Task { @MainActor [weak self] in
-            await self?.kanataService.recordConnectionSuccess() // Reset on stop
+            await self?.recordConnectionSuccess() // Reset on stop
         }
     }
 
     func checkHealth(tcpPort: Int) async -> ServiceHealthStatus {
-        await kanataService.checkHealth(tcpPort: tcpPort)
+        let processStatus = await processStatusProvider()
+        return await healthMonitor.checkServiceHealth(
+            processStatus: processStatus,
+            tcpPort: tcpPort
+        )
+    }
+
+    func recordConnectionFailure() async -> Bool {
+        await healthMonitor.recordConnectionFailure()
+    }
+
+    func recordConnectionSuccess() async {
+        await healthMonitor.recordConnectionSuccess()
     }
 
     func diagnoseFailure(exitCode: Int32, output: String) -> [KanataDiagnostic] {
@@ -183,7 +204,7 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging { // @precon
             }
 
             // Record connection success
-            await kanataService.recordConnectionSuccess()
+            await recordConnectionSuccess()
             return
         }
 
@@ -215,7 +236,7 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging { // @precon
             }
 
             // Record connection failure for health monitoring
-            let shouldRecover = await kanataService.recordConnectionFailure()
+            let shouldRecover = await recordConnectionFailure()
             if shouldRecover {
                 AppLogger.shared.log(
                     "🚨 [DiagnosticsManager] Max connection failures reached - recovery recommended"

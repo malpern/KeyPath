@@ -14,7 +14,7 @@ actor RuleCollectionStore {
 
     init(
         fileURL: URL? = nil,
-        fileManager: FileManager = .default,
+        fileManager: FileManager = Foundation.FileManager(),
         catalog: RuleCollectionCatalog = RuleCollectionCatalog()
     ) {
         self.fileManager = fileManager

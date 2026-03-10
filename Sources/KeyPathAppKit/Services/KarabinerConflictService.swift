@@ -26,6 +26,10 @@ protocol KarabinerConflictManaging: AnyObject {
 /// Manages detection and resolution of conflicts with Karabiner-Elements
 @MainActor
 final class KarabinerConflictService: KarabinerConflictManaging {
+    /// Test seam: when set, `isKarabinerDaemonRunning()` returns this value
+    /// instead of running a real pgrep.
+    nonisolated(unsafe) static var testDaemonRunning: Bool?
+
     // MARK: - Dependencies
 
     private let engineFactory: () -> (any InstallerEnginePrivilegedRouting)
@@ -53,7 +57,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     // MARK: - Detection Methods
 
     func isKarabinerDriverInstalled() -> Bool {
-        FileManager.default.fileExists(atPath: driverPath)
+        Foundation.FileManager().fileExists(atPath: driverPath)
     }
 
     func isKarabinerDriverExtensionEnabled() async -> Bool {
@@ -120,7 +124,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
 
     func isKarabinerElementsRunning() async -> Bool {
         // First check if we've permanently disabled the grabber
-        if FileManager.default.fileExists(atPath: disabledMarkerPath) {
+        if Foundation.FileManager().fileExists(atPath: disabledMarkerPath) {
             AppLogger.shared.log(
                 "ℹ️ [Conflict] karabiner_grabber permanently disabled by KeyPath - skipping conflict check"
             )
@@ -150,6 +154,11 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     }
 
     func isKarabinerDaemonRunning() async -> Bool {
+        // Test seam: return injected value in tests to avoid real pgrep
+        if TestEnvironment.isRunningTests, let testValue = Self.testDaemonRunning {
+            return testValue
+        }
+
         // Skip daemon check during startup to prevent blocking
         if FeatureFlags.shared.startupModeActive {
             AppLogger.shared.log(
@@ -351,7 +360,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
                     let output = result.output
 
                     // Clean up temporary file
-                    try? FileManager.default.removeItem(atPath: scriptPath)
+                    try? Foundation.FileManager().removeItem(atPath: scriptPath)
 
                     if result.success {
                         AppLogger.shared.log("✅ [Karabiner] Successfully disabled Karabiner Elements services")
@@ -372,7 +381,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
 
                 } catch {
                     AppLogger.shared.log("❌ [Karabiner] Error executing disable script: \(error)")
-                    try? FileManager.default.removeItem(atPath: scriptPath)
+                    try? Foundation.FileManager().removeItem(atPath: scriptPath)
                     continuation.resume(returning: false)
                 }
             }

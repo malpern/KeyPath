@@ -38,7 +38,7 @@ actor AppKeymapStore {
     /// In-memory cache of keymaps
     private var cachedKeymaps: [AppKeymap]?
 
-    init(fileURL: URL? = nil, fileManager: FileManager = .default) {
+    init(fileURL: URL? = nil, fileManager: FileManager = Foundation.FileManager()) {
         self.fileManager = fileManager
         let defaultDirectory = URL(
             fileURLWithPath: WizardSystemPaths.userConfigDirectory, isDirectory: true
@@ -160,7 +160,10 @@ actor AppKeymapStore {
     /// Post notification on main thread that keymaps have changed
     private func postChangeNotification() {
         Task { @MainActor in
-            NotificationCenter.default.post(name: .appKeymapsDidChange, object: nil)
+            NotificationObserverManager.defaultCenter.post(
+                name: Notification.Name.appKeymapsDidChange,
+                object: nil as AnyObject?
+            )
         }
     }
 

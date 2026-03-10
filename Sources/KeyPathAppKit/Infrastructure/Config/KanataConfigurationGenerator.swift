@@ -251,7 +251,7 @@ public struct KanataConfiguration: Sendable {
                 "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata"
             ]
 
-            let fm = FileManager.default
+            let fm = Foundation.FileManager()
             guard let kanataPath = candidates.first(where: { fm.isExecutableFile(atPath: $0) }) else {
                 return nil
             }

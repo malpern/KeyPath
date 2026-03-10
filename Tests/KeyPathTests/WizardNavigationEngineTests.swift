@@ -406,11 +406,11 @@ class WizardNavigationEngineTests: XCTestCase {
         // Then: Button text should vary based on state
         XCTAssertEqual(activeButtonText, "Close Setup", "Active state should show 'Close Setup'")
         XCTAssertEqual(
-            serviceNotRunningButtonText, "Start Kanata Service",
-            "Service not running should show 'Start Kanata Service'"
+            serviceNotRunningButtonText, "Start KeyPath Runtime",
+            "Service not running should show 'Start KeyPath Runtime'"
         )
         XCTAssertEqual(
-            readyButtonText, "Start Kanata Service", "Ready state should show 'Start Kanata Service'"
+            readyButtonText, "Start KeyPath Runtime", "Ready state should show 'Start KeyPath Runtime'"
         )
     }
 

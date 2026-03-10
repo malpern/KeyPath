@@ -15,7 +15,7 @@ final class UninstallCoordinatorTests: XCTestCase {
     }
 
     func testUninstallRemovesPathsAndLogsSuccess() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let root = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent(
             "keypath-uninstall-\(UUID().uuidString)"
         )
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -55,11 +55,13 @@ final class UninstallCoordinatorTests: XCTestCase {
                 process.standardError = err
                 do {
                     try process.run()
-                    process.waitUntilExit()
+                    while process.isRunning {
+                        usleep(1_000)
+                    }
                     let output =
-                        String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                        String(data: (try? out.fileHandleForReading.readToEnd()) ?? Data(), encoding: .utf8) ?? ""
                     let error =
-                        String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                        String(data: (try? err.fileHandleForReading.readToEnd()) ?? Data(), encoding: .utf8) ?? ""
                     return AppleScriptResult(
                         success: process.terminationStatus == 0, output: output, error: error,
                         exitStatus: process.terminationStatus
@@ -102,7 +104,7 @@ final class UninstallCoordinatorTests: XCTestCase {
     }
 
     func testUninstallLogsAdminError() async {
-        let errorURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let errorURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent(
             "uninstall-fail.sh"
         )
         let coordinator = UninstallCoordinator(
@@ -121,7 +123,7 @@ final class UninstallCoordinatorTests: XCTestCase {
     }
 
     func testUninstallLogsExitCodeWhenAdminErrorMissingMessage() async {
-        let errorURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let errorURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent(
             "uninstall-fail.sh"
         )
         let coordinator = UninstallCoordinator(

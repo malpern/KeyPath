@@ -84,7 +84,7 @@ final class KanataBinaryDetector: Sendable {
 
         // Priority 3: Check if bundled binary is specifically missing (packaging issue)
         let bundledPath = WizardSystemPaths.bundledKanataPath
-        if !FileManager.default.fileExists(atPath: bundledPath) {
+        if !Foundation.FileManager().fileExists(atPath: bundledPath) {
             AppLogger.shared.log("❌ [KanataBinaryDetector] CRITICAL: Bundled kanata binary missing from app bundle at: \(bundledPath)")
             AppLogger.shared.log("❌ [KanataBinaryDetector] This indicates a packaging issue - the app was not built correctly")
             return DetectionResult(
@@ -147,7 +147,7 @@ final class KanataBinaryDetector: Sendable {
     func hasVersionMismatch() -> Bool {
         let systemPath = WizardSystemPaths.kanataSystemInstallPath
         let bundledPath = WizardSystemPaths.bundledKanataPath
-        let fm = FileManager.default
+        let fm = Foundation.FileManager()
 
         let sysExists = fm.fileExists(atPath: systemPath)
         let bunExists = fm.fileExists(atPath: bundledPath)
@@ -177,7 +177,7 @@ final class KanataBinaryDetector: Sendable {
     private func checkSystemInstallation() -> DetectionResult? {
         let systemPath = WizardSystemPaths.kanataSystemInstallPath
 
-        guard FileManager.default.fileExists(atPath: systemPath) else {
+        guard Foundation.FileManager().fileExists(atPath: systemPath) else {
             return nil
         }
 
@@ -198,7 +198,7 @@ final class KanataBinaryDetector: Sendable {
     private func checkBundledBinary() -> DetectionResult? {
         let bundledPath = WizardSystemPaths.bundledKanataPath
 
-        guard FileManager.default.fileExists(atPath: bundledPath) else {
+        guard Foundation.FileManager().fileExists(atPath: bundledPath) else {
             return nil
         }
 

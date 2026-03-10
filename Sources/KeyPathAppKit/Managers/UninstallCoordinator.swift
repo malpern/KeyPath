@@ -242,9 +242,10 @@ final class UninstallCoordinator {
             return bundled
         }
 
-        let repoPath = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        let workingDirectory = Foundation.ProcessInfo.processInfo.environment["PWD"] ?? "."
+        let repoPath = URL(fileURLWithPath: workingDirectory)
             .appendingPathComponent("Sources/KeyPath/Resources/uninstall.sh")
-        if FileManager.default.isExecutableFile(atPath: repoPath.path) {
+        if Foundation.FileManager().isExecutableFile(atPath: repoPath.path) {
             return repoPath
         }
 

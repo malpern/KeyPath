@@ -130,7 +130,7 @@ public enum ExternalKanataService {
     }
 
     private static func extractLabelFromPlist(at path: String) -> String? {
-        guard let data = FileManager.default.contents(atPath: path),
+        guard let data = Foundation.FileManager().contents(atPath: path),
               let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
               let label = plist["Label"] as? String
         else {

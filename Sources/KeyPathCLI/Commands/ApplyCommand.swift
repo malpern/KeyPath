@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-extension KeyPathTool {
+extension KeyPathCLI {
     struct Apply: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             abstract: "Regenerate config and reload Kanata"
