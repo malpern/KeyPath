@@ -50,7 +50,7 @@ extension RuntimeCoordinator {
     // MARK: - Service Management Helpers
 
     @discardableResult
-    func startKanata(reason: String = "Manual start") async -> Bool {
+    func startKanata(reason: String = "Manual start", precomputedDecision: KanataRuntimePathDecision? = nil) async -> Bool {
         AppLogger.shared.log("🚀 [Service] Starting Kanata (\(reason))")
         lastWarning = nil
 
@@ -64,7 +64,12 @@ extension RuntimeCoordinator {
             return false
         }
 
-        let decision = await currentSplitRuntimeDecision()
+        let decision: KanataRuntimePathDecision
+        if let precomputedDecision {
+            decision = precomputedDecision
+        } else {
+            decision = await currentSplitRuntimeDecision()
+        }
         switch decision {
         case .useSplitRuntime:
             break
@@ -156,7 +161,7 @@ extension RuntimeCoordinator {
         if KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning {
             let stopped = await stopKanata(reason: "\(reason) (stop split runtime)")
             guard stopped else { return false }
-            return await startKanata(reason: "\(reason) (start split runtime)")
+            return await startKanata(reason: "\(reason) (start split runtime)", precomputedDecision: splitDecision)
         }
 
         switch splitDecision {
@@ -165,7 +170,7 @@ extension RuntimeCoordinator {
                 let stopped = await stopKanata(reason: "\(reason) (stop legacy recovery daemon)")
                 guard stopped else { return false }
             }
-            return await startKanata(reason: "\(reason) (start split runtime)")
+            return await startKanata(reason: "\(reason) (start split runtime)", precomputedDecision: splitDecision)
         case let .useLegacySystemBinary(evalReason), let .blocked(evalReason):
             let message =
                 "Split runtime host is enabled, but KeyPath could not restart it: \(evalReason). " +
@@ -184,6 +189,16 @@ extension RuntimeCoordinator {
 
         if KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning {
             return .running(pid: Int(KanataSplitRuntimeHostService.shared.activePersistentHostPID ?? 0))
+        }
+
+        // Secondary check: the legacy recovery daemon may still be active during
+        // migration. Report it as running so callers (e.g. resetToDefaultConfig)
+        // don't skip TCP reload.
+        if await recoveryDaemonService.isRecoveryDaemonRunning() {
+            AppLogger.shared.warn(
+                "⚠️ [Service] Split runtime host is not running but legacy recovery daemon is active — half-migrated state"
+            )
+            return .running(pid: 0)
         }
 
         return .stopped

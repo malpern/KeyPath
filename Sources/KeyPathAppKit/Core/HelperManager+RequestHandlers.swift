@@ -278,11 +278,7 @@ extension HelperManager {
     }
 
     private static var shouldSoftenOutputBridgeStatusFailure: Bool {
-        let environment = ProcessInfo.processInfo.environment
-        return environment["KEYPATH_ENABLE_HOST_PASSTHRU_DIAGNOSTIC"] == "1"
-            || environment["KEYPATH_PREPARE_HOST_PASSTHRU_BRIDGE"] == "1"
-            || environment["KEYPATH_RUN_HELPER_REPAIR"] == "1"
-            || environment["KEYPATH_EXERCISE_OUTPUT_BRIDGE_COMPANION_RESTART"] == "1"
+        OneShotProbeEnvironment.isActive()
     }
 
     func prepareKanataOutputBridgeSession(hostPID: Int32) async throws -> KanataOutputBridgeSession {

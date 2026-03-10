@@ -391,18 +391,11 @@ private func openPreferencesTab(_ notification: Notification.Name) {
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
-    static let hostPassthruDiagnosticEnvKey = "KEYPATH_ENABLE_HOST_PASSTHRU_DIAGNOSTIC"
-    static let hostPassthruBridgePrepEnvKey = "KEYPATH_PREPARE_HOST_PASSTHRU_BRIDGE"
-    static let helperRepairEnvKey = "KEYPATH_RUN_HELPER_REPAIR"
-    static let companionRestartProbeEnvKey = "KEYPATH_EXERCISE_OUTPUT_BRIDGE_COMPANION_RESTART"
     static let hostPassthruCaptureEnvKey = "KEYPATH_ENABLE_HOST_PASSTHRU_CAPTURE"
     static func isOneShotProbeEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment)
         -> Bool
     {
-        environment[hostPassthruDiagnosticEnvKey] == "1"
-            || environment[hostPassthruBridgePrepEnvKey] == "1"
-            || environment[helperRepairEnvKey] == "1"
-            || environment[companionRestartProbeEnvKey] == "1"
+        OneShotProbeEnvironment.isActive(environment)
     }
     private static let hostPassthruDiagnosticTriggerPath = "/var/tmp/keypath-host-passthru-diagnostic"
     private static let hostPassthruBridgePrepTriggerPath = "/var/tmp/keypath-host-passthru-bridge-prep"
@@ -532,7 +525,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setSmartKeyboardLayoutDefault()
 
         let shouldRunHostPassthruDiagnostic =
-            ProcessInfo.processInfo.environment[Self.hostPassthruDiagnosticEnvKey] == "1"
+            ProcessInfo.processInfo.environment[OneShotProbeEnvironment.hostPassthruDiagnosticEnvKey] == "1"
             || Foundation.FileManager().fileExists(atPath: Self.hostPassthruDiagnosticTriggerPath)
 
         if shouldRunHostPassthruDiagnostic {
@@ -564,7 +557,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let shouldPrepareHostPassthruBridge =
-            ProcessInfo.processInfo.environment[Self.hostPassthruBridgePrepEnvKey] == "1"
+            ProcessInfo.processInfo.environment[OneShotProbeEnvironment.hostPassthruBridgePrepEnvKey] == "1"
             || Foundation.FileManager().fileExists(atPath: Self.hostPassthruBridgePrepTriggerPath)
 
         if shouldPrepareHostPassthruBridge {
@@ -623,7 +616,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let shouldRunHelperRepair =
-            ProcessInfo.processInfo.environment[Self.helperRepairEnvKey] == "1"
+            ProcessInfo.processInfo.environment[OneShotProbeEnvironment.helperRepairEnvKey] == "1"
             || Foundation.FileManager().fileExists(atPath: Self.helperRepairTriggerPath)
 
         if shouldRunHelperRepair {
@@ -658,7 +651,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let shouldRunCompanionRestartProbe =
-            ProcessInfo.processInfo.environment[Self.companionRestartProbeEnvKey] == "1"
+            ProcessInfo.processInfo.environment[OneShotProbeEnvironment.companionRestartProbeEnvKey] == "1"
 
         if shouldRunCompanionRestartProbe {
             let captureRaw = ProcessInfo.processInfo.environment[Self.hostPassthruCaptureEnvKey]?
