@@ -1,3 +1,4 @@
+import Foundation
 import KeyPathCore
 import SwiftUI
 
@@ -24,7 +25,7 @@ extension OverlayInspectorPanel {
                                 onSelectSection(.mapper)
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: DispatchWorkItem {
                                     Foundation.NotificationCenter.default.post(
-                                        name: Notification.Name.mapperSetAppCondition,
+                                        name: Foundation.Notification.Name.mapperSetAppCondition,
                                         object: nil,
                                         userInfo: ["bundleId": "", "displayName": ""]
                                     )
@@ -101,7 +102,7 @@ extension OverlayInspectorPanel {
                 "appDisplayName": keymap.mapping.displayName
             ]
             Foundation.NotificationCenter.default.post(
-                name: Notification.Name.mapperDrawerKeySelected,
+                name: Foundation.Notification.Name.mapperDrawerKeySelected,
                 object: nil,
                 userInfo: userInfo
             )
@@ -115,7 +116,7 @@ extension OverlayInspectorPanel {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: DispatchWorkItem {
             // Set the app condition on the mapper view model
             Foundation.NotificationCenter.default.post(
-                name: Notification.Name.mapperSetAppCondition,
+                name: Foundation.Notification.Name.mapperSetAppCondition,
                 object: nil,
                 userInfo: [
                     "bundleId": keymap.mapping.bundleIdentifier,
@@ -141,7 +142,7 @@ extension OverlayInspectorPanel {
                 userInfo["shiftedOutputKey"] = shiftedOutput
             }
             Foundation.NotificationCenter.default.post(
-                name: Notification.Name.mapperDrawerKeySelected,
+                name: Foundation.Notification.Name.mapperDrawerKeySelected,
                 object: nil,
                 userInfo: userInfo
             )

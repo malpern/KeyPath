@@ -220,7 +220,10 @@ extension OverlayInspectorPanel {
                     collections[index] = collection
                     try? await RuleCollectionStore.shared.saveCollections(collections)
                     // Notify that rules changed so config regenerates
-                    NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil as AnyObject?)
+                    Foundation.NotificationCenter.default.post(
+                        name: Foundation.Notification.Name.ruleCollectionsChanged,
+                        object: nil
+                    )
                 }
             }
         }
@@ -263,7 +266,10 @@ extension OverlayInspectorPanel {
                     collection.configuration = .launcherGrid(config)
                     collections[index] = collection
                     try? await RuleCollectionStore.shared.saveCollections(collections)
-                    NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil as AnyObject?)
+                    Foundation.NotificationCenter.default.post(
+                        name: Foundation.Notification.Name.ruleCollectionsChanged,
+                        object: nil
+                    )
                 }
             }
         }

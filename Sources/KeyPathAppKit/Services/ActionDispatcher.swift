@@ -412,6 +412,10 @@ public final class ActionDispatcher {
             ]))
         }
 
+        if TestEnvironment.isRunningTests, Self.diagnosticSystemActions.contains(action.lowercased()) {
+            return .success
+        }
+
         switch action.lowercased() {
         case "prepare-host-passthru-bridge", "prepare-host-bridge", "prep-host-passthru-bridge":
             Task { @MainActor in
