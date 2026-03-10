@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-extension KeyPathTool {
+extension KeyPathCLI {
     struct Install: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             abstract: "Install KeyPath services and components"

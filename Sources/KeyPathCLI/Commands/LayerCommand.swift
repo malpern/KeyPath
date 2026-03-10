@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-extension KeyPathTool {
+extension KeyPathCLI {
     struct Layer: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             abstract: "List or switch Kanata layers",

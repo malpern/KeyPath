@@ -257,31 +257,9 @@ public struct CLIFacade: Sendable {
         return CLIInstallerReport(from: report)
     }
 
-    /// Run repair via InstallerEngine. Attempts fast restart first, then full repair.
+    /// Run repair via InstallerEngine.
     @MainActor
     public func runRepair() async -> CLIInstallerReport {
-        // Try fast-path restart first
-        let coordinator = ProcessCoordinator()
-        let restarted = await coordinator.restartService()
-        if restarted {
-            let engine = InstallerEngine()
-            let context = await engine.inspectSystem()
-            if context.permissions.isSystemReady,
-               context.helper.isReady,
-               context.components.hasAllRequired,
-               context.services.isHealthy,
-               !context.conflicts.hasConflicts
-            {
-                return CLIInstallerReport(
-                    success: true,
-                    failureReason: nil,
-                    steps: [CLIInstallerStep(name: "KanataService restart", success: true, error: nil)],
-                    fastRepair: true
-                )
-            }
-        }
-
-        // Full repair
         let engine = InstallerEngine()
         let broker = PrivilegeBroker()
         let report = await engine.run(intent: .repair, using: broker)

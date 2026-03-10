@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 
-extension KeyPathTool {
+extension KeyPathCLI {
     /// Explicit subcommands for shell completions.
     /// ArgumentParser also provides a built-in `--generate-completion-script <shell>`
     /// flag, but these subcommands are more discoverable for users.
@@ -21,7 +21,7 @@ extension KeyPathTool {
             )
 
             mutating func run() throws {
-                let script = KeyPathTool.completionScript(for: .zsh)
+                let script = KeyPathCLI.completionScript(for: .zsh)
                 print(script)
             }
         }
@@ -32,7 +32,7 @@ extension KeyPathTool {
             )
 
             mutating func run() throws {
-                let script = KeyPathTool.completionScript(for: .bash)
+                let script = KeyPathCLI.completionScript(for: .bash)
                 print(script)
             }
         }
@@ -43,7 +43,7 @@ extension KeyPathTool {
             )
 
             mutating func run() throws {
-                let script = KeyPathTool.completionScript(for: .fish)
+                let script = KeyPathCLI.completionScript(for: .fish)
                 print(script)
             }
         }
