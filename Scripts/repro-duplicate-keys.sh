@@ -387,6 +387,7 @@ echo >> "$SUMMARY_FILE"
             sub(/^.*KeyInput: /, "", line)
             sub(/ press.*$/, "", line)
             key = line
+            if (key == "") next
 
             # High-res receive timestamp (ms since epoch).
             ms_cmd | getline now_ms

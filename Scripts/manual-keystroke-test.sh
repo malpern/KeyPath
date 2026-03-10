@@ -298,6 +298,9 @@ echo "  (ignoring: backspace, arrows, modifiers, space, enter, tab, esc)"
 MONITOR_PID=$!
 bg_pids+=("$MONITOR_PID")
 
+# Capture the current log length so we can scope the slice to only this test run.
+LOG_START_LINE=$(wc -l < "$LOG_FILE" | tr -d ' ')
+
 touch "$SCRATCH_FILE"
 open -a "Zed" "$SCRATCH_FILE" &
 sleep 2
@@ -355,7 +358,9 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "RESULTS"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-cp "$MONITOR_CAPTURE_FILE" "$LOG_SLICE_FILE" 2>/dev/null || : > "$LOG_SLICE_FILE"
+# Use time-scoped slice from LOG_START_LINE instead of the full monitor capture,
+# so the analysis only covers events from this test run.
+tail -n +"$((LOG_START_LINE + 1))" "$LOG_FILE" > "$LOG_SLICE_FILE" 2>/dev/null || : > "$LOG_SLICE_FILE"
 cp "$KANATA_STDOUT_LOG" "$KANATA_STDOUT_CAPTURE_FILE" 2>/dev/null || : > "$KANATA_STDOUT_CAPTURE_FILE"
 cp "$KANATA_STDERR_LOG" "$KANATA_STDERR_CAPTURE_FILE" 2>/dev/null || : > "$KANATA_STDERR_CAPTURE_FILE"
 

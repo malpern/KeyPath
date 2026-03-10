@@ -216,6 +216,125 @@ final class DuplicateInvestigationSupportTests: XCTestCase {
         XCTAssertEqual(DuplicateInvestigationSupport.keyName(forKeyCode: 999), "keycode-999")
     }
 
+    func testSessionBoundaryDoesNotBleedLastEventByKey() async {
+        let tracker = DuplicateKeyInvestigationTracker()
+        let start = Date(timeIntervalSince1970: 600)
+
+        // Session 1: record a press
+        await tracker.handleSessionStart(sessionID: 20)
+        _ = await tracker.record(
+            KanataObservedKeyInput(
+                key: "a",
+                action: .press,
+                kanataTimestamp: 50,
+                sessionID: 20,
+                observedAt: start
+            )
+        )
+
+        // Session 2: different ID should clear lastEventByKey
+        await tracker.handleSessionStart(sessionID: 21)
+        let firstInNewSession = await tracker.record(
+            KanataObservedKeyInput(
+                key: "a",
+                action: .press,
+                kanataTimestamp: 60,
+                sessionID: 21,
+                observedAt: start.addingTimeInterval(1.0)
+            )
+        )
+
+        // previousAction should be nil because session boundary cleared lastEventByKey
+        XCTAssertNil(firstInNewSession.previousAction)
+        XCTAssertNil(firstInNewSession.previousSessionID)
+        XCTAssertNil(firstInNewSession.sameKeyGapMs)
+    }
+
+    func testReleaseWithoutTrackedPress() async {
+        let tracker = DuplicateKeyInvestigationTracker()
+        let start = Date(timeIntervalSince1970: 700)
+
+        await tracker.handleSessionStart(sessionID: 30)
+        let release = await tracker.record(
+            KanataObservedKeyInput(
+                key: "b",
+                action: .release,
+                kanataTimestamp: 70,
+                sessionID: 30,
+                observedAt: start
+            )
+        )
+
+        XCTAssertEqual(release.kind, .releaseWithoutTrackedPress)
+        XCTAssertNil(release.heldDurationMs)
+    }
+
+    func testRepeatWithoutTrackedPress() async {
+        let tracker = DuplicateKeyInvestigationTracker()
+        let start = Date(timeIntervalSince1970: 800)
+
+        await tracker.handleSessionStart(sessionID: 31)
+        let repeatEvent = await tracker.record(
+            KanataObservedKeyInput(
+                key: "c",
+                action: .repeat,
+                kanataTimestamp: 80,
+                sessionID: 31,
+                observedAt: start
+            )
+        )
+
+        XCTAssertEqual(repeatEvent.kind, .repeatWithoutTrackedPress)
+        XCTAssertNil(repeatEvent.heldDurationMs)
+    }
+
+    func testMultipleKeysHeldSimultaneously() async {
+        let tracker = DuplicateKeyInvestigationTracker()
+        let start = Date(timeIntervalSince1970: 900)
+
+        await tracker.handleSessionStart(sessionID: 32)
+
+        let pressA = await tracker.record(
+            KanataObservedKeyInput(
+                key: "a",
+                action: .press,
+                kanataTimestamp: 90,
+                sessionID: 32,
+                observedAt: start
+            )
+        )
+        XCTAssertEqual(pressA.heldKeyCount, 1)
+
+        let pressB = await tracker.record(
+            KanataObservedKeyInput(
+                key: "b",
+                action: .press,
+                kanataTimestamp: 91,
+                sessionID: 32,
+                observedAt: start.addingTimeInterval(0.050)
+            )
+        )
+        XCTAssertEqual(pressB.heldKeyCount, 2)
+
+        let releaseA = await tracker.record(
+            KanataObservedKeyInput(
+                key: "a",
+                action: .release,
+                kanataTimestamp: 92,
+                sessionID: 32,
+                observedAt: start.addingTimeInterval(0.100)
+            )
+        )
+        XCTAssertEqual(releaseA.heldKeyCount, 1)
+    }
+
+    func testKeypressObservationMetadataFromNilUserInfo() {
+        let metadata = KeypressObservationMetadata.from(userInfo: nil)
+        XCTAssertNil(metadata.listenerSessionID)
+        XCTAssertNil(metadata.kanataTimestamp)
+        XCTAssertNil(metadata.observedAt)
+    }
+
     func testSystemAutorepeatMismatchFlagsWhenKanataDidNotRepeat() async {
         let tracker = DuplicateKeyInvestigationTracker()
         let start = Date(timeIntervalSince1970: 500)

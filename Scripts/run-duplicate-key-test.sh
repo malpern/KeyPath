@@ -496,6 +496,12 @@ if [[ "$phase1_alerts" -eq 0 ]] && [[ "$actual_len" -eq "$expected_len" ]]; then
         echo "     The 100ms dedup filter appears effective and Kanata is not"
         echo "     emitting duplicate HID events at this load level."
     fi
+    echo
+    echo "     NOTE: Phase 2 uses osascript (System Events keystroke), which injects"
+    echo "     characters AFTER Kanata's HID intercept. A Phase 2 PASS does NOT prove"
+    echo "     that Kanata handles duplicates correctly — only that the editor received"
+    echo "     the expected character count. Use manual-keystroke-test.sh to exercise"
+    echo "     the real HID path through Kanata."
 elif [[ "$phase1_alerts" -eq 0 ]] && [[ "$actual_len" -gt "$expected_len" ]]; then
     echo "  🔴 FAIL: Pipeline clean but characters duplicated in editor!"
     echo "     The dedup fix is working at the UI layer, but Kanata is"

@@ -113,6 +113,7 @@ actor DuplicateKeyInvestigationTracker {
     func handleSessionStart(sessionID: Int) {
         if currentSessionID != sessionID {
             heldKeyPressedAt.removeAll()
+            lastEventByKey.removeAll()
         }
         currentSessionID = sessionID
     }
@@ -130,6 +131,8 @@ actor DuplicateKeyInvestigationTracker {
 
     func record(_ event: KanataObservedKeyInput) -> InvestigationKeyTransition {
         let previous = lastEventByKey[event.key]
+        // Sub-millisecond precision is intentionally truncated to integer milliseconds;
+        // sufficient granularity for duplicate-key investigation timing analysis.
         let sameKeyGapMs = previous.map { Int(event.observedAt.timeIntervalSince($0.observedAt) * 1000) }
         let previousAction = previous?.action
         let previousSessionID = previous?.sessionID

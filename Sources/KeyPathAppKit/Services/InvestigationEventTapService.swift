@@ -1,4 +1,4 @@
-import AppKit
+@preconcurrency import AppKit
 import Foundation
 import KeyPathCore
 
@@ -9,6 +9,19 @@ final class InvestigationEventTapService {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var isStarted = false
+
+    deinit {
+        // Prevent use-after-free if deallocated while the tap is still scheduled
+        // on the run loop, since the callback captures an unretained reference to self.
+        // We inline the cleanup here because deinit is nonisolated and cannot call
+        // the @MainActor-isolated stop() method.
+        if let runLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+        }
+        if let eventTap {
+            CFMachPortInvalidate(eventTap)
+        }
+    }
 
     func startIfNeeded() {
         guard DuplicateInvestigationSupport.isEnabled() else { return }
