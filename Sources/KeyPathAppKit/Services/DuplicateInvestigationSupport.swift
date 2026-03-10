@@ -1,13 +1,5 @@
 import Foundation
 
-struct KanataObservedKeyInput: Sendable, Equatable {
-    let key: String
-    let action: KanataKeyAction
-    let kanataTimestamp: UInt64?
-    let sessionID: Int
-    let observedAt: Date
-}
-
 enum InvestigationActivationKind: String, Sendable, Equatable {
     case holdActivated = "hold-activated"
     case tapActivated = "tap-activated"
@@ -23,20 +15,6 @@ struct KanataObservedActivation: Sendable, Equatable {
     let kanataTimestamp: UInt64?
     let sessionID: Int
     let observedAt: Date
-}
-
-struct KeypressObservationMetadata: Equatable {
-    let listenerSessionID: Int?
-    let kanataTimestamp: UInt64?
-    let observedAt: Date?
-
-    static func from(userInfo: [AnyHashable: Any]?) -> KeypressObservationMetadata {
-        KeypressObservationMetadata(
-            listenerSessionID: userInfo?["listenerSessionID"] as? Int,
-            kanataTimestamp: userInfo?["kanataTimestamp"] as? UInt64,
-            observedAt: userInfo?["observedAt"] as? Date
-        )
-    }
 }
 
 struct InvestigationHeldKey: Equatable, Sendable {
@@ -403,36 +381,40 @@ enum DuplicateInvestigationSupport {
         return "[INVESTIGATION] AutorepeatMismatch observed_at=\(iso8601(correlation.observedAt)) key=\(correlation.key) key_code=\(correlation.keyCode) previous_kanata_action=\(previousAction) previous_kanata_session=\(previousSession)\(sameKeyGap)\(sinceAnyKanata)"
     }
 
-    static func keyName(forKeyCode keyCode: Int64) -> String {
-        let keyMap: [Int64: String] = [
-            0: "a", 1: "s", 2: "d", 3: "f", 4: "h", 5: "g", 6: "z", 7: "x",
-            8: "c", 9: "v", 11: "b", 12: "q", 13: "w", 14: "e", 15: "r",
-            16: "y", 17: "t", 18: "1", 19: "2", 20: "3", 21: "4", 22: "6",
-            23: "5", 24: "=", 25: "9", 26: "7", 27: "-", 28: "8", 29: "0",
-            30: "]", 31: "o", 32: "u", 33: "[", 34: "i", 35: "p", 36: "return",
-            37: "l", 38: "j", 39: "'", 40: "k", 41: ";", 42: "\\", 43: ",",
-            44: "/", 45: "n", 46: "m", 47: ".", 48: "tab", 49: "space",
-            50: "`", 51: "delete", 53: "escape", 54: "rmet", 55: "lmet",
-            56: "lsft", 57: "caps", 58: "lalt", 59: "lctl", 60: "rsft",
-            61: "ralt", 62: "rctl", 63: "fn", 64: "f17", 65: "kp-decimal",
-            67: "kp-multiply", 69: "kp-plus", 71: "kp-clear", 75: "kp-divide",
-            76: "kp-enter", 78: "kp-minus", 81: "kp-equals", 82: "kp-0",
-            83: "kp-1", 84: "kp-2", 85: "kp-3", 86: "kp-4", 87: "kp-5",
-            88: "kp-6", 89: "kp-7", 91: "kp-8", 92: "kp-9", 96: "f5",
-            97: "f6", 98: "f7", 99: "f3", 100: "f8", 101: "f9", 103: "f11",
-            105: "f13", 106: "f16", 107: "f14", 109: "f10", 111: "f12",
-            113: "f15", 114: "help", 115: "home", 116: "pageup", 117: "forwarddelete",
-            118: "f4", 119: "end", 120: "f2", 121: "pagedown", 122: "f1",
-            123: "left", 124: "right", 125: "down", 126: "up"
-        ]
+    private static let keyMap: [Int64: String] = [
+        0: "a", 1: "s", 2: "d", 3: "f", 4: "h", 5: "g", 6: "z", 7: "x",
+        8: "c", 9: "v", 11: "b", 12: "q", 13: "w", 14: "e", 15: "r",
+        16: "y", 17: "t", 18: "1", 19: "2", 20: "3", 21: "4", 22: "6",
+        23: "5", 24: "=", 25: "9", 26: "7", 27: "-", 28: "8", 29: "0",
+        30: "]", 31: "o", 32: "u", 33: "[", 34: "i", 35: "p", 36: "return",
+        37: "l", 38: "j", 39: "'", 40: "k", 41: ";", 42: "\\", 43: ",",
+        44: "/", 45: "n", 46: "m", 47: ".", 48: "tab", 49: "space",
+        50: "`", 51: "delete", 53: "escape", 54: "rmet", 55: "lmet",
+        56: "lsft", 57: "caps", 58: "lalt", 59: "lctl", 60: "rsft",
+        61: "ralt", 62: "rctl", 63: "fn", 64: "f17", 65: "kp-decimal",
+        67: "kp-multiply", 69: "kp-plus", 71: "kp-clear", 75: "kp-divide",
+        76: "kp-enter", 78: "kp-minus", 81: "kp-equals", 82: "kp-0",
+        83: "kp-1", 84: "kp-2", 85: "kp-3", 86: "kp-4", 87: "kp-5",
+        88: "kp-6", 89: "kp-7", 91: "kp-8", 92: "kp-9", 96: "f5",
+        97: "f6", 98: "f7", 99: "f3", 100: "f8", 101: "f9", 103: "f11",
+        105: "f13", 106: "f16", 107: "f14", 109: "f10", 111: "f12",
+        113: "f15", 114: "help", 115: "home", 116: "pageup", 117: "forwarddelete",
+        118: "f4", 119: "end", 120: "f2", 121: "pagedown", 122: "f1",
+        123: "left", 124: "right", 125: "down", 126: "up"
+    ]
 
-        return keyMap[keyCode] ?? "keycode-\(keyCode)"
+    static func keyName(forKeyCode keyCode: Int64) -> String {
+        keyMap[keyCode] ?? "keycode-\(keyCode)"
     }
 
-    private static func iso8601(_ date: Date) -> String {
+    nonisolated(unsafe) private static let iso8601Formatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter.string(from: date)
+        return formatter
+    }()
+
+    private static func iso8601(_ date: Date) -> String {
+        iso8601Formatter.string(from: date)
     }
 
     private static func sanitize(_ string: String) -> String {
