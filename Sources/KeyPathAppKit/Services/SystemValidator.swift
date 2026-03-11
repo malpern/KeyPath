@@ -522,11 +522,15 @@ class SystemValidator {
         // Check service status via ServiceHealthChecker (extracted from LaunchDaemonInstaller)
         AppLogger.shared.log("🔍 [SystemValidator] checkHealth() - About to check Kanata service health...")
         let kanataStart = Date()
-        let kanataRunning = await ServiceHealthChecker.shared.isServiceHealthy(serviceID: "com.keypath.kanata")
+        let launchdKanataRunning = await ServiceHealthChecker.shared.isServiceHealthy(serviceID: "com.keypath.kanata")
+        // Also check split runtime host — it launches kanata-launcher as a direct child Process(),
+        // not via launchd, so ServiceHealthChecker won't see it.
+        let splitRuntimeRunning = KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning
+        let kanataRunning = launchdKanataRunning || splitRuntimeRunning
         let kanataInputCapture = await ServiceHealthChecker.shared.checkKanataInputCaptureStatus()
         let kanataDuration = Date().timeIntervalSince(kanataStart)
         AppLogger.shared.log(
-            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: \(kanataRunning), inputCaptureReady=\(kanataInputCapture.isReady) (took \(String(format: "%.3f", kanataDuration))s)"
+            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: \(kanataRunning) (launchd=\(launchdKanataRunning), splitRuntime=\(splitRuntimeRunning)), inputCaptureReady=\(kanataInputCapture.isReady) (took \(String(format: "%.3f", kanataDuration))s)"
         )
 
         // Use launchctl-based check instead of unreliable pgrep

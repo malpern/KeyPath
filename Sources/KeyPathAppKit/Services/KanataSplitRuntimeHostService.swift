@@ -266,6 +266,11 @@ final class KanataSplitRuntimeHostService {
             return activeHostProcess.processIdentifier
         }
 
+        // Kill orphaned kanata-launcher processes from a previous app instance.
+        // After build.sh deploys, the old app's child kanata-launcher survives and
+        // holds the TCP port, causing the new instance to crash with SIGABRT.
+        await killOrphanedKanataLaunchers()
+
         let runtimeHost = KanataRuntimeHost.current()
         let launcherPath = runtimeHost.launcherPath
         let configPath = KeyPathConstants.Config.mainConfigPath
@@ -379,6 +384,30 @@ final class KanataSplitRuntimeHostService {
             companionRunningAfterRestart: companionRunningAfterRestart,
             recoveredHostPID: recoveredHostPID
         )
+    }
+
+    /// Kill orphaned kanata-launcher processes that survived a previous app instance.
+    /// Uses pgrep to find kanata-launcher processes not owned by this app.
+    private func killOrphanedKanataLaunchers() async {
+        do {
+            let result = try await SubprocessRunner.shared.run("/usr/bin/pgrep", args: ["-f", "kanata-launcher.*--cfg"])
+            let pids = result.stdout.split(separator: "\n").compactMap { Int32(String($0).trimmingCharacters(in: CharacterSet.whitespaces)) }
+            let myPID = getpid()
+            for pid in pids {
+                // Don't kill our own children or ourselves
+                if pid == myPID { continue }
+                if let active = activeHostProcess, active.processIdentifier == pid { continue }
+                AppLogger.shared.log("🧹 [HostService] Killing orphaned kanata-launcher (PID \(pid))")
+                kill(pid, SIGTERM)
+            }
+            if !pids.isEmpty {
+                // Brief pause to let orphans release ports
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+        } catch {
+            // pgrep returns exit 1 if no matches — not an error
+            AppLogger.shared.log("🧹 [HostService] No orphaned kanata-launcher processes found")
+        }
     }
 
     func stopPersistentPassthruHost() {

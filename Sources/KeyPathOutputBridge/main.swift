@@ -507,7 +507,7 @@ private final class OutputBridgeCompanion {
             }
         }
         chmod(KeyPathConstants.OutputBridge.runDirectory, 0o755)
-        chmod(KeyPathConstants.OutputBridge.socketDirectory, 0o711)
+        chmod(KeyPathConstants.OutputBridge.socketDirectory, 0o755)
         chmod(KeyPathConstants.OutputBridge.sessionDirectory, 0o700)
     }
 
