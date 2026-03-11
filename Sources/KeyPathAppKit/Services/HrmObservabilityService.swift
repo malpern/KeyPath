@@ -378,7 +378,9 @@ final class HrmObservabilityService {
         }
         schedulePerKeyBreakdownRebuild()
 
-        if availability == .unknown {
+        // Receiving reason data proves the build supports HRM telemetry,
+        // even if capabilities didn't advertise hrm-stats/hrm-trace yet.
+        if availability == .unknown || availability == .unsupported {
             availability = .supported
         }
     }
@@ -390,7 +392,10 @@ final class HrmObservabilityService {
             try? await Task.sleep(for: self.traceBreakdownDebounce)
             guard !Task.isCancelled else { return }
             perKeyBreakdown = buildPerKeyBreakdown(from: recentTraceEvents)
-            // Also rebuild topReasons from trace events when stats polling isn't available
+            // Stats-based topReasons take priority over trace-based ones because
+            // stats cover the full session while traces are capped at maxTraceEvents.
+            // If stats polling lapses, topReasons stays from the last successful poll
+            // rather than switching to the partial trace view.
             if latestStats == nil {
                 topReasons = buildTopReasonsFromTraces(recentTraceEvents)
             }
