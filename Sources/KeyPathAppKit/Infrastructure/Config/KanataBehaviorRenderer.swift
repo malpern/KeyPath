@@ -117,8 +117,13 @@ public enum KanataBehaviorRenderer {
             base = "(tap-hold \(tapTimeoutStr) \(holdTimeoutStr) \(tapAction) \(holdAction))"
         }
 
-        // Note: require-prior-idle is a global defcfg option, not a per-action wrapper.
-        // It is emitted in the defcfg block by KanataConfigurationGenerator.
+        // Per-action require-prior-idle override: appends trailing option to any tap-hold variant.
+        // When nil, the global defcfg tap-hold-require-prior-idle value applies.
+        if let overrideMs = dr.requirePriorIdleOverrideMs {
+            // Insert trailing option before the closing paren
+            let trimmed = base.dropLast() // remove trailing ")"
+            return "\(trimmed) (require-prior-idle \(overrideMs)))"
+        }
         return base
     }
 

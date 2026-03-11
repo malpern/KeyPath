@@ -666,6 +666,7 @@ dependencies = [
  "radix_trie",
  "rustc-hash",
  "sd-notify",
+ "serde",
  "serde_json",
  "signal-hook",
  "simplelog",

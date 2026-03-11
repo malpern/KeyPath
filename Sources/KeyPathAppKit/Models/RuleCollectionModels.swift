@@ -186,6 +186,9 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
             case .launcherGrid:
                 // LauncherGrid is a new type, no legacy format to migrate
                 configuration = .launcherGrid(LauncherGridConfig.defaultConfig)
+            case .autoShiftSymbols:
+                // AutoShiftSymbols is a new type, no legacy format to migrate
+                configuration = .autoShiftSymbols(AutoShiftSymbolsConfig())
             }
         }
     }
@@ -362,6 +365,7 @@ public enum RuleCollectionIdentifier {
     public static let typingSounds = UUID(uuidString: "B9C0D1E2-3F4A-5B6C-7D8E-9F0A1B2C3D4E")!
     public static let kindaVim = UUID(uuidString: "F1A2B3C4-5D6E-7F8A-9B0C-1D2E3F4A5B6C")!
     public static let neovimTerminal = UUID(uuidString: "A2B3C4D5-6E7F-8A9B-0C1D-2E3F4A5B6C7D")!
+    public static let autoShiftSymbols = UUID(uuidString: "D1E2F3A4-B5C6-7D8E-9F0A-1B2C3D4E5F6A")!
 }
 
 public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {
@@ -479,6 +483,8 @@ public enum RuleCollectionDisplayStyle: String, Codable, Sendable {
     case layerPresetPicker
     /// Launcher grid: quick app/website launching via keyboard shortcuts
     case launcherGrid
+    /// Auto Shift Symbols: hold symbol keys for shifted variant
+    case autoShiftSymbols
 }
 
 /// A preset option for single-key picker collections

@@ -212,8 +212,15 @@ class KanataViewModel {
 
     func toggleRuleCollection(_ id: UUID, enabled: Bool) async {
         AppLogger.shared.log("🎚️ [KanataViewModel] toggleRuleCollection called: id=\(id), enabled=\(enabled)")
-        await manager.toggleRuleCollection(id: id, isEnabled: enabled)
-        AppLogger.shared.log("🎚️ [KanataViewModel] toggleRuleCollection completed")
+        let success = await manager.toggleRuleCollection(id: id, isEnabled: enabled)
+        AppLogger.shared.log("🎚️ [KanataViewModel] toggleRuleCollection completed (success=\(success))")
+
+        guard success else {
+            // Validation failed and state was rolled back — the onError callback
+            // already showed the error dialog, so no success toast here.
+            return
+        }
+
         let collection = ruleCollections.first { $0.id == id }
         let collectionName = collection?.name ?? "Collection"
 
@@ -374,6 +381,14 @@ class KanataViewModel {
 
     func updateLauncherConfig(_ collectionId: UUID, config: LauncherGridConfig) async {
         let wasNewlyEnabled = await manager.updateLauncherConfig(collectionId: collectionId, config: config)
+        if wasNewlyEnabled {
+            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
+            showToast("Turned on \(name)", type: .success)
+        }
+    }
+
+    func updateAutoShiftSymbolsConfig(collectionId: UUID, config: AutoShiftSymbolsConfig) async {
+        let wasNewlyEnabled = await manager.updateAutoShiftSymbolsConfig(collectionId: collectionId, config: config)
         if wasNewlyEnabled {
             let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
             showToast("Turned on \(name)", type: .success)

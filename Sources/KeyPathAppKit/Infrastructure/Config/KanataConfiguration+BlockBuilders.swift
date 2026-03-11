@@ -46,7 +46,8 @@ extension KanataConfiguration {
         from collections: [RuleCollection],
         leaderKeyPreference: LeaderKeyPreference?,
         navActivationMode: ContextHUDTriggerMode = .tapToToggle,
-        navHoldDelayMs: Int = 200
+        navHoldDelayMs: Int = 200,
+        globalRequirePriorIdleMs: Int = 0
     ) -> ([CollectionBlock], [AliasDefinition], [RuleCollectionLayer], [ChordMapping]) {
         var blocks: [CollectionBlock] = []
         var aliasDefinitions: [AliasDefinition] = []
@@ -76,18 +77,22 @@ extension KanataConfiguration {
 
             seenActivators.insert(aliasName)
 
+            // When global tap-hold-require-prior-idle is active, leader/layer keys
+            // need (require-prior-idle 0) so they activate immediately during fast typing.
+            let idleSuffix = globalRequirePriorIdleMs > 0 ? " (require-prior-idle 0)" : ""
+
             let definition = if pref.targetLayer == .navigation {
                 switch navActivationMode {
                 case .holdToShow:
                     // Hold-to-show: layer deactivates on key release (standard layer-while-held)
-                    "(tap-hold $tap-timeout \(navHoldTimeoutToken) \(tapOutput)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+                    "(tap-hold $tap-timeout \(navHoldTimeoutToken) \(tapOutput)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap))\(idleSuffix))"
                 case .tapToToggle:
                     // Tap-to-toggle: layer stays active until next key (one-shot)
-                    "(tap-hold $tap-timeout \(navHoldTimeoutToken) \(tapOutput)\n    (multi\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (one-shot-pause-processing \(oneShotPauseMs))\n      (one-shot-press \(oneShotTimeoutMs) (layer-while-held \(layerName)))))"
+                    "(tap-hold $tap-timeout \(navHoldTimeoutToken) \(tapOutput)\n    (multi\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (one-shot-pause-processing \(oneShotPauseMs))\n      (one-shot-press \(oneShotTimeoutMs) (layer-while-held \(layerName))))\(idleSuffix))"
                 }
             } else {
                 // Standard tap-hold for primary leader key (always from base layer)
-                "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+                "(tap-hold $tap-timeout $hold-timeout \(tapOutput)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap))\(idleSuffix))"
             }
 
             aliasDefinitions.append(AliasDefinition(
@@ -440,6 +445,8 @@ extension KanataConfiguration {
             generateLayerPresetMappings(from: collection)
         case let .launcherGrid(config):
             generateLauncherGridMappings(from: config)
+        case let .autoShiftSymbols(config):
+            generateAutoShiftSymbolsMappings(from: config)
         case .list, .table, .singleKeyPicker:
             collection.mappings
         }

@@ -65,6 +65,7 @@ struct RuleCollectionCatalog {
             numpadLayer,
             symbolLayer,
             funLayer,
+            autoShiftSymbols,
             launcher
         ]
     }
@@ -964,6 +965,25 @@ struct RuleCollectionCatalog {
             targetLayer: .custom("fun"),
             activationHint: "Hold home row key for function layer",
             configuration: .table
+        )
+    }
+
+    // MARK: - Auto Shift Symbols
+
+    private var autoShiftSymbols: RuleCollection {
+        let config = AutoShiftSymbolsConfig()
+        return RuleCollection(
+            id: RuleCollectionIdentifier.autoShiftSymbols,
+            name: "Auto Shift Symbols",
+            summary: "Hold symbol keys slightly longer for shifted output",
+            category: .experimental,
+            mappings: [],
+            isEnabled: false,
+            icon: "arrow.up.square",
+            tags: ["auto-shift", "symbols", "experimental"],
+            targetLayer: .base,
+            activationHint: "\(config.enabledKeys.count) keys \u{00B7} \(config.timeoutMs)ms hold",
+            configuration: .autoShiftSymbols(config)
         )
     }
 
