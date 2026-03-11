@@ -33,6 +33,8 @@ struct WizardSummaryPage: View {
     @State private var iconHovering: Bool = false
     @State private var fadeMaskOpacity: Double = 0.0
     @State private var visibleIssueCount: Int = 0
+    /// Set after validation completes to trigger single-issue auto-navigation
+    @State private var shouldAutoNavigateSingleIssue = false
 
     var body: some View {
         Group {
@@ -74,6 +76,23 @@ struct WizardSummaryPage: View {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     headerMode = isEverythingComplete ? .success : .issues
                 }
+                // Auto-navigate when there's exactly 1 issue (skip single-item list)
+                if !isEverythingComplete && !showAllItems {
+                    if navSequence.count == 1, let page = navSequence.first {
+                        // navSequence already populated — navigate immediately
+                        onNavigateToPage?(page)
+                    } else {
+                        // Wait for WizardSystemStatusOverview to compute navSequence
+                        shouldAutoNavigateSingleIssue = true
+                    }
+                }
+            }
+        }
+        .onChange(of: navSequence) { _, newSeq in
+            guard shouldAutoNavigateSingleIssue else { return }
+            shouldAutoNavigateSingleIssue = false
+            if !showAllItems, newSeq.count == 1, let page = newSeq.first {
+                onNavigateToPage?(page)
             }
         }
         .onChange(of: isEverythingComplete) { _, newValue in
