@@ -127,6 +127,24 @@ public struct KanataHrmReasonCounts: Codable, Sendable, Equatable {
         case .unknownHand: unknownHand
         }
     }
+
+    enum CodingKeys: String, CodingKey {
+        case priorIdle = "prior-idle"
+        case releaseBeforeTimeout = "release-before-timeout"
+        case sameHandRoll = "same-hand-roll"
+        case customTapKeys = "custom-tap-keys"
+        case customReleaseTrigger = "custom-release-trigger"
+        case customTap = "custom-tap"
+        case oppositeHand = "opposite-hand"
+        case otherKeyPress = "other-key-press"
+        case permissiveHold = "permissive-hold"
+        case timeout
+        case releaseAfterTimeout = "release-after-timeout"
+        case customHold = "custom-hold"
+        case customNoOp = "custom-noop"
+        case neutralKey = "neutral-key"
+        case unknownHand = "unknown-hand"
+    }
 }
 
 public struct KanataHrmLatencyHistogram: Codable, Sendable, Equatable {

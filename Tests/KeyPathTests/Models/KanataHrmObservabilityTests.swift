@@ -51,19 +51,35 @@ final class KanataHrmObservabilityTests: XCTestCase {
             priorIdle: 1,
             releaseBeforeTimeout: 2,
             sameHandRoll: 3,
-            oppositeHand: 4,
-            timeout: 5,
-            neutralKey: 6,
-            unknownHand: 7
+            customTapKeys: 4,
+            customReleaseTrigger: 5,
+            customTap: 6,
+            oppositeHand: 7,
+            otherKeyPress: 8,
+            permissiveHold: 9,
+            timeout: 10,
+            releaseAfterTimeout: 11,
+            customHold: 12,
+            customNoOp: 13,
+            neutralKey: 14,
+            unknownHand: 15
         )
 
         XCTAssertEqual(counts.count(for: .priorIdle), 1)
         XCTAssertEqual(counts.count(for: .releaseBeforeTimeout), 2)
         XCTAssertEqual(counts.count(for: .sameHandRoll), 3)
-        XCTAssertEqual(counts.count(for: .oppositeHand), 4)
-        XCTAssertEqual(counts.count(for: .timeout), 5)
-        XCTAssertEqual(counts.count(for: .neutralKey), 6)
-        XCTAssertEqual(counts.count(for: .unknownHand), 7)
+        XCTAssertEqual(counts.count(for: .customTapKeys), 4)
+        XCTAssertEqual(counts.count(for: .customReleaseTrigger), 5)
+        XCTAssertEqual(counts.count(for: .customTap), 6)
+        XCTAssertEqual(counts.count(for: .oppositeHand), 7)
+        XCTAssertEqual(counts.count(for: .otherKeyPress), 8)
+        XCTAssertEqual(counts.count(for: .permissiveHold), 9)
+        XCTAssertEqual(counts.count(for: .timeout), 10)
+        XCTAssertEqual(counts.count(for: .releaseAfterTimeout), 11)
+        XCTAssertEqual(counts.count(for: .customHold), 12)
+        XCTAssertEqual(counts.count(for: .customNoOp), 13)
+        XCTAssertEqual(counts.count(for: .neutralKey), 14)
+        XCTAssertEqual(counts.count(for: .unknownHand), 15)
     }
 
     func testAllKanataReasonStringsMap() {

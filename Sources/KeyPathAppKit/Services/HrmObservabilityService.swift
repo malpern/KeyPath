@@ -277,7 +277,10 @@ final class HrmObservabilityService {
             guard let self else { return }
             guard let key = note.userInfo?["key"] as? String else { return }
             let reasonStr = note.userInfo?["reason"] as? String
-            guard let reason = reasonStr.flatMap({ KanataHrmDecisionReason(rawValue: $0) }) else { return }
+            guard let reason = reasonStr.flatMap({ KanataHrmDecisionReason(rawValue: $0) }) else {
+                if let reasonStr { AppLogger.shared.debug("📈 [HRM] Unrecognized hold reason: \(reasonStr)") }
+                return
+            }
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 ingestActivationEvent(key: key, decision: .hold, reason: reason)
@@ -288,7 +291,10 @@ final class HrmObservabilityService {
             guard let self else { return }
             guard let key = note.userInfo?["key"] as? String else { return }
             let reasonStr = note.userInfo?["reason"] as? String
-            guard let reason = reasonStr.flatMap({ KanataHrmDecisionReason(rawValue: $0) }) else { return }
+            guard let reason = reasonStr.flatMap({ KanataHrmDecisionReason(rawValue: $0) }) else {
+                if let reasonStr { AppLogger.shared.debug("📈 [HRM] Unrecognized tap reason: \(reasonStr)") }
+                return
+            }
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 ingestActivationEvent(key: key, decision: .tap, reason: reason)
@@ -468,8 +474,9 @@ final class HrmObservabilityService {
         )
     }
 
+    /// Top 3 reasons by frequency, for a compact summary in the HRM insights panel.
     private func buildTopReasons(from counts: KanataHrmReasonCounts) -> [ReasonSummary] {
-        KanataHrmDecisionReason.allCases
+        Array(KanataHrmDecisionReason.allCases
             .map { ReasonSummary(reason: $0, count: counts.count(for: $0)) }
             .filter { $0.count > 0 }
             .sorted { lhs, rhs in
@@ -478,8 +485,7 @@ final class HrmObservabilityService {
                 }
                 return lhs.count > rhs.count
             }
-            .prefix(3)
-            .map { $0 }
+            .prefix(3))
     }
 
     private func buildTopReasonsFromTraces(_ traces: [KanataHrmTraceEvent]) -> [ReasonSummary] {
@@ -487,7 +493,7 @@ final class HrmObservabilityService {
         for trace in traces {
             counts[trace.reason, default: 0] += 1
         }
-        return counts
+        return Array(counts
             .map { ReasonSummary(reason: $0.key, count: $0.value) }
             .sorted { lhs, rhs in
                 if lhs.count == rhs.count {
@@ -495,8 +501,7 @@ final class HrmObservabilityService {
                 }
                 return lhs.count > rhs.count
             }
-            .prefix(3)
-            .map { $0 }
+            .prefix(3))
     }
 
     private func buildPerKeyBreakdown(from traces: [KanataHrmTraceEvent]) -> [KeyBreakdown] {
