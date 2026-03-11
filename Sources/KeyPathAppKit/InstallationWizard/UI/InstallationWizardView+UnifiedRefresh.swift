@@ -238,11 +238,11 @@ extension InstallationWizardView {
                         "❌ [Wizard] Error starting KeyPath Runtime: \(error.localizedDescription)"
                     )
                     toastManager.showError("Start failed: \(error.localizedDescription)")
-                    }
-                } else {
-                    // Service already running, dismiss wizard
-                    dismissAndRefreshMainScreen()
                 }
+            } else {
+                // Service already running, dismiss wizard
+                dismissAndRefreshMainScreen()
+            }
         }
     }
 
@@ -398,5 +398,4 @@ extension InstallationWizardView {
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Nuclear shutdown completed")
         AppLogger.shared.flushBuffer()
     }
-
 }
