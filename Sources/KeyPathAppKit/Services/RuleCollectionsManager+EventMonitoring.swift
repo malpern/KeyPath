@@ -58,34 +58,44 @@ extension RuleCollectionsManager {
                 onHoldActivated: { activation in
                     // Post notification when tap-hold key transitions to hold state
                     // Used by KeyboardVisualizationViewModel for showing hold labels
+                    // and HrmObservabilityService for decision tracking
                     await MainActor.run {
+                        var userInfo: [String: Any] = [
+                            "key": activation.key,
+                            "action": activation.action,
+                            "listenerSessionID": activation.sessionID,
+                            "observedAt": activation.observedAt,
+                            "kanataTimestamp": activation.timestamp
+                        ]
+                        if let reason = activation.reason {
+                            userInfo["reason"] = reason
+                        }
                         NotificationCenter.default.post(
                             name: .kanataHoldActivated,
                             object: nil,
-                            userInfo: [
-                                "key": activation.key,
-                                "action": activation.action,
-                                "listenerSessionID": activation.sessionID,
-                                "observedAt": activation.observedAt,
-                                "kanataTimestamp": activation.timestamp
-                            ]
+                            userInfo: userInfo
                         )
                     }
                 },
                 onTapActivated: { activation in
                     // Post notification when tap-hold key triggers its tap action
                     // Used by KeyboardVisualizationViewModel for suppressing output keys
+                    // and HrmObservabilityService for decision tracking
                     await MainActor.run {
+                        var userInfo: [String: Any] = [
+                            "key": activation.key,
+                            "action": activation.action,
+                            "listenerSessionID": activation.sessionID,
+                            "observedAt": activation.observedAt,
+                            "kanataTimestamp": activation.timestamp
+                        ]
+                        if let reason = activation.reason {
+                            userInfo["reason"] = reason
+                        }
                         NotificationCenter.default.post(
                             name: .kanataTapActivated,
                             object: nil,
-                            userInfo: [
-                                "key": activation.key,
-                                "action": activation.action,
-                                "listenerSessionID": activation.sessionID,
-                                "observedAt": activation.observedAt,
-                                "kanataTimestamp": activation.timestamp
-                            ]
+                            userInfo: userInfo
                         )
                     }
                 },
@@ -144,9 +154,11 @@ extension RuleCollectionsManager {
                             "schemaVersion": trace.schemaVersion,
                             "key": trace.key,
                             "decision": trace.decision.rawValue,
-                            "reason": trace.reason.rawValue,
-                            "decideLatencyMs": trace.decideLatencyMs
+                            "reason": trace.reason.rawValue
                         ]
+                        if let latency = trace.decideLatencyMs {
+                            userInfo["decideLatencyMs"] = latency
+                        }
                         if let nextKey = trace.nextKey {
                             userInfo["nextKey"] = nextKey
                         }

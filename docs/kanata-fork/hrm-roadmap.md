@@ -96,26 +96,95 @@ A clean implementation would allow per-hold-action policy such as:
 This is likely more valuable than adaptive timing because it improves real text
 entry behavior directly.
 
-### Phase 4: Telemetry / Decision Tracing
+### Phase 4: Telemetry / Decision Tracing — DONE
 
 **Impact: Medium | Effort: Low-Medium | Acceptance: Low-Medium**
 
-Expose why a tap-hold resolved the way it did:
+**Status: Implemented** in kanata fork (PR malpern/kanata#1, merged to
+`keypath/bundled`). The `TapHoldReason` enum (15 variants) records why each
+tap-hold key resolved as tap, hold, or timeout. Reasons are threaded through
+the full decision path and broadcast via TCP `HoldActivated`/`TapActivated`
+messages with an optional `reason` field.
 
-- resolved as tap due to prior-idle
-- resolved as tap due to same-hand roll
-- resolved as hold due to opposite-hand trigger
-- resolved as hold due to timeout
+Available reasons: `prior-idle`, `release-before-timeout`, `same-hand-roll`,
+`custom-tap-keys`, `custom-release-trigger`, `opposite-hand`, `other-key-press`,
+`permissive-hold`, `timeout`, `release-after-timeout`, `custom-hold`,
+`custom-tap`, `custom-noop`, `neutral-key`, `unknown-hand`.
 
-This is primarily valuable for downstream tooling such as KeyPath:
+Wire format (backward compatible — `reason` omitted when `None`):
+```json
+{"HoldActivated":{"key":"a","reason":"opposite-hand"}}
+{"TapActivated":{"key":"f","reason":"same-hand-roll"}}
+```
 
-- tuning assistants
-- misfire reports
-- simulator validation
-- regression detection during engine changes
+### Phase 4a: KeyPath Telemetry Consumer — START HERE
 
-Upstream may prefer minimal logging, but even a debug-only or TCP-only trace
-mode would substantially improve confidence in future HRM work.
+**Impact: High | Effort: Low-Medium | Depends on: Phase 4**
+
+Now that kanata broadcasts decision reasons over TCP, KeyPath can surface them
+to help users understand and tune their HRM configuration. Build these in
+order — each layer validates the data pipeline before adding complexity.
+
+#### Step 1: HRM Decision Log (start here)
+
+**Effort: Low**
+
+A scrolling real-time log showing tap-hold decisions as they happen:
+
+```
+a → hold  (opposite-hand)     12:04:31.042
+f → tap   (release-before-timeout)  12:04:31.198
+d → tap   (prior-idle)        12:04:31.255
+```
+
+This is the minimum viable consumer. It answers the most common user question:
+"why did that key do the wrong thing?" Implementation: parse `HoldActivated`
+and `TapActivated` messages in `KeyboardVisualizationViewModel`, store in a
+bounded ring buffer, render in a collapsible drawer or debug tab.
+
+#### Step 2: Keyboard Overlay Annotations
+
+**Effort: Medium**
+
+When a tap-hold key resolves, briefly flash the reason on the key in the
+visual keyboard overlay. Users see in real-time that their `a` key went to
+hold because of `timeout` vs `opposite-hand`. Builds on the existing
+`KeyInput` overlay infrastructure — adds a transient annotation layer that
+fades after ~1 second.
+
+#### Step 3: Per-Key Decision Statistics
+
+**Effort: Medium**
+
+Aggregate reasons per key over a session. Display as a breakdown in the key
+inspector:
+
+```
+Key: A (home row mod → LCtrl)
+  Hold decisions:  85% timeout, 10% opposite-hand, 5% other-key-press
+  Tap decisions:   70% prior-idle, 20% release-before-timeout, 10% same-hand-roll
+  Total: 47 hold, 128 tap (session)
+```
+
+This helps users identify configuration problems:
+- Too many `timeout` holds → timeout may be too long
+- Unwanted `same-hand-roll` taps → hand map may need adjustment
+- Many `prior-idle` taps → `require-prior-idle` threshold may be too aggressive
+
+#### Step 4: Config Tuning Suggestions (future)
+
+**Effort: High**
+
+Based on statistical patterns, surface actionable suggestions:
+
+- "Key `a` resolves as hold via timeout 90% of the time — consider lowering
+  your timeout from 200ms to 150ms"
+- "Key `f` gets unwanted same-hand-roll taps — check your `defhands` mapping"
+- "Prior-idle is suppressing 40% of your hold attempts — consider raising the
+  threshold"
+
+This requires heuristics and threshold tuning. Defer until Steps 1-3 validate
+that the data is useful in practice.
 
 ### Phase 5: Adaptive Timeout
 
@@ -149,15 +218,16 @@ after the simpler release-time and positional improvements.
 
 ## Ranking Summary
 
-| Rank | Improvement | Value | Effort | Risk |
-|------|-------------|-------|--------|------|
-| 1 | Release-time positional hold-tap | High | Medium-High | Medium |
-| 2 | Generalized positional hold predicates | High | Medium | Medium |
-| 3 | Per-modifier policy / Shift exemption | High | Medium | Medium |
-| 4 | Telemetry / decision tracing | Medium | Low-Medium | Low |
-| 5 | Adaptive timeout | Medium | Medium | Medium |
-| 6 | `defhands` reuse + per-key overrides | Low-Medium | Low | Low |
-| 7 | Bilateral combinations / multi-HRM interaction | Medium | High | High |
+| Rank | Improvement | Value | Effort | Risk | Status |
+|------|-------------|-------|--------|------|--------|
+| 1 | Release-time positional hold-tap | High | Medium-High | Medium | Planned |
+| 2 | Generalized positional hold predicates | High | Medium | Medium | Planned |
+| 3 | Per-modifier policy / Shift exemption | High | Medium | Medium | Planned |
+| 4 | Telemetry / decision tracing | Medium | Low-Medium | Low | **Done** |
+| 4a | KeyPath telemetry consumer | High | Low-Medium | Low | **Start here** |
+| 5 | Adaptive timeout | Medium | Medium | Medium | Planned |
+| 6 | `defhands` reuse + per-key overrides | Low-Medium | Low | Low | Planned |
+| 7 | Bilateral combinations / multi-HRM interaction | Medium | High | High | Planned |
 
 ## What NOT to Propose
 

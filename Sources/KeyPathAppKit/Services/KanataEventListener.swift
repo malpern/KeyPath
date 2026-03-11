@@ -259,6 +259,8 @@ public struct KanataHoldActivation: Sendable {
     public let sessionID: Int
     /// Wall-clock observation time in KeyPath
     public let observedAt: Date
+    /// Why this key resolved as hold (kebab-case, e.g. "opposite-hand", "timeout")
+    public let reason: String?
 }
 
 /// Tap activation info from Kanata TCP TapActivated events
@@ -274,6 +276,8 @@ public struct KanataTapActivation: Sendable {
     public let sessionID: Int
     /// Wall-clock observation time in KeyPath
     public let observedAt: Date
+    /// Why this key resolved as tap (kebab-case, e.g. "prior-idle", "release-before-timeout")
+    public let reason: String?
 }
 
 /// One-shot activation info from Kanata TCP OneShotActivated events
@@ -705,17 +709,19 @@ actor KanataEventListener {
             let key = holdActivated["key"] as? String ?? ""
             let action = holdActivated["action"] as? String ?? ""
             let timestamp = holdActivated["t"] as? UInt64 ?? 0
+            let reason = holdActivated["reason"] as? String
             let observedAt = Date()
 
             // Respect capability advertisement when available; still process for backward compat
             if capabilities.isEmpty || capabilities.contains("hold-activated") {
-                AppLogger.shared.log("🔒 [EventListener] HoldActivated: \(key) -> \(action)")
+                AppLogger.shared.log("🔒 [EventListener] HoldActivated: \(key) -> \(action) reason=\(reason ?? "none")")
                 let activation = KanataHoldActivation(
                     key: key,
                     action: action,
                     timestamp: timestamp,
                     sessionID: sessionID,
-                    observedAt: observedAt
+                    observedAt: observedAt,
+                    reason: reason
                 )
                 if let handler = holdActivatedHandler {
                     await handler(activation)
@@ -733,17 +739,19 @@ actor KanataEventListener {
             let key = tapActivated["key"] as? String ?? ""
             let action = tapActivated["action"] as? String ?? ""
             let timestamp = tapActivated["t"] as? UInt64 ?? 0
+            let reason = tapActivated["reason"] as? String
             let observedAt = Date()
 
             // Respect capability advertisement when available; still process for backward compat
             if capabilities.isEmpty || capabilities.contains("tap-activated") {
-                AppLogger.shared.debug("👆 [EventListener] TapActivated: \(key) -> \(action)")
+                AppLogger.shared.debug("👆 [EventListener] TapActivated: \(key) -> \(action) reason=\(reason ?? "none")")
                 let activation = KanataTapActivation(
                     key: key,
                     action: action,
                     timestamp: timestamp,
                     sessionID: sessionID,
-                    observedAt: observedAt
+                    observedAt: observedAt,
+                    reason: reason
                 )
                 if let handler = tapActivatedHandler {
                     await handler(activation)

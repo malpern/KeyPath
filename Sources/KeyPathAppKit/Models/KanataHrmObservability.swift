@@ -6,23 +6,46 @@ public enum KanataHrmDecision: String, Codable, Sendable, CaseIterable {
 }
 
 public enum KanataHrmDecisionReason: String, Codable, Sendable, CaseIterable {
+    // Tap reasons
+    case priorIdle = "prior-idle"
+    case releaseBeforeTimeout = "release-before-timeout"
+    case sameHandRoll = "same-hand-roll"
+    case customTapKeys = "custom-tap-keys"
+    case customReleaseTrigger = "custom-release-trigger"
+    case customTap = "custom-tap"
+
+    // Hold reasons
+    case oppositeHand = "opposite-hand"
+    case otherKeyPress = "other-key-press"
+    case permissiveHold = "permissive-hold"
     case timeout
-    case releaseBeforeDecide = "release_before_decide"
-    case oppositeHandKey = "opposite_hand_key"
-    case sameHandKey = "same_hand_key"
-    case neutralKey = "neutral_key"
-    case unknownHandKey = "unknown_hand_key"
-    case explicitPolicy = "explicit_policy"
+    case releaseAfterTimeout = "release-after-timeout"
+    case customHold = "custom-hold"
+
+    // Custom closure fallback
+    case customNoOp = "custom-noop"
+
+    // Neutral / edge cases
+    case neutralKey = "neutral-key"
+    case unknownHand = "unknown-hand"
 
     public var displayName: String {
         switch self {
+        case .priorIdle: "Prior Idle"
+        case .releaseBeforeTimeout: "Release Before Timeout"
+        case .sameHandRoll: "Same-Hand Roll"
+        case .customTapKeys: "Custom Tap Keys"
+        case .customReleaseTrigger: "Custom Release Trigger"
+        case .customTap: "Custom Tap"
+        case .oppositeHand: "Opposite Hand"
+        case .otherKeyPress: "Other Key Press"
+        case .permissiveHold: "Permissive Hold"
         case .timeout: "Timeout"
-        case .releaseBeforeDecide: "Release Before Decide"
-        case .oppositeHandKey: "Opposite-Hand Key"
-        case .sameHandKey: "Same-Hand Key"
+        case .releaseAfterTimeout: "Release After Timeout"
+        case .customHold: "Custom Hold"
+        case .customNoOp: "Custom NoOp"
         case .neutralKey: "Neutral Key"
-        case .unknownHandKey: "Unknown-Hand Key"
-        case .explicitPolicy: "Explicit Policy"
+        case .unknownHand: "Unknown Hand"
         }
     }
 }
@@ -35,51 +58,73 @@ public enum KanataHrmKeyHand: String, Codable, Sendable {
 }
 
 public struct KanataHrmReasonCounts: Codable, Sendable, Equatable {
+    public let priorIdle: Int
+    public let releaseBeforeTimeout: Int
+    public let sameHandRoll: Int
+    public let customTapKeys: Int
+    public let customReleaseTrigger: Int
+    public let customTap: Int
+    public let oppositeHand: Int
+    public let otherKeyPress: Int
+    public let permissiveHold: Int
     public let timeout: Int
-    public let releaseBeforeDecide: Int
-    public let oppositeHandKey: Int
-    public let sameHandKey: Int
+    public let releaseAfterTimeout: Int
+    public let customHold: Int
+    public let customNoOp: Int
     public let neutralKey: Int
-    public let unknownHandKey: Int
-    public let explicitPolicy: Int
+    public let unknownHand: Int
 
     public init(
+        priorIdle: Int = 0,
+        releaseBeforeTimeout: Int = 0,
+        sameHandRoll: Int = 0,
+        customTapKeys: Int = 0,
+        customReleaseTrigger: Int = 0,
+        customTap: Int = 0,
+        oppositeHand: Int = 0,
+        otherKeyPress: Int = 0,
+        permissiveHold: Int = 0,
         timeout: Int = 0,
-        releaseBeforeDecide: Int = 0,
-        oppositeHandKey: Int = 0,
-        sameHandKey: Int = 0,
+        releaseAfterTimeout: Int = 0,
+        customHold: Int = 0,
+        customNoOp: Int = 0,
         neutralKey: Int = 0,
-        unknownHandKey: Int = 0,
-        explicitPolicy: Int = 0
+        unknownHand: Int = 0
     ) {
+        self.priorIdle = priorIdle
+        self.releaseBeforeTimeout = releaseBeforeTimeout
+        self.sameHandRoll = sameHandRoll
+        self.customTapKeys = customTapKeys
+        self.customReleaseTrigger = customReleaseTrigger
+        self.customTap = customTap
+        self.oppositeHand = oppositeHand
+        self.otherKeyPress = otherKeyPress
+        self.permissiveHold = permissiveHold
         self.timeout = timeout
-        self.releaseBeforeDecide = releaseBeforeDecide
-        self.oppositeHandKey = oppositeHandKey
-        self.sameHandKey = sameHandKey
+        self.releaseAfterTimeout = releaseAfterTimeout
+        self.customHold = customHold
+        self.customNoOp = customNoOp
         self.neutralKey = neutralKey
-        self.unknownHandKey = unknownHandKey
-        self.explicitPolicy = explicitPolicy
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case timeout
-        case releaseBeforeDecide = "release_before_decide"
-        case oppositeHandKey = "opposite_hand_key"
-        case sameHandKey = "same_hand_key"
-        case neutralKey = "neutral_key"
-        case unknownHandKey = "unknown_hand_key"
-        case explicitPolicy = "explicit_policy"
+        self.unknownHand = unknownHand
     }
 
     public func count(for reason: KanataHrmDecisionReason) -> Int {
         switch reason {
+        case .priorIdle: priorIdle
+        case .releaseBeforeTimeout: releaseBeforeTimeout
+        case .sameHandRoll: sameHandRoll
+        case .customTapKeys: customTapKeys
+        case .customReleaseTrigger: customReleaseTrigger
+        case .customTap: customTap
+        case .oppositeHand: oppositeHand
+        case .otherKeyPress: otherKeyPress
+        case .permissiveHold: permissiveHold
         case .timeout: timeout
-        case .releaseBeforeDecide: releaseBeforeDecide
-        case .oppositeHandKey: oppositeHandKey
-        case .sameHandKey: sameHandKey
+        case .releaseAfterTimeout: releaseAfterTimeout
+        case .customHold: customHold
+        case .customNoOp: customNoOp
         case .neutralKey: neutralKey
-        case .unknownHandKey: unknownHandKey
-        case .explicitPolicy: explicitPolicy
+        case .unknownHand: unknownHand
         }
     }
 }
@@ -193,7 +238,8 @@ public struct KanataHrmTraceEvent: Codable, Sendable, Equatable {
     public let key: String
     public let decision: KanataHrmDecision
     public let reason: KanataHrmDecisionReason
-    public let decideLatencyMs: Int
+    /// Latency in ms from key press to decision. Nil when synthesized from HoldActivated/TapActivated events.
+    public let decideLatencyMs: Int?
     public let nextKey: String?
     public let nextKeyHand: KanataHrmKeyHand?
     public let timestamp: Date?
@@ -203,7 +249,7 @@ public struct KanataHrmTraceEvent: Codable, Sendable, Equatable {
         key: String,
         decision: KanataHrmDecision,
         reason: KanataHrmDecisionReason,
-        decideLatencyMs: Int,
+        decideLatencyMs: Int? = nil,
         nextKey: String? = nil,
         nextKeyHand: KanataHrmKeyHand? = nil,
         timestamp: Date? = nil

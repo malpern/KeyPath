@@ -68,7 +68,7 @@ final class HrmObservabilityService {
         let key: String
         let decision: KanataHrmDecision
         let reason: KanataHrmDecisionReason
-        let decideLatencyMs: Int
+        let decideLatencyMs: Int?
         let nextKey: String?
         let nextKeyHand: KanataHrmKeyHand?
     }
@@ -270,6 +270,30 @@ final class HrmObservabilityService {
                 ingestTrace(payload)
             }
         }
+
+        // Bridge HoldActivated/TapActivated events (with reason) into the trace pipeline.
+        // This provides data even without the dedicated HrmTrace message type.
+        observers.observe(.kanataHoldActivated, center: notificationCenter) { [weak self] note in
+            guard let self else { return }
+            guard let key = note.userInfo?["key"] as? String else { return }
+            let reasonStr = note.userInfo?["reason"] as? String
+            guard let reason = reasonStr.flatMap({ KanataHrmDecisionReason(rawValue: $0) }) else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                ingestActivationEvent(key: key, decision: .hold, reason: reason)
+            }
+        }
+
+        observers.observe(.kanataTapActivated, center: notificationCenter) { [weak self] note in
+            guard let self else { return }
+            guard let key = note.userInfo?["key"] as? String else { return }
+            let reasonStr = note.userInfo?["reason"] as? String
+            guard let reason = reasonStr.flatMap({ KanataHrmDecisionReason(rawValue: $0) }) else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                ingestActivationEvent(key: key, decision: .tap, reason: reason)
+            }
+        }
     }
 
     private func restartStatsPolling() {
@@ -314,6 +338,19 @@ final class HrmObservabilityService {
         }
     }
 
+    private func ingestActivationEvent(key: String, decision: KanataHrmDecision, reason: KanataHrmDecisionReason) {
+        let payload = TraceNotificationPayload(
+            schemaVersion: 1,
+            key: key,
+            decision: decision,
+            reason: reason,
+            decideLatencyMs: nil,
+            nextKey: nil,
+            nextKeyHand: nil
+        )
+        ingestTrace(payload)
+    }
+
     private func ingestTrace(_ payload: TraceNotificationPayload) {
         let event = KanataHrmTraceEvent(
             schemaVersion: payload.schemaVersion,
@@ -335,7 +372,7 @@ final class HrmObservabilityService {
         }
         schedulePerKeyBreakdownRebuild()
 
-        if availability == .unknown, supportsHrmTrace {
+        if availability == .unknown {
             availability = .supported
         }
     }
@@ -347,6 +384,10 @@ final class HrmObservabilityService {
             try? await Task.sleep(for: self.traceBreakdownDebounce)
             guard !Task.isCancelled else { return }
             perKeyBreakdown = buildPerKeyBreakdown(from: recentTraceEvents)
+            // Also rebuild topReasons from trace events when stats polling isn't available
+            if latestStats == nil {
+                topReasons = buildTopReasonsFromTraces(recentTraceEvents)
+            }
         }
     }
 
@@ -357,12 +398,12 @@ final class HrmObservabilityService {
               let decisionRaw = userInfo["decision"] as? String,
               let decision = KanataHrmDecision(rawValue: decisionRaw),
               let reasonRaw = userInfo["reason"] as? String,
-              let reason = KanataHrmDecisionReason(rawValue: reasonRaw),
-              let decideLatencyMs = userInfo["decideLatencyMs"] as? Int
+              let reason = KanataHrmDecisionReason(rawValue: reasonRaw)
         else {
             return nil
         }
 
+        let decideLatencyMs = userInfo["decideLatencyMs"] as? Int
         let nextKey = userInfo["nextKey"] as? String
         let nextKeyHand = (userInfo["nextKeyHand"] as? String).flatMap(KanataHrmKeyHand.init(rawValue:))
 
@@ -441,6 +482,23 @@ final class HrmObservabilityService {
             .map { $0 }
     }
 
+    private func buildTopReasonsFromTraces(_ traces: [KanataHrmTraceEvent]) -> [ReasonSummary] {
+        var counts: [KanataHrmDecisionReason: Int] = [:]
+        for trace in traces {
+            counts[trace.reason, default: 0] += 1
+        }
+        return counts
+            .map { ReasonSummary(reason: $0.key, count: $0.value) }
+            .sorted { lhs, rhs in
+                if lhs.count == rhs.count {
+                    return lhs.reason.displayName < rhs.reason.displayName
+                }
+                return lhs.count > rhs.count
+            }
+            .prefix(3)
+            .map { $0 }
+    }
+
     private func buildPerKeyBreakdown(from traces: [KanataHrmTraceEvent]) -> [KeyBreakdown] {
         let trackedKeys = Set(HomeRowModsConfig.allKeys)
         var grouped: [String: [KanataHrmTraceEvent]] = [:]
@@ -457,8 +515,8 @@ final class HrmObservabilityService {
                 }
             }
             let holdCount = events.count - tapCount
-            let latencySum = events.reduce(0) { $0 + $1.decideLatencyMs }
-            let average = Int(Double(latencySum) / Double(events.count))
+            let latencies = events.compactMap(\.decideLatencyMs)
+            let average = latencies.isEmpty ? 0 : Int(Double(latencies.reduce(0, +)) / Double(latencies.count))
 
             let topReason = Dictionary(grouping: events, by: \.reason)
                 .max { lhs, rhs in
@@ -488,7 +546,7 @@ final class HrmObservabilityService {
 
         var generated: [TimingRecommendation] = []
         let total = Double(stats.decisionsTotal)
-        let releaseRate = Double(stats.reasonCounts.releaseBeforeDecide) / total
+        let releaseRate = Double(stats.reasonCounts.releaseBeforeTimeout) / total
         let timeoutRate = Double(stats.reasonCounts.timeout) / total
 
         if releaseRate >= 0.25, releaseRate > timeoutRate + 0.1 {
@@ -517,7 +575,7 @@ final class HrmObservabilityService {
             )
         }
 
-        let accidentalReasons: Set<KanataHrmDecisionReason> = [.releaseBeforeDecide, .sameHandKey, .unknownHandKey]
+        let accidentalReasons: Set<KanataHrmDecisionReason> = [.releaseBeforeTimeout, .sameHandRoll, .unknownHand]
         let accidentalByKey = traces.reduce(into: [String: Int]()) { partialResult, trace in
             guard accidentalReasons.contains(trace.reason) else { return }
             let normalized = trace.key.lowercased()

@@ -20,7 +20,7 @@ final class HrmObservabilityServiceTests: XCTestCase {
         XCTAssertTrue(service.supportsHrmTrace)
     }
 
-    func testBuildRecommendationsReleaseBeforeDecideSuggestsLowerHoldDelay() {
+    func testBuildRecommendationsReleaseBeforeTimeoutSuggestsLowerHoldDelay() {
         let service = HrmObservabilityService.makeTestInstance()
         service._testSetLatestStats(
             KanataHrmStatsSnapshot(
@@ -29,13 +29,11 @@ final class HrmObservabilityServiceTests: XCTestCase {
                 tapCount: 28,
                 holdCount: 12,
                 reasonCounts: KanataHrmReasonCounts(
+                    releaseBeforeTimeout: 14,
+                    oppositeHand: 10,
                     timeout: 3,
-                    releaseBeforeDecide: 14,
-                    oppositeHandKey: 10,
-                    sameHandKey: 6,
                     neutralKey: 4,
-                    unknownHandKey: 2,
-                    explicitPolicy: 1
+                    unknownHand: 2
                 )
             )
         )
@@ -57,13 +55,11 @@ final class HrmObservabilityServiceTests: XCTestCase {
                 tapCount: 12,
                 holdCount: 18,
                 reasonCounts: KanataHrmReasonCounts(
+                    releaseBeforeTimeout: 3,
+                    oppositeHand: 8,
                     timeout: 12,
-                    releaseBeforeDecide: 3,
-                    oppositeHandKey: 8,
-                    sameHandKey: 5,
                     neutralKey: 1,
-                    unknownHandKey: 1,
-                    explicitPolicy: 0
+                    unknownHand: 1
                 )
             )
         )
@@ -86,24 +82,23 @@ final class HrmObservabilityServiceTests: XCTestCase {
                 tapCount: 20,
                 holdCount: 15,
                 reasonCounts: KanataHrmReasonCounts(
+                    releaseBeforeTimeout: 8,
+                    sameHandRoll: 10,
+                    oppositeHand: 10,
                     timeout: 2,
-                    releaseBeforeDecide: 8,
-                    oppositeHandKey: 10,
-                    sameHandKey: 10,
                     neutralKey: 3,
-                    unknownHandKey: 2,
-                    explicitPolicy: 0
+                    unknownHand: 2
                 )
             )
         )
         service._testSetRecentTraceEvents(
             [
-                KanataHrmTraceEvent(schemaVersion: 1, key: "f", decision: .hold, reason: .releaseBeforeDecide, decideLatencyMs: 30),
-                KanataHrmTraceEvent(schemaVersion: 1, key: "f", decision: .tap, reason: .sameHandKey, decideLatencyMs: 28),
-                KanataHrmTraceEvent(schemaVersion: 1, key: "f", decision: .tap, reason: .sameHandKey, decideLatencyMs: 25),
-                KanataHrmTraceEvent(schemaVersion: 1, key: "j", decision: .tap, reason: .unknownHandKey, decideLatencyMs: 31),
-                KanataHrmTraceEvent(schemaVersion: 1, key: "j", decision: .hold, reason: .releaseBeforeDecide, decideLatencyMs: 35),
-                KanataHrmTraceEvent(schemaVersion: 1, key: "j", decision: .hold, reason: .sameHandKey, decideLatencyMs: 29)
+                KanataHrmTraceEvent(schemaVersion: 1, key: "f", decision: .hold, reason: .releaseBeforeTimeout, decideLatencyMs: 30),
+                KanataHrmTraceEvent(schemaVersion: 1, key: "f", decision: .tap, reason: .sameHandRoll, decideLatencyMs: 28),
+                KanataHrmTraceEvent(schemaVersion: 1, key: "f", decision: .tap, reason: .sameHandRoll, decideLatencyMs: 25),
+                KanataHrmTraceEvent(schemaVersion: 1, key: "j", decision: .tap, reason: .unknownHand, decideLatencyMs: 31),
+                KanataHrmTraceEvent(schemaVersion: 1, key: "j", decision: .hold, reason: .releaseBeforeTimeout, decideLatencyMs: 35),
+                KanataHrmTraceEvent(schemaVersion: 1, key: "j", decision: .hold, reason: .sameHandRoll, decideLatencyMs: 29)
             ]
         )
 
