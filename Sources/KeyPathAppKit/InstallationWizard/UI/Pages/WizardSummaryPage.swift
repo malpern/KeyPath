@@ -88,12 +88,17 @@ struct WizardSummaryPage: View {
                 }
             }
         }
+        // Two-phase auto-nav: WizardSystemStatusOverview computes navSequence
+        // asynchronously in onAppear, so it may not be ready when isValidating
+        // changes. We set the flag above, then wait for the sequence to arrive.
         .onChange(of: navSequence) { _, newSeq in
             guard shouldAutoNavigateSingleIssue else { return }
+            // Only clear the flag when we actually navigate — an intermediate
+            // empty sequence (e.g. clearing before repopulating) must not
+            // consume the flag.
+            guard !showAllItems, newSeq.count == 1, let page = newSeq.first else { return }
             shouldAutoNavigateSingleIssue = false
-            if !showAllItems, newSeq.count == 1, let page = newSeq.first {
-                onNavigateToPage?(page)
-            }
+            onNavigateToPage?(page)
         }
         .onChange(of: isEverythingComplete) { _, newValue in
             if !isValidating {
