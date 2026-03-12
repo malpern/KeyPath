@@ -1,8 +1,6 @@
-import Combine
 import Foundation
 import KeyPathCore
 import KeyPathWizardCore
-import Observation
 
 @MainActor
 final class OverlayHealthIndicatorObserver {
@@ -12,7 +10,6 @@ final class OverlayHealthIndicatorObserver {
     private let onStateChange: StateHandler
     private let onDismiss: () -> Void
     private let sleep: Sleep
-    private var cancellable: AnyCancellable?
     private var dismissTask: Task<Void, Never>?
     private var checkingDebounceTask: Task<Void, Never>?
     private var currentState: HealthIndicatorState = .dismissed
@@ -31,28 +28,6 @@ final class OverlayHealthIndicatorObserver {
         self.onStateChange = onStateChange
         self.onDismiss = onDismiss
         self.sleep = sleep
-    }
-
-    /// Start observing using Combine publishers (used by tests with CurrentValueSubject)
-    func start(
-        validationStatePublisher: AnyPublisher<MainAppStateController.ValidationState?, Never>,
-        issuesPublisher: AnyPublisher<[WizardIssue], Never>
-    ) {
-        AppLogger.shared.log("🔔 [HealthObserver] start(publishers:) called - isObserving=\(isObserving)")
-        guard !isObserving else {
-            AppLogger.shared.log("🔔 [HealthObserver] start() - already observing, skipping")
-            return
-        }
-        isObserving = true
-
-        cancellable = Publishers.CombineLatest(
-            validationStatePublisher,
-            issuesPublisher
-        )
-        .receive(on: DispatchQueue.main)
-        .sink { [weak self] state, issues in
-            self?.handle(state: state, issues: issues)
-        }
     }
 
     /// Start observing an @Observable MainAppStateController via polling
