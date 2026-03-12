@@ -122,12 +122,6 @@ final class KanataBinaryDetector: Sendable {
         }
     }
 
-    /// Check if the installed kanata binary does not satisfy the expected trust identity.
-    /// With bundled-only architecture, there is no separate system binary to compare against.
-    func hasVersionMismatch() -> Bool {
-        false
-    }
-
     // MARK: - Private Detection Logic
 
     private func checkBundledBinary() -> DetectionResult? {
@@ -175,8 +169,4 @@ final class KanataBinaryDetector: Sendable {
         }
     }
 
-    /// Convert detection result to installed components for SystemStatusChecker
-    func getInstalledComponents() -> [ComponentRequirement] {
-        [] // Presence is indicated by absence of missing components
-    }
 }
