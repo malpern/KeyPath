@@ -79,7 +79,8 @@ extension KanataConfiguration {
 
             // When global tap-hold-require-prior-idle is active, leader/layer keys
             // need (require-prior-idle 0) so they activate immediately during fast typing.
-            let idleSuffix = globalRequirePriorIdleMs > 0 ? " (require-prior-idle 0)" : ""
+            // Inserted as trailing option inside the tap-hold, before the closing paren.
+            let idleSuffix = globalRequirePriorIdleMs > 0 ? "\n    (require-prior-idle 0)" : ""
 
             let definition = if pref.targetLayer == .navigation {
                 switch navActivationMode {

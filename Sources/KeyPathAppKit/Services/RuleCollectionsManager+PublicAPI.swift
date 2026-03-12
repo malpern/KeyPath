@@ -596,9 +596,9 @@ extension RuleCollectionsManager {
             return false
         }
 
-        let wasNewlyEnabled = !ruleCollections[index].isEnabled
+        // Don't force-enable on every config tweak — preserve current toggle state
+        let wasNewlyEnabled = false
         ruleCollections[index].configuration.updateAutoShiftSymbolsConfig(config)
-        ruleCollections[index].isEnabled = true
 
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()

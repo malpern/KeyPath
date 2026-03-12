@@ -62,6 +62,10 @@ public struct KanataConfiguration: Sendable {
         AppLogger.shared.log("📚 [KanataConfig] Enabled collections: \(enabledCollections.map { "\($0.name) (enabled: \($0.isEnabled))" }.joined(separator: ", "))")
 
         // Extract max tap-hold-require-prior-idle value from enabled collections (defcfg-level option).
+        // This is a GLOBAL kanata setting — the highest value from any enabled collection wins.
+        // When active, ALL tap-hold actions (HRM, auto-shift, leader keys, etc.) require the
+        // specified idle gap before hold detection activates. Leader/nav keys get per-action
+        // (require-prior-idle 0) overrides so they still activate immediately during fast typing.
         // Computed before buildCollectionBlocks so leader key can use per-action override when active.
         let requirePriorIdleMs = enabledCollections.compactMap { collection -> Int? in
             switch collection.configuration {
