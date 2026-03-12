@@ -19,12 +19,13 @@ enum InspectorSection: String {
     case keycaps
     case sounds
     case launchers
+    case devices
 }
 
 extension InspectorSection {
     var isSettingsShelf: Bool {
         switch self {
-        case .keycaps, .sounds, .keyboard, .layout:
+        case .keycaps, .sounds, .keyboard, .layout, .devices:
             true
         case .mapper, .customRules, .launchers:
             false

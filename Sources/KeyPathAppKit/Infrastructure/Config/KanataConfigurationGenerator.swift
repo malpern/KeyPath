@@ -92,7 +92,7 @@ public struct KanataConfiguration: Sendable {
         let blocks = deduplicateBlocks(rawBlocks)
         let enabledNames = enabledCollections.map(\.name).joined(separator: ", ")
 
-        let macosDeviceExclusions = renderMacOSDeviceExclusionsForDefcfg()
+        let macosDeviceTargeting = renderMacOSDeviceTargetingForDefcfg()
         var defcfgLines = [
             "  process-unmapped-keys yes",
             "  danger-enable-cmd yes"
@@ -105,7 +105,7 @@ public struct KanataConfiguration: Sendable {
             + ";; Enabled: \(enabledNames.isEmpty ? "none" : enabledNames)\n\n"
             + "(defcfg\n"
             + defcfgBody
-            + macosDeviceExclusions
+            + macosDeviceTargeting
             + "\n)"
 
         let safetyNotes = """
@@ -189,95 +189,103 @@ public struct KanataConfiguration: Sendable {
 
     private static let defaultEmptyConfig = generateFromCollections(defaultSystemCollections)
 
-    // MARK: - macOS Device Selection (VirtualHID loop prevention)
+    // MARK: - macOS Device Targeting (VirtualHID exclusion + per-device selection)
 
     /// On macOS, Kanata may try to intercept *all* keyboards, including the VirtualHID output keyboard.
     /// If it grabs the VirtualHID device, it can create feedback loops (especially with symmetric remaps like 1<->2).
-    /// We exclude VirtualHID keyboards that `kanata --list` reports.
-    private static func renderMacOSDeviceExclusionsForDefcfg() -> String {
+    ///
+    /// Additionally, users may selectively disable remapping for specific keyboards via the Devices tab.
+    /// When all non-VirtualHID devices are enabled (the default), we emit only `macos-dev-names-exclude`.
+    /// When any non-VirtualHID device is disabled, we emit `macos-dev-names-include` for enabled devices
+    /// plus `macos-dev-names-exclude` for VirtualHID devices.
+    private static func renderMacOSDeviceTargetingForDefcfg() -> String {
         #if os(macOS)
-            let devices = detectMacOSVirtualHIDDevicesForExclusion()
-            guard !devices.isEmpty else { return "" }
+            let cache = DeviceSelectionCache.shared
 
-            let rendered = devices.map { "    \"\($0)\"" }.joined(separator: "\n")
-            AppLogger.shared.log("🧩 [KanataConfig] Excluding macOS devices from interception: \(devices.joined(separator: ", "))")
-            return """
+            // Use only the cached device list. CompositionRoot primes selections synchronously
+            // at startup, and device enumeration updates this cache when the Devices tab loads.
+            let allDevices = cache.getConnectedDevices()
+            guard !allDevices.isEmpty else { return "" }
 
-              ;; Avoid grabbing VirtualHID output keyboard(s); prevents feedback loops.
-              macos-dev-names-exclude (
-            \(rendered)
-              )
-            """
+            let virtualHIDDevices = allDevices.filter(\.isVirtualHID)
+            let physicalDevices = allDevices.filter { !$0.isVirtualHID }
+
+            // Check which physical devices are disabled via user selection
+            let disabledPhysical = physicalDevices.filter { !cache.isEnabled(hash: $0.hash) }
+            let enabledPhysical = physicalDevices.filter { cache.isEnabled(hash: $0.hash) }
+
+            // VirtualHID exclusion (always needed)
+            let virtualHIDNames = virtualHIDDevices.flatMap { [$0.hash, $0.productKey] }.sorted()
+
+            if disabledPhysical.isEmpty {
+                // Default behavior: all physical keyboards remapped, only exclude VirtualHID
+                guard !virtualHIDNames.isEmpty else { return "" }
+                let rendered = virtualHIDNames.map { "    \"\($0)\"" }.joined(separator: "\n")
+                AppLogger.shared.log("🧩 [KanataConfig] Excluding macOS devices from interception: \(virtualHIDNames.joined(separator: ", "))")
+                return """
+
+                  ;; Avoid grabbing VirtualHID output keyboard(s); prevents feedback loops.
+                  macos-dev-names-exclude (
+                \(rendered)
+                  )
+                """
+            } else {
+                // Selective mode: include only enabled physical devices, exclude VirtualHID
+                let includeNames = enabledPhysical.map(\.hash).sorted()
+                let excludeNames = virtualHIDNames
+
+                AppLogger.shared.log("🧩 [KanataConfig] Device targeting: include \(includeNames.count) device(s), exclude \(excludeNames.count) VirtualHID name(s)")
+
+                var result = ""
+                if !includeNames.isEmpty {
+                    let renderedInclude = includeNames.map { "    \"\($0)\"" }.joined(separator: "\n")
+                    result += """
+
+                      ;; Only remap selected keyboards (user device selection).
+                      macos-dev-names-include (
+                    \(renderedInclude)
+                      )
+                    """
+                } else {
+                    // All physical devices disabled — emit include with impossible name
+                    // so Kanata grabs nothing. The UI warns the user about this state.
+                    result += """
+
+                      ;; All keyboards disabled by user — remap nothing.
+                      macos-dev-names-include (
+                        "__keypath_no_devices__"
+                      )
+                    """
+                }
+                if !excludeNames.isEmpty {
+                    let renderedExclude = excludeNames.map { "    \"\($0)\"" }.joined(separator: "\n")
+                    result += """
+
+                      ;; Avoid grabbing VirtualHID output keyboard(s); prevents feedback loops.
+                      macos-dev-names-exclude (
+                    \(renderedExclude)
+                      )
+                    """
+                }
+                return result
+            }
         #else
             return ""
         #endif
     }
 
     #if os(macOS)
-        private static func detectMacOSVirtualHIDDevicesForExclusion() -> [String] {
-            guard let output = runKanataListForDeviceNames() else { return [] }
-            return parseExcludedMacOSDeviceNames(fromKanataList: output)
-        }
-
         /// Parse the output of `kanata --list` and return device identifiers suitable for
         /// `macos-dev-names-exclude`. Kept as a pure function for unit testing.
+        /// Used by legacy callers — new code should use `DeviceEnumerationService.parseAllDevices`.
         static func parseExcludedMacOSDeviceNames(fromKanataList output: String) -> [String] {
-            // Example lines (columns):
-            // 0xHASH   vendor_id  product_id  product_key...
-            // We exclude both the hash and the product key for robustness.
-            let re = try? NSRegularExpression(pattern: #"^(0x[0-9A-Fa-f]+)\s+\d+\s+\d+\s+(.*)$"#)
+            let devices = DeviceEnumerationService.parseAllDevices(fromKanataList: output)
             var results = Set<String>()
-
-            for rawLine in output.split(separator: "\n", omittingEmptySubsequences: false) {
-                let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !line.isEmpty else { continue }
-                guard line.contains("VirtualHIDKeyboard") || line.contains("VirtualHID") else { continue }
-                guard let re else { continue }
-
-                let ns = line as NSString
-                let range = NSRange(location: 0, length: ns.length)
-                guard let m = re.firstMatch(in: line, range: range) else { continue }
-                guard m.numberOfRanges >= 3 else { continue }
-
-                let hash = ns.substring(with: m.range(at: 1)).trimmingCharacters(in: .whitespaces)
-                let productKey = ns.substring(with: m.range(at: 2)).trimmingCharacters(in: .whitespaces)
-
-                if !hash.isEmpty { results.insert(hash) }
-                if !productKey.isEmpty { results.insert(productKey) }
+            for device in devices where device.isVirtualHID {
+                results.insert(device.hash)
+                results.insert(device.productKey)
             }
-
             return results.sorted()
-        }
-
-        private static func runKanataListForDeviceNames() -> String? {
-            let candidates = [
-                "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata"
-            ]
-
-            let fm = Foundation.FileManager()
-            guard let kanataPath = candidates.first(where: { fm.isExecutableFile(atPath: $0) }) else {
-                return nil
-            }
-
-            do {
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: kanataPath)
-                process.arguments = ["--list"]
-
-                let pipe = Pipe()
-                process.standardOutput = pipe
-                process.standardError = pipe
-
-                try process.run()
-                process.waitUntilExit()
-
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                guard process.terminationStatus == 0 else { return nil }
-                return String(data: data, encoding: .utf8)
-            } catch {
-                AppLogger.shared.warn("⚠️ [KanataConfig] Failed to run kanata --list for device detection: \(error)")
-                return nil
-            }
         }
     #endif
 }

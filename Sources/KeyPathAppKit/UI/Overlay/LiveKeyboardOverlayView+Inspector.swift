@@ -150,6 +150,10 @@ struct OverlayInspectorPanel: View {
                         customRulesContent
                             .padding(.horizontal, 12)
                             .padding(.bottom, 6)
+                    } else if selectedSection == .devices {
+                        devicesContent
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 6)
                     } else {
                         ScrollView {
                             VStack(alignment: .leading, spacing: 16) {
@@ -167,6 +171,8 @@ struct OverlayInspectorPanel: View {
                                 case .launchers:
                                     EmptyView() // Handled above
                                 case .customRules:
+                                    EmptyView() // Handled above
+                                case .devices:
                                     EmptyView() // Handled above
                                 }
                             }

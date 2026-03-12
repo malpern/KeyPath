@@ -34,6 +34,7 @@ struct InspectorPanelToolbar: View {
     @State private var isHoveringLayout = false
     @State private var isHoveringKeycaps = false
     @State private var isHoveringSounds = false
+    @State private var isHoveringDevices = false
     @State private var isHoveringLaunchers = false
     @State private var isHoveringSettings = false
     @State private var showMainTabs = true
@@ -275,6 +276,17 @@ struct InspectorPanelToolbar: View {
             .accessibilityIdentifier("inspector-tab-sounds")
             .accessibilityLabel("Typing Sounds")
             .help("Typing Sounds")
+
+            toolbarButton(
+                systemImage: "cable.connector",
+                isSelected: selectedSection == .devices,
+                isHovering: isHoveringDevices,
+                onHover: { isHoveringDevices = $0 },
+                action: { onSelectSection(.devices) }
+            )
+            .accessibilityIdentifier("inspector-tab-devices")
+            .accessibilityLabel("Devices")
+            .help("Devices")
         }
     }
 
