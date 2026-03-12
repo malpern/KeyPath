@@ -18,7 +18,8 @@ public struct KanataRuntimeHost: Sendable, Equatable {
 
     /// Bundle identifier for the KanataEngine.app wrapper.
     /// Used for TCC bundle-ID queries (client_type=0).
-    public static let kanataEngineBundleID = "com.keypath.kanata-engine"
+    /// Canonical definition lives in `KeyPathConstants.Bundle.kanataEngineBundleID`.
+    public static let kanataEngineBundleID = KeyPathConstants.Bundle.kanataEngineBundleID
 
     /// Deprecated: system binary is no longer installed. Returns bundledCorePath.
     @available(*, deprecated, message: "System binary removed; use bundledCorePath directly")
@@ -30,15 +31,12 @@ public struct KanataRuntimeHost: Sendable, Equatable {
         launcherPath: String,
         bridgeLibraryPath: String,
         bundledCorePath: String,
-        kanataEngineBundlePath: String? = nil
+        kanataEngineBundlePath: String
     ) {
         self.launcherPath = launcherPath
         self.bridgeLibraryPath = bridgeLibraryPath
         self.bundledCorePath = bundledCorePath
-        // Derive engine bundle path from bundledCorePath if not explicitly provided
         self.kanataEngineBundlePath = kanataEngineBundlePath
-            ?? (bundledCorePath as NSString).deletingLastPathComponent
-                .replacingOccurrences(of: "/Contents/MacOS", with: "")
     }
 
     /// The canonical kanata binary path. Always returns the bundled binary.

@@ -448,11 +448,6 @@ public actor PermissionOracle {
         return WizardSystemPaths.kanataActiveBinary
     }
 
-    /// Resolve the KanataEngine.app bundle ID for TCC bundle-ID queries.
-    private func resolveKanataEngineBundleID() -> String {
-        WizardSystemPaths.kanataEngineBundleID
-    }
-
     /// Log granular permission transitions for observability
     private func logPermissionTransitions(from old: Snapshot, to new: Snapshot) {
         func logChange(subject: String, old: Status, new: Status) {
@@ -512,24 +507,27 @@ public actor PermissionOracle {
     /// necessary here to resolve the chicken-and-egg problem between permission verification
     /// and service startup. This is a legitimate fallback when functional verification fails.
     private func checkTCCForKanata(executablePath: String) async -> (ax: Status?, im: Status?) {
-        let bundleID = resolveKanataEngineBundleID()
+        let bundleID = KeyPathConstants.Bundle.kanataEngineBundleID
 
         // Try bundle-ID based query first (KanataEngine.app wrapper)
         AppLogger.shared.log("🔍 [Oracle] Trying TCC bundle-ID query for \(bundleID)")
         let axBundle = await tccStatus(forBundleID: bundleID, service: .accessibility)
         let imBundle = await tccStatus(forBundleID: bundleID, service: .inputMonitoring)
 
-        if axBundle != nil || imBundle != nil {
+        if axBundle != nil, imBundle != nil {
             AppLogger.shared.log("🔍 [Oracle] Found TCC entries via bundle ID (\(bundleID))")
             return (axBundle, imBundle)
         }
 
-        // Fall back to path-based query for migration (raw binary TCC entries)
-        AppLogger.shared.log("🔍 [Oracle] No bundle-ID TCC entries; falling back to path-based query")
+        // Fall back to path-based query for migration (raw binary TCC entries).
+        // During migration a user may have one permission under the bundle ID and the
+        // other still under the old raw-path entry.  Use path-based values as fallback
+        // for whichever permission the bundle-ID query did not resolve.
+        AppLogger.shared.log("🔍 [Oracle] Partial/no bundle-ID TCC entries; falling back to path-based query for gaps")
         let normalizedPath = normalizePathForTCC(executablePath)
-        let ax = await tccStatus(forExecutable: normalizedPath, service: .accessibility)
-        let im = await tccStatus(forExecutable: normalizedPath, service: .inputMonitoring)
-        return (ax, im)
+        let axPath = await tccStatus(forExecutable: normalizedPath, service: .accessibility)
+        let imPath = await tccStatus(forExecutable: normalizedPath, service: .inputMonitoring)
+        return (axBundle ?? axPath, imBundle ?? imPath)
     }
 
     /// Normalize paths for TCC queries - convert development builds to installed paths

@@ -202,33 +202,8 @@ if [[ ! -d "$KANATA_ENGINE_MACOS" ]]; then
         ln -sf "KanataEngine.app/Contents/MacOS/kanata" "$OLD_KANATA"
     fi
 fi
-# Create/refresh Info.plist
-cat > "$KANATA_ENGINE_CONTENTS/Info.plist" <<'ENGINEPLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleIdentifier</key>
-    <string>com.keypath.kanata-engine</string>
-    <key>CFBundleExecutable</key>
-    <string>kanata</string>
-    <key>CFBundleName</key>
-    <string>KanataEngine</string>
-    <key>CFBundleDisplayName</key>
-    <string>KanataEngine</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-    <key>LSUIElement</key>
-    <true/>
-    <key>LSBackgroundOnly</key>
-    <true/>
-</dict>
-</plist>
-ENGINEPLIST
+# Copy committed Info.plist
+cp "$PROJECT_DIR/Sources/KeyPathApp/Resources/KanataEngine-Info.plist" "$KANATA_ENGINE_CONTENTS/Info.plist"
 
 # Sync the current bundled runtime host executable.
 KANATA_LAUNCHER_BIN="$BIN_DIR/KeyPathKanataLauncher"
@@ -304,7 +279,8 @@ if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
         codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/HelperTools/KeyPathHelper" 2>/dev/null || true
     fi
     if [[ -d "$APP_BUNDLE/Contents/Library/KeyPath/KanataEngine.app" ]]; then
-        codesign --force --options=runtime --deep --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/KanataEngine.app" 2>/dev/null || true
+        codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata" || echo "⚠️  Failed to sign KanataEngine kanata binary"
+        codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/KanataEngine.app" || echo "⚠️  Failed to sign KanataEngine.app bundle"
     fi
     if [[ -f "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher" ]]; then
         codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher" 2>/dev/null || true

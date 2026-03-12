@@ -26,7 +26,8 @@ final class KanataRuntimeHostTests: XCTestCase {
         let host = KanataRuntimeHost(
             launcherPath: "/tmp/kanata-launcher",
             bridgeLibraryPath: "/tmp/libkeypath_kanata_host_bridge.dylib",
-            bundledCorePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata"
+            bundledCorePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata",
+            kanataEngineBundlePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app"
         )
 
         XCTAssertEqual(host.preferredCoreBinaryPath(), host.bundledCorePath)
@@ -36,7 +37,8 @@ final class KanataRuntimeHostTests: XCTestCase {
         let host = KanataRuntimeHost(
             launcherPath: "/tmp/kanata-launcher",
             bridgeLibraryPath: "/tmp/libkeypath_kanata_host_bridge.dylib",
-            bundledCorePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata"
+            bundledCorePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata",
+            kanataEngineBundlePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app"
         )
 
         // systemCorePath is a deprecated alias — must always equal bundledCorePath

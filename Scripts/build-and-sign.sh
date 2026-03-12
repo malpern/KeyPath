@@ -205,33 +205,8 @@ MACOS="${CONTENTS}/MacOS"
 	# Move kanata binary into the .app bundle
 	ditto "build/kanata-universal" "$KANATA_ENGINE_MACOS/kanata"
 
-	# Create Info.plist for KanataEngine.app
-	cat > "$KANATA_ENGINE_CONTENTS/Info.plist" <<'ENGINEPLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleIdentifier</key>
-    <string>com.keypath.kanata-engine</string>
-    <key>CFBundleExecutable</key>
-    <string>kanata</string>
-    <key>CFBundleName</key>
-    <string>KanataEngine</string>
-    <key>CFBundleDisplayName</key>
-    <string>KanataEngine</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-    <key>LSUIElement</key>
-    <true/>
-    <key>LSBackgroundOnly</key>
-    <true/>
-</dict>
-</plist>
-ENGINEPLIST
+	# Copy committed Info.plist for KanataEngine.app
+	cp "$SCRIPT_DIR/../Sources/KeyPathApp/Resources/KanataEngine-Info.plist" "$KANATA_ENGINE_CONTENTS/Info.plist"
 
 	# Create backward-compat symlink so existing code paths still resolve
 	ln -sf "KanataEngine.app/Contents/MacOS/kanata" "$CONTENTS/Library/KeyPath/kanata"
@@ -414,8 +389,9 @@ else
         --entitlements "$OUTPUT_BRIDGE_ENTITLEMENTS" \
         --sign "$SIGNING_IDENTITY"
 
-    # Sign KanataEngine.app bundle (inside-out: sign the .app before the outer KeyPath.app)
-    kp_sign "$CONTENTS/Library/KeyPath/KanataEngine.app" --force --options=runtime --deep --sign "$SIGNING_IDENTITY"
+    # Sign KanataEngine.app bundle inside-out: sign the inner binary first, then the bundle.
+    kp_sign "$CONTENTS/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata" --force --options=runtime --sign "$SIGNING_IDENTITY"
+    kp_sign "$CONTENTS/Library/KeyPath/KanataEngine.app" --force --options=runtime --sign "$SIGNING_IDENTITY"
 
     # Sign the bundled runtime host pieces explicitly before the outer app sign.
     kp_sign "$CONTENTS/Library/KeyPath/kanata-launcher" --force --options=runtime --sign "$SIGNING_IDENTITY"

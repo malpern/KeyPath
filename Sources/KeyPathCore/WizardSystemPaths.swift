@@ -121,7 +121,7 @@ public enum WizardSystemPaths {
     }
 
     /// Bundle identifier for the KanataEngine.app wrapper.
-    public static let kanataEngineBundleID = KanataRuntimeHost.kanataEngineBundleID
+    public static let kanataEngineBundleID = KeyPathConstants.Bundle.kanataEngineBundleID
 
     /// Active kanata binary path - uses simple filesystem checks for performance
     /// Single canonical path eliminates TCC permission fragmentation
