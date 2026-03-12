@@ -38,6 +38,11 @@ public final class AppContextService {
     /// Whether the service is actively monitoring
     public private(set) var isMonitoring: Bool = false
 
+    // MARK: - Dependencies
+
+    @ObservationIgnored private let preferences: PreferencesService
+    @ObservationIgnored private let appKeymapStore: AppKeymapStore
+
     // MARK: - Private State
 
     @ObservationIgnored private var tcpClient: KanataTCPClient?
@@ -48,7 +53,13 @@ public final class AppContextService {
 
     // MARK: - Initialization
 
-    private init() {}
+    init(
+        preferences: PreferencesService = .shared,
+        appKeymapStore: AppKeymapStore = .shared
+    ) {
+        self.preferences = preferences
+        self.appKeymapStore = appKeymapStore
+    }
 
     // MARK: - Lifecycle
 
@@ -65,7 +76,7 @@ public final class AppContextService {
         AppLogger.shared.log("🚀 [AppContextService] Starting app context monitoring")
 
         // Initialize TCP client
-        let port = tcpPort ?? PreferencesService.shared.tcpServerPort
+        let port = tcpPort ?? preferences.tcpServerPort
         tcpClient = KanataTCPClient(port: port)
 
         // Load mappings from store
@@ -110,7 +121,7 @@ public final class AppContextService {
     /// Reload mappings from the store.
     /// Call this after modifying app keymaps to pick up changes.
     public func reloadMappings() async {
-        bundleToVKMapping = await AppKeymapStore.shared.getBundleToVKMapping()
+        bundleToVKMapping = await appKeymapStore.getBundleToVKMapping()
         AppLogger.shared.log("🔄 [AppContextService] Reloaded \(bundleToVKMapping.count) app mappings")
 
         // Re-evaluate current app

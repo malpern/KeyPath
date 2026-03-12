@@ -34,6 +34,10 @@ class KanataDaemonManager {
 
     static let shared = KanataDaemonManager()
 
+    // MARK: - Dependencies
+
+    private let subprocessRunner: SubprocessRunner
+
     // MARK: - Constants
 
     /// Service identifier for Kanata LaunchDaemon
@@ -49,7 +53,8 @@ class KanataDaemonManager {
 
     // MARK: - Initialization
 
-    private init() {
+    init(subprocessRunner: SubprocessRunner = .shared) {
+        self.subprocessRunner = subprocessRunner
         AppLogger.shared.log("🔧 [KanataDaemonManager] Initialized")
         Task { await refreshManagementState() }
     }
@@ -157,7 +162,7 @@ class KanataDaemonManager {
                 }
                 // No legacy plist and SMAppService not registered
                 // Only check process when state is ambiguous (lazy evaluation for performance)
-                let isProcessRunning = await Self.pgrepKanataProcessAsync()
+                let isProcessRunning = await pgrepKanataProcessAsync()
                 AppLogger.shared.log("  - Process running: \(isProcessRunning)")
                 if isProcessRunning {
                     // Process running but unclear management - investigate
@@ -190,8 +195,8 @@ class KanataDaemonManager {
 
     /// Helper function to check if Kanata process is running
     /// This is used as a fallback when state is ambiguous
-    private nonisolated static func pgrepKanataProcessAsync() async -> Bool {
-        let pids = await SubprocessRunner.shared.pgrep("kanata.*--cfg")
+    private nonisolated func pgrepKanataProcessAsync() async -> Bool {
+        let pids = await subprocessRunner.pgrep("kanata.*--cfg")
         return !pids.isEmpty
     }
 
@@ -211,7 +216,7 @@ class KanataDaemonManager {
 
         // Best-effort check: does launchd know about the job?
         do {
-            let result = try await SubprocessRunner.shared.launchctl("print", ["system/\(Self.kanataServiceID)"])
+            let result = try await subprocessRunner.launchctl("print", ["system/\(Self.kanataServiceID)"])
             if result.exitCode == 0 {
                 let s = result.stdout
                 if s.contains("program") || s.contains("state =") || s.contains("pid =") {
@@ -284,11 +289,11 @@ class KanataDaemonManager {
         }
 
         // Run expensive checks async
-        return await Task.detached {
-            let launchctlOutputs = await Self.readLaunchctlOutputs(for: .smappserviceActive)
+        return await Task.detached { [self] in
+            let launchctlOutputs = await readLaunchctlOutputs(for: .smappserviceActive)
 
             // 3. Check if process is running
-            let processIsRunning = await Self.pgrepKanataProcessAsync()
+            let processIsRunning = await pgrepKanataProcessAsync()
 
             // 4. Analyze the state
             let launchctlCanFindService = launchctlOutputs.contains { !$0.output.isEmpty }
@@ -337,13 +342,13 @@ class KanataDaemonManager {
         }
     }
 
-    nonisolated private static func readLaunchctlOutputs(for managementState: ServiceManagementState)
+    nonisolated private func readLaunchctlOutputs(for managementState: ServiceManagementState)
         async -> [(target: String, output: String, exitCode: Int32?)]
     {
         var outputs: [(target: String, output: String, exitCode: Int32?)] = []
-        for target in preferredLaunchctlTargets(for: managementState) {
+        for target in Self.preferredLaunchctlTargets(for: managementState) {
             do {
-                let result = try await SubprocessRunner.shared.launchctl("print", [target])
+                let result = try await subprocessRunner.launchctl("print", [target])
                 outputs.append((
                     target: target,
                     output: result.exitCode == 0 ? result.stdout : "",

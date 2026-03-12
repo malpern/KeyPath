@@ -5,6 +5,7 @@ import SwiftUI
 struct OverlayInspectorPanel: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.services) var services
     let selectedSection: InspectorSection
     let onSelectSection: (InspectorSection) -> Void
     let fadeAmount: CGFloat

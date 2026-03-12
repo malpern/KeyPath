@@ -48,3 +48,22 @@ extension EnvironmentValues {
     }
 }
 
+// MARK: - Service Container DI
+
+/// EnvironmentKey for the central ServiceContainer
+private struct ServiceContainerKey: EnvironmentKey {
+    // The default is only used as a fallback if .environment(\.services, ...) is missing.
+    // In production, the container is always injected from App.init().
+    @MainActor static let _default = ServiceContainer()
+    nonisolated(unsafe) static var defaultValue: ServiceContainer {
+        MainActor.assumeIsolated { _default }
+    }
+}
+
+extension EnvironmentValues {
+    var services: ServiceContainer {
+        get { self[ServiceContainerKey.self] }
+        set { self[ServiceContainerKey.self] = newValue }
+    }
+}
+

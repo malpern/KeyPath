@@ -9,6 +9,7 @@ import SwiftUI
 struct RulesSummaryURLChip: View {
     let urlString: String
 
+    @Environment(\.services) private var services
     @State private var favicon: NSImage?
 
     private var domain: String {
@@ -47,7 +48,7 @@ struct RulesSummaryURLChip: View {
         )
         .onAppear {
             Task { @MainActor in
-                favicon = await FaviconFetcher.shared.fetchFavicon(for: urlString)
+                favicon = await services.faviconFetcher.fetchFavicon(for: urlString)
             }
         }
     }

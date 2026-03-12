@@ -21,7 +21,7 @@ extension LiveKeyboardOverlayView {
 
         Task {
             // Load the launcher config to pass to welcome dialog
-            let collections = await RuleCollectionStore.shared.loadCollections()
+            let collections = await services.ruleCollectionStore.loadCollections()
             if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
                let config = launcherCollection.configuration.launcherGridConfig
             {
@@ -61,14 +61,14 @@ extension LiveKeyboardOverlayView {
 
         // Save the updated config
         Task {
-            let collections = await RuleCollectionStore.shared.loadCollections()
+            let collections = await services.ruleCollectionStore.loadCollections()
             if var launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }) {
                 launcherCollection.configuration = .launcherGrid(updatedConfig)
                 // Update the collections array and save
                 var allCollections = collections
                 if let index = allCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
                     allCollections[index] = launcherCollection
-                    try? await RuleCollectionStore.shared.saveCollections(allCollections)
+                    try? await services.ruleCollectionStore.saveCollections(allCollections)
                 }
             }
         }

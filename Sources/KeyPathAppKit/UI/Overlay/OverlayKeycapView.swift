@@ -241,6 +241,8 @@ struct OverlayKeycapView: View {
         return meta
     }
 
+    @Environment(\.services) var services
+
     /// Whether mouse is hovering over this key
     @State var isHovering = false
 
@@ -312,7 +314,7 @@ struct OverlayKeycapView: View {
     /// SF Symbol icon for system action (resolved via IconResolverService)
     var systemActionIcon: String? {
         guard let actionId = layerKeyInfo?.systemActionIdentifier else { return nil }
-        return IconResolverService.shared.systemActionSymbol(for: actionId)
+        return services.iconResolver.systemActionSymbol(for: actionId)
     }
 
     var body: some View {

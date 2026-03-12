@@ -7,6 +7,7 @@ import SwiftUI
 /// Rules tab expanded view for the Neovim Terminal collection.
 struct NeovimTerminalCollectionView: View {
     let mappings: [KeyMapping]
+    @Environment(\.services) private var services
     @State private var selectedTopics: Set<String> = PreferencesService.shared.neovimReferenceTopics
     @State private var hoveredTopic: NeovimTerminalCategory?
     @State private var hoveredCommandMeaningByTopic: [String: String] = [:]
@@ -25,10 +26,10 @@ struct NeovimTerminalCollectionView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
-            selectedTopics = PreferencesService.shared.neovimReferenceTopics
+            selectedTopics = services.preferences.neovimReferenceTopics
         }
         .onChange(of: selectedTopics) { _, newValue in
-            PreferencesService.shared.neovimReferenceTopics = newValue
+            services.preferences.neovimReferenceTopics = newValue
         }
     }
 

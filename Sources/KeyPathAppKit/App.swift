@@ -12,6 +12,7 @@ public struct KeyPathApp: App {
     // Phase 4: MVVM - Use ViewModel instead of Manager directly
     @State private var viewModel: KanataViewModel
     private let kanataManager: RuntimeCoordinator
+    private let serviceContainer: ServiceContainer
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     private let isHeadlessMode: Bool
@@ -50,6 +51,7 @@ public struct KeyPathApp: App {
         let manager = RuntimeCoordinator(injectedConfigurationService: configurationService)
         kanataManager = manager
         viewModel = KanataViewModel(manager: manager)
+        serviceContainer = ServiceContainer()
         AppLogger.shared.debug(
             "🎯 [Phase 4] MVVM architecture initialized - ViewModel wrapping RuntimeCoordinator"
         )
@@ -78,6 +80,7 @@ public struct KeyPathApp: App {
 
         appDelegate.kanataManager = manager
         appDelegate.viewModel = viewModel
+        appDelegate.serviceContainer = serviceContainer
         appDelegate.isHeadlessMode = isHeadlessMode
 
         // Request user notification authorization after app has fully launched
@@ -120,6 +123,7 @@ public struct KeyPathApp: App {
         Settings {
             SettingsContainerView()
                 .environment(viewModel) // Phase 4: Inject ViewModel
+                .environment(\.services, serviceContainer)
                 .environment(\.preferencesService, PreferencesService.shared)
                 .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
         }
@@ -416,6 +420,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private static let companionRestartProbeOutputPath = "/var/tmp/keypath-host-passthru-companion-restart.txt"
     var kanataManager: RuntimeCoordinator?
     var viewModel: KanataViewModel?
+    var serviceContainer: ServiceContainer?
     var isHeadlessMode = false
     private var mainWindowController: MainWindowController?
     private var menuBarController: MenuBarController?
@@ -891,7 +896,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.shared.error("❌ [AppDelegate] ViewModel is nil, cannot create window")
                 return
             }
-            mainWindowController = MainWindowController(viewModel: vm)
+            mainWindowController = MainWindowController(viewModel: vm, serviceContainer: serviceContainer)
             AppLogger.shared.debug(
                 "🪟 [AppDelegate] Main window controller created (deferring show until activation)"
             )
@@ -1227,7 +1232,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if mainWindowController == nil {
             if let vm = viewModel {
-                mainWindowController = MainWindowController(viewModel: vm)
+                mainWindowController = MainWindowController(viewModel: vm, serviceContainer: serviceContainer)
                 AppLogger.shared.debug("🪟 [MenuBar] Created main window controller for status item request")
             } else {
                 AppLogger.shared.error("❌ [MenuBar] Cannot show KeyPath: ViewModel unavailable")
@@ -1325,7 +1330,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             if let vm = viewModel {
-                mainWindowController = MainWindowController(viewModel: vm)
+                mainWindowController = MainWindowController(viewModel: vm, serviceContainer: serviceContainer)
                 AppLogger.shared.debug("🪟 [AppDelegate] Created main window controller on reopen")
                 mainWindowController?.primeForActivation()
             } else {

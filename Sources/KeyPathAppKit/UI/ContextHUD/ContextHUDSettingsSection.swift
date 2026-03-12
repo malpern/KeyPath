@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Visual settings section for the Shortcut List
 struct ContextHUDSettingsSection: View {
+    @Environment(\.services) private var services
     @State private var displayMode = PreferencesService.shared.contextHUDDisplayMode
     @State private var triggerMode = PreferencesService.shared.contextHUDTriggerMode
     @State private var holdDelayPreset = PreferencesService.shared.contextHUDHoldDelayPreset
@@ -58,7 +59,7 @@ struct ContextHUDSettingsSection: View {
                         isSelected: triggerMode == .holdToShow
                     ) {
                         triggerMode = .holdToShow
-                        PreferencesService.shared.contextHUDTriggerMode = .holdToShow
+                        services.preferences.contextHUDTriggerMode = .holdToShow
                     }
                     .accessibilityIdentifier("settings-context-hud-trigger-holdToShow")
                     .accessibilityLabel("Hold trigger mode")
@@ -70,7 +71,7 @@ struct ContextHUDSettingsSection: View {
                         isSelected: triggerMode == .tapToToggle
                     ) {
                         triggerMode = .tapToToggle
-                        PreferencesService.shared.contextHUDTriggerMode = .tapToToggle
+                        services.preferences.contextHUDTriggerMode = .tapToToggle
                     }
                     .accessibilityIdentifier("settings-context-hud-trigger-tapToToggle")
                     .accessibilityLabel("Tap trigger mode")
@@ -98,8 +99,8 @@ struct ContextHUDSettingsSection: View {
                         .labelsHidden()
                         .frame(width: 140)
                         .onChange(of: holdDelayPreset) { _, newValue in
-                            PreferencesService.shared.contextHUDHoldDelayPreset = newValue
-                            customHoldDelayMs = PreferencesService.shared.contextHUDHoldDelayCustomMs
+                            services.preferences.contextHUDHoldDelayPreset = newValue
+                            customHoldDelayMs = services.preferences.contextHUDHoldDelayCustomMs
                         }
                         .accessibilityIdentifier("settings-context-hud-hold-delay-preset")
                         .accessibilityLabel("Shortcut List hold delay preset")
@@ -121,8 +122,8 @@ struct ContextHUDSettingsSection: View {
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 100)
                             .onChange(of: customHoldDelayMs) { _, newValue in
-                                PreferencesService.shared.contextHUDHoldDelayCustomMs = newValue
-                                customHoldDelayMs = PreferencesService.shared.contextHUDHoldDelayCustomMs
+                                services.preferences.contextHUDHoldDelayCustomMs = newValue
+                                customHoldDelayMs = services.preferences.contextHUDHoldDelayCustomMs
                             }
                             .accessibilityIdentifier("settings-context-hud-hold-delay-custom")
                             .accessibilityLabel("Custom Shortcut List hold delay in milliseconds")
@@ -149,7 +150,7 @@ struct ContextHUDSettingsSection: View {
         return Button {
             withAnimation(.easeInOut(duration: 0.15)) {
                 displayMode = mode
-                PreferencesService.shared.contextHUDDisplayMode = mode
+                services.preferences.contextHUDDisplayMode = mode
             }
         } label: {
             VStack(spacing: 8) {

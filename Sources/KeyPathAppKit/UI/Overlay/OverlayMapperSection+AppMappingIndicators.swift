@@ -267,9 +267,9 @@ extension OverlayMapperSection {
 
             // Also delete ALL app-specific rules
             do {
-                let keymaps = await AppKeymapStore.shared.loadKeymaps()
+                let keymaps = await services.appKeymapStore.loadKeymaps()
                 for keymap in keymaps {
-                    try await AppKeymapStore.shared.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
+                    try await services.appKeymapStore.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
                 }
 
                 // Regenerate config and restart Kanata if we deleted any app rules

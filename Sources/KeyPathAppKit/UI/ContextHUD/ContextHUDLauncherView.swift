@@ -22,6 +22,7 @@ struct ContextHUDLauncherView: View {
 /// A single app icon cell in the launcher grid
 private struct LauncherIconCell: View {
     let entry: HUDKeyEntry
+    @Environment(\.services) private var services
 
     var body: some View {
         VStack(spacing: 3) {
@@ -40,7 +41,7 @@ private struct LauncherIconCell: View {
     @ViewBuilder
     private var iconView: some View {
         if let appIdentifier = entry.appIdentifier,
-           let icon = IconResolverService.shared.resolveAppIcon(for: appIdentifier)
+           let icon = services.iconResolver.resolveAppIcon(for: appIdentifier)
         {
             Image(nsImage: icon)
                 .resizable()

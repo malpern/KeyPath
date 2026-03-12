@@ -4,6 +4,7 @@ import SwiftUI
 /// Read-only inspector for virtual keys defined in the Kanata configuration
 /// Displays keys from `defvirtualkeys` and `deffakekeys` blocks with test functionality
 struct VirtualKeysInspectorView: View {
+    @Environment(\.services) private var services
     @State private var virtualKeys: [VirtualKey] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -258,7 +259,7 @@ struct VirtualKeysInspectorView: View {
         testingKey = key.name
         testResult = nil
 
-        let port = PreferencesService.shared.tcpServerPort
+        let port = services.preferences.tcpServerPort
         let client = KanataTCPClient(port: port, timeout: 3.0)
 
         // First check if Kanata is running

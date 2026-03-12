@@ -24,6 +24,7 @@ struct LiveKeyboardOverlayView: View {
 
     // MARK: - Environment
 
+    @Environment(\.services) var services
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency

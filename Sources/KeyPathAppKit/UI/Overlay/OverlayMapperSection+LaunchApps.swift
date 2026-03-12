@@ -107,7 +107,7 @@ extension OverlayMapperSection {
     func loadKnownApps() {
         Task {
             // Get apps from app-specific keymaps
-            let keymaps = await AppKeymapStore.shared.loadKeymaps()
+            let keymaps = await services.appKeymapStore.loadKeymaps()
             var apps: [AppLaunchInfo] = []
             var seenAppKeys: Set<String> = []
 

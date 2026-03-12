@@ -11,7 +11,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        checker = ServiceHealthChecker.shared
+        checker = await MainActor.run { ServiceHealthChecker.shared }
         originalSMFactory = KanataDaemonManager.smServiceFactory
 
         tempLaunchDaemonsDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)

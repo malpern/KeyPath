@@ -3,6 +3,7 @@ import SwiftUI
 /// Static quick-reference HUD view for Neovim commands.
 /// Content is configured in the Rules panel (educational topics only).
 struct ContextHUDNeovimTerminalView: View {
+    @Environment(\.services) private var services
     let groups: [HUDKeyGroup]
 
     var body: some View {
@@ -76,7 +77,7 @@ struct ContextHUDNeovimTerminalView: View {
     }
 
     private var configuredCategories: [NeovimTerminalCategory] {
-        let selected = PreferencesService.shared.neovimReferenceTopics
+        let selected = services.preferences.neovimReferenceTopics
         let valid = NeovimTerminalCategory.allCases.filter { selected.contains($0.rawValue) }
         return valid.isEmpty
             ? NeovimTerminalCategory.allCases.filter(\.defaultEnabled)

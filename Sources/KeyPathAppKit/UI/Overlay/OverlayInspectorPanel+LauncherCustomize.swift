@@ -125,7 +125,7 @@ extension OverlayInspectorPanel {
     /// Re-open the launcher welcome dialog from settings.
     private func showLauncherWelcomeFromSettings() {
         Task {
-            let collections = await RuleCollectionStore.shared.loadCollections()
+            let collections = await services.ruleCollectionStore.loadCollections()
             if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
                let config = launcherCollection.configuration.launcherGridConfig
             {
@@ -151,13 +151,13 @@ extension OverlayInspectorPanel {
         updatedConfig.hasSeenWelcome = true
 
         Task {
-            let collections = await RuleCollectionStore.shared.loadCollections()
+            let collections = await services.ruleCollectionStore.loadCollections()
             if var launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }) {
                 launcherCollection.configuration = .launcherGrid(updatedConfig)
                 var allCollections = collections
                 if let index = allCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
                     allCollections[index] = launcherCollection
-                    try? await RuleCollectionStore.shared.saveCollections(allCollections)
+                    try? await services.ruleCollectionStore.saveCollections(allCollections)
                 }
             }
         }
@@ -176,7 +176,7 @@ extension OverlayInspectorPanel {
     /// Load launcher config from store
     private func loadLauncherConfig() {
         Task {
-            let collections = await RuleCollectionStore.shared.loadCollections()
+            let collections = await services.ruleCollectionStore.loadCollections()
             if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
                let config = launcherCollection.configuration.launcherGridConfig
             {
@@ -189,7 +189,7 @@ extension OverlayInspectorPanel {
     }
 
     private func refreshLauncherExistingDomains() async {
-        let collections = await RuleCollectionStore.shared.loadCollections()
+        let collections = await services.ruleCollectionStore.loadCollections()
         let domains = collections
             .first(where: { $0.id == RuleCollectionIdentifier.launcher })?
             .configuration
@@ -210,7 +210,7 @@ extension OverlayInspectorPanel {
     /// Save launcher config to store
     private func saveLauncherConfig() {
         Task {
-            var collections = await RuleCollectionStore.shared.loadCollections()
+            var collections = await services.ruleCollectionStore.loadCollections()
             if let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
                 var collection = collections[index]
                 if var config = collection.configuration.launcherGridConfig {
@@ -218,7 +218,7 @@ extension OverlayInspectorPanel {
                     config.hyperTriggerMode = launcherHyperTriggerMode
                     collection.configuration = .launcherGrid(config)
                     collections[index] = collection
-                    try? await RuleCollectionStore.shared.saveCollections(collections)
+                    try? await services.ruleCollectionStore.saveCollections(collections)
                     // Notify that rules changed so config regenerates
                     Foundation.NotificationCenter.default.post(
                         name: Foundation.Notification.Name.ruleCollectionsChanged,
@@ -232,7 +232,7 @@ extension OverlayInspectorPanel {
     /// Add suggested sites from browser history to launcher
     private func addSuggestedSitesToLauncher(_ sites: [BrowserHistoryScanner.VisitedSite]) {
         Task {
-            var collections = await RuleCollectionStore.shared.loadCollections()
+            var collections = await services.ruleCollectionStore.loadCollections()
             if let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
                 var collection = collections[index]
                 if var config = collection.configuration.launcherGridConfig {
@@ -265,7 +265,7 @@ extension OverlayInspectorPanel {
 
                     collection.configuration = .launcherGrid(config)
                     collections[index] = collection
-                    try? await RuleCollectionStore.shared.saveCollections(collections)
+                    try? await services.ruleCollectionStore.saveCollections(collections)
                     Foundation.NotificationCenter.default.post(
                         name: Foundation.Notification.Name.ruleCollectionsChanged,
                         object: nil

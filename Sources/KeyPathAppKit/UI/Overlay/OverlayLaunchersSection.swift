@@ -214,6 +214,7 @@ private struct LauncherMappingRow: View {
     /// Callback when hovering this row - passes key for keyboard highlighting
     var onHoverChange: ((String?) -> Void)?
 
+    @Environment(\.services) private var services
     @State private var icon: NSImage?
     @State private var isHovering = false
     @State private var deleteButtonFrame: CGRect = .zero
@@ -347,7 +348,7 @@ private struct LauncherMappingRow: View {
         if mapping.isApp {
             icon = LauncherStore.appIcon(name: mapping.targetName, bundleId: mapping.bundleId)
         } else {
-            icon = await FaviconFetcher.shared.fetchFavicon(for: mapping.targetName)
+            icon = await services.faviconFetcher.fetchFavicon(for: mapping.targetName)
         }
     }
 }

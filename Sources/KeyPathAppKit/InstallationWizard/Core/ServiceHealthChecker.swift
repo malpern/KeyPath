@@ -21,11 +21,26 @@ import os.lock
 // SAFETY: @unchecked Sendable — singleton with no mutable instance state.
 // All methods are stateless queries delegating to SubprocessRunner or file checks.
 final class ServiceHealthChecker: @unchecked Sendable {
-    static let shared = ServiceHealthChecker()
+    @MainActor static let shared = ServiceHealthChecker()
     private nonisolated static let launchctlNotFoundExitCode: Int32 = 113
     private nonisolated static let kanataRestartGraceWindow: TimeInterval = 12.0
 
-    private init() {}
+    // MARK: - Dependencies
+
+    private let kanataDaemonManager: KanataDaemonManager
+    private let subprocessRunner: SubprocessRunner
+    private let splitRuntimeHostService: KanataSplitRuntimeHostService
+
+    @MainActor
+    init(
+        kanataDaemonManager: KanataDaemonManager = .shared,
+        subprocessRunner: SubprocessRunner = .shared,
+        splitRuntimeHostService: KanataSplitRuntimeHostService = .shared
+    ) {
+        self.kanataDaemonManager = kanataDaemonManager
+        self.subprocessRunner = subprocessRunner
+        self.splitRuntimeHostService = splitRuntimeHostService
+    }
 
     struct KanataServiceRuntimeSnapshot: Sendable, Equatable {
         let managementState: KanataDaemonManager.ServiceManagementState
@@ -101,7 +116,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
                 return exists
             }
 
-            let state = await KanataDaemonManager.shared.refreshManagementState()
+            let state = await kanataDaemonManager.refreshManagementState()
             AppLogger.shared.log("🔍 [ServiceHealthChecker] Kanata service state: \(state.description)")
 
             switch state {
@@ -112,7 +127,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
                 )
             // Fall through to launchctl check below
             case .smappserviceActive:
-                let stale = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
+                let stale = await kanataDaemonManager.isRegisteredButNotLoaded()
                 let loaded = !stale
                 AppLogger.shared.log(
                     "🔍 [ServiceHealthChecker] Kanata service loaded via SMAppService active state: loaded=\(loaded), stale=\(stale)"
@@ -158,7 +173,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
         }
 
         do {
-            let result = try await SubprocessRunner.shared.launchctl("print", ["system/\(serviceID)"])
+            let result = try await subprocessRunner.launchctl("print", ["system/\(serviceID)"])
             let isLoaded = result.exitCode == 0
             AppLogger.shared.log(
                 "🔍 [ServiceHealthChecker] (system) Service \(serviceID) loaded: \(isLoaded)"
@@ -190,7 +205,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
         // Special handling for Kanata: SMAppService-managed installs can transiently fail `launchctl print`
         // (or be in a warm-up window) even when the daemon is starting. Prefer PID/TCP probes.
         if serviceID == Self.kanataServiceID, !TestEnvironment.shouldSkipAdminOperations {
-            let state = await KanataDaemonManager.shared.refreshManagementState()
+            let state = await kanataDaemonManager.refreshManagementState()
             if state.isSMAppServiceManaged {
                 let runtimeSnapshot = await checkKanataServiceRuntimeSnapshot()
                 let decision = Self.decideKanataHealth(for: runtimeSnapshot)
@@ -214,7 +229,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
             "🔍 [ServiceHealthChecker] About to call SubprocessRunner.launchctl(\"print\", [\"system/\(serviceID)\"])..."
         )
         do {
-            let result = try await SubprocessRunner.shared.launchctl("print", ["system/\(serviceID)"])
+            let result = try await subprocessRunner.launchctl("print", ["system/\(serviceID)"])
             let launchctlDuration = Date().timeIntervalSince(startTime)
             AppLogger.shared.log(
                 "🔍 [ServiceHealthChecker] SubprocessRunner.launchctl() returned (took \(String(format: "%.3f", launchctlDuration))s, exitCode=\(result.exitCode))"
@@ -302,7 +317,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
     /// - Returns: `LaunchDaemonStatus` with loaded and healthy status for all services
     nonisolated func getServiceStatus() async -> LaunchDaemonStatus {
         // Fast path: Check Kanata state first to avoid expensive checks if SMAppService is managing it
-        let kanataState = await KanataDaemonManager.shared.refreshManagementState()
+        let kanataState = await kanataDaemonManager.refreshManagementState()
         let kanataLoaded: Bool
         let kanataHealthy: Bool
 
@@ -357,12 +372,12 @@ final class ServiceHealthChecker: @unchecked Sendable {
             return KanataHealthSnapshot(isRunning: false, isResponding: false)
         }
 
-        let managementState = await KanataDaemonManager.shared.refreshManagementState()
+        let managementState = await kanataDaemonManager.refreshManagementState()
 
         // 1) launchctl check for PID using SubprocessRunner
         let runningState = await evaluateKanataLaunchctlRunningState(managementState: managementState)
         // Also check split runtime host (direct child Process, not via launchd)
-        let splitRuntimeRunning = await KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning
+        let splitRuntimeRunning = await splitRuntimeHostService.isPersistentPassthruHostRunning
         let isRunning = runningState.isRunning || splitRuntimeRunning
 
         // 2) TCP probe (Hello/Status) - runs off MainActor via Task.detached for blocking socket ops
@@ -391,9 +406,9 @@ final class ServiceHealthChecker: @unchecked Sendable {
         }
 #endif
 
-        let managementState = await KanataDaemonManager.shared.refreshManagementState()
+        let managementState = await kanataDaemonManager.refreshManagementState()
         let staleEnabledRegistration: Bool = if managementState == .smappserviceActive {
-            await KanataDaemonManager.shared.isRegisteredButNotLoaded()
+            await kanataDaemonManager.isRegisteredButNotLoaded()
         } else {
             false
         }
@@ -424,7 +439,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
         let runningState = await evaluateKanataLaunchctlRunningState(managementState: managementState)
         // Also check split runtime host — it launches kanata-launcher as a direct child Process(),
         // not via launchd, so launchctl won't see it.
-        let splitRuntimeRunning = await KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning
+        let splitRuntimeRunning = await splitRuntimeHostService.isPersistentPassthruHostRunning
         let inputCaptureStatus = await checkKanataInputCaptureStatus()
         let tcpOK = await Task.detached { [self] in
             if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
@@ -458,7 +473,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
         var lastExitCode: Int32?
         for target in KanataDaemonManager.preferredLaunchctlTargets(for: managementState) {
             do {
-                let result = try await SubprocessRunner.shared.launchctl("print", [target])
+                let result = try await subprocessRunner.launchctl("print", [target])
                 lastExitCode = result.exitCode
                 if result.exitCode != 0 {
                     continue

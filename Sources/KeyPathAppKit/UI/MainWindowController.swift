@@ -9,12 +9,13 @@ final class MainWindowController: NSWindowController {
     private var topLeftBeforeResize: NSPoint?
     private let splashContentSize = NSSize(width: 640, height: 440)
 
-    init(viewModel: KanataViewModel) {
+    init(viewModel: KanataViewModel, serviceContainer: ServiceContainer? = nil) {
         // Phase 4: MVVM - Use shared ViewModel (don't create a new one!)
 
         // Create SwiftUI hosting controller with full environment
         let rootView = RootView()
             .environment(viewModel) // Phase 4: Inject ViewModel
+            .environment(\.services, serviceContainer ?? ServiceContainer())
             .environment(\.preferencesService, PreferencesService.shared)
             .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
 

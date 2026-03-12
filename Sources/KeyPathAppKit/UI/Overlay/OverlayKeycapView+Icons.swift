@@ -8,7 +8,7 @@ extension OverlayKeycapView {
     func loadAppIconIfNeeded() {
         // Check layer-based app launch first
         if let appIdentifier = layerKeyInfo?.appLaunchIdentifier {
-            appIcon = IconResolverService.shared.resolveAppIcon(for: appIdentifier)
+            appIcon = services.iconResolver.resolveAppIcon(for: appIdentifier)
             return
         }
 
@@ -28,7 +28,7 @@ extension OverlayKeycapView {
         // Check layer-based URL first
         if let url = layerKeyInfo?.urlIdentifier {
             Task { @MainActor in
-                faviconImage = await IconResolverService.shared.resolveFavicon(for: url)
+                faviconImage = await services.iconResolver.resolveFavicon(for: url)
             }
             return
         }
@@ -36,7 +36,7 @@ extension OverlayKeycapView {
         // Check launcher mapping for URL target
         if let mapping = launcherMapping, case let .url(urlString) = mapping.target {
             Task { @MainActor in
-                faviconImage = await IconResolverService.shared.resolveFavicon(for: urlString)
+                faviconImage = await services.iconResolver.resolveFavicon(for: urlString)
             }
             return
         }
