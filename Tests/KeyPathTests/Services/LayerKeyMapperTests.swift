@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 @preconcurrency import XCTest
 
 final class LayerKeyMapperTests: XCTestCase {

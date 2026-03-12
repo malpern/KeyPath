@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 import Testing
 
 // MARK: - KeyPathActionURI Parsing Tests
