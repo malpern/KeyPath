@@ -29,6 +29,12 @@ json_escape() {
         | perl -0777 -pe 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g'
 }
 
+count_matches() {
+    local pattern="$1"
+    local file="$2"
+    grep -cE "$pattern" "$file" 2>/dev/null || true
+}
+
 # Lane definitions: id, name, test class patterns (pipe-separated)
 declare -a LANE_IDS=(preflight mutation postflight)
 declare -a LANE_NAMES=(
@@ -65,8 +71,8 @@ for i in "${!LANE_IDS[@]}"; do
   # Debug: show sample matches for this lane
   echo "  [$lane_id] grep sample:"
   grep -E "($pattern).*(passed|failed)" "$LOG_FILE" 2>/dev/null | head -2 || echo "    (no raw matches)"
-  pass_count=$(grep -cE "(Test Case '.*[. ]($pattern) .*' passed|Test \"($pattern)[/\"].*passed)" "$LOG_FILE" 2>/dev/null || echo 0)
-  fail_count=$(grep -cE "(Test Case '.*[. ]($pattern) .*' failed|Test \"($pattern)[/\"].*failed)" "$LOG_FILE" 2>/dev/null || echo 0)
+  pass_count=$(count_matches "(Test Case '.*[. ]($pattern) .*' passed|Test \"($pattern)[/\"].*passed)" "$LOG_FILE")
+  fail_count=$(count_matches "(Test Case '.*[. ]($pattern) .*' failed|Test \"($pattern)[/\"].*failed)" "$LOG_FILE")
   echo "  [$lane_id] pass=$pass_count fail=$fail_count"
 
   if [ "$fail_count" -gt 0 ]; then
@@ -98,7 +104,7 @@ done
 # (total_parsed is accumulated in the loop above)
 # Check if any installer test classes appear in the log at all
 all_patterns=$(printf "%s|" "${LANE_PATTERNS[@]}" | sed 's/|$//')
-installer_mentions=$(grep -cE "$all_patterns" "$LOG_FILE" 2>/dev/null || echo 0)
+installer_mentions=$(count_matches "$all_patterns" "$LOG_FILE")
 if [ "$installer_mentions" -gt 0 ] && [ "$total_parsed" -eq 0 ]; then
   echo "ERROR: Log mentions installer test classes ($installer_mentions lines) but parser matched 0 pass/fail results."
   echo "The xctest output format may have changed — review grep patterns in this script."
