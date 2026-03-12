@@ -59,11 +59,22 @@ final class ConfigHotReloadService {
     /// Delay before auto-resetting status
     var statusResetDelay: TimeInterval = 2.0
 
+    // MARK: - Dependencies
+
+    private let kanataDaemonManager: KanataDaemonManager
+    private let serviceHealthChecker: ServiceHealthChecker
+
     // MARK: - Singleton
 
     static let shared = ConfigHotReloadService()
 
-    private init() {}
+    init(
+        kanataDaemonManager: KanataDaemonManager = .shared,
+        serviceHealthChecker: ServiceHealthChecker = .shared
+    ) {
+        self.kanataDaemonManager = kanataDaemonManager
+        self.serviceHealthChecker = serviceHealthChecker
+    }
 
     // MARK: - Configuration
 
@@ -229,13 +240,13 @@ final class ConfigHotReloadService {
         if let provider = isKanataProcessRunningProvider {
             return await provider()
         }
-        return await ServiceHealthChecker.shared.checkKanataServiceHealth().isRunning
+        return await serviceHealthChecker.checkKanataServiceHealth().isRunning
     }
 
     private func currentServiceManagementState() async -> KanataDaemonManager.ServiceManagementState {
         if let provider = serviceManagementStateProvider {
             return await provider()
         }
-        return await KanataDaemonManager.shared.refreshManagementState()
+        return await kanataDaemonManager.refreshManagementState()
     }
 }

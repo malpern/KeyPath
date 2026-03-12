@@ -17,6 +17,7 @@ struct OverlayMapperSection: View {
     /// Layer key map for looking up actual mappings (passed from overlay view)
     var layerKeyMap: [UInt16: LayerKeyInfo] = [:]
 
+    @Environment(\.services) var services
     @State var viewModel = MapperViewModel()
     @State var isSystemActionPickerOpen = false
     @State var isAppConditionPickerOpen = false

@@ -11,6 +11,7 @@ struct LauncherMappingRowView: View {
     var onEdit: (() -> Void)?
     var onDelete: (() -> Void)?
 
+    @Environment(\.services) private var services
     @State private var icon: NSImage?
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
@@ -100,7 +101,7 @@ struct LauncherMappingRowView: View {
         case .app, .folder, .script:
             icon = AppIconResolver.icon(for: mapping.target)
         case let .url(urlString):
-            icon = await FaviconFetcher.shared.fetchFavicon(for: urlString)
+            icon = await services.faviconFetcher.fetchFavicon(for: urlString)
         }
     }
 

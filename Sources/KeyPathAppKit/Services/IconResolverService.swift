@@ -19,6 +19,10 @@ import KeyPathCore
 final class IconResolverService {
     static let shared = IconResolverService()
 
+    // MARK: - Dependencies
+
+    private let faviconFetcher: FaviconFetcher
+
     // MARK: - Cache
 
     /// In-memory cache for app icons (keyed by identifier)
@@ -95,7 +99,7 @@ final class IconResolverService {
     /// - Parameter url: URL string (e.g., "github.com", "https://example.com")
     /// - Returns: Favicon as NSImage, or nil if fetch failed
     func resolveFavicon(for url: String) async -> NSImage? {
-        await FaviconFetcher.shared.fetchFavicon(for: url)
+        await faviconFetcher.fetchFavicon(for: url)
     }
 
     // MARK: - Custom Icon Resolution (KeyIconRegistry)
@@ -228,12 +232,13 @@ final class IconResolverService {
     /// Clear all caches (app icons + favicons)
     func clearAllCaches() {
         clearAppIconCache()
-        FaviconFetcher.shared.clearCache()
+        faviconFetcher.clearCache()
     }
 
     // MARK: - Init
 
-    private init() {
+    init(faviconFetcher: FaviconFetcher = .shared) {
+        self.faviconFetcher = faviconFetcher
         AppLogger.shared.debug("🖼️ [IconResolver] Service initialized")
     }
 }

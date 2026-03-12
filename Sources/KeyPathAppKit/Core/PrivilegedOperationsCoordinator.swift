@@ -111,11 +111,27 @@ final class PrivilegedOperationsCoordinator {
         }
 #endif
 
+    // MARK: - Dependencies
+
+    private let helperManager: HelperManager
+    private let subprocessRunner: SubprocessRunner
+    private let kanataDaemonManager: KanataDaemonManager
+    private let serviceHealthChecker: ServiceHealthChecker
+
     // MARK: - Singleton
 
     static let shared = PrivilegedOperationsCoordinator()
 
-    private init() {
+    init(
+        helperManager: HelperManager = .shared,
+        subprocessRunner: SubprocessRunner = .shared,
+        kanataDaemonManager: KanataDaemonManager = .shared,
+        serviceHealthChecker: ServiceHealthChecker = .shared
+    ) {
+        self.helperManager = helperManager
+        self.subprocessRunner = subprocessRunner
+        self.kanataDaemonManager = kanataDaemonManager
+        self.serviceHealthChecker = serviceHealthChecker
         AppLogger.shared.log(
             "🔐 [PrivCoordinator] Initialized with operation mode: \(Self.operationMode)"
         )
@@ -164,7 +180,7 @@ final class PrivilegedOperationsCoordinator {
         switch Self.operationMode {
         case .privilegedHelper:
             do {
-                try await HelperManager.shared.installRequiredRuntimeServices()
+                try await helperManager.installRequiredRuntimeServices()
             } catch {
                 AppLogger.shared.log("⚠️ [PrivCoordinator] Helper failed (\(error)), falling back to sudo")
                 try await sudoInstallRequiredRuntimeServices()
@@ -180,7 +196,7 @@ final class PrivilegedOperationsCoordinator {
                 return override()
             }
         #endif
-        return await KanataDaemonManager.shared.refreshManagementState()
+        return await kanataDaemonManager.refreshManagementState()
     }
 
     private func runServiceInstall() async throws {
@@ -213,7 +229,7 @@ final class PrivilegedOperationsCoordinator {
     }
 
     private func isRegisteredButNotLoaded() async -> Bool {
-        await KanataDaemonManager.shared.isRegisteredButNotLoaded()
+        await kanataDaemonManager.isRegisteredButNotLoaded()
     }
 
     private static func decideInstallGuard(
@@ -289,7 +305,7 @@ final class PrivilegedOperationsCoordinator {
         switch Self.operationMode {
         case .privilegedHelper:
             do {
-                try await HelperManager.shared.recoverRequiredRuntimeServices()
+                try await helperManager.recoverRequiredRuntimeServices()
                 AppLogger.shared.log("✅ [PrivCoordinator] Helper successfully restarted services")
             } catch {
                 AppLogger.shared.log("⚠️ [PrivCoordinator] Helper failed (\(error)), falling back to sudo")
@@ -322,7 +338,7 @@ final class PrivilegedOperationsCoordinator {
         switch Self.operationMode {
         case .privilegedHelper:
             do {
-                try await HelperManager.shared.killAllKanataProcesses()
+                try await helperManager.killAllKanataProcesses()
                 AppLogger.shared.log("✅ [PrivCoordinator] Helper cleared existing Kanata processes")
             } catch {
                 AppLogger.shared.log(
@@ -630,7 +646,7 @@ final class PrivilegedOperationsCoordinator {
 
     private func helperInstallNewsyslogConfig() async throws {
         do {
-            try await HelperManager.shared.installNewsyslogConfig()
+            try await helperManager.installNewsyslogConfig()
         } catch {
             AppLogger.shared.log(
                 "🚨 [PrivCoordinator] FALLBACK: helper installNewsyslogConfig failed: \(error.localizedDescription). Using AppleScript/sudo path."
@@ -641,7 +657,7 @@ final class PrivilegedOperationsCoordinator {
 
     private func helperRepairVHIDServices() async throws {
         do {
-            try await HelperManager.shared.repairVHIDDaemonServices()
+            try await helperManager.repairVHIDDaemonServices()
         } catch {
             AppLogger.shared.log(
                 "🚨 [PrivCoordinator] FALLBACK: helper repairVHIDDaemonServices failed: \(error.localizedDescription). Using AppleScript/sudo path."
@@ -717,7 +733,7 @@ final class PrivilegedOperationsCoordinator {
             let now = Date()
             let remaining = deadline.timeIntervalSince(now)
             let timeoutMs = max(50, min(300, Int(remaining * 1000)))
-            let runtimeSnapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot(
+            let runtimeSnapshot = await serviceHealthChecker.checkKanataServiceRuntimeSnapshot(
                 managementState: managementState,
                 staleEnabledRegistration: false,
                 timeoutMs: timeoutMs
@@ -789,7 +805,7 @@ final class PrivilegedOperationsCoordinator {
     private func detectKanataTCPPortConflict() async -> Bool {
         let result: ProcessResult
         do {
-            result = try await SubprocessRunner.shared.run(
+            result = try await subprocessRunner.run(
                 "/usr/sbin/lsof",
                 args: ["-nP", "-iTCP:37001", "-sTCP:LISTEN"],
                 timeout: 2.0
@@ -822,15 +838,15 @@ final class PrivilegedOperationsCoordinator {
     }
 
     private func helperActivateVHID() async throws {
-        try await HelperManager.shared.activateVirtualHIDManager()
+        try await helperManager.activateVirtualHIDManager()
     }
 
     private func helperUninstallDrivers() async throws {
-        try await HelperManager.shared.uninstallVirtualHIDDrivers()
+        try await helperManager.uninstallVirtualHIDDrivers()
     }
 
     private func helperInstallDriver(version: String, downloadURL: String) async throws {
-        try await HelperManager.shared.installVirtualHIDDriver(
+        try await helperManager.installVirtualHIDDriver(
             version: version, downloadURL: downloadURL
         )
     }
@@ -844,11 +860,11 @@ final class PrivilegedOperationsCoordinator {
             )
         }
         AppLogger.shared.log("📦 [PrivCoordinator] Installing bundled VHID driver: \(bundledPkgPath)")
-        try await HelperManager.shared.installBundledVHIDDriver(pkgPath: bundledPkgPath)
+        try await helperManager.installBundledVHIDDriver(pkgPath: bundledPkgPath)
     }
 
     private func helperTerminateProcess(pid: Int32) async throws {
-        try await HelperManager.shared.terminateProcess(pid)
+        try await helperManager.terminateProcess(pid)
     }
 
     /// Terminate a process (helper-first; fallback to sudo with explicit logs)
@@ -866,7 +882,7 @@ final class PrivilegedOperationsCoordinator {
     }
 
     private func helperKillAllKanata() async throws {
-        try await HelperManager.shared.killAllKanataProcesses()
+        try await helperManager.killAllKanataProcesses()
     }
 
     // Removed: legacy helper restart. Verified path must be used.
@@ -884,10 +900,10 @@ final class PrivilegedOperationsCoordinator {
         AppLogger.shared.log("🔐 [PrivCoordinator] Helper path: verified restart of Karabiner daemon")
 
         // Snapshot PRE state (using extracted ServiceHealthChecker)
-        let preLoaded = await ServiceHealthChecker.shared.isServiceLoaded(
+        let preLoaded = await serviceHealthChecker.isServiceLoaded(
             serviceID: "com.keypath.karabiner-vhiddaemon"
         )
-        let preHealth = await ServiceHealthChecker.shared.isServiceHealthy(
+        let preHealth = await serviceHealthChecker.isServiceHealthy(
             serviceID: "com.keypath.karabiner-vhiddaemon"
         )
         AppLogger.shared.log(
@@ -896,7 +912,7 @@ final class PrivilegedOperationsCoordinator {
 
         // 1) Kill any running VirtualHIDDevice daemons via helper (root)
         do {
-            try await HelperManager.shared.restartKarabinerDaemon()
+            try await helperManager.restartKarabinerDaemon()
         } catch {
             AppLogger.shared.log(
                 "⚠️ [PrivCoordinator] Helper kill phase returned error (continuing): \(error.localizedDescription)"
@@ -906,7 +922,7 @@ final class PrivilegedOperationsCoordinator {
         // 2) Ask helper to restart unhealthy services or install if missing
         AppLogger.shared.log("🔎 [PrivCoordinator] Calling recoverRequiredRuntimeServices helper...")
         do {
-            try await HelperManager.shared.recoverRequiredRuntimeServices()
+            try await helperManager.recoverRequiredRuntimeServices()
             AppLogger.shared.log("🔎 [PrivCoordinator] recoverRequiredRuntimeServices completed successfully")
         } catch {
             AppLogger.shared.log(
@@ -937,10 +953,10 @@ final class PrivilegedOperationsCoordinator {
 
         // 4) Single post-verify check (removed repair cascade - user can retry if needed)
         try await Task.sleep(for: Self.vhidSettleDelay)
-        let postLoaded = await ServiceHealthChecker.shared.isServiceLoaded(
+        let postLoaded = await serviceHealthChecker.isServiceLoaded(
             serviceID: "com.keypath.karabiner-vhiddaemon"
         )
-        let postHealth = await ServiceHealthChecker.shared.isServiceHealthy(
+        let postHealth = await serviceHealthChecker.isServiceHealthy(
             serviceID: "com.keypath.karabiner-vhiddaemon"
         )
         AppLogger.shared.log(
@@ -957,7 +973,7 @@ final class PrivilegedOperationsCoordinator {
 
     private func helperInstallBundledKanata() async throws {
         do {
-            try await HelperManager.shared.installBundledKanataBinaryOnly()
+            try await helperManager.installBundledKanataBinaryOnly()
         } catch {
             let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
             AppLogger.shared.log(
@@ -971,7 +987,7 @@ final class PrivilegedOperationsCoordinator {
 
     func disableKarabinerGrabber() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Disabling Karabiner grabber via helper")
-        try await HelperManager.shared.disableKarabinerGrabber()
+        try await helperManager.disableKarabinerGrabber()
     }
 
     // MARK: - Direct Sudo Path (Current Implementation)
@@ -1111,7 +1127,7 @@ final class PrivilegedOperationsCoordinator {
         AppLogger.shared.log("🔐 [PrivCoordinator] VHID LaunchDaemon installed: \(hasService)")
 
         // Log current PIDs before any action (for diagnostics)
-        let beforePIDs = await Self.getDaemonPIDs()
+        let beforePIDs = await getDaemonPIDs()
         AppLogger.shared.log(
             "🔎 [PrivCoordinator] VHID PIDs before restart: \(beforePIDs.joined(separator: ", "))"
         )
@@ -1164,7 +1180,7 @@ final class PrivilegedOperationsCoordinator {
         }
 
         // Log PIDs after kill, before start (for diagnostics)
-        let afterKillPIDs = await Self.getDaemonPIDs()
+        let afterKillPIDs = await getDaemonPIDs()
         AppLogger.shared.log(
             "🔎 [PrivCoordinator] VHID PIDs after kill: \(afterKillPIDs.joined(separator: ", "))"
         )
@@ -1183,7 +1199,7 @@ final class PrivilegedOperationsCoordinator {
         }
 
         // Final diagnostics (removed repair cascade - user can retry if needed)
-        let pids = await Self.getDaemonPIDs()
+        let pids = await getDaemonPIDs()
         AppLogger.shared.log(
             "🔎 [PrivCoordinator] VHID PIDs after start: \(pids.joined(separator: ", "))"
         )
@@ -1257,8 +1273,8 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Helper: current VHID daemon PIDs (best-effort, no throw)
-    private static func getDaemonPIDs() async -> [String] {
-        let pids = await SubprocessRunner.shared.pgrep("Karabiner-VirtualHIDDevice-Daemon")
+    private func getDaemonPIDs() async -> [String] {
+        let pids = await subprocessRunner.pgrep("Karabiner-VirtualHIDDevice-Daemon")
         return pids.map { String($0) }
     }
 

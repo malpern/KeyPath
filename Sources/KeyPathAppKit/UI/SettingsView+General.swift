@@ -6,6 +6,7 @@ import SwiftUI
 
 struct GeneralSettingsTabView: View {
     @Environment(KanataViewModel.self) var kanataManager
+    @Environment(\.services) private var services
     @State private var settingsToastManager = WizardToastManager()
     @State private var showingKarabinerImport = false
 
@@ -35,9 +36,9 @@ struct GeneralSettingsTabView: View {
                             icon: "arrow.right",
                             title: "Sequences",
                             subtitle: "Keys one after another",
-                            isSelected: PreferencesService.shared.isSequenceMode
+                            isSelected: services.preferences.isSequenceMode
                         ) {
-                            PreferencesService.shared.isSequenceMode = true
+                            services.preferences.isSequenceMode = true
                         }
                         .accessibilityLabel("Sequences capture mode")
 
@@ -45,9 +46,9 @@ struct GeneralSettingsTabView: View {
                             icon: "command",
                             title: "Combos",
                             subtitle: "Keys pressed together",
-                            isSelected: !PreferencesService.shared.isSequenceMode
+                            isSelected: !services.preferences.isSequenceMode
                         ) {
-                            PreferencesService.shared.isSequenceMode = false
+                            services.preferences.isSequenceMode = false
                         }
                         .accessibilityLabel("Combos capture mode")
                     }
@@ -65,9 +66,9 @@ struct GeneralSettingsTabView: View {
                             icon: "keyboard",
                             title: "Physical Keys",
                             subtitle: "Pause mappings",
-                            isSelected: !PreferencesService.shared.applyMappingsDuringRecording
+                            isSelected: !services.preferences.applyMappingsDuringRecording
                         ) {
-                            PreferencesService.shared.applyMappingsDuringRecording = false
+                            services.preferences.applyMappingsDuringRecording = false
                         }
                         .accessibilityLabel("Physical Keys recording behavior")
 
@@ -75,9 +76,9 @@ struct GeneralSettingsTabView: View {
                             icon: "wand.and.stars",
                             title: "With Mappings",
                             subtitle: "Include KeyPath",
-                            isSelected: PreferencesService.shared.applyMappingsDuringRecording
+                            isSelected: services.preferences.applyMappingsDuringRecording
                         ) {
-                            PreferencesService.shared.applyMappingsDuringRecording = true
+                            services.preferences.applyMappingsDuringRecording = true
                         }
                         .accessibilityLabel("With Mappings recording behavior")
                     }
@@ -206,6 +207,7 @@ struct GeneralSettingsTabView: View {
 
 struct VerboseLoggingToggle: View {
     @Environment(KanataViewModel.self) var kanataManager
+    @Environment(\.services) private var services
     @State private var verboseLogging = PreferencesService.shared.verboseKanataLogging
     @State private var showingRestartAlert = false
 
@@ -236,7 +238,7 @@ struct VerboseLoggingToggle: View {
                 .accessibilityLabel("Verbose Kanata Logging")
                 .onChange(of: verboseLogging) { _, newValue in
                     Task { @MainActor in
-                        PreferencesService.shared.verboseKanataLogging = newValue
+                        services.preferences.verboseKanataLogging = newValue
                         showingRestartAlert = true
                     }
                 }

@@ -7,7 +7,7 @@ extension LiveKeyboardOverlayView {
     /// Load custom rules state (both global and app-specific)
     func loadCustomRulesState() {
         Task {
-            let keymaps = await AppKeymapStore.shared.loadKeymaps()
+            let keymaps = await services.appKeymapStore.loadKeymaps()
             await MainActor.run {
                 appKeymaps = keymaps
                 // Show custom rules tab if either global rules or app-specific rules exist
@@ -36,10 +36,10 @@ extension LiveKeyboardOverlayView {
             do {
                 if updatedKeymap.overrides.isEmpty {
                     // No more overrides - remove entire keymap
-                    try await AppKeymapStore.shared.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
+                    try await services.appKeymapStore.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
                 } else {
                     // Update keymap with remaining overrides
-                    try await AppKeymapStore.shared.upsertKeymap(updatedKeymap)
+                    try await services.appKeymapStore.upsertKeymap(updatedKeymap)
                 }
 
                 // Regenerate config and reload
@@ -70,7 +70,7 @@ extension LiveKeyboardOverlayView {
             // Remove all app-specific keymaps
             let keymapsToRemove = appKeymaps
             for keymap in keymapsToRemove {
-                try? await AppKeymapStore.shared.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
+                try? await services.appKeymapStore.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
             }
 
             // Regenerate app config and restart Kanata to apply all changes

@@ -4,6 +4,8 @@ import SwiftUI
 
 /// Settings section for experimental features and feature flags
 struct ExperimentalSettingsSection: View {
+    @Environment(\.services) private var services
+
     // Feature flag states
     @State private var captureListenOnlyEnabled = FeatureFlags.captureListenOnlyEnabled
     @State private var useSMAppServiceForDaemon = FeatureFlags.useSMAppServiceForDaemon
@@ -75,7 +77,7 @@ struct ExperimentalSettingsSection: View {
                                 get: { accessibilityTestMode },
                                 set: { newValue in
                                     accessibilityTestMode = newValue
-                                    PreferencesService.shared.accessibilityTestMode = newValue
+                                    services.preferences.accessibilityTestMode = newValue
                                 }
                             ))
                             .toggleStyle(.switch)

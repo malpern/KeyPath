@@ -46,6 +46,11 @@ public final class WindowManager {
 
     public static let shared = WindowManager()
 
+    // MARK: - Dependencies
+
+    private let spaceManager: SpaceManager
+    private let notificationService: UserNotificationService
+
     // MARK: - Undo State
 
     /// Previous window frame for single-level undo
@@ -64,7 +69,13 @@ public final class WindowManager {
 
     // MARK: - Initialization
 
-    private init() {}
+    init(
+        spaceManager: SpaceManager = .shared,
+        notificationService: UserNotificationService = .shared
+    ) {
+        self.spaceManager = spaceManager
+        self.notificationService = notificationService
+    }
 
     // MARK: - API Status
 
@@ -77,7 +88,7 @@ public final class WindowManager {
     /// Whether Space movement features are available.
     /// Call this at startup to check and warn user if needed.
     public var isSpaceMovementAvailable: Bool {
-        SpaceManager.shared.isAvailable
+        spaceManager.isAvailable
     }
 
     /// Initialize and check Space API availability with retry logic.
@@ -94,7 +105,7 @@ public final class WindowManager {
         defer { isInitializing = false }
 
         // Try immediate initialization first
-        if SpaceManager.shared.isAvailable {
+        if spaceManager.isAvailable {
             AppLogger.shared.log("✅ [WindowManager] Space APIs available immediately")
             return true
         }
@@ -108,7 +119,7 @@ public final class WindowManager {
 
             try? await Task.sleep(for: .seconds(delaySeconds))
 
-            if SpaceManager.shared.retryInitialization() {
+            if spaceManager.retryInitialization() {
                 AppLogger.shared.log("✅ [WindowManager] Space APIs available after \(attempt) retry attempt(s)")
                 return true
             }
@@ -125,7 +136,7 @@ public final class WindowManager {
         guard !hasShownSpaceAPIWarning else { return }
         hasShownSpaceAPIWarning = true
 
-        UserNotificationService.shared.notifyActionError(
+        notificationService.notifyActionError(
             "Space Movement Unavailable: The required macOS APIs are not available. Window-to-Space shortcuts will not work. This may happen after a macOS update."
         )
     }
@@ -221,13 +232,13 @@ public final class WindowManager {
     private func notifyAccessibilityPermissionRequired() {
         let message = "Window Management requires Accessibility permission. Enable in System Settings > Privacy & Security > Accessibility, then restart KeyPath."
         AppLogger.shared.log("⚠️ [WindowManager] \(message)")
-        UserNotificationService.shared.notifyActionError(message)
+        notificationService.notifyActionError(message)
     }
 
     /// Show user feedback when a window operation fails
     private func notifyOperationFailed(_ message: String) {
         AppLogger.shared.log("⚠️ [WindowManager] Operation failed: \(message)")
-        UserNotificationService.shared.notifyActionError(message)
+        notificationService.notifyActionError(message)
     }
 
     // MARK: - Frame Calculations
@@ -296,29 +307,29 @@ public final class WindowManager {
 
     private func moveToSpace(direction: SpaceDirection) -> Bool {
         // Check API availability first and show user-facing error if unavailable
-        guard SpaceManager.shared.isAvailable else {
+        guard spaceManager.isAvailable else {
             AppLogger.shared.log("⚠️ [WindowManager] Space movement unavailable - CGS APIs not found")
 
             // Only show notification once per session to avoid spam
             if !hasShownSpaceAPIWarning {
                 hasShownSpaceAPIWarning = true
-                UserNotificationService.shared.notifyActionError(
+                notificationService.notifyActionError(
                     "Space Movement Unavailable: The macOS APIs needed for this feature are not available. This may happen after a macOS update."
                 )
             }
             return false
         }
 
-        guard let windowID = SpaceManager.shared.getFrontmostWindowID() else {
+        guard let windowID = spaceManager.getFrontmostWindowID() else {
             AppLogger.shared.log("⚠️ [WindowManager] No frontmost window for space switch")
             return false
         }
 
         let targetSpaceID: CGSSpaceID? = switch direction {
         case .next:
-            SpaceManager.shared.nextSpaceID()
+            spaceManager.nextSpaceID()
         case .previous:
-            SpaceManager.shared.previousSpaceID()
+            spaceManager.previousSpaceID()
         }
 
         guard let spaceID = targetSpaceID else {
@@ -326,7 +337,7 @@ public final class WindowManager {
             return false
         }
 
-        let success = SpaceManager.shared.moveWindow(windowID, to: spaceID)
+        let success = spaceManager.moveWindow(windowID, to: spaceID)
 
         if success {
             // Also switch to that space so the user follows the window

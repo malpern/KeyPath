@@ -4,6 +4,7 @@ import SwiftUI
 
 struct CustomRulesView: View {
     @Environment(KanataViewModel.self) var kanataManager
+    @Environment(\.services) private var services
     @State private var pendingDeleteRule: CustomRule?
     @State private var appKeymaps: [AppKeymap] = []
     @State private var pendingDeleteAppRule: (keymap: AppKeymap, override: AppKeyOverride)?
@@ -193,7 +194,7 @@ struct CustomRulesView: View {
 
     private func loadAppKeymaps() {
         Task {
-            let keymaps = await AppKeymapStore.shared.loadKeymaps()
+            let keymaps = await services.appKeymapStore.loadKeymaps()
             await MainActor.run {
                 appKeymaps = keymaps.sorted { $0.mapping.displayName < $1.mapping.displayName }
             }
@@ -207,9 +208,9 @@ struct CustomRulesView: View {
 
             do {
                 if updatedKeymap.overrides.isEmpty {
-                    try await AppKeymapStore.shared.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
+                    try await services.appKeymapStore.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
                 } else {
-                    try await AppKeymapStore.shared.upsertKeymap(updatedKeymap)
+                    try await services.appKeymapStore.upsertKeymap(updatedKeymap)
                 }
 
                 try await AppConfigGenerator.regenerateFromStore()

@@ -7,6 +7,7 @@ import SwiftUI
 
 struct KindaVimCollectionView: View {
     let mappings: [KeyMapping]
+    @Environment(\.services) private var services
     @State private var selectedHUDMode: KindaVimLeaderHUDMode = PreferencesService.shared.kindaVimLeaderHUDMode
 
     var body: some View {
@@ -17,10 +18,10 @@ struct KindaVimCollectionView: View {
             strategyTip
         }
         .onAppear {
-            selectedHUDMode = PreferencesService.shared.kindaVimLeaderHUDMode
+            selectedHUDMode = services.preferences.kindaVimLeaderHUDMode
         }
         .onChange(of: selectedHUDMode) { _, newValue in
-            PreferencesService.shared.kindaVimLeaderHUDMode = newValue
+            services.preferences.kindaVimLeaderHUDMode = newValue
         }
     }
 

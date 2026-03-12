@@ -197,6 +197,7 @@ private struct DrawerMappingRow: View {
     var onEdit: () -> Void
     var onDelete: () -> Void
 
+    @Environment(\.services) private var services
     @State private var icon: NSImage?
     @State private var isHovering = false
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
@@ -297,7 +298,7 @@ private struct DrawerMappingRow: View {
         case .app:
             icon = AppIconResolver.icon(for: mapping.target)
         case let .url(urlString):
-            icon = await FaviconFetcher.shared.fetchFavicon(for: urlString)
+            icon = await services.faviconFetcher.fetchFavicon(for: urlString)
         case .folder, .script:
             icon = AppIconResolver.icon(for: mapping.target)
         }

@@ -5,6 +5,7 @@ import SwiftUI
 struct KarabinerImportSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(KanataViewModel.self) var kanataManager
+    @Environment(\.services) private var services
 
     @State private var importSource: ImportSource = .autoDetect
     @State private var selectedFileURL: URL?
@@ -547,7 +548,7 @@ struct KarabinerImportSheet: View {
         // Import selected app keymaps
         for keymap in result.appKeymaps where selectedAppKeymapIds.contains(keymap.id) {
             do {
-                try await AppKeymapStore.shared.upsertKeymap(keymap)
+                try await services.appKeymapStore.upsertKeymap(keymap)
             } catch {
                 errors.append("App keymap '\(keymap.mapping.displayName)': \(error.localizedDescription)")
             }

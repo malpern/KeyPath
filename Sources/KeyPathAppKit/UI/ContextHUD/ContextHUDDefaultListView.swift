@@ -72,6 +72,7 @@ private struct ColumnarKeyLayout: View {
 struct HUDKeycapChip: View {
     let entry: HUDKeyEntry
     @Environment(\.pressedKeyCodes) private var pressedKeyCodes
+    @Environment(\.services) private var services
     @State private var faviconImage: NSImage?
     @State private var isHovered = false
 
@@ -82,7 +83,7 @@ struct HUDKeycapChip: View {
     /// Resolved app icon (synchronous lookup)
     private var appIcon: NSImage? {
         guard let appId = entry.appIdentifier else { return nil }
-        return IconResolverService.shared.resolveAppIcon(for: appId)
+        return services.iconResolver.resolveAppIcon(for: appId)
     }
 
     /// Whether this entry is a launcher (app or URL) — decides layout before icons load
@@ -165,7 +166,7 @@ struct HUDKeycapChip: View {
         .onHover { isHovered = $0 }
         .task(id: entry.urlIdentifier) {
             guard let url = entry.urlIdentifier, appIcon == nil else { return }
-            faviconImage = await IconResolverService.shared.resolveFavicon(for: url)
+            faviconImage = await services.iconResolver.resolveFavicon(for: url)
         }
     }
 

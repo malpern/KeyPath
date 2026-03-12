@@ -13,6 +13,7 @@ struct LauncherKeycapView: View {
     let isSelected: Bool
     var onTap: () -> Void
 
+    @Environment(\.services) private var services
     @State private var icon: NSImage?
 
     /// Corner radius for keycap
@@ -186,7 +187,7 @@ struct LauncherKeycapView: View {
         case .app, .folder, .script:
             icon = AppIconResolver.icon(for: mapping.target)
         case let .url(urlString):
-            icon = await FaviconFetcher.shared.fetchFavicon(for: urlString)
+            icon = await services.faviconFetcher.fetchFavicon(for: urlString)
         }
     }
 

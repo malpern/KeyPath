@@ -15,6 +15,7 @@ struct HomeRowTimingSection: View {
     let showsHrmInsights: Bool
     let onConfigChanged: (HomeRowModsConfig) -> Void
 
+    @Environment(\.services) private var services
     @State private var sliderDebounceTask: Task<Void, Never>?
     @State private var showPerFinger: Bool = false
     private var hrmObservability = HrmObservabilityService.shared
@@ -340,7 +341,7 @@ struct HomeRowTimingSection: View {
         .onAppear {
             showPerFinger = hasAnyPerKeyOffsets
             if showsHrmInsights {
-                hrmObservability.startMonitoring(port: PreferencesService.shared.tcpServerPort)
+                hrmObservability.startMonitoring(port: services.preferences.tcpServerPort)
             }
         }
     }

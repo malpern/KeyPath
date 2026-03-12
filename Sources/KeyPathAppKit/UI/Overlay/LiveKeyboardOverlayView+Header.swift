@@ -79,6 +79,7 @@ private extension View {
 }
 
 struct OverlayDragHeader: View {
+    @Environment(\.services) private var services
     let isDark: Bool
     let fadeAmount: CGFloat
     let height: CGFloat
@@ -254,7 +255,7 @@ struct OverlayDragHeader: View {
     /// Refresh available layers from rule collections
     private func refreshAvailableLayers() {
         Task {
-            let collections = await RuleCollectionStore.shared.loadCollections()
+            let collections = await services.ruleCollectionStore.loadCollections()
             var layers = Set<String>(["base", "nav"])
 
             // Add layers from enabled rule collections

@@ -543,6 +543,7 @@ private struct SiteRow: View {
     let isAlreadyAdded: Bool
     let onSelect: () -> Void
 
+    @Environment(\.services) private var services
     @State private var favicon: NSImage?
 
     var body: some View {
@@ -610,7 +611,7 @@ private struct SiteRow: View {
         .disabled(isAlreadyAdded)
         .opacity(isAlreadyAdded ? 0.65 : 1.0)
         .task {
-            favicon = await FaviconFetcher.shared.fetchFavicon(for: site.domain)
+            favicon = await services.faviconFetcher.fetchFavicon(for: site.domain)
         }
     }
 }
