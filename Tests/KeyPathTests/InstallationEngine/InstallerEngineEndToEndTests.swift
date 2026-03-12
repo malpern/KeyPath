@@ -13,7 +13,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         let plan = InstallPlan(
             recipes: [
                 ServiceRecipe(id: "install-daemons", type: .installService),
-                ServiceRecipe(id: "install-bundled-kanata", type: .installComponent)
+                ServiceRecipe(id: InstallerRecipeID.installLogRotation, type: .installComponent)
             ],
             status: .ready,
             intent: .install
@@ -27,8 +27,8 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             "Install service recipe should attempt to install required runtime services"
         )
         XCTAssertTrue(
-            coordinator.calls.contains("installBundledKanata"),
-            "Component recipe should install bundled Kanata"
+            coordinator.calls.contains("installNewsyslogConfig"),
+            "Component recipe should install log rotation"
         )
     }
 
@@ -41,7 +41,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         let plan = InstallPlan(
             recipes: [
                 ServiceRecipe(id: "install-daemons", type: .installService),
-                ServiceRecipe(id: "install-bundled-kanata", type: .installComponent)
+                ServiceRecipe(id: InstallerRecipeID.installLogRotation, type: .installComponent)
             ],
             status: .ready,
             intent: .repair
