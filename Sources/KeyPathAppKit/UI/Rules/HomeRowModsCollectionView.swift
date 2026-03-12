@@ -135,17 +135,15 @@ struct HomeRowModsCollectionView: View {
             helperText: config.holdMode == .modifiers ? "Tap for letter, hold for modifier" : "Tap for letter, hold for layer",
             keyChipSize: size,
             keyPopoverContent: { key in
-                AnyView(
-                    Group {
-                        if !config.enabledKeys.contains(key) {
-                            enableKeyPopoverContent(for: key)
-                        } else if config.holdMode == .layers {
-                            layerPopoverContent(for: key)
-                        } else {
-                            modifierPopoverContent(for: key)
-                        }
+                Group {
+                    if !config.enabledKeys.contains(key) {
+                        enableKeyPopoverContent(for: key)
+                    } else if config.holdMode == .layers {
+                        layerPopoverContent(for: key)
+                    } else {
+                        modifierPopoverContent(for: key)
                     }
-                )
+                }
             },
             onPopoverDismiss: {
                 selectedKey = nil

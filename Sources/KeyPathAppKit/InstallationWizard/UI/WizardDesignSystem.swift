@@ -463,7 +463,6 @@ enum WizardDesign {
             let subtitle: String
             let status: HeroStatus
             let actionLinks: [ActionLink]?
-            let contentCard: (() -> AnyView)?
 
             enum HeroStatus {
                 case success(Color = WizardDesign.Colors.success)
@@ -500,15 +499,13 @@ enum WizardDesign {
                 title: String,
                 subtitle: String,
                 status: HeroStatus,
-                actionLinks: [ActionLink]? = nil,
-                contentCard: (() -> AnyView)? = nil
+                actionLinks: [ActionLink]? = nil
             ) {
                 self.icon = icon
                 self.title = title
                 self.subtitle = subtitle
                 self.status = status
                 self.actionLinks = actionLinks
-                self.contentCard = contentCard
             }
 
             var body: some View {
@@ -559,11 +556,6 @@ enum WizardDesign {
                             .padding(.top, WizardDesign.Spacing.elementGap)
                         }
 
-                        // Optional content card
-                        if let contentCard {
-                            contentCard()
-                                .padding(.top, WizardDesign.Spacing.sectionGap)
-                        }
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
 

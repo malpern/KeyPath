@@ -4,14 +4,14 @@ import SwiftUI
 #endif
 
 /// Visual keyboard representation for home row mods
-struct HomeRowKeyboardView: View {
+struct HomeRowKeyboardView<PopoverContent: View>: View {
     let enabledKeys: Set<String>
     let modifierAssignments: [String: String]
     let holdMode: HomeRowHoldMode
     let selectedKey: String?
     let keyDisplayLabels: [String: String]
     let helperText: String
-    let keyPopoverContent: ((String) -> AnyView)?
+    let keyPopoverContent: ((String) -> PopoverContent)?
     let onPopoverDismiss: (() -> Void)?
     let onKeySelected: (String) -> Void
     let keyChipSize: CGFloat
@@ -56,7 +56,7 @@ struct HomeRowKeyboardView: View {
         keyDisplayLabels: [String: String] = [:],
         helperText: String = "Tap for letter, hold for modifier",
         keyChipSize: CGFloat = 78,
-        keyPopoverContent: ((String) -> AnyView)? = nil,
+        keyPopoverContent: ((String) -> PopoverContent)? = nil,
         onPopoverDismiss: (() -> Void)? = nil,
         onKeySelected: @escaping (String) -> Void
     ) {
@@ -190,6 +190,31 @@ struct HomeRowKeyboardView: View {
                 }
             }
         )
+    }
+}
+
+extension HomeRowKeyboardView where PopoverContent == EmptyView {
+    init(
+        enabledKeys: Set<String>,
+        modifierAssignments: [String: String],
+        holdMode: HomeRowHoldMode = .modifiers,
+        selectedKey: String?,
+        keyDisplayLabels: [String: String] = [:],
+        helperText: String = "Tap for letter, hold for modifier",
+        keyChipSize: CGFloat = 78,
+        onPopoverDismiss: (() -> Void)? = nil,
+        onKeySelected: @escaping (String) -> Void
+    ) {
+        self.enabledKeys = enabledKeys
+        self.modifierAssignments = modifierAssignments
+        self.holdMode = holdMode
+        self.selectedKey = selectedKey
+        self.keyDisplayLabels = keyDisplayLabels
+        self.helperText = helperText
+        self.keyChipSize = keyChipSize
+        self.keyPopoverContent = nil
+        self.onPopoverDismiss = onPopoverDismiss
+        self.onKeySelected = onKeySelected
     }
 }
 

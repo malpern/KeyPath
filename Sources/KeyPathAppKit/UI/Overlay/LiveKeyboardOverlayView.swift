@@ -926,9 +926,8 @@ extension LiveKeyboardOverlayView {
         onHealthTap: @escaping () -> Void,
         onKeySelected: @escaping (UInt16?) -> Void,
         onRuleHover: @escaping (String?) -> Void
-    ) -> AnyView {
-        AnyView(
-            OverlayInspectorPanel(
+    ) -> some View {
+        OverlayInspectorPanel(
                 selectedSection: inspectorSection,
                 onSelectSection: { selectInspectorSection($0) },
                 fadeAmount: fadeAmount,
@@ -968,7 +967,6 @@ extension LiveKeyboardOverlayView {
                 onRuleHover: onRuleHover
             )
             .frame(width: inspectorTotalWidth, alignment: .trailing)
-        )
     }
 
     private func moveKeyboardWindow(deltaX: CGFloat, deltaY: CGFloat) {

@@ -42,8 +42,8 @@ extension OverlayMapperSection {
                     subtitle: shiftVariantSummary,
                     mode: .shifted,
                     accessibilityIdentifier: "overlay-mapper-shift-mode-shifted",
-                    trailingAction: viewModel.hasShiftedOutputConfigured
-                        ? AnyView(
+                    trailingAction: {
+                        if viewModel.hasShiftedOutputConfigured {
                             Button("Remove") {
                                 removeShiftVariant()
                             }
@@ -51,8 +51,8 @@ extension OverlayMapperSection {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .accessibilityIdentifier("overlay-mapper-shift-remove")
-                        )
-                        : nil
+                        }
+                    }
                 )
 
                 if selectedTapOutputMode == .shifted {
@@ -136,12 +136,12 @@ extension OverlayMapperSection {
             .accessibilityHidden(true)
     }
 
-    private func tapOutputModeRow(
+    private func tapOutputModeRow<TrailingAction: View>(
         title: String,
         subtitle: String,
         mode: TapOutputMode,
         accessibilityIdentifier: String,
-        trailingAction: AnyView? = nil
+        @ViewBuilder trailingAction: () -> TrailingAction = { EmptyView() }
     ) -> some View {
         let isSelected = selectedTapOutputMode == mode
         return Button {
@@ -161,9 +161,7 @@ extension OverlayMapperSection {
 
                 Spacer(minLength: 8)
 
-                if let trailingAction {
-                    trailingAction
-                }
+                trailingAction()
 
                 Image(systemName: isSelected ? "record.circle.fill" : "chevron.right")
                     .font(.caption.weight(.semibold))
