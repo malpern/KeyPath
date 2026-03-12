@@ -261,12 +261,24 @@ public struct KeyPathApp: App {
 
                 Divider()
 
-                Button("How to Emergency Stop") {
-                    // Present as a sheet from the (splash) main window.
-                    appDelegate.showMainWindow()
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("ShowEmergencyStop"), object: nil
-                    )
+                Button("Stop KeyPath Runtime...") {
+                    let alert = NSAlert()
+                    alert.messageText = "Stop KeyPath Runtime?"
+                    alert.informativeText = "This will stop keyboard remapping. You can restart it from the overlay or by relaunching KeyPath."
+                    alert.alertStyle = .warning
+                    alert.addButton(withTitle: "Stop")
+                    alert.addButton(withTitle: "Cancel")
+                    let response = alert.runModal()
+                    if response == .alertFirstButtonReturn {
+                        Task { @MainActor in
+                            let stopped = await appDelegate.viewModel?.stopKanata(reason: "Menu stop") ?? false
+                            if stopped {
+                                AppLogger.shared.log("🛑 [Menu] Runtime stopped by user")
+                            } else {
+                                AppLogger.shared.warn("⚠️ [Menu] Stop requested but nothing to stop")
+                            }
+                        }
+                    }
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
 

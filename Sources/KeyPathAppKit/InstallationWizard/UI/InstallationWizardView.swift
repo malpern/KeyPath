@@ -59,8 +59,6 @@ struct InstallationWizardView: View {
     @State var currentFixAction: AutoFixAction?
     @State var fixInFlight: Bool = false
     @State var lastRefreshAt: Date?
-    @State var showingStartConfirmation = false
-    @State var startConfirmationResult: CheckedContinuation<Bool, Never>?
     @State var showingCloseConfirmation = false
 
     // Task management for race condition prevention
@@ -206,12 +204,6 @@ struct InstallationWizardView: View {
                 stateMachine.customSequence = newSeq
             }
         }
-        .onChange(of: showingStartConfirmation) { _, newValue in
-            // Reclaim focus when start confirmation dialog closes
-            if !newValue {
-                hasKeyboardFocus = true
-            }
-        }
         .onChange(of: showingCloseConfirmation) { _, newValue in
             // Reclaim focus when close confirmation dialog closes
             if !newValue {
@@ -236,21 +228,6 @@ struct InstallationWizardView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .smAppServiceApprovalRequired)) { _ in
             showingBackgroundApprovalPrompt = true
-        }
-        .overlay {
-            if showingStartConfirmation {
-                StartConfirmationDialog(
-                    isPresented: $showingStartConfirmation,
-                    onConfirm: {
-                        startConfirmationResult?.resume(returning: true)
-                        startConfirmationResult = nil
-                    },
-                    onCancel: {
-                        startConfirmationResult?.resume(returning: false)
-                        startConfirmationResult = nil
-                    }
-                )
-            }
         }
         .alert("Close Setup Wizard?", isPresented: $showingCloseConfirmation) {
             Button("Cancel", role: .cancel) {
