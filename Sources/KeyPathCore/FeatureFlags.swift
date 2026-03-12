@@ -31,11 +31,10 @@ public final class FeatureFlags {
     public func activateStartupMode(timeoutSeconds: Double = 5.0) {
         stateQueue.sync { _startupModeActive = true }
         if timeoutSeconds > 0 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + timeoutSeconds) { [weak self] in
-                guard let self else { return }
-                if startupModeActive {
-                    deactivateStartupMode()
-                }
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(timeoutSeconds))
+                guard let self, startupModeActive else { return }
+                deactivateStartupMode()
             }
         }
     }
@@ -54,7 +53,19 @@ extension FeatureFlags: @unchecked Sendable {}
 
 public extension FeatureFlags {
     private static let captureListenOnlyKey = "CAPTURE_LISTEN_ONLY_ENABLED"
+    private static let useSMAppServiceForDaemonKey = "USE_SMAPPSERVICE_FOR_DAEMON"
+    private static let simulatorAndVirtualKeysEnabledKey = "SIMULATOR_AND_VIRTUAL_KEYS_ENABLED"
+    private static let useJustInTimePermissionRequestsKey = "USE_JIT_PERMISSION_REQUESTS"
+    private static let allowOptionalWizardKey = "ALLOW_OPTIONAL_WIZARD"
+    private static let keyboardSuppressionDebugEnabledKey = "KEYBOARD_SUPPRESSION_DEBUG_ENABLED"
+    private static let uninstallForTestingKey = "UNINSTALL_FOR_TESTING"
+    private static let learningTipsModeKey = "LEARNING_TIPS_MODE"
+    private static let contextHUDListEnabledKey = "CONTEXT_HUD_LIST_ENABLED"
 
+    // MARK: - Active Feature Flags
+
+    /// CGEvent tap listen-only mode (default ON)
+    /// When enabled, KeyPath only listens to key events without modifying them.
     static var captureListenOnlyEnabled: Bool {
         if UserDefaults.standard.object(forKey: captureListenOnlyKey) == nil {
             return true // default ON
@@ -64,5 +75,135 @@ public extension FeatureFlags {
 
     static func setCaptureListenOnlyEnabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: captureListenOnlyKey)
+    }
+
+    /// Whether to use SMAppService for Kanata daemon management (default ON)
+    /// When enabled, uses SMAppService instead of launchctl for daemon registration.
+    static var useSMAppServiceForDaemon: Bool {
+        if UserDefaults.standard.object(forKey: useSMAppServiceForDaemonKey) == nil {
+            return true // default ON
+        }
+        return UserDefaults.standard.bool(forKey: useSMAppServiceForDaemonKey)
+    }
+
+    static func setUseSMAppServiceForDaemon(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: useSMAppServiceForDaemonKey)
+    }
+
+    /// Enable simulator for layer mapping and virtual key actions (default ON)
+    /// Required for overlay to show correct remapped key labels.
+    static var simulatorAndVirtualKeysEnabled: Bool {
+        if UserDefaults.standard.object(forKey: simulatorAndVirtualKeysEnabledKey) == nil {
+            return true // default ON - needed for correct overlay labels
+        }
+        return UserDefaults.standard.bool(forKey: simulatorAndVirtualKeysEnabledKey)
+    }
+
+    static func setSimulatorAndVirtualKeysEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: simulatorAndVirtualKeysEnabledKey)
+    }
+
+    /// Verbose logging for keyboard suppression decisions (default OFF).
+    static var keyboardSuppressionDebugEnabled: Bool {
+        if UserDefaults.standard.object(forKey: keyboardSuppressionDebugEnabledKey) == nil {
+            return false
+        }
+        return UserDefaults.standard.bool(forKey: keyboardSuppressionDebugEnabledKey)
+    }
+
+    static func setKeyboardSuppressionDebugEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: keyboardSuppressionDebugEnabledKey)
+    }
+
+    /// Reset TCC permissions and preferences on uninstall for fresh install testing (default ON)
+    /// When enabled, uninstall also clears Accessibility, Input Monitoring, and Full Disk Access
+    /// permissions plus UserDefaults, allowing a true "first launch" experience.
+    static var uninstallForTesting: Bool {
+        if UserDefaults.standard.object(forKey: uninstallForTestingKey) == nil {
+            return true // default ON
+        }
+        return UserDefaults.standard.bool(forKey: uninstallForTestingKey)
+    }
+
+    static func setUninstallForTesting(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: uninstallForTestingKey)
+    }
+
+    /// Learning tips display mode
+    /// - untilLearned: Show tips until user demonstrates proficiency (default)
+    /// - alwaysOn: Always show tips regardless of learned state
+    /// - off: Never show learning tips
+    static var learningTipsMode: LearningTipsMode {
+        if let rawValue = UserDefaults.standard.string(forKey: learningTipsModeKey),
+           let mode = LearningTipsMode(rawValue: rawValue)
+        {
+            return mode
+        }
+        return .off // default
+    }
+
+    static func setLearningTipsMode(_ mode: LearningTipsMode) {
+        UserDefaults.standard.set(mode.rawValue, forKey: learningTipsModeKey)
+    }
+
+    /// Context HUD floating list window (default ON)
+    /// When enabled, shows a compact key list alongside or instead of the keyboard overlay.
+    static var contextHUDListEnabled: Bool {
+        if UserDefaults.standard.object(forKey: contextHUDListEnabledKey) == nil {
+            return true // default ON
+        }
+        return UserDefaults.standard.bool(forKey: contextHUDListEnabledKey)
+    }
+
+    static func setContextHUDListEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: contextHUDListEnabledKey)
+    }
+
+    // MARK: - Future Implementation (not yet built)
+
+    /// Phase 2: Just-in-time permission requests (NOT YET IMPLEMENTED)
+    /// Will allow requesting permissions only when needed rather than upfront.
+    static var useJustInTimePermissionRequests: Bool {
+        if UserDefaults.standard.object(forKey: useJustInTimePermissionRequestsKey) == nil {
+            return false // default OFF - not implemented
+        }
+        return UserDefaults.standard.bool(forKey: useJustInTimePermissionRequestsKey)
+    }
+
+    static func setUseJustInTimePermissionRequests(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: useJustInTimePermissionRequestsKey)
+    }
+
+    /// Phase 3: Optional wizard - non-blocking setup (NOT YET IMPLEMENTED)
+    /// Will allow skipping the wizard and configuring later.
+    static var allowOptionalWizard: Bool {
+        if UserDefaults.standard.object(forKey: allowOptionalWizardKey) == nil {
+            return false // default OFF - not implemented
+        }
+        return UserDefaults.standard.bool(forKey: allowOptionalWizardKey)
+    }
+
+    static func setAllowOptionalWizard(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: allowOptionalWizardKey)
+    }
+}
+
+// MARK: - Learning Tips Mode
+
+/// Controls when contextual learning tips are displayed
+public enum LearningTipsMode: String, CaseIterable {
+    /// Show tips until user demonstrates proficiency (default)
+    case untilLearned = "until_learned"
+    /// Always show tips regardless of learned state
+    case alwaysOn = "always_on"
+    /// Never show learning tips
+    case off
+
+    public var displayName: String {
+        switch self {
+        case .untilLearned: "Until Learned"
+        case .alwaysOn: "Always On"
+        case .off: "Off"
+        }
     }
 }
