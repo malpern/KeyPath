@@ -95,8 +95,9 @@ for i in "${!LANE_PASS_COUNTS[@]}"; do
 done
 log_total=$(grep -cE "Test Case '.*' (passed|failed)|Test .* (passed|failed) after" "$LOG_FILE" 2>/dev/null || echo 0)
 if [ "$log_total" -gt 10 ] && [ "$total_parsed" -eq 0 ]; then
-  echo "WARNING: Log contains $log_total test results but matrix parser matched 0."
+  echo "ERROR: Log contains $log_total test results but matrix parser matched 0."
   echo "The xctest output format may have changed — review grep patterns in this script."
+  exit 1
 fi
 
 # Count failures

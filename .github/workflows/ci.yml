@@ -40,7 +40,6 @@ jobs:
         key: ${{ runner.os }}-build-${{ hashFiles('Package.swift', 'Package.resolved') }}-${{ hashFiles('Sources/**/*.swift', 'Tests/**/*.swift') }}
         restore-keys: |
           ${{ runner.os }}-build-${{ hashFiles('Package.swift', 'Package.resolved') }}-
-          ${{ runner.os }}-build-
 
     - name: Cache Homebrew packages
       id: cache-brew
@@ -55,10 +54,8 @@ jobs:
 
     - name: Install Kanata
       run: |
-        if ! command -v kanata &> /dev/null; then
-          echo "Installing Kanata..."
-          brew install kanata
-        fi
+        # brew install is idempotent; the Homebrew download cache provides the speed benefit
+        brew install kanata 2>/dev/null || true
         echo "Kanata: $(kanata --version)"
 
     - name: Lint WizardAutoFixer for forbidden subprocess usage
@@ -67,6 +64,8 @@ jobs:
         ./Scripts/lint-no-subprocess-in-autofixer.sh
 
     - name: Build and Run All Tests
+      env:
+        KP_SIGN_DRY_RUN: "1"
       run: |
         echo "Building and running full test suite..."
         export CI_ENVIRONMENT=true
@@ -82,7 +81,6 @@ jobs:
 
     - name: Parse Installer Reliability Matrix from Test Log
       if: always()
-      continue-on-error: true
       run: |
         echo "Parsing installer reliability matrix from test output..."
         chmod +x ./Scripts/parse-installer-matrix.sh
