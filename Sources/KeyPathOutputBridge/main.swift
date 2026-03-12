@@ -507,7 +507,9 @@ private final class OutputBridgeCompanion {
             }
         }
         chmod(KeyPathConstants.OutputBridge.runDirectory, 0o755)
-        chmod(KeyPathConstants.OutputBridge.socketDirectory, 0o711)
+        // 0755 (not 0711): user-mode kanata-launcher needs read+execute to connect
+        // to the Unix socket. Execute-only (0711) blocks socket discovery by non-root.
+        chmod(KeyPathConstants.OutputBridge.socketDirectory, 0o755)
         chmod(KeyPathConstants.OutputBridge.sessionDirectory, 0o700)
     }
 

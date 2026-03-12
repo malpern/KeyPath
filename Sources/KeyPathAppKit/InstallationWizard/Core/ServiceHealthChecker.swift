@@ -361,7 +361,9 @@ final class ServiceHealthChecker: @unchecked Sendable {
 
         // 1) launchctl check for PID using SubprocessRunner
         let runningState = await evaluateKanataLaunchctlRunningState(managementState: managementState)
-        let isRunning = runningState.isRunning
+        // Also check split runtime host (direct child Process, not via launchd)
+        let splitRuntimeRunning = await KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning
+        let isRunning = runningState.isRunning || splitRuntimeRunning
 
         // 2) TCP probe (Hello/Status) - runs off MainActor via Task.detached for blocking socket ops
         let tcpOK = await Task.detached { [self] in
@@ -420,6 +422,9 @@ final class ServiceHealthChecker: @unchecked Sendable {
 #endif
 
         let runningState = await evaluateKanataLaunchctlRunningState(managementState: managementState)
+        // Also check split runtime host — it launches kanata-launcher as a direct child Process(),
+        // not via launchd, so launchctl won't see it.
+        let splitRuntimeRunning = await KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning
         let inputCaptureStatus = await checkKanataInputCaptureStatus()
         let tcpOK = await Task.detached { [self] in
             if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
@@ -432,7 +437,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
 
         return KanataServiceRuntimeSnapshot(
             managementState: managementState,
-            isRunning: runningState.isRunning,
+            isRunning: runningState.isRunning || splitRuntimeRunning,
             isResponding: tcpOK,
             inputCaptureReady: inputCaptureStatus.isReady,
             inputCaptureIssue: inputCaptureStatus.issue,

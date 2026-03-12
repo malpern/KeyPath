@@ -35,22 +35,36 @@ enum KanataRuntimePathCoordinator {
 
         let helperReady = await helperManager.testHelperFunctionality()
         let outputBridgeStatus = try? await helperManager.getKanataOutputBridgeStatus()
+        let hostBridgeLoaded: Bool = {
+            if case .loaded = bridgeProbe { return true }
+            return false
+        }()
+        let hostRuntimeConstructible: Bool = {
+            if case .created = runtimeCreation { return true }
+            return false
+        }()
+        let legacyAvailable = fileManager.isExecutableFile(atPath: runtimeHost.systemCorePath)
+
+        AppLogger.shared.log("🧭 [RuntimePath] Evaluating split runtime decision:")
+        AppLogger.shared.log("  bridgeProbe=\(bridgeProbe), hostBridgeLoaded=\(hostBridgeLoaded)")
+        AppLogger.shared.log("  configValidation=\(configValidation), hostConfigValid=\(configValidation == .valid)")
+        AppLogger.shared.log("  runtimeCreation=\(runtimeCreation), hostRuntimeConstructible=\(hostRuntimeConstructible)")
+        AppLogger.shared.log("  helperReady=\(helperReady)")
+        AppLogger.shared.log("  outputBridgeStatus=\(String(describing: outputBridgeStatus))")
+        AppLogger.shared.log("  legacySystemBinaryAvailable=\(legacyAvailable)")
+
         let inputs = KanataRuntimePathInputs(
-            hostBridgeLoaded: {
-                if case .loaded = bridgeProbe { return true }
-                return false
-            }(),
+            hostBridgeLoaded: hostBridgeLoaded,
             hostConfigValid: configValidation == .valid,
-            hostRuntimeConstructible: {
-                if case .created = runtimeCreation { return true }
-                return false
-            }(),
+            hostRuntimeConstructible: hostRuntimeConstructible,
             helperReady: helperReady,
             outputBridgeStatus: outputBridgeStatus,
-            legacySystemBinaryAvailable: fileManager.isExecutableFile(atPath: runtimeHost.systemCorePath)
+            legacySystemBinaryAvailable: legacyAvailable
         )
 
-        return KanataRuntimePathEvaluator.decide(inputs)
+        let decision = KanataRuntimePathEvaluator.decide(inputs)
+        AppLogger.shared.log("🧭 [RuntimePath] Decision: \(decision)")
+        return decision
     }
 
     static func prepareOutputBridgeSession(

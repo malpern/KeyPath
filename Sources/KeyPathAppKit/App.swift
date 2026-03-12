@@ -472,16 +472,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 try? await Task.sleep(for: .milliseconds(splashDelayMs))
 
                 LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
-                AppLogger.shared.debug("🪟 [AppDelegate] First activation - overlay shown")
+                AppLogger.shared.info("🪟 [AppDelegate] First activation - overlay shown")
 
                 // Auto-hide splash (do not close) unless the user explicitly requested the window.
                 if !self.suppressLaunchSplashAutoHide, !suppressAutoHideBecauseReopen {
                     self.mainWindowController?.window?.orderOut(nil)
-                    AppLogger.shared.debug("🪟 [AppDelegate] Auto-hid launch splash window")
+                    AppLogger.shared.info("🪟 [AppDelegate] Auto-hid launch splash window")
+                } else {
+                    AppLogger.shared.info("🪟 [AppDelegate] Splash auto-hide suppressed (suppressAutoHide=\(self.suppressLaunchSplashAutoHide), reopen=\(suppressAutoHideBecauseReopen))")
                 }
             }
 
-            AppLogger.shared.debug("🪟 [AppDelegate] First activation complete (splash shown briefly)")
+            AppLogger.shared.info("🪟 [AppDelegate] First activation complete (splash shown briefly)")
 
             if pendingReopenShow {
                 AppLogger.shared.debug(
@@ -920,6 +922,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         let started = await manager.startKanata(reason: "AppDelegate auto-launch")
                         if started {
                             AppLogger.shared.log("✅ [AppDelegate] Auto-launch sequence completed (simple)")
+                            // Invalidate cooldown so post-launch revalidation picks up the running state
+                            MainAppStateController.shared.invalidateValidationCooldown()
                         } else {
                             AppLogger.shared.error("❌ [AppDelegate] Auto-launch failed via runtime coordinator")
                         }
