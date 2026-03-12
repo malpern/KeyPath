@@ -50,6 +50,7 @@ jobs:
           ~/Library/Caches/Homebrew
           /usr/local/Cellar/kanata
           /opt/homebrew/Cellar/kanata
+        # Bump v1 → v2 etc. when kanata updates on Homebrew
         key: ${{ runner.os }}-brew-kanata-v1
 
     - name: Install Kanata
@@ -72,11 +73,16 @@ jobs:
         export SKIP_EVENT_TAP_TESTS=1
         export TIMEOUT_SECONDS=180
         chmod +x ./Scripts/run-tests-safe.sh
-        ./Scripts/run-tests-safe.sh
-        echo "TEST_STATUS=passed" >> $GITHUB_ENV
+        if ./Scripts/run-tests-safe.sh; then
+          echo "TEST_STATUS=passed" >> $GITHUB_ENV
+        else
+          echo "TEST_STATUS=failed" >> $GITHUB_ENV
+          exit 1
+        fi
 
     - name: Parse Installer Reliability Matrix from Test Log
       if: always()
+      continue-on-error: true
       run: |
         echo "Parsing installer reliability matrix from test output..."
         chmod +x ./Scripts/parse-installer-matrix.sh

@@ -56,11 +56,13 @@ for i in "${!LANE_IDS[@]}"; do
   lane_name="${LANE_NAMES[$i]}"
   pattern="${LANE_PATTERNS[$i]}"
 
-  # Count passes and failures for test classes matching this lane's pattern
+  # Count passes and failures for test classes matching this lane's pattern.
+  # Uses word-boundary (\b) to prevent substring matches (e.g. InstallerEngineTests
+  # must not match InstallerEngineEndToEndTests).
   # XCTest format: Test Case '-[Module.ClassName testMethod]' passed/failed
   # Swift Testing format: Test "ClassName/testMethod" passed/failed after ...
-  pass_count=$(grep -cE "(Test Case '.*($pattern).*' passed|Test \"($pattern).*\" passed)" "$LOG_FILE" 2>/dev/null || echo 0)
-  fail_count=$(grep -cE "(Test Case '.*($pattern).*' failed|Test \"($pattern).*\" failed)" "$LOG_FILE" 2>/dev/null || echo 0)
+  pass_count=$(grep -cE "(Test Case '.*\b($pattern)\b.*' passed|Test \"($pattern)[/\"].*passed)" "$LOG_FILE" 2>/dev/null || echo 0)
+  fail_count=$(grep -cE "(Test Case '.*\b($pattern)\b.*' failed|Test \"($pattern)[/\"].*failed)" "$LOG_FILE" 2>/dev/null || echo 0)
 
   if [ "$fail_count" -gt 0 ]; then
     status="fail"
@@ -83,6 +85,19 @@ for i in "${!LANE_IDS[@]}"; do
   # Extract relevant log lines for this lane
   grep -E "($pattern)" "$LOG_FILE" > "$OUT_DIR/lane-${lane_id}.log" 2>/dev/null || true
 done
+
+# Sanity check: verify the parser found a reasonable number of tests.
+# If the log has many test results but the parser found none, the output
+# format may have changed and the grep patterns need updating.
+total_parsed=0
+for i in "${!LANE_PASS_COUNTS[@]}"; do
+  total_parsed=$((total_parsed + LANE_PASS_COUNTS[i] + LANE_FAIL_COUNTS[i]))
+done
+log_total=$(grep -cE "Test Case '.*' (passed|failed)|Test .* (passed|failed) after" "$LOG_FILE" 2>/dev/null || echo 0)
+if [ "$log_total" -gt 10 ] && [ "$total_parsed" -eq 0 ]; then
+  echo "WARNING: Log contains $log_total test results but matrix parser matched 0."
+  echo "The xctest output format may have changed — review grep patterns in this script."
+fi
 
 # Count failures
 failed_lanes=0
