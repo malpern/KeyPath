@@ -57,8 +57,8 @@ jobs:
 
     - name: Install Kanata
       run: |
-        # brew install is idempotent; the Homebrew download cache provides the speed benefit
-        brew install kanata || true
+        # brew install is idempotent; brew link handles cache-restored but unlinked packages
+        brew install kanata || brew link kanata
         kanata --version
 
     - name: Lint WizardAutoFixer for forbidden subprocess usage
