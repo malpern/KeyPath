@@ -12,6 +12,10 @@ public struct KanataRuntimeHost: Sendable, Equatable {
     public let bridgeLibraryPath: String
     public let bundledCorePath: String
 
+    /// Path to the KanataEngine.app bundle wrapping the kanata binary.
+    /// macOS TCC tracks this by CFBundleIdentifier instead of raw path.
+    public let kanataEngineBundlePath: String
+
     /// Deprecated: system binary is no longer installed. Returns bundledCorePath.
     @available(*, deprecated, message: "System binary removed; use bundledCorePath directly")
     public var systemCorePath: String {
@@ -21,11 +25,13 @@ public struct KanataRuntimeHost: Sendable, Equatable {
     public init(
         launcherPath: String,
         bridgeLibraryPath: String,
-        bundledCorePath: String
+        bundledCorePath: String,
+        kanataEngineBundlePath: String
     ) {
         self.launcherPath = launcherPath
         self.bridgeLibraryPath = bridgeLibraryPath
         self.bundledCorePath = bundledCorePath
+        self.kanataEngineBundlePath = kanataEngineBundlePath
     }
 
     /// The canonical kanata binary path. Always returns the bundled binary.
@@ -37,10 +43,12 @@ public struct KanataRuntimeHost: Sendable, Equatable {
         bundlePath: String = Bundle.main.bundlePath
     ) -> KanataRuntimeHost {
         let resolvedBundlePath = resolveAppBundlePath(from: bundlePath)
+        let engineBundlePath = "\(resolvedBundlePath)/Contents/Library/KeyPath/KanataEngine.app"
         return KanataRuntimeHost(
             launcherPath: "\(resolvedBundlePath)/Contents/Library/KeyPath/kanata-launcher",
             bridgeLibraryPath: "\(resolvedBundlePath)/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib",
-            bundledCorePath: "\(resolvedBundlePath)/Contents/Library/KeyPath/kanata"
+            bundledCorePath: "\(engineBundlePath)/Contents/MacOS/kanata",
+            kanataEngineBundlePath: engineBundlePath
         )
     }
 

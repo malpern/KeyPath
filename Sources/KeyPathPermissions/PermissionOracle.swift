@@ -427,6 +427,7 @@ public actor PermissionOracle {
     ///
     /// IMPORTANT:
     /// - TCC entries for CLI binaries are keyed by *executable path* (client_type=1).
+    /// - KanataEngine.app entries are keyed by *bundle ID* (client_type=0).
     /// - If the daemon executes a different path than the wizard instructs users to add,
     ///   we can get false positives/negatives (green UI while remapping fails).
     /// - The bundled path is now canonical — no system binary install step.
@@ -498,17 +499,41 @@ public actor PermissionOracle {
         case inputMonitoring = "kTCCServiceListenEvent"
     }
 
-    /// Attempt to determine TCC status for Kanata by executable path (best-effort).
+    /// Attempt to determine TCC status for Kanata (best-effort).
+    /// Tries bundle-ID query (client_type=0) first for KanataEngine.app, then falls
+    /// back to path-based query (client_type=1) for migration from raw binary.
     /// Returns (.granted/.denied) if determinable, or nil if inconclusive/unreadable.
     /// NOTE: This direct TCC access was previously removed as "bad practice" but is
     /// necessary here to resolve the chicken-and-egg problem between permission verification
     /// and service startup. This is a legitimate fallback when functional verification fails.
     private func checkTCCForKanata(executablePath: String) async -> (ax: Status?, im: Status?) {
-        // Normalize path for TCC queries - convert development builds to installed paths
+        let bundleID = KeyPathConstants.Bundle.kanataEngineBundleID
+
+        // Try bundle-ID based query first (KanataEngine.app wrapper)
+        AppLogger.shared.log("🔍 [Oracle] Trying TCC bundle-ID query for \(bundleID)")
+        let axBundle = await tccStatus(forBundleID: bundleID, service: .accessibility)
+        let imBundle = await tccStatus(forBundleID: bundleID, service: .inputMonitoring)
+
+        if axBundle != nil, imBundle != nil {
+            AppLogger.shared.log("🔍 [Oracle] Found TCC entries via bundle ID (\(bundleID))")
+            return (axBundle, imBundle)
+        }
+
+        // Fall back to path-based query for migration (raw binary TCC entries).
+        // During migration a user may have one permission under the bundle ID and the
+        // other still under the old raw-path entry.  Use path-based values as fallback
+        // for whichever permission the bundle-ID query did not resolve.
+        //
+        // NOTE: Even when both bundle-ID results are non-nil (early-return above),
+        // we reach this path when only ONE is non-nil. The path-based queries run
+        // unconditionally here; the `??` merge on the return line ensures bundle-ID
+        // results always take precedence and path results are only used when the
+        // corresponding bundle-ID result is nil.
+        AppLogger.shared.log("🔍 [Oracle] Partial/no bundle-ID TCC entries; falling back to path-based query for gaps")
         let normalizedPath = normalizePathForTCC(executablePath)
-        let ax = await tccStatus(forExecutable: normalizedPath, service: .accessibility)
-        let im = await tccStatus(forExecutable: normalizedPath, service: .inputMonitoring)
-        return (ax, im)
+        let axPath = await tccStatus(forExecutable: normalizedPath, service: .accessibility)
+        let imPath = await tccStatus(forExecutable: normalizedPath, service: .inputMonitoring)
+        return (axBundle ?? axPath, imBundle ?? imPath)
     }
 
     /// Normalize paths for TCC queries - convert development builds to installed paths
@@ -528,27 +553,45 @@ public actor PermissionOracle {
         return path
     }
 
-    /// Query TCC DB for a specific executable path and service
+    /// Query TCC DB for a specific executable path and service (client_type=1, path-based)
     /// Note: Requires Full Disk Access to read user's TCC.db; gracefully degrades to nil otherwise.
     /// This is similar to how other system utilities (e.g., tccutil, privacy management tools) work.
     private func tccStatus(forExecutable execPath: String, service: TCCServiceName) async -> Status? {
         let dbPaths = tccDatabaseCandidates()
         for db in dbPaths where FileManager.default.fileExists(atPath: db) {
             if let val = await queryTCCDatabase(
-                dbPath: db, service: service.rawValue, executablePath: execPath
+                dbPath: db, service: service.rawValue, client: execPath, clientType: 1
             ) {
-                // Interpret result:
-                // - Newer macOS: auth_value (2=Allow, 0=Deny or Prompt depending on auth_reason)
-                // - Older macOS: allowed (1=Allow, 0=Not allowed)
-                if val >= 2 || val == 1 {
-                    return .granted
-                } else if val == 0 {
-                    // Only report denied if we positively read a 0 from TCC
-                    return .denied
-                }
+                return interpretTCCValue(val)
             }
         }
         // Inconclusive (no readable DB, no rows found, or unexpected schema) => nil
+        return nil
+    }
+
+    /// Query TCC DB for a bundle identifier and service (client_type=0, bundle-ID based)
+    /// Used for KanataEngine.app which is wrapped in an .app bundle with a CFBundleIdentifier.
+    private func tccStatus(forBundleID bundleID: String, service: TCCServiceName) async -> Status? {
+        let dbPaths = tccDatabaseCandidates()
+        for db in dbPaths where FileManager.default.fileExists(atPath: db) {
+            if let val = await queryTCCDatabase(
+                dbPath: db, service: service.rawValue, client: bundleID, clientType: 0
+            ) {
+                return interpretTCCValue(val)
+            }
+        }
+        return nil
+    }
+
+    /// Interpret a TCC auth_value/allowed integer into a Status.
+    private func interpretTCCValue(_ val: Int) -> Status? {
+        // - Newer macOS: auth_value (2=Allow, 0=Deny or Prompt depending on auth_reason)
+        // - Older macOS: allowed (1=Allow, 0=Not allowed)
+        if val >= 2 || val == 1 {
+            return .granted
+        } else if val == 0 {
+            return .denied
+        }
         return nil
     }
 
@@ -565,20 +608,25 @@ public actor PermissionOracle {
     /// Uses sqlite3 CLI tool which is available on all macOS systems.
     /// Approved read-only TCC lookup (see ADR-016). This must remain
     /// best-effort, side-effect free, and resilient to failure (no FDA).
-    private func queryTCCDatabase(dbPath: String, service: String, executablePath: String) async
+    ///
+    /// - Parameters:
+    ///   - dbPath: Path to the TCC.db file
+    ///   - service: TCC service name (e.g. kTCCServiceAccessibility)
+    ///   - client: Either an executable path (clientType=1) or bundle ID (clientType=0)
+    ///   - clientType: 0 for bundle ID, 1 for executable path
+    private func queryTCCDatabase(dbPath: String, service: String, client: String, clientType: Int) async
         -> Int?
     {
         // The 'access' table schema varies. We try auth_value first, then allowed.
-        // We check for client_type=1 (path) because Kanata is a CLI binary.
         let escService = escapeSQLiteLiteral(service)
-        let escExec = escapeSQLiteLiteral(executablePath)
+        let escClient = escapeSQLiteLiteral(client)
 
         AppLogger.shared.log("🔍 [Oracle] Querying TCC database: \(dbPath)")
-        AppLogger.shared.log("🔍 [Oracle] Looking for: service=\(service), path=\(executablePath)")
+        AppLogger.shared.log("🔍 [Oracle] Looking for: service=\(service), client=\(client), client_type=\(clientType)")
 
         let queries = [
-            "SELECT auth_value FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY auth_value DESC LIMIT 1;",
-            "SELECT allowed FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY allowed DESC LIMIT 1;"
+            "SELECT auth_value FROM access WHERE service='\(escService)' AND client='\(escClient)' AND client_type=\(clientType) ORDER BY auth_value DESC LIMIT 1;",
+            "SELECT allowed FROM access WHERE service='\(escService)' AND client='\(escClient)' AND client_type=\(clientType) ORDER BY allowed DESC LIMIT 1;"
         ]
 
         for (index, sql) in queries.enumerated() {
@@ -600,7 +648,7 @@ public actor PermissionOracle {
 
                 if let val = Int(trimmed) {
                     AppLogger.shared.log(
-                        "🔍 [Oracle] TCC '\(service)' for \(executablePath) via \(dbPath): \(val)"
+                        "🔍 [Oracle] TCC '\(service)' for \(client) (type=\(clientType)) via \(dbPath): \(val)"
                     )
                     return val
                 }
@@ -608,7 +656,7 @@ public actor PermissionOracle {
                 AppLogger.shared.log("🔍 [Oracle] Query #\(index + 1) returned nil (timeout or empty)")
             }
         }
-        AppLogger.shared.log("🔍 [Oracle] TCC query failed for \(executablePath) - no results found")
+        AppLogger.shared.log("🔍 [Oracle] TCC query failed for \(client) (type=\(clientType)) - no results found")
         return nil
     }
 

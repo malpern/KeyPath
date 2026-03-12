@@ -25,6 +25,10 @@ public enum KeyPathConstants {
         public static let outputBridgeID = "com.keypath.output-bridge"
         public static let vhidDaemonID = "com.keypath.karabiner-vhiddaemon"
         public static let vhidManagerID = "com.keypath.karabiner-vhidmanager"
+
+        /// Bundle ID for the KanataEngine.app wrapper around the kanata binary.
+        /// TCC uses this for bundle-ID based permission tracking (client_type=0).
+        public static let kanataEngineBundleID = "com.keypath.kanata-engine"
     }
 
     public enum Config {

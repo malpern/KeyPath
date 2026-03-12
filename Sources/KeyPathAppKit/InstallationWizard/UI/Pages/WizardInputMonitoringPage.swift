@@ -402,12 +402,14 @@ private func openInputMonitoringPreferencesPanel() {
 
 @MainActor
 private func revealKanataInFinder() {
-    let path = WizardSystemPaths.kanataSystemInstallPath
+    // Reveal the KanataEngine.app bundle (not the raw binary) so users see
+    // a proper app icon in Finder and can drag it into System Settings.
+    let path = WizardSystemPaths.kanataEngineBundlePath
     let dir = (path as NSString).deletingLastPathComponent
     NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     _ = NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: dir)
     WizardWindowManager.shared.markFinderWindowOpened(forPath: path)
-    AppLogger.shared.log("📂 [WizardInputMonitoringPage] Revealed kanata in Finder: \(path)")
+    AppLogger.shared.log("📂 [WizardInputMonitoringPage] Revealed KanataEngine.app in Finder: \(path)")
 
     // Position windows side-by-side after a short delay
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -479,12 +481,14 @@ private func positionSettingsAndFinderSideBySide() {
     AppLogger.shared.log("📐 [WizardInputMonitoringPage] Positioned Settings and Finder side-by-side")
 }
 
-private func copyKanataPathToClipboard() {
-    let path = WizardSystemPaths.kanataSystemInstallPath
+/// Copies the KanataEngine.app bundle path (not the raw binary) to the
+/// clipboard so users can paste it into System Settings file dialogs.
+private func copyKanataEngineAppPathToClipboard() {
+    let path = WizardSystemPaths.kanataEngineBundlePath
     let pb = NSPasteboard.general
     pb.clearContents()
     pb.setString(path, forType: .string)
-    AppLogger.shared.log("📋 [WizardInputMonitoringPage] Copied kanata path to clipboard: \(path)")
+    AppLogger.shared.log("📋 [WizardInputMonitoringPage] Copied KanataEngine.app bundle path to clipboard: \(path)")
 }
 
 // MARK: - Stale Entry Cleanup Instructions View
