@@ -119,7 +119,7 @@ struct WizardAccessibilityPage: View {
                         WizardHeroSection.warning(
                             icon: "accessibility",
                             title: "Accessibility",
-                            subtitle: "Turn on KeyPath in Accessibility, then add and turn on kanata",
+                            subtitle: "Turn on KeyPath in Accessibility, then add and turn on KanataEngine",
                             iconTapAction: {
                                 Task {
                                     await onRefresh()
@@ -422,11 +422,13 @@ struct WizardAccessibilityPage: View {
     }
 
     private func revealKanataInFinder() {
-        let path = WizardSystemPaths.kanataSystemInstallPath
+        // Reveal the KanataEngine.app bundle (not the raw binary) so users see
+        // a proper app icon in Finder and can drag it into System Settings.
+        let path = WizardSystemPaths.kanataEngineBundlePath
         let dir = (path as NSString).deletingLastPathComponent
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
         WizardWindowManager.shared.markFinderWindowOpened(forPath: path)
-        AppLogger.shared.log("📂 [WizardAccessibilityPage] Revealed kanata in Finder: \(path)")
+        AppLogger.shared.log("📂 [WizardAccessibilityPage] Revealed KanataEngine.app in Finder: \(path)")
         // If NSWorkspace.selectFile is preferred:
         _ = NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: dir)
 
@@ -436,12 +438,14 @@ struct WizardAccessibilityPage: View {
         }
     }
 
-    private func copyKanataPathToClipboard() {
-        let path = WizardSystemPaths.kanataSystemInstallPath
+    /// Copies the KanataEngine.app bundle path (not the raw binary) to the
+    /// clipboard so users can paste it into System Settings file dialogs.
+    private func copyKanataEngineAppPathToClipboard() {
+        let path = WizardSystemPaths.kanataEngineBundlePath
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(path, forType: .string)
-        AppLogger.shared.log("📋 [WizardAccessibilityPage] Copied kanata path to clipboard: \(path)")
+        AppLogger.shared.log("📋 [WizardAccessibilityPage] Copied KanataEngine.app bundle path to clipboard: \(path)")
     }
 
     /// Position System Settings and Finder windows side-by-side for easy drag-and-drop
