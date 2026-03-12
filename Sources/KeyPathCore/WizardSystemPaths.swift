@@ -42,10 +42,10 @@ public enum WizardSystemPaths {
 
     // MARK: - Binary Paths
 
-    /// System-installed kanata binary location (avoids Gatekeeper issues)
-    /// This is where the LaunchDaemon installer copies the bundled binary
+    /// Deprecated: use `bundledKanataPath` instead. Now returns the bundled path.
+    @available(*, deprecated, renamed: "bundledKanataPath")
     public static var kanataSystemInstallPath: String {
-        currentRuntimeHost().systemCorePath
+        currentRuntimeHost().bundledCorePath
     }
 
     /// Standard kanata binary location - used for both homebrew and experimental versions
@@ -120,19 +120,18 @@ public enum WizardSystemPaths {
         currentRuntimeHost().preferredCoreBinaryPath()
     }
 
-    /// All known kanata binary paths for detection/filtering
+    /// All known kanata binary paths for detection/filtering.
+    /// Includes bundled path and legacy system path (kept for migration-period process detection).
     public static func allKnownKanataPaths() -> [String] {
         let runtimeHost = currentRuntimeHost()
-        return [runtimeHost.systemCorePath, runtimeHost.bundledCorePath].filter {
+        // Legacy path kept for migration-period process detection
+        return [runtimeHost.bundledCorePath, legacySystemBinaryPath].filter {
             FileManager.default.fileExists(atPath: $0)
         }
     }
 
     private static func currentRuntimeHost() -> KanataRuntimeHost {
-        KanataRuntimeHost.current(
-            bundlePath: Bundle.main.bundlePath,
-            systemRoot: currentTestRoot()
-        )
+        KanataRuntimeHost.current(bundlePath: Bundle.main.bundlePath)
     }
 
     /// Homebrew binary path
@@ -241,16 +240,25 @@ public enum WizardSystemPaths {
 
     // MARK: - Helper Methods
 
-    /// Returns the best available kanata binary path - simple filesystem check for performance
-    public static func detectKanataBinaryPath() -> String? {
-        // Prefer system-installed path (for LaunchDaemon)
-        if FileManager.default.fileExists(atPath: kanataSystemInstallPath) {
-            return kanataSystemInstallPath
-        }
+    /// Legacy system binary path from pre-bundled installations.
+    /// Kept for migration-period fallback, consistent with PermissionOracle.
+    public static var legacySystemBinaryPath: String {
+        remapSystemPath("/Library/KeyPath/bin/kanata")
+    }
 
-        // Fall back to bundled kanata
+    /// Returns the bundled kanata binary path if it exists, falling back to
+    /// the legacy system path for migration-period consistency with PermissionOracle.
+    public static func detectKanataBinaryPath() -> String? {
         if FileManager.default.fileExists(atPath: bundledKanataPath) {
             return bundledKanataPath
+        }
+
+        // Legacy fallback: pre-bundled installations used /Library/KeyPath/bin/kanata
+        if FileManager.default.fileExists(atPath: legacySystemBinaryPath) {
+            AppLogger.shared.warn(
+                "⚠️ [WizardSystemPaths] Using legacy kanata path \(legacySystemBinaryPath) — migrate to bundled binary"
+            )
+            return legacySystemBinaryPath
         }
 
         return nil

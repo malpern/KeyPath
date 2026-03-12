@@ -43,7 +43,9 @@ enum KanataRuntimePathCoordinator {
             if case .created = runtimeCreation { return true }
             return false
         }()
-        let legacyAvailable = fileManager.isExecutableFile(atPath: runtimeHost.systemCorePath)
+        // Check actual legacy system path, NOT the deprecated systemCorePath alias
+        // which now returns the bundled path and would always report "available"
+        let legacyAvailable = fileManager.isExecutableFile(atPath: WizardSystemPaths.legacySystemBinaryPath)
 
         AppLogger.shared.log("🧭 [RuntimePath] Evaluating split runtime decision:")
         AppLogger.shared.log("  bridgeProbe=\(bridgeProbe), hostBridgeLoaded=\(hostBridgeLoaded)")

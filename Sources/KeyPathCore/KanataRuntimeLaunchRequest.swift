@@ -21,17 +21,15 @@ public struct KanataRuntimeLaunchRequest: Sendable, Equatable {
     }
 
     public func resolvedCoreBinaryPath(
-        using runtimeHost: KanataRuntimeHost,
-        fileManager: FileManager = .default
+        using runtimeHost: KanataRuntimeHost
     ) -> String {
-        runtimeHost.preferredCoreBinaryPath(fileManager: fileManager)
+        runtimeHost.preferredCoreBinaryPath()
     }
 
     public func commandLine(
-        using runtimeHost: KanataRuntimeHost,
-        fileManager: FileManager = .default
+        using runtimeHost: KanataRuntimeHost
     ) -> [String] {
-        let binaryPath = resolvedCoreBinaryPath(using: runtimeHost, fileManager: fileManager)
+        let binaryPath = resolvedCoreBinaryPath(using: runtimeHost)
         return commandLine(binaryPath: binaryPath)
     }
 

@@ -92,11 +92,11 @@ public struct SystemSnapshot: Sendable {
         }
         if !health.kanataInputCaptureReady {
             issues.append(
-                    .permissionMissing(
-                        app: "Kanata",
-                        permission: "Input Monitoring",
-                        action:
-                    "Regrant permission for /Library/KeyPath/bin/kanata and ensure it can open the built-in keyboard"
+                .permissionMissing(
+                    app: "Kanata",
+                    permission: "Input Monitoring",
+                    action:
+                    "Regrant Input Monitoring permission for Kanata in System Settings and ensure it can open the built-in keyboard"
                 )
             )
         }

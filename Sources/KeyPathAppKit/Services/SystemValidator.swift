@@ -394,8 +394,8 @@ class SystemValidator {
         AppLogger.shared.log("🔍 [SystemValidator] Checking components")
 
         // Check Kanata binary installation (canonical identity).
-        // We require `/Library/KeyPath/bin/kanata` so macOS permissions (TCC) remain stable across upgrades
-        // and all mechanisms (daemon, wizard instructions, diagnostics) agree on a single executable path.
+        // The bundled binary at Contents/Library/KeyPath/kanata is the canonical path.
+        // TCC permissions survive app rebuilds at /Applications/KeyPath.app.
         let kanataBinaryDetector = KanataBinaryDetector.shared
         let kanataBinaryInstalled = kanataBinaryDetector.isInstalled()
         let kanataBinaryVersionMismatch = kanataBinaryDetector.hasVersionMismatch()

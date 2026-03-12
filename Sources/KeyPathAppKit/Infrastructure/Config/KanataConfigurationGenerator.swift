@@ -250,9 +250,7 @@ public struct KanataConfiguration: Sendable {
         }
 
         private static func runKanataListForDeviceNames() -> String? {
-            // Prefer the canonical system install path (stable TCC identity).
             let candidates = [
-                "/Library/KeyPath/bin/kanata",
                 "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata"
             ]
 

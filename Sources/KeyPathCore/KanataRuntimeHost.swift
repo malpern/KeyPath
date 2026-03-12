@@ -11,39 +11,36 @@ public struct KanataRuntimeHost: Sendable, Equatable {
     public let launcherPath: String
     public let bridgeLibraryPath: String
     public let bundledCorePath: String
-    public let systemCorePath: String
+
+    /// Deprecated: system binary is no longer installed. Returns bundledCorePath.
+    @available(*, deprecated, message: "System binary removed; use bundledCorePath directly")
+    public var systemCorePath: String {
+        bundledCorePath
+    }
 
     public init(
         launcherPath: String,
         bridgeLibraryPath: String,
-        bundledCorePath: String,
-        systemCorePath: String
+        bundledCorePath: String
     ) {
         self.launcherPath = launcherPath
         self.bridgeLibraryPath = bridgeLibraryPath
         self.bundledCorePath = bundledCorePath
-        self.systemCorePath = systemCorePath
     }
 
-    public func preferredCoreBinaryPath(
-        fileManager: FileManager = .default
-    ) -> String {
-        if fileManager.isExecutableFile(atPath: systemCorePath) {
-            return systemCorePath
-        }
-        return bundledCorePath
+    /// The canonical kanata binary path. Always returns the bundled binary.
+    public func preferredCoreBinaryPath() -> String {
+        bundledCorePath
     }
 
     public static func current(
-        bundlePath: String = Bundle.main.bundlePath,
-        systemRoot: String? = nil
+        bundlePath: String = Bundle.main.bundlePath
     ) -> KanataRuntimeHost {
         let resolvedBundlePath = resolveAppBundlePath(from: bundlePath)
         return KanataRuntimeHost(
             launcherPath: "\(resolvedBundlePath)/Contents/Library/KeyPath/kanata-launcher",
             bridgeLibraryPath: "\(resolvedBundlePath)/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib",
-            bundledCorePath: "\(resolvedBundlePath)/Contents/Library/KeyPath/kanata",
-            systemCorePath: remapSystemPath("/Library/KeyPath/bin/kanata", under: systemRoot)
+            bundledCorePath: "\(resolvedBundlePath)/Contents/Library/KeyPath/kanata"
         )
     }
 
@@ -59,17 +56,5 @@ public struct KanataRuntimeHost: Sendable, Equatable {
         }
 
         return normalizedPath
-    }
-
-    private static func remapSystemPath(_ path: String, under systemRoot: String?) -> String {
-        guard let systemRoot, !systemRoot.isEmpty, path.hasPrefix("/") else {
-            return path
-        }
-
-        let trimmedRoot = systemRoot.hasSuffix("/") ? String(systemRoot.dropLast()) : systemRoot
-        if path.hasPrefix(trimmedRoot) {
-            return path
-        }
-        return trimmedRoot + path
     }
 }
