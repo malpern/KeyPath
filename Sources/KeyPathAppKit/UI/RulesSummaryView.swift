@@ -242,7 +242,7 @@ struct RulesTabView: View {
         let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .homeRowLayerToggles || style == .tapHoldPicker || style == .layerPresetPicker || style == .launcherGrid ||
             style == .chordGroups ||
             style ==
-            .sequences || isSpecializedTable
+            .sequences || style == .autoShiftSymbols || isSpecializedTable
         ExpandableCollectionRow(
             collectionId: collection.id.uuidString,
             name: dynamicCollectionName(for: collection),
@@ -340,6 +340,10 @@ struct RulesTabView: View {
             } : nil,
             onLauncherConfigChanged: collection.id == RuleCollectionIdentifier.launcher ? { config in
                 Task { await kanataManager.updateLauncherConfig(collection.id, config: config) }
+            } : nil,
+            onAutoShiftConfigChanged: collection.id == RuleCollectionIdentifier.autoShiftSymbols ? { config in
+                pendingToggles[collection.id] = true
+                Task { await kanataManager.updateAutoShiftSymbolsConfig(collectionId: collection.id, config: config) }
             } : nil,
             onHelpTapped: collection.id == RuleCollectionIdentifier.homeRowMods ? {
                 showingHomeRowModsHelp = true
@@ -797,6 +801,10 @@ struct RulesTabView: View {
         // Handle tap-hold picker configurations dynamically
         if case .tapHoldPicker = collection.configuration {
             return dynamicTapHoldActivationHint(for: collection)
+        }
+        // Handle auto shift symbols dynamically (key count + timeout may change)
+        if case let .autoShiftSymbols(config) = collection.configuration {
+            return "\(config.enabledKeys.count) keys \u{00B7} \(config.timeoutMs)ms hold"
         }
         // All other collections use static activation hint
         return collection.activationHint

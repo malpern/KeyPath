@@ -19,7 +19,9 @@ extension RuleCollectionsManager {
     }
 
     /// Toggle a rule collection on/off
-    func toggleCollection(id: UUID, isEnabled: Bool) async {
+    /// - Returns: `true` if the toggle was applied successfully, `false` if validation failed and state was rolled back
+    @discardableResult
+    func toggleCollection(id: UUID, isEnabled: Bool) async -> Bool {
         AppLogger.shared.log("🔀 [RuleCollections] toggleCollection called: id=\(id), isEnabled=\(isEnabled)")
         let snapshot = snapshotRuleState()
 
@@ -43,7 +45,7 @@ extension RuleCollectionsManager {
 
                 guard let choice = await onConflictResolution?(context) else {
                     // User cancelled - don't enable
-                    return
+                    return false
                 }
 
                 switch choice {
@@ -52,12 +54,12 @@ extension RuleCollectionsManager {
                     await disableConflicting(conflict.source, regenerate: false)
                 case .keepExisting:
                     // User chose to keep the existing rule - don't enable the new one
-                    return
+                    return false
                 }
             }
         }
 
-        guard let resolvedCandidate = candidate else { return }
+        guard let resolvedCandidate = candidate else { return false }
 
         if let index = ruleCollections.firstIndex(where: { $0.id == id }) {
             ruleCollections[index].isEnabled = isEnabled
@@ -96,13 +98,14 @@ extension RuleCollectionsManager {
         guard applied else {
             AppLogger.shared.log("↩️ [RuleCollections] Toggle apply failed; rolling back to previous state")
             await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.")
-            return
+            return false
         }
 
         // Pre-cache icons for collections with app launches (e.g., Vim nav layer)
         if isEnabled, let collection = ruleCollections.first(where: { $0.id == id }) {
             await warmLayerIconCache(for: collection)
         }
+        return true
     }
 
     /// Enable multiple collections in a single batch, regenerating config only once.
@@ -572,6 +575,34 @@ extension RuleCollectionsManager {
 
         // Cache warm new launcher icons
         await warmLauncherIconCache(for: config)
+        return wasNewlyEnabled
+    }
+
+    /// Update auto shift symbols configuration
+    /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
+    @discardableResult
+    func updateAutoShiftSymbolsConfig(id: UUID, config: AutoShiftSymbolsConfig) async -> Bool {
+        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
+            let catalog = RuleCollectionCatalog()
+            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
+                catalogCollection.configuration.updateAutoShiftSymbolsConfig(config)
+                catalogCollection.isEnabled = true
+                ruleCollections.append(catalogCollection)
+                dedupeRuleCollectionsInPlace()
+                refreshLayerIndicatorState()
+                await regenerateConfigFromCollections()
+                return true
+            }
+            return false
+        }
+
+        // Don't force-enable on every config tweak — preserve current toggle state
+        let wasNewlyEnabled = false
+        ruleCollections[index].configuration.updateAutoShiftSymbolsConfig(config)
+
+        dedupeRuleCollectionsInPlace()
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
         return wasNewlyEnabled
     }
 

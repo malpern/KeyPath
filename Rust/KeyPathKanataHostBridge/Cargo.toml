@@ -13,6 +13,7 @@ simulated-output-spike = ["kanata_state_machine/simulated_output"]
 passthru-output-spike = [
     "kanata_state_machine/simulated_input",
     "kanata_state_machine/simulated_output",
+    "kanata_state_machine/passthru_ahk",
 ]
 
 [dependencies]

@@ -71,6 +71,8 @@ struct ExpandableCollectionRow: View {
     var onSelectFunctionKeyMode: ((FunctionKeyMode) -> Void)?
     /// For launcherGrid: callback to update launcher config
     var onLauncherConfigChanged: ((LauncherGridConfig) -> Void)?
+    /// For autoShiftSymbols: callback to update config
+    var onAutoShiftConfigChanged: ((AutoShiftSymbolsConfig) -> Void)?
     /// Optional help button callback — when non-nil, a `?` button appears in the header
     var onHelpTapped: (() -> Void)?
     /// Unique ID for scroll-to behavior
@@ -442,6 +444,17 @@ struct ExpandableCollectionRow: View {
                         .padding(.bottom, 12)
                         .padding(.horizontal, 16)
                     }
+                } else if displayStyle == .autoShiftSymbols, let coll = collection {
+                    let config = coll.configuration.autoShiftSymbolsConfig ?? AutoShiftSymbolsConfig()
+                    AutoShiftCollectionView(
+                        config: config,
+                        onConfigChanged: { newConfig in
+                            onAutoShiftConfigChanged?(newConfig)
+                        }
+                    )
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
                 } else if displayStyle == .chordGroups, let coll = collection {
                     // Chord Groups: Ben Vallack-style multi-key combinations
                     let config = coll.configuration.chordGroupsConfig ?? ChordGroupsConfig()

@@ -18,10 +18,12 @@ extension RuntimeCoordinator {
         lastConfigUpdate = Date()
     }
 
-    func toggleRuleCollection(id: UUID, isEnabled: Bool) async {
+    @discardableResult
+    func toggleRuleCollection(id: UUID, isEnabled: Bool) async -> Bool {
         AppLogger.shared.log("🎚️ [RuntimeCoordinator] toggleRuleCollection: id=\(id), isEnabled=\(isEnabled)")
-        await ruleCollectionsCoordinator.toggleRuleCollection(id: id, isEnabled: isEnabled)
-        AppLogger.shared.log("🎚️ [RuntimeCoordinator] toggleRuleCollection completed")
+        let success = await ruleCollectionsCoordinator.toggleRuleCollection(id: id, isEnabled: isEnabled)
+        AppLogger.shared.log("🎚️ [RuntimeCoordinator] toggleRuleCollection completed (success=\(success))")
+        return success
     }
 
     func batchEnableCollections(ids: [UUID]) async {
@@ -79,6 +81,11 @@ extension RuntimeCoordinator {
     @discardableResult
     func updateLauncherConfig(collectionId: UUID, config: LauncherGridConfig) async -> Bool {
         await ruleCollectionsCoordinator.updateLauncherConfig(id: collectionId, config: config)
+    }
+
+    @discardableResult
+    func updateAutoShiftSymbolsConfig(collectionId: UUID, config: AutoShiftSymbolsConfig) async -> Bool {
+        await ruleCollectionsCoordinator.updateAutoShiftSymbolsConfig(id: collectionId, config: config)
     }
 
     func updateLeaderKey(_ newKey: String) async {

@@ -158,6 +158,32 @@ extension KanataConfiguration {
         return config.selectedMappings.isEmpty ? (config.presets.first?.mappings ?? []) : config.selectedMappings
     }
 
+    /// Generate KeyMapping instances from AutoShiftSymbolsConfig
+    static func generateAutoShiftSymbolsMappings(from config: AutoShiftSymbolsConfig) -> [KeyMapping] {
+        var mappings: [KeyMapping] = []
+
+        for key in AutoShiftSymbolsConfig.allSymbolKeys where config.enabledKeys.contains(key) {
+            let behavior = DualRoleBehavior(
+                tapAction: key,
+                holdAction: "S-\(key)",
+                tapTimeout: config.timeoutMs,
+                holdTimeout: config.timeoutMs,
+                activateHoldOnOtherKey: false,
+                quickTap: false,
+                customTapKeys: []
+            )
+
+            let mapping = KeyMapping(
+                input: key,
+                output: key,
+                behavior: .dualRole(behavior)
+            )
+            mappings.append(mapping)
+        }
+
+        return mappings
+    }
+
     /// Generate key mappings from launcher grid configuration
     static func generateLauncherGridMappings(from config: LauncherGridConfig) -> [KeyMapping] {
         let isTapMode = config.hyperTriggerMode == .tap

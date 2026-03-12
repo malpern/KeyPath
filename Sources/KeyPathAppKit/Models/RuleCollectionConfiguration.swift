@@ -49,6 +49,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
     /// Launcher grid: quick app/website launching via keyboard shortcuts
     case launcherGrid(LauncherGridConfig)
 
+    /// Auto Shift Symbols: hold symbol keys slightly longer for shifted output
+    case autoShiftSymbols(AutoShiftSymbolsConfig)
+
     // MARK: - Convenience Accessors
 
     /// The display style enum value (for compatibility with existing UI code)
@@ -64,6 +67,7 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case .tapHoldPicker: .tapHoldPicker
         case .layerPresetPicker: .layerPresetPicker
         case .launcherGrid: .launcherGrid
+        case .autoShiftSymbols: .autoShiftSymbols
         }
     }
 
@@ -112,6 +116,12 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
     /// Extract launcher grid config if this is a `.launcherGrid` case
     public var launcherGridConfig: LauncherGridConfig? {
         if case let .launcherGrid(config) = self { return config }
+        return nil
+    }
+
+    /// Extract auto shift symbols config if this is a `.autoShiftSymbols` case
+    public var autoShiftSymbolsConfig: AutoShiftSymbolsConfig? {
+        if case let .autoShiftSymbols(config) = self { return config }
         return nil
     }
 
@@ -188,6 +198,13 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         }
     }
 
+    /// Update the auto shift symbols config
+    public mutating func updateAutoShiftSymbolsConfig(_ newConfig: AutoShiftSymbolsConfig) {
+        if case .autoShiftSymbols = self {
+            self = .autoShiftSymbols(newConfig)
+        }
+    }
+
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {
@@ -205,6 +222,7 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case tapHoldPicker
         case layerPresetPicker
         case launcherGrid
+        case autoShiftSymbols
     }
 
     public init(from decoder: Decoder) throws {
@@ -240,6 +258,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case .launcherGrid:
             let config = try LauncherGridConfig(from: decoder)
             self = .launcherGrid(config)
+        case .autoShiftSymbols:
+            let config = try AutoShiftSymbolsConfig(from: decoder)
+            self = .autoShiftSymbols(config)
         }
     }
 
@@ -274,6 +295,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
             try config.encode(to: encoder)
         case let .launcherGrid(config):
             try container.encode(ConfigType.launcherGrid, forKey: .type)
+            try config.encode(to: encoder)
+        case let .autoShiftSymbols(config):
+            try container.encode(ConfigType.autoShiftSymbols, forKey: .type)
             try config.encode(to: encoder)
         }
     }
@@ -647,5 +671,55 @@ public struct LauncherGridConfig: Codable, Equatable, Sendable {
         // explicit user opt-in via Settings > Security. Users can add scripts manually.
 
         return homeRowMappings + topRowMappings + bottomRowMappings + numberRowMappings
+    }
+}
+
+// MARK: - Auto Shift Symbols Configuration
+
+/// Configuration for Auto Shift Symbols collection.
+///
+/// Generates tap-hold behaviors where tap produces the base key
+/// and hold produces the shifted variant (e.g., tap `.` → `.`, hold `.` → `>`).
+public struct AutoShiftSymbolsConfig: Codable, Equatable, Sendable {
+    /// Timeout in milliseconds — hold longer than this to get shifted output
+    public var timeoutMs: Int
+
+    /// When true, contributes to global require-prior-idle to prevent accidental shifts during fast typing
+    public var protectFastTyping: Bool
+
+    /// Which keys are enabled for auto-shift behavior
+    public var enabledKeys: Set<String>
+
+    /// Default timeout for auto-shift (milliseconds)
+    public static let defaultTimeoutMs = 180
+
+    /// The full set of symbol keys eligible for auto-shift
+    public static let allSymbolKeys: [String] = [
+        "grv", "min", "eql", "lbrc", "rbrc", "bsls", "scln", "apos", "comm", "dot", "slsh"
+    ]
+
+    /// Display labels for symbol keys: kanata key → (normal, shifted)
+    public static let shiftedLabels: [String: (normal: String, shifted: String)] = [
+        "grv": ("`", "~"),
+        "min": ("-", "_"),
+        "eql": ("=", "+"),
+        "lbrc": ("[", "{"),
+        "rbrc": ("]", "}"),
+        "bsls": ("\\", "|"),
+        "scln": (";", ":"),
+        "apos": ("'", "\""),
+        "comm": (",", "<"),
+        "dot": (".", ">"),
+        "slsh": ("/", "?")
+    ]
+
+    public init(
+        timeoutMs: Int = AutoShiftSymbolsConfig.defaultTimeoutMs,
+        protectFastTyping: Bool = true,
+        enabledKeys: Set<String>? = nil
+    ) {
+        self.timeoutMs = timeoutMs
+        self.protectFastTyping = protectFastTyping
+        self.enabledKeys = enabledKeys ?? Set(AutoShiftSymbolsConfig.allSymbolKeys)
     }
 }

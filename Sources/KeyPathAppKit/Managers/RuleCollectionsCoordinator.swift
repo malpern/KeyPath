@@ -42,11 +42,14 @@ final class RuleCollectionsCoordinator {
     // MARK: - Rule Collection Operations
 
     /// Toggle a rule collection's enabled state
-    func toggleRuleCollection(id: UUID, isEnabled: Bool) async {
+    /// - Returns: `true` if the toggle was applied successfully
+    @discardableResult
+    func toggleRuleCollection(id: UUID, isEnabled: Bool) async -> Bool {
         AppLogger.shared.log("🎚️ [RuleCollectionsCoordinator] toggleRuleCollection: id=\(id), isEnabled=\(isEnabled)")
-        await ruleCollectionsManager.toggleCollection(id: id, isEnabled: isEnabled)
+        let success = await ruleCollectionsManager.toggleCollection(id: id, isEnabled: isEnabled)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
+        return success
     }
 
     /// Enable multiple collections in a single batch (one config regeneration)
@@ -153,6 +156,15 @@ final class RuleCollectionsCoordinator {
     @discardableResult
     func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async -> Bool {
         let wasNewlyEnabled = await ruleCollectionsManager.updateLauncherConfig(id: id, config: config)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+        return wasNewlyEnabled
+    }
+
+    /// Update auto shift symbols configuration
+    @discardableResult
+    func updateAutoShiftSymbolsConfig(id: UUID, config: AutoShiftSymbolsConfig) async -> Bool {
+        let wasNewlyEnabled = await ruleCollectionsManager.updateAutoShiftSymbolsConfig(id: id, config: config)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
         return wasNewlyEnabled
