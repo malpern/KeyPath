@@ -482,7 +482,16 @@ public final class InstallerEngine {
             try await broker.downloadAndInstallCorrectVHIDDriver()
 
         case InstallerRecipeID.installMissingComponents:
-            // Install all missing components (drivers)
+            // Fail fast if the bundled kanata binary is missing — this means the app bundle
+            // itself is corrupted and requires a full reinstall, not a component install.
+            let detector = KanataBinaryDetector.shared
+            if !detector.isInstalled() {
+                throw KeyPathError.coordination(.systemDetectionFailed(
+                    component: "kanata",
+                    reason: "Bundled kanata binary is missing or unsigned. Please reinstall KeyPath."
+                ))
+            }
+            // Install missing driver components
             try await broker.downloadAndInstallCorrectVHIDDriver()
 
         case InstallerRecipeID.createConfigDirectories:
