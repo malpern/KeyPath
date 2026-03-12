@@ -16,11 +16,6 @@ public struct KanataRuntimeHost: Sendable, Equatable {
     /// macOS TCC tracks this by CFBundleIdentifier instead of raw path.
     public let kanataEngineBundlePath: String
 
-    /// Bundle identifier for the KanataEngine.app wrapper.
-    /// Used for TCC bundle-ID queries (client_type=0).
-    /// Canonical definition lives in `KeyPathConstants.Bundle.kanataEngineBundleID`.
-    public static let kanataEngineBundleID = KeyPathConstants.Bundle.kanataEngineBundleID
-
     /// Deprecated: system binary is no longer installed. Returns bundledCorePath.
     @available(*, deprecated, message: "System binary removed; use bundledCorePath directly")
     public var systemCorePath: String {

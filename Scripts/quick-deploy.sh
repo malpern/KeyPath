@@ -193,15 +193,33 @@ fi
 KANATA_ENGINE_APP="$APP_BUNDLE/Contents/Library/KeyPath/KanataEngine.app"
 KANATA_ENGINE_CONTENTS="$KANATA_ENGINE_APP/Contents"
 KANATA_ENGINE_MACOS="$KANATA_ENGINE_CONTENTS/MacOS"
-if [[ ! -d "$KANATA_ENGINE_MACOS" ]]; then
-    mkdir -p "$KANATA_ENGINE_MACOS" "$KANATA_ENGINE_CONTENTS/Resources"
-    # If the kanata binary exists at the old flat location (not a symlink), wrap it
-    OLD_KANATA="$APP_BUNDLE/Contents/Library/KeyPath/kanata"
-    if [[ -f "$OLD_KANATA" && ! -L "$OLD_KANATA" ]]; then
-        mv "$OLD_KANATA" "$KANATA_ENGINE_MACOS/kanata"
+mkdir -p "$KANATA_ENGINE_MACOS" "$KANATA_ENGINE_CONTENTS/Resources"
+
+# If the kanata binary exists at the old flat location (not a symlink), migrate it
+# into the .app bundle and leave a backward-compat symlink behind.
+OLD_KANATA="$APP_BUNDLE/Contents/Library/KeyPath/kanata"
+if [[ -f "$OLD_KANATA" && ! -L "$OLD_KANATA" ]]; then
+    mv "$OLD_KANATA" "$KANATA_ENGINE_MACOS/kanata"
+    ln -sf "KanataEngine.app/Contents/MacOS/kanata" "$OLD_KANATA"
+fi
+
+# Ensure the kanata binary is present inside KanataEngine.app.
+# On a fresh deploy the binary may not exist yet (no old flat binary to migrate).
+# Copy from the pre-built artifact if available.
+KANATA_UNIVERSAL="$PROJECT_DIR/build/kanata-universal"
+if [[ ! -f "$KANATA_ENGINE_MACOS/kanata" && -f "$KANATA_UNIVERSAL" ]]; then
+    cp "$KANATA_UNIVERSAL" "$KANATA_ENGINE_MACOS/kanata"
+    chmod 755 "$KANATA_ENGINE_MACOS/kanata"
+    # Create backward-compat symlink if missing
+    if [[ ! -e "$OLD_KANATA" ]]; then
         ln -sf "KanataEngine.app/Contents/MacOS/kanata" "$OLD_KANATA"
     fi
 fi
+
+if [[ ! -f "$KANATA_ENGINE_MACOS/kanata" ]]; then
+    echo "⚠️  KanataEngine.app has no kanata binary. Run ./Scripts/build-kanata.sh first."
+fi
+
 # Copy committed Info.plist
 cp "$PROJECT_DIR/Sources/KeyPathApp/Resources/KanataEngine-Info.plist" "$KANATA_ENGINE_CONTENTS/Info.plist"
 

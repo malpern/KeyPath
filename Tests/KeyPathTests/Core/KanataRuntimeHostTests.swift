@@ -46,7 +46,7 @@ final class KanataRuntimeHostTests: XCTestCase {
     }
 
     func testKanataEngineBundleIDIsCorrect() {
-        XCTAssertEqual(KanataRuntimeHost.kanataEngineBundleID, "com.keypath.kanata-engine")
+        XCTAssertEqual(KeyPathConstants.Bundle.kanataEngineBundleID, "com.keypath.kanata-engine")
     }
 
     func testLaunchRequestBuildsCommandLineAndAddsTraceWhenNeeded() {
