@@ -72,13 +72,15 @@ final class KanataDaemonManagerTests: XCTestCase {
 
     func testKanataBinaryExistsInBundle() {
         let bundlePath = Bundle.main.bundlePath
-        let kanataPath = "\(bundlePath)/Contents/Library/KeyPath/kanata"
-        let exists = FileManager.default.fileExists(atPath: kanataPath)
+        // Check both the KanataEngine.app path and the backward-compat symlink
+        let enginePath = "\(bundlePath)/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata"
+        let symlinkPath = "\(bundlePath)/Contents/Library/KeyPath/kanata"
+        let exists = FileManager.default.fileExists(atPath: enginePath) || FileManager.default.fileExists(atPath: symlinkPath)
 
         if exists {
-            print("✅ Kanata binary found at: \(kanataPath)")
+            print("✅ Kanata binary found in bundle")
         } else {
-            print("⚠️ Kanata binary not found at: \(kanataPath)")
+            print("⚠️ Kanata binary not found at: \(enginePath)")
             print("   This is expected if running tests outside app bundle context")
         }
         // Don't fail test - binary may not exist in test environment

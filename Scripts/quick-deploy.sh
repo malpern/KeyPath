@@ -188,6 +188,48 @@ if [[ "${KEYPATH_DEPLOY_HELPER:-0}" == "1" ]]; then
     fi
 fi
 
+# Ensure KanataEngine.app bundle structure exists around the kanata binary.
+# The full build creates this; quick-deploy just ensures it's present.
+KANATA_ENGINE_APP="$APP_BUNDLE/Contents/Library/KeyPath/KanataEngine.app"
+KANATA_ENGINE_CONTENTS="$KANATA_ENGINE_APP/Contents"
+KANATA_ENGINE_MACOS="$KANATA_ENGINE_CONTENTS/MacOS"
+if [[ ! -d "$KANATA_ENGINE_MACOS" ]]; then
+    mkdir -p "$KANATA_ENGINE_MACOS" "$KANATA_ENGINE_CONTENTS/Resources"
+    # If the kanata binary exists at the old flat location (not a symlink), wrap it
+    OLD_KANATA="$APP_BUNDLE/Contents/Library/KeyPath/kanata"
+    if [[ -f "$OLD_KANATA" && ! -L "$OLD_KANATA" ]]; then
+        mv "$OLD_KANATA" "$KANATA_ENGINE_MACOS/kanata"
+        ln -sf "KanataEngine.app/Contents/MacOS/kanata" "$OLD_KANATA"
+    fi
+fi
+# Create/refresh Info.plist
+cat > "$KANATA_ENGINE_CONTENTS/Info.plist" <<'ENGINEPLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.keypath.kanata-engine</string>
+    <key>CFBundleExecutable</key>
+    <string>kanata</string>
+    <key>CFBundleName</key>
+    <string>KanataEngine</string>
+    <key>CFBundleDisplayName</key>
+    <string>KanataEngine</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>LSBackgroundOnly</key>
+    <true/>
+</dict>
+</plist>
+ENGINEPLIST
+
 # Sync the current bundled runtime host executable.
 KANATA_LAUNCHER_BIN="$BIN_DIR/KeyPathKanataLauncher"
 KANATA_LAUNCHER_DST="$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher"
@@ -260,6 +302,9 @@ SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X
 if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
     if [[ -f "$APP_BUNDLE/Contents/Library/HelperTools/KeyPathHelper" ]]; then
         codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/HelperTools/KeyPathHelper" 2>/dev/null || true
+    fi
+    if [[ -d "$APP_BUNDLE/Contents/Library/KeyPath/KanataEngine.app" ]]; then
+        codesign --force --options=runtime --deep --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/KanataEngine.app" 2>/dev/null || true
     fi
     if [[ -f "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher" ]]; then
         codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher" 2>/dev/null || true

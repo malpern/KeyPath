@@ -1303,9 +1303,13 @@ class ConfigurationServiceTests: XCTestCase {
 
         // Candidate locations in priority order
         let candidates = [
-            // Local dev build
+            // Local dev build (KanataEngine.app bundle)
+            projectRoot.appendingPathComponent("dist/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata").path,
+            // Local dev build (backward-compat symlink)
             projectRoot.appendingPathComponent("dist/KeyPath.app/Contents/Library/KeyPath/kanata").path,
-            // Installed app
+            // Installed app (KanataEngine.app bundle)
+            "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata",
+            // Installed app (backward-compat symlink)
             "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata",
             // External kanata build (for CI or fresh clones)
             projectRoot.appendingPathComponent("External/kanata/target/aarch64-apple-darwin/release/kanata").path,

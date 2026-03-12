@@ -192,8 +192,49 @@ MACOS="${CONTENTS}/MacOS"
 	# For an app bundle, frameworks live at Contents/Frameworks, so add that search path.
 	install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS/KeyPath" 2>/dev/null || true
 
-	# Copy bundled kanata binary
-	ditto "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
+	# Create KanataEngine.app bundle wrapping the kanata binary.
+	# This gives kanata a CFBundleIdentifier so macOS TCC tracks it by bundle ID
+	# (client_type=0) instead of raw path (client_type=1), which ensures it appears
+	# in System Settings on macOS Tahoe 26.1+ and survives path changes.
+	KANATA_ENGINE_APP="$CONTENTS/Library/KeyPath/KanataEngine.app"
+	KANATA_ENGINE_CONTENTS="$KANATA_ENGINE_APP/Contents"
+	KANATA_ENGINE_MACOS="$KANATA_ENGINE_CONTENTS/MacOS"
+	KANATA_ENGINE_RESOURCES="$KANATA_ENGINE_CONTENTS/Resources"
+	mkdir -p "$KANATA_ENGINE_MACOS" "$KANATA_ENGINE_RESOURCES"
+
+	# Move kanata binary into the .app bundle
+	ditto "build/kanata-universal" "$KANATA_ENGINE_MACOS/kanata"
+
+	# Create Info.plist for KanataEngine.app
+	cat > "$KANATA_ENGINE_CONTENTS/Info.plist" <<'ENGINEPLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.keypath.kanata-engine</string>
+    <key>CFBundleExecutable</key>
+    <string>kanata</string>
+    <key>CFBundleName</key>
+    <string>KanataEngine</string>
+    <key>CFBundleDisplayName</key>
+    <string>KanataEngine</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>LSBackgroundOnly</key>
+    <true/>
+</dict>
+</plist>
+ENGINEPLIST
+
+	# Create backward-compat symlink so existing code paths still resolve
+	ln -sf "KanataEngine.app/Contents/MacOS/kanata" "$CONTENTS/Library/KeyPath/kanata"
 
 	# Copy bundled kanata simulator binary
 	ditto "build/kanata-simulator" "$CONTENTS/Library/KeyPath/kanata-simulator"
@@ -265,7 +306,9 @@ ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath
 	        "$INSIGHTS_BUNDLE/Contents/Info.plist" \
 	        "$KANATA_LAUNCHER_DST" \
 	        "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" \
-	        "$CONTENTS/Library/KeyPath/kanata-simulator"; do
+	        "$CONTENTS/Library/KeyPath/kanata-simulator" \
+	        "$CONTENTS/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata" \
+	        "$CONTENTS/Library/KeyPath/KanataEngine.app/Contents/Info.plist"; do
 	        if [ ! -e "$path" ]; then
 	            echo "❌ ERROR: Missing packaged artifact: $path" >&2
 	            missing=1
@@ -371,8 +414,8 @@ else
         --entitlements "$OUTPUT_BRIDGE_ENTITLEMENTS" \
         --sign "$SIGNING_IDENTITY"
 
-    # Sign bundled kanata binary (already signed in build-kanata.sh, but ensure consistency)
-    kp_sign "$CONTENTS/Library/KeyPath/kanata" --force --options=runtime --sign "$SIGNING_IDENTITY"
+    # Sign KanataEngine.app bundle (inside-out: sign the .app before the outer KeyPath.app)
+    kp_sign "$CONTENTS/Library/KeyPath/KanataEngine.app" --force --options=runtime --deep --sign "$SIGNING_IDENTITY"
 
     # Sign the bundled runtime host pieces explicitly before the outer app sign.
     kp_sign "$CONTENTS/Library/KeyPath/kanata-launcher" --force --options=runtime --sign "$SIGNING_IDENTITY"
