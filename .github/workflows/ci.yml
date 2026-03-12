@@ -57,8 +57,12 @@ jobs:
 
     - name: Install Kanata
       run: |
-        # brew install is idempotent; brew link handles cache-restored but unlinked packages
-        brew install kanata || brew link kanata
+        # Cache may restore Cellar without symlinks; install or link as needed
+        if brew list kanata &>/dev/null; then
+          brew link --overwrite kanata
+        else
+          brew install kanata
+        fi
         kanata --version
 
     - name: Lint WizardAutoFixer for forbidden subprocess usage
