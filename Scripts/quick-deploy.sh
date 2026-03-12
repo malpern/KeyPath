@@ -193,7 +193,7 @@ fi
 KANATA_ENGINE_APP="$APP_BUNDLE/Contents/Library/KeyPath/KanataEngine.app"
 KANATA_ENGINE_CONTENTS="$KANATA_ENGINE_APP/Contents"
 KANATA_ENGINE_MACOS="$KANATA_ENGINE_CONTENTS/MacOS"
-mkdir -p "$KANATA_ENGINE_MACOS" "$KANATA_ENGINE_CONTENTS/Resources"
+mkdir -p "$KANATA_ENGINE_MACOS"
 
 # If the kanata binary exists at the old flat location (not a symlink), migrate it
 # into the .app bundle and leave a backward-compat symlink behind.
@@ -222,6 +222,13 @@ fi
 
 # Copy committed Info.plist
 cp "$PROJECT_DIR/Sources/KeyPathApp/Resources/KanataEngine-Info.plist" "$KANATA_ENGINE_CONTENTS/Info.plist"
+
+# Inject the main app's version into KanataEngine.app so the bundle version
+# stays in sync across releases (the source plist uses placeholder values).
+_MAIN_VER=$(defaults read "$PROJECT_DIR/Sources/KeyPathApp/Info" CFBundleShortVersionString 2>/dev/null || echo "1.0")
+_MAIN_BUILD=$(defaults read "$PROJECT_DIR/Sources/KeyPathApp/Info" CFBundleVersion 2>/dev/null || echo "1")
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $_MAIN_VER" "$KANATA_ENGINE_CONTENTS/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $_MAIN_BUILD" "$KANATA_ENGINE_CONTENTS/Info.plist"
 
 # Sync the current bundled runtime host executable.
 KANATA_LAUNCHER_BIN="$BIN_DIR/KeyPathKanataLauncher"
@@ -289,7 +296,12 @@ if [[ -f "$INSIGHTS_DYLIB" ]]; then
     cp "$PROJECT_DIR/Sources/KeyPathInsights/Info.plist" "$APP_BUNDLE/Contents/PlugIns/Insights.bundle/Contents/Info.plist"
 fi
 
-# Re-sign with entitlements (prefer Developer ID if available)
+# Re-sign with entitlements (prefer Developer ID if available).
+# NOTE: KanataEngine.app and inner binaries are signed here WITHOUT entitlements
+# (just --options=runtime). This produces a dev-only ad-hoc-equivalent signature
+# sufficient for local testing, but NOT equivalent to the distribution signature
+# from build-and-sign.sh which applies proper entitlements and a notarizable
+# Developer ID identity to every artifact.
 echo "✍️  Signing..."
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
 if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then

@@ -481,12 +481,14 @@ private func positionSettingsAndFinderSideBySide() {
     AppLogger.shared.log("📐 [WizardInputMonitoringPage] Positioned Settings and Finder side-by-side")
 }
 
-private func copyKanataPathToClipboard() {
+/// Copies the KanataEngine.app bundle path (not the raw binary) to the
+/// clipboard so users can paste it into System Settings file dialogs.
+private func copyKanataEngineAppPathToClipboard() {
     let path = WizardSystemPaths.kanataEngineBundlePath
     let pb = NSPasteboard.general
     pb.clearContents()
     pb.setString(path, forType: .string)
-    AppLogger.shared.log("📋 [WizardInputMonitoringPage] Copied KanataEngine path to clipboard: \(path)")
+    AppLogger.shared.log("📋 [WizardInputMonitoringPage] Copied KanataEngine.app bundle path to clipboard: \(path)")
 }
 
 // MARK: - Stale Entry Cleanup Instructions View

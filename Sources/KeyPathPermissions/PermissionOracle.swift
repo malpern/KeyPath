@@ -523,6 +523,12 @@ public actor PermissionOracle {
         // During migration a user may have one permission under the bundle ID and the
         // other still under the old raw-path entry.  Use path-based values as fallback
         // for whichever permission the bundle-ID query did not resolve.
+        //
+        // NOTE: Even when both bundle-ID results are non-nil (early-return above),
+        // we reach this path when only ONE is non-nil. The path-based queries run
+        // unconditionally here; the `??` merge on the return line ensures bundle-ID
+        // results always take precedence and path results are only used when the
+        // corresponding bundle-ID result is nil.
         AppLogger.shared.log("🔍 [Oracle] Partial/no bundle-ID TCC entries; falling back to path-based query for gaps")
         let normalizedPath = normalizePathForTCC(executablePath)
         let axPath = await tccStatus(forExecutable: normalizedPath, service: .accessibility)

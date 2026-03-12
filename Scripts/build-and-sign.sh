@@ -199,14 +199,20 @@ MACOS="${CONTENTS}/MacOS"
 	KANATA_ENGINE_APP="$CONTENTS/Library/KeyPath/KanataEngine.app"
 	KANATA_ENGINE_CONTENTS="$KANATA_ENGINE_APP/Contents"
 	KANATA_ENGINE_MACOS="$KANATA_ENGINE_CONTENTS/MacOS"
-	KANATA_ENGINE_RESOURCES="$KANATA_ENGINE_CONTENTS/Resources"
-	mkdir -p "$KANATA_ENGINE_MACOS" "$KANATA_ENGINE_RESOURCES"
+	mkdir -p "$KANATA_ENGINE_MACOS"
 
 	# Move kanata binary into the .app bundle
 	ditto "build/kanata-universal" "$KANATA_ENGINE_MACOS/kanata"
 
 	# Copy committed Info.plist for KanataEngine.app
 	cp "$SCRIPT_DIR/../Sources/KeyPathApp/Resources/KanataEngine-Info.plist" "$KANATA_ENGINE_CONTENTS/Info.plist"
+
+	# Inject the main app's version into KanataEngine.app so the bundle version
+	# stays in sync across releases (the source plist uses placeholder values).
+	_MAIN_VER=$(defaults read "$SCRIPT_DIR/../Sources/KeyPathApp/Info" CFBundleShortVersionString 2>/dev/null || echo "1.0")
+	_MAIN_BUILD=$(defaults read "$SCRIPT_DIR/../Sources/KeyPathApp/Info" CFBundleVersion 2>/dev/null || echo "1")
+	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $_MAIN_VER" "$KANATA_ENGINE_CONTENTS/Info.plist"
+	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $_MAIN_BUILD" "$KANATA_ENGINE_CONTENTS/Info.plist"
 
 	# Create backward-compat symlink so existing code paths still resolve
 	ln -sf "KanataEngine.app/Contents/MacOS/kanata" "$CONTENTS/Library/KeyPath/kanata"
