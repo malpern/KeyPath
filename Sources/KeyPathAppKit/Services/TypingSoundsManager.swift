@@ -140,9 +140,9 @@ final class TypingSoundsManager {
                 guard let self else { return }
                 switch action {
                 case "press", "repeat":
-                    playKeydown()
+                    self.playKeydown()
                 case "release":
-                    playKeyup()
+                    self.playKeyup()
                 default:
                     break
                 }
