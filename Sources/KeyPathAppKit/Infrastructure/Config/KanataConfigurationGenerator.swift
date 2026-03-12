@@ -202,12 +202,9 @@ public struct KanataConfiguration: Sendable {
         #if os(macOS)
             let cache = DeviceSelectionCache.shared
 
-            // Use cached device list (populated at startup and when Devices tab opens).
-            // Fall back to live enumeration if cache is empty (first launch before Devices tab).
-            var allDevices = cache.getConnectedDevices()
-            if allDevices.isEmpty {
-                allDevices = DeviceEnumerationService.enumerateConnectedDevices()
-            }
+            // Use only the cached device list. CompositionRoot primes selections synchronously
+            // at startup, and device enumeration updates this cache when the Devices tab loads.
+            let allDevices = cache.getConnectedDevices()
             guard !allDevices.isEmpty else { return "" }
 
             let virtualHIDDevices = allDevices.filter(\.isVirtualHID)

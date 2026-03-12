@@ -69,7 +69,8 @@ final class DeviceSelectionStoreTests: XCTestCase {
 
     func testSaveSyncsToSharedCache() async throws {
         let fileURL = tempDir.appendingPathComponent("DeviceSelection.json")
-        let store = DeviceSelectionStore.testStore(at: fileURL)
+        let cache = DeviceSelectionCache()
+        let store = DeviceSelectionStore.testStore(at: fileURL, cache: cache)
 
         let selections = [
             DeviceSelection(hash: "0xTEST", productKey: "Test", isEnabled: false, lastSeen: Date()),
@@ -77,8 +78,8 @@ final class DeviceSelectionStoreTests: XCTestCase {
 
         try await store.saveSelections(selections)
 
-        // The shared cache should reflect the saved state
-        XCTAssertFalse(DeviceSelectionCache.shared.isEnabled(hash: "0xTEST"))
+        XCTAssertFalse(cache.isEnabled(hash: "0xTEST"))
+        XCTAssertTrue(DeviceSelectionCache.shared.isEnabled(hash: "0xTEST"))
     }
 
     func testCacheConnectedDevicesRoundTrip() {
@@ -112,5 +113,20 @@ final class DeviceSelectionStoreTests: XCTestCase {
             lastSeen: Date()
         )
         XCTAssertEqual(selection.displayName, "Apple Internal Keyboard")
+    }
+
+    func testPrimeSharedCacheFromDiskLoadsSelections() async throws {
+        let fileURL = tempDir.appendingPathComponent("DeviceSelection.json")
+        let store = DeviceSelectionStore.testStore(at: fileURL)
+        let selections = [
+            DeviceSelection(hash: "0xSYNC", productKey: "Sync", isEnabled: false, lastSeen: Date()),
+        ]
+
+        try await store.saveSelections(selections)
+        DeviceSelectionCache.shared.reset()
+
+        DeviceSelectionStore.primeSharedCacheFromDisk(fileURL: fileURL)
+
+        XCTAssertFalse(DeviceSelectionCache.shared.isEnabled(hash: "0xSYNC"))
     }
 }

@@ -1,5 +1,14 @@
 import Foundation
 
+enum DeviceDisplayNameFormatter {
+    static func format(_ productKey: String) -> String {
+        productKey
+            .replacingOccurrences(of: " / Trackpad", with: "")
+            .replacingOccurrences(of: "Karabiner-DriverKit-VirtualHIDDevice-", with: "")
+            .trimmingCharacters(in: .whitespaces)
+    }
+}
+
 /// A physical keyboard device detected by Kanata's `--list` command.
 struct ConnectedDevice: Codable, Identifiable, Hashable, Sendable {
     /// Stable-ish identifier from kanata output, e.g. "0x1234ABCD"
@@ -19,10 +28,7 @@ struct ConnectedDevice: Codable, Identifiable, Hashable, Sendable {
 
     /// Cleaned-up product name for display in the UI.
     var displayName: String {
-        productKey
-            .replacingOccurrences(of: " / Trackpad", with: "")
-            .replacingOccurrences(of: "Karabiner-DriverKit-VirtualHIDDevice-", with: "")
-            .trimmingCharacters(in: .whitespaces)
+        DeviceDisplayNameFormatter.format(productKey)
     }
 
     /// Formatted vendor:product hex string, e.g. "05ac:0342"

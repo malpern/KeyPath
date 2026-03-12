@@ -4,8 +4,6 @@ import SwiftUI
 /// Displays connected keyboards with toggles to enable/disable remapping per device.
 /// VirtualHID devices are filtered out (never shown to users).
 struct DeviceSelectionView: View {
-    @Environment(\.colorScheme) private var colorScheme
-
     @State private var connectedDevices: [ConnectedDevice] = []
     @State private var selections: [String: DeviceSelection] = [:]
     @State private var isLoading = true
@@ -55,6 +53,13 @@ struct DeviceSelectionView: View {
         }
         .task {
             await loadDevices()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .deviceSelectionApplyCompleted)) { notification in
+            isRestarting = false
+            let success = notification.userInfo?["success"] as? Bool ?? false
+            if success {
+                needsRestart = false
+            }
         }
     }
 
@@ -130,6 +135,7 @@ struct DeviceSelectionView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
                 .disabled(isRestarting)
+                .accessibilityIdentifier("devices-restart-apply-button")
             }
         }
         .frame(maxWidth: .infinity)
@@ -158,6 +164,7 @@ struct DeviceSelectionView: View {
 
     private func loadDevices() async {
         isLoading = true
+        errorMessage = nil
         defer { isLoading = false }
 
         #if os(macOS)
@@ -237,8 +244,6 @@ struct DeviceSelectionView: View {
         isRestarting = true
         Task {
             NotificationCenter.default.post(name: .deviceSelectionChanged, object: nil)
-            needsRestart = false
-            isRestarting = false
         }
     }
 }
@@ -257,6 +262,14 @@ private struct DeviceRow: View {
 
     private var isDark: Bool {
         colorScheme == .dark
+    }
+
+    private var accessibilityIdentifier: String {
+        let normalizedName = displayName
+            .lowercased()
+            .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return "device-row-\(normalizedName)-toggle"
     }
 
     var body: some View {
@@ -287,6 +300,7 @@ private struct DeviceRow: View {
             .opacity(isConnected ? 1.0 : 0.6)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(accessibilityIdentifier)
         .onHover { isHovering = $0 }
     }
 }

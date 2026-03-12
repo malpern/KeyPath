@@ -64,4 +64,6 @@ extension Notification.Name {
 
     /// Device selection changed (user toggled keyboards in Devices tab) - triggers config regeneration
     static let deviceSelectionChanged = Notification.Name("KeyPath.Devices.SelectionChanged")
+    /// Device selection apply completed. userInfo["success"] = Bool
+    static let deviceSelectionApplyCompleted = Notification.Name("KeyPath.Devices.ApplyCompleted")
 }

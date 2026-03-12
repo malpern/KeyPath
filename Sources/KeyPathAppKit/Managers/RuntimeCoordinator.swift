@@ -477,8 +477,22 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             ) { @Sendable [weak self] _ in
                 guard let self else { return }
                 Task { @MainActor in
-                    AppLogger.shared.log("🔌 [RuntimeCoordinator] Device selection changed, regenerating config...")
-                    await self.ruleCollectionsManager.regenerateConfigFromCollections()
+                    AppLogger.shared.log("🔌 [RuntimeCoordinator] Device selection changed, regenerating config and restarting Kanata...")
+                    let regenerated = await self.ruleCollectionsManager.regenerateConfigFromCollections(skipReload: true)
+                    let success: Bool
+                    if regenerated {
+                        success = await self.restartKanata(reason: "Device selection changed")
+                    } else {
+                        success = false
+                    }
+                    NotificationCenter.default.post(
+                        name: .deviceSelectionApplyCompleted,
+                        object: nil,
+                        userInfo: ["success": success]
+                    )
+                    if success {
+                        NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+                    }
                 }
             })
 

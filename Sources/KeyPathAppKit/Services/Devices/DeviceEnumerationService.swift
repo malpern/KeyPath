@@ -33,6 +33,8 @@ enum DeviceEnumerationService {
 
             let vendorID = Int(vendorStr) ?? 0
             let productID = Int(productStr) ?? 0
+            // Match both kanata's "VirtualHIDKeyboard" label and Karabiner's
+            // broader "Karabiner-DriverKit-VirtualHIDDevice-*" product names.
             let isVirtualHID = productKey.contains("VirtualHIDKeyboard") || productKey.contains("VirtualHID")
 
             devices.append(ConnectedDevice(

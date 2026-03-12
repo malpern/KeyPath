@@ -74,10 +74,8 @@ enum CompositionRoot {
             AppLogger.shared.log("🪟 [App] Running in normal mode (with UI)")
         }
 
-        // Load persisted device selections into synchronous cache for config generator
-        Task {
-            await DeviceSelectionStore.shared.syncToCache()
-        }
+        // Prime the synchronous cache before any startup config regeneration can run.
+        DeviceSelectionStore.primeSharedCacheFromDisk()
 
         // Schedule deferred startup services
         if !isOneShotProbeMode {

@@ -10,10 +10,7 @@ struct DeviceSelection: Codable, Sendable {
 
     /// Cleaned-up product name for display, matching `ConnectedDevice.displayName`.
     var displayName: String {
-        productKey
-            .replacingOccurrences(of: " / Trackpad", with: "")
-            .replacingOccurrences(of: "Karabiner-DriverKit-VirtualHIDDevice-", with: "")
-            .trimmingCharacters(in: .whitespaces)
+        DeviceDisplayNameFormatter.format(productKey)
     }
 }
 
@@ -24,6 +21,7 @@ final class DeviceSelectionCache: @unchecked Sendable {
     static let shared = DeviceSelectionCache()
 
     private let lock = NSLock()
+    // Lock protects all mutable state in this cache. Callers must use the public methods only.
     private var selections: [String: DeviceSelection] = [:]
     private var connectedDevices: [ConnectedDevice] = []
 
@@ -80,9 +78,15 @@ actor DeviceSelectionStore {
     private let decoder: JSONDecoder
     private let fileURL: URL
     private let fileManager: FileManager
+    private let cache: DeviceSelectionCache
 
-    init(fileURL: URL? = nil, fileManager: FileManager = Foundation.FileManager()) {
+    init(
+        fileURL: URL? = nil,
+        fileManager: FileManager = Foundation.FileManager(),
+        cache: DeviceSelectionCache = .shared
+    ) {
         self.fileManager = fileManager
+        self.cache = cache
         let defaultDirectory = URL(
             fileURLWithPath: WizardSystemPaths.userConfigDirectory, isDirectory: true
         )
@@ -122,21 +126,51 @@ actor DeviceSelectionStore {
         let data = try encoder.encode(selections)
         try data.write(to: fileURL, options: .atomic)
         // Sync to cache for synchronous config generator reads
-        DeviceSelectionCache.shared.update(selections)
+        cache.update(selections)
         AppLogger.shared.log("💾 [DeviceSelectionStore] Saved \(data.count) bytes")
     }
 
     /// Load selections and sync to cache. Call at startup.
     func syncToCache() {
         let selections = loadSelections()
-        DeviceSelectionCache.shared.update(selections)
+        cache.update(selections)
+    }
+
+    /// Synchronously prime the shared cache before startup tasks can regenerate config.
+    static func primeSharedCacheFromDisk(fileURL: URL? = nil) {
+        let fileURL = fileURL ?? URL(
+            fileURLWithPath: WizardSystemPaths.userConfigDirectory,
+            isDirectory: true
+        ).appendingPathComponent("DeviceSelection.json")
+
+        let fileManager = Foundation.FileManager()
+        guard fileManager.fileExists(atPath: fileURL.path) else {
+            DeviceSelectionCache.shared.update([])
+            return
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        do {
+            let data = try Data(contentsOf: fileURL)
+            let selections = try decoder.decode([DeviceSelection].self, from: data)
+            DeviceSelectionCache.shared.update(selections)
+            AppLogger.shared.log("📂 [DeviceSelectionStore] Primed shared cache with \(selections.count) device selection(s)")
+        } catch {
+            DeviceSelectionCache.shared.update([])
+            AppLogger.shared.warn("⚠️ [DeviceSelectionStore] Failed to prime shared cache: \(error)")
+        }
     }
 }
 
 #if DEBUG
     extension DeviceSelectionStore {
-        nonisolated static func testStore(at url: URL) -> DeviceSelectionStore {
-            DeviceSelectionStore(fileURL: url)
+        nonisolated static func testStore(
+            at url: URL,
+            cache: DeviceSelectionCache = DeviceSelectionCache()
+        ) -> DeviceSelectionStore {
+            DeviceSelectionStore(fileURL: url, cache: cache)
         }
     }
 #endif
