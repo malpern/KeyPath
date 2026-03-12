@@ -1,4 +1,3 @@
-import Combine
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
@@ -65,7 +64,7 @@ class MainAppStateController {
 
     // MARK: - Service Health Monitoring (Fix for stale overlay state)
 
-    @ObservationIgnored private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored private var errorDetectionTask: Task<Void, Never>?
     @ObservationIgnored private var lastKnownRuntimeHealthy: Bool?
     @ObservationIgnored private var serviceHealthTask: Task<Void, Never>?
     @ObservationIgnored private var periodicRefreshTask: Task<Void, Never>?
@@ -110,7 +109,7 @@ class MainAppStateController {
 
     // NOTE: No deinit needed - this is a singleton that lives for the app's lifetime.
     // Cleanup would be impossible anyway since deinit is nonisolated and can't access
-    // MainActor-isolated properties like cancellables.
+    // MainActor-isolated properties like task handles.
 
     /// Configure with RuntimeCoordinator (called after init)
     func configure(with kanataManager: RuntimeCoordinator) {
@@ -143,10 +142,10 @@ class MainAppStateController {
     /// Subscribe to KanataErrorMonitor crash detection to trigger immediate revalidation.
     /// This ensures crashes are detected even if service state hasn't transitioned yet.
     private func subscribeToErrorDetection() {
-        NotificationCenter.default.publisher(for: .kanataErrorDetected)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                guard let self else { return }
+        errorDetectionTask?.cancel()
+        errorDetectionTask = Task { @MainActor [weak self] in
+            for await notification in NotificationCenter.default.notifications(named: .kanataErrorDetected) {
+                guard let self, !Task.isCancelled else { break }
 
                 // Log crash for later analysis
                 if let error = notification.object as? KanataError {
@@ -157,13 +156,11 @@ class MainAppStateController {
                         AppLogger.shared.error(
                             "🚨 [MainAppStateController] Critical error detected - triggering immediate revalidation"
                         )
-                        Task { @MainActor in
-                            await self.revalidate()
-                        }
+                        await self.revalidate()
                     }
                 }
             }
-            .store(in: &cancellables)
+        }
 
         AppLogger.shared.log("🔔 [MainAppStateController] Subscribed to crash/error detection")
     }

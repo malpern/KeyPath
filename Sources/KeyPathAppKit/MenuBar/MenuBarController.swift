@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import Foundation
 import KeyPathCore
 import KeyPathWizardCore
@@ -24,7 +23,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     // MARK: - State Observation
 
-    private var cancellables = Set<AnyCancellable>()
+    private var keymapObservationTask: Task<Void, Never>?
     private weak var appStateController: MainAppStateController?
     private weak var ruleCollectionsManager: RuleCollectionsManager?
 
@@ -89,12 +88,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
 
         // Observe app keymap changes to keep cache fresh
-        NotificationCenter.default.publisher(for: .appKeymapsDidChange)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.refreshAppKeymapCache()
+        keymapObservationTask?.cancel()
+        keymapObservationTask = Task { @MainActor [weak self] in
+            for await _ in NotificationCenter.default.notifications(named: .appKeymapsDidChange) {
+                guard let self, !Task.isCancelled else { break }
+                self.refreshAppKeymapCache()
             }
-            .store(in: &cancellables)
+        }
 
         // Initial icon update
         updateStatusIcon()
