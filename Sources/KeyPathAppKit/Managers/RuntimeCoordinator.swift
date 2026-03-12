@@ -9,71 +9,39 @@ import Network
 
 // KeyMapping is now in Models/KeyMapping.swift
 
-// Manages the Kanata process lifecycle and configuration directly.
+// Thin orchestrator for Kanata process management and configuration.
 //
-// # Architecture: Main Coordinator + Extension Files
+// # Architecture: Orchestrator + Focused Types
 //
-// RuntimeCoordinator is the main orchestrator for Kanata process management and configuration.
-// It's split across multiple extension files for maintainability:
+// RuntimeCoordinator delegates real work to focused coordinator types:
 //
-// ## Extension Files (organized by concern):
+// ## Extracted Coordinators (each owns a single responsibility):
+//
+// - **ServiceLifecycleCoordinator**: start/stop/restart Kanata, runtime status
+// - **ConfigReloadCoordinator**: TCP-based config reload, safety checks
+// - **SaveCoordinator**: Save operations with rollback
+// - **RecoveryCoordinator**: VirtualHID recovery, keyboard recovery
+// - **InstallationCoordinator**: First-time install checks
+// - **RuleCollectionsCoordinator**: Rule collection CRUD and persistence
+// - **ConfigurationManager**: Config file management (create, validate, backup)
+// - **DiagnosticsManager**: System diagnostics and health checks
+// - **ServiceHealthMonitor**: Health monitoring and restart cooldown
+//
+// ## Extension Files (thin delegation layers):
 //
 // **RuntimeCoordinator.swift** (main file)
-// - Core initialization and state management
-// - UI state snapshots and ViewModel interface
-// - Health monitoring and auto-start logic
-// - Diagnostics and error handling
+// - Core initialization, dependency wiring, and callback plumbing
+// - Public API surface that delegates to coordinators
 //
-// **RuntimeCoordinator+Configuration.swift**
-// - Config reload triggering and TCP communication
-// - Key mapping save operations
-//
-// **RuntimeCoordinator+RuleCollections.swift**
-// - Rule collection CRUD and persistence
-//
-// **RuntimeCoordinator+ServiceManagement.swift**
-// - Runtime host start/stop/restart
-//
-// **RuntimeCoordinator+ConfigMaintenance.swift**
-// - Config backup, repair, and safe-config fallback
-//
-// **RuntimeCoordinator+Lifecycle.swift**
-// - Process lifecycle state transitions
-//
-// **RuntimeCoordinator+State.swift**
-// - UI state snapshot building
-//
-// **RuntimeCoordinator+ConfigHotReload.swift**
-// - File-change-driven hot reload
-//
-// **RuntimeCoordinator+Diagnostics.swift**
-// - System analysis and failure diagnosis
-//
-// **RuntimeCoordinator+ConflictResolution.swift**
-// - Karabiner conflict detection helpers
-//
-// **RuntimeCoordinator+Engine.swift**
-// - Kanata engine communication (stub)
-//
-// **RuntimeCoordinator+Output.swift**
-// - Log parsing and monitoring (stub)
-//
-// ## Key Dependencies (used by extensions):
-//
-// - **ConfigurationService**: File I/O, parsing, validation (Configuration extension)
-// - **ProcessLifecycleManager**: PID tracking, daemon registration (Lifecycle extension)
-// - **ServiceHealthMonitor**: Restart cooldown, recovery (ServiceManagement extension)
-// - **DiagnosticsService**: System analysis, failure diagnosis (Diagnostics extension)
-// - **PermissionOracle**: Permission state (main file + Lifecycle)
-//
-// ## Navigation Tips:
-//
-// - Starting/stopping Kanata? → See `+ServiceManagement.swift` or `+Lifecycle.swift`
-// - Reading/writing config? → See `+Configuration.swift` or `+ConfigMaintenance.swift`
-// - Hot reload on file change? → See `+ConfigHotReload.swift`
-// - Rule collections? → See `+RuleCollections.swift`
-// - UI state snapshots? → See `+State.swift`
-// - System diagnostics? → See `+Diagnostics.swift`
+// **RuntimeCoordinator+ServiceManagement.swift** → delegates to ServiceLifecycleCoordinator
+// **RuntimeCoordinator+Configuration.swift** → delegates to ConfigReloadCoordinator
+// **RuntimeCoordinator+RuleCollections.swift** → delegates to RuleCollectionsCoordinator
+// **RuntimeCoordinator+ConfigMaintenance.swift** → delegates to SaveCoordinator
+// **RuntimeCoordinator+ConfigHotReload.swift** → delegates to ConfigHotReloadService
+// **RuntimeCoordinator+Diagnostics.swift** → delegates to DiagnosticsManager
+// **RuntimeCoordinator+ConflictResolution.swift** → conflict resolution UI bridge
+// **RuntimeCoordinator+Lifecycle.swift** → initialization and split runtime monitoring
+// **RuntimeCoordinator+State.swift** → UI state snapshot building
 //
 // ## MVVM Architecture Note:
 //
@@ -216,8 +184,9 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     let installationCoordinator: InstallationCoordinator
     let ruleCollectionsCoordinator: RuleCollectionsCoordinator
     let serviceHealthMonitor: ServiceHealthMonitor
+    let serviceLifecycleCoordinator: ServiceLifecycleCoordinator
+    let configReloadCoordinator: ConfigReloadCoordinator
 
-    var isStartingKanata = false
     var isInitializing = false
     var isRecoveringSplitRuntimeCompanion = false
     var splitRuntimeCompanionMonitorTask: Task<Void, Never>?
@@ -330,6 +299,20 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Initialize RecoveryCoordinator (will be configured after all initialization)
         recoveryCoordinator = RecoveryCoordinator()
 
+        // Initialize ServiceLifecycleCoordinator
+        serviceLifecycleCoordinator = ServiceLifecycleCoordinator(
+            recoveryDaemonService: recoveryDaemonService,
+            recoveryCoordinator: recoveryCoordinator
+        )
+
+        // Initialize ConfigReloadCoordinator
+        configReloadCoordinator = ConfigReloadCoordinator(
+            engineClient: self.engineClient,
+            reloadSafetyMonitor: reloadSafetyMonitor,
+            diagnosticsManager: diagnosticsManager,
+            processLifecycleManager: lifecycleManager
+        )
+
         // Initialize RuleCollectionsCoordinator (after all managers, before Task captures self)
         ruleCollectionsCoordinator = RuleCollectionsCoordinator(
             ruleCollectionsManager: ruleCollectionsManager
@@ -358,6 +341,25 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Wire up SaveCoordinator delegate for status change notifications
         saveCoordinator.delegate = self
+
+        // Wire up ServiceLifecycleCoordinator callbacks
+        serviceLifecycleCoordinator.onError = { [weak self] error in
+            self?.lastError = error
+        }
+        serviceLifecycleCoordinator.onWarning = { [weak self] warning in
+            self?.lastWarning = warning
+        }
+        serviceLifecycleCoordinator.onStateChanged = { [weak self] in
+            self?.notifyStateChanged()
+        }
+        serviceLifecycleCoordinator.isKarabinerDaemonRunning = { [weak self] in
+            await self?.isKarabinerDaemonRunning() ?? false
+        }
+
+        // Wire up ConfigReloadCoordinator callbacks
+        configReloadCoordinator.onReloadSuccess = { [weak self] in
+            self?.clearDiagnostics()
+        }
 
         // Configure RuleCollectionsCoordinator callbacks (after all initialization)
         ruleCollectionsCoordinator.configure(
