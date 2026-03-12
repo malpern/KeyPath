@@ -1,54 +1,97 @@
 # KeyPath Refactoring Plan
 
 **Created:** 2026-03-11
-**Status:** Planning — nothing started yet
+**Updated:** 2026-03-12
+**Status:** 10 of 12 items complete
 
 This document tracks architectural and code quality issues identified during a comprehensive codebase review. Items are prioritized by impact on maintainability, testability, and developer experience.
 
 ---
 
-## P0 — Critical (Architectural)
+## Tracking
 
-### 1. Singleton Explosion (~80 `static let shared` instances)
-
-**Problem:** Nearly every service, manager, and controller is a singleton accessed via `.shared`. This creates hidden dependencies, makes unit testing difficult, and tightly couples unrelated modules.
-
-**Key offenders (sample):**
-- `ActionDispatcher.shared`, `MainAppStateController.shared`, `WindowManager.shared`
-- `ServiceBootstrapper.shared`, `ServiceHealthChecker.shared`, `PrivilegedExecutor.shared`
-- `ConfigHotReloadService.shared`, `PermissionGate.shared`, `OrphanDetector.shared`
-- `LiveKeyboardOverlayController.shared`, `ContextHUDController.shared`
-- Full list: ~80 instances across `Sources/`
-
-**Plan:**
-- [ ] Design a composition root / DI container (extend the pattern already started in `App.init()`)
-- [ ] Identify the dependency graph between singletons
-- [ ] Migrate leaf services first (no downstream singleton deps), then work inward
-- [ ] Add protocol abstractions where needed for testability
-- [ ] Phase: do incrementally, module by module
+| # | Item | Priority | Status | PR |
+|---|------|----------|--------|----|
+| 1 | Singleton reduction / DI | P0 | **Done** | #232 |
+| 2 | App.swift decomposition | P0 | **Done** | #242 |
+| 3 | KeyPathAppKit modularization | P0 | Open | — |
+| 4 | Large file decomposition | P1 | Open | — |
+| 5 | Layout data → JSON | P1 | **Done** | #240 |
+| 6 | Combine → @Observable | P2 | **Done** | #236 |
+| 7 | AnyView removal | P2 | **Done** | #235 |
+| 8 | Duplicate FeatureFlags | P2 | **Done** | #234 |
+| 9 | UI/ directory cleanup | P3 | **Done** | #237 |
+| 10 | Services/ directory cleanup | P3 | **Done** | #238 |
+| 11 | RuntimeCoordinator decomposition | P3 | **Done** | #241 |
+| 12 | Launcher main.swift cleanup | P3 | **Done** | #239 |
 
 ---
 
-### 2. `App.swift` — 1,530 lines (god file)
+## Completed Items
 
-**Problem:** The SwiftUI `App` entry point contains app lifecycle, scene management, deep link handling, notification setup, and initialization logic. Should be a thin routing layer.
+### 1. Singleton reduction / DI (PR #232)
 
-**File:** `Sources/KeyPathAppKit/App.swift`
+Added `ServiceContainer` DI container and `EnvironmentValues` extensions for dependency injection. The composition root wires services in `App.init()`. Singletons still exist but can now be replaced with injected dependencies incrementally.
 
-**Plan:**
-- [ ] Extract `CompositionRoot` — service initialization and wiring
-- [ ] Extract `DeepLinkRouter` — URL handling
-- [ ] Extract `SceneConfiguration` — window/scene setup
-- [ ] Extract `AppLifecycleHandler` — lifecycle callbacks
-- [ ] Keep `App.swift` under ~100 lines
+### 2. App.swift decomposition (PR #242)
+
+Split 1,530-line `App.swift` into 6 focused files:
+- `App.swift` — thin `KeyPathApp` struct (55 lines) + slimmed `AppDelegate`
+- `Core/CompositionRoot.swift` — service initialization and wiring
+- `Core/AppMenuCommands.swift` — SwiftUI `Commands` struct
+- `Core/DeepLinkRouter.swift` — `keypath://` URL scheme dispatch
+- `Core/OneShotProbeHandler.swift` — diagnostic probe modes
+- `Core/AppNotificationWiring.swift` — notification observer registrations
+
+### 5. Layout data → JSON (PR #240)
+
+Extracted 5 MacBook keyboard layouts from 1,100 lines of procedural Swift into JSON resource files at `Resources/Keyboards/`. Created `PhysicalLayoutLoader` with Codable DTOs. `PhysicalLayout+Builtins.swift` reduced from 1,427 to 341 lines. Added `Scripts/generate-layout-json.swift` for regeneration.
+
+### 6. Combine → @Observable (PR #236)
+
+Removed redundant `ObservableObject` from `WizardToastManager`. Replaced `AnyCancellable` + Combine notification subscriptions with async `NotificationCenter.notifications` in `MainAppStateController`, `MenuBarController`, and `OverlayHealthIndicatorObserver`. Combine retained only where genuinely needed (SwiftUI `.onReceive`, `PassthroughSubject` for driver install progress).
+
+### 7. AnyView removal (PR #235)
+
+Replaced all 7 `AnyView` instances with concrete types, `@ViewBuilder`, and generics. Key changes: `LiveKeyboardOverlayController` now uses `NSHostingView<LiveKeyboardOverlayView>`, `HomeRowKeyboardView` became generic over popover content, `OverlayMapperSection+ShiftOutput` uses `@ViewBuilder` closure.
+
+### 8. Duplicate FeatureFlags (PR #234)
+
+Consolidated `KeyPathAppKit/Utilities/FeatureFlags.swift` into `KeyPathCore/FeatureFlags.swift`. All flags now `public` in `KeyPathCore`.
+
+### 9. UI/ directory cleanup (PR #237)
+
+Moved 73 files from `UI/` root into 9 subdirectories: `Vim/`, `WindowSnapping/`, `KeyboardTransforms/`, `Pickers/` (new), plus existing `Dialogs/`, `Settings/`, `Rules/`, `Components/`, `Overlay/`. ~10 top-level navigation entry points remain at root.
+
+### 10. Services/ directory cleanup (PR #238)
+
+Organized 88 files from `Services/` root into 15 subdirectories: `Audio/`, `Configuration/`, `Icons/`, `Import/`, `Kanata/`, `Karabiner/`, `KeyboardCapture/`, `LayerMapping/`, `Monitoring/`, `Networking/`, `Permissions/`, `RuleCollections/`, `SimpleMods/`, `System/`, `VimIntegration/`. 10 singleton files remain at root.
+
+### 11. RuntimeCoordinator decomposition (PR #241)
+
+Extracted two focused types from RuntimeCoordinator:
+- `ServiceLifecycleCoordinator` — start/stop/restart, runtime status, split runtime evaluation
+- `ConfigReloadCoordinator` — TCP reload, safety monitoring, permission gating
+
+RuntimeCoordinator is now a thin orchestrator with forwarding methods.
+
+### 12. Launcher main.swift cleanup (PR #239)
+
+Extracted all process management into `LauncherService` struct. `main.swift` reduced from 682 to 4 lines.
 
 ---
 
-### 3. `KeyPathAppKit` is 91% of the codebase (570 / 624 files)
+## Open Items
 
-**Problem:** One monolithic library target defeats modular architecture. Build times, code navigation, and separation of concerns all suffer.
+### 3. KeyPathAppKit modularization
 
-**Plan:**
+**Priority:** Low urgency — tackle when build times become painful or when onboarding contributors.
+
+**Problem:** `KeyPathAppKit` contains 91% of the codebase (570+ files). One monolithic library target defeats modular architecture.
+
+**Why it's not urgent:** The directory cleanup (#9, #10) provides 80% of the navigability benefit. SwiftPM handles incremental builds well. No compile-time wall yet.
+
+**Plan (when ready):**
 - [ ] Identify natural module boundaries (installer, overlay, rule engine, services)
 - [ ] Extract `KeyPathInstaller` — wizard, bootstrapper, health checker, engine
 - [ ] Extract `KeyPathOverlay` — overlay controller, views, keycap rendering
@@ -59,19 +102,29 @@ This document tracks architectural and code quality issues identified during a c
 
 ---
 
-## P1 — High (Large Files Needing Decomposition)
+### 4. Large file decomposition
 
-### 4. Files over 1,000 lines
+**Priority:** Medium — tackle opportunistically when already making changes to one of these files.
+
+**Problem:** 13 files exceed 1,000 lines. They work fine but are harder to navigate and reason about.
+
+**Recommended approach:** Don't do a dedicated decomposition pass. Instead, extract a focused type each time you're already touching one of these files.
+
+**Highest-value targets:**
+
+| File | Lines | Why it matters | Decomposition Strategy |
+|------|-------|----------------|----------------------|
+| `ActionDispatcher.swift` | 1,345 | Grows with every new action | Replace giant switch with handler registry pattern |
+| `HelperService.swift` | ~1,380 | Many operation categories | Split by domain (service mgmt, VHID, cleanup) |
+| `LiveKeyboardOverlayController.swift` | 1,299 | Performance-sensitive | Extract window management, inspector panel, state machine |
+
+**Lower priority (functional but large):**
 
 | File | Lines | Decomposition Strategy |
 |------|-------|----------------------|
-| `HelperService.swift` | 1,498 | Split by operation category (service mgmt, VHID, kanata, cleanup) |
-| `ActionDispatcher.swift` | 1,345 | Replace giant dispatch with handler registry pattern |
-| `PrivilegedOperationsCoordinator.swift` | 1,332 | Extract per-domain coordinators (VHID, Kanata, Helper) |
-| `LiveKeyboardOverlayController.swift` | 1,299 | Extract window management, inspector panel, state machine |
+| `PrivilegedOperationsCoordinator.swift` | ~1,200 | Extract per-domain coordinators (VHID, Kanata, Helper) |
 | `WizardDesignSystem.swift` | 1,245 | Split tokens vs. components vs. animations |
 | `RulesSummaryView.swift` | 1,061 | Extract section views, search, recommended rules |
-| `RuntimeCoordinator.swift` | 1,056 | Already has extensions — needs real type decomposition |
 | `RuleCollectionCatalog.swift` | 1,015 | Make data-driven (JSON catalog + loader) |
 | `ServiceBootstrapper.swift` | 988 | Extract validation, installation, and recovery phases |
 | `LiveKeyboardOverlayView.swift` | 986 | Extract inspector panel, header, keyboard sections |
@@ -80,134 +133,3 @@ This document tracks architectural and code quality issues identified during a c
 | `KanataEventListener.swift` | 951 | Extract event parsing, routing, and state tracking |
 
 **Guideline:** No file should exceed ~500 lines. Prefer extracting new types over extension files.
-
----
-
-### 5. `PhysicalLayout+Builtins.swift` — 1,427 lines of hardcoded data
-
-**Problem:** Static keyboard geometry is embedded as Swift literals. Hard to maintain, impossible for users to extend.
-
-**File:** `Sources/KeyPathAppKit/Models/PhysicalLayout+Builtins.swift`
-
-**Plan:**
-- [ ] Move layout data to JSON resource files
-- [ ] Add a `PhysicalLayoutLoader` that decodes at runtime
-- [ ] Enables future user-contributed layouts without code changes
-
----
-
-## P2 — Medium (Patterns & Best Practices)
-
-### 6. Mixed Combine + @Observable
-
-**Problem:** The project has mostly adopted `@Observable` but retains Combine artifacts in ~8 files.
-
-**Specific issues:**
-- `WizardToastManager.swift` — conforms to **both** `@Observable` AND `ObservableObject` (line 10)
-- `MainAppStateController.swift` — imports Combine, uses `AnyCancellable` alongside `@Observable`
-- `OverlayHealthIndicatorObserver.swift` — Combine publishers + async/await mixed
-- Several files still use `@Published` or `PassthroughSubject`
-
-**Plan:**
-- [ ] Audit all `import Combine` in Sources/
-- [ ] Remove `ObservableObject` conformance from `WizardToastManager`
-- [ ] Replace `AnyCancellable` patterns with `@Observable` + async sequences
-- [ ] Keep Combine only where genuinely needed (e.g., bridging to AppKit APIs)
-
----
-
-### 7. AnyView usage (7 instances)
-
-**Problem:** Type-erased views hurt SwiftUI diffing performance.
-
-**Locations:**
-- `LiveKeyboardOverlayController.swift:1277` — in `buildRootView()` (called frequently)
-- `WizardWindowController.swift:48,56` — conditional environment injection
-- `LiveKeyboardOverlayView.swift:929` — inspector panel builder
-- `HomeRowModsCollectionView.swift:138`
-- `OverlayMapperSection+ShiftOutput.swift:46`
-
-**Plan:**
-- [ ] Replace with `@ViewBuilder`, generics, or concrete view types
-- [ ] Priority: overlay controller (performance-sensitive path)
-
----
-
-### 8. Duplicate `FeatureFlags` types
-
-**Problem:** Two separate files define `FeatureFlags`:
-- `Sources/KeyPathCore/FeatureFlags.swift`
-- `Sources/KeyPathAppKit/Utilities/FeatureFlags.swift`
-
-**Plan:**
-- [ ] Audit which is used where
-- [ ] Consolidate into one canonical location (likely `KeyPathCore`)
-
----
-
-## P3 — Low-Medium (Organization)
-
-### 9. Flat `UI/` directory (281 files)
-
-**Problem:** Many views sit at the `UI/` root with no subdirectory. Hard to navigate.
-
-**Existing subdirs:** `Overlay/`, `Rules/`, `Help/`, `Experimental/`, `Settings/`, `Simulator/`, `ContextHUD/`, `KeyboardVisualization/`, `Components/`, `Dialogs/`, `Status/`, `Style/`, `ViewModels/`
-
-**Orphaned at root (sample):** `AboutView.swift`, `SimpleModsView.swift`, `FunctionKeysView.swift`, `KarabinerImportSheet.swift`, `AnimatedKeyboardTransformGrid.swift`, `EmergencyStopDialog.swift`, `AIKeyRequiredDialog.swift`
-
-**Plan:**
-- [ ] Group by feature: `About/`, `Modifiers/`, `Import/`, etc.
-- [ ] Move dialog views into `Dialogs/`
-- [ ] Move remaining settings views into `Settings/`
-
----
-
-### 10. `Services/` directory is a grab bag (109 files)
-
-**Problem:** Everything from TCP clients to favicon fetchers to browser history scanners lives in one flat directory.
-
-**Plan:**
-- [ ] Create subdirectories: `Networking/`, `Configuration/`, `System/`, `AI/` (already exists), `Import/`, `Audio/`, `Monitoring/`
-- [ ] Move files into appropriate subdirectories
-
----
-
-### 11. Extension-file proliferation on `RuntimeCoordinator`
-
-**Problem:** Files like `RuntimeCoordinator+ServiceManagement.swift`, `+Lifecycle.swift`, `+Configuration.swift`, `+State.swift` suggest the class needs type decomposition, not just file splits.
-
-**Plan:**
-- [ ] Identify distinct responsibilities
-- [ ] Extract into focused types (e.g., `ServiceLifecycleManager`, `ConfigurationReloader`)
-- [ ] `RuntimeCoordinator` becomes a thin orchestrator delegating to these types
-
----
-
-### 12. `KanataKanataLauncher/main.swift` — 682 lines
-
-**Problem:** Executable entry points should be minimal. Complex process management is inline.
-
-**Plan:**
-- [ ] Extract process management into a `LauncherService` type
-- [ ] Keep `main.swift` as a thin entry point
-
----
-
-## Tracking
-
-When work begins on an item, update status here:
-
-| # | Item | Status | PR |
-|---|------|--------|----|
-| 1 | Singleton reduction / DI | Done | #232 |
-| 2 | App.swift decomposition | In review | #242 |
-| 3 | KeyPathAppKit modularization | Not started | — |
-| 4 | Large file decomposition | Not started | — |
-| 5 | Layout data → JSON | Done | #240 |
-| 6 | Combine → @Observable | Done | #236 |
-| 7 | AnyView removal | Done | #235 |
-| 8 | Duplicate FeatureFlags | Done | #234 |
-| 9 | UI/ directory cleanup | Done | #237 |
-| 10 | Services/ directory cleanup | Done | #238 |
-| 11 | RuntimeCoordinator decomposition | Done | #241 |
-| 12 | Launcher main.swift cleanup | Done | #239 |
