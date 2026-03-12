@@ -46,6 +46,7 @@ declare -a LANE_STATUSES=()
 declare -a LANE_PASS_COUNTS=()
 declare -a LANE_FAIL_COUNTS=()
 declare -a LANE_SUMMARIES=()
+total_parsed=0
 
 echo "Parsing installer reliability matrix from: $LOG_FILE"
 echo "Output: $OUT_DIR"
@@ -79,6 +80,7 @@ for i in "${!LANE_IDS[@]}"; do
   LANE_PASS_COUNTS+=("$pass_count")
   LANE_FAIL_COUNTS+=("$fail_count")
   LANE_SUMMARIES+=("$summary")
+  total_parsed=$((total_parsed + pass_count + fail_count))
 
   echo "  [$lane_id] $lane_name: $status ($summary)"
 
@@ -89,12 +91,7 @@ done
 # Sanity check: verify the parser found at least some installer tests.
 # The matrix only covers installer-related test classes (a small subset of all tests),
 # so we check whether the parser found zero when installer test classes appear in the log.
-total_parsed=0
-for i in "${!LANE_PASS_COUNTS[@]}"; do
-  p="${LANE_PASS_COUNTS[$i]}"
-  f="${LANE_FAIL_COUNTS[$i]}"
-  total_parsed=$((total_parsed + p + f))
-done
+# (total_parsed is accumulated in the loop above)
 # Check if any installer test classes appear in the log at all
 all_patterns=$(printf "%s|" "${LANE_PATTERNS[@]}" | sed 's/|$//')
 installer_mentions=$(grep -cE "$all_patterns" "$LOG_FILE" 2>/dev/null || echo 0)
