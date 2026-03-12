@@ -73,7 +73,7 @@ class MainAppStateController {
     @ObservationIgnored private let transientStartupGracePeriod: TimeInterval = 12.0
     @ObservationIgnored private let startupCheckInterval: TimeInterval = 0.5
 
-#if DEBUG
+    #if DEBUG
         @ObservationIgnored private var startupGateHealthOverride:
             (() async -> KanataHealthSnapshot)?
         @ObservationIgnored private var startupGateTransientWindowOverride:
@@ -100,7 +100,7 @@ class MainAppStateController {
             startupGateTransientWindowOverride = nil
             startupGateTimingOverride = nil
         }
-#endif
+    #endif
 
     // MARK: - Initialization
 
@@ -755,11 +755,11 @@ class MainAppStateController {
     private func startupGateTiming()
         -> (definitiveGrace: TimeInterval, transientGrace: TimeInterval, checkInterval: TimeInterval)
     {
-#if DEBUG
-        if let override = startupGateTimingOverride {
-            return override
-        }
-#endif
+        #if DEBUG
+            if let override = startupGateTimingOverride {
+                return override
+            }
+        #endif
         return (
             definitiveGrace: definitiveStartupGracePeriod,
             transientGrace: transientStartupGracePeriod,
@@ -768,20 +768,20 @@ class MainAppStateController {
     }
 
     private func currentKanataStartupHealth() async -> KanataHealthSnapshot {
-#if DEBUG
-        if let override = startupGateHealthOverride {
-            return await override()
-        }
-#endif
+        #if DEBUG
+            if let override = startupGateHealthOverride {
+                return await override()
+            }
+        #endif
         return await InstallerEngine().checkKanataServiceHealth()
     }
 
     private func isInKanataTransientStartupWindow() async -> Bool {
-#if DEBUG
-        if let override = startupGateTransientWindowOverride {
-            return await override()
-        }
-#endif
+        #if DEBUG
+            if let override = startupGateTransientWindowOverride {
+                return await override()
+            }
+        #endif
 
         let recentlyRestarted = ServiceBootstrapper.wasRecentlyRestarted(
             ServiceHealthChecker.kanataServiceID,
@@ -795,11 +795,11 @@ class MainAppStateController {
         return managementState == .smappservicePending
     }
 
-#if DEBUG
-    func evaluateKanataStartupGateForTesting() async -> Bool {
-        await evaluateKanataStartupGate() == .ready
-    }
-#endif
+    #if DEBUG
+        func evaluateKanataStartupGateForTesting() async -> Bool {
+            await evaluateKanataStartupGate() == .ready
+        }
+    #endif
 
     // MARK: - Public Accessors (Compatible with StartupValidator)
 

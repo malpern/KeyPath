@@ -159,13 +159,16 @@ final class UninstallCoordinator {
         logLines.append("🧪 Resetting for fresh install testing...")
 
         let bundleId = "com.keypath.KeyPath"
-        let kanataBinary = "/Library/KeyPath/bin/kanata"
+        let kanataBinary = WizardSystemPaths.bundledKanataPath
+        let legacyKanataBinary = "/Library/KeyPath/bin/kanata"
 
         // Reset TCC permissions (these don't require admin)
+        // Include legacy system path so existing grants from pre-bundled-only installs are cleared too
         let tccResets: [(service: String, target: String)] = [
             ("Accessibility", bundleId),
             ("ListenEvent", bundleId), // Input Monitoring
-            ("ListenEvent", kanataBinary), // Input Monitoring for kanata
+            ("ListenEvent", kanataBinary), // Input Monitoring for kanata (bundled)
+            ("ListenEvent", legacyKanataBinary), // Input Monitoring for kanata (legacy system path)
             ("SystemPolicyAllFiles", bundleId) // Full Disk Access
         ]
 

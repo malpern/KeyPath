@@ -90,8 +90,8 @@ class WizardNavigationEngineTests: XCTestCase {
 
         let componentIssue = createTestIssue(
             category: .installation,
-            title: "Kanata Binary Missing",
-            identifier: .component(.kanataBinaryMissing)
+            title: "Karabiner Driver Missing",
+            identifier: .component(.karabinerDriver)
         )
         let permissionIssue = createTestIssue(category: .permissions, title: "Test Permission")
         let issues = [componentIssue, permissionIssue]
@@ -110,8 +110,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // Given: Helper is enabled (from setUp), system has component issues but no conflicts
         let componentIssue = createTestIssue(
             category: .installation,
-            title: "Kanata Binary Missing",
-            identifier: .component(.kanataBinaryMissing)
+            title: "Karabiner Driver Missing",
+            identifier: .component(.karabinerDriver)
         )
         let permissionIssue = createTestIssue(category: .permissions, title: "Test Permission")
         let issues = [componentIssue, permissionIssue]
@@ -119,8 +119,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Determining current page (helper is mocked as enabled)
         let page = await engine.determineCurrentPage(for: .missingComponents(missing: []), issues: issues)
 
-        // Then: Should navigate to kanata components (helper is satisfied)
-        XCTAssertEqual(page, .kanataComponents, "Installation should be shown when helper is satisfied")
+        // Then: Should navigate to karabiner components (helper is satisfied)
+        XCTAssertEqual(page, .karabinerComponents, "Installation should be shown when helper is satisfied")
     }
 
     func testNavigationPriorityInputMonitoringThird() async {
@@ -248,7 +248,6 @@ class WizardNavigationEngineTests: XCTestCase {
             .accessibility, // Accessibility permission
             .inputMonitoring, // Input Monitoring permission
             .karabinerComponents, // Karabiner driver and VirtualHID setup
-            .kanataComponents, // Kanata binary and service setup
             .service, // Start keyboard service
             .communication // Optional TCP/communication verification
         ]
@@ -271,7 +270,7 @@ class WizardNavigationEngineTests: XCTestCase {
         // Then: Should return correct indices
         XCTAssertEqual(summaryIndex, 0, "Summary should be first (index 0)")
         XCTAssertEqual(conflictsIndex, 6, "Conflicts should be at index 6")
-        XCTAssertEqual(serviceIndex, 11, "Service should be index 11 in the expanded flow")
+        XCTAssertEqual(serviceIndex, 10, "Service should be index 10 in the expanded flow")
     }
 
     // MARK: - Blocking Page Tests
@@ -281,7 +280,7 @@ class WizardNavigationEngineTests: XCTestCase {
 
         // When: Checking if pages are blocking
         let conflictsBlocking = await engine.isBlockingPage(.conflicts)
-        let installationBlocking = await engine.isBlockingPage(.kanataComponents)
+        let installationBlocking = await engine.isBlockingPage(.karabinerComponents)
         let helperBlockingWhenEnabled = await engine.isBlockingPage(.helper) // Should NOT block when enabled
         let permissionsBlocking = await engine.isBlockingPage(.inputMonitoring)
         let backgroundServicesBlocking = await engine.isBlockingPage(.service)
@@ -384,7 +383,6 @@ class WizardNavigationEngineTests: XCTestCase {
             (.inputMonitoring, "Open System Settings"),
             (.accessibility, "Open System Settings"),
             (.karabinerComponents, "Install Karabiner Components"),
-            (.kanataComponents, "Install Kanata Components"),
             (.service, "Start Keyboard Service")
         ]
 
@@ -443,8 +441,8 @@ class WizardNavigationEngineTests: XCTestCase {
         let issues = [
             createTestIssue(
                 category: .installation,
-                title: "Kanata Binary Missing",
-                identifier: .component(.kanataBinaryMissing)
+                title: "Karabiner Driver Missing",
+                identifier: .component(.karabinerDriver)
             )
         ]
         let systemState = WizardSystemState.missingComponents(missing: [])
@@ -453,17 +451,17 @@ class WizardNavigationEngineTests: XCTestCase {
         let nextPage = await engine.nextPage(from: currentPage, given: systemState, issues: issues)
 
         // Then: Should return the target page based on current issues
-        XCTAssertEqual(nextPage, .kanataComponents, "Next page should be installation based on issues")
+        XCTAssertEqual(nextPage, .karabinerComponents, "Next page should be installation based on issues")
     }
 
     func testNextPageWhenAlreadyOnTarget() async {
         // Given: Already on the target page but want to continue sequentially
-        let currentPage = WizardPage.kanataComponents
+        let currentPage = WizardPage.karabinerComponents
         let issues = [
             createTestIssue(
                 category: .installation,
-                title: "Kanata Binary Missing",
-                identifier: .component(.kanataBinaryMissing)
+                title: "Karabiner Driver Missing",
+                identifier: .component(.karabinerDriver)
             )
         ]
         let systemState = WizardSystemState.missingComponents(missing: [])

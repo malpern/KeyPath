@@ -367,7 +367,9 @@ final class DiagnosticsServiceTests: XCTestCase {
 
     func testHostPassthruDiagnosticForFailure() {
         struct DummyError: LocalizedError {
-            var errorDescription: String? { "launcher failed to start" }
+            var errorDescription: String? {
+                "launcher failed to start"
+            }
         }
 
         let diagnostic = DiagnosticsService.makeHostPassthruFailureDiagnostic(error: DummyError())

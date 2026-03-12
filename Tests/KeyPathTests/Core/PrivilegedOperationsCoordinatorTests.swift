@@ -110,7 +110,7 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
     }
 
     func testInstallServicesIfUninstalledThrottlesRepeatedAttempts() async throws {
-#if DEBUG
+        #if DEBUG
             PrivilegedOperationsCoordinator.resetTestingState()
             var installCallCount = 0
             PrivilegedOperationsCoordinator.serviceStateOverride = { .uninstalled }
@@ -125,13 +125,13 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 
         XCTAssertTrue(first)
         XCTAssertFalse(second)
-#if DEBUG
+        #if DEBUG
             XCTAssertEqual(installCallCount, 1)
-#endif
+        #endif
     }
 
     func testInstallServicesIfUninstalledRunsInstallWhenSMAppServiceIsStaleEnabled() async throws {
-#if DEBUG
+        #if DEBUG
             PrivilegedOperationsCoordinator.resetTestingState()
             var installCallCount = 0
             PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
@@ -139,19 +139,19 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
             PrivilegedOperationsCoordinator.installAllServicesOverride = {
                 installCallCount += 1
             }
-#endif
+        #endif
 
         let coordinator = PrivilegedOperationsCoordinator.shared
         let didInstall = try await coordinator.installServicesIfUninstalled(context: "test-stale-enabled")
 
         XCTAssertTrue(didInstall)
-#if DEBUG
+        #if DEBUG
             XCTAssertEqual(installCallCount, 1)
-#endif
+        #endif
     }
 
     func testInstallServicesIfUninstalledBypassesThrottleForStaleEnabledRecovery() async throws {
-#if DEBUG
+        #if DEBUG
             PrivilegedOperationsCoordinator.resetTestingState()
             var installCallCount = 0
             PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
@@ -159,7 +159,7 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
             PrivilegedOperationsCoordinator.installAllServicesOverride = {
                 installCallCount += 1
             }
-#endif
+        #endif
 
         let coordinator = PrivilegedOperationsCoordinator.shared
         let first = try await coordinator.installServicesIfUninstalled(context: "test-stale-throttle-1")
@@ -167,13 +167,13 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 
         XCTAssertTrue(first)
         XCTAssertTrue(second, "Stale registration recovery must bypass normal install throttle")
-#if DEBUG
+        #if DEBUG
             XCTAssertEqual(installCallCount, 2)
-#endif
+        #endif
     }
 
     func testInstallServicesIfUninstalledLimitsRepeatedStaleBypassAttempts() async throws {
-#if DEBUG
+        #if DEBUG
             PrivilegedOperationsCoordinator.resetTestingState()
             var installCallCount = 0
             PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
@@ -181,7 +181,7 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
             PrivilegedOperationsCoordinator.installAllServicesOverride = {
                 installCallCount += 1
             }
-#endif
+        #endif
 
         let coordinator = PrivilegedOperationsCoordinator.shared
         let first = try await coordinator.installServicesIfUninstalled(context: "test-stale-cap-1")
@@ -193,13 +193,13 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
         XCTAssertTrue(second)
         XCTAssertTrue(third)
         XCTAssertFalse(fourth, "Stale recovery bypass should stop after configured cap")
-#if DEBUG
+        #if DEBUG
             XCTAssertEqual(installCallCount, 3)
-#endif
+        #endif
     }
 
     func testInstallServicesIfUninstalledSkipsWhenSMAppServiceIsHealthyEnabled() async throws {
-#if DEBUG
+        #if DEBUG
             PrivilegedOperationsCoordinator.resetTestingState()
             var installCallCount = 0
             PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
@@ -207,25 +207,25 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
             PrivilegedOperationsCoordinator.installAllServicesOverride = {
                 installCallCount += 1
             }
-#endif
+        #endif
 
         let coordinator = PrivilegedOperationsCoordinator.shared
         let didInstall = try await coordinator.installServicesIfUninstalled(context: "test-healthy-enabled")
 
         XCTAssertFalse(didInstall)
-#if DEBUG
+        #if DEBUG
             XCTAssertEqual(installCallCount, 0)
-#endif
+        #endif
     }
 
     func testRestartUnhealthyServicesFailsWhenPostconditionTimesOut() async throws {
-#if DEBUG
+        #if DEBUG
             PrivilegedOperationsCoordinator.resetTestingState()
             PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
             KanataDaemonManager.registeredButNotLoadedOverride = { false }
             PrivilegedOperationsCoordinator.killExistingKanataProcessesOverride = {}
             PrivilegedOperationsCoordinator.kanataReadinessOverride = { _ in .timedOut }
-#endif
+        #endif
 
         let coordinator = PrivilegedOperationsCoordinator.shared
         do {
@@ -239,7 +239,7 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
     }
 
     func testRestartUnhealthyServicesClearsExistingKanataProcessesBeforeRestart() async throws {
-#if DEBUG
+        #if DEBUG
             PrivilegedOperationsCoordinator.resetTestingState()
             PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
             KanataDaemonManager.registeredButNotLoadedOverride = { false }
@@ -248,23 +248,23 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
                 killCalls += 1
             }
             PrivilegedOperationsCoordinator.kanataReadinessOverride = { _ in .ready }
-#else
+        #else
             throw XCTSkip("Uses DEBUG-only PrivilegedOperationsCoordinator test overrides")
-#endif
+        #endif
 
         let coordinator = PrivilegedOperationsCoordinator.shared
         try await coordinator.recoverRequiredRuntimeServices()
 
-#if DEBUG
+        #if DEBUG
             XCTAssertEqual(killCalls, 1)
-#endif
+        #endif
     }
 
     func testRegenerateServiceConfigurationAllowsPendingApprovalPostcondition() async throws {
-#if DEBUG
+        #if DEBUG
             PrivilegedOperationsCoordinator.resetTestingState()
             PrivilegedOperationsCoordinator.kanataReadinessOverride = { _ in .pendingApproval }
-#endif
+        #endif
 
         let coordinator = PrivilegedOperationsCoordinator.shared
         do {
@@ -272,179 +272,6 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
         } catch {
             XCTFail("Expected regenerateServiceConfiguration to accept pending approval, got: \(error)")
         }
-    }
-
-    func testInstallBundledKanataFailsWhenReadinessTimesOut() async throws {
-#if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
-            KanataDaemonManager.registeredButNotLoadedOverride = { false }
-            PrivilegedOperationsCoordinator.installBundledKanataBinaryOverride = {}
-            PrivilegedOperationsCoordinator.kanataReadinessOverride = { _ in .timedOut }
-#endif
-
-        let coordinator = PrivilegedOperationsCoordinator.shared
-        do {
-            try await coordinator.installBundledKanata()
-            XCTFail("Expected installBundledKanata to fail when readiness times out")
-        } catch let PrivilegedOperationError.operationFailed(message) {
-            XCTAssertTrue(message.contains("postcondition failed"))
-        } catch {
-            XCTFail("Unexpected error type: \(error)")
-        }
-    }
-
-    func testInstallBundledKanataFailsWithExplicitPortConflictMessage() async throws {
-#if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
-            KanataDaemonManager.registeredButNotLoadedOverride = { false }
-            PrivilegedOperationsCoordinator.installBundledKanataBinaryOverride = {}
-            PrivilegedOperationsCoordinator.kanataReadinessOverride = { _ in .tcpPortInUse }
-#endif
-
-        let coordinator = PrivilegedOperationsCoordinator.shared
-        do {
-            try await coordinator.installBundledKanata()
-            XCTFail("Expected installBundledKanata to fail on TCP port conflict")
-        } catch let PrivilegedOperationError.operationFailed(message) {
-            XCTAssertTrue(message.contains("TCP port 37001 is already in use"))
-        } catch {
-            XCTFail("Unexpected error type: \(error)")
-        }
-    }
-
-    func testInstallBundledKanataSucceedsWhenReadinessBecomesReady() async throws {
-        #if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
-            KanataDaemonManager.registeredButNotLoadedOverride = { false }
-            PrivilegedOperationsCoordinator.installBundledKanataBinaryOverride = {}
-            PrivilegedOperationsCoordinator.kanataReadinessOverride = { _ in .ready }
-        #else
-            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsCoordinator test overrides")
-        #endif
-
-        let coordinator = PrivilegedOperationsCoordinator.shared
-        do {
-            try await coordinator.installBundledKanata()
-        } catch {
-            XCTFail("Expected installBundledKanata to succeed after readiness recovered, got: \(error)")
-        }
-    }
-
-    func testInstallBundledKanataRestartsRuntimeWhenServiceIsAlreadyActive() async throws {
-        #if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
-            KanataDaemonManager.registeredButNotLoadedOverride = { false }
-            PrivilegedOperationsCoordinator.installBundledKanataBinaryOverride = {}
-            var restartCalls = 0
-            PrivilegedOperationsCoordinator.recoverRequiredRuntimeServicesOverride = {
-                restartCalls += 1
-            }
-        #else
-            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsCoordinator test overrides")
-        #endif
-
-        let coordinator = PrivilegedOperationsCoordinator.shared
-        do {
-            try await coordinator.installBundledKanata()
-        } catch {
-            XCTFail("Expected installBundledKanata to recover via recoverRequiredRuntimeServices, got: \(error)")
-        }
-
-        #if DEBUG
-            XCTAssertEqual(restartCalls, 1)
-        #endif
-    }
-
-    func testInstallBundledKanataIgnoresLaunchctl113ThresholdDuringRestartGrace() async throws {
-#if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
-            KanataDaemonManager.registeredButNotLoadedOverride = { false }
-            PrivilegedOperationsCoordinator.installBundledKanataBinaryOverride = {}
-            var probeCount = 0
-            ServiceHealthChecker.runtimeSnapshotOverride = {
-                probeCount += 1
-                let ready = probeCount >= 4
-                return ServiceHealthChecker.KanataServiceRuntimeSnapshot(
-                    managementState: .smappserviceActive,
-                    isRunning: ready,
-                    isResponding: ready,
-                    inputCaptureReady: true,
-                    inputCaptureIssue: nil,
-                    launchctlExitCode: ready ? 0 : 113,
-                    staleEnabledRegistration: false,
-                    recentlyRestarted: !ready
-                )
-            }
-#endif
-
-        let coordinator = PrivilegedOperationsCoordinator.shared
-        do {
-            try await coordinator.installBundledKanata()
-        } catch {
-            XCTFail("Expected restart grace window to suppress early launchctl 113 failure, got: \(error)")
-        }
-    }
-
-    func testInstallBundledKanataFailsForHistoricalStaleThrottleAndLaunchctl113Sequence() async throws {
-#if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
-            var installCallCount = 0
-            PrivilegedOperationsCoordinator.installAllServicesOverride = {
-                installCallCount += 1
-            }
-
-            // Seed throttle window with a normal install.
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .uninstalled }
-            let coordinator = PrivilegedOperationsCoordinator.shared
-            let firstInstall = try await coordinator.installServicesIfUninstalled(context: "seed-throttle")
-            XCTAssertTrue(firstInstall)
-            XCTAssertEqual(installCallCount, 1)
-
-            // Historical sequence:
-            // 1) Stale SMAppService registration is detected while still inside throttle window.
-            // 2) Recovery must bypass throttle.
-            // 3) launchctl repeatedly reports not-found and TCP remains unresponsive.
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
-            KanataDaemonManager.registeredButNotLoadedOverride = { true }
-            PrivilegedOperationsCoordinator.installBundledKanataBinaryOverride = {}
-
-            ServiceHealthChecker.runtimeSnapshotOverride = {
-                ServiceHealthChecker.KanataServiceRuntimeSnapshot(
-                    managementState: .smappserviceActive,
-                    isRunning: false,
-                    isResponding: false,
-                    inputCaptureReady: true,
-                    inputCaptureIssue: nil,
-                    launchctlExitCode: 113,
-                    staleEnabledRegistration: false,
-                    recentlyRestarted: false
-                )
-            }
-#else
-            let coordinator = PrivilegedOperationsCoordinator.shared
-#endif
-
-        do {
-            try await coordinator.installBundledKanata()
-            XCTFail("Expected installBundledKanata to fail for persistent launchctl 113 + no TCP sequence")
-        } catch let PrivilegedOperationError.operationFailed(message) {
-            XCTAssertTrue(message.contains("postcondition failed"))
-        } catch {
-            XCTFail("Unexpected error type: \(error)")
-        }
-
-#if DEBUG
-            XCTAssertEqual(
-                installCallCount,
-                2,
-                "Stale recovery should run even inside throttle window, then fail on readiness postcondition"
-            )
-#endif
     }
 
     func testTerminateProcessRejectsInvalidPIDWithoutRunningCommands() async throws {

@@ -299,12 +299,10 @@ class WizardStateMachine {
             .inputMonitoring
         case .karabinerComponents:
             .accessibility
-        case .kanataComponents:
-            .karabinerComponents
         case .communication:
-            .kanataComponents
+            .karabinerComponents
         case .service:
-            .kanataComponents // Service comes after all components
+            .karabinerComponents // Service comes after all components
         }
     }
 

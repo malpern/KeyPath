@@ -181,7 +181,7 @@ public final class KanataHostBridgePassthruRuntimeHandle: @unchecked Sendable {
     }
 
     public func start() -> Result<Void, KanataHostBridgePassthruStartError> {
-        var errorBuffer = Array<CChar>(repeating: 0, count: 2048)
+        var errorBuffer = [CChar](repeating: 0, count: 2048)
         let started = startRuntime(runtimeHandle, &errorBuffer, errorBuffer.count)
         if started {
             return .success(())
@@ -195,7 +195,7 @@ public final class KanataHostBridgePassthruRuntimeHandle: @unchecked Sendable {
         var value: UInt64 = 0
         var usagePage: UInt32 = 0
         var usage: UInt32 = 0
-        var errorBuffer = Array<CChar>(repeating: 0, count: 2048)
+        var errorBuffer = [CChar](repeating: 0, count: 2048)
 
         let result = tryReceiveOutputFunction(
             runtimeHandle,
@@ -229,7 +229,7 @@ public final class KanataHostBridgePassthruRuntimeHandle: @unchecked Sendable {
         usagePage: UInt32,
         usage: UInt32
     ) -> Result<Void, KanataHostBridgePassthruSendInputError> {
-        var errorBuffer = Array<CChar>(repeating: 0, count: 2048)
+        var errorBuffer = [CChar](repeating: 0, count: 2048)
         let sent = sendInputFunction(
             runtimeHandle,
             value,
@@ -352,7 +352,7 @@ public enum KanataHostBridge {
         }
 
         let validate = unsafeBitCast(validateSymbol, to: ValidateConfigFunction.self)
-        var errorBuffer = Array<CChar>(repeating: 0, count: 2048)
+        var errorBuffer = [CChar](repeating: 0, count: 2048)
         let success = configPath.withCString { configCString in
             validate(configCString, &errorBuffer, errorBuffer.count)
         }
@@ -393,7 +393,7 @@ public enum KanataHostBridge {
         let createRuntime = unsafeBitCast(createSymbol, to: CreateRuntimeFunction.self)
         let runtimeLayerCount = unsafeBitCast(layerCountSymbol, to: RuntimeLayerCountFunction.self)
         let destroyRuntime = unsafeBitCast(destroySymbol, to: DestroyRuntimeFunction.self)
-        var errorBuffer = Array<CChar>(repeating: 0, count: 2048)
+        var errorBuffer = [CChar](repeating: 0, count: 2048)
 
         let runtime = configPath.withCString { configCString in
             createRuntime(configCString, &errorBuffer, errorBuffer.count)
@@ -428,7 +428,7 @@ public enum KanataHostBridge {
         }
 
         let runRuntime = unsafeBitCast(runSymbol, to: RunRuntimeFunction.self)
-        var errorBuffer = Array<CChar>(repeating: 0, count: 2048)
+        var errorBuffer = [CChar](repeating: 0, count: 2048)
         let success = configPath.withCString { configCString in
             runRuntime(configCString, tcpPort, &errorBuffer, errorBuffer.count)
         }
@@ -475,7 +475,7 @@ public enum KanataHostBridge {
         let tryReceiveOutput = unsafeBitCast(tryReceiveSymbol, to: TryReceivePassthruOutputFunction.self)
         let destroyRuntime = unsafeBitCast(destroySymbol, to: DestroyPassthruRuntimeFunction.self)
 
-        var errorBuffer = Array<CChar>(repeating: 0, count: 2048)
+        var errorBuffer = [CChar](repeating: 0, count: 2048)
         let runtimeHandle = configPath.withCString { configCString in
             createRuntime(configCString, tcpPort, &errorBuffer, errorBuffer.count)
         }
@@ -519,7 +519,7 @@ public enum KanataHostBridge {
 
         let isRootOwned = ownerID.intValue == 0
         let isRootOnly = permissions.intValue & 0o077 == 0
-        if isRootOwned && isRootOnly {
+        if isRootOwned, isRootOnly {
             return .failed(
                 reason: "vhid driver socket directory is root-only at \(rootOnlyVHIDDirectory); bundled host runtime needs a privileged output bridge"
             )

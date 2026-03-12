@@ -35,7 +35,9 @@ final class HrmObservabilityService {
         let reason: KanataHrmDecisionReason
         let count: Int
 
-        var id: String { reason.rawValue }
+        var id: String {
+            reason.rawValue
+        }
     }
 
     struct KeyBreakdown: Identifiable, Equatable, Sendable {
@@ -46,7 +48,9 @@ final class HrmObservabilityService {
         let avgLatencyMs: Int
         let topReason: KanataHrmDecisionReason?
 
-        var id: String { key }
+        var id: String {
+            key
+        }
     }
 
     struct TimingRecommendation: Identifiable, Equatable, Sendable {
@@ -104,7 +108,7 @@ final class HrmObservabilityService {
     @ObservationIgnored private var calibrationRunToken = UUID()
     @ObservationIgnored private var didLogTraceTruncation = false
 
-    private let maxTraceEvents = 1_000
+    private let maxTraceEvents = 1000
     private let statsPollInterval: Duration = .seconds(5)
     private let maxStatsPollInterval: Duration = .seconds(60)
     private let traceBreakdownDebounce: Duration = .milliseconds(100)
@@ -317,13 +321,13 @@ final class HrmObservabilityService {
     private func currentStatsPollInterval() -> Duration {
         switch statsConsecutiveFailureCount {
         case ..<1:
-            return statsPollInterval
+            statsPollInterval
         case 1:
-            return .seconds(10)
+            .seconds(10)
         case 2:
-            return .seconds(30)
+            .seconds(30)
         default:
-            return maxStatsPollInterval
+            maxStatsPollInterval
         }
     }
 
@@ -389,7 +393,7 @@ final class HrmObservabilityService {
         breakdownRebuildTask?.cancel()
         breakdownRebuildTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            try? await Task.sleep(for: self.traceBreakdownDebounce)
+            try? await Task.sleep(for: traceBreakdownDebounce)
             guard !Task.isCancelled else { return }
             perKeyBreakdown = buildPerKeyBreakdown(from: recentTraceEvents)
             // Stats-based topReasons take priority over trace-based ones because
@@ -402,7 +406,7 @@ final class HrmObservabilityService {
         }
     }
 
-    nonisolated private static func makeTraceNotificationPayload(userInfo: [AnyHashable: Any]?) -> TraceNotificationPayload? {
+    private nonisolated static func makeTraceNotificationPayload(userInfo: [AnyHashable: Any]?) -> TraceNotificationPayload? {
         guard let userInfo else { return nil }
         guard let schemaVersion = userInfo["schemaVersion"] as? Int,
               let key = userInfo["key"] as? String,
@@ -453,7 +457,7 @@ final class HrmObservabilityService {
             postStatsUpdated(stats)
         } catch {
             statsConsecutiveFailureCount += 1
-            if supportsHrmStats && isLikelyRuntimeDisabled(error) {
+            if supportsHrmStats, isLikelyRuntimeDisabled(error) {
                 availability = .disabledInRuntimeConfig
             }
             if statsConsecutiveFailureCount >= 3 {

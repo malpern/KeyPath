@@ -26,16 +26,12 @@ enum AutoFixActionDescriptions {
             "Activate VirtualHID Device Manager"
         case .installRequiredRuntimeServices:
             "Install required runtime services"
-        case .installBundledKanata:
-            "Install Kanata binary"
         case .repairVHIDDaemonServices:
             "Repair VHID LaunchDaemon services"
         case .synchronizeConfigPaths:
             "Fix config path mismatch between KeyPath and Kanata"
         case .installLogRotation:
             "Install newsyslog config to keep logs under 10MB"
-        case .replaceKanataWithBundled:
-            "Replace kanata with Developer ID signed version"
         case .enableTCPServer:
             "Enable TCP server"
         case .setupTCPAuthentication:
@@ -60,8 +56,6 @@ enum AutoFixActionDescriptions {
             "Failed to install required runtime services. Check that you provided admin password and try again."
         case .activateVHIDDeviceManager:
             "Failed to activate driver extensions. Please manually approve in System Settings > General > Login Items & Extensions."
-        case .installBundledKanata:
-            "Failed to install Kanata binary. Check admin permissions and try again."
         case .startKarabinerDaemon:
             "Failed to start system daemon."
         case .createConfigDirectories:

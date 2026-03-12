@@ -108,13 +108,13 @@ final class InvestigationEventTapService {
     private func eventTypeName(_ type: CGEventType) -> String {
         switch type {
         case .keyDown:
-            return "keyDown"
+            "keyDown"
         case .keyUp:
-            return "keyUp"
+            "keyUp"
         case .flagsChanged:
-            return "flagsChanged"
+            "flagsChanged"
         default:
-            return "event-\(type.rawValue)"
+            "event-\(type.rawValue)"
         }
     }
 

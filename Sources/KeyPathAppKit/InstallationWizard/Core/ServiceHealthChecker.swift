@@ -75,14 +75,14 @@ final class ServiceHealthChecker: @unchecked Sendable {
         }
     }
 
-#if DEBUG
+    #if DEBUG
         nonisolated(unsafe) static var runtimeSnapshotOverride:
             (() async -> KanataServiceRuntimeSnapshot)?
         nonisolated(unsafe) static var recentlyRestartedOverride:
             ((String, TimeInterval?) -> Bool)?
         nonisolated(unsafe) static var inputCaptureStatusOverride:
             (() async -> KanataInputCaptureStatus)?
-#endif
+    #endif
 
     // MARK: - Service Identifiers
 
@@ -400,11 +400,11 @@ final class ServiceHealthChecker: @unchecked Sendable {
         tcpPort: Int = 37001,
         timeoutMs: Int = 300
     ) async -> KanataServiceRuntimeSnapshot {
-#if DEBUG
-        if let override = Self.runtimeSnapshotOverride {
-            return await override()
-        }
-#endif
+        #if DEBUG
+            if let override = Self.runtimeSnapshotOverride {
+                return await override()
+            }
+        #endif
 
         let managementState = await kanataDaemonManager.refreshManagementState()
         let staleEnabledRegistration: Bool = if managementState == .smappserviceActive {
@@ -430,11 +430,11 @@ final class ServiceHealthChecker: @unchecked Sendable {
         tcpPort: Int = 37001,
         timeoutMs: Int = 300
     ) async -> KanataServiceRuntimeSnapshot {
-#if DEBUG
-        if let override = Self.runtimeSnapshotOverride {
-            return await override()
-        }
-#endif
+        #if DEBUG
+            if let override = Self.runtimeSnapshotOverride {
+                return await override()
+            }
+        #endif
 
         let runningState = await evaluateKanataLaunchctlRunningState(managementState: managementState)
         // Also check split runtime host — it launches kanata-launcher as a direct child Process(),
@@ -509,7 +509,7 @@ final class ServiceHealthChecker: @unchecked Sendable {
             return .unhealthy(reason: "stale-enabled-registration")
         }
 
-        if runtimeSnapshot.launchctlExitCode == Self.launchctlNotFoundExitCode,
+        if runtimeSnapshot.launchctlExitCode == launchctlNotFoundExitCode,
            !runtimeSnapshot.isRunning,
            !runtimeSnapshot.isResponding
         {
@@ -530,20 +530,20 @@ final class ServiceHealthChecker: @unchecked Sendable {
         _ serviceID: String,
         within window: TimeInterval
     ) -> Bool {
-#if DEBUG
-        if let override = recentlyRestartedOverride {
-            return override(serviceID, window)
-        }
-#endif
+        #if DEBUG
+            if let override = recentlyRestartedOverride {
+                return override(serviceID, window)
+            }
+        #endif
         return ServiceBootstrapper.wasRecentlyRestarted(serviceID, within: window)
     }
 
     nonisolated func checkKanataInputCaptureStatus() async -> KanataInputCaptureStatus {
-#if DEBUG
-        if let override = Self.inputCaptureStatusOverride {
-            return await override()
-        }
-#endif
+        #if DEBUG
+            if let override = Self.inputCaptureStatusOverride {
+                return await override()
+            }
+        #endif
         // There is no stable Apple API here for "the live runtime can capture the built-in
         // keyboard right now," so we use Kanata's known stderr denial line as a runtime fallback
         // signal and fail closed when macOS is actively denying capture.

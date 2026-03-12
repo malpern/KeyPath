@@ -141,7 +141,7 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
         XCTAssertNil(manager.lastError)
     }
 
-    func testSuccessfulSplitRuntimeStartClearsPreviousExitError() async throws {
+    func testSuccessfulSplitRuntimeStartClearsPreviousExitError() async {
         KarabinerConflictService.testDaemonRunning = true
         await manager.handleSplitRuntimeHostExit(
             pid: 12345,
@@ -207,7 +207,9 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
     func testSplitRuntimeStartFailureDoesNotSilentlyFallBackToLegacy() async {
         KarabinerConflictService.testDaemonRunning = true
         struct SplitStartFailure: LocalizedError {
-            var errorDescription: String? { "simulated split host start failure" }
+            var errorDescription: String? {
+                "simulated split host start failure"
+            }
         }
 
         KanataRuntimePathCoordinator.testDecision = .useSplitRuntime(reason: "test split runtime")

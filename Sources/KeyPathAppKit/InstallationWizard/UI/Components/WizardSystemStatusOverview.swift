@@ -288,30 +288,7 @@ struct WizardSystemStatusOverview: View {
         // Check dependency requirements for remaining items
         let prerequisitesMet = shouldShowDependentItems()
 
-        // 8. Kanata Engine Setup (hidden if Karabiner Driver not completed)
-        if prerequisitesMet.showKanataEngineItem {
-            let kanataComponentsStatus = getKanataComponentsStatus()
-            let kanataComponentsIssues = issues.filter { issue in
-                // Kanata component issues
-                if case let .component(comp) = issue.identifier {
-                    return comp == .kanataBinaryMissing
-                }
-                return false
-            }
-            items.append(
-                StatusItemModel(
-                    id: "kanata-components",
-                    icon: "cpu.fill",
-                    title: "Kanata Engine Setup",
-                    status: kanataComponentsStatus,
-                    isNavigable: true,
-                    targetPage: .kanataComponents,
-                    relatedIssues: kanataComponentsIssues
-                )
-            )
-        }
-
-        // 9. Communication Server (hidden if dependencies not met)
+        // 8. Communication Server (hidden if dependencies not met)
         if prerequisitesMet.showCommunicationItem {
             let commServerStatus = getCommunicationServerStatus()
             // Communication server issues (no specific category, use empty for now)
@@ -360,7 +337,6 @@ struct WizardSystemStatusOverview: View {
     // MARK: - Dependency Logic
 
     private struct DependencyVisibility {
-        let showKanataEngineItem: Bool
         let showCommunicationItem: Bool
     }
 
@@ -404,13 +380,8 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func shouldShowDependentItems() -> DependencyVisibility {
-        // Prerequisites for Kanata Engine Setup:
-        // - Karabiner Driver Setup must be completed (Kanata requires VirtualHID driver)
-        let karabinerDriverCompleted = getKarabinerComponentsStatus() == .completed
-
         // Communication item shown when Kanata is running
-        return DependencyVisibility(
-            showKanataEngineItem: karabinerDriverCompleted,
+        DependencyVisibility(
             showCommunicationItem: kanataIsRunning
         )
     }
@@ -424,7 +395,6 @@ struct WizardSystemStatusOverview: View {
             // Must have helper before anything privileged
             "kanata-service": ["privileged-helper", "karabiner-components"],
             "communication-server": ["kanata-service"],
-            "kanata-components": ["karabiner-components"],
             "background-services": ["privileged-helper"],
             "karabiner-components": ["privileged-helper"]
         ]
@@ -601,26 +571,6 @@ struct WizardSystemStatusOverview: View {
             systemState: systemState,
             issues: issues
         )
-    }
-
-    private func getKanataComponentsStatus() -> InstallationStatus {
-        if systemState == .initializing {
-            return .notStarted
-        }
-
-        let kanataIssues = issues.filter { issue in
-            if issue.category == .installation {
-                switch issue.identifier {
-                case .component(.kanataBinaryMissing),
-                     .component(.keyPathRuntime):
-                    return true
-                default:
-                    return false
-                }
-            }
-            return false
-        }
-        return issueStatus(for: kanataIssues)
     }
 
     private func getCommunicationServerStatus() -> InstallationStatus {

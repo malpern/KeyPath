@@ -6,9 +6,9 @@ enum KanataRuntimePathCoordinator {
     static let experimentalOutputBridgeSessionEnvKey = "KEYPATH_EXPERIMENTAL_OUTPUT_BRIDGE_SESSION"
     static let experimentalOutputBridgeSocketEnvKey = "KEYPATH_EXPERIMENTAL_OUTPUT_BRIDGE_SOCKET"
 
-#if DEBUG
-    nonisolated(unsafe) static var testDecision: KanataRuntimePathDecision?
-#endif
+    #if DEBUG
+        nonisolated(unsafe) static var testDecision: KanataRuntimePathDecision?
+    #endif
 
     static func evaluateCurrentPath(
         configPath: String = KeyPathConstants.Config.mainConfigPath,
@@ -16,11 +16,11 @@ enum KanataRuntimePathCoordinator {
         fileManager: FileManager = Foundation.FileManager(),
         helperManager: HelperManager = .shared
     ) async -> KanataRuntimePathDecision {
-#if DEBUG
-        if TestEnvironment.isRunningTests, let testDecision {
-            return testDecision
-        }
-#endif
+        #if DEBUG
+            if TestEnvironment.isRunningTests, let testDecision {
+                return testDecision
+            }
+        #endif
         let bridgeProbe = KanataHostBridge.probe(runtimeHost: runtimeHost, fileManager: fileManager)
         let configValidation = KanataHostBridge.validateConfig(
             runtimeHost: runtimeHost,

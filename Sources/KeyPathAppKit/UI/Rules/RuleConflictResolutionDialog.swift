@@ -140,36 +140,36 @@ struct RuleConflictResolutionDialog: View {
 
     private var actionButtons: some View {
         HStack(spacing: 12) {
-                Button {
-                    onChoice(.keepExisting)
-                } label: {
-                    HStack {
-                        Spacer()
-                        Text("Keep \(context.existingRule.name)")
-                            .font(.body.weight(.medium))
-                        Spacer()
-                    }
-                    .padding(.vertical, 8)
+            Button {
+                onChoice(.keepExisting)
+            } label: {
+                HStack {
+                    Spacer()
+                    Text("Keep \(context.existingRule.name)")
+                        .font(.body.weight(.medium))
+                    Spacer()
                 }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("rule-conflict-keep-existing-button")
-                .accessibilityLabel("Keep \(context.existingRule.name)")
+                .padding(.vertical, 8)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("rule-conflict-keep-existing-button")
+            .accessibilityLabel("Keep \(context.existingRule.name)")
 
-                Button {
-                    onChoice(.keepNew)
-                } label: {
-                    HStack {
-                        Spacer()
-                        Text("Switch to \(context.newRule.name)")
-                            .font(.body.weight(.medium))
-                        Spacer()
-                    }
-                    .padding(.vertical, 8)
+            Button {
+                onChoice(.keepNew)
+            } label: {
+                HStack {
+                    Spacer()
+                    Text("Switch to \(context.newRule.name)")
+                        .font(.body.weight(.medium))
+                    Spacer()
                 }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .accessibilityIdentifier("rule-conflict-enable-new-button")
-                .accessibilityLabel("Switch to \(context.newRule.name)")
+                .padding(.vertical, 8)
+            }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut(.defaultAction)
+            .accessibilityIdentifier("rule-conflict-enable-new-button")
+            .accessibilityLabel("Switch to \(context.newRule.name)")
         }
         .padding(20)
     }

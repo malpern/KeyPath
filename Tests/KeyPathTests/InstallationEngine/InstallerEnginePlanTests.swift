@@ -14,7 +14,7 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
 
         XCTAssertFalse(ids.isEmpty, "Install plan should produce recipes for clean installs")
         XCTAssertTrue(ids.contains(InstallerRecipeID.installRequiredRuntimeServices), "Should install required runtime services")
-        XCTAssertTrue(ids.contains(InstallerRecipeID.installBundledKanata), "Should install bundled Kanata binary")
+        XCTAssertTrue(ids.contains(InstallerRecipeID.installMissingComponents), "Should install missing components")
     }
 
     func testRepairPlanTargetsUnhealthyServices() async {
@@ -41,7 +41,7 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
         let plan = InstallPlan(
             recipes: [
                 ServiceRecipe(id: InstallerRecipeID.installRequiredRuntimeServices, type: .installComponent),
-                ServiceRecipe(id: "install-bundled-kanata", type: .installComponent),
+                ServiceRecipe(id: InstallerRecipeID.installMissingComponents, type: .installComponent),
                 ServiceRecipe(id: InstallerRecipeID.startKarabinerDaemon, type: .restartService, serviceID: KeyPathConstants.Bundle.vhidDaemonID)
             ],
             status: .ready,
@@ -51,7 +51,7 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
         let report = await engine.execute(plan: plan, using: broker)
 
         XCTAssertFalse(report.success, "Failure should propagate")
-        XCTAssertFalse(coordinator.calls.contains("installBundledKanata"), "Later recipes should not execute after failure")
+        XCTAssertFalse(coordinator.calls.contains("downloadAndInstallCorrectVHIDDriver"), "Later recipes should not execute after failure")
         XCTAssertFalse(coordinator.calls.contains("restartKarabinerDaemonVerified"), "Later recipes should not execute after failure")
         XCTAssertEqual(report.executedRecipes.count, 1, "Execution should stop immediately after first failure")
     }

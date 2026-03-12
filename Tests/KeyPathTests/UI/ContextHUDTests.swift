@@ -328,7 +328,7 @@ final class ContextHUDViewModelTests: XCTestCase {
         XCTAssertEqual(vm.groups.count, 3, "Should have Movement, Editing, Search sub-groups")
         let names = vm.groups.map(\.name)
         XCTAssertEqual(names, ["Movement", "Editing", "Search"],
-                        "Sub-groups should be ordered: Movement → Editing → Search")
+                       "Sub-groups should be ordered: Movement → Editing → Search")
         XCTAssertEqual(vm.groups[0].entries.count, 2) // Movement: ← ↓
         XCTAssertEqual(vm.groups[1].entries.count, 2) // Editing: a, yank
         XCTAssertEqual(vm.groups[2].entries.count, 1) // Search: find
@@ -353,7 +353,7 @@ final class ContextHUDViewModelTests: XCTestCase {
         vm.update(layerName: "nav", keyMap: keyMap, collections: [collection], style: .defaultList)
 
         // All vim sub-groups should have the same color
-        let colors = Set(vm.groups.map { $0.color.description })
+        let colors = Set(vm.groups.map(\.color.description))
         XCTAssertEqual(colors.count, 1, "All vim sub-groups should share the same color")
     }
 

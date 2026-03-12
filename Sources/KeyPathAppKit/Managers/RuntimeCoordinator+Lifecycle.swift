@@ -19,7 +19,7 @@ extension RuntimeCoordinator {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(5))
                 guard !Task.isCancelled else { return }
-                await self.checkSplitRuntimeCompanionHealth()
+                await checkSplitRuntimeCompanionHealth()
             }
         }
     }
@@ -111,12 +111,11 @@ extension RuntimeCoordinator {
         // Try to start Kanata automatically on launch if environment allows
         let context = await engine.inspectSystem()
         let splitRuntimeDecision = await currentSplitRuntimeDecision()
-        let splitRuntimePreferred: Bool
-        switch splitRuntimeDecision {
+        let splitRuntimePreferred = switch splitRuntimeDecision {
         case .useSplitRuntime:
-            splitRuntimePreferred = true
+            true
         case .useLegacySystemBinary, .blocked:
-            splitRuntimePreferred = false
+            false
         }
 
         // Check if Kanata is already running. If split runtime is the preferred healthy path but

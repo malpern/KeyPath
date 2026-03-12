@@ -1,7 +1,7 @@
 import AppKit
 import KeyPathCore
 
-struct SingleInstanceCoordinator {
+enum SingleInstanceCoordinator {
     struct Candidate: Equatable {
         let pid: pid_t
         let bundleIdentifier: String?
@@ -37,8 +37,8 @@ struct SingleInstanceCoordinator {
 
         guard
             let existingApp = liveApps
-                .sorted(by: { $0.processIdentifier < $1.processIdentifier })
-                .first
+            .sorted(by: { $0.processIdentifier < $1.processIdentifier })
+            .first
         else {
             return false
         }

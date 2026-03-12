@@ -146,8 +146,7 @@ final class UpdateServiceDecisionTests: XCTestCase {
                 vhidDeviceInstalled: true,
                 vhidDeviceHealthy: servicesReady,
                 vhidServicesHealthy: servicesReady,
-                vhidVersionMismatch: false,
-                kanataBinaryVersionMismatch: false
+                vhidVersionMismatch: false
             )
         } else {
             .empty

@@ -240,7 +240,6 @@ final class ServiceBootstrapperTests: XCTestCase {
 
         let installResult = await bootstrapper.installAllServices()
         XCTAssertTrue(installResult)
-
     }
 
     func testRepairVHIDDaemonServicesInTestModeSetsOutput() async {

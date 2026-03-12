@@ -16,7 +16,9 @@ struct NeovimTerminalCollectionView: View {
         let key: String
         let meaning: String
 
-        var id: String { "\(key)|\(meaning)" }
+        var id: String {
+            "\(key)|\(meaning)"
+        }
     }
 
     var body: some View {

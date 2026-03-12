@@ -104,7 +104,7 @@ final class ServiceBootstrapper {
         // Test mode: just check if plist exists
         if TestEnvironment.shouldSkipAdminOperations {
             let plistPath = getPlistPath(for: serviceID)
-                let exists = Foundation.FileManager().fileExists(atPath: plistPath)
+            let exists = Foundation.FileManager().fileExists(atPath: plistPath)
             AppLogger.shared.log(
                 "🧪 [ServiceBootstrapper] Test mode - service \(serviceID) loaded: \(exists)"
             )
@@ -328,11 +328,11 @@ final class ServiceBootstrapper {
     private func captureVHIDInstallSnapshot() async -> VHIDInstallSnapshot {
         let daemonPlistPath = getPlistPath(for: Self.vhidDaemonServiceID)
         let managerPlistPath = getPlistPath(for: Self.vhidManagerServiceID)
-        let snapshot = VHIDInstallSnapshot(
+        let snapshot = await VHIDInstallSnapshot(
             daemonPlistExisted: Foundation.FileManager().fileExists(atPath: daemonPlistPath),
             managerPlistExisted: Foundation.FileManager().fileExists(atPath: managerPlistPath),
-            daemonLoaded: await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID),
-            managerLoaded: await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
+            daemonLoaded: ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID),
+            managerLoaded: ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
         )
         AppLogger.shared.log(
             "🔍 [ServiceBootstrapper] Captured VHID snapshot: daemon(plist=\(snapshot.daemonPlistExisted), loaded=\(snapshot.daemonLoaded)), manager(plist=\(snapshot.managerPlistExisted), loaded=\(snapshot.managerLoaded))"
@@ -580,7 +580,7 @@ final class ServiceBootstrapper {
                     try await KanataDaemonManager.shared.unregister()
                     // Poll for service readiness with a short wait, instead of fixed sleep
                     for _ in 0 ..< 6 { // ~0.6s
-                        if !(await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID)) {
+                        if await !(ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID)) {
                             break
                         }
                         _ = await WizardSleep.ms(100)
@@ -677,7 +677,7 @@ final class ServiceBootstrapper {
 
                 try await KanataDaemonManager.shared.unregister()
                 for _ in 0 ..< 10 { // ~1s
-                    if !(await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID)) {
+                    if await !(ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID)) {
                         break
                     }
                     _ = await WizardSleep.ms(100)
@@ -984,5 +984,4 @@ final class ServiceBootstrapper {
             return false
         }
     }
-
 }

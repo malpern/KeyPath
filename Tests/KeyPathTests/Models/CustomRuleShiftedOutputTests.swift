@@ -13,7 +13,7 @@ final class CustomRuleShiftedOutputTests: XCTestCase {
     }
 
     func testCodableRoundTripPreservesShiftedOutput() throws {
-        let fixedDate = Date(timeIntervalSinceReferenceDate: 1_000)
+        let fixedDate = Date(timeIntervalSinceReferenceDate: 1000)
         let original = CustomRule(
             id: UUID(),
             title: "Go to top/bottom",

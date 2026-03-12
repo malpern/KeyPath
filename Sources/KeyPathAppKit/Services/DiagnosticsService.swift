@@ -469,10 +469,10 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         let runtimePathDecision = await KanataRuntimePathCoordinator.evaluateCurrentPath()
         diagnostics.append(Self.makeRuntimePathDiagnostic(for: runtimePathDecision))
         if outputBridgeSmokeDiagnosticsEnabled() {
-            diagnostics.append(await makeExperimentalOutputBridgeSmokeDiagnostic())
+            await diagnostics.append(makeExperimentalOutputBridgeSmokeDiagnostic())
         }
         if hostPassthruDiagnosticsEnabled() {
-            diagnostics.append(await makeExperimentalHostPassthruDiagnostic())
+            await diagnostics.append(makeExperimentalHostPassthruDiagnostic())
         }
 
         // TCP handshake summary (protocol/capabilities)
@@ -527,7 +527,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     ) -> KanataDiagnostic {
         switch decision {
         case let .useSplitRuntime(reason):
-            return KanataDiagnostic(
+            KanataDiagnostic(
                 timestamp: timestamp,
                 severity: .info,
                 category: .system,
@@ -538,7 +538,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                 canAutoFix: false
             )
         case let .useLegacySystemBinary(reason):
-            return KanataDiagnostic(
+            KanataDiagnostic(
                 timestamp: timestamp,
                 severity: .warning,
                 category: .system,
@@ -549,7 +549,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                 canAutoFix: false
             )
         case let .blocked(reason):
-            return KanataDiagnostic(
+            KanataDiagnostic(
                 timestamp: timestamp,
                 severity: .error,
                 category: .system,

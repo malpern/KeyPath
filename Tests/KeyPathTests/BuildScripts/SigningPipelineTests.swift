@@ -24,7 +24,7 @@ final class SigningPipelineTests: XCTestCase {
             return (code: -1, stdout: "", stderr: "Failed to start process: \(error)")
         }
         while process.isRunning {
-            usleep(1_000)
+            usleep(1000)
         }
 
         let stdoutData = (try? stdoutPipe.fileHandleForReading.readToEnd()) ?? Data()

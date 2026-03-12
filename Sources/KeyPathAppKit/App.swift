@@ -413,6 +413,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     {
         OneShotProbeEnvironment.isActive(environment)
     }
+
     private static let hostPassthruDiagnosticTriggerPath = "/var/tmp/keypath-host-passthru-diagnostic"
     private static let hostPassthruBridgePrepTriggerPath = "/var/tmp/keypath-host-passthru-bridge-prep"
     private static let hostPassthruBridgePrepOutputPath = "/var/tmp/keypath-host-passthru-bridge-env.txt"
@@ -545,7 +546,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let shouldRunHostPassthruDiagnostic =
             ProcessInfo.processInfo.environment[OneShotProbeEnvironment.hostPassthruDiagnosticEnvKey] == "1"
-            || Foundation.FileManager().fileExists(atPath: Self.hostPassthruDiagnosticTriggerPath)
+                || Foundation.FileManager().fileExists(atPath: Self.hostPassthruDiagnosticTriggerPath)
 
         if shouldRunHostPassthruDiagnostic {
             try? Foundation.FileManager().removeItem(atPath: Self.hostPassthruDiagnosticTriggerPath)
@@ -577,7 +578,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let shouldPrepareHostPassthruBridge =
             ProcessInfo.processInfo.environment[OneShotProbeEnvironment.hostPassthruBridgePrepEnvKey] == "1"
-            || Foundation.FileManager().fileExists(atPath: Self.hostPassthruBridgePrepTriggerPath)
+                || Foundation.FileManager().fileExists(atPath: Self.hostPassthruBridgePrepTriggerPath)
 
         if shouldPrepareHostPassthruBridge {
             try? Foundation.FileManager().removeItem(atPath: Self.hostPassthruBridgePrepTriggerPath)
@@ -590,10 +591,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     let sessionID = bridgeEnvironment[KanataRuntimePathCoordinator.experimentalOutputBridgeSessionEnvKey] ?? "missing"
                     let socketPath = bridgeEnvironment[KanataRuntimePathCoordinator.experimentalOutputBridgeSocketEnvKey] ?? "missing"
                     let payload = """
-                        session=\(sessionID)
-                        socket=\(socketPath)
+                    session=\(sessionID)
+                    socket=\(socketPath)
 
-                        """
+                    """
                     try payload.write(
                         toFile: Self.hostPassthruBridgePrepOutputPath,
                         atomically: true,
@@ -636,7 +637,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let shouldRunHelperRepair =
             ProcessInfo.processInfo.environment[OneShotProbeEnvironment.helperRepairEnvKey] == "1"
-            || Foundation.FileManager().fileExists(atPath: Self.helperRepairTriggerPath)
+                || Foundation.FileManager().fileExists(atPath: Self.helperRepairTriggerPath)
 
         if shouldRunHelperRepair {
             try? Foundation.FileManager().removeItem(atPath: Self.helperRepairTriggerPath)
@@ -1011,7 +1012,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] note in
             let outputPath =
                 note.userInfo?["outputPath"] as? String
-                ?? "/var/tmp/keypath-runtime-coordinator-companion-recovery.txt"
+                    ?? "/var/tmp/keypath-runtime-coordinator-companion-recovery.txt"
             Task { @MainActor in
                 guard let self, let manager = self.kanataManager else { return }
                 var lines: [String] = []
@@ -1078,7 +1079,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] note in
             let outputPath =
                 note.userInfo?["outputPath"] as? String
-                ?? "/var/tmp/keypath-runtime-coordinator-companion-restart-soak.txt"
+                    ?? "/var/tmp/keypath-runtime-coordinator-companion-restart-soak.txt"
             let durationSeconds = note.userInfo?["durationSeconds"] as? Int ?? 20
             Task { @MainActor in
                 guard let self, let manager = self.kanataManager else { return }

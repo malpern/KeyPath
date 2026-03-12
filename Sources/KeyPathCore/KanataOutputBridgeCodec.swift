@@ -1,12 +1,12 @@
 import Foundation
 
 public enum KanataOutputBridgeCodec {
-    public static func encode<Request: Encodable>(_ value: Request) throws -> Data {
+    public static func encode(_ value: some Encodable) throws -> Data {
         let data = try JSONEncoder().encode(value)
         return data + Data([0x0A])
     }
 
-    public static func decode<Response: Decodable>(_ data: Data, as type: Response.Type) throws
+    public static func decode<Response: Decodable>(_ data: Data, as _: Response.Type) throws
         -> Response
     {
         let payload =

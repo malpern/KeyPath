@@ -197,8 +197,8 @@ struct KarabinerTo: Decodable {
         case setVariable = "set_variable"
         case mouseKey = "mouse_key"
         case modifiers
-        case lazy = "lazy"
-        case `repeat` = "repeat"
+        case lazy
+        case `repeat`
         case halt
         case holdDownMilliseconds = "hold_down_milliseconds"
     }

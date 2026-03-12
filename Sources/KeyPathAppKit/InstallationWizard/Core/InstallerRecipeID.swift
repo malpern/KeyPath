@@ -5,7 +5,6 @@ import Foundation
 /// Keep this minimal: only IDs that are referenced from multiple files should live here.
 enum InstallerRecipeID {
     static let installRequiredRuntimeServices = "install-required-runtime-services"
-    static let installBundledKanata = "install-bundled-kanata"
     static let installCorrectVHIDDriver = "install-correct-vhid-driver"
     static let installLogRotation = "install-log-rotation"
     static let installPrivilegedHelper = "install-privileged-helper"
@@ -22,6 +21,5 @@ enum InstallerRecipeID {
     static let regenerateCommServiceConfig = "regenerate-comm-service-config"
     static let regenerateServiceConfig = "regenerate-service-config"
     static let restartCommServer = "restart-comm-server"
-    static let replaceKanataWithBundled = "replace-kanata-with-bundled"
     static let synchronizeConfigPaths = "synchronize-config-paths"
 }

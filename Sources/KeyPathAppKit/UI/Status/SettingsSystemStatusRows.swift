@@ -132,35 +132,7 @@ enum SettingsSystemStatusRowsBuilder {
             )
         )
 
-        // 6) Kanata Engine Setup (only once driver is healthy, mirrors wizard)
-        if karabinerStatus == .completed {
-            let kanataIssues = wizardIssues.filter { issue in
-                if issue.category == .installation {
-                    switch issue.identifier {
-                    case .component(.kanataBinaryMissing),
-                         .component(.keyPathRuntime):
-                        return true
-                    default:
-                        return false
-                    }
-                }
-                return false
-            }
-            let kanataStatus = issueStatus(for: kanataIssues)
-            let kanataMessage: String? = kanataStatus != .completed ? kanataIssues.first?.title : nil
-            rows.append(
-                SettingsSystemStatusRowModel(
-                    id: "kanata-components",
-                    title: "Kanata Engine Setup",
-                    icon: "cpu.fill",
-                    status: kanataStatus,
-                    targetPage: .kanataComponents,
-                    message: kanataMessage
-                )
-            )
-        }
-
-        // 7) TCP Communication
+        // 6) TCP Communication
         let commStatus: InstallationStatus = {
             if wizardSystemState == .initializing { return .notStarted }
             guard systemContext?.services.kanataRunning == true else { return .notStarted }

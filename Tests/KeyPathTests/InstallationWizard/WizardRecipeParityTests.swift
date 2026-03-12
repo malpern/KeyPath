@@ -17,7 +17,6 @@ final class WizardRecipeParityTests: XCTestCase {
         ).build()
 
         let actions: [AutoFixAction] = [
-            .installBundledKanata,
             .installRequiredRuntimeServices,
             .terminateConflictingProcesses
         ]
@@ -35,7 +34,7 @@ final class WizardRecipeParityTests: XCTestCase {
         }
     }
 
-    func testInstallPlanIncludesBundledKanataWhenComponentsMissing() async {
+    func testInstallPlanIncludesMissingComponentsWhenComponentsMissing() async {
         let engine = InstallerEngine()
         let context = SystemContextBuilder(
             permissionsStatus: .granted,
@@ -48,8 +47,8 @@ final class WizardRecipeParityTests: XCTestCase {
         let ids = plan.recipes.map(\.id)
 
         XCTAssertTrue(
-            ids.contains(engine.recipeIDForAction(.installBundledKanata)),
-            "Install plan should include bundled kanata when components are missing"
+            ids.contains(engine.recipeIDForAction(.installMissingComponents)),
+            "Install plan should include missing components when components are missing"
         )
     }
 

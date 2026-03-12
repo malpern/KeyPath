@@ -317,7 +317,7 @@ final class ContextHUDController {
             AppLogger.shared.info("🎯 [ContextHUD] Background precompute starting")
 
             let configPath = WizardSystemPaths.userConfigPath
-            let enabledCollections = await self.loadEnabledCollections()
+            let enabledCollections = await loadEnabledCollections()
             let layoutId = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey) ?? LayoutPreferences.defaultLayoutId
             let layout = PhysicalLayout.find(id: layoutId) ?? .macBookUS
 
@@ -326,12 +326,12 @@ final class ContextHUDController {
 
                 do {
                     if layerName == "launcher" {
-                        let keyMap = self.buildLauncherKeyMap(from: enabledCollections)
-                        await self.preloadLauncherIcons(keyMap: keyMap)
+                        let keyMap = buildLauncherKeyMap(from: enabledCollections)
+                        await preloadLauncherIcons(keyMap: keyMap)
                         AppLogger.shared.info("🎯 [ContextHUD] Precomputed launcher icons")
                     } else {
                         // Warm the simulator cache
-                        let keyMap = try await self.layerKeyMapper.getMapping(
+                        let keyMap = try await layerKeyMapper.getMapping(
                             for: layerName,
                             configPath: configPath,
                             layout: layout,
@@ -341,14 +341,14 @@ final class ContextHUDController {
 
                         // Warm the hold label cache
                         if FeatureFlags.simulatorAndVirtualKeysEnabled {
-                            let holdLabels = await self.resolveHoldLabels(
+                            let holdLabels = await resolveHoldLabels(
                                 keyMap: keyMap,
                                 configPath: configPath,
                                 layerName: layerName
                             )
                             guard !Task.isCancelled else { return }
                             if !holdLabels.isEmpty {
-                                self.holdLabelCache[layerName] = holdLabels
+                                holdLabelCache[layerName] = holdLabels
                             }
                         }
                         AppLogger.shared.info("🎯 [ContextHUD] Precomputed layer '\(layerName)'")
@@ -377,7 +377,7 @@ final class ContextHUDController {
 
             do {
                 let configPath = WizardSystemPaths.userConfigPath
-                let enabledCollections = await self.loadEnabledCollections()
+                let enabledCollections = await loadEnabledCollections()
 
                 // Get the active layout
                 let layoutId = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey) ?? LayoutPreferences.defaultLayoutId
@@ -480,7 +480,7 @@ final class ContextHUDController {
                 guard !Task.isCancelled else { return }
 
                 // Resolve hold labels: use cache or fetch before showing
-                var holdLabels = self.holdLabelCache[normalizedLayerName] ?? [:]
+                var holdLabels = holdLabelCache[normalizedLayerName] ?? [:]
 
                 if holdLabels.isEmpty, FeatureFlags.simulatorAndVirtualKeysEnabled {
                     holdLabels = await resolveHoldLabels(
@@ -490,7 +490,7 @@ final class ContextHUDController {
                     )
                     guard !Task.isCancelled else { return }
                     if !holdLabels.isEmpty {
-                        self.holdLabelCache[normalizedLayerName] = holdLabels
+                        holdLabelCache[normalizedLayerName] = holdLabels
                     }
                 }
 
@@ -579,13 +579,13 @@ final class ContextHUDController {
             guard let self, let window = self.window else { return }
 
             // Second layout pass after SwiftUI has settled
-            if let hostingView = self.hostingView {
+            if let hostingView {
                 hostingView.invalidateIntrinsicContentSize()
                 hostingView.layoutSubtreeIfNeeded()
             }
 
             // Size and position with accurate fittingSize
-            self.positionWindow()
+            positionWindow()
 
             // Animate in: scale + fade
             if let contentView = window.contentView {
@@ -609,7 +609,7 @@ final class ContextHUDController {
                 window.orderFront(nil)
             }
 
-            AppLogger.shared.debug("🎯 [ContextHUD] Showing HUD for layer '\(self.viewModel.layerName)'")
+            AppLogger.shared.debug("🎯 [ContextHUD] Showing HUD for layer '\(viewModel.layerName)'")
         }
     }
 

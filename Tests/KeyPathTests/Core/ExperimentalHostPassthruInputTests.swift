@@ -1,5 +1,5 @@
-import XCTest
 @testable import KeyPathCore
+import XCTest
 
 final class ExperimentalHostPassthruInputTests: XCTestCase {
     func testMapsLetterAKeyDown() {
@@ -19,6 +19,6 @@ final class ExperimentalHostPassthruInputTests: XCTestCase {
     }
 
     func testUnknownKeyCodeReturnsNil() {
-        XCTAssertNil(ExperimentalHostPassthruInputMapper.eventForKeyCode(9_999, isKeyDown: true))
+        XCTAssertNil(ExperimentalHostPassthruInputMapper.eventForKeyCode(9999, isKeyDown: true))
     }
 }

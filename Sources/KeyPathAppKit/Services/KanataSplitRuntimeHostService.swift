@@ -33,10 +33,10 @@ enum KanataSplitRuntimeHostExitInfo {
 final class KanataSplitRuntimeHostService {
     static let shared = KanataSplitRuntimeHostService()
 
-#if DEBUG
-    nonisolated(unsafe) static var testPersistentHostPID: pid_t?
-    nonisolated(unsafe) static var testStartPersistentError: Error?
-#endif
+    #if DEBUG
+        nonisolated(unsafe) static var testPersistentHostPID: pid_t?
+        nonisolated(unsafe) static var testStartPersistentError: Error?
+    #endif
 
     private static let inProcessRuntimeEnvKey = "KEYPATH_EXPERIMENTAL_HOST_RUNTIME"
     private static let passthruRuntimeEnvKey = "KEYPATH_EXPERIMENTAL_HOST_PASSTHRU_RUNTIME"
@@ -129,23 +129,23 @@ final class KanataSplitRuntimeHostService {
     }
 
     var isPersistentPassthruHostRunning: Bool {
-#if DEBUG
-        if TestEnvironment.isRunningTests, let testPersistentHostPID = Self.testPersistentHostPID {
-            return testPersistentHostPID > 0
-        }
-#endif
+        #if DEBUG
+            if TestEnvironment.isRunningTests, let testPersistentHostPID = Self.testPersistentHostPID {
+                return testPersistentHostPID > 0
+            }
+        #endif
         return activeHostProcess?.isRunning == true
     }
 
     var activePersistentHostPID: pid_t? {
-#if DEBUG
-        if TestEnvironment.isRunningTests,
-           let testPersistentHostPID = Self.testPersistentHostPID,
-           testPersistentHostPID > 0
-        {
-            return testPersistentHostPID
-        }
-#endif
+        #if DEBUG
+            if TestEnvironment.isRunningTests,
+               let testPersistentHostPID = Self.testPersistentHostPID,
+               testPersistentHostPID > 0
+            {
+                return testPersistentHostPID
+            }
+        #endif
         guard activeHostProcess?.isRunning == true else { return nil }
         return activeHostProcess?.processIdentifier
     }
@@ -212,7 +212,7 @@ final class KanataSplitRuntimeHostService {
 
         await exitLatch.wait()
         try? stderrHandle.close()
-        let terminationReason: String = switch process.terminationReason {
+        let terminationReason = switch process.terminationReason {
         case .exit:
             "exit"
         case .uncaughtSignal:
@@ -249,19 +249,19 @@ final class KanataSplitRuntimeHostService {
         includeCapture: Bool,
         pollMilliseconds: Int = 1000
     ) async throws -> pid_t {
-#if DEBUG
-        if TestEnvironment.isRunningTests {
-            if let testStartPersistentError = Self.testStartPersistentError {
-                throw testStartPersistentError
+        #if DEBUG
+            if TestEnvironment.isRunningTests {
+                if let testStartPersistentError = Self.testStartPersistentError {
+                    throw testStartPersistentError
+                }
+                if let testPersistentHostPID = Self.testPersistentHostPID, testPersistentHostPID > 0 {
+                    return testPersistentHostPID
+                }
+                let pid: pid_t = 4242
+                Self.testPersistentHostPID = pid
+                return pid
             }
-            if let testPersistentHostPID = Self.testPersistentHostPID, testPersistentHostPID > 0 {
-                return testPersistentHostPID
-            }
-            let pid: pid_t = 4242
-            Self.testPersistentHostPID = pid
-            return pid
-        }
-#endif
+        #endif
         if let activeHostProcess, activeHostProcess.isRunning {
             return activeHostProcess.processIdentifier
         }
@@ -297,7 +297,7 @@ final class KanataSplitRuntimeHostService {
             Task { @MainActor in
                 guard let self else { return }
                 let expected = self.expectedPersistentHostTermination
-                let terminationReason: String = switch process.terminationReason {
+                let terminationReason = switch process.terminationReason {
                 case .exit:
                     "exit"
                 case .uncaughtSignal:
@@ -336,17 +336,17 @@ final class KanataSplitRuntimeHostService {
     }
 
     func restartPersistentPassthruHostAfterCompanionRestart() async throws -> pid_t? {
-#if DEBUG
-        if TestEnvironment.isRunningTests {
-            guard let testPersistentHostPID = Self.testPersistentHostPID, testPersistentHostPID > 0 else {
-                return nil
+        #if DEBUG
+            if TestEnvironment.isRunningTests {
+                guard let testPersistentHostPID = Self.testPersistentHostPID, testPersistentHostPID > 0 else {
+                    return nil
+                }
+                if let testStartPersistentError = Self.testStartPersistentError {
+                    throw testStartPersistentError
+                }
+                return testPersistentHostPID
             }
-            if let testStartPersistentError = Self.testStartPersistentError {
-                throw testStartPersistentError
-            }
-            return testPersistentHostPID
-        }
-#endif
+        #endif
 
         guard isPersistentPassthruHostRunning else {
             return nil
@@ -372,11 +372,10 @@ final class KanataSplitRuntimeHostService {
     func restartCompanionAndRecoverPersistentHost() async throws -> KanataSplitRuntimeCompanionRecoveryResult {
         try await companionManager.restartCompanion()
 
-        let companionRunningAfterRestart: Bool
-        if let statusAfterRestart = try? await companionManager.outputBridgeStatus() {
-            companionRunningAfterRestart = statusAfterRestart.companionRunning
+        let companionRunningAfterRestart: Bool = if let statusAfterRestart = try? await companionManager.outputBridgeStatus() {
+            statusAfterRestart.companionRunning
         } else {
-            companionRunningAfterRestart = false
+            false
         }
 
         let recoveredHostPID = try await restartPersistentPassthruHostAfterCompanionRestart()
@@ -422,13 +421,13 @@ final class KanataSplitRuntimeHostService {
     }
 
     func stopPersistentPassthruHost() {
-#if DEBUG
-        if TestEnvironment.isRunningTests {
-            Self.testPersistentHostPID = nil
-            Self.testStartPersistentError = nil
-            return
-        }
-#endif
+        #if DEBUG
+            if TestEnvironment.isRunningTests {
+                Self.testPersistentHostPID = nil
+                Self.testStartPersistentError = nil
+                return
+            }
+        #endif
         guard let process = activeHostProcess else { return }
         if process.isRunning {
             expectedPersistentHostTermination = true

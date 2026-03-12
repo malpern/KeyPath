@@ -1,8 +1,8 @@
+import AppKit
 @testable import KeyPathAppKit
 import SnapshotTesting
 import SwiftUI
 import XCTest
-import AppKit
 
 // MARK: - Snapshot Configuration
 

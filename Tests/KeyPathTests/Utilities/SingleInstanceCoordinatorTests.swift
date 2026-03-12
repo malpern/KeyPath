@@ -1,5 +1,5 @@
-import Testing
 @testable import KeyPathAppKit
+import Testing
 
 struct SingleInstanceCoordinatorTests {
     @Test("Selects the oldest live instance with the same bundle identifier")

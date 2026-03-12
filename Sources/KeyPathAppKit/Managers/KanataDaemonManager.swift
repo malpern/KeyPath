@@ -1,7 +1,7 @@
+import Darwin
 import Foundation
 import KeyPathCore
 import ServiceManagement
-import Darwin
 
 /// Manager for Kanata LaunchDaemon registration via SMAppService
 ///
@@ -19,16 +19,17 @@ class KanataDaemonManager {
 
     // Allows unit tests to inject a fake SMAppService and simulate states like `.notFound`.
     // Default implementation wraps Apple's `SMAppService`.
-#if DEBUG
+    #if DEBUG
         nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
             NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
         }
+
         nonisolated(unsafe) static var registeredButNotLoadedOverride: (() async -> Bool)?
-#else
+    #else
         nonisolated(unsafe) static let smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
             NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
         }
-#endif
+    #endif
 
     // MARK: - Singleton
 

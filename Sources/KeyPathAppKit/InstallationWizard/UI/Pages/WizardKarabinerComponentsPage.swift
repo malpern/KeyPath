@@ -69,7 +69,6 @@ struct WizardKarabinerComponentsPage: View {
                                     }
                                 }
                             }
-
                         }
                         .frame(maxWidth: .infinity)
                         .padding(WizardDesign.Spacing.cardPadding)
@@ -194,7 +193,9 @@ struct WizardKarabinerComponentsPage: View {
         )
     }
 
-    private var needsManualAction: Bool { false }
+    private var needsManualAction: Bool {
+        false
+    }
 
     private func navigateToNextStep() {
         if issues.isEmpty {

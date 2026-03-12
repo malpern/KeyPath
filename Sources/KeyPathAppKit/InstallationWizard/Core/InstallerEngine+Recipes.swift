@@ -44,17 +44,6 @@ extension InstallerEngine {
                 serviceID: KeyPathConstants.Bundle.outputBridgeID
             )
 
-        case .installBundledKanata:
-            ServiceRecipe(
-                id: InstallerRecipeID.installBundledKanata,
-                type: .installComponent,
-                serviceID: nil,
-                healthCheck: HealthCheckCriteria(
-                    serviceID: KeyPathConstants.Bundle.daemonID,
-                    shouldBeRunning: true
-                )
-            )
-
         case .installCorrectVHIDDriver:
             ServiceRecipe(
                 id: InstallerRecipeID.installCorrectVHIDDriver,
@@ -179,17 +168,6 @@ extension InstallerEngine {
                 serviceID: nil
             )
 
-        case .replaceKanataWithBundled:
-            ServiceRecipe(
-                id: InstallerRecipeID.replaceKanataWithBundled,
-                type: .installComponent,
-                serviceID: nil,
-                healthCheck: HealthCheckCriteria(
-                    serviceID: KeyPathConstants.Bundle.daemonID,
-                    shouldBeRunning: true
-                )
-            )
-
         case .synchronizeConfigPaths:
             ServiceRecipe(
                 id: InstallerRecipeID.synchronizeConfigPaths,
@@ -237,8 +215,6 @@ extension InstallerEngine {
         switch action {
         case .installRequiredRuntimeServices:
             InstallerRecipeID.installRequiredRuntimeServices
-        case .installBundledKanata:
-            InstallerRecipeID.installBundledKanata
         case .installCorrectVHIDDriver:
             InstallerRecipeID.installCorrectVHIDDriver
         case .installLogRotation:
@@ -273,8 +249,6 @@ extension InstallerEngine {
             InstallerRecipeID.regenerateServiceConfig
         case .restartCommServer:
             InstallerRecipeID.restartCommServer
-        case .replaceKanataWithBundled:
-            InstallerRecipeID.replaceKanataWithBundled
         case .synchronizeConfigPaths:
             InstallerRecipeID.synchronizeConfigPaths
         }

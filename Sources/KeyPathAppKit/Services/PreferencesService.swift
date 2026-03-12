@@ -432,11 +432,10 @@ final class PreferencesService: @unchecked Sendable {
         let sanitizedNeovimTopics = storedNeovimTopics.intersection(validNeovimTopics)
         let topicsVersion = UserDefaults.standard.object(forKey: Keys.neovimReferenceTopicsVersion) as? Int ?? 0
         let legacyDefault = Set([NeovimTerminalCategory.basicMotions.rawValue])
-        let migratedNeovimTopics: Set<String>
-        if topicsVersion < Defaults.neovimReferenceTopicsVersion, sanitizedNeovimTopics == legacyDefault {
-            migratedNeovimTopics = Defaults.neovimReferenceTopics
+        let migratedNeovimTopics: Set<String> = if topicsVersion < Defaults.neovimReferenceTopicsVersion, sanitizedNeovimTopics == legacyDefault {
+            Defaults.neovimReferenceTopics
         } else {
-            migratedNeovimTopics = sanitizedNeovimTopics
+            sanitizedNeovimTopics
         }
         neovimReferenceTopics = migratedNeovimTopics.isEmpty
             ? Defaults.neovimReferenceTopics

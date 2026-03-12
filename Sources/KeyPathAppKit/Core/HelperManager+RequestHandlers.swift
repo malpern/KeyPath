@@ -367,14 +367,6 @@ extension HelperManager {
 
     // Note: executeCommand removed for security. Use explicit operations only.
 
-    // MARK: - Bundled Kanata Installation
-
-    func installBundledKanataBinaryOnly() async throws {
-        try await executeXPCCall("installBundledKanataBinaryOnly") { proxy, reply in
-            proxy.installBundledKanataBinaryOnly(reply: reply)
-        }
-    }
-
     // MARK: - Uninstall Operations
 
     /// Uninstall KeyPath completely using the privileged helper

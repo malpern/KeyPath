@@ -52,11 +52,6 @@ public struct PrivilegeBroker {
         try await coordinator.downloadAndInstallCorrectVHIDDriver()
     }
 
-    /// Install bundled Kanata binary
-    public func installBundledKanata() async throws {
-        try await coordinator.installBundledKanata()
-    }
-
     /// Activate VirtualHID Manager
     public func activateVirtualHIDManager() async throws {
         try await coordinator.activateVirtualHIDManager()

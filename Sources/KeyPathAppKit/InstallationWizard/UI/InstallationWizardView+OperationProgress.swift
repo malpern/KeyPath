@@ -18,8 +18,6 @@ extension InstallationWizardView {
             return "Installing Missing Components"
         } else if operationId.contains("auto_fix_activateVHIDDeviceManager") {
             return "Activating Driver Extensions"
-        } else if operationId.contains("auto_fix_installBundledKanata") {
-            return "Installing Kanata binary"
         } else if operationId.contains("auto_fix_startKarabinerDaemon") {
             return "Starting System Daemon"
         } else if operationId.contains("auto_fix_restartVirtualHIDDaemon") {

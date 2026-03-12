@@ -101,7 +101,7 @@ final class ServiceInstallGuardTests: XCTestCase {
     // MARK: - Stale Recovery Counter Tests
 
     /// Verify the counter resets when system becomes healthy (skipNoInstall path)
-    func testStaleRecoveryCounterResetsAcrossHealthyPeriods() async throws {
+    func testStaleRecoveryCounterResetsAcrossHealthyPeriods() {
         PrivilegedOperationsCoordinator._testResetServiceInstallGuard()
 
         // Simulate 3 stale recovery attempts (should all bypass throttle)
@@ -137,7 +137,7 @@ final class ServiceInstallGuardTests: XCTestCase {
     }
 
     /// Verify that exceeding the bypass limit applies throttle
-    func testStaleRecoveryCounterExceedingLimitAppliesThrottle() async throws {
+    func testStaleRecoveryCounterExceedingLimitAppliesThrottle() {
         PrivilegedOperationsCoordinator._testResetServiceInstallGuard()
         let now = Date()
 

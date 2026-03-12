@@ -290,9 +290,9 @@ class IssueGenerator {
     private func permissionDescription(for permission: PermissionRequirement) -> String {
         switch permission {
         case .kanataInputMonitoring:
-            "The KeyPath runtime needs Input Monitoring permission to process keys. Add the runtime binary at /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring."
+            "The KeyPath runtime needs Input Monitoring permission to process keys. Add the KeyPath runtime binary in System Settings > Privacy & Security > Input Monitoring."
         case .kanataAccessibility:
-            "The KeyPath runtime needs Accessibility permission for system access. Add the runtime binary at /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Accessibility."
+            "The KeyPath runtime needs Accessibility permission for system access. Add the KeyPath runtime binary in System Settings > Privacy & Security > Accessibility."
         case .driverExtensionEnabled:
             "Karabiner driver extension must be enabled in System Settings."
         case .backgroundServicesEnabled:
@@ -307,9 +307,9 @@ class IssueGenerator {
     private func userActionForPermission(_ permission: PermissionRequirement) -> String {
         switch permission {
         case .kanataInputMonitoring:
-            "Grant permission to the Kanata engine binary used by KeyPath at /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring"
+            "Grant permission to the KeyPath runtime binary in System Settings > Privacy & Security > Input Monitoring"
         case .kanataAccessibility:
-            "Grant permission to the Kanata engine binary used by KeyPath at /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Accessibility"
+            "Grant permission to the KeyPath runtime binary in System Settings > Privacy & Security > Accessibility"
         case .driverExtensionEnabled:
             "Enable in System Settings > Privacy & Security > Driver Extensions"
         case .backgroundServicesEnabled:
@@ -325,7 +325,6 @@ class IssueGenerator {
         switch component {
         case .privilegedHelper: "Privileged Helper Not Installed"
         case .privilegedHelperUnhealthy: "Privileged Helper Not Working"
-        case .kanataBinaryMissing: WizardConstants.Titles.kanataBinaryMissing
         case .bundledKanataMissing: "⚠️ CRITICAL: App Bundle Corrupted"
         case .keyPathRuntime: "KeyPath Runtime Missing"
         case .karabinerDriver: WizardConstants.Titles.karabinerDriverMissing
@@ -335,7 +334,6 @@ class IssueGenerator {
         case .vhidDeviceRunning: "VirtualHIDDevice Daemon"
         case .vhidDaemonMisconfigured: "VirtualHIDDevice Daemon Misconfigured"
         case .vhidDriverVersionMismatch: "Karabiner Driver Version Incompatible"
-        case .kanataBinaryVersionMismatch: "Kanata Binary Trust Mismatch"
         case .kanataTCPServer: "TCP Server Not Responding"
         case .orphanedKanataProcess: "External Kanata Conflict"
         case .communicationServerConfiguration: "Communication Server Configuration Outdated"
@@ -352,8 +350,6 @@ class IssueGenerator {
             "The privileged helper allows system-level operations without repeated sudo password prompts. Install it to streamline setup and maintenance tasks."
         case .privilegedHelperUnhealthy:
             "The privileged helper is installed but not responding. Try reinstalling it to restore functionality."
-        case .kanataBinaryMissing:
-            "The kanata binary needs to be installed to system location from KeyPath's bundled Developer ID signed version. This ensures proper code signing for Input Monitoring permission."
         case .bundledKanataMissing:
             "CRITICAL: The kanata binary is missing from the KeyPath app bundle. This indicates the app was not packaged correctly. Please download and reinstall KeyPath from the official release page."
         case .keyPathRuntime:
@@ -374,8 +370,6 @@ class IssueGenerator {
             "The installed LaunchDaemon for the VirtualHID daemon points to a legacy path. It should use the DriverKit daemon path."
         case .vhidDriverVersionMismatch:
             "The installed Karabiner-DriverKit-VirtualHIDDevice version is incompatible with the current version of Kanata. Kanata v1.10.0 requires driver v\(VHIDDeviceManager.requiredDriverVersionString), but a different version is installed. KeyPath includes the correct driver version and can install it for you."
-        case .kanataBinaryVersionMismatch:
-            "The installed kanata binary at /Library/KeyPath/bin/kanata does not match KeyPath's trusted signing identity. This can happen if the binary was replaced by another distribution or signer. Click Fix to reinstall the trusted bundled binary."
         case .kanataTCPServer:
             "Kanata TCP server is not responding on the configured port. This is used for config validation and external integration. Service may need restart with TCP enabled."
         case .orphanedKanataProcess:
@@ -427,10 +421,6 @@ class IssueGenerator {
             .installRequiredRuntimeServices
         case .vhidDriverVersionMismatch:
             .fixDriverVersionMismatch
-        case .kanataBinaryVersionMismatch:
-            .replaceKanataWithBundled
-        case .kanataBinaryMissing:
-            .installBundledKanata // Install bundled kanata binary to system location
         case .keyPathRuntime:
             nil
         case .kanataTCPServer:
@@ -460,8 +450,6 @@ class IssueGenerator {
             "Start KeyPath Runtime from the wizard or app status controls"
         case .vhidDeviceManager:
             "Install Karabiner-VirtualHIDDevice from website"
-        case .kanataBinaryMissing:
-            "Use the Installation Wizard to install Kanata automatically"
         case .bundledKanataMissing:
             "Download and reinstall KeyPath from the official release page"
         case .communicationServerConfiguration:
@@ -483,8 +471,6 @@ class IssueGenerator {
         switch component {
         case .vhidDeviceManager:
             "Install Karabiner-VirtualHIDDevice from website"
-        case .kanataBinaryMissing:
-            "Use the Installation Wizard to install Kanata automatically"
         default:
             nil
         }

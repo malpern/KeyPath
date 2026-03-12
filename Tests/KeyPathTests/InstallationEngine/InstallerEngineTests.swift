@@ -440,11 +440,9 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
             .createConfigDirectories,
             .activateVHIDDeviceManager,
             .installRequiredRuntimeServices,
-            .installBundledKanata,
             .repairVHIDDaemonServices,
             .synchronizeConfigPaths,
             .installLogRotation,
-            .replaceKanataWithBundled,
             .enableTCPServer,
             .setupTCPAuthentication,
             .regenerateCommServiceConfiguration,
@@ -471,27 +469,9 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
             engine.recipeIDForAction(.installRequiredRuntimeServices),
             InstallerRecipeID.installRequiredRuntimeServices
         )
-        XCTAssertEqual(
-            engine.recipeIDForAction(.installBundledKanata),
-            InstallerRecipeID.installBundledKanata
-        )
 
         let runtimeServicesRecipe = engine.recipeForAction(.installRequiredRuntimeServices, context: context)
         XCTAssertEqual(runtimeServicesRecipe?.id, InstallerRecipeID.installRequiredRuntimeServices)
-
-        let kanataRecipe = engine.recipeForAction(.installBundledKanata, context: context)
-        XCTAssertEqual(kanataRecipe?.id, InstallerRecipeID.installBundledKanata)
-        XCTAssertNotNil(
-            kanataRecipe?.healthCheck,
-            "Bundled Kanata install recipe should include a strict runtime health check"
-        )
-
-        let replaceRecipe = engine.recipeForAction(.replaceKanataWithBundled, context: context)
-        XCTAssertEqual(replaceRecipe?.id, InstallerRecipeID.replaceKanataWithBundled)
-        XCTAssertNotNil(
-            replaceRecipe?.healthCheck,
-            "Replace Kanata recipe should include a strict runtime health check"
-        )
 
         let karabinerStartRecipe = engine.recipeForAction(.startKarabinerDaemon, context: context)
         XCTAssertEqual(karabinerStartRecipe?.id, InstallerRecipeID.startKarabinerDaemon)

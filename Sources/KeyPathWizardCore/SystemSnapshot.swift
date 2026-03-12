@@ -117,9 +117,6 @@ public struct SystemSnapshot: Sendable {
         if components.vhidVersionMismatch {
             issues.append(.componentVersionMismatch(name: "Karabiner driver", autoFix: true))
         }
-        if components.kanataBinaryVersionMismatch {
-            issues.append(.componentVersionMismatch(name: "Kanata binary", autoFix: true))
-        }
         if !components.vhidDeviceHealthy {
             issues.append(.componentUnhealthy(name: "VirtualHID Device", autoFix: true))
         }
@@ -177,7 +174,6 @@ public struct ComponentStatus: Sendable {
     /// Use for Karabiner Components page which should only care about VHID, not Kanata
     public let vhidServicesHealthy: Bool
     public let vhidVersionMismatch: Bool
-    public let kanataBinaryVersionMismatch: Bool
 
     public init(
         kanataBinaryInstalled: Bool,
@@ -186,8 +182,7 @@ public struct ComponentStatus: Sendable {
         vhidDeviceInstalled: Bool,
         vhidDeviceHealthy: Bool,
         vhidServicesHealthy: Bool,
-        vhidVersionMismatch: Bool,
-        kanataBinaryVersionMismatch: Bool = false
+        vhidVersionMismatch: Bool
     ) {
         self.kanataBinaryInstalled = kanataBinaryInstalled
         self.karabinerDriverInstalled = karabinerDriverInstalled
@@ -196,13 +191,12 @@ public struct ComponentStatus: Sendable {
         self.vhidDeviceHealthy = vhidDeviceHealthy
         self.vhidServicesHealthy = vhidServicesHealthy
         self.vhidVersionMismatch = vhidVersionMismatch
-        self.kanataBinaryVersionMismatch = kanataBinaryVersionMismatch
     }
 
     /// Required components for the normal split-runtime architecture.
     public var hasAllRequired: Bool {
         kanataBinaryInstalled && karabinerDriverInstalled && karabinerDaemonRunning && vhidDeviceHealthy
-            && vhidServicesHealthy && !vhidVersionMismatch && !kanataBinaryVersionMismatch
+            && vhidServicesHealthy && !vhidVersionMismatch
     }
 
     /// Convenience factory for empty/fallback state
@@ -214,8 +208,7 @@ public struct ComponentStatus: Sendable {
             vhidDeviceInstalled: false,
             vhidDeviceHealthy: false,
             vhidServicesHealthy: false,
-            vhidVersionMismatch: false,
-            kanataBinaryVersionMismatch: false
+            vhidVersionMismatch: false
         )
     }
 }

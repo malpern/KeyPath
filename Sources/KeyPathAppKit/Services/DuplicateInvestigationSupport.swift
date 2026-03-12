@@ -290,11 +290,11 @@ enum DuplicateInvestigationSupport {
     static func sessionRelation(previous: Int?, current: Int?) -> String {
         switch (previous, current) {
         case let (lhs?, rhs?) where lhs == rhs:
-            return "same-session"
+            "same-session"
         case (_?, _?):
-            return "cross-session"
+            "cross-session"
         default:
-            return "unknown-session"
+            "unknown-session"
         }
     }
 
@@ -410,7 +410,7 @@ enum DuplicateInvestigationSupport {
         keyMap[keyCode] ?? "keycode-\(keyCode)"
     }
 
-    nonisolated(unsafe) private static let iso8601Formatter: ISO8601DateFormatter = {
+    private nonisolated(unsafe) static let iso8601Formatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter

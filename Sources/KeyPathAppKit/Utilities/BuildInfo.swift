@@ -55,9 +55,7 @@ struct BuildInfo {
         guard !kanataVersionFetched else { return }
         kanataVersionFetched = true
 
-        // Try system install path first, then bundled
         let paths = [
-            WizardSystemPaths.kanataSystemInstallPath,
             WizardSystemPaths.bundledKanataPath
         ]
 

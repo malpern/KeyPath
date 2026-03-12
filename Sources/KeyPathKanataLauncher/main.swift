@@ -1,6 +1,6 @@
+import ApplicationServices
 import Foundation
 import KeyPathCore
-import ApplicationServices
 
 private enum Launcher {
     static let retryCountPath = "/var/tmp/keypath-vhid-retry-count"
@@ -154,7 +154,7 @@ private func environmentFlag(_ key: String) -> Bool {
 private func environmentUInt64(_ key: String, defaultValue: UInt64) -> UInt64 {
     guard
         let raw = ProcessInfo.processInfo.environment[key]?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
+        .trimmingCharacters(in: .whitespacesAndNewlines),
         let value = UInt64(raw)
     else {
         return defaultValue
@@ -176,10 +176,10 @@ private func experimentalOutputBridgeSession() -> KanataOutputBridgeSession? {
     let environment = ProcessInfo.processInfo.environment
     guard
         let socketPath = environment[Launcher.outputBridgeSocketEnvKey]?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
+        .trimmingCharacters(in: .whitespacesAndNewlines),
         !socketPath.isEmpty,
         let sessionID = environment[Launcher.outputBridgeSessionEnvKey]?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
+        .trimmingCharacters(in: .whitespacesAndNewlines),
         !sessionID.isEmpty
     else {
         return nil
@@ -305,7 +305,7 @@ private func runExperimentalPassthruRuntimeProbe(
                 forwardedCount: &forwardedCount,
                 maxForwardCount: nil
             )
-            usleep(Launcher.passthruPollIntervalMillis * 1_000)
+            usleep(Launcher.passthruPollIntervalMillis * 1000)
         }
     }
 
@@ -336,7 +336,7 @@ private func runExperimentalPassthruRuntimeProbe(
                     logLine("Experimental passthru runtime output channel is currently empty")
                     sawEmptyPoll = true
                 }
-                usleep(Launcher.passthruPollIntervalMillis * 1_000)
+                usleep(Launcher.passthruPollIntervalMillis * 1000)
                 continue
             }
 

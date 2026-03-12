@@ -323,5 +323,4 @@ struct PermissionOracleTests {
         // New snapshot should have same or newer timestamp
         #expect(timestamp2 >= timestamp1)
     }
-
 }
