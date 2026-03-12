@@ -62,8 +62,12 @@ for i in "${!LANE_IDS[@]}"; do
   # Swift Testing format: Test "ClassName/testMethod" passed/failed after ...
   # Uses [. ] before class name to anchor match and prevent substring contamination
   # (e.g. "InstallerEngineTests" won't match "InstallerEngineEndToEndTests").
+  # Debug: show sample matches for this lane
+  echo "  [$lane_id] grep sample:"
+  grep -E "($pattern).*(passed|failed)" "$LOG_FILE" 2>/dev/null | head -2 || echo "    (no raw matches)"
   pass_count=$(grep -cE "(Test Case '.*[. ]($pattern) .*' passed|Test \"($pattern)[/\"].*passed)" "$LOG_FILE" 2>/dev/null || echo 0)
   fail_count=$(grep -cE "(Test Case '.*[. ]($pattern) .*' failed|Test \"($pattern)[/\"].*failed)" "$LOG_FILE" 2>/dev/null || echo 0)
+  echo "  [$lane_id] pass=$pass_count fail=$fail_count"
 
   if [ "$fail_count" -gt 0 ]; then
     status="fail"
