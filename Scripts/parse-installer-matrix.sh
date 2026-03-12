@@ -91,7 +91,9 @@ done
 # so we check whether the parser found zero when installer test classes appear in the log.
 total_parsed=0
 for i in "${!LANE_PASS_COUNTS[@]}"; do
-  total_parsed=$((total_parsed + ${LANE_PASS_COUNTS[$i]} + ${LANE_FAIL_COUNTS[$i]}))
+  p="${LANE_PASS_COUNTS[$i]}"
+  f="${LANE_FAIL_COUNTS[$i]}"
+  total_parsed=$((total_parsed + p + f))
 done
 # Check if any installer test classes appear in the log at all
 all_patterns=$(printf "%s|" "${LANE_PATTERNS[@]}" | sed 's/|$//')
