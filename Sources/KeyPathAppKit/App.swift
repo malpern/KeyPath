@@ -19,102 +19,17 @@ public struct KeyPathApp: App {
     private let isOneShotProbeMode: Bool
 
     public init() {
-        let environment = ProcessInfo.processInfo.environment
-        // Check if running in headless mode (started by LaunchAgent)
-        let args = ProcessInfo.processInfo.arguments
-        isHeadlessMode =
-            args.contains("--headless") || environment["KEYPATH_HEADLESS"] == "1"
-        isOneShotProbeMode = AppDelegate.isOneShotProbeEnvironment(environment)
+        let result = CompositionRoot.bootstrap()
+        kanataManager = result.kanataManager
+        viewModel = result.viewModel
+        serviceContainer = result.serviceContainer
+        isHeadlessMode = result.isHeadlessMode
+        isOneShotProbeMode = result.isOneShotProbeMode
 
-        AppLogger.shared.info(
-            "🔍 [App] Initializing KeyPath - headless: \(isHeadlessMode), oneShotProbe: \(isOneShotProbeMode), args: \(args)"
-        )
-        let info = BuildInfo.current()
-        AppLogger.shared.info(
-            "🏷️ [Build] Version: \(info.version) | Build: \(info.build) | Git: \(info.git) | Date: \(info.date)"
-        )
-        AppLogger.shared.debug("📦 [Bundle] Path: \(Bundle.main.bundlePath)")
-
-        // Verify running process signature matches installed bundle (catches failed restarts)
-        SignatureHealthCheck.verifySignatureConsistency()
-
-        // Set startup mode to prevent blocking operations during app launch (in-memory flag)
-        FeatureFlags.shared.activateStartupMode(timeoutSeconds: 5.0)
-        AppLogger.shared.log(
-            "🔍 [App] Startup mode set (auto-clear in 5s) - IOHIDCheckAccess calls will be skipped"
-        )
-
-        // Phase 4: MVVM - Initialize services and RuntimeCoordinator via composition root
-        let configurationService = ConfigurationService(
-            configDirectory: "\(NSHomeDirectory())/.config/keypath"
-        )
-        let manager = RuntimeCoordinator(injectedConfigurationService: configurationService)
-        kanataManager = manager
-        viewModel = KanataViewModel(manager: manager)
-        serviceContainer = ServiceContainer()
-        AppLogger.shared.debug(
-            "🎯 [Phase 4] MVVM architecture initialized - ViewModel wrapping RuntimeCoordinator"
-        )
-
-        // Configure MainAppStateController early so it's ready when overlay starts observing.
-        // Previously this was called in ContentView.onAppear which happens AFTER showForStartup(),
-        // causing the health indicator to get stuck in "checking" state.
-        if !isOneShotProbeMode {
-            MainAppStateController.shared.configure(with: manager)
-        }
-
-        // Ensure typing sounds manager is initialized so it can listen for key events
-        // even before the overlay/settings UI is opened.
-        _ = TypingSoundsManager.shared
-
-        // Set activation policy based on mode
-        if isHeadlessMode {
-            // Hide from dock in headless mode
-            NSApplication.shared.setActivationPolicy(.accessory)
-            AppLogger.shared.log("🤖 [App] Running in headless mode (LaunchAgent)")
-        } else {
-            // Show in dock for normal mode
-            NSApplication.shared.setActivationPolicy(.regular)
-            AppLogger.shared.log("🪟 [App] Running in normal mode (with UI)")
-        }
-
-        appDelegate.kanataManager = manager
-        appDelegate.viewModel = viewModel
-        appDelegate.serviceContainer = serviceContainer
-        appDelegate.isHeadlessMode = isHeadlessMode
-
-        // Request user notification authorization after app has fully launched
-        // Delayed to avoid UNUserNotificationCenter initialization issues during bundle setup
-        if !isOneShotProbeMode {
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(100)) // 0.1s delay
-                UserNotificationService.shared.requestAuthorizationIfNeeded()
-
-                // Start Kanata error monitoring
-                KanataErrorMonitor.shared.startMonitoring()
-                AppLogger.shared.info("🔍 [App] Started Kanata error monitoring")
-
-                // Initialize Sparkle update service
-                UpdateService.shared.initialize()
-                AppLogger.shared.info("🔄 [App] Sparkle update service initialized")
-
-                // Discover and load plugin bundles
-                PluginManager.shared.discoverAndLoadPlugins()
-
-                // Fetch Kanata version for About panel
-                await BuildInfo.fetchKanataVersion()
-
-                // Start global hotkey monitoring (Option+Command+K to show/hide, Option+Command+L to reset/center)
-                GlobalHotkeyService.shared.startMonitoring()
-
-                // Initialize WindowManager with retry logic for CGS APIs
-                // initializeWithRetry() checks immediately, then uses exponential backoff if needed
-                await WindowManager.shared.initializeWithRetry()
-                AppLogger.shared.info("🪟 [App] WindowManager initialization complete")
-            }
-        } else {
-            AppLogger.shared.info("🧪 [App] One-shot probe mode active - skipping nonessential startup services")
-        }
+        appDelegate.kanataManager = result.kanataManager
+        appDelegate.viewModel = result.viewModel
+        appDelegate.serviceContainer = result.serviceContainer
+        appDelegate.isHeadlessMode = result.isHeadlessMode
     }
 
     public var body: some Scene {
@@ -128,214 +43,7 @@ public struct KeyPathApp: App {
                 .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
         }
         .commands {
-            // Replace default "AppName" menu with "KeyPath" menu
-            CommandGroup(replacing: .appInfo) {
-                Button("About KeyPath") {
-                    let info = BuildInfo.current()
-                    var detailLines = ["Build \(info.build) • \(info.git) • \(info.date)"]
-                    if let kanataVersion = info.kanataVersion {
-                        detailLines.append("Kanata \(kanataVersion)")
-                    }
-                    let details = detailLines.joined(separator: "\n")
-                    NSApplication.shared.orderFrontStandardAboutPanel(
-                        options: [
-                            NSApplication.AboutPanelOptionKey.credits: NSAttributedString(
-                                string: details,
-                                attributes: [NSAttributedString.Key.font: NSFont.systemFont(ofSize: 11)]
-                            ),
-                            NSApplication.AboutPanelOptionKey.applicationName: "KeyPath",
-                            NSApplication.AboutPanelOptionKey.applicationVersion: info.version,
-                            NSApplication.AboutPanelOptionKey.version: "Build \(info.build)"
-                        ]
-                    )
-                }
-
-                Divider()
-
-                CheckForUpdatesView(updater: UpdateService.shared.updater)
-            }
-
-            // Add File menu with Settings tabs shortcuts
-            CommandGroup(replacing: .newItem) {
-                Button(
-                    action: {
-                        openPreferencesTab(.openSettingsAdvanced)
-                    },
-                    label: {
-                        Label("Repair/Remove…", systemImage: "wrench.and.screwdriver")
-                    }
-                )
-                .keyboardShortcut(",", modifiers: .command)
-
-                Button(
-                    action: {
-                        openPreferencesTab(.openSettingsRules)
-                    },
-                    label: {
-                        Label("Rules…", systemImage: "list.bullet")
-                    }
-                )
-                .keyboardShortcut("r", modifiers: .command)
-
-                Button(
-                    action: {
-                        openPreferencesTab(.openSettingsAdvanced)
-                    },
-                    label: {
-                        Label("Simulator (Repair/Remove)…", systemImage: "keyboard")
-                    }
-                )
-
-                Button(
-                    action: {
-                        openPreferencesTab(.openSettingsSystemStatus)
-                    },
-                    label: {
-                        Label("System Status…", systemImage: "gauge.with.dots.needle.67percent")
-                    }
-                )
-                .keyboardShortcut("s", modifiers: .command)
-
-                Button(
-                    action: {
-                        openPreferencesTab(.openSettingsLogs)
-                    },
-                    label: {
-                        Label("Logs…", systemImage: "doc.text.magnifyingglass")
-                    }
-                )
-                .keyboardShortcut("l", modifiers: .command)
-
-                Divider()
-
-                Button("Install wizard...") {
-                    NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
-                }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
-
-                Divider()
-
-                Button(
-                    action: {
-                        openConfigInEditor(viewModel: viewModel)
-                    },
-                    label: {
-                        Label("Edit Config", systemImage: "chevron.left.forwardslash.chevron.right")
-                    }
-                )
-                .keyboardShortcut("o", modifiers: .command)
-
-                Button("Simple Key Mappings…") {
-                    // Present as a sheet from the (splash) main window.
-                    appDelegate.showMainWindow()
-                    NotificationCenter.default.post(name: NSNotification.Name("ShowSimpleMods"), object: nil)
-                }
-
-                Divider()
-
-                Button(
-                    action: {
-                        LiveKeyboardOverlayController.shared.toggle()
-                    },
-                    label: {
-                        Label("Live Keyboard Overlay", systemImage: "keyboard.badge.eye")
-                    }
-                )
-                .keyboardShortcut("k", modifiers: .command)
-
-                Button(
-                    action: {
-                        RecentKeypressesWindowController.shared.toggle()
-                    },
-                    label: {
-                        Label("Recent Keypresses", systemImage: "list.bullet.rectangle")
-                    }
-                )
-                .keyboardShortcut("p", modifiers: [.command, .shift])
-
-                Button("Input Capture Experiment") {
-                    InputCaptureExperimentWindowController.shared.showWindow()
-                }
-                .keyboardShortcut("i", modifiers: [.command, .shift])
-
-                Button("Mapper") {
-                    NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
-                }
-                .keyboardShortcut("m", modifiers: [.command, .shift])
-
-                Divider()
-
-                Button("Stop KeyPath Runtime...") {
-                    let alert = NSAlert()
-                    alert.messageText = "Stop KeyPath Runtime?"
-                    alert.informativeText = "This will stop keyboard remapping. You can restart it from the overlay or by relaunching KeyPath."
-                    alert.alertStyle = .warning
-                    alert.addButton(withTitle: "Stop")
-                    alert.addButton(withTitle: "Cancel")
-                    let response = alert.runModal()
-                    if response == .alertFirstButtonReturn {
-                        Task { @MainActor in
-                            let stopped = await appDelegate.viewModel?.stopKanata(reason: "Menu stop") ?? false
-                            if stopped {
-                                AppLogger.shared.log("🛑 [Menu] Runtime stopped by user")
-                            } else {
-                                AppLogger.shared.warn("⚠️ [Menu] Stop requested but nothing to stop")
-                            }
-                        }
-                    }
-                }
-                .keyboardShortcut("e", modifiers: [.command, .shift])
-
-                Divider()
-
-                Button(
-                    role: .destructive,
-                    action: {
-                        // Present as a sheet from the (splash) main window.
-                        appDelegate.showMainWindow()
-                        NotificationCenter.default.post(name: NSNotification.Name("ShowUninstall"), object: nil)
-                    },
-                    label: {
-                        Label("Uninstall KeyPath…", systemImage: "trash")
-                    }
-                )
-
-                // Hidden instant uninstall (no confirmation, just admin prompt)
-                Button(
-                    role: .destructive,
-                    action: {
-                        Task { @MainActor in
-                            AppLogger.shared.log("🗑️ [InstantUninstall] ⌥⌘U triggered - performing immediate uninstall")
-                            let coordinator = UninstallCoordinator()
-                            let success = await coordinator.uninstall(deleteConfig: false)
-                            if success {
-                                AppLogger.shared.log("✅ [InstantUninstall] Uninstall completed successfully")
-                                NSApplication.shared.terminate(nil)
-                            } else {
-                                AppLogger.shared.log("❌ [InstantUninstall] Uninstall failed")
-                                let alert = NSAlert()
-                                alert.messageText = "Uninstall Failed"
-                                alert.informativeText = coordinator.lastError ?? "An unknown error occurred during uninstall"
-                                alert.alertStyle = .critical
-                                alert.runModal()
-                            }
-                        }
-                    },
-                    label: {
-                        Text("") // Hidden menu item
-                    }
-                )
-                .keyboardShortcut("u", modifiers: [.control, .option, .command])
-                .hidden() // Hide from menu but keep keyboard shortcut active
-            }
-
-            // Help menu — single entry opens navigable help browser
-            CommandGroup(replacing: .help) {
-                Button("KeyPath Help") {
-                    HelpWindowController.shared.showBrowser()
-                }
-                .keyboardShortcut("?", modifiers: .command)
-            }
+            AppMenuCommands(viewModel: viewModel, appDelegate: appDelegate)
         }
     }
 }
@@ -372,7 +80,7 @@ func openFileInPreferredEditor(_ url: URL) {
 }
 
 @MainActor
-private func openPreferencesTab(_ notification: Notification.Name) {
+func openPreferencesTab(_ notification: Notification.Name) {
     AppLogger.shared.log("🎯 [App] Opening preferences tab: \(notification.rawValue)")
 
     // Post notification first to ensure tab switches when window opens
@@ -405,6 +113,8 @@ private func openPreferencesTab(_ notification: Notification.Name) {
     }
 }
 
+// MARK: - AppDelegate
+
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     static let hostPassthruCaptureEnvKey = "KEYPATH_ENABLE_HOST_PASSTHRU_CAPTURE"
@@ -414,11 +124,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         OneShotProbeEnvironment.isActive(environment)
     }
 
-    private static let hostPassthruDiagnosticTriggerPath = "/var/tmp/keypath-host-passthru-diagnostic"
-    private static let hostPassthruBridgePrepTriggerPath = "/var/tmp/keypath-host-passthru-bridge-prep"
-    private static let hostPassthruBridgePrepOutputPath = "/var/tmp/keypath-host-passthru-bridge-env.txt"
-    private static let helperRepairTriggerPath = "/var/tmp/keypath-helper-repair"
-    private static let companionRestartProbeOutputPath = "/var/tmp/keypath-host-passthru-companion-restart.txt"
     var kanataManager: RuntimeCoordinator?
     var viewModel: KanataViewModel?
     var serviceContainer: ServiceContainer?
@@ -437,8 +142,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminateAfterLastWindowClosed called")
-        // Keep the app resident when the global hotkey is enabled so Option+Command+K
-        // can bring the overlay back even with no windows visible.
         return !GlobalHotkeyService.shared.isEnabled
     }
 
@@ -451,78 +154,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "🔍 [AppDelegate] applicationDidBecomeActive called (initialShown=\(initialMainWindowShown))"
         )
 
-        // One-shot first activation:
-        // Show a brief splash window, then bring up the overlay as the primary surface.
         if !initialMainWindowShown {
-            let suppressAutoHideBecauseReopen = pendingReopenShow
-
-            // Log diagnostic state at first activation for future debugging
-            let appActive = NSApp.isActive
-            let appHidden = NSApp.isHidden
-            AppLogger.shared.debug(
-                "🔍 [AppDelegate] First activation diagnostics: isActive=\(appActive), isHidden=\(appHidden)"
-            )
-
-            // Check if app was hidden and unhide if needed
-            if NSApp.isHidden {
-                NSApp.unhide(nil)
-                AppLogger.shared.debug("🪟 [AppDelegate] App was hidden, unhiding")
-            }
-
-            initialMainWindowShown = true
-
-            // Show splash quickly (Adobe-style launch splash). It also provides a stable
-            // anchor for any sheets triggered from menu actions.
-            suppressLaunchSplashAutoHide = false
-            mainWindowController?.show(focus: true)
-
-            Task { @MainActor in
-                // Let the splash be visible for a brief moment before showing the overlay.
-                #if DEBUG
-                    // Keep it short by default (real macOS app splash feel), but allow
-                    // overriding for debugging via `KEYPATH_SPLASH_DELAY_MS`.
-                    let splashDelayMs = Int(ProcessInfo.processInfo.environment["KEYPATH_SPLASH_DELAY_MS"] ?? "")
-                        ?? 650
-                #else
-                    let splashDelayMs = 420
-                #endif
-                AppLogger.shared.info("[AppDelegate] Launch splash delay: \(splashDelayMs)ms")
-                try? await Task.sleep(for: .milliseconds(splashDelayMs))
-
-                LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
-                AppLogger.shared.info("🪟 [AppDelegate] First activation - overlay shown")
-
-                // Auto-hide splash (do not close) unless the user explicitly requested the window.
-                if !self.suppressLaunchSplashAutoHide, !suppressAutoHideBecauseReopen {
-                    self.mainWindowController?.window?.orderOut(nil)
-                    AppLogger.shared.info("🪟 [AppDelegate] Auto-hid launch splash window")
-                } else {
-                    AppLogger.shared.info("🪟 [AppDelegate] Splash auto-hide suppressed (suppressAutoHide=\(self.suppressLaunchSplashAutoHide), reopen=\(suppressAutoHideBecauseReopen))")
-                }
-            }
-
-            AppLogger.shared.info("🪟 [AppDelegate] First activation complete (splash shown briefly)")
-
-            if pendingReopenShow {
-                AppLogger.shared.debug(
-                    "🪟 [AppDelegate] Applying pending reopen show after first activation"
-                )
-                pendingReopenShow = false
-                // Show main window only when explicitly requested via dock click etc.
-                mainWindowController?.show(focus: true)
-            }
+            handleFirstActivation()
         } else {
-            // Subsequent activations: only show overlay if user hasn't explicitly hidden it
-            if !LiveKeyboardOverlayController.shared.isVisible,
-               LiveKeyboardOverlayController.shared.canAutoShow
-            {
-                LiveKeyboardOverlayController.shared.showForStartup()
-                AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - showing overlay")
-            } else if !LiveKeyboardOverlayController.shared.isVisible {
-                AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - overlay hidden by user, not auto-showing")
-            } else {
-                AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - overlay already visible")
-            }
+            handleSubsequentActivation()
         }
     }
 
@@ -535,7 +170,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             AppLogger.shared.info("[AppDelegate] Build configuration: RELEASE")
         #endif
 
-        // Log build information for traceability
         let info = BuildInfo.current()
         AppLogger.shared.info(
             "🏷️ [Build] Version: \(info.version) | Build: \(info.build) | Git: \(info.git) | Date: \(info.date)"
@@ -544,217 +178,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Set smart default keyboard layout on first launch
         setSmartKeyboardLayoutDefault()
 
-        let shouldRunHostPassthruDiagnostic =
-            ProcessInfo.processInfo.environment[OneShotProbeEnvironment.hostPassthruDiagnosticEnvKey] == "1"
-                || Foundation.FileManager().fileExists(atPath: Self.hostPassthruDiagnosticTriggerPath)
-
-        if shouldRunHostPassthruDiagnostic {
-            try? Foundation.FileManager().removeItem(atPath: Self.hostPassthruDiagnosticTriggerPath)
-            AppLogger.shared.info("🧪 [AppDelegate] Running experimental host passthru diagnostics and exiting")
-            Task { @MainActor in
-                let diagnosticsService = DiagnosticsService(
-                    processLifecycleManager: ProcessLifecycleManager()
-                )
-                let diagnostic = await diagnosticsService.runHostPassthruDiagnostic()
-                AppLogger.shared.info(
-                    "🧪 [AppDelegate] Host passthru diagnostic result: \(diagnostic.title) | severity=\(diagnostic.severity.rawValue) | details=\(diagnostic.technicalDetails)"
-                )
-                FileHandle.standardError.write(
-                    Data(
-                        """
-                        [keypath-host-passthru-diagnostic]
-                        title=\(diagnostic.title)
-                        severity=\(diagnostic.severity.rawValue)
-                        details=\(diagnostic.technicalDetails)
-
-                        """.utf8
-                    )
-                )
-                FileHandle.standardError.synchronizeFile()
-                Foundation.exit(0)
-            }
+        // Handle one-shot probe modes (diagnostics, bridge prep, repair, etc.)
+        if OneShotProbeHandler.handleIfNeeded() {
             return
         }
 
-        let shouldPrepareHostPassthruBridge =
-            ProcessInfo.processInfo.environment[OneShotProbeEnvironment.hostPassthruBridgePrepEnvKey] == "1"
-                || Foundation.FileManager().fileExists(atPath: Self.hostPassthruBridgePrepTriggerPath)
-
-        if shouldPrepareHostPassthruBridge {
-            try? Foundation.FileManager().removeItem(atPath: Self.hostPassthruBridgePrepTriggerPath)
-            AppLogger.shared.info("🧪 [AppDelegate] Preparing experimental host passthru bridge environment and exiting")
-            Task { @MainActor in
-                do {
-                    let bridgeEnvironment = try await KanataRuntimePathCoordinator.prepareExperimentalOutputBridgeEnvironment(
-                        hostPID: getpid()
-                    )
-                    let sessionID = bridgeEnvironment[KanataRuntimePathCoordinator.experimentalOutputBridgeSessionEnvKey] ?? "missing"
-                    let socketPath = bridgeEnvironment[KanataRuntimePathCoordinator.experimentalOutputBridgeSocketEnvKey] ?? "missing"
-                    let payload = """
-                    session=\(sessionID)
-                    socket=\(socketPath)
-
-                    """
-                    try payload.write(
-                        toFile: Self.hostPassthruBridgePrepOutputPath,
-                        atomically: true,
-                        encoding: .utf8
-                    )
-                    AppLogger.shared.info(
-                        "🧪 [AppDelegate] Prepared experimental host passthru bridge environment session=\(sessionID) socket=\(socketPath)"
-                    )
-                    FileHandle.standardError.write(
-                        Data(
-                            """
-                            [keypath-host-passthru-bridge]
-                            session=\(sessionID)
-                            socket=\(socketPath)
-                            output=\(Self.hostPassthruBridgePrepOutputPath)
-
-                            """.utf8
-                        )
-                    )
-                    FileHandle.standardError.synchronizeFile()
-                    Foundation.exit(0)
-                } catch {
-                    let message = error.localizedDescription
-                    AppLogger.shared.error("🧪 [AppDelegate] Host passthru bridge preparation failed: \(message)")
-                    FileHandle.standardError.write(
-                        Data(
-                            """
-                            [keypath-host-passthru-bridge]
-                            error=\(message)
-
-                            """.utf8
-                        )
-                    )
-                    FileHandle.standardError.synchronizeFile()
-                    Foundation.exit(1)
-                }
-            }
-            return
-        }
-
-        let shouldRunHelperRepair =
-            ProcessInfo.processInfo.environment[OneShotProbeEnvironment.helperRepairEnvKey] == "1"
-                || Foundation.FileManager().fileExists(atPath: Self.helperRepairTriggerPath)
-
-        if shouldRunHelperRepair {
-            try? Foundation.FileManager().removeItem(atPath: Self.helperRepairTriggerPath)
-            AppLogger.shared.info("🧪 [AppDelegate] Running helper cleanup/repair and exiting")
-            let useAppleScriptFallbackRaw = ProcessInfo.processInfo.environment["KEYPATH_HELPER_REPAIR_USE_APPLESCRIPT"]?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-            let useAppleScriptFallback = useAppleScriptFallbackRaw == nil
-                || useAppleScriptFallbackRaw == "1"
-                || useAppleScriptFallbackRaw == "true"
-                || useAppleScriptFallbackRaw == "yes"
-            Task { @MainActor in
-                let repaired = await HelperMaintenance.shared.runCleanupAndRepair(
-                    useAppleScriptFallback: useAppleScriptFallback
-                )
-                let details = HelperMaintenance.shared.logLines.joined(separator: " | ")
-                FileHandle.standardError.write(
-                    Data(
-                        """
-                        [keypath-helper-repair]
-                        success=\(repaired)
-                        use_apple_script_fallback=\(useAppleScriptFallback)
-                        details=\(details)
-
-                        """.utf8
-                    )
-                )
-                NSApplication.shared.terminate(nil)
-            }
-            return
-        }
-
-        let shouldRunCompanionRestartProbe =
-            ProcessInfo.processInfo.environment[OneShotProbeEnvironment.companionRestartProbeEnvKey] == "1"
-
-        if shouldRunCompanionRestartProbe {
-            let captureRaw = ProcessInfo.processInfo.environment[Self.hostPassthruCaptureEnvKey]?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-            let includeCapture = captureRaw == "1" || captureRaw == "true" || captureRaw == "yes"
-
-            AppLogger.shared.info(
-                "🧪 [AppDelegate] Running output bridge companion restart probe and exiting"
-            )
-            Task { @MainActor in
-                do {
-                    var lines: [String] = []
-                    if let statusBefore = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
-                        lines.append("companion_running_before=\(statusBefore.companionRunning)")
-                    } else {
-                        lines.append("companion_running_before=unknown")
-                    }
-                    lines.append("capture=\(includeCapture)")
-
-                    let pid = try await KanataSplitRuntimeHostService.shared.startPersistentPassthruHost(
-                        includeCapture: includeCapture
-                    )
-                    lines.append("host_pid=\(pid)")
-                    try await Task.sleep(for: .milliseconds(300))
-
-                    do {
-                        try await KanataOutputBridgeCompanionManager.shared.restartCompanion()
-                        lines.append("companion_restarted=1")
-                    } catch {
-                        lines.append("companion_restarted=0")
-                        lines.append(
-                            "companion_restart_error=\(error.localizedDescription.replacingOccurrences(of: "\n", with: " "))"
-                        )
-                    }
-                    try await Task.sleep(for: .milliseconds(500))
-
-                    if let statusAfter = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
-                        lines.append("companion_running_after=\(statusAfter.companionRunning)")
-                    } else {
-                        lines.append("companion_running_after=unknown")
-                    }
-
-                    KanataSplitRuntimeHostService.shared.stopPersistentPassthruHost()
-                    lines.append("host_stopped=1")
-
-                    let payload = lines.joined(separator: "\n") + "\n"
-                    try payload.write(
-                        toFile: Self.companionRestartProbeOutputPath,
-                        atomically: true,
-                        encoding: .utf8
-                    )
-                    FileHandle.standardError.write(
-                        Data(
-                            """
-                            [keypath-output-bridge-companion-restart]
-                            \(payload)
-                            """.utf8
-                        )
-                    )
-                    FileHandle.standardError.synchronizeFile()
-                    Foundation.exit(0)
-                } catch {
-                    let message = error.localizedDescription
-                    AppLogger.shared.error(
-                        "🧪 [AppDelegate] Output bridge companion restart probe failed: \(message)"
-                    )
-                    FileHandle.standardError.write(
-                        Data(
-                            """
-                            [keypath-output-bridge-companion-restart]
-                            error=\(message)
-
-                            """.utf8
-                        )
-                    )
-                    FileHandle.standardError.synchronizeFile()
-                    Foundation.exit(1)
-                }
-            }
-            return
-        }
-
+        // Single-instance guard
         if !isHeadlessMode, !ProcessInfo.processInfo.arguments.contains("--headless"),
            let bundleIdentifier = Bundle.main.bundleIdentifier,
            SingleInstanceCoordinator.activateExistingAndTerminateIfNeeded(
@@ -765,423 +194,317 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        // Phase 2/3: TCP-only mode (no authentication needed)
         AppLogger.shared.debug("📡 [AppDelegate] TCP communication mode - no auth token needed")
 
         if !isHeadlessMode {
             setupMenuBarController()
-        }
-
-        // Warm the splash poster early so it renders during the very brief launch splash.
-        // This avoids a "blank poster" flash from lazy NSImage decoding.
-        if !isHeadlessMode {
             SplashView.PosterCache.warmIfNeeded()
         }
 
-        // Legacy LaunchAgent support removed
-
-        // Check for pending service bounce first
-        // Skip on fresh install to avoid prompting user before wizard runs
+        // Check for pending service bounce (skip on fresh install)
         Task { @MainActor in
-            // Fresh install check: no prior SMAppService registrations
-            let isFreshInstall = Self.checkIsFreshInstall()
-            if isFreshInstall {
-                AppLogger.shared.info("🆕 [AppDelegate] Fresh install detected - skipping service bounce")
-                PermissionGrantCoordinator.shared.clearServiceBounceFlag()
-                return
-            }
-
-            let (shouldBounce, timeSince) = PermissionGrantCoordinator.shared.checkServiceBounceNeeded()
-
-            if shouldBounce {
-                if let timeSince {
-                    AppLogger.shared.info(
-                        "🔄 [AppDelegate] Service bounce requested \(Int(timeSince))s ago - performing bounce"
-                    )
-                } else {
-                    AppLogger.shared.info("🔄 [AppDelegate] Service bounce requested - performing bounce")
-                }
-
-                let bounceSuccess = await PermissionGrantCoordinator.shared.performServiceBounce()
-                if bounceSuccess {
-                    AppLogger.shared.info("✅ [AppDelegate] Service bounce completed successfully")
-                    PermissionGrantCoordinator.shared.clearServiceBounceFlag()
-                } else {
-                    AppLogger.shared.warn("❌ [AppDelegate] Service bounce failed - flag remains for retry")
-                }
-            }
+            await handleServiceBounceIfNeeded()
         }
 
         if isHeadlessMode {
-            AppLogger.shared.info("🤖 [AppDelegate] Headless mode - starting KeyPath runtime automatically")
-
-            // In headless mode, ensure kanata starts
-            Task {
-                // Small delay to let system settle
-                try? await Task.sleep(for: .seconds(2)) // 2 seconds
-
-                // Start kanata if not already running
-                if let manager = self.kanataManager {
-                    let started = await manager.startKanata(reason: "Headless auto-start")
-                    if !started {
-                        AppLogger.shared.error("❌ [AppDelegate] Headless auto-start failed via runtime coordinator")
-                    }
-                } else {
-                    AppLogger.shared.error("❌ [AppDelegate] Headless auto-start failed: RuntimeCoordinator unavailable")
-                }
-            }
-        }
-        // Note: In normal mode, kanata is already started in RuntimeCoordinator.init() if requirements are met
-
-        // MARK: - Notification Wiring (moved out of legacy ContentView)
-
-        // Show the installation wizard regardless of whether the main window is visible.
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleShowWizardNotification(_:)),
-            name: .showWizard,
-            object: nil
-        )
-
-        // Unified “open wizard” action used by permission notifications.
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleOpenInstallationWizardNotification(_:)),
-            name: .openInstallationWizard,
-            object: nil
-        )
-
-        // Startup + post-wizard validation trigger.
-        NotificationCenter.default.addObserver(
-            forName: .kp_startupRevalidate, object: nil, queue: NotificationObserverManager.mainOperationQueue
-        ) { _ in
-            Task { @MainActor in
-                await MainAppStateController.shared.performInitialValidation()
-            }
+            handleHeadlessAutoStart()
         }
 
-        // Settings/permission flows sometimes post a “toast” message; show as a user notification now that
-        // the main window is a splash.
-        NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("ShowUserFeedback"), object: nil, queue: NotificationObserverManager.mainOperationQueue
-        ) { notification in
-            if let message = notification.userInfo?["message"] as? String {
-                Task { @MainActor in
-                    UserNotificationService.shared.notifyRecoverySucceeded(message)
-                }
-            }
-        }
+        // Register all notification observers
+        AppNotificationWiring.registerAll(on: self)
 
-        // Reset-to-safe config action (used by notification buttons).
-        NotificationCenter.default.addObserver(
-            forName: .resetToSafeConfig, object: nil, queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] _ in
-            Task { @MainActor in
-                _ = await self?.viewModel?.createDefaultUserConfigIfMissing()
-                await MainAppStateController.shared.revalidate()
-                UserNotificationService.shared.notifyRecoverySucceeded("Configuration reset to safe defaults.")
-            }
-        }
-
-        // Start emergency-stop monitoring once permissions are already granted (no prompts at launch).
+        // Start emergency-stop monitoring once permissions are already granted
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(2))
             await self.startEmergencyMonitoringIfPermitted()
         }
 
-        // Create main window controller (defer fronting until first activation)
+        // Set up main window and overlay (normal mode only)
         if !isHeadlessMode {
-            AppLogger.shared.debug("🪟 [AppDelegate] Setting up main window controller")
-
-            guard let vm = viewModel else {
-                AppLogger.shared.error("❌ [AppDelegate] ViewModel is nil, cannot create window")
-                return
-            }
-            mainWindowController = MainWindowController(viewModel: vm, serviceContainer: serviceContainer)
-            AppLogger.shared.debug(
-                "🪟 [AppDelegate] Main window controller created (deferring show until activation)"
-            )
-            mainWindowController?.primeForActivation()
-            AppLogger.shared.debug(
-                "🪟 [AppDelegate] Primed main window so Finder launches have a visible surface to activate"
-            )
-
-            // Overlay is shown on the first application activation (after the brief splash),
-            // so launch reads as "splash -> overlay" instead of two windows at once.
-
-            // Configure overlay controller with viewModel for Mapper integration and keymap changes
-            LiveKeyboardOverlayController.shared.configure(
-                kanataViewModel: vm,
-                ruleCollectionsManager: kanataManager?.rulesManager
-            )
-
-            // Initialize Context HUD controller (sets up notification observers)
-            _ = ContextHUDController.shared
-
-            // Defer all window fronting until the first applicationDidBecomeActive event
-            // to avoid AppKit display-cycle reentrancy during initial layout.
-
-            // Simple sequential startup (no timers/notifications fan-out)
-            Task { @MainActor in
-                do {
-                    try await AppConfigGenerator.regenerateFromStore()
-                    AppLogger.shared.log("✅ [AppDelegate] App-specific config regenerated")
-                } catch {
-                    AppLogger.shared.error(
-                        "❌ [AppDelegate] Failed to regenerate app-specific config: \(error)"
-                    )
-                }
-
-                // Respect permission-grant return to avoid resetting wizard state
-                let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
-                if !result.shouldRestart {
-                    AppLogger.shared.log("🚀 [AppDelegate] Starting auto-launch sequence (simple)")
-                    if let manager = self.kanataManager {
-                        let started = await manager.startKanata(reason: "AppDelegate auto-launch")
-                        if started {
-                            AppLogger.shared.log("✅ [AppDelegate] Auto-launch sequence completed (simple)")
-                            // Invalidate cooldown so post-launch revalidation picks up the running state
-                            MainAppStateController.shared.invalidateValidationCooldown()
-                        } else {
-                            AppLogger.shared.error("❌ [AppDelegate] Auto-launch failed via runtime coordinator")
-                        }
-                    } else {
-                        AppLogger.shared.error(
-                            "❌ [AppDelegate] Auto-launch requested but RuntimeCoordinator unavailable"
-                        )
-                    }
-                } else {
-                    AppLogger.shared.log(
-                        "⏭️ [AppDelegate] Skipping auto-launch (returning from permission grant)"
-                    )
-                }
-
-                // Trigger validation once after auto-launch attempt
-                NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
-
-                // Auto-launch wizard if helper is not functional (covers fresh install AND reinstall after uninstall)
-                // Use XPC functionality test, not just SMAppService status, since status can be stale after uninstall
-                let helperFunctional = await HelperManager.shared.testHelperFunctionality()
-                AppLogger.shared.info("🆕 [AppDelegate] Helper functional check: \(helperFunctional)")
-                if !helperFunctional {
-                    AppLogger.shared.info("🆕 [AppDelegate] Helper not functional - auto-launching wizard")
-                    // Small delay to ensure overlay is visible first and orphan cleanup dialog can show first
-                    try? await Task.sleep(for: .seconds(1)) // 1s
-                    NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
-                }
-            }
+            setupMainWindowAndOverlay()
         } else {
             AppLogger.shared.debug("🤖 [AppDelegate] Headless mode - skipping window management")
         }
+    }
 
-        // Observe notification action events
-        NotificationCenter.default.addObserver(forName: .retryStartService, object: nil, queue: NotificationObserverManager.mainOperationQueue) { [weak self] _ in
-            Task { @MainActor in
-                AppLogger.shared.log("🔄 [App] Retry start requested via notification")
-                guard let manager = self?.kanataManager else {
-                    AppLogger.shared.error("❌ [App] Retry start requested but RuntimeCoordinator unavailable")
-                    return
-                }
-                let success = await manager.startKanata(reason: "Notification retryStartService")
-                if !success {
-                    AppLogger.shared.error("❌ [App] Retry start failed")
-                }
-            }
-        }
+    func applicationWillResignActive(_: Notification) {
+        AppLogger.shared.log("🔍 [AppDelegate] applicationWillResignActive called")
+    }
 
-        NotificationCenter.default.addObserver(
-            forName: .openInputMonitoringSettings, object: nil, queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.kanataManager?.openInputMonitoringSettings()
-            }
-        }
+    func applicationWillTerminate(_: Notification) {
+        AppLogger.shared.info(
+            "🚪 [AppDelegate] Application will terminate - performing synchronous cleanup"
+        )
+        kanataManager?.cleanupSync()
+        AppLogger.shared.info("✅ [AppDelegate] Cleanup complete, app terminating")
+    }
 
-        NotificationCenter.default.addObserver(
-            forName: .openAccessibilitySettings, object: nil, queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.kanataManager?.openAccessibilitySettings()
-            }
-        }
+    // MARK: - URL Scheme Handling (keypath://)
 
-        NotificationCenter.default.addObserver(
-            forName: .exerciseCoordinatorSplitRuntimeRecovery,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] note in
-            let outputPath =
-                note.userInfo?["outputPath"] as? String
-                    ?? "/var/tmp/keypath-runtime-coordinator-companion-recovery.txt"
-            Task { @MainActor in
-                guard let self, let manager = self.kanataManager else { return }
-                var lines: [String] = []
+    func application(_: NSApplication, open urls: [URL]) {
+        DeepLinkRouter.handle(urls)
+    }
 
-                lines.append("split_runtime_mode=always_on")
+    func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        AppLogger.shared.debug(
+            "🔍 [AppDelegate] applicationShouldHandleReopen (hasVisibleWindows=\(flag))"
+        )
 
-                do {
-                    let started = await manager.startKanata(reason: "Coordinator split runtime recovery probe")
-                    lines.append("coordinator_start_success=\(started)")
-                    let startedState = manager.getCurrentUIState()
-                    lines.append("runtime_path_after_start=\(startedState.activeRuntimePathTitle ?? "none")")
-                    lines.append("runtime_detail_after_start=\(startedState.activeRuntimePathDetail ?? "none")")
-
-                    if let companionStatusBefore = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
-                        lines.append("companion_running_before=\(companionStatusBefore.companionRunning)")
-                    } else {
-                        lines.append("companion_running_before=unknown")
-                    }
-
-                    try await KanataOutputBridgeCompanionManager.shared.restartCompanion()
-                    lines.append("companion_restarted=1")
-
-                    try await Task.sleep(for: .seconds(12))
-
-                    let finalState = manager.getCurrentUIState()
-                    lines.append("runtime_path_after_recovery=\(finalState.activeRuntimePathTitle ?? "none")")
-                    lines.append("runtime_detail_after_recovery=\(finalState.activeRuntimePathDetail ?? "none")")
-                    lines.append("last_error=\(finalState.lastError ?? "none")")
-                    lines.append("last_warning=\(finalState.lastWarning ?? "none")")
-                    lines.append("split_host_running_after_recovery=\(KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning)")
-                    if let activePID = KanataSplitRuntimeHostService.shared.activePersistentHostPID {
-                        lines.append("split_host_pid_after_recovery=\(activePID)")
-                    }
-                    if let companionStatusAfter = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
-                        lines.append("companion_running_after=\(companionStatusAfter.companionRunning)")
-                    } else {
-                        lines.append("companion_running_after=unknown")
-                    }
-                } catch {
-                    lines.append("probe_error=\(error.localizedDescription.replacingOccurrences(of: "\n", with: " "))")
-                }
-
-                _ = await manager.stopKanata(reason: "Coordinator split runtime recovery probe cleanup")
-                lines.append("cleanup_complete=1")
-
-                let payload = lines.joined(separator: "\n") + "\n"
-                do {
-                    try payload.write(toFile: outputPath, atomically: true, encoding: .utf8)
-                    AppLogger.shared.info(
-                        "🧪 [AppDelegate] Coordinator split-runtime recovery probe completed output=\(outputPath)"
-                    )
-                } catch {
-                    AppLogger.shared.error(
-                        "❌ [AppDelegate] Failed to write coordinator split-runtime recovery probe output: \(error.localizedDescription)"
-                    )
-                }
-            }
-        }
-
-        NotificationCenter.default.addObserver(
-            forName: .exerciseCoordinatorSplitRuntimeRestartSoak,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] note in
-            let outputPath =
-                note.userInfo?["outputPath"] as? String
-                    ?? "/var/tmp/keypath-runtime-coordinator-companion-restart-soak.txt"
-            let durationSeconds = note.userInfo?["durationSeconds"] as? Int ?? 20
-            Task { @MainActor in
-                guard let self, let manager = self.kanataManager else { return }
-                var lines: [String] = []
-
-                lines.append("split_runtime_mode=always_on")
-                lines.append("duration_seconds=\(durationSeconds)")
-
-                do {
-                    let started = await manager.startKanata(reason: "Coordinator split runtime restart soak probe")
-                    lines.append("coordinator_start_success=\(started)")
-                    let startedState = manager.getCurrentUIState()
-                    lines.append("runtime_path_after_start=\(startedState.activeRuntimePathTitle ?? "none")")
-                    lines.append("runtime_detail_after_start=\(startedState.activeRuntimePathDetail ?? "none")")
-
-                    if let companionStatusBefore = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
-                        lines.append("companion_running_before=\(companionStatusBefore.companionRunning)")
-                    } else {
-                        lines.append("companion_running_before=unknown")
-                    }
-
-                    let preRestartDelaySeconds = max(1, durationSeconds / 2)
-                    let postRestartDelaySeconds = max(1, durationSeconds - preRestartDelaySeconds)
-                    try await Task.sleep(for: .seconds(preRestartDelaySeconds))
-
-                    try await KanataOutputBridgeCompanionManager.shared.restartCompanion()
-                    lines.append("companion_restarted=1")
-
-                    try await Task.sleep(for: .seconds(postRestartDelaySeconds))
-
-                    let finalState = manager.getCurrentUIState()
-                    lines.append("runtime_path_after_soak=\(finalState.activeRuntimePathTitle ?? "none")")
-                    lines.append("runtime_detail_after_soak=\(finalState.activeRuntimePathDetail ?? "none")")
-                    lines.append("last_error=\(finalState.lastError ?? "none")")
-                    lines.append("last_warning=\(finalState.lastWarning ?? "none")")
-                    lines.append("split_host_running_after_soak=\(KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning)")
-                    if let activePID = KanataSplitRuntimeHostService.shared.activePersistentHostPID {
-                        lines.append("split_host_pid_after_soak=\(activePID)")
-                    }
-                    if let companionStatusAfter = try? await KanataOutputBridgeCompanionManager.shared.outputBridgeStatus() {
-                        lines.append("companion_running_after=\(companionStatusAfter.companionRunning)")
-                    } else {
-                        lines.append("companion_running_after=unknown")
-                    }
-                } catch {
-                    lines.append("probe_error=\(error.localizedDescription.replacingOccurrences(of: "\n", with: " "))")
-                }
-
-                _ = await manager.stopKanata(reason: "Coordinator split runtime restart soak probe cleanup")
-                lines.append("cleanup_complete=1")
-
-                let payload = lines.joined(separator: "\n") + "\n"
-                do {
-                    try payload.write(toFile: outputPath, atomically: true, encoding: .utf8)
-                    AppLogger.shared.info(
-                        "🧪 [AppDelegate] Coordinator split-runtime restart soak probe completed output=\(outputPath)"
-                    )
-                } catch {
-                    AppLogger.shared.error(
-                        "❌ [AppDelegate] Failed to write coordinator split-runtime restart soak probe output: \(error.localizedDescription)"
-                    )
-                }
-            }
-        }
-
-        // Wire ActionDispatcher errors to user notifications (for deep link failures)
-        ActionDispatcher.shared.onError = { message in
-            UserNotificationService.shared.notifyActionError(message)
-        }
-
-        // Wire layer action to update the overlay and layer indicator
-        // This handles push-msg "layer:X" from momentary layer activations
-        ActionDispatcher.shared.onLayerAction = { layerName in
-            Task { @MainActor in
-                // Update the keyboard overlay
-                LiveKeyboardOverlayController.shared.updateLayerName(layerName)
-
-                // Post notification for other listeners (e.g., RuleCollectionsManager)
-                NotificationCenter.default.post(
-                    name: .kanataLayerChanged,
-                    object: nil,
-                    userInfo: ["layerName": layerName, "source": "push"]
+        if mainWindowController == nil {
+            if NSApplication.shared.activationPolicy() != .regular {
+                NSApplication.shared.setActivationPolicy(.regular)
+                AppLogger.shared.debug(
+                    "🪟 [AppDelegate] Escalated activation policy to .regular for UI reopen"
                 )
+            }
 
-                AppLogger.shared.log("🔄 [App] Layer action dispatched: '\(layerName)'")
+            if let vm = viewModel {
+                mainWindowController = MainWindowController(viewModel: vm, serviceContainer: serviceContainer)
+                AppLogger.shared.debug("🪟 [AppDelegate] Created main window controller on reopen")
+                mainWindowController?.primeForActivation()
+            } else {
+                AppLogger.shared.error(
+                    "❌ [AppDelegate] Cannot create window on reopen: ViewModel is nil"
+                )
+            }
+        }
+
+        suppressLaunchSplashAutoHide = true
+        pendingReopenShow = false
+        if NSApp.isHidden {
+            NSApp.unhide(nil)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        mainWindowController?.show(focus: true)
+        initialMainWindowShown = true
+        AppLogger.shared.debug("🪟 [AppDelegate] User-initiated reopen - showing main window immediately")
+
+        return true
+    }
+
+    // MARK: - Public Window Access
+
+    /// Bring the main window (splash) to the front. Used by menu actions that present sheets.
+    @MainActor
+    func showMainWindow() {
+        showKeyPathFromStatusItem()
+    }
+
+    // MARK: - Notification Handlers (must be @objc for selector-based observers)
+
+    @objc func handleShowWizardNotification(_ notification: Notification) {
+        let targetRaw = (notification.userInfo?["targetPage"] as? WizardPage)?.rawValue
+        Task { @MainActor in
+            let targetPage = targetRaw.flatMap(WizardPage.init(rawValue:))
+            self.showWizard(targetPage: targetPage)
+        }
+    }
+
+    @objc func handleOpenInstallationWizardNotification(_: Notification) {
+        Task { @MainActor in
+            self.showWizard(targetPage: nil)
+        }
+    }
+
+    // MARK: - Private: First Activation
+
+    private func handleFirstActivation() {
+        let suppressAutoHideBecauseReopen = pendingReopenShow
+
+        let appActive = NSApp.isActive
+        let appHidden = NSApp.isHidden
+        AppLogger.shared.debug(
+            "🔍 [AppDelegate] First activation diagnostics: isActive=\(appActive), isHidden=\(appHidden)"
+        )
+
+        if NSApp.isHidden {
+            NSApp.unhide(nil)
+            AppLogger.shared.debug("🪟 [AppDelegate] App was hidden, unhiding")
+        }
+
+        initialMainWindowShown = true
+        suppressLaunchSplashAutoHide = false
+        mainWindowController?.show(focus: true)
+
+        Task { @MainActor in
+            #if DEBUG
+                let splashDelayMs = Int(ProcessInfo.processInfo.environment["KEYPATH_SPLASH_DELAY_MS"] ?? "")
+                    ?? 650
+            #else
+                let splashDelayMs = 420
+            #endif
+            AppLogger.shared.info("[AppDelegate] Launch splash delay: \(splashDelayMs)ms")
+            try? await Task.sleep(for: .milliseconds(splashDelayMs))
+
+            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+            AppLogger.shared.info("🪟 [AppDelegate] First activation - overlay shown")
+
+            if !self.suppressLaunchSplashAutoHide, !suppressAutoHideBecauseReopen {
+                self.mainWindowController?.window?.orderOut(nil)
+                AppLogger.shared.info("🪟 [AppDelegate] Auto-hid launch splash window")
+            } else {
+                AppLogger.shared.info("🪟 [AppDelegate] Splash auto-hide suppressed (suppressAutoHide=\(self.suppressLaunchSplashAutoHide), reopen=\(suppressAutoHideBecauseReopen))")
+            }
+        }
+
+        AppLogger.shared.info("🪟 [AppDelegate] First activation complete (splash shown briefly)")
+
+        if pendingReopenShow {
+            AppLogger.shared.debug(
+                "🪟 [AppDelegate] Applying pending reopen show after first activation"
+            )
+            pendingReopenShow = false
+            mainWindowController?.show(focus: true)
+        }
+    }
+
+    private func handleSubsequentActivation() {
+        if !LiveKeyboardOverlayController.shared.isVisible,
+           LiveKeyboardOverlayController.shared.canAutoShow
+        {
+            LiveKeyboardOverlayController.shared.showForStartup()
+            AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - showing overlay")
+        } else if !LiveKeyboardOverlayController.shared.isVisible {
+            AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - overlay hidden by user, not auto-showing")
+        } else {
+            AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - overlay already visible")
+        }
+    }
+
+    // MARK: - Private: Service Bounce
+
+    private func handleServiceBounceIfNeeded() async {
+        let isFreshInstall = Self.checkIsFreshInstall()
+        if isFreshInstall {
+            AppLogger.shared.info("🆕 [AppDelegate] Fresh install detected - skipping service bounce")
+            PermissionGrantCoordinator.shared.clearServiceBounceFlag()
+            return
+        }
+
+        let (shouldBounce, timeSince) = PermissionGrantCoordinator.shared.checkServiceBounceNeeded()
+
+        if shouldBounce {
+            if let timeSince {
+                AppLogger.shared.info(
+                    "🔄 [AppDelegate] Service bounce requested \(Int(timeSince))s ago - performing bounce"
+                )
+            } else {
+                AppLogger.shared.info("🔄 [AppDelegate] Service bounce requested - performing bounce")
+            }
+
+            let bounceSuccess = await PermissionGrantCoordinator.shared.performServiceBounce()
+            if bounceSuccess {
+                AppLogger.shared.info("✅ [AppDelegate] Service bounce completed successfully")
+                PermissionGrantCoordinator.shared.clearServiceBounceFlag()
+            } else {
+                AppLogger.shared.warn("❌ [AppDelegate] Service bounce failed - flag remains for retry")
             }
         }
     }
 
-    /// Check if this is a fresh install (no prior SMAppService registrations)
-    /// Fresh install = neither helper nor daemon have been registered before
+    // MARK: - Private: Headless Auto-Start
+
+    private func handleHeadlessAutoStart() {
+        AppLogger.shared.info("🤖 [AppDelegate] Headless mode - starting KeyPath runtime automatically")
+
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+
+            if let manager = self.kanataManager {
+                let started = await manager.startKanata(reason: "Headless auto-start")
+                if !started {
+                    AppLogger.shared.error("❌ [AppDelegate] Headless auto-start failed via runtime coordinator")
+                }
+            } else {
+                AppLogger.shared.error("❌ [AppDelegate] Headless auto-start failed: RuntimeCoordinator unavailable")
+            }
+        }
+    }
+
+    // MARK: - Private: Main Window & Overlay Setup
+
+    private func setupMainWindowAndOverlay() {
+        AppLogger.shared.debug("🪟 [AppDelegate] Setting up main window controller")
+
+        guard let vm = viewModel else {
+            AppLogger.shared.error("❌ [AppDelegate] ViewModel is nil, cannot create window")
+            return
+        }
+        mainWindowController = MainWindowController(viewModel: vm, serviceContainer: serviceContainer)
+        AppLogger.shared.debug(
+            "🪟 [AppDelegate] Main window controller created (deferring show until activation)"
+        )
+        mainWindowController?.primeForActivation()
+        AppLogger.shared.debug(
+            "🪟 [AppDelegate] Primed main window so Finder launches have a visible surface to activate"
+        )
+
+        LiveKeyboardOverlayController.shared.configure(
+            kanataViewModel: vm,
+            ruleCollectionsManager: kanataManager?.rulesManager
+        )
+
+        _ = ContextHUDController.shared
+
+        // Sequential startup: regenerate config, auto-launch, validate, auto-wizard
+        Task { @MainActor in
+            do {
+                try await AppConfigGenerator.regenerateFromStore()
+                AppLogger.shared.log("✅ [AppDelegate] App-specific config regenerated")
+            } catch {
+                AppLogger.shared.error(
+                    "❌ [AppDelegate] Failed to regenerate app-specific config: \(error)"
+                )
+            }
+
+            let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
+            if !result.shouldRestart {
+                AppLogger.shared.log("🚀 [AppDelegate] Starting auto-launch sequence (simple)")
+                if let manager = self.kanataManager {
+                    let started = await manager.startKanata(reason: "AppDelegate auto-launch")
+                    if started {
+                        AppLogger.shared.log("✅ [AppDelegate] Auto-launch sequence completed (simple)")
+                        MainAppStateController.shared.invalidateValidationCooldown()
+                    } else {
+                        AppLogger.shared.error("❌ [AppDelegate] Auto-launch failed via runtime coordinator")
+                    }
+                } else {
+                    AppLogger.shared.error(
+                        "❌ [AppDelegate] Auto-launch requested but RuntimeCoordinator unavailable"
+                    )
+                }
+            } else {
+                AppLogger.shared.log(
+                    "⏭️ [AppDelegate] Skipping auto-launch (returning from permission grant)"
+                )
+            }
+
+            NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
+
+            let helperFunctional = await HelperManager.shared.testHelperFunctionality()
+            AppLogger.shared.info("🆕 [AppDelegate] Helper functional check: \(helperFunctional)")
+            if !helperFunctional {
+                AppLogger.shared.info("🆕 [AppDelegate] Helper not functional - auto-launching wizard")
+                try? await Task.sleep(for: .seconds(1))
+                NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
+            }
+        }
+    }
+
+    // MARK: - Private: Fresh Install Check
+
     private static func checkIsFreshInstall() -> Bool {
         let helperStatus = SMAppService.daemon(plistName: "com.keypath.helper.plist").status
         let daemonStatus = SMAppService.daemon(plistName: "com.keypath.kanata.plist").status
 
-        // Fresh if both are not registered (never been installed)
         let isFresh = helperStatus == .notRegistered && daemonStatus == .notRegistered
         AppLogger.shared.log(
             "🔍 [AppDelegate] Fresh install check: helper=\(helperStatus), daemon=\(daemonStatus), isFresh=\(isFresh)"
         )
         return isFresh
     }
+
+    // MARK: - Private: Menu Bar
 
     private func setupMenuBarController() {
         guard menuBarController == nil else { return }
@@ -1203,7 +526,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 NotificationCenter.default.post(name: .openSettingsRules, object: nil)
             },
             quitHandler: {
-                // Close all windows first to avoid beep from modal blocking
                 for window in NSApplication.shared.windows {
                     window.close()
                 }
@@ -1211,7 +533,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         )
 
-        // Configure with state observation after initialization
         if let rulesManager = kanataManager?.rulesManager {
             menuBarController?.configure(
                 appStateController: MainAppStateController.shared,
@@ -1220,12 +541,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         AppLogger.shared.debug("☰ [MenuBar] Status item initialized")
-    }
-
-    /// Bring the main window (splash) to the front. Used by menu actions that present sheets.
-    @MainActor
-    func showMainWindow() {
-        showKeyPathFromStatusItem()
     }
 
     private func showKeyPathFromStatusItem() {
@@ -1241,7 +556,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        // If the user explicitly shows the main window, don't auto-hide it as part of launch splash.
         suppressLaunchSplashAutoHide = true
 
         if NSApp.isHidden {
@@ -1254,110 +568,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         pendingReopenShow = false
     }
 
-    func applicationWillResignActive(_: Notification) {
-        AppLogger.shared.log("🔍 [AppDelegate] applicationWillResignActive called")
-    }
-
-    func applicationWillTerminate(_: Notification) {
-        AppLogger.shared.info(
-            "🚪 [AppDelegate] Application will terminate - performing synchronous cleanup"
-        )
-
-        // Use synchronous cleanup to ensure kanata is stopped before app exits
-        // Note: InstallerEngine manages service lifecycle, but for app termination we rely on
-        // RuntimeCoordinator's cleanup logic which now delegates to standard service handling
-        kanataManager?.cleanupSync()
-
-        AppLogger.shared.info("✅ [AppDelegate] Cleanup complete, app terminating")
-    }
-
-    // MARK: - URL Scheme Handling (keypath://)
-
-    func application(_: NSApplication, open urls: [URL]) {
-        AppLogger.shared.log("🔗 [AppDelegate] Received \(urls.count) URL(s) to open")
-
-        for url in urls {
-            AppLogger.shared.log("🔗 [AppDelegate] Processing URL: \(url.absoluteString)")
-
-            // Only handle keypath:// URLs
-            guard url.scheme == KeyPathActionURI.scheme else {
-                AppLogger.shared.log("⚠️ [AppDelegate] Ignoring non-keypath URL: \(url.scheme ?? "nil")")
-                continue
-            }
-
-            // Parse and dispatch
-            if let actionURI = KeyPathActionURI(string: url.absoluteString) {
-                AppLogger.shared.log("🎬 [AppDelegate] Dispatching action: \(actionURI.action)")
-                ActionDispatcher.shared.dispatch(actionURI)
-            } else {
-                AppLogger.shared.log("⚠️ [AppDelegate] Failed to parse URL as KeyPathActionURI")
-                ActionDispatcher.shared.onError?("Invalid keypath:// URL: \(url.absoluteString)")
-            }
-        }
-    }
-
-    /// Sets a smart default keyboard layout on first launch based on detected keyboard type.
-    /// Only runs once - if user has already set a preference, this is a no-op.
-    private func setSmartKeyboardLayoutDefault() {
-        let key = LayoutPreferences.layoutIdKey
-
-        // Check if user has ever set a layout preference
-        if UserDefaults.standard.string(forKey: key) != nil {
-            AppLogger.shared.debug("⌨️ [AppDelegate] Keyboard layout already set by user, skipping auto-detect")
-            return
-        }
-
-        // First launch - detect keyboard type and set smart default
-        let recommendedLayout = KeyboardTypeDetector.recommendedLayoutId()
-        UserDefaults.standard.set(recommendedLayout, forKey: key)
-
-        let detectedType = KeyboardTypeDetector.detect()
-        AppLogger.shared.info("⌨️ [AppDelegate] First launch - detected keyboard type: \(detectedType.rawValue), setting default layout: \(recommendedLayout)")
-    }
-
-    func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        AppLogger.shared.debug(
-            "🔍 [AppDelegate] applicationShouldHandleReopen (hasVisibleWindows=\(flag))"
-        )
-
-        // If UI hasn’t been set up yet (e.g., app was started in headless mode by LaunchAgent),
-        // escalate to a regular app and create the main window on demand.
-        if mainWindowController == nil {
-            if NSApplication.shared.activationPolicy() != .regular {
-                NSApplication.shared.setActivationPolicy(.regular)
-                AppLogger.shared.debug(
-                    "🪟 [AppDelegate] Escalated activation policy to .regular for UI reopen"
-                )
-            }
-
-            if let vm = viewModel {
-                mainWindowController = MainWindowController(viewModel: vm, serviceContainer: serviceContainer)
-                AppLogger.shared.debug("🪟 [AppDelegate] Created main window controller on reopen")
-                mainWindowController?.primeForActivation()
-            } else {
-                AppLogger.shared.error(
-                    "❌ [AppDelegate] Cannot create window on reopen: ViewModel is nil"
-                )
-            }
-        }
-
-        // Finder/Dock reopen is an explicit user action. Show UI immediately rather than
-        // waiting for a separate activation callback, which may never arrive if the app is
-        // already running but has no visible windows.
-        suppressLaunchSplashAutoHide = true
-        pendingReopenShow = false
-        if NSApp.isHidden {
-            NSApp.unhide(nil)
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        mainWindowController?.show(focus: true)
-        initialMainWindowShown = true
-        AppLogger.shared.debug("🪟 [AppDelegate] User-initiated reopen - showing main window immediately")
-
-        return true
-    }
-
-    // MARK: - Wizard Presentation
+    // MARK: - Private: Wizard
 
     @MainActor
     private func showWizard(targetPage: WizardPage?) {
@@ -1372,7 +583,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             kanataViewModel: vm,
             onDismiss: { [weak self] in
                 Task { @MainActor in
-                    // Wizard actions can change permissions + service state; refresh both.
                     await self?.viewModel?.updateStatus()
                     await MainAppStateController.shared.revalidate()
                 }
@@ -1380,37 +590,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    // MARK: - Notification Handlers
-
-    @objc private func handleShowWizardNotification(_ notification: Notification) {
-        // Avoid capturing non-Sendable values across actor hops by reducing to raw types first.
-        let targetRaw = (notification.userInfo?["targetPage"] as? WizardPage)?.rawValue
-        Task { @MainActor in
-            let targetPage = targetRaw.flatMap(WizardPage.init(rawValue:))
-            self.showWizard(targetPage: targetPage)
-        }
-    }
-
-    @objc private func handleOpenInstallationWizardNotification(_: Notification) {
-        Task { @MainActor in
-            self.showWizard(targetPage: nil)
-        }
-    }
-
-    /// Mirrors the legacy ContentView logic so permission-grant return flows still reopen
-    /// the wizard at the most relevant page after an app restart.
     @MainActor
     private func resolveWizardInitialPage() -> WizardPage? {
-        // Check for FDA restart restore point (used when app restarts for Full Disk Access)
         if let restorePoint = UserDefaults.standard.string(forKey: "KeyPath.WizardRestorePoint") {
             let restoreTime = UserDefaults.standard.double(forKey: "KeyPath.WizardRestoreTime")
             let timeSinceRestore = Date().timeIntervalSince1970 - restoreTime
 
-            // Clear the restore point immediately
             UserDefaults.standard.removeObject(forKey: "KeyPath.WizardRestorePoint")
             UserDefaults.standard.removeObject(forKey: "KeyPath.WizardRestoreTime")
 
-            // Only restore if within 5 minutes
             if timeSinceRestore < 300 {
                 let page = WizardPage.allCases.first { $0.rawValue == restorePoint }
                     ?? WizardPage.allCases.first { String(describing: $0) == restorePoint }
@@ -1438,10 +626,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return nil
     }
 
-    // MARK: - Emergency Stop Monitoring
+    // MARK: - Private: Keyboard Layout Detection
 
-    /// Starts emergency stop monitoring if Accessibility permission is already granted.
-    /// This preserves the safety feature without prompting users during app launch.
+    private func setSmartKeyboardLayoutDefault() {
+        let key = LayoutPreferences.layoutIdKey
+
+        if UserDefaults.standard.string(forKey: key) != nil {
+            AppLogger.shared.debug("⌨️ [AppDelegate] Keyboard layout already set by user, skipping auto-detect")
+            return
+        }
+
+        let recommendedLayout = KeyboardTypeDetector.recommendedLayoutId()
+        UserDefaults.standard.set(recommendedLayout, forKey: key)
+
+        let detectedType = KeyboardTypeDetector.detect()
+        AppLogger.shared.info("⌨️ [AppDelegate] First launch - detected keyboard type: \(detectedType.rawValue), setting default layout: \(recommendedLayout)")
+    }
+
+    // MARK: - Private: Emergency Stop
+
     @MainActor
     private func startEmergencyMonitoringIfPermitted() async {
         let snapshot = await PermissionOracle.shared.currentSnapshot()
@@ -1461,20 +664,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 let stopped = await self.viewModel?.stopKanata(reason: "Emergency stop hotkey") ?? false
                 if stopped {
-                    AppLogger.shared.log("🛑 [EmergencyStop] Kanata service stopped via façade")
+                    AppLogger.shared.log("🛑 [EmergencyStop] Kanata service stopped via facade")
                 } else {
-                    AppLogger.shared.warn("⚠️ [EmergencyStop] Failed to stop Kanata service via façade")
+                    AppLogger.shared.warn("⚠️ [EmergencyStop] Failed to stop Kanata service via facade")
                 }
 
                 self.viewModel?.emergencyStopActivated = true
 
                 UserNotificationService.shared.notifyConfigEvent(
                     "Emergency stop activated",
-                    body: "Remapping paused. Open Settings → Status to start the service again.",
+                    body: "Remapping paused. Open Settings -> Status to start the service again.",
                     key: "emergency.stop.activated"
                 )
 
-                // If the user is already in-app, show the help dialog immediately.
                 if NSApp.isActive, !NSApp.isHidden {
                     self.showMainWindow()
                     NotificationCenter.default.post(
@@ -1529,20 +731,3 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 #endif
-
-// MARK: - Sparkle Update Menu Item
-
-/// SwiftUI wrapper for Sparkle's "Check for Updates" menu item
-struct CheckForUpdatesView: View {
-    private var updateService = UpdateService.shared
-
-    /// The updater parameter is kept for API compatibility but we use the shared service
-    init(updater _: SPUUpdater?) {}
-
-    var body: some View {
-        Button("Check for Updates…") {
-            updateService.checkForUpdates()
-        }
-        .disabled(!updateService.canCheckForUpdates)
-    }
-}
