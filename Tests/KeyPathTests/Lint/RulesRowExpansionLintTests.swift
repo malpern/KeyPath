@@ -4,7 +4,7 @@ import Foundation
 final class RulesRowExpansionLintTests: XCTestCase {
     func testRulesSummaryExpandRowUsesFullWidthHitArea() throws {
         let root = repositoryRoot()
-        let fileURL = root.appendingPathComponent("Sources/KeyPathAppKit/UI/RulesSummaryView+CollectionRow.swift")
+        let fileURL = root.appendingPathComponent("Sources/KeyPathAppKit/UI/Rules/RulesSummaryView+CollectionRow.swift")
         let content = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
