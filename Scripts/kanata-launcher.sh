@@ -2,15 +2,7 @@
 set -euo pipefail
 
 KANATA_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
-KANATA_BUNDLED_BIN="$KANATA_DIR/kanata"
-# Canonical system location for stable TCC identity (Input Monitoring / Accessibility)
-# This is the path the wizard instructs users to add in System Settings.
-KANATA_SYSTEM_BIN="/Library/KeyPath/bin/kanata"
-
-KANATA_BIN="$KANATA_BUNDLED_BIN"
-if [ -x "$KANATA_SYSTEM_BIN" ]; then
-    KANATA_BIN="$KANATA_SYSTEM_BIN"
-fi
+KANATA_BIN="$KANATA_DIR/kanata"
 
 # Crash loop prevention: retry counter file
 RETRY_COUNT_FILE="/var/tmp/keypath-vhid-retry-count"

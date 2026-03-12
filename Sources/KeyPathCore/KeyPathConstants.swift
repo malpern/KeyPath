@@ -53,9 +53,6 @@ public enum KeyPathConstants {
     }
 
     public enum Binaries {
-        /// The system-wide install location for kanata (managed by helper)
-        public static let systemBinPath = "/Library/KeyPath/bin/kanata"
-
         /// The bundled kanata binary name
         public static let kanataName = "kanata"
     }

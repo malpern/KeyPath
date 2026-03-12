@@ -42,10 +42,10 @@ public enum WizardSystemPaths {
 
     // MARK: - Binary Paths
 
-    /// System-installed kanata binary location (avoids Gatekeeper issues)
-    /// This is where the LaunchDaemon installer copies the bundled binary
+    /// Canonical kanata binary location — now always the bundled path.
+    /// Previously pointed to /Library/KeyPath/bin/kanata (system install).
     public static var kanataSystemInstallPath: String {
-        currentRuntimeHost().systemCorePath
+        currentRuntimeHost().bundledCorePath
     }
 
     /// Standard kanata binary location - used for both homebrew and experimental versions
@@ -123,7 +123,7 @@ public enum WizardSystemPaths {
     /// All known kanata binary paths for detection/filtering
     public static func allKnownKanataPaths() -> [String] {
         let runtimeHost = currentRuntimeHost()
-        return [runtimeHost.systemCorePath, runtimeHost.bundledCorePath].filter {
+        return [runtimeHost.bundledCorePath].filter {
             FileManager.default.fileExists(atPath: $0)
         }
     }
@@ -243,12 +243,6 @@ public enum WizardSystemPaths {
 
     /// Returns the best available kanata binary path - simple filesystem check for performance
     public static func detectKanataBinaryPath() -> String? {
-        // Prefer system-installed path (for LaunchDaemon)
-        if FileManager.default.fileExists(atPath: kanataSystemInstallPath) {
-            return kanataSystemInstallPath
-        }
-
-        // Fall back to bundled kanata
         if FileManager.default.fileExists(atPath: bundledKanataPath) {
             return bundledKanataPath
         }

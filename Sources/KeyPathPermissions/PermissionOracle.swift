@@ -429,18 +429,18 @@ public actor PermissionOracle {
     /// - TCC entries for CLI binaries are keyed by *executable path* (client_type=1).
     /// - If the daemon executes a different path than the wizard instructs users to add,
     ///   we can get false positives/negatives (green UI while remapping fails).
-    /// - We intentionally prefer the system-installed canonical path to avoid bundle-path churn.
+    /// - The bundled path is now canonical — no system binary install step.
     private func resolveKanataExecutablePath() -> String {
-        // Canonical runtime/permission identity (preferred)
-        let system = WizardSystemPaths.kanataSystemInstallPath
-        if FileManager.default.fileExists(atPath: system) {
-            return system
-        }
-
-        // Fallback: bundled binary (installer payload, may be used during setup)
         let bundled = WizardSystemPaths.bundledKanataPath
         if FileManager.default.fileExists(atPath: bundled) {
             return bundled
+        }
+
+        // Migration fallback: check legacy system path for users who still have TCC entries there
+        let legacySystem = "/Library/KeyPath/bin/kanata"
+        if FileManager.default.fileExists(atPath: legacySystem) {
+            AppLogger.shared.log("⚠️ [Oracle] Using legacy system binary path for TCC — bundled binary not found")
+            return legacySystem
         }
 
         // Last resort: whatever path helper returns (should be stable in tests)

@@ -7,7 +7,6 @@ final class KanataHostBridgeTests: XCTestCase {
             launcherPath: "/tmp/kanata-launcher",
             bridgeLibraryPath: "/definitely/missing/libkeypath_kanata_host_bridge.dylib",
             bundledCorePath: "/tmp/kanata",
-            systemCorePath: "/tmp/system-kanata"
         )
 
         XCTAssertEqual(
@@ -42,13 +41,12 @@ final class KanataHostBridgeTests: XCTestCase {
             launcherPath: "/tmp/kanata-launcher",
             bridgeLibraryPath: "/definitely/missing/libkeypath_kanata_host_bridge.dylib",
             bundledCorePath: "/tmp/kanata",
-            systemCorePath: "/tmp/system-kanata"
         )
 
         let result = KanataHostBridge.createPassthruRuntime(
             runtimeHost: runtimeHost,
             configPath: "/tmp/keypath.kbd",
-            tcpPort: 37_001
+            tcpPort: 37001
         )
 
         XCTAssertEqual(
