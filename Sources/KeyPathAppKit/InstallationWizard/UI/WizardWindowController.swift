@@ -15,7 +15,7 @@ final class WizardWindowController {
     static let shared = WizardWindowController()
 
     private var window: NSWindow?
-    private var hostingView: NSHostingView<AnyView>?
+    private var hostingView: NSView?
     private var windowDelegate: WizardWindowDelegate?
     private var onDismiss: (() -> Void)?
     private var sizeObserver: NSObjectProtocol?
@@ -43,21 +43,18 @@ final class WizardWindowController {
         let wizardView = InstallationWizardView(initialPage: initialPage)
 
         // Create hosting view - let SwiftUI determine ideal height
-        let hosting: NSHostingView<AnyView> = if let viewModel = kanataViewModel {
-            NSHostingView(rootView:
-                AnyView(
-                    wizardView
-                        .environment(viewModel)
-                        .frame(width: 700)
-                        .fixedSize(horizontal: false, vertical: true)
-                ))
+        let styledView = wizardView
+            .frame(width: 700)
+            .fixedSize(horizontal: false, vertical: true)
+
+        let hosting: NSView
+        if let viewModel = kanataViewModel {
+            hosting = NSHostingView(rootView:
+                styledView
+                    .environment(viewModel)
+            )
         } else {
-            NSHostingView(rootView:
-                AnyView(
-                    wizardView
-                        .frame(width: 700)
-                        .fixedSize(horizontal: false, vertical: true)
-                ))
+            hosting = NSHostingView(rootView: styledView)
         }
 
         let window = NSWindow(

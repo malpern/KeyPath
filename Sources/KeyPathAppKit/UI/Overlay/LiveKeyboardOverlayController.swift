@@ -26,7 +26,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     var resizeStartFrame: NSRect = .zero
     var inspectorDebugLastLog: CFTimeInterval = 0
     private var healthObserver: OverlayHealthIndicatorObserver?
-    private weak var hostingView: NSHostingView<AnyView>?
+    private weak var hostingView: NSHostingView<LiveKeyboardOverlayView>?
     private let frameStore = OverlayWindowFrameStore()
     var hintWindowController: HideHintWindowController?
     var hintBubbleObserver: Task<Void, Never>?
@@ -1249,8 +1249,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         observeKeyboardAspectRatio()
     }
 
-    private func buildRootView() -> AnyView {
-        let contentView = LiveKeyboardOverlayView(
+    private func buildRootView() -> LiveKeyboardOverlayView {
+        LiveKeyboardOverlayView(
             viewModel: viewModel,
             uiState: uiState,
             inspectorWidth: inspectorPanelWidth,
@@ -1273,8 +1273,6 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                 self?.handleHealthIndicatorTap()
             }
         )
-
-        return AnyView(contentView)
     }
 
     private func refreshOverlayContent() {
