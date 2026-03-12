@@ -57,12 +57,12 @@ for i in "${!LANE_IDS[@]}"; do
   pattern="${LANE_PATTERNS[$i]}"
 
   # Count passes and failures for test classes matching this lane's pattern.
-  # Uses word-boundary (\b) to prevent substring matches (e.g. InstallerEngineTests
-  # must not match InstallerEngineEndToEndTests).
   # XCTest format: Test Case '-[Module.ClassName testMethod]' passed/failed
   # Swift Testing format: Test "ClassName/testMethod" passed/failed after ...
-  pass_count=$(grep -cE "(Test Case '.*\b($pattern)\b.*' passed|Test \"($pattern)[/\"].*passed)" "$LOG_FILE" 2>/dev/null || echo 0)
-  fail_count=$(grep -cE "(Test Case '.*\b($pattern)\b.*' failed|Test \"($pattern)[/\"].*failed)" "$LOG_FILE" 2>/dev/null || echo 0)
+  # Uses [. ] before class name to anchor match and prevent substring contamination
+  # (e.g. "InstallerEngineTests" won't match "InstallerEngineEndToEndTests").
+  pass_count=$(grep -cE "(Test Case '.*[. ]($pattern) .*' passed|Test \"($pattern)[/\"].*passed)" "$LOG_FILE" 2>/dev/null || echo 0)
+  fail_count=$(grep -cE "(Test Case '.*[. ]($pattern) .*' failed|Test \"($pattern)[/\"].*failed)" "$LOG_FILE" 2>/dev/null || echo 0)
 
   if [ "$fail_count" -gt 0 ]; then
     status="fail"
@@ -86,26 +86,22 @@ for i in "${!LANE_IDS[@]}"; do
   grep -E "($pattern)" "$LOG_FILE" > "$OUT_DIR/lane-${lane_id}.log" 2>/dev/null || true
 done
 
-# Sanity check: verify the parser found a reasonable number of tests.
-# If the log has many test results but the parser found none, the output
-# format may have changed and the grep patterns need updating.
+# Sanity check: verify the parser found at least some installer tests.
+# The matrix only covers installer-related test classes (a small subset of all tests),
+# so we check whether the parser found zero when installer test classes appear in the log.
 total_parsed=0
 for i in "${!LANE_PASS_COUNTS[@]}"; do
   total_parsed=$((total_parsed + LANE_PASS_COUNTS[i] + LANE_FAIL_COUNTS[i]))
 done
-log_total=$(grep -cE "Test Case '.*' (passed|failed)|Test .* (passed|failed) after" "$LOG_FILE" 2>/dev/null || echo 0)
-if [ "$log_total" -gt 10 ] && [ "$total_parsed" -eq 0 ]; then
-  echo "ERROR: Log contains $log_total test results but matrix parser matched 0."
+# Check if any installer test classes appear in the log at all
+all_patterns=$(printf "%s|" "${LANE_PATTERNS[@]}" | sed 's/|$//')
+installer_mentions=$(grep -cE "$all_patterns" "$LOG_FILE" 2>/dev/null || echo 0)
+if [ "$installer_mentions" -gt 0 ] && [ "$total_parsed" -eq 0 ]; then
+  echo "ERROR: Log mentions installer test classes ($installer_mentions lines) but parser matched 0 pass/fail results."
   echo "The xctest output format may have changed — review grep patterns in this script."
   exit 1
-elif [ "$log_total" -gt 10 ] && [ "$total_parsed" -gt 0 ]; then
-  # Warn if parser matched less than half of total tests — likely partial format drift
-  threshold=$((log_total / 2))
-  if [ "$total_parsed" -lt "$threshold" ]; then
-    echo "WARNING: Parser matched $total_parsed of $log_total test results (<50%)."
-    echo "Some xctest output may not match expected format — review grep patterns."
-  fi
 fi
+echo "  Sanity check: parsed $total_parsed results from $installer_mentions installer-related log lines"
 
 # Count failures
 failed_lanes=0
