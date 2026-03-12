@@ -1,0 +1,722 @@
+{
+  "id" : "macbook-jis",
+  "keys" : [
+    {
+      "height" : 1,
+      "keyCode" : 53,
+      "label" : "esc",
+      "width" : 1.5,
+      "x" : 0,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 122,
+      "label" : "F1",
+      "width" : 1,
+      "x" : 1.58,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 120,
+      "label" : "F2",
+      "width" : 1,
+      "x" : 2.66,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 99,
+      "label" : "F3",
+      "width" : 1,
+      "x" : 3.74,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 118,
+      "label" : "F4",
+      "width" : 1,
+      "x" : 4.82,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 96,
+      "label" : "F5",
+      "width" : 1,
+      "x" : 5.9,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 97,
+      "label" : "F6",
+      "width" : 1,
+      "x" : 6.98,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 98,
+      "label" : "F7",
+      "width" : 1,
+      "x" : 8.06,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 100,
+      "label" : "F8",
+      "width" : 1,
+      "x" : 9.14,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 101,
+      "label" : "F9",
+      "width" : 1,
+      "x" : 10.22,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 109,
+      "label" : "F10",
+      "width" : 1,
+      "x" : 11.3,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 103,
+      "label" : "F11",
+      "width" : 1,
+      "x" : 12.38,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 111,
+      "label" : "F12",
+      "width" : 1,
+      "x" : 13.46,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 65535,
+      "label" : "🔒",
+      "width" : 1,
+      "x" : 14.540000000000001,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 50,
+      "label" : "半角",
+      "shiftLabel" : "全角",
+      "width" : 1,
+      "x" : 0,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 18,
+      "label" : "1",
+      "shiftLabel" : "!",
+      "subLabel" : "ぬ",
+      "width" : 1,
+      "x" : 1.08,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 19,
+      "label" : "2",
+      "shiftLabel" : "\"",
+      "subLabel" : "ふ",
+      "width" : 1,
+      "x" : 2.16,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 20,
+      "label" : "3",
+      "shiftLabel" : "#",
+      "subLabel" : "あ",
+      "width" : 1,
+      "x" : 3.24,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 21,
+      "label" : "4",
+      "shiftLabel" : "$",
+      "subLabel" : "う",
+      "width" : 1,
+      "x" : 4.32,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 23,
+      "label" : "5",
+      "shiftLabel" : "%",
+      "subLabel" : "え",
+      "width" : 1,
+      "x" : 5.4,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 22,
+      "label" : "6",
+      "shiftLabel" : "&",
+      "subLabel" : "お",
+      "width" : 1,
+      "x" : 6.48,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 26,
+      "label" : "7",
+      "shiftLabel" : "'",
+      "subLabel" : "や",
+      "width" : 1,
+      "x" : 7.5600000000000005,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 28,
+      "label" : "8",
+      "shiftLabel" : "(",
+      "subLabel" : "ゆ",
+      "width" : 1,
+      "x" : 8.64,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 25,
+      "label" : "9",
+      "shiftLabel" : ")",
+      "subLabel" : "よ",
+      "width" : 1,
+      "x" : 9.72,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 29,
+      "label" : "0",
+      "subLabel" : "わ",
+      "width" : 1,
+      "x" : 10.8,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 27,
+      "label" : "-",
+      "shiftLabel" : "=",
+      "subLabel" : "ほ",
+      "width" : 1,
+      "x" : 11.88,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 24,
+      "label" : "^",
+      "shiftLabel" : "~",
+      "subLabel" : "へ",
+      "width" : 1,
+      "x" : 12.96,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 93,
+      "label" : "¥",
+      "shiftLabel" : "|",
+      "width" : 1,
+      "x" : 14.040000000000001,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 51,
+      "label" : "⌫",
+      "width" : 1,
+      "x" : 15.120000000000001,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 48,
+      "label" : "⇥",
+      "width" : 1.5,
+      "x" : 0,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 12,
+      "label" : "q",
+      "subLabel" : "た",
+      "width" : 0.9250000000000002,
+      "x" : 1.58,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 13,
+      "label" : "w",
+      "subLabel" : "て",
+      "width" : 0.9250000000000002,
+      "x" : 2.585,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 14,
+      "label" : "e",
+      "subLabel" : "い",
+      "width" : 0.9250000000000002,
+      "x" : 3.59,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 15,
+      "label" : "r",
+      "subLabel" : "す",
+      "width" : 0.9250000000000002,
+      "x" : 4.595,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 17,
+      "label" : "t",
+      "subLabel" : "か",
+      "width" : 0.9250000000000002,
+      "x" : 5.6,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 16,
+      "label" : "y",
+      "subLabel" : "ん",
+      "width" : 0.9250000000000002,
+      "x" : 6.6049999999999995,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 32,
+      "label" : "u",
+      "subLabel" : "な",
+      "width" : 0.9250000000000002,
+      "x" : 7.609999999999999,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 34,
+      "label" : "i",
+      "subLabel" : "に",
+      "width" : 0.9250000000000002,
+      "x" : 8.615,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 31,
+      "label" : "o",
+      "subLabel" : "ら",
+      "width" : 0.9250000000000002,
+      "x" : 9.620000000000001,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 35,
+      "label" : "p",
+      "subLabel" : "せ",
+      "width" : 0.9250000000000002,
+      "x" : 10.625000000000002,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 33,
+      "label" : "@",
+      "shiftLabel" : "`",
+      "subLabel" : "゛",
+      "width" : 0.9250000000000002,
+      "x" : 11.630000000000003,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 30,
+      "label" : "[",
+      "shiftLabel" : "{",
+      "subLabel" : "゜",
+      "width" : 0.9250000000000002,
+      "x" : 12.635000000000003,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 59,
+      "label" : "⌃",
+      "width" : 1.8,
+      "x" : 0,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 0,
+      "label" : "a",
+      "subLabel" : "ち",
+      "width" : 0.989090909090909,
+      "x" : 1.8800000000000001,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 1,
+      "label" : "s",
+      "subLabel" : "と",
+      "width" : 0.989090909090909,
+      "x" : 2.949090909090909,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 2,
+      "label" : "d",
+      "subLabel" : "し",
+      "width" : 0.989090909090909,
+      "x" : 4.0181818181818185,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 3,
+      "label" : "f",
+      "subLabel" : "は",
+      "width" : 0.989090909090909,
+      "x" : 5.087272727272728,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 5,
+      "label" : "g",
+      "subLabel" : "き",
+      "width" : 0.989090909090909,
+      "x" : 6.156363636363637,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 4,
+      "label" : "h",
+      "subLabel" : "く",
+      "width" : 0.989090909090909,
+      "x" : 7.2254545454545465,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 38,
+      "label" : "j",
+      "subLabel" : "ま",
+      "width" : 0.989090909090909,
+      "x" : 8.294545454545455,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 40,
+      "label" : "k",
+      "subLabel" : "の",
+      "width" : 0.989090909090909,
+      "x" : 9.363636363636363,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 37,
+      "label" : "l",
+      "subLabel" : "り",
+      "width" : 0.989090909090909,
+      "x" : 10.432727272727272,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 41,
+      "label" : ";",
+      "shiftLabel" : "+",
+      "subLabel" : "れ",
+      "width" : 0.989090909090909,
+      "x" : 11.50181818181818,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 39,
+      "label" : ":",
+      "shiftLabel" : "*",
+      "subLabel" : "け",
+      "width" : 0.989090909090909,
+      "x" : 12.570909090909089,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 42,
+      "label" : "]",
+      "shiftLabel" : "}",
+      "subLabel" : "む",
+      "width" : 0.989090909090909,
+      "x" : 13.639999999999997,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 2.08,
+      "keyCode" : 36,
+      "label" : "↩",
+      "width" : 1.9,
+      "x" : 14.709090909090905,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 56,
+      "label" : "⇧",
+      "width" : 2.1,
+      "x" : 0,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 6,
+      "label" : "z",
+      "subLabel" : "つ",
+      "width" : 0.9380000000000003,
+      "x" : 2.18,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 7,
+      "label" : "x",
+      "subLabel" : "さ",
+      "width" : 0.9380000000000003,
+      "x" : 3.1980000000000004,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 8,
+      "label" : "c",
+      "subLabel" : "そ",
+      "width" : 0.9380000000000003,
+      "x" : 4.216000000000001,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 9,
+      "label" : "v",
+      "subLabel" : "ひ",
+      "width" : 0.9380000000000003,
+      "x" : 5.234000000000002,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 11,
+      "label" : "b",
+      "subLabel" : "こ",
+      "width" : 0.9380000000000003,
+      "x" : 6.2520000000000024,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 45,
+      "label" : "n",
+      "subLabel" : "み",
+      "width" : 0.9380000000000003,
+      "x" : 7.270000000000003,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 46,
+      "label" : "m",
+      "subLabel" : "も",
+      "width" : 0.9380000000000003,
+      "x" : 8.288000000000004,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 43,
+      "label" : ",",
+      "shiftLabel" : "<",
+      "subLabel" : "ね",
+      "width" : 0.9380000000000003,
+      "x" : 9.306000000000004,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 47,
+      "label" : ".",
+      "shiftLabel" : ">",
+      "subLabel" : "る",
+      "width" : 0.9380000000000003,
+      "x" : 10.324000000000005,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 44,
+      "label" : "\/",
+      "shiftLabel" : "?",
+      "subLabel" : "め",
+      "width" : 0.9380000000000003,
+      "x" : 11.342000000000006,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 94,
+      "label" : "_",
+      "subLabel" : "ろ",
+      "width" : 1,
+      "x" : 12.360000000000007,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 60,
+      "label" : "⇧",
+      "width" : 2.1,
+      "x" : 13.440000000000007,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 57,
+      "label" : "⇪",
+      "width" : 1,
+      "x" : 0,
+      "y" : 5.5
+    },
+    {
+      "height" : 1,
+      "keyCode" : 58,
+      "label" : "⌥",
+      "width" : 1,
+      "x" : 1.08,
+      "y" : 5.5
+    },
+    {
+      "height" : 1,
+      "keyCode" : 55,
+      "label" : "⌘",
+      "width" : 1.2,
+      "x" : 2.16,
+      "y" : 5.5
+    },
+    {
+      "height" : 1,
+      "keyCode" : 102,
+      "label" : "英数",
+      "width" : 1.3,
+      "x" : 3.4400000000000004,
+      "y" : 5.5
+    },
+    {
+      "height" : 1,
+      "keyCode" : 49,
+      "label" : " ",
+      "width" : 4.050000000000001,
+      "x" : 4.82,
+      "y" : 5.5
+    },
+    {
+      "height" : 1,
+      "keyCode" : 104,
+      "label" : "かな",
+      "width" : 1.3,
+      "x" : 8.950000000000001,
+      "y" : 5.5
+    },
+    {
+      "height" : 1,
+      "keyCode" : 54,
+      "label" : "⌘",
+      "width" : 1.2,
+      "x" : 10.330000000000002,
+      "y" : 5.5
+    },
+    {
+      "height" : 1,
+      "keyCode" : 63,
+      "label" : "fn",
+      "width" : 1,
+      "x" : 11.610000000000001,
+      "y" : 5.5
+    },
+    {
+      "height" : 0.45,
+      "keyCode" : 126,
+      "label" : "▲",
+      "width" : 0.9,
+      "x" : 13.63,
+      "y" : 5.5
+    },
+    {
+      "height" : 0.45,
+      "keyCode" : 123,
+      "label" : "◀",
+      "width" : 0.9,
+      "x" : 12.690000000000001,
+      "y" : 6.05
+    },
+    {
+      "height" : 0.45,
+      "keyCode" : 125,
+      "label" : "▼",
+      "width" : 0.9,
+      "x" : 13.63,
+      "y" : 6.05
+    },
+    {
+      "height" : 0.45,
+      "keyCode" : 124,
+      "label" : "▶",
+      "width" : 0.9,
+      "x" : 14.570000000000002,
+      "y" : 6.05
+    }
+  ],
+  "name" : "MacBook JIS"
+}
