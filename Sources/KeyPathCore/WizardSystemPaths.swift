@@ -121,10 +121,11 @@ public enum WizardSystemPaths {
     }
 
     /// All known kanata binary paths for detection/filtering.
-    /// Returns only the bundled path — kept in sync with PermissionOracle.resolveKanataExecutablePath().
+    /// Includes bundled path and legacy system path (kept for migration-period process detection).
     public static func allKnownKanataPaths() -> [String] {
         let runtimeHost = currentRuntimeHost()
-        return [runtimeHost.bundledCorePath].filter {
+        // Legacy path kept for migration-period process detection
+        return [runtimeHost.bundledCorePath, legacySystemBinaryPath].filter {
             FileManager.default.fileExists(atPath: $0)
         }
     }
@@ -239,10 +240,25 @@ public enum WizardSystemPaths {
 
     // MARK: - Helper Methods
 
-    /// Returns the bundled kanata binary path if it exists, nil otherwise.
+    /// Legacy system binary path from pre-bundled installations.
+    /// Kept for migration-period fallback, consistent with PermissionOracle.
+    public static var legacySystemBinaryPath: String {
+        remapSystemPath("/Library/KeyPath/bin/kanata")
+    }
+
+    /// Returns the bundled kanata binary path if it exists, falling back to
+    /// the legacy system path for migration-period consistency with PermissionOracle.
     public static func detectKanataBinaryPath() -> String? {
         if FileManager.default.fileExists(atPath: bundledKanataPath) {
             return bundledKanataPath
+        }
+
+        // Legacy fallback: pre-bundled installations used /Library/KeyPath/bin/kanata
+        if FileManager.default.fileExists(atPath: legacySystemBinaryPath) {
+            AppLogger.shared.warn(
+                "⚠️ [WizardSystemPaths] Using legacy kanata path \(legacySystemBinaryPath) — migrate to bundled binary"
+            )
+            return legacySystemBinaryPath
         }
 
         return nil
