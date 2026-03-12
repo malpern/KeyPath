@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import Observation
 
 /// Tracks learning state for a contextual tip with spaced repetition logic.

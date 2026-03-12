@@ -9,7 +9,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
         VHIDDeviceManager.testPIDProvider = nil
         VHIDDeviceManager.testShellProvider = nil
         VHIDDeviceManager.testInstalledVersionProvider = nil
-        KeyPathAppKit.FeatureFlags.testStartupMode = nil
+        KeyPathCore.FeatureFlags.testStartupMode = nil
     }
 
     // MARK: - Version Mismatch Tests
@@ -84,7 +84,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
 
     func testDetectRunning_StartupMode_DaemonRunning() async {
         // Simulate startup mode active
-        KeyPathAppKit.FeatureFlags.testStartupMode = true
+        KeyPathCore.FeatureFlags.testStartupMode = true
 
         // Mock launchctl list showing daemon is running
         VHIDDeviceManager.testShellProvider = { command in
@@ -111,7 +111,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
 
     func testDetectRunning_StartupMode_DaemonNotRunning() async {
         // Simulate startup mode active
-        KeyPathAppKit.FeatureFlags.testStartupMode = true
+        KeyPathCore.FeatureFlags.testStartupMode = true
 
         // Mock launchctl list showing daemon is NOT running (no PID field)
         VHIDDeviceManager.testShellProvider = { command in
@@ -130,7 +130,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
 
     func testEvaluateDaemonProcess_StartupMode_UsesFastCheck() async {
         // Simulate startup mode active
-        KeyPathAppKit.FeatureFlags.testStartupMode = true
+        KeyPathCore.FeatureFlags.testStartupMode = true
 
         var launchctlCalled = false
         VHIDDeviceManager.testShellProvider = { command in
@@ -153,7 +153,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
 
     func testDetectRunning_NormalMode_BypassesFastCheck() async {
         // Normal mode (startup mode not active)
-        KeyPathAppKit.FeatureFlags.testStartupMode = false
+        KeyPathCore.FeatureFlags.testStartupMode = false
 
         // Provide PID via normal test seam
         VHIDDeviceManager.testPIDProvider = { ["12345"] }
@@ -172,7 +172,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
 
     func testGetDaemonPIDs_StartupMode_ReturnsEmpty() async {
         // Simulate startup mode active
-        KeyPathAppKit.FeatureFlags.testStartupMode = true
+        KeyPathCore.FeatureFlags.testStartupMode = true
 
         // Verify PID collection is skipped in startup mode
         VHIDDeviceManager.testPIDProvider = { ["should", "not", "be", "called"] }
@@ -187,7 +187,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
         // This test verifies the fix for the race condition that caused wizard false positives
         // When startup mode is active, we should get consistent results from rapid health checks
 
-        KeyPathAppKit.FeatureFlags.testStartupMode = true
+        KeyPathCore.FeatureFlags.testStartupMode = true
         VHIDDeviceManager.testShellProvider = { command in
             if command.contains("launchctl list") {
                 return """
