@@ -1,0 +1,638 @@
+{
+  "id" : "macbook-iso",
+  "keys" : [
+    {
+      "height" : 1,
+      "keyCode" : 53,
+      "label" : "esc",
+      "width" : 1.5,
+      "x" : 0,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 122,
+      "label" : "F1",
+      "width" : 1,
+      "x" : 1.58,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 120,
+      "label" : "F2",
+      "width" : 1,
+      "x" : 2.66,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 99,
+      "label" : "F3",
+      "width" : 1,
+      "x" : 3.74,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 118,
+      "label" : "F4",
+      "width" : 1,
+      "x" : 4.82,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 96,
+      "label" : "F5",
+      "width" : 1,
+      "x" : 5.9,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 97,
+      "label" : "F6",
+      "width" : 1,
+      "x" : 6.98,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 98,
+      "label" : "F7",
+      "width" : 1,
+      "x" : 8.06,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 100,
+      "label" : "F8",
+      "width" : 1,
+      "x" : 9.14,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 101,
+      "label" : "F9",
+      "width" : 1,
+      "x" : 10.22,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 109,
+      "label" : "F10",
+      "width" : 1,
+      "x" : 11.3,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 103,
+      "label" : "F11",
+      "width" : 1,
+      "x" : 12.38,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 111,
+      "label" : "F12",
+      "width" : 1,
+      "x" : 13.46,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 65535,
+      "label" : "🔒",
+      "width" : 1,
+      "x" : 14.540000000000001,
+      "y" : 0
+    },
+    {
+      "height" : 1,
+      "keyCode" : 50,
+      "label" : "`",
+      "width" : 1,
+      "x" : 0,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 18,
+      "label" : "1",
+      "width" : 1,
+      "x" : 1.08,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 19,
+      "label" : "2",
+      "width" : 1,
+      "x" : 2.16,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 20,
+      "label" : "3",
+      "width" : 1,
+      "x" : 3.24,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 21,
+      "label" : "4",
+      "width" : 1,
+      "x" : 4.32,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 23,
+      "label" : "5",
+      "width" : 1,
+      "x" : 5.4,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 22,
+      "label" : "6",
+      "width" : 1,
+      "x" : 6.48,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 26,
+      "label" : "7",
+      "width" : 1,
+      "x" : 7.5600000000000005,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 28,
+      "label" : "8",
+      "width" : 1,
+      "x" : 8.64,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 25,
+      "label" : "9",
+      "width" : 1,
+      "x" : 9.72,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 29,
+      "label" : "0",
+      "width" : 1,
+      "x" : 10.8,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 27,
+      "label" : "-",
+      "width" : 1,
+      "x" : 11.88,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 24,
+      "label" : "=",
+      "width" : 1,
+      "x" : 12.96,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 51,
+      "label" : "⌫",
+      "width" : 1.5,
+      "x" : 14.040000000000001,
+      "y" : 1.1
+    },
+    {
+      "height" : 1,
+      "keyCode" : 48,
+      "label" : "⇥",
+      "width" : 1.5,
+      "x" : 0,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 12,
+      "label" : "q",
+      "width" : 1,
+      "x" : 1.58,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 13,
+      "label" : "w",
+      "width" : 1,
+      "x" : 2.66,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 14,
+      "label" : "e",
+      "width" : 1,
+      "x" : 3.74,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 15,
+      "label" : "r",
+      "width" : 1,
+      "x" : 4.82,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 17,
+      "label" : "t",
+      "width" : 1,
+      "x" : 5.9,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 16,
+      "label" : "y",
+      "width" : 1,
+      "x" : 6.98,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 32,
+      "label" : "u",
+      "width" : 1,
+      "x" : 8.06,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 34,
+      "label" : "i",
+      "width" : 1,
+      "x" : 9.14,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 31,
+      "label" : "o",
+      "width" : 1,
+      "x" : 10.22,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 35,
+      "label" : "p",
+      "width" : 1,
+      "x" : 11.3,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 33,
+      "label" : "[",
+      "width" : 1,
+      "x" : 12.38,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 30,
+      "label" : "]",
+      "width" : 1,
+      "x" : 13.46,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 42,
+      "label" : "\\",
+      "width" : 1,
+      "x" : 14.540000000000001,
+      "y" : 2.2
+    },
+    {
+      "height" : 1,
+      "keyCode" : 57,
+      "label" : "⇪",
+      "width" : 1.8,
+      "x" : 0,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 0,
+      "label" : "a",
+      "width" : 1,
+      "x" : 1.8800000000000001,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 1,
+      "label" : "s",
+      "width" : 1,
+      "x" : 2.96,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 2,
+      "label" : "d",
+      "width" : 1,
+      "x" : 4.04,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 3,
+      "label" : "f",
+      "width" : 1,
+      "x" : 5.12,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 5,
+      "label" : "g",
+      "width" : 1,
+      "x" : 6.2,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 4,
+      "label" : "h",
+      "width" : 1,
+      "x" : 7.28,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 38,
+      "label" : "j",
+      "width" : 1,
+      "x" : 8.36,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 40,
+      "label" : "k",
+      "width" : 1,
+      "x" : 9.44,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 37,
+      "label" : "l",
+      "width" : 1,
+      "x" : 10.52,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 41,
+      "label" : ";",
+      "width" : 1,
+      "x" : 11.6,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 39,
+      "label" : "'",
+      "width" : 1,
+      "x" : 12.68,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 36,
+      "label" : "↩",
+      "width" : 1.7799999999999994,
+      "x" : 13.76,
+      "y" : 3.3000000000000003
+    },
+    {
+      "height" : 1,
+      "keyCode" : 56,
+      "label" : "⇧",
+      "width" : 1.27,
+      "x" : 0,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 10,
+      "label" : "§",
+      "width" : 1,
+      "x" : 1.35,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 6,
+      "label" : "z",
+      "width" : 1,
+      "x" : 2.43,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 7,
+      "label" : "x",
+      "width" : 1,
+      "x" : 3.5100000000000002,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 8,
+      "label" : "c",
+      "width" : 1,
+      "x" : 4.59,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 9,
+      "label" : "v",
+      "width" : 1,
+      "x" : 5.67,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 11,
+      "label" : "b",
+      "width" : 1,
+      "x" : 6.75,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 45,
+      "label" : "n",
+      "width" : 1,
+      "x" : 7.83,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 46,
+      "label" : "m",
+      "width" : 1,
+      "x" : 8.91,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 43,
+      "label" : ",",
+      "width" : 1,
+      "x" : 9.99,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 47,
+      "label" : ".",
+      "width" : 1,
+      "x" : 11.07,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 44,
+      "label" : "\/",
+      "width" : 1,
+      "x" : 12.15,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 60,
+      "label" : "⇧",
+      "width" : 2.27,
+      "x" : 13.23,
+      "y" : 4.4
+    },
+    {
+      "height" : 1,
+      "keyCode" : 63,
+      "label" : "fn",
+      "width" : 1,
+      "x" : 0,
+      "y" : 5.5
+    },
+    {
+      "height" : 1,
+      "keyCode" : 59,
+      "label" : "⌃",
+      "width" : 1,
+      "x" : 1.08,
+      "y" : 5.5
+    },
+    {
+      "height" : 1,
+      "keyCode" : 58,
+      "label" : "⌥",
+      "width" : 1,
+      "x" : 2.16,
+      "y" : 5.5
+    },
+    {
+      "height" : 1,
+      "keyCode" : 55,
+      "label" : "⌘",
+      "width" : 1.35,
+      "x" : 3.24,
+      "y" : 5.5
+    },
+    {
+      "height" : 1,
+      "keyCode" : 49,
+      "label" : " ",
+      "width" : 5.4300000000000015,
+      "x" : 4.67,
+      "y" : 5.5
+    },
+    {
+      "height" : 1,
+      "keyCode" : 54,
+      "label" : "⌘",
+      "width" : 1.35,
+      "x" : 10.180000000000001,
+      "y" : 5.5
+    },
+    {
+      "height" : 1,
+      "keyCode" : 61,
+      "label" : "⌥",
+      "width" : 1,
+      "x" : 11.610000000000001,
+      "y" : 5.5
+    },
+    {
+      "height" : 0.45,
+      "keyCode" : 126,
+      "label" : "▲",
+      "width" : 0.9,
+      "x" : 13.63,
+      "y" : 5.5
+    },
+    {
+      "height" : 0.45,
+      "keyCode" : 123,
+      "label" : "◀",
+      "width" : 0.9,
+      "x" : 12.690000000000001,
+      "y" : 6.05
+    },
+    {
+      "height" : 0.45,
+      "keyCode" : 125,
+      "label" : "▼",
+      "width" : 0.9,
+      "x" : 13.63,
+      "y" : 6.05
+    },
+    {
+      "height" : 0.45,
+      "keyCode" : 124,
+      "label" : "▶",
+      "width" : 0.9,
+      "x" : 14.570000000000002,
+      "y" : 6.05
+    }
+  ],
+  "name" : "MacBook ISO"
+}
