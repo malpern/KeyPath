@@ -29,6 +29,8 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-029](adr-029-eliminate-fake-key-layer-notifications.md) | Eliminate Fake Key Layer Notifications via Native LayerChange | Proposed |
 | [ADR-030](adr-030-insights-companion-app.md) | Separate Activity Logging and AI Features into KeyPath Insights Companion App | Accepted |
 | [ADR-031](adr-031-kanata-service-lifecycle-invariants-and-postcondition-enforcement.md) | Kanata Service Lifecycle Invariants and Postcondition Enforcement | Accepted |
+| [ADR-034](adr-034-kanata-engine-app-bundle-tcc-identity.md) | KanataEngine.app Bundle for TCC Identity | Accepted |
+| [ADR-035](adr-035-bundle-id-tcc-detection-with-path-fallback.md) | Bundle ID TCC Detection with Path Fallback | Accepted |
 
 ## Key Decisions Summary
 
