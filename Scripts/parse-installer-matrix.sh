@@ -98,6 +98,13 @@ if [ "$log_total" -gt 10 ] && [ "$total_parsed" -eq 0 ]; then
   echo "ERROR: Log contains $log_total test results but matrix parser matched 0."
   echo "The xctest output format may have changed — review grep patterns in this script."
   exit 1
+elif [ "$log_total" -gt 10 ] && [ "$total_parsed" -gt 0 ]; then
+  # Warn if parser matched less than half of total tests — likely partial format drift
+  threshold=$((log_total / 2))
+  if [ "$total_parsed" -lt "$threshold" ]; then
+    echo "WARNING: Parser matched $total_parsed of $log_total test results (<50%)."
+    echo "Some xctest output may not match expected format — review grep patterns."
+  fi
 fi
 
 # Count failures
