@@ -199,15 +199,15 @@ When work begins on an item, update status here:
 
 | # | Item | Status | PR |
 |---|------|--------|----|
-| 1 | Singleton reduction / DI | Not started | — |
-| 2 | App.swift decomposition | Not started | — |
+| 1 | Singleton reduction / DI | Done | #232 |
+| 2 | App.swift decomposition | In review | #242 |
 | 3 | KeyPathAppKit modularization | Not started | — |
 | 4 | Large file decomposition | Not started | — |
-| 5 | Layout data → JSON | Not started | — |
-| 6 | Combine → @Observable | Not started | — |
-| 7 | AnyView removal | Not started | — |
-| 8 | Duplicate FeatureFlags | Not started | — |
-| 9 | UI/ directory cleanup | Not started | — |
-| 10 | Services/ directory cleanup | Not started | — |
-| 11 | RuntimeCoordinator decomposition | Not started | — |
-| 12 | Launcher main.swift cleanup | Not started | — |
+| 5 | Layout data → JSON | Done | #240 |
+| 6 | Combine → @Observable | Done | #236 |
+| 7 | AnyView removal | Done | #235 |
+| 8 | Duplicate FeatureFlags | Done | #234 |
+| 9 | UI/ directory cleanup | Done | #237 |
+| 10 | Services/ directory cleanup | Done | #238 |
+| 11 | RuntimeCoordinator decomposition | Done | #241 |
+| 12 | Launcher main.swift cleanup | Done | #239 |
