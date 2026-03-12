@@ -7,21 +7,45 @@ struct DeviceSelection: Codable, Sendable {
     let productKey: String
     var isEnabled: Bool
     var lastSeen: Date
+
+    /// Cleaned-up product name for display, matching `ConnectedDevice.displayName`.
+    var displayName: String {
+        productKey
+            .replacingOccurrences(of: " / Trackpad", with: "")
+            .replacingOccurrences(of: "Karabiner-DriverKit-VirtualHIDDevice-", with: "")
+            .trimmingCharacters(in: .whitespaces)
+    }
 }
 
-/// Thread-safe synchronous cache for device selections, used by the config generator.
-/// The generator runs synchronously and cannot await actor methods, so it reads from this cache.
+/// Thread-safe synchronous cache for device selections and connected devices,
+/// used by the config generator. The generator runs synchronously and cannot
+/// await actor methods, so it reads from this cache.
 final class DeviceSelectionCache: @unchecked Sendable {
     static let shared = DeviceSelectionCache()
 
     private let lock = NSLock()
     private var selections: [String: DeviceSelection] = [:]
+    private var connectedDevices: [ConnectedDevice] = []
 
     /// Update the cache with the latest selections from the store.
     func update(_ newSelections: [DeviceSelection]) {
         lock.lock()
         defer { lock.unlock() }
         selections = Dictionary(newSelections.map { ($0.hash, $0) }, uniquingKeysWith: { _, new in new })
+    }
+
+    /// Update the cached connected device list (from kanata --list).
+    func updateConnectedDevices(_ devices: [ConnectedDevice]) {
+        lock.lock()
+        defer { lock.unlock() }
+        connectedDevices = devices
+    }
+
+    /// Get the cached connected devices. Returns empty if never populated.
+    func getConnectedDevices() -> [ConnectedDevice] {
+        lock.lock()
+        defer { lock.unlock() }
+        return connectedDevices
     }
 
     /// Check if a device hash is enabled. Devices not in the cache default to enabled.
@@ -36,6 +60,14 @@ final class DeviceSelectionCache: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return Array(selections.values)
+    }
+
+    /// Reset all cached state. Used in tests to avoid pollution.
+    func reset() {
+        lock.lock()
+        defer { lock.unlock() }
+        selections = [:]
+        connectedDevices = []
     }
 }
 

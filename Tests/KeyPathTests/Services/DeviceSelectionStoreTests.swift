@@ -12,6 +12,8 @@ final class DeviceSelectionStoreTests: XCTestCase {
 
     override func tearDown() async throws {
         try? FileManager.default.removeItem(at: tempDir)
+        // Reset shared cache to avoid polluting other tests
+        DeviceSelectionCache.shared.reset()
     }
 
     func testSaveAndLoadRoundTrip() async throws {
@@ -77,5 +79,38 @@ final class DeviceSelectionStoreTests: XCTestCase {
 
         // The shared cache should reflect the saved state
         XCTAssertFalse(DeviceSelectionCache.shared.isEnabled(hash: "0xTEST"))
+    }
+
+    func testCacheConnectedDevicesRoundTrip() {
+        let cache = DeviceSelectionCache()
+        XCTAssertTrue(cache.getConnectedDevices().isEmpty)
+
+        let devices = [
+            ConnectedDevice(hash: "0x1", vendorID: 1, productID: 2, productKey: "KB", isVirtualHID: false),
+        ]
+        cache.updateConnectedDevices(devices)
+        XCTAssertEqual(cache.getConnectedDevices().count, 1)
+        XCTAssertEqual(cache.getConnectedDevices().first?.hash, "0x1")
+    }
+
+    func testCacheResetClearsAll() {
+        let cache = DeviceSelectionCache()
+        cache.update([DeviceSelection(hash: "0xAA", productKey: "A", isEnabled: false, lastSeen: Date())])
+        cache.updateConnectedDevices([ConnectedDevice(hash: "0x1", vendorID: 1, productID: 2, productKey: "KB", isVirtualHID: false)])
+
+        cache.reset()
+
+        XCTAssertTrue(cache.isEnabled(hash: "0xAA")) // Defaults to true after reset
+        XCTAssertTrue(cache.getConnectedDevices().isEmpty)
+    }
+
+    func testDeviceSelectionDisplayName() {
+        let selection = DeviceSelection(
+            hash: "0x1",
+            productKey: "Apple Internal Keyboard / Trackpad",
+            isEnabled: true,
+            lastSeen: Date()
+        )
+        XCTAssertEqual(selection.displayName, "Apple Internal Keyboard")
     }
 }

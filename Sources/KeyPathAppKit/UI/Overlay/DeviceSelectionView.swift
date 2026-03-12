@@ -10,12 +10,8 @@ struct DeviceSelectionView: View {
     @State private var selections: [String: DeviceSelection] = [:]
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var isDirty = false
+    @State private var needsRestart = false
     @State private var isRestarting = false
-
-    private var isDark: Bool {
-        colorScheme == .dark
-    }
 
     /// Physical (non-VirtualHID) devices currently connected.
     private var physicalConnected: [ConnectedDevice] {
@@ -97,9 +93,7 @@ struct DeviceSelectionView: View {
 
                 ForEach(disconnectedSelections, id: \.hash) { selection in
                     DeviceRow(
-                        displayName: selection.productKey
-                            .replacingOccurrences(of: " / Trackpad", with: "")
-                            .trimmingCharacters(in: .whitespaces),
+                        displayName: selection.displayName,
                         detail: "disconnected",
                         isEnabled: selection.isEnabled,
                         isConnected: false,
@@ -124,7 +118,7 @@ struct DeviceSelectionView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if isDirty {
+            if needsRestart {
                 Button(action: applyChanges) {
                     if isRestarting {
                         ProgressView()
@@ -167,7 +161,10 @@ struct DeviceSelectionView: View {
         defer { isLoading = false }
 
         #if os(macOS)
-            let devices = DeviceEnumerationService.enumerateConnectedDevices()
+            // Dispatch device enumeration off the main thread to avoid blocking UI
+            let devices = await Task.detached(priority: .userInitiated) {
+                DeviceEnumerationService.enumerateConnectedDevices()
+            }.value
             if devices.isEmpty {
                 errorMessage = "Kanata binary not found or returned no devices."
                 return
@@ -224,19 +221,23 @@ struct DeviceSelectionView: View {
                 lastSeen: Date()
             )
         }
-        isDirty = true
+        needsRestart = true
+
+        // Persist immediately so selections survive tab navigation
+        Task {
+            do {
+                try await DeviceSelectionStore.shared.saveSelections(Array(selections.values))
+            } catch {
+                AppLogger.shared.warn("⚠️ [DeviceSelectionView] Failed to persist toggle: \(error)")
+            }
+        }
     }
 
     private func applyChanges() {
         isRestarting = true
         Task {
-            do {
-                try await DeviceSelectionStore.shared.saveSelections(Array(selections.values))
-                NotificationCenter.default.post(name: .deviceSelectionChanged, object: nil)
-                isDirty = false
-            } catch {
-                AppLogger.shared.warn("⚠️ [DeviceSelectionView] Failed to save selections: \(error)")
-            }
+            NotificationCenter.default.post(name: .deviceSelectionChanged, object: nil)
+            needsRestart = false
             isRestarting = false
         }
     }

@@ -84,6 +84,8 @@ enum DeviceEnumerationService {
 
                 let devices = parseAllDevices(fromKanataList: output)
                 AppLogger.shared.log("🔌 [DeviceEnumeration] Found \(devices.count) device(s): \(devices.map(\.displayName).joined(separator: ", "))")
+                // Cache for synchronous config generator reads
+                DeviceSelectionCache.shared.updateConnectedDevices(devices)
                 return devices
             } catch {
                 AppLogger.shared.warn("⚠️ [DeviceEnumeration] Failed to run kanata --list: \(error)")

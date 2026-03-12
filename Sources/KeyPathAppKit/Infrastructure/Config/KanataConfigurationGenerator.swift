@@ -92,7 +92,7 @@ public struct KanataConfiguration: Sendable {
         let blocks = deduplicateBlocks(rawBlocks)
         let enabledNames = enabledCollections.map(\.name).joined(separator: ", ")
 
-        let macosDeviceExclusions = renderMacOSDeviceTargetingForDefcfg()
+        let macosDeviceTargeting = renderMacOSDeviceTargetingForDefcfg()
         var defcfgLines = [
             "  process-unmapped-keys yes",
             "  danger-enable-cmd yes"
@@ -105,7 +105,7 @@ public struct KanataConfiguration: Sendable {
             + ";; Enabled: \(enabledNames.isEmpty ? "none" : enabledNames)\n\n"
             + "(defcfg\n"
             + defcfgBody
-            + macosDeviceExclusions
+            + macosDeviceTargeting
             + "\n)"
 
         let safetyNotes = """
@@ -200,14 +200,20 @@ public struct KanataConfiguration: Sendable {
     /// plus `macos-dev-names-exclude` for VirtualHID devices.
     private static func renderMacOSDeviceTargetingForDefcfg() -> String {
         #if os(macOS)
-            let allDevices = DeviceEnumerationService.enumerateConnectedDevices()
+            let cache = DeviceSelectionCache.shared
+
+            // Use cached device list (populated at startup and when Devices tab opens).
+            // Fall back to live enumeration if cache is empty (first launch before Devices tab).
+            var allDevices = cache.getConnectedDevices()
+            if allDevices.isEmpty {
+                allDevices = DeviceEnumerationService.enumerateConnectedDevices()
+            }
             guard !allDevices.isEmpty else { return "" }
 
             let virtualHIDDevices = allDevices.filter(\.isVirtualHID)
             let physicalDevices = allDevices.filter { !$0.isVirtualHID }
 
             // Check which physical devices are disabled via user selection
-            let cache = DeviceSelectionCache.shared
             let disabledPhysical = physicalDevices.filter { !cache.isEnabled(hash: $0.hash) }
             let enabledPhysical = physicalDevices.filter { cache.isEnabled(hash: $0.hash) }
 
@@ -241,6 +247,16 @@ public struct KanataConfiguration: Sendable {
                       ;; Only remap selected keyboards (user device selection).
                       macos-dev-names-include (
                     \(renderedInclude)
+                      )
+                    """
+                } else {
+                    // All physical devices disabled — emit include with impossible name
+                    // so Kanata grabs nothing. The UI warns the user about this state.
+                    result += """
+
+                      ;; All keyboards disabled by user — remap nothing.
+                      macos-dev-names-include (
+                        "__keypath_no_devices__"
                       )
                     """
                 }
