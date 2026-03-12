@@ -638,7 +638,7 @@ class HelperService: NSObject, HelperProtocol {
 
     private static func bootstrapOutputBridgeCompanion(destination: String) throws {
         var lastOutput = ""
-        for attempt in 0..<5 {
+        for attempt in 0 ..< 5 {
             if attempt > 0 {
                 usleep(useconds_t(200_000 * attempt))
             }
@@ -798,132 +798,6 @@ class HelperService: NSObject, HelperProtocol {
     }
 
     // Note: executeCommand removed for security. Use explicit operations only.
-
-    // MARK: - Bundled Kanata Installation
-
-    func installBundledKanataBinaryOnly(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] installBundledKanataBinaryOnly requested")
-        executePrivilegedOperation(
-            name: "installBundledKanataBinaryOnly",
-            operation: {
-                let appBundle = Self.appBundlePathFromHelper()
-                let bundledKanata = (appBundle as NSString).appendingPathComponent(
-                    "Contents/Library/KeyPath/kanata"
-                )
-
-                guard FileManager.default.fileExists(atPath: bundledKanata) else {
-                    throw HelperError.invalidArgument("Bundled kanata not found at: \(bundledKanata)")
-                }
-
-                let expectedPrefix = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/")
-                guard bundledKanata.hasPrefix(expectedPrefix) else {
-                    throw HelperError.invalidArgument(
-                        "Bundled kanata path is outside expected app bundle location"
-                    )
-                }
-
-                guard Self.verifyCodeSignatureStrict(path: appBundle) else {
-                    throw HelperError.operationFailed("App bundle signature verification failed")
-                }
-                guard Self.verifyCodeSignatureStrict(path: bundledKanata) else {
-                    throw HelperError.operationFailed("Bundled kanata signature verification failed")
-                }
-
-                guard let appTeamID = Self.teamIdentifier(for: appBundle) else {
-                    throw HelperError.operationFailed("Could not determine app TeamIdentifier")
-                }
-                guard let bundledTeamID = Self.teamIdentifier(for: bundledKanata) else {
-                    throw HelperError.operationFailed("Could not determine bundled kanata TeamIdentifier")
-                }
-                guard appTeamID == bundledTeamID else {
-                    throw HelperError.operationFailed(
-                        "TeamIdentifier mismatch (app=\(appTeamID), kanata=\(bundledTeamID))"
-                    )
-                }
-
-                let systemKanataDir = "/Library/KeyPath/bin"
-                let systemKanataPath = "\(systemKanataDir)/kanata"
-                let tempPath = "\(systemKanataDir)/.kanata.new.\(getpid())"
-                let backupPath = "\(systemKanataDir)/.kanata.backup.\(getpid())"
-                var hadBackup = false
-
-                @discardableResult
-                func rollbackIfNeeded() -> Bool {
-                    _ = Self.run("/bin/rm", ["-f", tempPath])
-                    if hadBackup, FileManager.default.fileExists(atPath: backupPath) {
-                        _ = Self.run("/bin/rm", ["-f", systemKanataPath])
-                        let restore = Self.run("/bin/mv", ["-f", backupPath, systemKanataPath])
-                        return restore.status == 0
-                    }
-                    return true
-                }
-
-                let mkdirResult = Self.run("/bin/mkdir", ["-p", systemKanataDir])
-                guard mkdirResult.status == 0 else {
-                    throw HelperError.operationFailed(
-                        "Failed to create system kanata directory: \(mkdirResult.out)"
-                    )
-                }
-                _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataDir])
-                _ = Self.run("/bin/chmod", ["755", systemKanataDir])
-
-                let installResult = Self.run(
-                    "/usr/bin/install",
-                    ["-o", "root", "-g", "wheel", "-m", "755", bundledKanata, tempPath]
-                )
-                guard installResult.status == 0 else {
-                    throw HelperError.operationFailed("Failed to stage kanata binary: \(installResult.out)")
-                }
-
-                _ = Self.run("/usr/bin/xattr", ["-d", "com.apple.quarantine", tempPath])
-                guard Self.verifyCodeSignatureStrict(path: tempPath) else {
-                    _ = rollbackIfNeeded()
-                    throw HelperError.operationFailed("Staged kanata signature verification failed")
-                }
-
-                _ = Self.run("/bin/launchctl", ["bootout", "system/\(Self.kanataServiceID)"])
-                _ = Self.run("/usr/bin/pkill", ["-f", "kanata.*--cfg"])
-
-                if FileManager.default.fileExists(atPath: systemKanataPath) {
-                    let backupMove = Self.run("/bin/mv", ["-f", systemKanataPath, backupPath])
-                    guard backupMove.status == 0 else {
-                        _ = Self.run("/bin/rm", ["-f", tempPath])
-                        throw HelperError.operationFailed(
-                            "Failed to create backup of current kanata binary: \(backupMove.out)"
-                        )
-                    }
-                    hadBackup = true
-                }
-
-                let promoteResult = Self.run("/bin/mv", ["-f", tempPath, systemKanataPath])
-                guard promoteResult.status == 0 else {
-                    _ = rollbackIfNeeded()
-                    throw HelperError.operationFailed(
-                        "Failed to promote staged kanata binary: \(promoteResult.out)"
-                    )
-                }
-
-                guard Self.verifyCodeSignatureStrict(path: systemKanataPath) else {
-                    _ = rollbackIfNeeded()
-                    throw HelperError.operationFailed("Installed kanata signature verification failed")
-                }
-
-                guard Self.teamIdentifier(for: systemKanataPath) == appTeamID else {
-                    _ = rollbackIfNeeded()
-                    throw HelperError.operationFailed("Installed kanata TeamIdentifier mismatch")
-                }
-
-                let smoke = Self.run(systemKanataPath, ["--version"])
-                guard smoke.status == 0 else {
-                    _ = rollbackIfNeeded()
-                    throw HelperError.operationFailed("Installed kanata failed smoke test: \(smoke.out)")
-                }
-
-                _ = Self.run("/bin/rm", ["-f", backupPath])
-            },
-            reply: reply
-        )
-    }
 
     // MARK: - Uninstall Operations
 

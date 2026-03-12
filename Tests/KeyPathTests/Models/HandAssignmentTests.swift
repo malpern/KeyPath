@@ -155,7 +155,7 @@ final class HandAssignmentTests: XCTestCase {
     func testHomeRowModsConfig_EncodesOnlyNewKey() throws {
         let config = HomeRowModsConfig(oppositeHandActivation: true)
         let data = try JSONEncoder().encode(config)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         XCTAssertNotNil(json["oppositeHandActivation"], "Should encode oppositeHandActivation")
         XCTAssertNil(json["splitHandDetection"], "Should not encode legacy splitHandDetection")
     }

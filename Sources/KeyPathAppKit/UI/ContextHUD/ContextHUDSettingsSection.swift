@@ -129,7 +129,6 @@ struct ContextHUDSettingsSection: View {
                             .accessibilityLabel("Custom Shortcut List hold delay in milliseconds")
                         }
                     }
-
                 }
                 .padding(.top, 2)
             }

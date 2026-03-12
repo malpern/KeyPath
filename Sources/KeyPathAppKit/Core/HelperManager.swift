@@ -20,7 +20,7 @@ actor HelperManager {
 
     // Allows unit tests to inject a fake SMAppService and simulate states like `.notFound`.
     // Default implementation wraps Apple's `SMAppService`.
-#if DEBUG
+    #if DEBUG
         nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
             NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
         }
@@ -30,7 +30,7 @@ actor HelperManager {
         nonisolated(unsafe) static var subprocessRunnerFactory: () -> SubprocessRunning = {
             SubprocessRunner.shared
         }
-#else
+    #else
         nonisolated(unsafe) static let smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
             NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
         }

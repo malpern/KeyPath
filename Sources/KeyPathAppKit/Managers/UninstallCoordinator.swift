@@ -159,7 +159,7 @@ final class UninstallCoordinator {
         logLines.append("🧪 Resetting for fresh install testing...")
 
         let bundleId = "com.keypath.KeyPath"
-        let kanataBinary = "/Library/KeyPath/bin/kanata"
+        let kanataBinary = WizardSystemPaths.bundledKanataPath
 
         // Reset TCC permissions (these don't require admin)
         let tccResets: [(service: String, target: String)] = [

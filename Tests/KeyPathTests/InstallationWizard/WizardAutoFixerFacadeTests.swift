@@ -22,11 +22,9 @@ final class WizardAutoFixerFacadeTests: XCTestCase {
             .createConfigDirectories,
             .activateVHIDDeviceManager,
             .installRequiredRuntimeServices,
-            .installBundledKanata,
             .repairVHIDDaemonServices,
             .synchronizeConfigPaths,
             .installLogRotation,
-            .replaceKanataWithBundled,
             .enableTCPServer,
             .setupTCPAuthentication,
             .regenerateCommServiceConfiguration,
@@ -50,10 +48,10 @@ final class WizardAutoFixerFacadeTests: XCTestCase {
             installerEngine: failingEngine
         )
 
-        let success = await fixer.performAutoFix(.installBundledKanata)
+        let success = await fixer.performAutoFix(.installMissingComponents)
 
         XCTAssertFalse(success, "Should surface failure from InstallerEngine")
-        XCTAssertEqual(failingEngine.actions, [.installBundledKanata])
+        XCTAssertEqual(failingEngine.actions, [.installMissingComponents])
     }
 }
 

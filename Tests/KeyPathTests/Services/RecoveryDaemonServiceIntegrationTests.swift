@@ -106,5 +106,4 @@ final class RecoveryDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
             XCTFail("Expected .failed state after PID + TCP both fail, got: \(lastStatus)")
         }
     }
-
 }

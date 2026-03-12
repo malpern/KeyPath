@@ -1346,7 +1346,7 @@ class ConfigurationServiceTests: XCTestCase {
 
         try process.run()
         while process.isRunning {
-            usleep(1_000)
+            usleep(1000)
         }
 
         let outputData = try outputPipe.fileHandleForReading.readToEnd() ?? Data()

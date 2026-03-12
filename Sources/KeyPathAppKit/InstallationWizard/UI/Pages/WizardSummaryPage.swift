@@ -77,7 +77,7 @@ struct WizardSummaryPage: View {
                     headerMode = isEverythingComplete ? .success : .issues
                 }
                 // Auto-navigate when there's exactly 1 issue (skip single-item list)
-                if !isEverythingComplete && !showAllItems {
+                if !isEverythingComplete, !showAllItems {
                     if navSequence.count == 1, let page = navSequence.first {
                         // navSequence already populated — navigate immediately
                         onNavigateToPage?(page)
@@ -408,8 +408,7 @@ struct WizardSummaryPage: View {
         let hasKanataIssues = issues.contains { issue in
             if issue.category == .installation {
                 switch issue.identifier {
-                case .component(.kanataBinaryMissing),
-                     .component(.keyPathRuntime):
+                case .component(.keyPathRuntime):
                     return true
                 default:
                     return false

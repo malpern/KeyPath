@@ -7,7 +7,7 @@ import ServiceManagement
 enum RecoveryDaemonServiceError: LocalizedError, Equatable {
     case stopFailed(reason: String)
 
-    public var errorDescription: String? {
+    var errorDescription: String? {
         switch self {
         case let .stopFailed(reason):
             "Failed to stop Kanata service: \(reason)"
@@ -30,11 +30,11 @@ final class RecoveryDaemonService {
     }
 
     // Factory used to create SMAppService instances (test seam)
-#if DEBUG
+    #if DEBUG
         nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
             NativeSMAppService(wrapped: SMAppService.daemon(plistName: plistName))
         }
-#else
+    #else
         nonisolated(unsafe) static let smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
             NativeSMAppService(wrapped: SMAppService.daemon(plistName: plistName))
         }
@@ -180,6 +180,7 @@ final class RecoveryDaemonService {
         try await stop()
         return true
     }
+
     /// Force a status refresh (useful for UI pull-to-refresh)
     @discardableResult
     func refreshStatus() async -> ServiceState {
@@ -319,5 +320,4 @@ final class RecoveryDaemonService {
             "💥 [CrashLog] Logged service failure: \(oldState.description) -> failed(\(reason))"
         )
     }
-
 }

@@ -89,7 +89,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
     // MARK: - JSON Parsing
 
-    func testEmptyJSONThrows() async {
+    func testEmptyJSONThrows() {
         let data = "{}".data(using: .utf8)!
         do {
             _ = try service.convert(data: data, profileIndex: nil)
@@ -107,11 +107,11 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
     }
 
-    func testEmptyProfilesThrows() async {
+    func testEmptyProfilesThrows() throws {
         let json = """
         { "profiles": [] }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         do {
             _ = try service.convert(data: data, profileIndex: nil)
             XCTFail("Should throw for empty profiles")
@@ -124,11 +124,11 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
     }
 
-    func testProfileIndexOutOfRange() async {
+    func testProfileIndexOutOfRange() throws {
         let json = """
         { "profiles": [{ "name": "Default", "simple_modifications": [] }] }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         do {
             _ = try service.convert(data: data, profileIndex: 5)
             XCTFail("Should throw for out-of-range index")
@@ -150,7 +150,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             ]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let profiles = try service.getProfiles(from: data)
         XCTAssertEqual(profiles.count, 2)
         XCTAssertEqual(profiles[0].name, "Default")
@@ -161,7 +161,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
     // MARK: - Simple Modifications
 
-    func testSimpleModificationConversion() async throws {
+    func testSimpleModificationConversion() throws {
         let json = """
         {
             "profiles": [{
@@ -175,7 +175,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             }]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.collections.count, 1)
@@ -185,7 +185,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         XCTAssertEqual(result.collections[0].mappings[0].output, "esc")
     }
 
-    func testMultipleSimpleModifications() async throws {
+    func testMultipleSimpleModifications() throws {
         let json = """
         {
             "profiles": [{
@@ -203,7 +203,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             }]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.collections.count, 1)
@@ -212,7 +212,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
     // MARK: - Complex Modifications - Simple Remap
 
-    func testComplexSimpleRemap() async throws {
+    func testComplexSimpleRemap() throws {
         let json = """
         {
             "profiles": [{
@@ -233,7 +233,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             }]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.collections.count, 1)
@@ -245,7 +245,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
     // MARK: - Dual Role
 
-    func testDualRoleConversion() async throws {
+    func testDualRoleConversion() throws {
         let json = """
         {
             "profiles": [{
@@ -264,7 +264,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             }]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.collections.count, 1)
@@ -281,7 +281,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
     // MARK: - Chord (Simultaneous)
 
-    func testChordConversion() async throws {
+    func testChordConversion() throws {
         let json = """
         {
             "profiles": [{
@@ -302,7 +302,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             }]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.collections.count, 1)
@@ -319,7 +319,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
     // MARK: - Macro (Multi-key To)
 
-    func testMacroConversion() async throws {
+    func testMacroConversion() throws {
         let json = """
         {
             "profiles": [{
@@ -343,7 +343,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             }]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.collections.count, 1)
@@ -360,7 +360,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
     // MARK: - Shell Command
 
-    func testShellCommandAppLaunch() async throws {
+    func testShellCommandAppLaunch() throws {
         let json = """
         {
             "profiles": [{
@@ -381,7 +381,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             }]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.launcherMappings.count, 1)
@@ -392,7 +392,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         }
     }
 
-    func testShellCommandURLOpen() async throws {
+    func testShellCommandURLOpen() throws {
         let json = """
         {
             "profiles": [{
@@ -413,7 +413,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             }]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.launcherMappings.count, 1)
@@ -426,7 +426,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
     // MARK: - App-Specific Rules
 
-    func testAppSpecificRule() async throws {
+    func testAppSpecificRule() throws {
         let json = """
         {
             "profiles": [{
@@ -448,7 +448,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             }]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertFalse(result.appKeymaps.isEmpty, "Should have app keymaps")
@@ -461,7 +461,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
     // MARK: - Skipped Rules
 
-    func testMouseKeySkipped() async throws {
+    func testMouseKeySkipped() throws {
         let json = """
         {
             "profiles": [{
@@ -479,7 +479,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             }]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertTrue(result.collections.isEmpty || result.collections[0].mappings.isEmpty)
@@ -487,7 +487,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         XCTAssertTrue(result.skippedRules[0].reason.contains("Mouse"))
     }
 
-    func testUnknownKeySkipped() async throws {
+    func testUnknownKeySkipped() throws {
         let json = """
         {
             "profiles": [{
@@ -499,7 +499,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             }]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertFalse(result.skippedRules.isEmpty)
@@ -508,7 +508,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
     // MARK: - Disabled Rules
 
-    func testDisabledRulesSkipped() async throws {
+    func testDisabledRulesSkipped() throws {
         let json = """
         {
             "profiles": [{
@@ -527,7 +527,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             }]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertTrue(result.collections.isEmpty)
@@ -535,7 +535,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
     // MARK: - Profile Selection
 
-    func testSelectedProfileUsedByDefault() async throws {
+    func testSelectedProfileUsedByDefault() throws {
         let json = """
         {
             "profiles": [
@@ -558,7 +558,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             ]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: nil)
 
         XCTAssertEqual(result.profileName, "Second")
@@ -567,7 +567,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
     // MARK: - Consumer Key Codes
 
-    func testConsumerKeySimpleModification() async throws {
+    func testConsumerKeySimpleModification() throws {
         let json = """
         {
             "profiles": [{
@@ -579,7 +579,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             }]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.collections.count, 1)
@@ -589,7 +589,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
     // MARK: - Metadata
 
-    func testImportedCollectionMetadata() async throws {
+    func testImportedCollectionMetadata() throws {
         let json = """
         {
             "profiles": [{
@@ -601,7 +601,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
             }]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let result = try service.convert(data: data, profileIndex: 0)
 
         let collection = result.collections[0]
@@ -613,7 +613,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
     // MARK: - File Too Large
 
-    func testFileTooLargeThrows() async {
+    func testFileTooLargeThrows() {
         let data = Data(repeating: 0, count: 11 * 1024 * 1024)
         do {
             _ = try service.convert(data: data, profileIndex: nil)

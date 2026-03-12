@@ -45,10 +45,6 @@ final class StubPrivilegedOperationsCoordinator: PrivilegedOperationsCoordinatin
         try record("downloadAndInstallCorrectVHIDDriver")
     }
 
-    func installBundledKanata() async throws {
-        try record("installBundledKanata")
-    }
-
     func activateVirtualHIDManager() async throws {
         try record("activateVirtualHIDManager")
     }

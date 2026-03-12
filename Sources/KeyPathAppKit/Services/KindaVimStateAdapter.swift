@@ -79,13 +79,13 @@ final class KindaVimStateAdapter {
         let isStale: Bool
     }
 
-    public private(set) var state: StateSnapshot
-    public private(set) var isMonitoring = false
-    public private(set) var isEnvironmentFilePresent = false
-    public private(set) var rawModeValue: String?
-    public private(set) var lastErrorDescription: String?
+    private(set) var state: StateSnapshot
+    private(set) var isMonitoring = false
+    private(set) var isEnvironmentFilePresent = false
+    private(set) var rawModeValue: String?
+    private(set) var lastErrorDescription: String?
     /// Monotonic counter for emitted state updates (used by tests and debug tooling).
-    public private(set) var updateSequence: UInt64 = 0
+    private(set) var updateSequence: UInt64 = 0
 
     @ObservationIgnored private var monitoringCount = 0
     @ObservationIgnored private var staleTickerTask: Task<Void, Never>?
@@ -299,11 +299,10 @@ final class KindaVimStateAdapter {
     private func evaluateStaleness() {
         guard state.source != .fallback else { return }
 
-        let isStaleNow: Bool
-        if let lastFreshSignalAt {
-            isStaleNow = nowProvider().timeIntervalSince(lastFreshSignalAt) >= Constants.staleAfterSeconds
+        let isStaleNow: Bool = if let lastFreshSignalAt {
+            nowProvider().timeIntervalSince(lastFreshSignalAt) >= Constants.staleAfterSeconds
         } else {
-            isStaleNow = true
+            true
         }
 
         guard isStaleNow != state.isStale else { return }

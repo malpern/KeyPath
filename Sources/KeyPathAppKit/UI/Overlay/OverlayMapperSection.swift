@@ -532,7 +532,6 @@ struct OverlayMapperSection: View {
                         }
                         .saturation(Double(1 - fadeAmount))
                         .opacity(Double(1 - fadeAmount * 0.5))
-
                     }
                     .frame(width: keycapWidth)
                 }

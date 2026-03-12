@@ -173,5 +173,4 @@ final class TCPClientIntegrationTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(stats.schemaVersion, 1)
         XCTAssertGreaterThanOrEqual(stats.decisionsTotal, 0)
     }
-
 }

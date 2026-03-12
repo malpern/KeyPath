@@ -117,7 +117,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         func removeAll() {
             lock.lock()
-            let tokens = self.tokens
+            let tokens = tokens
             self.tokens.removeAll()
             lock.unlock()
 
@@ -337,7 +337,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Dispatch heavy initialization work to background thread (skip during unit tests)
         // Prefer structured concurrency; a plain Task{} runs off the main actor by default
-        if !TestEnvironment.isRunningTests && !isOneShotProbeMode {
+        if !TestEnvironment.isRunningTests, !isOneShotProbeMode {
             Task { [weak self] in
                 // Clean up any orphaned processes first
                 await self?.processLifecycleManager.cleanupOrphanedProcesses()

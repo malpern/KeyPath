@@ -85,23 +85,7 @@ enum WizardRouter {
         }
         if hasKarabinerIssues { return .karabinerComponents }
 
-        // 6. Kanata components (binary/service)
-        let hasKanataIssues = issues.contains {
-            if $0.category == .installation {
-                switch $0.identifier {
-                case .component(.kanataBinaryMissing),
-                     .component(.kanataBinaryVersionMismatch),
-                     .component(.keyPathRuntime):
-                    return true
-                default:
-                    return false
-                }
-            }
-            return false
-        }
-        if hasKanataIssues { return .kanataComponents }
-
-        // 7. Service readiness
+        // 6. Service readiness
         switch state {
         case .serviceNotRunning, .ready, .daemonNotRunning:
             return .service

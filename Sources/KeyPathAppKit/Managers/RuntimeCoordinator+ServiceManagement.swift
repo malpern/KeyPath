@@ -17,7 +17,7 @@ extension RuntimeCoordinator {
     }
 
     func currentSplitRuntimeDecision() async -> KanataRuntimePathDecision {
-        return await KanataRuntimePathCoordinator.evaluateCurrentPath()
+        await KanataRuntimePathCoordinator.evaluateCurrentPath()
     }
 
     func shouldUseSplitRuntimeHost() async -> Bool {
@@ -64,11 +64,10 @@ extension RuntimeCoordinator {
             return false
         }
 
-        let decision: KanataRuntimePathDecision
-        if let precomputedDecision {
-            decision = precomputedDecision
+        let decision: KanataRuntimePathDecision = if let precomputedDecision {
+            precomputedDecision
         } else {
-            decision = await currentSplitRuntimeDecision()
+            await currentSplitRuntimeDecision()
         }
         switch decision {
         case .useSplitRuntime:
@@ -203,6 +202,7 @@ extension RuntimeCoordinator {
 
         return .stopped
     }
+
     /// Check if permission issues should trigger the wizard
     func shouldShowWizardForPermissions() async -> Bool {
         let snapshot = await PermissionOracle.shared.forceRefresh()

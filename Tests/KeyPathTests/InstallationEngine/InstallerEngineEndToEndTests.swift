@@ -60,7 +60,10 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
     func testExecutePlanTreatsPendingApprovalAsHealthyForKanataHealthCheck() async throws {
         #if DEBUG
             final class PendingApprovalSMAppService: SMAppServiceProtocol, @unchecked Sendable {
-                var status: SMAppService.Status { .requiresApproval }
+                var status: SMAppService.Status {
+                    .requiresApproval
+                }
+
                 func register() throws {}
                 func unregister() async throws {}
             }
@@ -76,7 +79,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             let plan = InstallPlan(
                 recipes: [
                     ServiceRecipe(
-                        id: InstallerRecipeID.installBundledKanata,
+                        id: InstallerRecipeID.installRequiredRuntimeServices,
                         type: .installComponent,
                         healthCheck: HealthCheckCriteria(
                             serviceID: KanataDaemonManager.kanataServiceID,
@@ -91,7 +94,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             let report = await engine.execute(plan: plan, using: broker)
 
             XCTAssertTrue(report.success)
-            XCTAssertTrue(coordinator.calls.contains("installBundledKanata"))
+            XCTAssertTrue(coordinator.calls.contains("installRequiredRuntimeServices"))
         #else
             throw XCTSkip("Uses DEBUG-only KanataDaemonManager.smServiceFactory override")
         #endif

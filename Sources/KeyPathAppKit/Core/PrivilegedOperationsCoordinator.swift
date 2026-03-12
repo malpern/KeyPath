@@ -12,7 +12,7 @@ protocol PrivilegedOperationsCoordinating: AnyObject {
     func regenerateServiceConfiguration() async throws
     func repairVHIDDaemonServices() async throws
     func downloadAndInstallCorrectVHIDDriver() async throws
-    func installBundledKanata() async throws
+
     func activateVirtualHIDManager() async throws
     func terminateProcess(pid: Int32) async throws
     func killAllKanataProcesses() async throws
@@ -86,11 +86,10 @@ final class PrivilegedOperationsCoordinator {
         case run(reason: String, bypassedThrottle: Bool)
     }
 
-#if DEBUG
+    #if DEBUG
         nonisolated(unsafe) static var serviceStateOverride:
             (() -> KanataDaemonManager.ServiceManagementState)?
         nonisolated(unsafe) static var installAllServicesOverride: (() async throws -> Void)?
-        nonisolated(unsafe) static var installBundledKanataBinaryOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var recoverRequiredRuntimeServicesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var killExistingKanataProcessesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var kanataReadinessOverride:
@@ -99,7 +98,6 @@ final class PrivilegedOperationsCoordinator {
         static func resetTestingState() {
             serviceStateOverride = nil
             installAllServicesOverride = nil
-            installBundledKanataBinaryOverride = nil
             recoverRequiredRuntimeServicesOverride = nil
             killExistingKanataProcessesOverride = nil
             kanataReadinessOverride = nil
@@ -109,7 +107,7 @@ final class PrivilegedOperationsCoordinator {
             KanataDaemonManager.registeredButNotLoadedOverride = nil
             ServiceHealthChecker.runtimeSnapshotOverride = nil
         }
-#endif
+    #endif
 
     // MARK: - Dependencies
 
@@ -200,7 +198,7 @@ final class PrivilegedOperationsCoordinator {
     }
 
     private func runServiceInstall() async throws {
-#if DEBUG
+        #if DEBUG
             if let override = Self.installAllServicesOverride {
                 try await override()
                 return
@@ -284,12 +282,12 @@ final class PrivilegedOperationsCoordinator {
     func recoverRequiredRuntimeServices() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Recovering runtime services")
 
-#if DEBUG
-        if let override = Self.recoverRequiredRuntimeServicesOverride {
-            try await override()
-            return
-        }
-#endif
+        #if DEBUG
+            if let override = Self.recoverRequiredRuntimeServicesOverride {
+                try await override()
+                return
+            }
+        #endif
 
         // If the Kanata service is completely uninstalled, install everything first.
         if try await installServicesIfUninstalled(context: "pre-restart") {
@@ -324,12 +322,12 @@ final class PrivilegedOperationsCoordinator {
     }
 
     private func killExistingKanataProcessesForServiceRecovery() async throws {
-#if DEBUG
-        if let override = Self.killExistingKanataProcessesOverride {
-            try await override()
-            return
-        }
-#endif
+        #if DEBUG
+            if let override = Self.killExistingKanataProcessesOverride {
+                try await override()
+                return
+            }
+        #endif
 
         AppLogger.shared.log(
             "🧹 [PrivCoordinator] Clearing existing Kanata processes before service recovery to avoid TCP port collisions"
@@ -358,11 +356,10 @@ final class PrivilegedOperationsCoordinator {
         let state = await currentServiceState()
         AppLogger.shared.log("\(Self.serviceGuardLogPrefix) \(context): state=\(state.description)")
 
-        let staleEnabledRegistration: Bool
-        if state == .smappserviceActive {
-            staleEnabledRegistration = await isRegisteredButNotLoaded()
+        let staleEnabledRegistration: Bool = if state == .smappserviceActive {
+            await isRegisteredButNotLoaded()
         } else {
-            staleEnabledRegistration = false
+            false
         }
 
         if staleEnabledRegistration {
@@ -568,70 +565,6 @@ final class PrivilegedOperationsCoordinator {
 
     // MARK: Generic Execute
 
-    /// Install the bundled Kanata binary to the system location.
-    ///
-    /// Postcondition: waits for runtime readiness verification (running + TCP responding),
-    /// or explicit pending-approval state, before returning success.
-    func installBundledKanata() async throws {
-        AppLogger.shared.log("🔐 [PrivCoordinator] Installing bundled Kanata binary")
-
-        #if DEBUG
-            if let override = Self.installBundledKanataBinaryOverride {
-                try await override()
-            } else {
-                switch Self.operationMode {
-                case .privilegedHelper:
-                    try await helperInstallBundledKanata()
-                case .directSudo:
-                    try await sudoInstallBundledKanata()
-                }
-            }
-        #else
-            switch Self.operationMode {
-            case .privilegedHelper:
-                try await helperInstallBundledKanata()
-            case .directSudo:
-                try await sudoInstallBundledKanata()
-            }
-        #endif
-
-        // Ensure SMAppService launchd job exists after installing the binary
-        // (common case: fresh reinstall leaves service missing even though binary is present)
-        let didInstallServices = try await installServicesIfUninstalled(context: "installBundledKanata")
-
-        // Fresh installs can already report SMAppService as active while the runtime is still down.
-        // In that state, binary install + registration metadata is not enough; kick the service once
-        // before enforcing the strict runtime readiness postcondition.
-        if !didInstallServices {
-            let managementState = await currentServiceState()
-            if managementState == .smappserviceActive {
-                AppLogger.shared.log(
-                    "🔐 [PrivCoordinator] Bundled Kanata installed while SMAppService was already active; restarting unhealthy services before readiness verification"
-                )
-                try await recoverRequiredRuntimeServices()
-                AppLogger.shared.log(
-                    "✅ [PrivCoordinator] Bundled Kanata install recovered runtime via recoverRequiredRuntimeServices"
-                )
-                return
-            }
-        }
-
-        let readiness = await verifyKanataReadinessAfterInstall(context: "installBundledKanata")
-        guard readiness.isSuccess else {
-            throw PrivilegedOperationError.operationFailed(
-                "Bundled Kanata install postcondition failed: \(readiness.failureDescription)"
-            )
-        }
-
-        if readiness == .pendingApproval {
-            AppLogger.shared.warn(
-                "⚠️ [PrivCoordinator] Bundled Kanata installed but Login Items approval is pending"
-            )
-        } else {
-            AppLogger.shared.log("✅ [PrivCoordinator] Bundled Kanata install verified (running + TCP)")
-        }
-    }
-
     // Note: executeCommand removed for security. All privileged operations
     // must be explicitly defined. Internal sudoExecuteCommand remains for
     // implementation of specific operations.
@@ -694,11 +627,11 @@ final class PrivilegedOperationsCoordinator {
     }
 
     private func verifyKanataReadinessAfterInstall(context: String) async -> KanataReadinessResult {
-#if DEBUG
+        #if DEBUG
             if let override = Self.kanataReadinessOverride {
                 return await override(context)
             }
-#endif
+        #endif
 
         let managementState = await currentServiceState()
         if managementState == .smappservicePending {
@@ -739,8 +672,8 @@ final class PrivilegedOperationsCoordinator {
                 timeoutMs: timeoutMs
             )
 
-            if runtimeSnapshot.isRunning && runtimeSnapshot.isResponding
-                && runtimeSnapshot.inputCaptureReady
+            if runtimeSnapshot.isRunning, runtimeSnapshot.isResponding,
+               runtimeSnapshot.inputCaptureReady
             {
                 return .ready
             }
@@ -971,18 +904,6 @@ final class PrivilegedOperationsCoordinator {
         return false
     }
 
-    private func helperInstallBundledKanata() async throws {
-        do {
-            try await helperManager.installBundledKanataBinaryOnly()
-        } catch {
-            let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
-            AppLogger.shared.log(
-                "🚨 [PrivCoordinator] Helper installBundledKanataBinaryOnly failed: \(msg). Falling back to sudo path."
-            )
-            try await sudoInstallBundledKanata()
-        }
-    }
-
     // MARK: - Karabiner Conflict Management
 
     func disableKarabinerGrabber() async throws {
@@ -1211,15 +1132,6 @@ final class PrivilegedOperationsCoordinator {
             )
         }
         return false
-    }
-
-    /// Install bundled Kanata binary using KanataBinaryInstaller
-    private func sudoInstallBundledKanata() async throws {
-        let success = await KanataBinaryInstaller.shared.installBundledKanata()
-
-        if !success {
-            throw PrivilegedOperationError.operationFailed("Bundled Kanata installation failed")
-        }
     }
 
     /// Execute a shell command with administrator privileges using osascript

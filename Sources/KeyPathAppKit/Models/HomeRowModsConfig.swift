@@ -104,7 +104,6 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
     /// All home row keys
     public static let allKeys = leftHandKeys + rightHandKeys
 
-
     private enum CodingKeys: String, CodingKey {
         case enabledKeys
         case modifierAssignments

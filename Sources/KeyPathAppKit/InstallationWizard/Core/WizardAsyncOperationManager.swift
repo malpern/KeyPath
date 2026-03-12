@@ -285,7 +285,7 @@ enum WizardOperations {
                 progressCallback(1.0)
                 return success
 
-            case .installMissingComponents, .installBundledKanata:
+            case .installMissingComponents:
                 // Longer operations - more detailed progress
                 progressCallback(0.15)
 
@@ -683,16 +683,12 @@ extension AutoFixAction {
             "Activate VirtualHIDDevice Manager"
         case .installRequiredRuntimeServices:
             "Install Required Runtime Services"
-        case .installBundledKanata:
-            "Install Kanata Binary"
         case .repairVHIDDaemonServices:
             "Repair VHID Daemon Services"
         case .synchronizeConfigPaths:
             "Synchronize Config Paths"
         case .installLogRotation:
             "Install Log Rotation"
-        case .replaceKanataWithBundled:
-            "Replace Kanata with Bundled Version"
         case .enableTCPServer:
             "Enable TCP Server"
         case .setupTCPAuthentication:

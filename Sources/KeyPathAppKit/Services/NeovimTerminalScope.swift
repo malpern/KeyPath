@@ -8,7 +8,9 @@ enum NeovimTerminalScope {
         let bundleIdentifier: String
         let displayName: String
 
-        var id: String { bundleIdentifier }
+        var id: String {
+            bundleIdentifier
+        }
     }
 
     /// Approved terminal apps for the Neovim reference experience.

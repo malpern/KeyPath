@@ -17,7 +17,6 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
     case inputMonitoring = "Input Monitoring"
     case accessibility = "Accessibility"
     case karabinerComponents = "Karabiner Components"
-    case kanataComponents = "Kanata Components"
     case kanataMigration = "Kanata Migration"
     case stopExternalKanata = "Stop External Kanata"
     case karabinerImport = "Karabiner Import"
@@ -34,7 +33,6 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         case .inputMonitoring: "Input Monitoring Permission"
         case .accessibility: "Accessibility Permission"
         case .karabinerComponents: "Karabiner Driver Setup"
-        case .kanataComponents: "Kanata Engine Setup"
         case .kanataMigration: "Migrate Existing Kanata Config"
         case .stopExternalKanata: "Stop External Kanata"
         case .karabinerImport: "Import Karabiner Rules"
@@ -52,7 +50,6 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         case .inputMonitoring: "input-monitoring"
         case .accessibility: "accessibility"
         case .karabinerComponents: "karabiner-components"
-        case .kanataComponents: "kanata-components"
         case .kanataMigration: "kanata-migration"
         case .stopExternalKanata: "stop-external-kanata"
         case .karabinerImport: "karabiner-import"
@@ -78,7 +75,6 @@ public extension WizardPage {
         .accessibility,
         .inputMonitoring,
         .karabinerComponents,
-        .kanataComponents,
         .service,
         .communication
     ]
@@ -154,7 +150,6 @@ public enum PermissionRequirement: Equatable, Sendable {
 public enum ComponentRequirement: Equatable, Sendable {
     case privilegedHelper // Privileged helper for system-level operations
     case privilegedHelperUnhealthy // Helper installed but not responding/working
-    case kanataBinaryMissing // Kanata binary needs to be installed to system location
     case bundledKanataMissing // CRITICAL: Bundled kanata binary missing from app bundle (packaging issue)
     case keyPathRuntime
     case karabinerDriver
@@ -164,7 +159,6 @@ public enum ComponentRequirement: Equatable, Sendable {
     case vhidDeviceRunning
     case vhidDaemonMisconfigured
     case vhidDriverVersionMismatch // Karabiner driver version incompatible with kanata version
-    case kanataBinaryVersionMismatch // Installed kanata binary fails trusted identity checks
     case kanataTCPServer // TCP server for Kanata communication and config validation
     case orphanedKanataProcess // External Kanata runtime is conflicting with KeyPath runtime
     case communicationServerConfiguration // Communication server enabled but not configured in service
@@ -185,11 +179,9 @@ public enum AutoFixAction: Equatable, Sendable {
     case createConfigDirectories
     case activateVHIDDeviceManager
     case installRequiredRuntimeServices
-    case installBundledKanata // Install bundled kanata binary to system location
     case repairVHIDDaemonServices
     case synchronizeConfigPaths // Fix config path mismatches
     case installLogRotation // Install newsyslog config for log rotation to keep logs under 10MB
-    case replaceKanataWithBundled // Replace system kanata with bundled Developer ID signed binary
     case enableTCPServer // Enable TCP server for communication
     case setupTCPAuthentication // Generate and configure TCP authentication token
     case regenerateCommServiceConfiguration // Update LaunchDaemon plist with TCP settings

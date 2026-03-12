@@ -22,7 +22,7 @@ public enum KanataHrmDecisionReason: String, Codable, Sendable, CaseIterable {
     case releaseAfterTimeout = "release-after-timeout"
     case customHold = "custom-hold"
 
-    // Custom closure fallback
+    /// Custom closure fallback
     case customNoOp = "custom-noop"
 
     // Neutral / edge cases

@@ -15,7 +15,7 @@ public struct ExperimentalHostPassthruInputEvent: Equatable, Sendable {
 public enum ExperimentalHostPassthruInputMapper {
     private static let keyboardUsagePage: UInt32 = 0x07
 
-    // Minimal US ANSI virtual-keycode -> HID usage mapping for experimental host capture.
+    /// Minimal US ANSI virtual-keycode -> HID usage mapping for experimental host capture.
     private static let keyboardUsages: [Int64: UInt32] = [
         0: 0x04, 1: 0x16, 2: 0x07, 3: 0x09, 4: 0x0B, 5: 0x0A, 6: 0x1D, 7: 0x1B,
         8: 0x06, 9: 0x19, 11: 0x05, 12: 0x14, 13: 0x1A, 14: 0x08, 15: 0x15,

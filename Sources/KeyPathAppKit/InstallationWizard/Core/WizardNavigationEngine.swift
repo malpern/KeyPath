@@ -281,18 +281,6 @@ final class WizardNavigationEngine: WizardNavigating {
                 }
                 return false
             }
-        case .kanataComponents:
-            issues.contains { issue in
-                if case let .component(comp) = issue.identifier {
-                    switch comp {
-                    case .kanataBinaryMissing, .kanataBinaryVersionMismatch:
-                        return true
-                    default:
-                        return false
-                    }
-                }
-                return false
-            }
         case .service:
             switch state {
             case .serviceNotRunning, .ready, .daemonNotRunning:
@@ -310,7 +298,7 @@ final class WizardNavigationEngine: WizardNavigating {
         switch page {
         case .conflicts:
             return true // Cannot proceed with conflicts
-        case .karabinerComponents, .kanataComponents:
+        case .karabinerComponents:
             return true // Cannot use without components
         case .helper:
             // Helper is blocking if Login Items approval is required OR helper is not installed
@@ -368,8 +356,6 @@ final class WizardNavigationEngine: WizardNavigating {
             "Open System Settings"
         case .karabinerComponents:
             "Install Karabiner Components"
-        case .kanataComponents:
-            "Install Kanata Components"
         case .helper:
             await HelperManager.shared.isHelperInstalled() ? "Manage Helper" : "Install Helper"
         case .communication:
@@ -412,7 +398,7 @@ final class WizardNavigationEngine: WizardNavigating {
             return false
         case .inputMonitoring, .accessibility:
             return true // Can always open settings
-        case .karabinerComponents, .kanataComponents:
+        case .karabinerComponents:
             if case let .missingComponents(missing) = state {
                 return !missing.isEmpty
             }

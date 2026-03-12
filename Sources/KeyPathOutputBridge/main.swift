@@ -24,14 +24,16 @@ private struct CompanionPreparedSession: Codable, Sendable {
 
 private struct OutputBridgeFailure: Error, LocalizedError {
     let message: String
-    var errorDescription: String? { message }
+    var errorDescription: String? {
+        message
+    }
 }
 
 private enum OutputBridgeEmitter {
-    private static let outputReadyTimeoutMillis: UInt64 = 5_000
+    private static let outputReadyTimeoutMillis: UInt64 = 5000
     private static let logger = Logger(subsystem: KeyPathConstants.Bundle.outputBridgeID, category: "emitter")
-    nonisolated(unsafe) private static var cachedBridgeHandle: UnsafeMutableRawPointer?
-    nonisolated(unsafe) private static var outputSinkInitialized = false
+    private nonisolated(unsafe) static var cachedBridgeHandle: UnsafeMutableRawPointer?
+    private nonisolated(unsafe) static var outputSinkInitialized = false
 
     private typealias EmitKeyFunction = @convention(c) (
         UInt32,
@@ -101,7 +103,7 @@ private enum OutputBridgeEmitter {
     private static func ensureOutputReady(forceActivate: Bool = false) -> Result<Void, OutputBridgeFailure> {
         withBridgeFunctions { initializeOutputSink, _, outputReady, waitUntilReady in
             if !outputSinkInitialized || forceActivate {
-                var errorBuffer = Array<CChar>(repeating: 0, count: 2048)
+                var errorBuffer = [CChar](repeating: 0, count: 2048)
                 let initialized = initializeOutputSink(&errorBuffer, errorBuffer.count)
                 guard initialized else {
                     return .failure(.init(message: decodeCStringBuffer(errorBuffer) ?? "failed to initialize DriverKit output sink"))
@@ -122,7 +124,7 @@ private enum OutputBridgeEmitter {
 
     private static func emitKeyOnce(_ event: KanataOutputBridgeKeyEvent) -> Result<Void, OutputBridgeFailure> {
         withBridgeFunctions { _, emitKey, _, _ in
-            var errorBuffer = Array<CChar>(repeating: 0, count: 2048)
+            var errorBuffer = [CChar](repeating: 0, count: 2048)
             let success = emitKey(event.usagePage, event.usage, event.action == .keyDown, &errorBuffer, errorBuffer.count)
             return success
                 ? .success(())
@@ -233,7 +235,7 @@ private final class CompanionServer: @unchecked Sendable {
 
     init(session: KanataOutputBridgeSession) {
         self.session = session
-        self.queue = DispatchQueue(label: "com.keypath.output-bridge.\(session.sessionID)")
+        queue = DispatchQueue(label: "com.keypath.output-bridge.\(session.sessionID)")
     }
 
     func startIfNeeded() throws {

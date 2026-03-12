@@ -353,7 +353,7 @@ struct KarabinerConverterService: Sendable {
         case .simpleRemap:
             convertSimpleRemap(manipulator, rule: rule, appConditions: appConditions, result: &result)
 
-        case .unsupported(let reason):
+        case let .unsupported(reason):
             result.skipped.append(KarabinerSkippedRule(description: rule, reason: reason))
         }
     }
@@ -455,18 +455,16 @@ struct KarabinerConverterService: Sendable {
             result.warnings.append("'\(rule)': modifier '\(dropped)' has no Kanata prefix equivalent and was dropped from the key expression")
         }
 
-        let kanataInput: String?
-        if from.keyCode != nil {
-            kanataInput = KarabinerKeyTranslator.toKanataExpression(keyCode: fromKey, modifiers: mandatoryMods)
+        let kanataInput: String? = if from.keyCode != nil {
+            KarabinerKeyTranslator.toKanataExpression(keyCode: fromKey, modifiers: mandatoryMods)
         } else {
-            kanataInput = KarabinerKeyTranslator.consumerKeyToKanataExpression(keyCode: fromKey, modifiers: mandatoryMods)
+            KarabinerKeyTranslator.consumerKeyToKanataExpression(keyCode: fromKey, modifiers: mandatoryMods)
         }
 
-        let kanataOutput: String?
-        if toFirst.keyCode != nil {
-            kanataOutput = KarabinerKeyTranslator.toKanataExpression(keyCode: toKey, modifiers: toMods)
+        let kanataOutput: String? = if toFirst.keyCode != nil {
+            KarabinerKeyTranslator.toKanataExpression(keyCode: toKey, modifiers: toMods)
         } else {
-            kanataOutput = KarabinerKeyTranslator.consumerKeyToKanataExpression(keyCode: toKey, modifiers: toMods)
+            KarabinerKeyTranslator.consumerKeyToKanataExpression(keyCode: toKey, modifiers: toMods)
         }
 
         guard let input = kanataInput, let output = kanataOutput else {
@@ -508,11 +506,10 @@ struct KarabinerConverterService: Sendable {
             return
         }
 
-        let kanataFrom: String?
-        if from.keyCode != nil {
-            kanataFrom = KarabinerKeyTranslator.toKanata(fromKey)
+        let kanataFrom: String? = if from.keyCode != nil {
+            KarabinerKeyTranslator.toKanata(fromKey)
         } else {
-            kanataFrom = KarabinerKeyTranslator.consumerKeyToKanata(fromKey)
+            KarabinerKeyTranslator.consumerKeyToKanata(fromKey)
         }
 
         guard let input = kanataFrom else {
@@ -523,27 +520,25 @@ struct KarabinerConverterService: Sendable {
         // Tap action (to_if_alone)
         let tapKey = aloneFirst.keyCode ?? aloneFirst.consumerKeyCode ?? ""
         let tapMods = aloneFirst.modifiers ?? []
-        let tapAction: String
-        if let key = aloneFirst.keyCode {
-            tapAction = KarabinerKeyTranslator.toKanataExpression(keyCode: key, modifiers: tapMods) ?? key
+        let tapAction: String = if let key = aloneFirst.keyCode {
+            KarabinerKeyTranslator.toKanataExpression(keyCode: key, modifiers: tapMods) ?? key
         } else if let key = aloneFirst.consumerKeyCode {
-            tapAction = KarabinerKeyTranslator.consumerKeyToKanataExpression(keyCode: key, modifiers: tapMods) ?? key
+            KarabinerKeyTranslator.consumerKeyToKanataExpression(keyCode: key, modifiers: tapMods) ?? key
         } else {
-            tapAction = tapKey
+            tapKey
         }
 
         // Hold action (to)
         let holdKey = toFirst.keyCode ?? toFirst.consumerKeyCode ?? ""
         let holdMods = toFirst.modifiers ?? []
-        let holdAction: String
-        if let key = toFirst.keyCode {
-            holdAction = KarabinerKeyTranslator.toKanataExpression(keyCode: key, modifiers: holdMods) ?? key
+        let holdAction: String = if let key = toFirst.keyCode {
+            KarabinerKeyTranslator.toKanataExpression(keyCode: key, modifiers: holdMods) ?? key
         } else if let key = toFirst.consumerKeyCode {
-            holdAction = KarabinerKeyTranslator.consumerKeyToKanataExpression(keyCode: key, modifiers: holdMods) ?? key
+            KarabinerKeyTranslator.consumerKeyToKanataExpression(keyCode: key, modifiers: holdMods) ?? key
         } else if holdMods.count == 1, let mod = KarabinerKeyTranslator.modifierToKanata(holdMods[0]) {
-            holdAction = mod
+            mod
         } else {
-            holdAction = holdKey
+            holdKey
         }
 
         guard !tapAction.isEmpty, !holdAction.isEmpty else {
@@ -667,11 +662,10 @@ struct KarabinerConverterService: Sendable {
         }
 
         let mandatoryMods = from.modifiers?.mandatory ?? []
-        let kanataInput: String?
-        if from.keyCode != nil {
-            kanataInput = KarabinerKeyTranslator.toKanataExpression(keyCode: fromKey, modifiers: mandatoryMods)
+        let kanataInput: String? = if from.keyCode != nil {
+            KarabinerKeyTranslator.toKanataExpression(keyCode: fromKey, modifiers: mandatoryMods)
         } else {
-            kanataInput = KarabinerKeyTranslator.consumerKeyToKanataExpression(keyCode: fromKey, modifiers: mandatoryMods)
+            KarabinerKeyTranslator.consumerKeyToKanataExpression(keyCode: fromKey, modifiers: mandatoryMods)
         }
 
         guard let input = kanataInput else {
@@ -728,7 +722,7 @@ struct KarabinerConverterService: Sendable {
     private func convertShellCommand(
         _ manipulator: KarabinerManipulator,
         rule: String,
-        appConditions: [AppCondition],
+        appConditions _: [AppCondition],
         result: inout RuleConversionResult
     ) {
         guard let from = manipulator.from,
@@ -745,11 +739,10 @@ struct KarabinerConverterService: Sendable {
         }
 
         let mandatoryMods = from.modifiers?.mandatory ?? []
-        let kanataInput: String?
-        if from.keyCode != nil {
-            kanataInput = KarabinerKeyTranslator.toKanataExpression(keyCode: fromKey, modifiers: mandatoryMods)
+        let kanataInput: String? = if from.keyCode != nil {
+            KarabinerKeyTranslator.toKanataExpression(keyCode: fromKey, modifiers: mandatoryMods)
         } else {
-            kanataInput = KarabinerKeyTranslator.consumerKeyToKanataExpression(keyCode: fromKey, modifiers: mandatoryMods)
+            KarabinerKeyTranslator.consumerKeyToKanataExpression(keyCode: fromKey, modifiers: mandatoryMods)
         }
 
         guard let input = kanataInput else {

@@ -208,13 +208,13 @@ struct ContextHUDKindaVimLearningView: View {
     private func commands(for mode: KindaVimStateAdapter.Mode) -> [CommandItem] {
         switch mode {
         case .insert:
-            return [
+            [
                 .init(keys: "Esc", meaning: "enter Normal mode"),
                 .init(keys: "Ctrl-[", meaning: "alternate Esc"),
                 .init(keys: "Leader hold", meaning: "open KeyPath motion keylist"),
             ]
         case .normal:
-            return [
+            [
                 .init(keys: "h j k l", meaning: "left/down/up/right"),
                 .init(keys: "w b e", meaning: "word motions"),
                 .init(keys: "0  $", meaning: "line start/end"),
@@ -223,7 +223,7 @@ struct ContextHUDKindaVimLearningView: View {
                 .init(keys: "v / V", meaning: "enter Visual mode"),
             ]
         case .visual:
-            return [
+            [
                 .init(keys: "h j k l", meaning: "expand selection"),
                 .init(keys: "w b e", meaning: "word-wise selection"),
                 .init(keys: "0  $", meaning: "line bounds"),
@@ -232,7 +232,7 @@ struct ContextHUDKindaVimLearningView: View {
                 .init(keys: "Esc", meaning: "return to Normal mode"),
             ]
         case .unknown:
-            return commands(for: .normal)
+            commands(for: .normal)
         }
     }
 }

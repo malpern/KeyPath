@@ -168,20 +168,6 @@ struct WizardStateInterpreter {
                 // Include daemon issues only. Legacy recovery services are reported elsewhere.
                 return issue.category == .daemon
             }
-        case .kanataComponents:
-            // Kanata-related components
-            issues.filter { issue in
-                if issue.category == .installation {
-                    switch issue.identifier {
-                    case .component(.kanataBinaryMissing),
-                         .component(.keyPathRuntime):
-                        return true
-                    default:
-                        return false
-                    }
-                }
-                return false
-            }
         case .helper:
             [] // Helper page shows helper status/actions directly
         case .communication:

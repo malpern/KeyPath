@@ -236,7 +236,7 @@ struct AutoShiftCollectionView: View {
         }
     }
 
-    private func chipBorder(isEnabled: Bool, isHovered: Bool, isFlashed: Bool) -> Color {
+    private func chipBorder(isEnabled _: Bool, isHovered: Bool, isFlashed: Bool) -> Color {
         if isFlashed {
             .accentColor
         } else if isHovered {

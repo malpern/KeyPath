@@ -412,7 +412,7 @@ public final class InstallerEngine {
 
     /// Execute installService recipe
     /// Includes pre-check for VHID Manager activation (per Karabiner documentation)
-    private func executeInstallService(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
+    private func executeInstallService(_: ServiceRecipe, using broker: PrivilegeBroker) async throws {
         // CRITICAL: Ensure VHID Manager is activated BEFORE installing daemon services
         // Per Karabiner documentation, manager activation must happen before daemon startup
         let vhidManager = VHIDDeviceManager()
@@ -437,15 +437,6 @@ public final class InstallerEngine {
         // Ensure canonical Kanata binary exists at /Library/KeyPath/bin/kanata before installing services.
         // This prevents "service installed" while the daemon runs with a different path (bundle fallback),
         // which would cause permission identity drift (AX/IM entries keyed by executable path).
-        if recipe.id == InstallerRecipeID.installRequiredRuntimeServices,
-           KanataBinaryDetector.shared.needsInstallation()
-        {
-            AppLogger.shared.log(
-                "🔧 [InstallerEngine] Kanata system binary missing - installing bundled kanata to system location"
-            )
-            try await broker.installBundledKanata()
-        }
-
         try await broker.installRequiredRuntimeServices()
     }
 
@@ -481,9 +472,6 @@ public final class InstallerEngine {
     {
         // Map recipe ID to component installation method
         switch recipe.id {
-        case InstallerRecipeID.installBundledKanata:
-            try await broker.installBundledKanata()
-
         case InstallerRecipeID.installCorrectVHIDDriver:
             try await broker.downloadAndInstallCorrectVHIDDriver()
 
@@ -494,8 +482,7 @@ public final class InstallerEngine {
             try await broker.downloadAndInstallCorrectVHIDDriver()
 
         case InstallerRecipeID.installMissingComponents:
-            // Install all missing components (Kanata + drivers)
-            try await broker.installBundledKanata()
+            // Install all missing components (drivers)
             try await broker.downloadAndInstallCorrectVHIDDriver()
 
         case InstallerRecipeID.createConfigDirectories:
@@ -519,9 +506,6 @@ public final class InstallerEngine {
 
         case InstallerRecipeID.restartCommServer:
             try await broker.regenerateServiceConfiguration()
-
-        case InstallerRecipeID.replaceKanataWithBundled:
-            try await broker.installBundledKanata()
 
         default:
             // Unknown component recipe

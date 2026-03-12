@@ -83,10 +83,10 @@ final class ServiceHealthCheckerTests: XCTestCase {
     }
 
     func testIsServiceLoadedReturnsFalseWhenSMAppServiceEnabledButStale() async {
-#if DEBUG
+        #if DEBUG
             KanataDaemonManager.smServiceFactory = { _ in EnabledSMService() }
             KanataDaemonManager.registeredButNotLoadedOverride = { true }
-#endif
+        #endif
 
         let loaded = await checker.isServiceLoaded(serviceID: ServiceHealthChecker.kanataServiceID)
         XCTAssertFalse(loaded, "Enabled-but-stale SMAppService registration should not be treated as loaded")

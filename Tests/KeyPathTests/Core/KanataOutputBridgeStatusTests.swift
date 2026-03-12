@@ -1,5 +1,5 @@
-import XCTest
 @testable import KeyPathCore
+import XCTest
 
 final class KanataOutputBridgeStatusTests: XCTestCase {
     func testDecodesLegacyPayloadWithoutCompanionRunning() throws {

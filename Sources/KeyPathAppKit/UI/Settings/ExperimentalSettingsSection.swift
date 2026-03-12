@@ -102,7 +102,6 @@ struct ExperimentalSettingsSection: View {
                         featureFlagsSection
                     }
                 }
-
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)

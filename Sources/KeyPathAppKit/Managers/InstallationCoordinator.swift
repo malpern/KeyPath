@@ -50,12 +50,12 @@ final class InstallationCoordinator {
 
         if detector.isInstalled() {
             AppLogger.shared.log(
-                "✅ [Installation] Step \(stepNumber) SUCCESS: Kanata binary ready at /Library/KeyPath/bin/kanata"
+                "✅ [Installation] Step \(stepNumber) SUCCESS: Kanata binary ready"
             )
             return StepResult(stepNumber: stepNumber, totalSteps: totalSteps, success: true, warning: false)
         } else {
             AppLogger.shared.log(
-                "⚠️ [Installation] Step \(stepNumber) WARNING: Kanata system binary missing at /Library/KeyPath/bin/kanata"
+                "⚠️ [Installation] Step \(stepNumber) WARNING: Kanata binary missing from app bundle"
             )
             return StepResult(stepNumber: stepNumber, totalSteps: totalSteps, success: false, warning: true)
         }

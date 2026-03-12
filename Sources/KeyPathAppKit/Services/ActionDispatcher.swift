@@ -59,11 +59,11 @@ public final class ActionDispatcher {
     ]
 
     private static var diagnosticActionsEnabled: Bool {
-#if DEBUG
-        if TestEnvironment.isRunningTests {
-            return true
-        }
-#endif
+        #if DEBUG
+            if TestEnvironment.isRunningTests {
+                return true
+            }
+        #endif
         return ProcessInfo.processInfo.environment["KEYPATH_ENABLE_DIAGNOSTIC_ACTIONS"] == "1"
     }
 
@@ -392,7 +392,8 @@ public final class ActionDispatcher {
 
     /// Trigger a macOS system action
     /// Format: keypath://system/{action}
-    /// Actions: mission-control, spotlight, dictation, dnd, launchpad, notification-center, siri, prepare-host-passthru-bridge, run-host-passthru-diagnostic, start-host-passthru, stop-host-passthru, exercise-host-passthru-cycle, exercise-output-bridge-companion-restart, exercise-coordinator-split-runtime-recovery, exercise-coordinator-split-runtime-restart-soak, repair-helper
+    /// Actions: mission-control, spotlight, dictation, dnd, launchpad, notification-center, siri, prepare-host-passthru-bridge, run-host-passthru-diagnostic, start-host-passthru, stop-host-passthru,
+    /// exercise-host-passthru-cycle, exercise-output-bridge-companion-restart, exercise-coordinator-split-runtime-recovery, exercise-coordinator-split-runtime-restart-soak, repair-helper
     private func handleSystem(_ uri: KeyPathActionURI) -> ActionDispatchResult {
         guard let action = uri.target else {
             let message = "system action requires action name: keypath://system/{action}"

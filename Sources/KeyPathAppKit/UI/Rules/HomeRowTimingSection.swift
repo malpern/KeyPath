@@ -213,7 +213,9 @@ struct HomeRowTimingSection: View {
                 .accessibilityIdentifier("home-row-mods-opposite-hand-toggle")
                 .accessibilityLabel("Opposite-hand activation")
 
-                InfoTip("Hold actions (modifiers or layers) only activate when you press a key with the other hand. Same-hand typing always produces letters — no accidental modifiers during fast rolls.")
+                InfoTip(
+                    "Hold actions (modifiers or layers) only activate when you press a key with the other hand. Same-hand typing always produces letters — no accidental modifiers during fast rolls."
+                )
             }
 
             // MARK: - Fast Typing Protection

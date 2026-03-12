@@ -191,14 +191,6 @@ struct WizardAccessibilityPage: View {
                                         AppLogger.shared.log(
                                             "🔘 [WizardAccessibilityPage] Fix clicked for kanata - opening System Settings and revealing kanata"
                                         )
-                                        let path = WizardSystemPaths.kanataSystemInstallPath
-                                        if !Foundation.FileManager().fileExists(atPath: path) {
-                                            AppLogger.shared.warn(
-                                                "⚠️ [WizardAccessibilityPage] Kanata system binary missing at \(path) - routing to Kanata Components"
-                                            )
-                                            stateMachine.navigateToPage(.kanataComponents)
-                                            return
-                                        }
                                         openAccessibilitySettings()
                                         revealKanataInFinder()
                                     }

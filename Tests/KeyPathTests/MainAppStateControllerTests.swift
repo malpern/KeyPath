@@ -226,7 +226,7 @@ struct MainAppStateControllerBehaviorTests {
     @Test("startup gate requires TCP responsiveness before reporting ready")
     func startupGateRequiresTCPResponsivenessBeforeReady() async {
         let controller = MainAppStateController()
-#if DEBUG
+        #if DEBUG
             var probeCount = 0
             var observedNonRespondingProbe = false
             controller.configureStartupGateTestingState(
@@ -249,20 +249,20 @@ struct MainAppStateControllerBehaviorTests {
                 )
             )
             defer { controller.resetStartupGateTestingState() }
-#endif
+        #endif
 
         let ready = await controller.evaluateKanataStartupGateForTesting()
         #expect(ready == true)
-#if DEBUG
+        #if DEBUG
             #expect(observedNonRespondingProbe == true)
             #expect(probeCount >= 2)
-#endif
+        #endif
     }
 
     @Test("startup gate does not report ready on persistent no-runtime evidence")
     func startupGateDoesNotReportReadyForPersistentNoRuntime() async {
         let controller = MainAppStateController()
-#if DEBUG
+        #if DEBUG
             controller.configureStartupGateTestingState(
                 healthOverride: {
                     KanataHealthSnapshot(isRunning: false, isResponding: false)
@@ -275,7 +275,7 @@ struct MainAppStateControllerBehaviorTests {
                 )
             )
             defer { controller.resetStartupGateTestingState() }
-#endif
+        #endif
 
         let ready = await controller.evaluateKanataStartupGateForTesting()
         #expect(ready == false)
@@ -284,7 +284,7 @@ struct MainAppStateControllerBehaviorTests {
     @Test("startup gate does not turn transient non-ready state into ready")
     func startupGateDoesNotPromoteTransientNonReadyState() async {
         let controller = MainAppStateController()
-#if DEBUG
+        #if DEBUG
             controller.configureStartupGateTestingState(
                 healthOverride: {
                     KanataHealthSnapshot(isRunning: false, isResponding: false)
@@ -297,7 +297,7 @@ struct MainAppStateControllerBehaviorTests {
                 )
             )
             defer { controller.resetStartupGateTestingState() }
-#endif
+        #endif
 
         let ready = await controller.evaluateKanataStartupGateForTesting()
         #expect(ready == false)

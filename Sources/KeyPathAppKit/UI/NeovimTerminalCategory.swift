@@ -13,7 +13,9 @@ enum NeovimTerminalCategory: String, CaseIterable, Identifiable {
     case terminalMode
     case search
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var title: String {
         switch self {
@@ -161,5 +163,7 @@ struct NeovimReferenceCommand: Identifiable {
     let keys: String
     let meaning: String
 
-    var id: String { "\(keys)-\(meaning)" }
+    var id: String {
+        "\(keys)-\(meaning)"
+    }
 }

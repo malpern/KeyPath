@@ -42,16 +42,8 @@ enum ActionDeterminer {
             actions.append(.fixDriverVersionMismatch)
         }
 
-        // Check for kanata binary trust mismatch (installed binary is not trusted identity)
-        if context.components.kanataBinaryVersionMismatch {
-            actions.append(.replaceKanataWithBundled)
-        }
-
         // Check missing components
         if !context.components.hasAllRequired {
-            if !context.components.kanataBinaryInstalled {
-                actions.append(.installBundledKanata)
-            }
             actions.append(.installMissingComponents)
 
             // CRITICAL: Activate manager BEFORE starting daemon
@@ -98,16 +90,8 @@ enum ActionDeterminer {
             actions.append(.fixDriverVersionMismatch)
         }
 
-        // Check for kanata binary trust mismatch (installed binary is not trusted identity)
-        if context.components.kanataBinaryVersionMismatch {
-            actions.append(.replaceKanataWithBundled)
-        }
-
         // Check missing components
         if !context.components.hasAllRequired {
-            if !context.components.kanataBinaryInstalled {
-                actions.append(.installBundledKanata)
-            }
             actions.append(.installMissingComponents)
 
             // CRITICAL: Activate manager BEFORE installing daemon services

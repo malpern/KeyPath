@@ -79,16 +79,6 @@ extension InstallationWizardView {
                     onRefresh: { refreshSystemState() },
                     kanataManager: kanataManager
                 )
-            case .kanataComponents:
-                WizardKanataComponentsPage(
-                    systemState: stateMachine.wizardState,
-                    issues: stateMachine.wizardIssues,
-                    isFixing: fixInFlight,
-                    blockingFixDescription: currentFixDescriptionForUI,
-                    onAutoFix: performAutoFix,
-                    onRefresh: { refreshSystemState() },
-                    kanataManager: kanataManager
-                )
             case .kanataMigration:
                 WizardKanataMigrationPage(
                     onMigrationComplete: { hasRunningKanata in
@@ -98,11 +88,7 @@ extension InstallationWizardView {
                         } else {
                             // No running kanata, continue to next step
                             refreshSystemState()
-                            if stateMachine.wizardIssues.contains(where: { $0.category == .installation && $0.identifier == .component(.kanataBinaryMissing) }) {
-                                stateMachine.navigateToPage(.kanataComponents)
-                            } else {
-                                stateMachine.navigateToPage(.summary)
-                            }
+                            stateMachine.navigateToPage(.summary)
                         }
                     },
                     onSkip: {
@@ -116,11 +102,7 @@ extension InstallationWizardView {
                     onComplete: {
                         // After stopping, refresh state and continue
                         refreshSystemState()
-                        if stateMachine.wizardIssues.contains(where: { $0.category == .installation && $0.identifier == .component(.kanataBinaryMissing) }) {
-                            stateMachine.navigateToPage(.kanataComponents)
-                        } else {
-                            stateMachine.navigateToPage(.summary)
-                        }
+                        stateMachine.navigateToPage(.summary)
                     },
                     onCancel: {
                         // User cancelled, go back to migration

@@ -111,9 +111,6 @@ struct SystemContextAdapter {
     private static func getMissingComponents(_ context: SystemContext) -> [ComponentRequirement] {
         var missing: [ComponentRequirement] = []
 
-        if !context.components.kanataBinaryInstalled {
-            missing.append(.kanataBinaryMissing)
-        }
         if !context.components.karabinerDriverInstalled {
             missing.append(.karabinerDriver)
         }
@@ -122,9 +119,6 @@ struct SystemContextAdapter {
         }
         if context.components.vhidVersionMismatch {
             missing.append(.vhidDriverVersionMismatch)
-        }
-        if context.components.kanataBinaryVersionMismatch {
-            missing.append(.kanataBinaryVersionMismatch)
         }
         if !context.components.vhidDeviceHealthy {
             missing.append(.vhidDeviceRunning)
@@ -166,9 +160,9 @@ struct SystemContextAdapter {
                     // This commonly occurs when KeyPath lacks Full Disk Access and cannot read TCC.db for Kanata.
                     return switch identifier {
                     case .permission(.kanataInputMonitoring):
-                        "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add the Kanata engine binary used by KeyPath at /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring."
+                        "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add the KeyPath runtime binary in System Settings > Privacy & Security > Input Monitoring."
                     case .permission(.kanataAccessibility):
-                        "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add the Kanata engine binary used by KeyPath at /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Accessibility."
+                        "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add the KeyPath runtime binary in System Settings > Privacy & Security > Accessibility."
                     default:
                         "Not verified (grant Full Disk Access to verify)."
                     }
@@ -236,25 +230,12 @@ struct SystemContextAdapter {
                     "KeyPath Runtime is running but cannot open the built-in keyboard device, so remapping will not work on this laptop.",
                     autoFixAction: nil,
                     userAction:
-                    "Regrant Input Monitoring for the Kanata engine binary at /Library/KeyPath/bin/kanata and restart KeyPath"
+                    "Regrant Input Monitoring for the KeyPath runtime binary and restart KeyPath"
                 )
             )
         }
 
         // Component issues
-        if !context.components.kanataBinaryInstalled {
-            issues.append(
-                WizardIssue(
-                    identifier: .component(.kanataBinaryMissing),
-                    severity: .error,
-                    category: .installation,
-                    title: "Kanata Engine Missing",
-                    description: "The Kanata engine binary used by KeyPath is not installed",
-                    autoFixAction: .installBundledKanata,
-                    userAction: nil
-                )
-            )
-        }
         if !context.components.karabinerDriverInstalled {
             issues.append(
                 WizardIssue(
@@ -277,20 +258,6 @@ struct SystemContextAdapter {
                     title: "Driver Version Mismatch",
                     description: "Karabiner VirtualHID driver version mismatch",
                     autoFixAction: .fixDriverVersionMismatch,
-                    userAction: nil
-                )
-            )
-        }
-        if context.components.kanataBinaryVersionMismatch {
-            issues.append(
-                WizardIssue(
-                    identifier: .component(.kanataBinaryVersionMismatch),
-                    severity: .error,
-                    category: .installation,
-                    title: "Kanata Binary Trust Mismatch",
-                    description:
-                    "The installed /Library/KeyPath/bin/kanata does not match KeyPath's trusted signing identity. Click Fix to reinstall the trusted bundled binary.",
-                    autoFixAction: .replaceKanataWithBundled,
                     userAction: nil
                 )
             )

@@ -193,9 +193,9 @@ public enum MockSystemData {
                 "OnDemand" = true;
                 "LastExitStatus" = 0;
                 "PID" = 12345;
-                "Program" = "/Library/KeyPath/bin/kanata";
+                "Program" = "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata";
                 "ProgramArguments" = (
-                    "/Library/KeyPath/bin/kanata",
+                    "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata",
                     "--cfg",
                     "/Users/test/.config/keypath/keypath.kbd",
                     "--port",
@@ -210,9 +210,9 @@ public enum MockSystemData {
                 "Label" = "com.keypath.kanata";
                 "OnDemand" = true;
                 "LastExitStatus" = 0;
-                "Program" = "/Library/KeyPath/bin/kanata";
+                "Program" = "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata";
                 "ProgramArguments" = (
-                    "/Library/KeyPath/bin/kanata",
+                    "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata",
                     "--cfg",
                     "/Users/test/.config/keypath/keypath.kbd",
                     "--port",

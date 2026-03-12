@@ -11,7 +11,7 @@ extension InstallationWizardView {
         guard stateMachine.currentPage != .summary else { return }
         let defaultSequence: [WizardPage] = [
             .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
-            .karabinerComponents, .kanataComponents, .service, .communication
+            .karabinerComponents, .service, .communication
         ]
         let sequence = navSequence.isEmpty ? defaultSequence : navSequence
         guard let idx = sequence.firstIndex(of: stateMachine.currentPage), idx > 0 else {
@@ -27,7 +27,7 @@ extension InstallationWizardView {
         guard stateMachine.currentPage != .summary else { return }
         let defaultSequence: [WizardPage] = [
             .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
-            .karabinerComponents, .kanataComponents, .service, .communication
+            .karabinerComponents, .service, .communication
         ]
         let sequence = navSequence.isEmpty ? defaultSequence : navSequence
         guard let idx = sequence.firstIndex(of: stateMachine.currentPage) else { return }

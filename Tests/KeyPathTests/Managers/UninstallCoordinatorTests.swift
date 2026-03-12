@@ -56,7 +56,7 @@ final class UninstallCoordinatorTests: XCTestCase {
                 do {
                     try process.run()
                     while process.isRunning {
-                        usleep(1_000)
+                        usleep(1000)
                     }
                     let output =
                         String(data: (try? out.fileHandleForReading.readToEnd()) ?? Data(), encoding: .utf8) ?? ""

@@ -44,10 +44,8 @@ final class SystemRequirementsChecker {
         let driverInstalled = isKarabinerDriverInstalled()
 
         switch detection.status {
-        case .systemInstalled:
+        case .installed:
             return driverInstalled ? "✅ Fully installed" : "⚠️ Driver missing"
-        case .bundledAvailable:
-            return "⚠️ Kanata engine needs installation"
         case .bundledUnsigned:
             return "⚠️ Bundled Kanata unsigned (needs Developer ID signature)"
         case .missing:

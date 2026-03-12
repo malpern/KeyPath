@@ -38,10 +38,10 @@ public struct KanataOutputBridgeStatus: Equatable, Sendable, Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let available = try container.decode(Bool.self, forKey: .available)
         self.available = available
-        self.companionRunning =
+        companionRunning =
             try container.decodeIfPresent(Bool.self, forKey: .companionRunning) ?? available
-        self.requiresPrivilegedBridge = try container.decode(Bool.self, forKey: .requiresPrivilegedBridge)
-        self.socketDirectory = try container.decodeIfPresent(String.self, forKey: .socketDirectory)
-        self.detail = try container.decodeIfPresent(String.self, forKey: .detail)
+        requiresPrivilegedBridge = try container.decode(Bool.self, forKey: .requiresPrivilegedBridge)
+        socketDirectory = try container.decodeIfPresent(String.self, forKey: .socketDirectory)
+        detail = try container.decodeIfPresent(String.self, forKey: .detail)
     }
 }
