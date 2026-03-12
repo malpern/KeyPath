@@ -30,6 +30,17 @@ final class KanataRuntimeHostTests: XCTestCase {
         XCTAssertEqual(host.preferredCoreBinaryPath(), host.bundledCorePath)
     }
 
+    func testDeprecatedSystemCorePathReturnsBundledCorePath() {
+        let host = KanataRuntimeHost(
+            launcherPath: "/tmp/kanata-launcher",
+            bridgeLibraryPath: "/tmp/libkeypath_kanata_host_bridge.dylib",
+            bundledCorePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata"
+        )
+
+        // systemCorePath is a deprecated alias — must always equal bundledCorePath
+        XCTAssertEqual(host.systemCorePath, host.bundledCorePath)
+    }
+
     func testLaunchRequestBuildsCommandLineAndAddsTraceWhenNeeded() {
         let request = KanataRuntimeLaunchRequest(
             configPath: "/Users/test/.config/keypath/keypath.kbd",

@@ -42,8 +42,8 @@ public enum WizardSystemPaths {
 
     // MARK: - Binary Paths
 
-    /// Canonical kanata binary location — now always the bundled path.
-    /// Previously pointed to /Library/KeyPath/bin/kanata (system install).
+    /// Deprecated: use `bundledKanataPath` instead. Now returns the bundled path.
+    @available(*, deprecated, renamed: "bundledKanataPath")
     public static var kanataSystemInstallPath: String {
         currentRuntimeHost().bundledCorePath
     }
@@ -120,7 +120,8 @@ public enum WizardSystemPaths {
         currentRuntimeHost().preferredCoreBinaryPath()
     }
 
-    /// All known kanata binary paths for detection/filtering
+    /// All known kanata binary paths for detection/filtering.
+    /// Returns only the bundled path — kept in sync with PermissionOracle.resolveKanataExecutablePath().
     public static func allKnownKanataPaths() -> [String] {
         let runtimeHost = currentRuntimeHost()
         return [runtimeHost.bundledCorePath].filter {
@@ -129,10 +130,7 @@ public enum WizardSystemPaths {
     }
 
     private static func currentRuntimeHost() -> KanataRuntimeHost {
-        KanataRuntimeHost.current(
-            bundlePath: Bundle.main.bundlePath,
-            systemRoot: currentTestRoot()
-        )
+        KanataRuntimeHost.current(bundlePath: Bundle.main.bundlePath)
     }
 
     /// Homebrew binary path
@@ -241,7 +239,7 @@ public enum WizardSystemPaths {
 
     // MARK: - Helper Methods
 
-    /// Returns the best available kanata binary path - simple filesystem check for performance
+    /// Returns the bundled kanata binary path if it exists, nil otherwise.
     public static func detectKanataBinaryPath() -> String? {
         if FileManager.default.fileExists(atPath: bundledKanataPath) {
             return bundledKanataPath

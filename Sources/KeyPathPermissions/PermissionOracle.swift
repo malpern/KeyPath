@@ -439,7 +439,7 @@ public actor PermissionOracle {
         // Migration fallback: check legacy system path for users who still have TCC entries there
         let legacySystem = "/Library/KeyPath/bin/kanata"
         if FileManager.default.fileExists(atPath: legacySystem) {
-            AppLogger.shared.log("⚠️ [Oracle] Using legacy system binary path for TCC — bundled binary not found")
+            AppLogger.shared.log("⚠️ [Oracle] Bundled binary missing at expected path; falling back to legacy system binary for TCC lookup")
             return legacySystem
         }
 

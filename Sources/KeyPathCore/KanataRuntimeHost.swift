@@ -28,15 +28,13 @@ public struct KanataRuntimeHost: Sendable, Equatable {
         self.bundledCorePath = bundledCorePath
     }
 
-    public func preferredCoreBinaryPath(
-        fileManager _: FileManager = .default
-    ) -> String {
+    /// The canonical kanata binary path. Always returns the bundled binary.
+    public func preferredCoreBinaryPath() -> String {
         bundledCorePath
     }
 
     public static func current(
-        bundlePath: String = Bundle.main.bundlePath,
-        systemRoot _: String? = nil
+        bundlePath: String = Bundle.main.bundlePath
     ) -> KanataRuntimeHost {
         let resolvedBundlePath = resolveAppBundlePath(from: bundlePath)
         return KanataRuntimeHost(
