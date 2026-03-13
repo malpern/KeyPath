@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
+import KeyPathInstallationWizard
 import KeyPathWizardCore
 
 /// Public facade exposing KeyPathAppKit internals for the CLI binary.

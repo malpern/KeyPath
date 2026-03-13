@@ -188,9 +188,9 @@ if [[ "${KEYPATH_DEPLOY_HELPER:-0}" == "1" ]]; then
     fi
 fi
 
-# Ensure KanataEngine.app bundle structure exists around the kanata binary.
+# Ensure "Kanata Engine.app" bundle structure exists around the kanata binary.
 # The full build creates this; quick-deploy just ensures it's present.
-KANATA_ENGINE_APP="$APP_BUNDLE/Contents/Library/KeyPath/KanataEngine.app"
+KANATA_ENGINE_APP="$APP_BUNDLE/Contents/Library/KeyPath/Kanata Engine.app"
 KANATA_ENGINE_CONTENTS="$KANATA_ENGINE_APP/Contents"
 KANATA_ENGINE_MACOS="$KANATA_ENGINE_CONTENTS/MacOS"
 mkdir -p "$KANATA_ENGINE_MACOS"
@@ -200,10 +200,10 @@ mkdir -p "$KANATA_ENGINE_MACOS"
 OLD_KANATA="$APP_BUNDLE/Contents/Library/KeyPath/kanata"
 if [[ -f "$OLD_KANATA" && ! -L "$OLD_KANATA" ]]; then
     mv "$OLD_KANATA" "$KANATA_ENGINE_MACOS/kanata"
-    ln -sf "KanataEngine.app/Contents/MacOS/kanata" "$OLD_KANATA"
+    ln -sf "Kanata Engine.app/Contents/MacOS/kanata" "$OLD_KANATA"
 fi
 
-# Ensure the kanata binary is present inside KanataEngine.app.
+# Ensure the kanata binary is present inside "Kanata Engine.app".
 # On a fresh deploy the binary may not exist yet (no old flat binary to migrate).
 # Copy from the pre-built artifact if available.
 KANATA_UNIVERSAL="$PROJECT_DIR/build/kanata-universal"
@@ -212,18 +212,26 @@ if [[ ! -f "$KANATA_ENGINE_MACOS/kanata" && -f "$KANATA_UNIVERSAL" ]]; then
     chmod 755 "$KANATA_ENGINE_MACOS/kanata"
     # Create backward-compat symlink if missing
     if [[ ! -e "$OLD_KANATA" ]]; then
-        ln -sf "KanataEngine.app/Contents/MacOS/kanata" "$OLD_KANATA"
+        ln -sf "Kanata Engine.app/Contents/MacOS/kanata" "$OLD_KANATA"
     fi
 fi
 
 if [[ ! -f "$KANATA_ENGINE_MACOS/kanata" ]]; then
-    echo "⚠️  KanataEngine.app has no kanata binary. Run ./Scripts/build-kanata.sh first."
+    echo "⚠️  Kanata Engine.app has no kanata binary. Run ./Scripts/build-kanata.sh first."
 fi
 
 # Copy committed Info.plist
 cp "$PROJECT_DIR/Sources/KeyPathApp/Resources/KanataEngine-Info.plist" "$KANATA_ENGINE_CONTENTS/Info.plist"
 
-# Inject the main app's version into KanataEngine.app so the bundle version
+# Copy icon into "Kanata Engine.app"/Contents/Resources/
+KANATA_ENGINE_RESOURCES="$KANATA_ENGINE_CONTENTS/Resources"
+mkdir -p "$KANATA_ENGINE_RESOURCES"
+KANATA_ICON_SRC="$PROJECT_DIR/Sources/KeyPathApp/Resources/KanataEngineIcon.icns"
+if [[ -f "$KANATA_ICON_SRC" ]]; then
+    cp "$KANATA_ICON_SRC" "$KANATA_ENGINE_RESOURCES/KanataEngineIcon.icns"
+fi
+
+# Inject the main app's version into "Kanata Engine.app" so the bundle version
 # stays in sync across releases (the source plist uses placeholder values).
 _MAIN_VER=$(defaults read "$PROJECT_DIR/Sources/KeyPathApp/Info" CFBundleShortVersionString 2>/dev/null || echo "1.0")
 _MAIN_BUILD=$(defaults read "$PROJECT_DIR/Sources/KeyPathApp/Info" CFBundleVersion 2>/dev/null || echo "1")
@@ -297,7 +305,7 @@ if [[ -f "$INSIGHTS_DYLIB" ]]; then
 fi
 
 # Re-sign with entitlements (prefer Developer ID if available).
-# NOTE: KanataEngine.app and inner binaries are signed here WITHOUT entitlements
+# NOTE: "Kanata Engine.app" and inner binaries are signed here WITHOUT entitlements
 # (just --options=runtime). This produces a dev-only ad-hoc-equivalent signature
 # sufficient for local testing, but NOT equivalent to the distribution signature
 # from build-and-sign.sh which applies proper entitlements and a notarizable
@@ -308,9 +316,9 @@ if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
     if [[ -f "$APP_BUNDLE/Contents/Library/HelperTools/KeyPathHelper" ]]; then
         codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/HelperTools/KeyPathHelper" 2>/dev/null || true
     fi
-    if [[ -d "$APP_BUNDLE/Contents/Library/KeyPath/KanataEngine.app" ]]; then
-        codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata" || echo "⚠️  Failed to sign KanataEngine kanata binary"
-        codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/KanataEngine.app" || echo "⚠️  Failed to sign KanataEngine.app bundle"
+    if [[ -d "$APP_BUNDLE/Contents/Library/KeyPath/Kanata Engine.app" ]]; then
+        codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata" || echo "⚠️  Failed to sign Kanata Engine kanata binary"
+        codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/Kanata Engine.app" || echo "⚠️  Failed to sign Kanata Engine.app bundle"
     fi
     if [[ -f "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher" ]]; then
         codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher" 2>/dev/null || true

@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+@testable import KeyPathInstallationWizard
 @testable import KeyPathCore
 @preconcurrency import XCTest
 

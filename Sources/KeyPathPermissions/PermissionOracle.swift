@@ -427,7 +427,7 @@ public actor PermissionOracle {
     ///
     /// IMPORTANT:
     /// - TCC entries for CLI binaries are keyed by *executable path* (client_type=1).
-    /// - KanataEngine.app entries are keyed by *bundle ID* (client_type=0).
+    /// - Kanata Engine.app entries are keyed by *bundle ID* (client_type=0).
     /// - If the daemon executes a different path than the wizard instructs users to add,
     ///   we can get false positives/negatives (green UI while remapping fails).
     /// - The bundled path is now canonical — no system binary install step.
@@ -500,7 +500,7 @@ public actor PermissionOracle {
     }
 
     /// Attempt to determine TCC status for Kanata (best-effort).
-    /// Tries bundle-ID query (client_type=0) first for KanataEngine.app, then falls
+    /// Tries bundle-ID query (client_type=0) first for Kanata Engine.app, then falls
     /// back to path-based query (client_type=1) for migration from raw binary.
     /// Returns (.granted/.denied) if determinable, or nil if inconclusive/unreadable.
     /// NOTE: This direct TCC access was previously removed as "bad practice" but is
@@ -509,7 +509,7 @@ public actor PermissionOracle {
     private func checkTCCForKanata(executablePath: String) async -> (ax: Status?, im: Status?) {
         let bundleID = KeyPathConstants.Bundle.kanataEngineBundleID
 
-        // Try bundle-ID based query first (KanataEngine.app wrapper)
+        // Try bundle-ID based query first (Kanata Engine.app wrapper)
         AppLogger.shared.log("🔍 [Oracle] Trying TCC bundle-ID query for \(bundleID)")
         let axBundle = await tccStatus(forBundleID: bundleID, service: .accessibility)
         let imBundle = await tccStatus(forBundleID: bundleID, service: .inputMonitoring)
@@ -570,7 +570,7 @@ public actor PermissionOracle {
     }
 
     /// Query TCC DB for a bundle identifier and service (client_type=0, bundle-ID based)
-    /// Used for KanataEngine.app which is wrapped in an .app bundle with a CFBundleIdentifier.
+    /// Used for Kanata Engine.app which is wrapped in an .app bundle with a CFBundleIdentifier.
     private func tccStatus(forBundleID bundleID: String, service: TCCServiceName) async -> Status? {
         let dbPaths = tccDatabaseCandidates()
         for db in dbPaths where FileManager.default.fileExists(atPath: db) {

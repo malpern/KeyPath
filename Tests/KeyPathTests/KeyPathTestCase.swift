@@ -1,4 +1,7 @@
 @testable import KeyPathAppKit
+import KeyPathDaemonLifecycle
+@testable import KeyPathInstallationWizard
+import KeyPathWizardCore
 @preconcurrency import XCTest
 
 /// Base test case class that provides common test seam setup for KeyPath tests.
@@ -39,14 +42,25 @@
 open class KeyPathTestCase: XCTestCase {
     override open func setUp() {
         super.setUp()
-        // Set up test seam to avoid real pgrep calls which can hang after multiple rapid executions.
-        // Without this, detectConnectionHealth() spawns pgrep subprocesses with 3s timeouts that
-        // can deadlock when run repeatedly in quick succession.
-        VHIDDeviceManager.testPIDProvider = { [] }
+        MainActor.assumeIsolated {
+            // Set up test seam to avoid real pgrep calls which can hang after multiple rapid executions.
+            VHIDDeviceManager.testPIDProvider = { [] }
+            // Configure WizardDependencies so InstallerEngine/PrivilegeBroker init don't crash.
+            WizardDependencies.privilegedOperations = PrivilegedOperationsCoordinator.shared
+            WizardDependencies.daemonManager = KanataDaemonManager.shared
+            if WizardDependencies.systemValidator == nil {
+                WizardDependencies.systemValidator = SystemValidator(
+                    processLifecycleManager: ProcessLifecycleManager()
+                )
+            }
+        }
     }
 
     override open func tearDown() {
-        VHIDDeviceManager.testPIDProvider = nil
+        MainActor.assumeIsolated {
+            VHIDDeviceManager.testPIDProvider = nil
+            WizardDependencies.reset()
+        }
         super.tearDown()
     }
 }
@@ -58,11 +72,24 @@ open class KeyPathTestCase: XCTestCase {
 open class KeyPathAsyncTestCase: XCTestCase {
     override open func setUp() async throws {
         try await super.setUp()
-        VHIDDeviceManager.testPIDProvider = { [] }
+        await MainActor.run {
+            VHIDDeviceManager.testPIDProvider = { [] }
+            // Configure WizardDependencies so InstallerEngine/PrivilegeBroker init don't crash.
+            WizardDependencies.privilegedOperations = PrivilegedOperationsCoordinator.shared
+            WizardDependencies.daemonManager = KanataDaemonManager.shared
+            if WizardDependencies.systemValidator == nil {
+                WizardDependencies.systemValidator = SystemValidator(
+                    processLifecycleManager: ProcessLifecycleManager()
+                )
+            }
+        }
     }
 
     override open func tearDown() async throws {
-        VHIDDeviceManager.testPIDProvider = nil
+        await MainActor.run {
+            VHIDDeviceManager.testPIDProvider = nil
+            WizardDependencies.reset()
+        }
         try await super.tearDown()
     }
 }

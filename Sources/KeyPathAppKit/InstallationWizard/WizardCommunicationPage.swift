@@ -1,0 +1,555 @@
+// NOTE: Kept in KeyPathAppKit (not extracted to KeyPathInstallationWizard) due to direct
+// dependencies on KeyPathAppKit types: KanataViewModel (@Environment), RuntimeCoordinator
+// (kanataViewModel.underlyingManager), KanataTCPClient, TCPEngineClient, and PreferencesService.
+
+import KeyPathCore
+import KeyPathInstallationWizard
+import KeyPathWizardCore
+import SwiftUI
+
+struct WizardCommunicationPage: View {
+    let systemState: WizardSystemState
+    let issues: [WizardIssue]
+    @State private var commStatus: CommunicationStatus = .checking
+    @State private var isFixing = false
+    @State private var lastCheckTime = Date()
+    @State private var actionStatus: WizardDesign.ActionStatus = .idle
+    @Environment(WizardStateMachine.self) var stateMachine
+    @Environment(KanataViewModel.self) var kanataViewModel
+    @Environment(\.preferencesService) private var preferences: PreferencesService
+
+    /// Access underlying RuntimeCoordinator for business logic
+    private var kanataManager: RuntimeCoordinator {
+        kanataViewModel.underlyingManager
+    }
+
+    /// Auto-fix integration
+    let onAutoFix: ((AutoFixAction, Bool) async -> Bool)?
+
+    init(
+        systemState: WizardSystemState, issues: [WizardIssue],
+        onAutoFix: ((AutoFixAction, Bool) async -> Bool)? = nil
+    ) {
+        self.systemState = systemState
+        self.issues = issues
+        self.onAutoFix = onAutoFix
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Unified hero/header (matches other wizard pages)
+            VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                // Icon with overlay
+                VStack(spacing: WizardDesign.Spacing.elementGap) {
+                    ZStack {
+                        Image(systemName: "globe")
+                            .font(.system(size: 115, weight: .light))
+                            .foregroundColor(commStatus.globeColor)
+                            .symbolRenderingMode(.hierarchical)
+                            .modifier(BounceIfAvailable())
+
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Image(systemName: commStatus.overlayIcon)
+                                    .font(.system(size: commStatus.isSuccess ? 32 : 24, weight: .medium))
+                                    .foregroundColor(commStatus.globeColor)
+                                    .background(WizardDesign.Colors.wizardBackground)
+                                    .clipShape(Circle())
+                                    .offset(x: commStatus.isSuccess ? 12 : 8, y: commStatus.isSuccess ? -4 : -3)
+                            }
+                            Spacer()
+                        }
+                        .frame(width: 140, height: 115)
+                    }
+                    .frame(width: 140, height: 130)
+
+                    Text("TCP Communication")
+                        .font(.title3.weight(.semibold))
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+
+                    Text(commStatus.message)
+                        .font(WizardDesign.Typography.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, WizardDesign.Spacing.pageVertical)
+
+                // Inline action status (immediately after hero for visual consistency)
+                if actionStatus.isActive, let message = actionStatus.message {
+                    InlineStatusView(status: actionStatus, message: message)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                }
+
+                // Action buttons
+                VStack(spacing: WizardDesign.Spacing.elementGap) {
+                    if commStatus.isSuccess {
+                        Button(nextStepButtonTitle) {
+                            navigateToNextStep()
+                        }
+                        .buttonStyle(WizardDesign.Component.PrimaryButton())
+                        .keyboardShortcut(.defaultAction)
+                        .padding(.top, WizardDesign.Spacing.sectionGap)
+
+                        Button("Re-check Status") {
+                            Task { await checkCommunicationStatus() }
+                        }
+                        .buttonStyle(WizardDesign.Component.SecondaryButton())
+                    } else if commStatus.canAutoFix {
+                        Button(commStatus.fixButtonText) {
+                            Task { await performAutoFix() }
+                        }
+                        .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isFixing))
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(isFixing)
+                        .frame(minHeight: 44)
+                        .padding(.top, WizardDesign.Spacing.itemGap)
+
+                        Button("Re-check Status") {
+                            Task { await checkCommunicationStatus() }
+                        }
+                        .buttonStyle(WizardDesign.Component.SecondaryButton())
+                        .disabled(isFixing)
+                    } else if commStatus == .checking || isAuthTesting {
+                        Button("Checking...") {}
+                            .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: true))
+                            .disabled(true)
+                            .frame(minHeight: 44)
+                            .padding(.top, WizardDesign.Spacing.itemGap)
+                    } else {
+                        Button("Re-check Status") {
+                            Task { await checkCommunicationStatus() }
+                        }
+                        .buttonStyle(WizardDesign.Component.PrimaryButton())
+                        .keyboardShortcut(.defaultAction)
+                        .padding(.top, WizardDesign.Spacing.sectionGap)
+                    }
+                }
+                .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+            }
+
+            // Bottom buttons - HIG compliant button order
+        }
+        .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(WizardDesign.Colors.wizardBackground)
+        .wizardDetailPage()
+        .onAppear {
+            Task {
+                await checkCommunicationStatus()
+            }
+        }
+        .onChange(of: commStatus) { _, newValue in
+            guard case .inProgress = actionStatus else { return }
+            let isActiveCheck = switch newValue {
+            case .checking, .authTesting:
+                true
+            default:
+                false
+            }
+            if !isActiveCheck {
+                actionStatus = .idle
+            }
+        }
+    }
+
+    private var nextStepButtonTitle: String {
+        issues.isEmpty ? "Return to Summary" : "Next Issue"
+    }
+
+    private var isAuthTesting: Bool {
+        if case .authTesting = commStatus {
+            return true
+        }
+        return false
+    }
+
+    // MARK: - Communication Status Check (Using Shared SystemStatusChecker)
+
+    private func checkCommunicationStatus() async {
+        AppLogger.shared.log("🧪 [WizardComm] checkCommunicationStatus() start")
+        await MainActor.run {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                commStatus = .checking
+                actionStatus = .inProgress(message: "Checking communication server...")
+            }
+        }
+        lastCheckTime = Date()
+
+        // Prefer a lightweight, non-blocking check that runs off the main actor.
+        // The previous approach used SystemStatusChecker (MainActor) which spawned
+        // synchronous launchctl calls and could momentarily block the UI.
+        await checkUDPStatusDirect()
+    }
+
+    private func checkUDPStatusDirect() async {
+        // SECURITY NOTE (ADR-013): Kanata v1.9.0 TCP does NOT support authentication
+        // We previously used UDP with token-based auth, but TCP explicitly ignores auth messages.
+        // This is acceptable for localhost-only IPC with limited attack surface (config reloads only).
+        // Future work: Consider contributing authentication support to upstream Kanata.
+
+        // Check TCP server status (kanata uses TCP) with timeout
+        let port = preferences.tcpServerPort
+        let client = KanataTCPClient(port: port, timeout: 8.0)
+        AppLogger.shared.log("🧪 [WizardComm] Checking TCP server on port \(port)")
+
+        do {
+            // Add timeout wrapper around the entire check (15s total)
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                // Main check task
+                group.addTask {
+                    // IMPORTANT: Kanata v1.9.0 TCP server does NOT support authentication
+                    // It ignores all Authenticate messages. We only need to verify the server responds.
+
+                    // 1) Is the server answering? Prefer Hello handshake to align with summary check
+                    let t0 = CFAbsoluteTimeGetCurrent()
+                    let hello = await attemptHello(client: client, maxAttempts: 3)
+                    if let hello {
+                        let dt = CFAbsoluteTimeGetCurrent() - t0
+                        AppLogger.shared.log(
+                            "🌐 [WizardCommDetail] hello ok port=\(port) duration_ms=\(Int(dt * 1000)) caps=\(hello.capabilities.joined(separator: ","))"
+                        )
+
+                        // "status" is not implemented by all Kanata TCP builds; treat TCP reachability
+                        // as readiness as long as reload is supported (needed for KeyPath's instant apply).
+                        if !hello.hasCapabilities(["reload"]) {
+                            AppLogger.shared.log("🌐 [WizardCommDetail] missing 'reload' capability -> not ready")
+                            await MainActor.run {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    commStatus = .needsSetup(
+                                        "TCP reachable but reload capability not available (older Kanata). Install/update via Wizard."
+                                    )
+                                    actionStatus = .idle
+                                }
+                            }
+                            return
+                        }
+                    } else {
+                        AppLogger.shared.log(
+                            "🌐 [WizardCommDetail] hello failed port=\(port)"
+                        )
+                        await MainActor.run {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                commStatus = .needsSetup(
+                                    "TCP server is not responding. Service may use old TCP configuration. Click Fix to regenerate with TCP."
+                                )
+                                actionStatus = .idle
+                            }
+                        }
+                        return
+                    }
+
+                    // Hello ok is sufficient for readiness in the wizard.
+                    await MainActor.run {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            commStatus = .ready(
+                                "Ready for instant configuration changes and external integrations"
+                            )
+                            actionStatus = .success(message: "Communication ready")
+                            scheduleStatusClear()
+                        }
+                    }
+                }
+
+                // Timeout task (15 seconds total)
+                group.addTask {
+                    let clock = ContinuousClock()
+                    try await clock.sleep(for: .seconds(15))
+                    throw TimeoutError()
+                }
+
+                // Wait for first to complete
+                try await group.next()
+                group.cancelAll()
+            }
+        } catch is TimeoutError {
+            AppLogger.shared.log("⚠️ [WizardComm] TCP check timed out after 15s")
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    commStatus = .needsSetup(
+                        "Connection timed out. Service may be using old TCP configuration. Click Fix to regenerate with TCP."
+                    )
+                    actionStatus = .idle
+                }
+            }
+        } catch {
+            AppLogger.shared.log("❌ [WizardComm] TCP check failed: \(error)")
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    commStatus = .needsSetup(
+                        "Failed to connect to TCP server. Click Fix to regenerate service configuration."
+                    )
+                    actionStatus = .idle
+                }
+            }
+        }
+
+        await MainActor.run {
+            if case .inProgress = actionStatus, !commStatus.isSuccess {
+                actionStatus = .idle
+            }
+        }
+
+        // FIX #1: Explicitly close connection to prevent file descriptor leak
+        await client.cancelInflightAndCloseConnection()
+    }
+
+    private func attemptHello(
+        client: KanataTCPClient,
+        maxAttempts: Int
+    ) async -> KanataTCPClient.TcpHelloOk? {
+        var lastError: Error?
+
+        for attempt in 1 ... maxAttempts {
+            do {
+                return try await client.hello()
+            } catch {
+                lastError = error
+                await client.cancelInflightAndCloseConnection()
+                let delayMs = 200 * attempt
+                AppLogger.shared.log(
+                    "🌐 [WizardCommDetail] hello attempt \(attempt) failed: \(error.localizedDescription). Retrying in \(delayMs)ms"
+                )
+                _ = await WizardSleep.ms(delayMs)
+            }
+        }
+
+        if let lastError {
+            AppLogger.shared.log("🌐 [WizardCommDetail] hello failed after retries: \(lastError.localizedDescription)")
+        }
+        return nil
+    }
+
+    private struct TimeoutError: Error {}
+
+    private func testConfigReload(client: KanataTCPClient) async -> Bool {
+        // Test a simple config reload to ensure full functionality.
+        //
+        // Use EngineClient (single-flight) so wizard polling can't overlap with other reload
+        // triggers (e.g., config saves / hot reload), which can cause spurious timeouts.
+        _ = client // legacy parameter; keep signature small for now
+        let engine = TCPEngineClient(timeout: 2.0)
+        let result = await engine.reloadConfig()
+        return result.isSuccess
+    }
+
+    /// Lightweight TCP readiness check used by polling loops.
+    private func isCommunicationResponding() async -> Bool {
+        let client = KanataTCPClient(port: preferences.tcpServerPort, timeout: 2.0)
+        let ok = await client.checkServerStatus()
+        await client.cancelInflightAndCloseConnection()
+        return ok
+    }
+
+    // MARK: - Auto Fix
+
+    private func performAutoFix() async {
+        guard let onAutoFix else { return }
+
+        await MainActor.run {
+            isFixing = true
+            actionStatus = .inProgress(message: "Fixing communication server...")
+        }
+        defer {
+            Task { @MainActor in
+                isFixing = false
+            }
+        }
+
+        let (action, successMessage, failureMessage) = getAutoFixAction()
+        var success = await onAutoFix(action, true) // suppressToast=true for inline feedback
+
+        // For service regeneration, restart the service
+        // NOTE: TCP mode doesn't require authentication (Kanata v1.9.0 ignores auth messages)
+        if success, case .needsSetup = commStatus {
+            AppLogger.shared.log("🔄 [WizardComm] Service regenerated, restarting Kanata...")
+            success = await onAutoFix(.restartCommServer, true)
+
+            if success {
+                // Wait for TCP server to start
+                AppLogger.shared.log("⏳ [WizardComm] Waiting for TCP server to be ready...")
+                // Poll up to 3s at 200ms for the service to come up
+                let clock = ContinuousClock()
+                for _ in 0 ..< 15 {
+                    try? await clock.sleep(for: .milliseconds(200))
+                    if await isCommunicationResponding() {
+                        break
+                    }
+                }
+            } else {
+                AppLogger.shared.log("❌ [WizardComm] Failed to restart service after regeneration")
+            }
+        }
+
+        await MainActor.run {
+            if success {
+                actionStatus = .success(message: successMessage)
+                scheduleStatusClear()
+            } else {
+                actionStatus = .error(message: failureMessage)
+            }
+        }
+
+        if success {
+            // Recheck status after successful fix
+            let clock = ContinuousClock()
+            for _ in 0 ..< 10 {
+                try? await clock.sleep(for: .milliseconds(100))
+                if await isCommunicationResponding() {
+                    break
+                }
+            }
+            await checkCommunicationStatus()
+        }
+    }
+
+    /// Auto-clear success status after 3 seconds
+    private func scheduleStatusClear() {
+        Task { @MainActor in
+            _ = await WizardSleep.seconds(3)
+            if case .success = actionStatus {
+                actionStatus = .idle
+            }
+        }
+    }
+
+    private func getAutoFixAction() -> (AutoFixAction, String, String) {
+        switch commStatus {
+        case .needsSetup:
+            (
+                .regenerateCommServiceConfiguration, "Service regenerated with TCP configuration",
+                "Failed to regenerate service"
+            )
+        case .authRequired:
+            (
+                .setupTCPAuthentication, "Secure connection established successfully",
+                "Failed to setup authentication"
+            )
+        default:
+            (.regenerateCommServiceConfiguration, "Issue resolved", "Failed to fix issue")
+        }
+    }
+
+    private func navigateToNextStep() {
+        if issues.isEmpty {
+            stateMachine.navigateToPage(.summary)
+            return
+        }
+
+        Task {
+            if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
+               nextPage != stateMachine.currentPage
+            {
+                stateMachine.navigateToPage(nextPage)
+            } else {
+                stateMachine.navigateToPage(.summary)
+            }
+        }
+    }
+}
+
+// MARK: - Compatibility helpers
+
+private struct BounceIfAvailable: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            content.modifier(AvailabilitySymbolBounce())
+        } else {
+            content
+        }
+    }
+}
+
+// MARK: - Communication Status Types
+
+enum CommunicationStatus: Equatable {
+    case checking
+    case ready(String)
+    case needsSetup(String)
+    case authRequired(String)
+    case authTesting(String)
+    case error(String)
+
+    var isSuccess: Bool {
+        switch self {
+        case .ready:
+            true
+        default:
+            false
+        }
+    }
+
+    var canAutoFix: Bool {
+        switch self {
+        case .needsSetup, .authRequired:
+            true
+        default:
+            false
+        }
+    }
+
+    var isAuthenticationRelated: Bool {
+        switch self {
+        case .authRequired:
+            true
+        default:
+            false
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .checking:
+            "Checking communication server status..."
+        case let .ready(msg), let .needsSetup(msg), let .authRequired(msg), let .authTesting(msg),
+             let .error(msg):
+            msg
+        }
+    }
+
+    var globeColor: Color {
+        switch self {
+        case .ready:
+            WizardDesign.Colors.success
+        case .needsSetup, .authRequired:
+            WizardDesign.Colors.warning
+        case .authTesting:
+            WizardDesign.Colors.warning
+        case .error:
+            WizardDesign.Colors.error
+        case .checking:
+            WizardDesign.Colors.warning
+        }
+    }
+
+    var overlayIcon: String {
+        switch self {
+        case .ready:
+            "checkmark.circle.fill"
+        case .needsSetup:
+            "exclamationmark.triangle.fill"
+        case .authRequired:
+            "key.fill"
+        case .authTesting:
+            "clock.fill"
+        case .error:
+            "xmark.circle.fill"
+        case .checking:
+            "clock.fill"
+        }
+    }
+
+    var fixButtonText: String {
+        switch self {
+        case .needsSetup:
+            "Regenerate Service Configuration"
+        case .authRequired:
+            "Setup Authentication"
+        default:
+            "Fix Issue"
+        }
+    }
+}

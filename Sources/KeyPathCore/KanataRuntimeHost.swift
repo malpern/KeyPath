@@ -12,7 +12,7 @@ public struct KanataRuntimeHost: Sendable, Equatable {
     public let bridgeLibraryPath: String
     public let bundledCorePath: String
 
-    /// Path to the KanataEngine.app bundle wrapping the kanata binary.
+    /// Path to the Kanata Engine.app bundle wrapping the kanata binary.
     /// macOS TCC tracks this by CFBundleIdentifier instead of raw path.
     public let kanataEngineBundlePath: String
 
@@ -43,7 +43,7 @@ public struct KanataRuntimeHost: Sendable, Equatable {
         bundlePath: String = Bundle.main.bundlePath
     ) -> KanataRuntimeHost {
         let resolvedBundlePath = resolveAppBundlePath(from: bundlePath)
-        let engineBundlePath = "\(resolvedBundlePath)/Contents/Library/KeyPath/KanataEngine.app"
+        let engineBundlePath = "\(resolvedBundlePath)/Contents/Library/KeyPath/Kanata Engine.app"
         return KanataRuntimeHost(
             launcherPath: "\(resolvedBundlePath)/Contents/Library/KeyPath/kanata-launcher",
             bridgeLibraryPath: "\(resolvedBundlePath)/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib",

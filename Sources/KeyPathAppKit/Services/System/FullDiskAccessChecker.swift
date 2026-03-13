@@ -10,7 +10,10 @@ import KeyPathCore
 /// Important constraints:
 /// - This must only be used from the GUI app (user session).
 /// - This is a heuristic check (file readability) and should remain best-effort + cached.
-final class FullDiskAccessChecker {
+// SAFETY: All mutable state (cachedValue, lastCheckTime) is accessed from MainActor callers
+// or under the shared singleton pattern. The class is only instantiated via the @MainActor
+// shared singleton; callers that need thread-safe access must hold the MainActor.
+public final class FullDiskAccessChecker: @unchecked Sendable {
     @MainActor static let shared = FullDiskAccessChecker()
 
     private init() {}
@@ -31,7 +34,7 @@ final class FullDiskAccessChecker {
     /// We intentionally do NOT probe the user-scoped TCC database because it can create false positives.
     private let systemTCCPath = "/Library/Application Support/com.apple.TCC/TCC.db"
 
-    func hasFullDiskAccess() -> Bool {
+    public func hasFullDiskAccess() -> Bool {
         if let lastCheckTime,
            let cachedValue,
            Date().timeIntervalSince(lastCheckTime) < cacheTTL
@@ -51,7 +54,7 @@ final class FullDiskAccessChecker {
     }
 
     /// Allows wizard flows to eagerly update the cache when they detect FDA.
-    func updateCachedValue(_ value: Bool) {
+    public func updateCachedValue(_ value: Bool) {
         cachedValue = value
         lastCheckTime = Date()
     }

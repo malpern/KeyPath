@@ -1,0 +1,99 @@
+import Foundation
+import KeyPathWizardCore
+
+/// Pure, side-effect-free routing function for the wizard.
+/// Takes only immutable inputs so it can be used by any stack (legacy or new).
+public enum WizardRouter {
+    /// Determine the appropriate page given system state and detected issues.
+    /// This intentionally ignores optional pages like Full Disk Access; callers can
+    /// apply additional heuristics (e.g., show-once pages) on top.
+    public static func route(
+        state: WizardSystemState,
+        issues: [WizardIssue],
+        helperInstalled: Bool,
+        helperNeedsApproval: Bool
+    ) -> WizardPage {
+        let hasBlockingPermissionIssue: (IssueIdentifier) -> Bool = { identifier in
+            issues.contains { issue in
+                guard issue.severity == .error || issue.severity == .critical else { return false }
+                return issue.identifier == identifier
+            }
+        }
+
+        // 1. Conflicts (highest priority)
+        if issues.contains(where: { $0.category == .conflicts }) {
+            return .conflicts
+        }
+
+        // 2. Privileged Helper gating
+        if helperNeedsApproval { return .helper }
+        if !helperInstalled { return .helper }
+
+        // 3. Permissions (blocking only).
+        //
+        // We intentionally ignore warning/info permission issues here:
+        // - Kanata `.unknown` is "not verified" (often no FDA), and should not force the user
+        //   into permission pages.
+        // - KeyPath `.unknown` during startup mode is "checking" and should not route.
+        //
+        // The Settings Status page handles the "not verified" UX separately.
+        if hasBlockingPermissionIssue(.permission(.keyPathInputMonitoring))
+            || hasBlockingPermissionIssue(.permission(.kanataInputMonitoring))
+        {
+            return .inputMonitoring
+        }
+        if hasBlockingPermissionIssue(.permission(.keyPathAccessibility))
+            || hasBlockingPermissionIssue(.permission(.kanataAccessibility))
+        {
+            return .accessibility
+        }
+
+        // 4. Communication configuration
+        let hasCommunicationIssues = issues.contains {
+            if $0.category == .installation {
+                switch $0.identifier {
+                case .component(.communicationServerConfiguration),
+                     .component(.communicationServerNotResponding),
+                     .component(.tcpServerConfiguration),
+                     .component(.tcpServerNotResponding):
+                    return true
+                default:
+                    return false
+                }
+            }
+            return false
+        }
+        if hasCommunicationIssues { return .communication }
+
+        // 5. Karabiner components (driver/VHID/background services)
+        let hasKarabinerIssues = issues.contains {
+            if $0.category == .installation {
+                switch $0.identifier {
+                case .component(.karabinerDriver),
+                     .component(.karabinerDaemon),
+                     .component(.vhidDeviceManager),
+                     .component(.vhidDeviceActivation),
+                     .component(.vhidDeviceRunning),
+                     .component(.vhidDaemonMisconfigured),
+                     .component(.vhidDriverVersionMismatch):
+                    return true
+                default:
+                    return false
+                }
+            }
+            return false
+        }
+        if hasKarabinerIssues { return .karabinerComponents }
+
+        // 6. Service readiness
+        switch state {
+        case .serviceNotRunning, .ready, .daemonNotRunning:
+            return .service
+        default:
+            break
+        }
+
+        // 8. Default to summary
+        return .summary
+    }
+}

@@ -3,6 +3,7 @@ import Foundation
 import IOKit.hidsystem
 import KeyPathCore
 import KeyPathDaemonLifecycle
+import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
 import Network
@@ -66,7 +67,7 @@ extension RuntimeCoordinator {
             AppLogger.shared.error(
                 "❌ [SplitRuntime] Failed to recover split runtime host after output bridge companion interruption: \(error.localizedDescription)"
             )
-            let failedPID = KanataSplitRuntimeHostService.shared.activePersistentHostPID ?? 0
+            let failedPID = pid_t(KanataSplitRuntimeHostService.shared.activePersistentHostPID ?? 0)
             KanataSplitRuntimeHostService.shared.stopPersistentPassthruHost()
             await handleSplitRuntimeHostExit(
                 pid: failedPID,

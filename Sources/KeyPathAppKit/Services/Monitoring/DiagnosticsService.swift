@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
+import KeyPathInstallationWizard
 
 // MARK: - Diagnostic Types
 

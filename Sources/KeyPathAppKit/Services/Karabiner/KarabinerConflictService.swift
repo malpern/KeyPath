@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathInstallationWizard
 
 // MARK: - Protocol
 

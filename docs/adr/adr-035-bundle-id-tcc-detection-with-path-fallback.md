@@ -5,7 +5,7 @@
 
 ## Context
 
-`PermissionOracle` previously queried the TCC database using `client_type=1` (path-based) to check whether kanata had been granted Accessibility and Input Monitoring permissions. With [ADR-034](adr-034-kanata-engine-app-bundle-tcc-identity.md), kanata is now wrapped in KanataEngine.app, and new TCC grants use `client_type=0` (bundle ID: `com.keypath.kanata-engine`).
+`PermissionOracle` previously queried the TCC database using `client_type=1` (path-based) to check whether kanata had been granted Accessibility and Input Monitoring permissions. With [ADR-034](adr-034-kanata-engine-app-bundle-tcc-identity.md), kanata is now wrapped in Kanata Engine.app, and new TCC grants use `client_type=0` (bundle ID: `com.keypath.kanata-engine`).
 
 Two problems arise:
 
@@ -34,7 +34,7 @@ If either query returns `allowed=1`, the permission is considered granted. The p
 │        no                       │
 │         ▼                       │
 │ Query client_type=1             │
-│ (path: .../KanataEngine.app/    │
+│ (path: .../Kanata Engine.app/    │
 │  Contents/MacOS/kanata)         │
 │         │                       │
 │    found? ──yes──► GRANTED      │
@@ -71,7 +71,7 @@ TCC database reading (per [ADR-016](adr-016-tcc-database-reading.md)) remains ne
 - Wizard needs a "re-grant" nudge flow for legacy path-based entries
 
 ## Related
-- [ADR-034: KanataEngine.app Bundle for TCC Identity](adr-034-kanata-engine-app-bundle-tcc-identity.md) — the bundle wrapper this detects
+- [ADR-034: Kanata Engine.app Bundle for TCC Identity](adr-034-kanata-engine-app-bundle-tcc-identity.md) — the bundle wrapper this detects
 - [ADR-006: Apple API Priority](adr-006-apple-api-priority.md) — IOHIDCheckAccess remains authoritative for calling process
 - [ADR-016: TCC Database Reading](adr-016-tcc-database-reading.md) — mechanism for reading TCC database
 - [ADR-033: Bundled Binary as Canonical Path](adr-033-bundled-binary-canonical-path.md) — previous path-based approach

@@ -1,5 +1,6 @@
 import AppKit
 import KeyPathCore
+import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
 import SwiftUI
@@ -263,6 +264,7 @@ struct StatusSettingsTabView: View {
             InstallationWizardView(initialPage: page)
                 .customizeSheetWindow()
                 .environment(kanataManager)
+                .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator)
         }
         .alert("Permissions Required", isPresented: $showingPermissionAlert) {
             Button("Open Wizard") {

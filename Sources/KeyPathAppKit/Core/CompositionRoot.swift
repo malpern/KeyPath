@@ -3,6 +3,7 @@ import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathPluginKit
+import KeyPathWizardCore
 import SwiftUI
 
 /// Holds the result of application-level service initialization.
@@ -61,6 +62,9 @@ enum CompositionRoot {
         if !isOneShotProbeMode {
             MainAppStateController.shared.configure(with: manager)
         }
+
+        // Wire wizard dependencies so wizard views can access the runtime coordinator.
+        configureWizardDependencies(runtimeCoordinator: manager)
 
         // Ensure typing sounds manager is initialized so it can listen for key events
         _ = TypingSoundsManager.shared

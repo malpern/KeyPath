@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+@testable import KeyPathInstallationWizard
 @testable import KeyPathDaemonLifecycle
 @testable import KeyPathPermissions
 import KeyPathWizardCore

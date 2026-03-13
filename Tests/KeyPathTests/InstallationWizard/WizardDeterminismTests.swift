@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+@testable import KeyPathInstallationWizard
 import KeyPathCore
 import KeyPathPermissions
 import KeyPathWizardCore
@@ -20,6 +21,9 @@ final class WizardDeterminismTests: XCTestCase {
         originalRunnerFactory = HelperManager.subprocessRunnerFactory
         HelperManager.subprocessRunnerFactory = { SubprocessRunnerFake.shared }
         await SubprocessRunnerFake.shared.reset()
+
+        // Wire WizardDependencies.helperManager so NavigationEngine uses the mocked smServiceFactory
+        WizardDependencies.helperManager = HelperManager.shared
     }
 
     override func tearDown() async throws {

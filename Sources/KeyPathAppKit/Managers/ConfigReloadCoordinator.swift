@@ -44,7 +44,7 @@ final class ConfigReloadCoordinator {
         let smState: KanataDaemonManager.ServiceManagementState
         let cached = await MainActor.run { KanataDaemonManager.shared.currentManagementState }
         if cached == .unknown {
-            smState = await KanataDaemonManager.shared.refreshManagementState()
+            smState = await KanataDaemonManager.shared.refreshManagementStateInternal()
         } else {
             smState = cached
         }

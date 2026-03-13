@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
+import KeyPathInstallationWizard
 import KeyPathWizardCore
 import Observation
 import SwiftUI
@@ -499,7 +500,7 @@ class KanataViewModel {
     }
 
     func currentRuntimeStatus() async -> RuntimeCoordinator.RuntimeStatus {
-        await manager.currentRuntimeStatus()
+        await manager.currentRuntimeStatusInternal()
     }
 
     // MARK: - Rule Conflict Resolution

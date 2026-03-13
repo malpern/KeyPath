@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+@testable import KeyPathInstallationWizard
 @preconcurrency import XCTest
 
 /// Unit tests for ServiceBootstrapper service.

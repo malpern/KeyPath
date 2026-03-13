@@ -72,7 +72,7 @@ final class KanataDaemonManagerTests: XCTestCase {
 
     func testKanataBinaryExistsInBundle() {
         let bundlePath = Bundle.main.bundlePath
-        let enginePath = "\(bundlePath)/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata"
+        let enginePath = "\(bundlePath)/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata"
         let exists = FileManager.default.fileExists(atPath: enginePath)
 
         if exists {

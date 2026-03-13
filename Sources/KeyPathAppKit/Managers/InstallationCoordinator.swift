@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathInstallationWizard
 
 /// Coordinates installation operations
 @MainActor

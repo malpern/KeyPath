@@ -3,6 +3,7 @@ import Foundation
 import IOKit.hidsystem
 import KeyPathCore
 import KeyPathDaemonLifecycle
+import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
 import Network
@@ -72,7 +73,7 @@ import Network
 // SaveStatus is now in Models/KanataUIState.swift
 
 @MainActor
-class RuntimeCoordinator: SaveCoordinatorDelegate {
+public class RuntimeCoordinator: SaveCoordinatorDelegate {
     final class NotificationTokenStore: @unchecked Sendable {
         private var tokens: [NSObjectProtocol] = []
         private let lock = NSLock()
@@ -102,7 +103,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     // Core status tracking
     // Removed: isRunning
-    var lastError: String?
+    public var lastError: String?
     var lastWarning: String?
     var keyMappings: [KeyMapping] = []
     var currentLayerName: String = RuleCollectionLayer.base.displayName
@@ -534,7 +535,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     // Removed: checkLaunchDaemonStatus, killProcess
 
-    func updateStatus() async {
+    public func updateStatus() async {
         notifyStateChanged()
     }
 
@@ -706,11 +707,11 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         await systemRequirementsChecker.getSystemRequirementsStatus(isServiceInstalled: isServiceInstalled)
     }
 
-    func openInputMonitoringSettings() {
+    public func openInputMonitoringSettings() {
         systemRequirementsChecker.openInputMonitoringSettings()
     }
 
-    func openAccessibilitySettings() {
+    public func openAccessibilitySettings() {
         systemRequirementsChecker.openAccessibilitySettings()
     }
 
@@ -718,7 +719,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         systemRequirementsChecker.revealKanataInFinder(onRevealed: nil)
     }
 
-    func isKarabinerDriverInstalled() -> Bool {
+    public func isKarabinerDriverInstalled() -> Bool {
         systemRequirementsChecker.isKarabinerDriverInstalled()
     }
 
@@ -730,7 +731,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         await systemRequirementsChecker.areKarabinerBackgroundServicesEnabled()
     }
 
-    func isKarabinerElementsRunning() async -> Bool {
+    public func isKarabinerElementsRunning() async -> Bool {
         await systemRequirementsChecker.isKarabinerElementsRunning()
     }
 
@@ -754,7 +755,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         await systemRequirementsChecker.restartKarabinerDaemon()
     }
 
-    func getVirtualHIDBreakageSummary() async -> String {
+    public func getVirtualHIDBreakageSummary() async -> String {
         let summary = await systemRequirementsChecker.getVirtualHIDBreakageSummary(
             diagnosticsService: diagnosticsService
         )
@@ -923,7 +924,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
 
         // Apply changes immediately via TCP reload if the real runtime is running
-        let runtimeStatus = await currentRuntimeStatus()
+        let runtimeStatus = await currentRuntimeStatusInternal()
         if runtimeStatus.isRunning {
             AppLogger.shared.info("🔄 [Reset] Triggering immediate config reload via TCP...")
             let reloadResult = await triggerConfigReload()

@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathInstallationWizard
 
 /// Detects and handles orphaned installations where the app was manually deleted
 /// but user data and support files remain

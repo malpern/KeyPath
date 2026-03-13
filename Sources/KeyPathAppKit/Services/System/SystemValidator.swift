@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
+import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
 import os.lock
@@ -16,7 +17,7 @@ import os.lock
 ///
 /// The Oracle already has its own 1.5s cache, so we don't need another cache layer.
 @MainActor
-class SystemValidator {
+public class SystemValidator {
     // MARK: - Validation Spam Detection
 
     /// Track active validations to detect spam (concurrent validations)
