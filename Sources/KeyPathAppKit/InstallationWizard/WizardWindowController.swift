@@ -1,3 +1,7 @@
+// NOTE: Kept in KeyPathAppKit (not extracted to KeyPathInstallationWizard) due to direct
+// dependencies on KeyPathAppKit types: KanataViewModel (passed as @Environment to the wizard),
+// LiveKeyboardOverlayController, and NotificationObserverManager.mainOperationQueue.
+
 import AppKit
 import KeyPathCore
 import KeyPathInstallationWizard

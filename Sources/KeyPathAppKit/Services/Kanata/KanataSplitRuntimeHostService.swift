@@ -137,6 +137,7 @@ public final class KanataSplitRuntimeHostService {
         return activeHostProcess?.isRunning == true
     }
 
+    // Int instead of pid_t for Sendable compatibility across module boundary
     public var activePersistentHostPID: Int? {
         #if DEBUG
             if TestEnvironment.isRunningTests,

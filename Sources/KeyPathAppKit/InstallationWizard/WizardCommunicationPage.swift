@@ -1,3 +1,7 @@
+// NOTE: Kept in KeyPathAppKit (not extracted to KeyPathInstallationWizard) due to direct
+// dependencies on KeyPathAppKit types: KanataViewModel (@Environment), RuntimeCoordinator
+// (kanataViewModel.underlyingManager), KanataTCPClient, TCPEngineClient, and PreferencesService.
+
 import KeyPathCore
 import KeyPathInstallationWizard
 import KeyPathWizardCore

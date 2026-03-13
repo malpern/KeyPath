@@ -1,3 +1,7 @@
+// NOTE: Kept in KeyPathAppKit (not extracted to KeyPathInstallationWizard) due to direct
+// dependencies on KeyPathAppKit types: KanataViewModel (@Environment), KarabinerConverterService,
+// KarabinerConversionResult, AppKeymapStore, and KarabinerConverterService.persistLauncherMappings.
+
 import KeyPathCore
 import KeyPathInstallationWizard
 import KeyPathWizardCore

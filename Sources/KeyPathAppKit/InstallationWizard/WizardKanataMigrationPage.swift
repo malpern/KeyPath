@@ -1,3 +1,6 @@
+// NOTE: Kept in KeyPathAppKit (not extracted to KeyPathInstallationWizard) due to direct
+// dependencies on KeyPathAppKit types: KanataConfigMigrationService and CheckmarkBurstView.
+
 import KeyPathCore
 import KeyPathInstallationWizard
 import KeyPathWizardCore

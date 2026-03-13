@@ -119,6 +119,10 @@ public class KanataDaemonManager {
     /// 2. SMAppService status
     /// 3. Process running state (for ambiguous cases - only checked when needed)
     ///
+    /// Named *Internal to avoid ambiguity with the WizardDaemonManaging protocol method
+    /// (defined in WizardProtocolConformances.swift), which returns WizardServiceManagementState
+    /// instead of ServiceManagementState.
+    ///
     /// - Returns: The current ServiceManagementState
     @discardableResult
     nonisolated func refreshManagementStateInternal() async -> ServiceManagementState {

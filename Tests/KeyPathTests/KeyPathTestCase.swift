@@ -59,6 +59,7 @@ open class KeyPathTestCase: XCTestCase {
     override open func tearDown() {
         MainActor.assumeIsolated {
             VHIDDeviceManager.testPIDProvider = nil
+            WizardDependencies.reset()
         }
         super.tearDown()
     }
@@ -87,6 +88,7 @@ open class KeyPathAsyncTestCase: XCTestCase {
     override open func tearDown() async throws {
         await MainActor.run {
             VHIDDeviceManager.testPIDProvider = nil
+            WizardDependencies.reset()
         }
         try await super.tearDown()
     }

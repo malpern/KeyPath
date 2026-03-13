@@ -105,6 +105,36 @@ public enum WizardDependencies {
     /// Cached at startup by KeyPathAppKit to avoid blocking the main thread
     /// with a synchronous codesign subprocess call from SwiftUI views.
     nonisolated(unsafe) public static var isRunningAdHoc: Bool = false
+
+    // MARK: - Test Support
+
+    /// Reset all dependencies to nil/false for test teardown.
+    /// Call from KeyPathTestCase.tearDown() to prevent state leaking between tests.
+    public static func reset() {
+        runtimeCoordinator = nil
+        helperManager = nil
+        daemonManager = nil
+        systemValidator = nil
+        splitRuntimeHost = nil
+        helperMaintenance = nil
+        runtimePathCoordinator = nil
+        fullDiskAccessChecker = nil
+        permissionRequestService = nil
+        privilegedOperations = nil
+        makeKanataMigrationPage = nil
+        makeKarabinerImportPage = nil
+        makeCommunicationPage = nil
+        smServiceFactory = nil
+        createUninstallCoordinator = nil
+        executePrivilegedBatch = nil
+        resourceBundle = nil
+        getExternalKanataInfo = nil
+        stopExternalKanata = nil
+        hasExternalKanataRunning = nil
+        tcpProbe = nil
+        createNotificationObserverManager = nil
+        isRunningAdHoc = false
+    }
 }
 
 // MARK: - Environment Keys
