@@ -1,3 +1,4 @@
+import Foundation
 @testable import KeyPathAppKit
 import Testing
 
@@ -222,6 +223,239 @@ struct QMKLayoutParserTests {
         )
 
         #expect(layout == nil, "Should return nil when no layouts defined")
+    }
+
+    // MARK: - Edge Case: Zero-Size Keys
+
+    @Test func zeroWidthKeysAreSkipped() {
+        let json = """
+        {
+          "id": "zero-width",
+          "name": "Zero Width",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                { "row": 0, "col": 0, "x": 0, "y": 0, "w": 0 },
+                { "row": 0, "col": 1, "x": 1, "y": 0, "w": 1 }
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let layout = QMKLayoutParser.parse(
+            data: json,
+            keyMapping: Self.simpleKeyMapping
+        )
+
+        #expect(layout != nil, "Should parse even with zero-width keys (they get skipped)")
+        #expect(layout?.keys.count == 1, "Zero-width key should be skipped")
+    }
+
+    @Test func zeroHeightKeysAreSkipped() {
+        let json = """
+        {
+          "id": "zero-height",
+          "name": "Zero Height",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                { "row": 0, "col": 0, "x": 0, "y": 0, "h": 0 },
+                { "row": 0, "col": 1, "x": 1, "y": 0, "h": 1 }
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let layout = QMKLayoutParser.parse(
+            data: json,
+            keyMapping: Self.simpleKeyMapping
+        )
+
+        #expect(layout != nil)
+        #expect(layout?.keys.count == 1, "Zero-height key should be skipped")
+    }
+
+    @Test func negativeWidthKeysAreSkipped() {
+        let json = """
+        {
+          "id": "neg-width",
+          "name": "Negative Width",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                { "row": 0, "col": 0, "x": 0, "y": 0, "w": -1 },
+                { "row": 0, "col": 1, "x": 1, "y": 0, "w": 1 }
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let layout = QMKLayoutParser.parse(
+            data: json,
+            keyMapping: Self.simpleKeyMapping
+        )
+
+        #expect(layout != nil)
+        #expect(layout?.keys.count == 1, "Negative-width key should be skipped")
+    }
+
+    // MARK: - Edge Case: Extreme Rotation Values
+
+    @Test func extremeRotationIsClamped() {
+        let json = """
+        {
+          "id": "extreme-rotation",
+          "name": "Extreme Rotation",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                { "row": 0, "col": 0, "x": 0, "y": 0, "r": 720, "rx": 0, "ry": 0 },
+                { "row": 0, "col": 1, "x": 1, "y": 0, "r": -1000, "rx": 0, "ry": 0 }
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let layout = QMKLayoutParser.parse(
+            data: json,
+            keyMapping: Self.simpleKeyMapping
+        )
+
+        #expect(layout != nil, "Should parse keys with extreme rotation")
+        #expect(layout?.keys.count == 2, "Both keys should be present")
+
+        // Rotation should be normalized to -180...180
+        if let firstKey = layout?.keys.first {
+            #expect(abs(firstKey.rotation) <= 180.0, "Rotation should be normalized to ±180°")
+        }
+    }
+
+    // MARK: - Edge Case: Missing Fields in Metadata
+
+    @Test func parseMissingManufacturer() {
+        let json = """
+        {
+          "name": "No Manufacturer",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                { "row": 0, "col": 0, "x": 0, "y": 0 }
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let info = try? JSONDecoder().decode(QMKLayoutParser.QMKKeyboardInfo.self, from: json)
+        #expect(info != nil, "Should parse JSON without manufacturer")
+        #expect(info?.manufacturer == nil, "Manufacturer should be nil")
+        #expect(info?.url == nil, "URL should be nil")
+        #expect(info?.maintainer == nil, "Maintainer should be nil")
+        #expect(info?.features == nil, "Features should be nil")
+    }
+
+    @Test func parseMissingNameFallsBackToId() {
+        let json = """
+        {
+          "keyboard_name": "KB Name",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                { "row": 0, "col": 0, "x": 0, "y": 0 }
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let info = try? JSONDecoder().decode(QMKLayoutParser.QMKKeyboardInfo.self, from: json)
+        #expect(info != nil, "Should parse JSON with keyboard_name instead of name")
+        #expect(info?.name == "KB Name", "Should fall back to keyboard_name")
+    }
+
+    // MARK: - Edge Case: Layout With All Keys Unmappable
+
+    @Test func layoutWithAllKeysUnmappableReturnsNil() {
+        let json = """
+        {
+          "id": "all-unmappable",
+          "name": "All Unmappable",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                { "row": 99, "col": 99, "x": 0, "y": 0 },
+                { "row": 99, "col": 98, "x": 1, "y": 0 }
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        /// Only map row 0, so row 99 keys are unmappable
+        func limitedMapping(row: Int, col _: Int) -> (keyCode: UInt16, label: String)? {
+            guard row == 0 else { return nil }
+            return (0, "x")
+        }
+
+        let layout = QMKLayoutParser.parse(
+            data: json,
+            keyMapping: limitedMapping
+        )
+
+        #expect(layout == nil, "Should return nil when all keys are unmappable (0 valid keys)")
+    }
+
+    // MARK: - Edge Case: Keys with Absurd Coordinates
+
+    @Test func keysWithAbsurdCoordinatesAreSkipped() {
+        let json = """
+        {
+          "id": "absurd-coords",
+          "name": "Absurd Coords",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                { "row": 0, "col": 0, "x": 0, "y": 0 },
+                { "row": 0, "col": 1, "x": 999, "y": 0 },
+                { "row": 0, "col": 2, "x": 0, "y": -999 }
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let layout = QMKLayoutParser.parse(
+            data: json,
+            keyMapping: Self.simpleKeyMapping
+        )
+
+        #expect(layout != nil)
+        #expect(layout?.keys.count == 1, "Keys with absurd coordinates should be skipped")
+    }
+
+    // MARK: - Validation Helper Tests
+
+    @Test func clampKeySizeHandlesEdgeCases() {
+        #expect(QMKLayoutParser.clampKeySize(0) == QMKLayoutParser.minimumKeySize)
+        #expect(QMKLayoutParser.clampKeySize(-1) == QMKLayoutParser.minimumKeySize)
+        #expect(QMKLayoutParser.clampKeySize(Double.nan) == QMKLayoutParser.minimumKeySize)
+        #expect(QMKLayoutParser.clampKeySize(Double.infinity) == QMKLayoutParser.maximumKeySize)
+        #expect(QMKLayoutParser.clampKeySize(1.0) == 1.0)
+        #expect(QMKLayoutParser.clampKeySize(50.0) == QMKLayoutParser.maximumKeySize)
+    }
+
+    @Test func clampRotationHandlesEdgeCases() {
+        #expect(QMKLayoutParser.clampRotation(0) == 0)
+        #expect(QMKLayoutParser.clampRotation(15) == 15)
+        #expect(QMKLayoutParser.clampRotation(-15) == -15)
+        #expect(QMKLayoutParser.clampRotation(Double.nan) == 0)
+        #expect(QMKLayoutParser.clampRotation(Double.infinity) == 0)
+        // Large values should be normalized: 720 mod 360 = 0
+        #expect(QMKLayoutParser.clampRotation(720) == 0, "720° should normalize to 0°")
     }
 
     // MARK: - Bundle Loading Tests

@@ -111,14 +111,19 @@ actor QMKImportService {
             nil // Will use JSON's ID or generate in QMKLayoutParser
         }
 
+        // Use a safe name: fall back to "Imported Keyboard" if name is empty
+        let safeName = info.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "Imported Keyboard"
+            : info.name
+
         // Parse layout using QMKLayoutParser
         guard let layout = QMKLayoutParser.parse(
             data: data,
             keyMapping: keyMapping,
             idOverride: idOverride,
-            nameOverride: info.name
+            nameOverride: safeName
         ) else {
-            throw QMKImportError.parseError("Failed to parse layout from JSON")
+            throw QMKImportError.parseError("Failed to parse layout from JSON. The layout may have 0 valid keys.")
         }
 
         return layout

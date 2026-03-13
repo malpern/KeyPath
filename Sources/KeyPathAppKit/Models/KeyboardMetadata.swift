@@ -8,7 +8,7 @@ struct KeyboardMetadata: Identifiable, Hashable, Sendable {
     let url: URL? // Product page URL
     let maintainer: String? // GitHub username
     let tags: [String] // Inferred tags (split, RGB, ortho, OLED, etc.)
-    let infoJsonURL: URL // Raw GitHub URL to info.json
+    let infoJsonURL: URL? // Raw GitHub URL to info.json (nil for custom/local layouts)
 
     /// Initialize from QMK keyboard info and directory path
     init(
@@ -18,7 +18,7 @@ struct KeyboardMetadata: Identifiable, Hashable, Sendable {
         url: String? = nil,
         maintainer: String? = nil,
         tags: [String] = [],
-        infoJsonURL: URL
+        infoJsonURL: URL? = nil
     ) {
         self.id = id
         self.name = name
@@ -33,7 +33,7 @@ struct KeyboardMetadata: Identifiable, Hashable, Sendable {
     init(
         directoryName: String,
         info: QMKLayoutParser.QMKKeyboardInfo,
-        infoJsonURL: URL
+        infoJsonURL: URL? = nil
     ) {
         id = directoryName
         name = info.name

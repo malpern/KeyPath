@@ -12,7 +12,75 @@ actor QMKKeyboardDatabase {
     private let baseURL = "https://api.github.com/repos/qmk/qmk_firmware/contents/keyboards"
     private let rawBaseURL = "https://raw.githubusercontent.com/qmk/qmk_firmware/master/keyboards"
 
+    /// Maximum number of retry attempts for rate-limited requests
+    private let maxRetryAttempts = 3
+
     private init() {}
+
+    // MARK: - Rate Limit Handling
+
+    /// Check if an HTTP response indicates a GitHub API rate limit.
+    /// Only returns a reset date when `X-RateLimit-Remaining` is explicitly `0`.
+    /// Non-rate-limit 403s (auth errors, IP blocks) return nil immediately.
+    private func rateLimitResetDate(from response: HTTPURLResponse) -> Date? {
+        guard response.statusCode == 403 || response.statusCode == 429 else {
+            return nil
+        }
+
+        // Only treat as rate-limited when the header is present AND equals zero.
+        // Missing header = not a rate-limit 403, so don't retry.
+        guard let remaining = response.value(forHTTPHeaderField: "X-RateLimit-Remaining"),
+              let remainingCount = Int(remaining), remainingCount == 0
+        else {
+            return nil
+        }
+
+        // Parse X-RateLimit-Reset header (Unix timestamp)
+        if let resetString = response.value(forHTTPHeaderField: "X-RateLimit-Reset"),
+           let resetTimestamp = TimeInterval(resetString)
+        {
+            return Date(timeIntervalSince1970: resetTimestamp)
+        }
+
+        // Header says remaining=0 but no reset timestamp — use a short default
+        return Date(timeIntervalSinceNow: 10)
+    }
+
+    /// Perform a URL request with retry for rate limits.
+    /// Waits until the rate-limit window resets (capped at 10s) before retrying.
+    /// - Parameters:
+    ///   - url: The URL to fetch
+    ///   - attempt: Current attempt number (0-based)
+    /// - Returns: Tuple of data and HTTP response
+    /// - Throws: QMKDatabaseError if all retries are exhausted
+    private func fetchWithRateLimitRetry(url: URL, attempt: Int = 0) async throws -> (Data, HTTPURLResponse) {
+        let (data, response) = try await URLSession.shared.data(from: url)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw QMKDatabaseError.networkError("Invalid response type")
+        }
+
+        // Check for rate limiting
+        if let resetDate = rateLimitResetDate(from: httpResponse) {
+            if attempt >= maxRetryAttempts {
+                AppLogger.shared.warn("⚠️ [QMKDatabase] Rate limit exceeded after \(maxRetryAttempts) retries, giving up")
+                throw QMKDatabaseError.rateLimited(retryAfter: resetDate)
+            }
+
+            // Wait until the rate-limit window resets, capped at 10s to avoid blocking the UI
+            let waitSeconds = max(resetDate.timeIntervalSinceNow, 1)
+            let backoff = min(waitSeconds, 10)
+            AppLogger.shared.info("⏳ [QMKDatabase] Rate limited (attempt \(attempt + 1)/\(maxRetryAttempts)). Waiting \(String(format: "%.1f", backoff))s until reset")
+
+            try await Task.sleep(for: .seconds(backoff))
+
+            return try await fetchWithRateLimitRetry(url: url, attempt: attempt + 1)
+        }
+
+        return (data, httpResponse)
+    }
+
+    // MARK: - Bundled Keyboards
 
     /// Load bundled popular keyboards (instant, no network)
     private func loadBundledKeyboards() -> [KeyboardMetadata] {
@@ -65,6 +133,8 @@ actor QMKKeyboardDatabase {
         }
     }
 
+    // MARK: - Network Refresh
+
     /// Refresh the keyboard list from GitHub API
     /// - Returns: Array of keyboard metadata
     /// - Throws: QMKDatabaseError
@@ -75,11 +145,16 @@ actor QMKKeyboardDatabase {
             throw QMKDatabaseError.invalidURL("Invalid GitHub API URL")
         }
 
-        // Fetch keyboard directories
-        let (data, response) = try await URLSession.shared.data(from: url)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw QMKDatabaseError.networkError("Invalid response type")
+        // Fetch keyboard directories with rate limit retry
+        let (data, httpResponse): (Data, HTTPURLResponse)
+        do {
+            (data, httpResponse) = try await fetchWithRateLimitRetry(url: url)
+        } catch let error as QMKDatabaseError {
+            if case .rateLimited = error {
+                AppLogger.shared.warn("⚠️ [QMKDatabase] Rate limited during refresh, falling back to bundled/cached keyboards")
+                return cachedKeyboardList ?? loadBundledKeyboards()
+            }
+            throw error
         }
 
         guard (200 ... 299).contains(httpResponse.statusCode) else {
@@ -176,6 +251,8 @@ actor QMKKeyboardDatabase {
         }
     }
 
+    // MARK: - Keyboard List Access
+
     /// Get keyboard list: bundled first (instant), then cached, then network
     func getKeyboardList() async throws -> [KeyboardMetadata] {
         // Always start with bundled keyboards (instant)
@@ -196,28 +273,38 @@ actor QMKKeyboardDatabase {
 
         // Refresh from network (adds to bundled list)
         AppLogger.shared.info("🔄 [QMKDatabase] Cache expired, refreshing from network...")
-        let networkKeyboards = try await refreshKeyboardList()
+        do {
+            let networkKeyboards = try await refreshKeyboardList()
 
-        // Combine: bundled + network (deduplicated by ID)
-        let additionalNetwork = networkKeyboards.filter { !bundledIds.contains($0.id) }
-        keyboards.append(contentsOf: additionalNetwork)
+            // Combine: bundled + network (deduplicated by ID)
+            let additionalNetwork = networkKeyboards.filter { !bundledIds.contains($0.id) }
+            keyboards.append(contentsOf: additionalNetwork)
 
-        AppLogger.shared.info("✅ [QMKDatabase] Total: \(keyboards.count) keyboards (\(bundledIds.count) bundled + \(additionalNetwork.count) network)")
+            AppLogger.shared.info("✅ [QMKDatabase] Total: \(keyboards.count) keyboards (\(bundledIds.count) bundled + \(additionalNetwork.count) network)")
+        } catch {
+            // Gracefully degrade: if network fails, return bundled keyboards
+            AppLogger.shared.warn("⚠️ [QMKDatabase] Network refresh failed, using bundled keyboards only: \(error.localizedDescription)")
+        }
+
         return keyboards
     }
 
-    /// Search keyboards by query (searches name, manufacturer, tags)
-    /// Prioritizes bundled keyboards in results
+    // MARK: - Search
+
+    /// Search keyboards by query (searches name, manufacturer, tags).
+    /// Returns only importable QMK keyboards — custom layouts are excluded since
+    /// they already appear in the layout picker and can't be re-imported.
+    /// Prioritizes bundled keyboards in results.
     /// - Parameter query: Search query (case-insensitive)
-    /// - Returns: Filtered array of keyboards (bundled first)
+    /// - Returns: Filtered array of keyboards (bundled first, then others, max 50)
     func searchKeyboards(_ query: String) async throws -> [KeyboardMetadata] {
         AppLogger.shared.info("🔍 [QMKDatabase] searchKeyboards called with query: '\(query)'")
         let allKeyboards = try await getKeyboardList()
         let bundledIds = Set(loadBundledKeyboards().map(\.id))
+
         AppLogger.shared.info("📦 [QMKDatabase] Got \(allKeyboards.count) keyboards (\(bundledIds.count) bundled)")
 
         guard !query.isEmpty else {
-            // Return bundled keyboards first, then others
             let bundled = allKeyboards.filter { bundledIds.contains($0.id) }
             let others = allKeyboards.filter { !bundledIds.contains($0.id) }
             let top50 = Array((bundled + others).prefix(50))
@@ -226,13 +313,14 @@ actor QMKKeyboardDatabase {
         }
 
         let lowerQuery = query.lowercased()
+
         let matching = allKeyboards.filter { keyboard in
             keyboard.name.lowercased().contains(lowerQuery) ||
                 keyboard.manufacturer?.lowercased().contains(lowerQuery) == true ||
                 keyboard.tags.contains { $0.lowercased().contains(lowerQuery) }
         }
 
-        // Prioritize bundled keyboards
+        // Prioritize bundled matches
         let bundledMatches = matching.filter { bundledIds.contains($0.id) }
         let otherMatches = matching.filter { !bundledIds.contains($0.id) }
         let filtered = Array((bundledMatches + otherMatches).prefix(50))
@@ -246,6 +334,13 @@ actor QMKKeyboardDatabase {
         cachedKeyboardList = nil
         cacheTimestamp = nil
     }
+
+    /// Seed the cache with pre-loaded keyboards (for testing or offline use).
+    /// Prevents network calls from `getKeyboardList()` until the cache expires.
+    func seedCache(with keyboards: [KeyboardMetadata]) {
+        cachedKeyboardList = keyboards
+        cacheTimestamp = Date()
+    }
 }
 
 /// Errors for QMK keyboard database operations
@@ -253,6 +348,7 @@ enum QMKDatabaseError: LocalizedError {
     case invalidURL(String)
     case networkError(String)
     case parseError(String)
+    case rateLimited(retryAfter: Date)
 
     var errorDescription: String? {
         switch self {
@@ -262,6 +358,8 @@ enum QMKDatabaseError: LocalizedError {
             "Network error: \(message)"
         case let .parseError(message):
             "Parse error: \(message)"
+        case let .rateLimited(retryAfter):
+            "GitHub API rate limit exceeded. Resets at \(retryAfter.formatted())"
         }
     }
 }

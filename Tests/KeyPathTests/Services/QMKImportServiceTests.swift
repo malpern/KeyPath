@@ -220,6 +220,145 @@ final class QMKImportServiceTests: XCTestCase {
         XCTAssertEqual(loadedLayouts.count, 0)
     }
 
+    // MARK: - Edge Case: Empty Name
+
+    func testParseEmptyNameFallsBack() async throws {
+        let emptyNameJSON = """
+        {
+          "id": "empty-name",
+          "name": "",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                {"row": 0, "col": 0, "x": 0, "y": 0, "w": 1},
+                {"row": 0, "col": 1, "x": 1, "y": 0, "w": 1}
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("test-empty-name-\(UUID().uuidString).json")
+        try emptyNameJSON.write(to: tempFile)
+        defer { try? FileManager.default.removeItem(at: tempFile) }
+
+        let layout = try await service.importFromFile(
+            tempFile,
+            layoutVariant: nil,
+            keyMappingType: .ansi
+        )
+
+        XCTAssertEqual(layout.name, "Imported Keyboard", "Should fall back to 'Imported Keyboard' for empty name")
+    }
+
+    // MARK: - Edge Case: Layout With All Invalid Keys
+
+    func testParseLayoutWithAllUnmappableKeysThrows() async throws {
+        // All keys at row 99 which has no ANSI mapping
+        let unmappableJSON = """
+        {
+          "id": "unmappable",
+          "name": "Unmappable",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                {"row": 99, "col": 99, "x": 0, "y": 0, "w": 1},
+                {"row": 99, "col": 98, "x": 1, "y": 0, "w": 1}
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("test-unmappable-\(UUID().uuidString).json")
+        try unmappableJSON.write(to: tempFile)
+        defer { try? FileManager.default.removeItem(at: tempFile) }
+
+        do {
+            _ = try await service.importFromFile(
+                tempFile,
+                layoutVariant: nil,
+                keyMappingType: .ansi
+            )
+            XCTFail("Should throw for layout with all unmappable keys")
+        } catch let error as QMKImportError {
+            if case .parseError = error {
+                // Expected - layout has 0 valid keys
+            } else {
+                XCTFail("Expected .parseError but got: \(error)")
+            }
+        }
+    }
+
+    // MARK: - Edge Case: Missing Metadata Fields
+
+    func testParseMissingMetadataFields() async throws {
+        let minimalJSON = """
+        {
+          "keyboard_name": "Minimal Board",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                {"row": 0, "col": 0, "x": 0, "y": 0, "w": 1},
+                {"row": 0, "col": 1, "x": 1, "y": 0, "w": 1}
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("test-minimal-meta-\(UUID().uuidString).json")
+        try minimalJSON.write(to: tempFile)
+        defer { try? FileManager.default.removeItem(at: tempFile) }
+
+        // Should parse successfully despite missing manufacturer, url, maintainer, features
+        let layout = try await service.importFromFile(
+            tempFile,
+            layoutVariant: nil,
+            keyMappingType: .ansi
+        )
+
+        XCTAssertEqual(layout.name, "Minimal Board")
+        XCTAssertFalse(layout.keys.isEmpty)
+    }
+
+    // MARK: - Edge Case: Zero-Size Keys in Import
+
+    func testParseZeroSizeKeysAreFilteredDuringImport() async throws {
+        let zeroSizeJSON = """
+        {
+          "id": "zero-size",
+          "name": "Zero Size Keys",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                {"row": 0, "col": 0, "x": 0, "y": 0, "w": 0, "h": 1},
+                {"row": 0, "col": 1, "x": 1, "y": 0, "w": 1, "h": 1}
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("test-zero-size-\(UUID().uuidString).json")
+        try zeroSizeJSON.write(to: tempFile)
+        defer { try? FileManager.default.removeItem(at: tempFile) }
+
+        let layout = try await service.importFromFile(
+            tempFile,
+            layoutVariant: nil,
+            keyMappingType: .ansi
+        )
+
+        // Zero-width key should have been filtered out by the parser
+        // Only 1 valid key should remain (the one with w: 1)
+        XCTAssertEqual(layout.keys.count, 1, "Should have exactly 1 valid key after filtering zero-width key")
+    }
+
     // MARK: - Keycode Mapping Tests
 
     func testANSIMapping() async throws {

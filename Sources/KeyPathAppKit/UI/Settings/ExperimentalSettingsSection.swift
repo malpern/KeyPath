@@ -13,7 +13,9 @@ struct ExperimentalSettingsSection: View {
     @State private var uninstallForTesting = FeatureFlags.uninstallForTesting
     @State private var learningTipsMode = FeatureFlags.learningTipsMode
     @State private var contextHUDListEnabled = FeatureFlags.contextHUDListEnabled
-    @State private var qmkSearchEnabled = UserDefaults.standard.bool(forKey: LayoutPreferences.qmkSearchEnabledKey)
+    @State private var qmkSearchEnabled = UserDefaults.standard.object(forKey: LayoutPreferences.qmkSearchEnabledKey) != nil
+        ? UserDefaults.standard.bool(forKey: LayoutPreferences.qmkSearchEnabledKey)
+        : LayoutPreferences.qmkSearchEnabledDefault
     @State private var accessibilityTestMode = PreferencesService.shared.accessibilityTestMode
 
     var body: some View {
