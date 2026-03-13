@@ -113,6 +113,20 @@ enum QMKLayoutParser {
         let tertiaryLabel: String? // Additional legend (front/bottom-left)
     }
 
+    // MARK: - Validation Constants
+
+    /// Maximum allowed rotation value in degrees (full circle)
+    static let maxRotationDegrees: Double = 360.0
+
+    /// Minimum allowed key size (prevents zero-size or negative-size keys)
+    static let minimumKeySize: Double = 0.1
+
+    /// Maximum allowed key size (sanity check for malformed data)
+    static let maximumKeySize: Double = 20.0
+
+    /// Maximum allowed coordinate value (sanity check)
+    static let maximumCoordinate: Double = 100.0
+
     // MARK: - Parsing
 
     /// Parse a QMK layout JSON file and convert to PhysicalLayout
@@ -153,14 +167,38 @@ enum QMKLayoutParser {
                     continue
                 }
 
+                // Skip keys with zero or negative or NaN/Inf size
+                let rawWidth = qmkKey.w ?? 1.0
+                let rawHeight = qmkKey.h ?? 1.0
+                if rawWidth <= 0 || rawHeight <= 0 || rawWidth.isNaN || rawHeight.isNaN
+                    || rawWidth.isInfinite || rawHeight.isInfinite
+                {
+                    continue
+                }
+
+                // Clamp key dimensions to valid range
+                let width = clampKeySize(rawWidth)
+                let height = clampKeySize(rawHeight)
+
+                // Clamp rotation to valid range
+                let rotation = clampRotation(qmkKey.r ?? 0.0)
+
+                // Validate coordinates (skip keys with absurd positions)
+                guard abs(qmkKey.x) <= maximumCoordinate, abs(qmkKey.y) <= maximumCoordinate else {
+                    continue
+                }
+
+                // Use empty string for missing labels rather than crashing
+                let safeLabel = label.isEmpty ? "?" : label
+
                 let key = PhysicalKey(
                     keyCode: keyCode,
-                    label: label,
+                    label: safeLabel,
                     x: qmkKey.x,
                     y: qmkKey.y,
-                    width: qmkKey.w ?? 1.0,
-                    height: qmkKey.h ?? 1.0,
-                    rotation: qmkKey.r ?? 0.0,
+                    width: width,
+                    height: height,
+                    rotation: rotation,
                     rotationPivotX: qmkKey.rx,
                     rotationPivotY: qmkKey.ry,
                     shiftLabel: qmkKey.shiftLabel,
@@ -168,6 +206,11 @@ enum QMKLayoutParser {
                     tertiaryLabel: qmkKey.tertiaryLabel
                 )
                 keys.append(key)
+            }
+
+            // Reject layouts with 0 valid keys
+            guard !keys.isEmpty else {
+                return nil
             }
 
             return PhysicalLayout(
@@ -179,6 +222,31 @@ enum QMKLayoutParser {
             print("QMKLayoutParser: Failed to parse JSON: \(error)")
             return nil
         }
+    }
+
+    // MARK: - Validation Helpers
+
+    /// Clamp key size to valid range
+    static func clampKeySize(_ size: Double) -> Double {
+        if size <= 0 || size.isNaN {
+            return minimumKeySize
+        }
+        return min(size, maximumKeySize)
+    }
+
+    /// Clamp rotation to valid range (-360...360)
+    static func clampRotation(_ degrees: Double) -> Double {
+        if degrees.isNaN || degrees.isInfinite {
+            return 0.0
+        }
+        // Normalize to -360...360 range
+        var normalized = degrees.truncatingRemainder(dividingBy: maxRotationDegrees)
+        if normalized > maxRotationDegrees / 2 {
+            normalized -= maxRotationDegrees
+        } else if normalized < -maxRotationDegrees / 2 {
+            normalized += maxRotationDegrees
+        }
+        return normalized
     }
 
     /// Load and parse a QMK layout from the app bundle

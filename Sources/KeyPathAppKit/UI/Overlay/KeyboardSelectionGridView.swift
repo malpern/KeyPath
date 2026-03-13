@@ -10,8 +10,8 @@ struct KeyboardSelectionGridView: View {
     @State private var showImportSheet = false
     @State private var refreshTrigger = UUID() // Trigger refresh when custom layouts change
 
-    /// Whether QMK keyboard search is enabled (off by default)
-    @AppStorage(LayoutPreferences.qmkSearchEnabledKey) private var qmkSearchEnabled = false
+    /// Whether QMK keyboard search is enabled (on by default)
+    @AppStorage(LayoutPreferences.qmkSearchEnabledKey) private var qmkSearchEnabled = LayoutPreferences.qmkSearchEnabledDefault
 
     /// Track whether initial scroll has happened to prevent repeated scrolling
     @State private var hasScrolledToInitialSelection = false
