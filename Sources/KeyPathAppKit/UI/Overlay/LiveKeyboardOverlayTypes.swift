@@ -77,7 +77,10 @@ final class OverlayWindow: NSWindow {
     }
 
     override var canBecomeKey: Bool {
-        Self.isAccessibilityTestMode
+        // Allow key window status so text fields in the inspector (e.g., QMK search)
+        // can receive keyboard input when clicked. The window won't steal focus on its
+        // own — it only becomes key when the user explicitly clicks into it.
+        true
     }
 
     override var canBecomeMain: Bool {
