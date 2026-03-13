@@ -47,14 +47,6 @@ public protocol WizardRuntimePathCoordinating: Sendable {
     func evaluateCurrentPath() async -> KanataRuntimePathDecision?
 }
 
-// MARK: - ExternalKanataService Protocol
-
-public protocol WizardExternalKanataProviding: Sendable {
-    static func getExternalKanataInfo() -> WizardSystemPaths.RunningKanataInfo?
-    static func stopExternalKanata(_ info: WizardSystemPaths.RunningKanataInfo) async -> Result<Void, Error>
-    static func hasExternalKanataRunning() -> Bool
-}
-
 // MARK: - FullDiskAccessChecker Protocol
 
 public protocol WizardFullDiskAccessChecking: AnyObject, Sendable {

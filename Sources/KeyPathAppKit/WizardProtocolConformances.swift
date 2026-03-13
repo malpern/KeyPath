@@ -3,6 +3,7 @@ import KeyPathCore
 import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
+import SwiftUI
 
 // MARK: - RuntimeCoordinator + RuntimeCoordinating
 
@@ -106,10 +107,6 @@ extension PermissionRequestService: WizardPermissionRequesting {}
 
 extension PrivilegedOperationsCoordinator: WizardPrivilegedOperating {}
 
-// Note: ExternalKanataService cannot directly conform to WizardExternalKanataProviding
-// because its stopExternalKanata returns StopResult, not Result<Void, Error>.
-// The wizard accesses ExternalKanataService via WizardDependencies closures (see configureWizardDependencies).
-
 // MARK: - TCPProbe + WizardTCPProbing
 
 extension TCPProbe: WizardTCPProbing {}
@@ -178,5 +175,26 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
     // TCPProbe
     WizardDependencies.tcpProbe = { port, timeoutMs in
         TCPProbe.probe(port: port, timeoutMs: timeoutMs)
+    }
+
+    // Page view factories for pages that live in KeyPathAppKit
+    WizardDependencies.makeKanataMigrationPage = { onMigrationComplete, onSkip in
+        AnyView(WizardKanataMigrationPage(
+            onMigrationComplete: onMigrationComplete,
+            onSkip: onSkip
+        ))
+    }
+    WizardDependencies.makeKarabinerImportPage = { onImportComplete, onSkip in
+        AnyView(WizardKarabinerImportPage(
+            onImportComplete: onImportComplete,
+            onSkip: onSkip
+        ))
+    }
+    WizardDependencies.makeCommunicationPage = { systemState, issues, onAutoFix in
+        AnyView(WizardCommunicationPage(
+            systemState: systemState,
+            issues: issues,
+            onAutoFix: onAutoFix
+        ))
     }
 }

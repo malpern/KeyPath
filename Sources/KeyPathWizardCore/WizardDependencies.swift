@@ -50,10 +50,21 @@ public enum WizardDependencies {
     /// PrivilegedOperationsCoordinator instance
     public static var privilegedOperations: (any WizardPrivilegedOperating)?
 
-    // MARK: - Type-Erased Closures
+    // MARK: - Page View Factories (for pages implemented in KeyPathAppKit)
 
-    /// Closure to add a rule collection (type-erased to avoid RuleCollection dependency)
-    nonisolated(unsafe) public static var addRuleCollection: ((Any) async -> Void)?
+    /// Factory for the kanataMigration wizard page.
+    /// Signature: (onMigrationComplete: (Bool) -> Void, onSkip: () -> Void) -> AnyView
+    @MainActor public static var makeKanataMigrationPage: ((@escaping (Bool) -> Void, @escaping () -> Void) -> AnyView)?
+
+    /// Factory for the karabinerImport wizard page.
+    /// Signature: (onImportComplete: () -> Void, onSkip: () -> Void) -> AnyView
+    @MainActor public static var makeKarabinerImportPage: ((@escaping () -> Void, @escaping () -> Void) -> AnyView)?
+
+    /// Factory for the communication wizard page.
+    /// Signature: (systemState: WizardSystemState, issues: [WizardIssue], onAutoFix: (AutoFixAction, Bool) async -> Bool) -> AnyView
+    @MainActor public static var makeCommunicationPage: ((WizardSystemState, [WizardIssue], @escaping (AutoFixAction, Bool) async -> Bool) -> AnyView)?
+
+    // MARK: - Type-Erased Closures
 
     /// SMAppService factory for helper plist (type-erased)
     nonisolated(unsafe) public static var smServiceFactory: ((String) -> Any)?

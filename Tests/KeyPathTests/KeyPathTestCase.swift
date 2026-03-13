@@ -38,19 +38,6 @@ import KeyPathWizardCore
 ///     // Your additional setup
 /// }
 /// ```
-/// Configure WizardDependencies for test environments.
-/// Called by both KeyPathTestCase and KeyPathAsyncTestCase.
-@MainActor
-private func configureWizardDependenciesForTests() {
-    WizardDependencies.privilegedOperations = PrivilegedOperationsCoordinator.shared
-    WizardDependencies.daemonManager = KanataDaemonManager.shared
-    if WizardDependencies.systemValidator == nil {
-        WizardDependencies.systemValidator = SystemValidator(
-            processLifecycleManager: ProcessLifecycleManager()
-        )
-    }
-}
-
 @MainActor
 open class KeyPathTestCase: XCTestCase {
     override open func setUp() {
@@ -60,7 +47,13 @@ open class KeyPathTestCase: XCTestCase {
         // can deadlock when run repeatedly in quick succession.
         VHIDDeviceManager.testPIDProvider = { [] }
         // Configure WizardDependencies so InstallerEngine/PrivilegeBroker init don't crash.
-        configureWizardDependenciesForTests()
+        WizardDependencies.privilegedOperations = PrivilegedOperationsCoordinator.shared
+        WizardDependencies.daemonManager = KanataDaemonManager.shared
+        if WizardDependencies.systemValidator == nil {
+            WizardDependencies.systemValidator = SystemValidator(
+                processLifecycleManager: ProcessLifecycleManager()
+            )
+        }
     }
 
     override open func tearDown() {
@@ -78,7 +71,13 @@ open class KeyPathAsyncTestCase: XCTestCase {
         try await super.setUp()
         VHIDDeviceManager.testPIDProvider = { [] }
         // Configure WizardDependencies so InstallerEngine/PrivilegeBroker init don't crash.
-        configureWizardDependenciesForTests()
+        WizardDependencies.privilegedOperations = PrivilegedOperationsCoordinator.shared
+        WizardDependencies.daemonManager = KanataDaemonManager.shared
+        if WizardDependencies.systemValidator == nil {
+            WizardDependencies.systemValidator = SystemValidator(
+                processLifecycleManager: ProcessLifecycleManager()
+            )
+        }
     }
 
     override open func tearDown() async throws {

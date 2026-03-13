@@ -80,23 +80,27 @@ extension InstallationWizardView {
                     kanataManager: kanataManager!
                 )
             case .kanataMigration:
-                WizardKanataMigrationPage(
-                    onMigrationComplete: { hasRunningKanata in
-                        // After migration, check if we need to stop external kanata
-                        if hasRunningKanata {
-                            stateMachine.navigateToPage(.stopExternalKanata)
-                        } else {
-                            // No running kanata, continue to next step
+                if let factory = WizardDependencies.makeKanataMigrationPage {
+                    factory(
+                        { hasRunningKanata in
+                            // After migration, check if we need to stop external kanata
+                            if hasRunningKanata {
+                                stateMachine.navigateToPage(.stopExternalKanata)
+                            } else {
+                                // No running kanata, continue to next step
+                                refreshSystemState()
+                                stateMachine.navigateToPage(.summary)
+                            }
+                        },
+                        {
+                            // Skip migration, continue to next step
                             refreshSystemState()
                             stateMachine.navigateToPage(.summary)
                         }
-                    },
-                    onSkip: {
-                        // Skip migration, continue to next step
-                        refreshSystemState()
-                        stateMachine.navigateToPage(.summary)
-                    }
-                )
+                    )
+                } else {
+                    EmptyView()
+                }
             case .stopExternalKanata:
                 WizardStopKanataPage(
                     onComplete: {
@@ -110,16 +114,20 @@ extension InstallationWizardView {
                     }
                 )
             case .karabinerImport:
-                WizardKarabinerImportPage(
-                    onImportComplete: {
-                        refreshSystemState()
-                        stateMachine.nextPage()
-                    },
-                    onSkip: {
-                        refreshSystemState()
-                        stateMachine.nextPage()
-                    }
-                )
+                if let factory = WizardDependencies.makeKarabinerImportPage {
+                    factory(
+                        {
+                            refreshSystemState()
+                            stateMachine.nextPage()
+                        },
+                        {
+                            refreshSystemState()
+                            stateMachine.nextPage()
+                        }
+                    )
+                } else {
+                    EmptyView()
+                }
             case .helper:
                 WizardHelperPage(
                     systemState: stateMachine.wizardState,
@@ -131,11 +139,15 @@ extension InstallationWizardView {
                     kanataManager: kanataManager!
                 )
             case .communication:
-                WizardCommunicationPage(
-                    systemState: stateMachine.wizardState,
-                    issues: stateMachine.wizardIssues,
-                    onAutoFix: performAutoFix
-                )
+                if let factory = WizardDependencies.makeCommunicationPage {
+                    factory(
+                        stateMachine.wizardState,
+                        stateMachine.wizardIssues,
+                        performAutoFix
+                    )
+                } else {
+                    EmptyView()
+                }
             case .service:
                 WizardKanataServicePage(
                     systemState: stateMachine.wizardState,
