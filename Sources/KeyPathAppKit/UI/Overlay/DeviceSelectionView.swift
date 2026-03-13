@@ -283,10 +283,14 @@ private struct DeviceRow: View {
                     Text(displayName)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(isConnected ? .primary : .secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     Text(detail)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
+                .layoutPriority(1)
 
                 Spacer()
             }

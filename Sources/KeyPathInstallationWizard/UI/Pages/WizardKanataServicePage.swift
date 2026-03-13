@@ -190,9 +190,9 @@ public struct WizardKanataServicePage: View {
         case .failed:
             "KeyPath Runtime, powered by Kanata Engine, failed to start. Click Fix to retry."
         case .starting:
-            "Starting KeyPath runtime…"
+            "Please wait…"
         case .stopping:
-            "Stopping KeyPath runtime…"
+            "Please wait…"
         case .unknown:
             "Checking KeyPath runtime status… If this takes too long, click Fix."
         }
