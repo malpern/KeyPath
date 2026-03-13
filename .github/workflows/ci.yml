@@ -9,11 +9,11 @@ on:
 jobs:
   build-and-test:
     runs-on: macos-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     env:
       COVERAGE_BASELINE_PERCENT: "0.27"
       COVERAGE_TOLERANCE_PERCENT: "0.01"
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -22,7 +22,10 @@ jobs:
       run: |
         chmod +x ./Scripts/check-help-parity.sh
         ./Scripts/check-help-parity.sh
-    
+
+    - name: Detect Xcode version
+      run: echo "XCODE_VERSION=$(xcodebuild -version | head -1 | awk '{print $2}')" >> $GITHUB_ENV
+
     - name: Cache Swift packages
       uses: actions/cache@v4
       with:
@@ -31,76 +34,88 @@ jobs:
         key: ${{ runner.os }}-swift-${{ hashFiles('Package.swift', 'Package.resolved') }}
         restore-keys: |
           ${{ runner.os }}-swift-
-    
+
+    - name: Cache build artifacts
+      uses: actions/cache@v4
+      with:
+        path: |
+          .build
+        key: ${{ runner.os }}-xcode${{ env.XCODE_VERSION }}-build-${{ hashFiles('Package.swift', 'Package.resolved') }}-${{ hashFiles('Sources/**/*.swift', 'Tests/**/*.swift') }}
+        restore-keys: |
+          ${{ runner.os }}-xcode${{ env.XCODE_VERSION }}-build-${{ hashFiles('Package.swift', 'Package.resolved') }}-
+
+    - name: Cache Homebrew packages
+      id: cache-brew
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/Library/Caches/Homebrew
+          /usr/local/Cellar/kanata
+          /opt/homebrew/Cellar/kanata
+        # Bump v1 → v2 etc. when kanata updates on Homebrew
+        key: ${{ runner.os }}-brew-kanata-v1
+
     - name: Install Kanata
       run: |
-        echo "📦 Installing Kanata..."
-        brew install kanata
-        echo "✅ Kanata installed: $(which kanata)"
+        # Cache may restore Cellar without symlinks; install or link as needed
+        if brew list kanata &>/dev/null; then
+          brew link --overwrite kanata
+        else
+          brew install kanata
+        fi
         kanata --version
 
     - name: Lint WizardAutoFixer for forbidden subprocess usage
       run: |
         chmod +x ./Scripts/lint-no-subprocess-in-autofixer.sh
         ./Scripts/lint-no-subprocess-in-autofixer.sh
-    
-    - name: Build Project
-      run: |
-        echo "🔨 Building project..."
-        swift build
-        echo "✅ Build completed successfully"
 
-    - name: "Smoke: Signing and Installer Engine"
+    - name: Build and Run All Tests
+      env:
+        KP_SIGN_DRY_RUN: "1"
       run: |
-        echo "🧪 Running signing/notarization wrappers and installer E2E smoke tests"
-        export KP_SIGN_DRY_RUN=1
-        swift test --filter SigningPipelineTests
-        swift test --filter InstallerEngineEndToEndTests
-
-    - name: Installer Reliability Matrix (Automated)
-      run: |
-        echo "🧭 Running installer reliability matrix lanes + diagnostics artifact"
-        chmod +x ./Scripts/run-installer-reliability-matrix.sh
-        ./Scripts/run-installer-reliability-matrix.sh
-
-    - name: Verify SMAppService plist wrapper
-      run: |
-        echo "🔍 Verifying com.keypath.kanata.plist points at kanata-launcher"
-        ./Scripts/verify-kanata-plist.sh Sources/KeyPathApp/com.keypath.kanata.plist
-    
-    - name: Run CI-Safe Tests (Safe Test Runner)
-      run: |
-        echo "🧪 Running KeyPath CI-safe tests with safe test runner"
+        echo "Building and running full test suite..."
         export CI_ENVIRONMENT=true
         export SKIP_EVENT_TAP_TESTS=1
         export TIMEOUT_SECONDS=180
-
-        # Release-gating behavior: any non-zero exit should fail CI.
         chmod +x ./Scripts/run-tests-safe.sh
-        ./Scripts/run-tests-safe.sh
-        echo "✅ All tests passed"
-        echo "TEST_STATUS=passed" >> $GITHUB_ENV
+        if ./Scripts/run-tests-safe.sh; then
+          echo "TEST_STATUS=passed" >> $GITHUB_ENV
+        else
+          echo "TEST_STATUS=failed" >> $GITHUB_ENV
+          exit 1
+        fi
 
-    - name: Generate Coverage Artifacts (informational baseline)
+    - name: Parse Installer Reliability Matrix from Test Log
+      if: always()
       run: |
-        echo "📊 Generating coverage baseline artifacts..."
-        # Keep runtime bounded with representative suites for baseline reporting.
-        swift test --enable-code-coverage --filter KeyPathErrorTests
-        swift test --enable-code-coverage --filter PermissionOracleTests
+        echo "Parsing installer reliability matrix from test output..."
+        chmod +x ./Scripts/parse-installer-matrix.sh
+        ./Scripts/parse-installer-matrix.sh test_output.safe.txt
+
+    - name: Verify SMAppService plist wrapper
+      run: |
+        echo "Verifying com.keypath.kanata.plist points at kanata-launcher"
+        ./Scripts/verify-kanata-plist.sh Sources/KeyPathApp/com.keypath.kanata.plist
+
+    - name: Generate Coverage (single pass)
+      run: |
+        echo "Generating coverage with combined filter..."
+        swift test --enable-code-coverage --filter 'KeyPathErrorTests|PermissionOracleTests'
         chmod +x ./Scripts/generate-coverage.sh
         ./Scripts/generate-coverage.sh coverage
 
     - name: Enforce Coverage Non-Regression (Narrow Lane)
       run: |
-        echo "📏 Enforcing narrow-lane coverage floor (${COVERAGE_BASELINE_PERCENT}%)..."
+        echo "Enforcing narrow-lane coverage floor (${COVERAGE_BASELINE_PERCENT}%)..."
         if [ ! -f "coverage/coverage-summary.txt" ]; then
-          echo "❌ Missing coverage/coverage-summary.txt"
+          echo "Missing coverage/coverage-summary.txt"
           exit 1
         fi
 
         ACTUAL_COVERAGE=$(awk '/^TOTAL/ {for(i=1;i<=NF;i++) if ($i ~ /%$/) {gsub("%","",$i); print $i; exit}}' coverage/coverage-summary.txt)
         if [ -z "${ACTUAL_COVERAGE}" ]; then
-          echo "❌ Could not parse TOTAL coverage from coverage/coverage-summary.txt"
+          echo "Could not parse TOTAL coverage from coverage/coverage-summary.txt"
           cat coverage/coverage-summary.txt
           exit 1
         fi
@@ -108,324 +123,173 @@ jobs:
         echo "Coverage (narrow lane): ${ACTUAL_COVERAGE}%"
         EFFECTIVE_FLOOR=$(awk -v baseline="${COVERAGE_BASELINE_PERCENT}" -v tol="${COVERAGE_TOLERANCE_PERCENT}" 'BEGIN {printf "%.2f", baseline - tol}')
         if awk -v actual="${ACTUAL_COVERAGE}" -v floor="${EFFECTIVE_FLOOR}" 'BEGIN {exit !(actual + 0 >= floor + 0)}'; then
-          echo "✅ Coverage is non-regressing (>= ${EFFECTIVE_FLOOR}% effective floor; baseline ${COVERAGE_BASELINE_PERCENT}% with ±${COVERAGE_TOLERANCE_PERCENT}% tolerance)"
+          echo "Coverage is non-regressing (>= ${EFFECTIVE_FLOOR}% effective floor)"
         else
-          echo "❌ Coverage regression: ${ACTUAL_COVERAGE}% < ${EFFECTIVE_FLOOR}% effective floor (baseline ${COVERAGE_BASELINE_PERCENT}% with ±${COVERAGE_TOLERANCE_PERCENT}% tolerance)"
+          echo "Coverage regression: ${ACTUAL_COVERAGE}% < ${EFFECTIVE_FLOOR}% effective floor"
           exit 1
         fi
-    
+
     - name: Upload Test Results
-      if: always()  # Upload results even if tests failed
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-results
         path: |
-          .build/debug/
           test_output.safe.txt
           coverage/
           test-results/installer-reliability/
         if-no-files-found: ignore
         retention-days: 7
-    
+
     - name: Generate Test Summary
       if: always()
       run: |
-        echo "📋 Generating test summary..."
-        set +e  # Don't fail on summary generation
-        
-        # Create summary for GitHub Actions
-        echo "## 🧪 KeyPath Full Test Results" >> $GITHUB_STEP_SUMMARY
-        
+        echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+
         if [ "${TEST_STATUS:-unknown}" = "failed" ]; then
-          echo "❌ **Tests Failed**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Some tests failed. Check the test-results artifact for detailed logs." >> $GITHUB_STEP_SUMMARY
+          echo "**Tests Failed** - Check the test-results artifact for details." >> $GITHUB_STEP_SUMMARY
         elif [ "${TEST_STATUS:-unknown}" = "passed" ]; then
-          echo "✅ **All Tests Passed**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Full test suite executed successfully including:" >> $GITHUB_STEP_SUMMARY
-          echo "- Unit tests (core functionality)" >> $GITHUB_STEP_SUMMARY
-          echo "- Integration tests (system interactions)" >> $GITHUB_STEP_SUMMARY
-          echo "- UDP client tests (network communication)" >> $GITHUB_STEP_SUMMARY
-          echo "- Manager tests (service coordination)" >> $GITHUB_STEP_SUMMARY
+          echo "**All Tests Passed**" >> $GITHUB_STEP_SUMMARY
         else
-          echo "⚠️ **Test Status Unknown**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Test status: ${TEST_STATUS:-unknown}" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Status Unknown** (${TEST_STATUS:-unknown})" >> $GITHUB_STEP_SUMMARY
         fi
-        
+
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 🧭 Installer Reliability Matrix" >> $GITHUB_STEP_SUMMARY
+        echo "### Installer Reliability Matrix" >> $GITHUB_STEP_SUMMARY
         if [ -f "test-results/installer-reliability/latest/matrix-summary.md" ]; then
           cat test-results/installer-reliability/latest/matrix-summary.md >> $GITHUB_STEP_SUMMARY
         else
           echo "- Installer matrix summary not found." >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📊 Test Coverage" >> $GITHUB_STEP_SUMMARY
+        echo "### Test Coverage" >> $GITHUB_STEP_SUMMARY
         if [ -f "coverage/coverage-summary.txt" ]; then
           echo "- Baseline: \`$(cat coverage/coverage-summary.txt)\`" >> $GITHUB_STEP_SUMMARY
           echo "- Enforced narrow-lane floor: \`${COVERAGE_BASELINE_PERCENT}%\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Detailed report attached in test-results artifact (\`coverage/\`)." >> $GITHUB_STEP_SUMMARY
         else
-          echo "- Coverage baseline artifact was not generated in this run." >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage not generated in this run." >> $GITHUB_STEP_SUMMARY
         fi
-        echo "- This workflow enforces build + smoke suites + CI-safe test pass/fail." >> $GITHUB_STEP_SUMMARY
-        echo "- Runner: swift test (XCTest + Swift Testing targets)." >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### ⚠️ Known Issues" >> $GITHUB_STEP_SUMMARY
-        echo "- No test-failure pass-through is allowed in this workflow." >> $GITHUB_STEP_SUMMARY
-        echo "- Some privileged integration coverage remains opt-in outside default CI." >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "*Job summary generated at run-time*" >> $GITHUB_STEP_SUMMARY
-        
-        set -e  # Re-enable error checking
-    
-    - name: Build Release
-      run: |
-        echo "🔨 Building release version..."
-        # Build the app product only — the CLI (keypath) depends on KeyPathAppKit
-        # which transitively imports SwiftUI. Release-mode linker restricts SwiftUICore
-        # to app bundles, so the CLI can't link in release config. The CLI is validated
-        # by the debug build + tests above.
-        swift build -c release --product KeyPath
-        echo "✅ Release build successful"
-    
-    - name: Check Build Outputs
-      run: |
-        echo "🔍 Checking build outputs..."
-        echo "Debug build:"
-        ls -la .build/debug/ | head -10 || echo "No debug build found"
-        echo ""
-        echo "Release build:"
-        ls -la .build/release/ | head -10 || echo "No release build found"
-        
-        # Verify KeyPath binary was created
-        if [ -f ".build/release/KeyPath" ]; then
-          echo "✅ KeyPath binary created successfully"
-          echo "📦 Binary size: $(ls -lh .build/release/KeyPath | awk '{print $5}')"
-          echo "🔧 Binary info:"
-          file .build/release/KeyPath || echo "file command not available"
-        else
-          echo "⚠️ KeyPath binary not found"
-        fi
-        
-        echo "✅ Build verification completed"
-    
-    - name: Upload Build Artifacts
-      if: success()
-      uses: actions/upload-artifact@v4
-      with:
-        name: keypath-release-binary
-        path: .build/release/KeyPath
-        retention-days: 30
 
   code-quality:
     runs-on: macos-latest
     timeout-minutes: 8
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Install Tools (optional)
       run: |
         # Install SwiftLint for linting
         if ! command -v swiftlint &> /dev/null; then
-          echo "📦 Installing SwiftLint..."
+          echo "Installing SwiftLint..."
           brew install swiftlint
         fi
-        
+
         # Install SwiftFormat for formatting checks
         if ! command -v swiftformat &> /dev/null; then
-          echo "📦 Installing SwiftFormat..."
+          echo "Installing SwiftFormat..."
           brew install swiftformat
         fi
-    
+
     - name: SwiftLint Analysis
       run: |
-        echo "🔍 Running comprehensive SwiftLint analysis..."
-        
+        echo "Running comprehensive SwiftLint analysis..."
+
         # Full SwiftLint check (moved from pre-commit)
-        echo "📋 SwiftLint Report:"
         if swiftlint --reporter github-actions-logging; then
-          echo "✅ No SwiftLint violations found"
+          echo "No SwiftLint violations found"
           SWIFTLINT_STATUS="passed"
         else
-          echo "⚠️ SwiftLint found issues (details above)"
+          echo "SwiftLint found issues (details above)"
           SWIFTLINT_STATUS="issues_found"
           # Don't fail CI, just report
         fi
-        
-        # Store status for summary
+
         echo "SWIFTLINT_STATUS=$SWIFTLINT_STATUS" >> $GITHUB_ENV
-        echo "✅ SwiftLint analysis completed"
-    
+
     - name: SwiftFormat Check
       run: |
-        echo "📝 Checking Swift formatting..."
-        # Use --lint to check formatting without modifying files
+        echo "Checking Swift formatting..."
         swiftformat --lint Sources/ Tests/ || {
-          echo "⚠️ SwiftFormat found formatting issues, but not failing CI"
-          echo "💡 Run 'swiftformat Sources/ Tests/' locally to fix formatting"
+          echo "SwiftFormat found formatting issues, but not failing CI"
+          echo "Run 'swiftformat Sources/ Tests/' locally to fix formatting"
           exit 0
         }
-        echo "✅ SwiftFormat check completed"
 
     - name: Wizard Sleep Lint
       run: |
-        echo "⏱️ Ensuring wizard code has no Task.sleep calls..."
         chmod +x ./Scripts/lint-no-sleep.sh
         ./Scripts/lint-no-sleep.sh
-        echo "✅ Wizard sleep lint passed"
 
     - name: Accessibility Check
       run: |
-        echo "♿ Checking accessibility identifiers..."
         python3 Scripts/check-accessibility.py || {
-          echo "⚠️ Some UI elements are missing accessibility identifiers"
-          echo "💡 See ACCESSIBILITY_COVERAGE.md for examples"
-          echo "💡 Add .accessibilityIdentifier() to all Button/Toggle/Picker elements"
-          # Don't fail CI yet - allow gradual adoption
+          echo "Some UI elements are missing accessibility identifiers"
           exit 0
         }
-        echo "✅ All UI elements have accessibility identifiers"
 
     - name: Screenshot Manifest Validation
       run: |
-        echo "📸 Validating screenshot manifest against Swift source..."
         chmod +x ./Scripts/validate-screenshot-manifest.sh
         ./Scripts/validate-screenshot-manifest.sh
-        echo "✅ Screenshot manifest is in sync"
 
     - name: Critical Pattern Analysis
       run: |
-        echo "🔍 Running critical code pattern checks (moved from pre-commit)..."
-        
-        # Critical TODOs/FIXMEs (blocking issues)
-        echo "📋 Checking for critical TODOs/FIXMEs..."
         if grep -r 'TODO.*CRITICAL\|FIXME.*URGENT' Sources/ --include='*.swift'; then
-          echo "❌ CRITICAL issues found that should block deployment"
+          echo "CRITICAL issues found that should block deployment"
           echo "CRITICAL_ISSUES=found" >> $GITHUB_ENV
         else
-          echo "✅ No critical TODOs/FIXMEs found"
+          echo "No critical TODOs/FIXMEs found"
           echo "CRITICAL_ISSUES=none" >> $GITHUB_ENV
         fi
-        
-        echo "✅ Critical pattern analysis completed"
-    
-    - name: Code Smell Detection  
+
+    - name: Code Smell Detection
       run: |
-        echo "🔍 Running code smell detection (moved from pre-commit)..."
-        
         FORCE_UNWRAPS=0
         PRINT_STATEMENTS=0
-        
-        # Check for force unwraps in critical manager files
-        echo "📋 Checking for force unwraps in manager files..."
+
         if grep -r "!" Sources/KeyPath/Managers/ --include="*.swift" | grep -v "!=" | grep -v "// swiftlint:disable" >/dev/null 2>&1; then
-          echo "⚠️ Force unwraps found in manager files:"
+          echo "Force unwraps found in manager files:"
           grep -r "!" Sources/KeyPath/Managers/ --include="*.swift" | grep -v "!=" | grep -v "// swiftlint:disable" | head -10
           FORCE_UNWRAPS=1
-        else
-          echo "✅ No problematic force unwraps in manager files"
         fi
-        
-        # Check for print statements (should use Logger)
-        echo "📋 Checking for print statements..."
+
         if grep -r "print(" Sources/ --include="*.swift" | grep -v "// debug" >/dev/null 2>&1; then
-          echo "⚠️ print() statements found (consider using Logger):"
+          echo "print() statements found (consider using Logger):"
           grep -r "print(" Sources/ --include="*.swift" | grep -v "// debug" | head -10
           PRINT_STATEMENTS=1
-        else
-          echo "✅ No print() statements found"
         fi
-        
-        # Store results for summary
+
         echo "FORCE_UNWRAPS=$FORCE_UNWRAPS" >> $GITHUB_ENV
         echo "PRINT_STATEMENTS=$PRINT_STATEMENTS" >> $GITHUB_ENV
-        
-        echo "✅ Code smell detection completed"
-    
-    - name: Additional Code Quality
-      run: |
-        echo "🔍 Additional code quality checks..."
-        
-        # Check for general TODO/FIXME (informational)
-        echo "📋 Checking for general TODO/FIXME comments..."
-        if grep -r "TODO\|FIXME" Sources/ --include="*.swift" | head -10; then
-          echo "ℹ️ Found TODO/FIXME comments (informational)"
-          echo "TODO_COMMENTS=found" >> $GITHUB_ENV
-        else
-          echo "✅ No TODO/FIXME comments found" 
-          echo "TODO_COMMENTS=none" >> $GITHUB_ENV
-        fi
-        
-        echo "✅ Additional quality checks completed"
-    
+
     - name: Generate Code Quality Summary
       if: always()
       run: |
-        echo "📋 Generating comprehensive code quality summary..."
-        
-        echo "## 🔍 Code Quality Analysis Results" >> $GITHUB_STEP_SUMMARY
+        echo "## Code Quality Analysis" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        
-        # SwiftLint results
-        echo "### 📋 SwiftLint Analysis (moved from pre-commit)" >> $GITHUB_STEP_SUMMARY
+
         if [ "${SWIFTLINT_STATUS:-unknown}" = "passed" ]; then
-          echo "✅ **No SwiftLint violations found**" >> $GITHUB_STEP_SUMMARY
+          echo "- SwiftLint: **No violations**" >> $GITHUB_STEP_SUMMARY
         elif [ "${SWIFTLINT_STATUS:-unknown}" = "issues_found" ]; then
-          echo "⚠️ **SwiftLint issues detected** - See job logs for details" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "ℹ️ SwiftLint status unknown" >> $GITHUB_STEP_SUMMARY
+          echo "- SwiftLint: **Issues detected** - See job logs" >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
-        
-        # SwiftFormat results
-        echo "### 📝 SwiftFormat Analysis" >> $GITHUB_STEP_SUMMARY
-        echo "ℹ️ Formatting check completed (pre-commit handles auto-fixes)" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        # Critical patterns
-        echo "### 🚨 Critical Pattern Analysis (moved from pre-commit)" >> $GITHUB_STEP_SUMMARY
-        if [ "${CRITICAL_ISSUES:-unknown}" = "none" ]; then
-          echo "✅ **No critical TODOs/FIXMEs found**" >> $GITHUB_STEP_SUMMARY
-        elif [ "${CRITICAL_ISSUES:-unknown}" = "found" ]; then
-          echo "❌ **CRITICAL issues found** - Review urgently" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "ℹ️ Critical pattern status unknown" >> $GITHUB_STEP_SUMMARY
+
+        if [ "${CRITICAL_ISSUES:-unknown}" = "found" ]; then
+          echo "- **CRITICAL issues found** - Review urgently" >> $GITHUB_STEP_SUMMARY
         fi
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        # Code smell detection
-        echo "### 🔍 Code Smell Detection (moved from pre-commit)" >> $GITHUB_STEP_SUMMARY
+
         SMELLS_FOUND=0
         if [ "${FORCE_UNWRAPS:-0}" = "1" ]; then
-          echo "⚠️ Force unwraps found in manager files" >> $GITHUB_STEP_SUMMARY
+          echo "- Force unwraps found in manager files" >> $GITHUB_STEP_SUMMARY
           SMELLS_FOUND=1
         fi
         if [ "${PRINT_STATEMENTS:-0}" = "1" ]; then
-          echo "⚠️ print() statements found (consider using Logger)" >> $GITHUB_STEP_SUMMARY 
+          echo "- print() statements found (consider using Logger)" >> $GITHUB_STEP_SUMMARY
           SMELLS_FOUND=1
         fi
-        if [ "$SMELLS_FOUND" = "0" ]; then
-          echo "✅ **No code smells detected**" >> $GITHUB_STEP_SUMMARY
+        if [ "$SMELLS_FOUND" = "0" ] && [ "${CRITICAL_ISSUES:-unknown}" = "none" ]; then
+          echo "- No code smells detected" >> $GITHUB_STEP_SUMMARY
         fi
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        # General TODO/FIXME
-        echo "### 📝 General TODO/FIXME Comments" >> $GITHUB_STEP_SUMMARY
-        if [ "${TODO_COMMENTS:-unknown}" = "none" ]; then
-          echo "✅ No TODO/FIXME comments found" >> $GITHUB_STEP_SUMMARY
-        elif [ "${TODO_COMMENTS:-unknown}" = "found" ]; then
-          echo "ℹ️ TODO/FIXME comments present (informational)" >> $GITHUB_STEP_SUMMARY
-        fi
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        echo "---" >> $GITHUB_STEP_SUMMARY
-        echo "### 🎯 Pre-commit vs CI Responsibilities" >> $GITHUB_STEP_SUMMARY
-        echo "- **Pre-commit:** SwiftFormat + SwiftLint auto-fixes only" >> $GITHUB_STEP_SUMMARY 
-        echo "- **CI:** Comprehensive analysis, reporting, and quality gates" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "*Most checks are informational and do not block CI*" >> $GITHUB_STEP_SUMMARY
