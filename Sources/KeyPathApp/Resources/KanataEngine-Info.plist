@@ -7,9 +7,9 @@
     <key>CFBundleExecutable</key>
     <string>kanata</string>
     <key>CFBundleName</key>
-    <string>KanataEngine</string>
+    <string>Kanata Engine</string>
     <key>CFBundleDisplayName</key>
-    <string>KanataEngine</string>
+    <string>Kanata Engine</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleVersion</key>
@@ -20,5 +20,7 @@
     <true/>
     <key>LSMinimumSystemVersion</key>
     <string>15.0</string>
+    <key>CFBundleIconFile</key>
+    <string>KanataEngineIcon</string>
 </dict>
 </plist>

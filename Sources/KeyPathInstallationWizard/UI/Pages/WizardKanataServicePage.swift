@@ -184,11 +184,11 @@ public struct WizardKanataServicePage: View {
     private var statusMessage: String {
         switch serviceStatus {
         case .running:
-            "KeyPath Runtime, powered by Kanata, is running and ready to process keyboard events."
+            "KeyPath Runtime, powered by Kanata Engine, is running and ready to process keyboard events."
         case .stopped:
             "KeyPath runtime is not running. Click Fix to start it."
         case .failed:
-            "KeyPath Runtime, powered by Kanata, failed to start. Click Fix to retry."
+            "KeyPath Runtime, powered by Kanata Engine, failed to start. Click Fix to retry."
         case .starting:
             "Starting KeyPath runtime…"
         case .stopping:

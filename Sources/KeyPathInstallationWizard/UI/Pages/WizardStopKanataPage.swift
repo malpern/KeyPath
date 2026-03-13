@@ -30,7 +30,7 @@ public struct WizardStopKanataPage: View {
             WizardHeroSection(
                 icon: "stop.circle",
                 iconColor: .orange,
-                title: "Stop existing Kanata",
+                title: "Stop Existing Kanata Engine",
                 subtitle: "KeyPath needs to take over keyboard control"
             )
             .scaleEffect(heroScale)
@@ -94,7 +94,7 @@ public struct WizardStopKanataPage: View {
                                 .symbolEffect(.rotate, isActive: isStopping)
                         }
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(isStopping ? "Stopping Kanata..." : "Kanata is currently running")
+                            Text(isStopping ? "Stopping Kanata Engine..." : "Kanata Engine is currently running")
                                 .font(.headline)
                             Text("PID: \(info.pid)")
                                 .font(.caption)
@@ -106,7 +106,7 @@ public struct WizardStopKanataPage: View {
                     .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
                 }
 
-                Text("We'll stop your current Kanata process and disable any LaunchAgent so it doesn't restart.")
+                Text("We'll stop your current Kanata Engine process and disable any LaunchAgent so it doesn't restart.")
                     .font(.body)
                     .foregroundColor(.secondary)
 
@@ -137,7 +137,7 @@ public struct WizardStopKanataPage: View {
 
             // Action buttons
             HStack(spacing: WizardDesign.Spacing.elementGap) {
-                Button(isStopping ? "Stopping..." : "Stop Kanata") {
+                Button(isStopping ? "Stopping..." : "Stop Kanata Engine") {
                     stopKanata()
                 }
                 .buttonStyle(WizardDesign.Component.PrimaryButton())
@@ -181,7 +181,7 @@ public struct WizardStopKanataPage: View {
                         // Process is gone even if there was a warning
                         onComplete()
                     } else {
-                        stopError = "Failed to stop Kanata: \(message)"
+                        stopError = "Failed to stop Kanata Engine: \(message)"
                     }
 
                 case .none:

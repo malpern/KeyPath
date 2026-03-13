@@ -7,8 +7,8 @@ final class KanataRuntimeHostTests: XCTestCase {
 
         XCTAssertEqual(host.launcherPath, "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher")
         XCTAssertEqual(host.bridgeLibraryPath, "/Applications/KeyPath.app/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib")
-        XCTAssertEqual(host.bundledCorePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata")
-        XCTAssertEqual(host.kanataEngineBundlePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app")
+        XCTAssertEqual(host.bundledCorePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata")
+        XCTAssertEqual(host.kanataEngineBundlePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app")
     }
 
     func testCurrentNormalizesLauncherExecutableDirectoryToAppBundleRoot() {
@@ -18,16 +18,16 @@ final class KanataRuntimeHostTests: XCTestCase {
 
         XCTAssertEqual(host.launcherPath, "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher")
         XCTAssertEqual(host.bridgeLibraryPath, "/Applications/KeyPath.app/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib")
-        XCTAssertEqual(host.bundledCorePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata")
-        XCTAssertEqual(host.kanataEngineBundlePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app")
+        XCTAssertEqual(host.bundledCorePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata")
+        XCTAssertEqual(host.kanataEngineBundlePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app")
     }
 
     func testPreferredCoreBinaryAlwaysReturnsBundledPath() {
         let host = KanataRuntimeHost(
             launcherPath: "/tmp/kanata-launcher",
             bridgeLibraryPath: "/tmp/libkeypath_kanata_host_bridge.dylib",
-            bundledCorePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata",
-            kanataEngineBundlePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app"
+            bundledCorePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
+            kanataEngineBundlePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app"
         )
 
         XCTAssertEqual(host.preferredCoreBinaryPath(), host.bundledCorePath)
@@ -37,8 +37,8 @@ final class KanataRuntimeHostTests: XCTestCase {
         let host = KanataRuntimeHost(
             launcherPath: "/tmp/kanata-launcher",
             bridgeLibraryPath: "/tmp/libkeypath_kanata_host_bridge.dylib",
-            bundledCorePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata",
-            kanataEngineBundlePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app"
+            bundledCorePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
+            kanataEngineBundlePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app"
         )
 
         // systemCorePath is a deprecated alias — must always equal bundledCorePath
@@ -57,9 +57,9 @@ final class KanataRuntimeHostTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            request.commandLine(binaryPath: "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata"),
+            request.commandLine(binaryPath: "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata"),
             [
-                "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata",
+                "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
                 "--cfg", "/Users/test/.config/keypath/keypath.kbd",
                 "--port", "37001",
                 "--log-layer-changes",
@@ -76,9 +76,9 @@ final class KanataRuntimeHostTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            request.commandLine(binaryPath: "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata"),
+            request.commandLine(binaryPath: "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata"),
             [
-                "/Applications/KeyPath.app/Contents/Library/KeyPath/KanataEngine.app/Contents/MacOS/kanata",
+                "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
                 "--cfg", "/Users/test/.config/keypath/keypath.kbd",
                 "--debug"
             ]

@@ -7,7 +7,7 @@ final class KanataHostBridgeTests: XCTestCase {
             launcherPath: "/tmp/kanata-launcher",
             bridgeLibraryPath: "/definitely/missing/libkeypath_kanata_host_bridge.dylib",
             bundledCorePath: "/tmp/kanata",
-            kanataEngineBundlePath: "/tmp/KanataEngine.app"
+            kanataEngineBundlePath: "/tmp/Kanata Engine.app"
         )
 
         XCTAssertEqual(
@@ -42,7 +42,7 @@ final class KanataHostBridgeTests: XCTestCase {
             launcherPath: "/tmp/kanata-launcher",
             bridgeLibraryPath: "/definitely/missing/libkeypath_kanata_host_bridge.dylib",
             bundledCorePath: "/tmp/kanata",
-            kanataEngineBundlePath: "/tmp/KanataEngine.app"
+            kanataEngineBundlePath: "/tmp/Kanata Engine.app"
         )
 
         let result = KanataHostBridge.createPassthruRuntime(

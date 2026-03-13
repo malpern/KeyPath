@@ -114,13 +114,13 @@ public enum WizardSystemPaths {
         FileManager.default.fileExists(atPath: bundledSimulatorPath)
     }
 
-    /// Path to the KanataEngine.app bundle wrapping the kanata binary.
+    /// Path to the Kanata Engine.app bundle wrapping the kanata binary.
     /// Reveal this in Finder when the user needs to add kanata to System Settings.
     public static var kanataEngineBundlePath: String {
         currentRuntimeHost().kanataEngineBundlePath
     }
 
-    /// Bundle identifier for the KanataEngine.app wrapper.
+    /// Bundle identifier for the Kanata Engine.app wrapper.
     public static let kanataEngineBundleID = KeyPathConstants.Bundle.kanataEngineBundleID
 
     /// Active kanata binary path - uses simple filesystem checks for performance

@@ -56,7 +56,7 @@ public struct WizardFullDiskAccessPage: View {
                         .multilineTextAlignment(.center)
                 } else {
                     VStack(spacing: 12) {
-                        Text("Helps KeyPath verify Kanata's permissions and diagnose issues.")
+                        Text("Helps KeyPath verify Kanata Engine's permissions and diagnose issues.")
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -308,7 +308,7 @@ private struct FullDiskAccessDetailsSheet: View {
                     Label("What it does", systemImage: "info.circle")
                         .font(.headline)
 
-                    Text("Lets KeyPath read macOS permission databases to verify Kanata has the access it needs.")
+                    Text("Lets KeyPath read macOS permission databases to verify Kanata Engine has the access it needs.")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }

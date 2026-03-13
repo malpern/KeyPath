@@ -106,7 +106,7 @@ public struct WizardInputMonitoringPage: View {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundColor(.green)
                                     HStack(spacing: 0) {
-                                        Text("kanata")
+                                        Text("Kanata Engine")
                                             .font(.headline)
                                             .fontWeight(.semibold)
                                         Text(" - Remapping engine processes keyboard events")
@@ -179,7 +179,7 @@ public struct WizardInputMonitoringPage: View {
                                 Image(systemName: icon.name)
                                     .foregroundColor(icon.color)
                                 HStack(spacing: 0) {
-                                    Text("kanata")
+                                    Text("Kanata Engine")
                                         .font(.headline)
                                         .fontWeight(.semibold)
                                     Text(kanataSubtitle(for: kanataInputMonitoringStatus))
@@ -426,14 +426,14 @@ private func openInputMonitoringPreferencesPanel() {
 
 @MainActor
 private func revealKanataInFinder() {
-    // Reveal the KanataEngine.app bundle (not the raw binary) so users see
+    // Reveal the Kanata Engine.app bundle (not the raw binary) so users see
     // a proper app icon in Finder and can drag it into System Settings.
     let path = WizardSystemPaths.kanataEngineBundlePath
     let dir = (path as NSString).deletingLastPathComponent
     NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     _ = NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: dir)
     WizardWindowManager.shared.markFinderWindowOpened(forPath: path)
-    AppLogger.shared.log("📂 [WizardInputMonitoringPage] Revealed KanataEngine.app in Finder: \(path)")
+    AppLogger.shared.log("📂 [WizardInputMonitoringPage] Revealed Kanata Engine.app in Finder: \(path)")
 
     // Position windows side-by-side after a short delay
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -505,14 +505,14 @@ private func positionSettingsAndFinderSideBySide() {
     AppLogger.shared.log("📐 [WizardInputMonitoringPage] Positioned Settings and Finder side-by-side")
 }
 
-/// Copies the KanataEngine.app bundle path (not the raw binary) to the
+/// Copies the Kanata Engine.app bundle path (not the raw binary) to the
 /// clipboard so users can paste it into System Settings file dialogs.
 private func copyKanataEngineAppPathToClipboard() {
     let path = WizardSystemPaths.kanataEngineBundlePath
     let pb = NSPasteboard.general
     pb.clearContents()
     pb.setString(path, forType: .string)
-    AppLogger.shared.log("📋 [WizardInputMonitoringPage] Copied KanataEngine.app bundle path to clipboard: \(path)")
+    AppLogger.shared.log("📋 [WizardInputMonitoringPage] Copied Kanata Engine.app bundle path to clipboard: \(path)")
 }
 
 // MARK: - Stale Entry Cleanup Instructions View
@@ -574,7 +574,7 @@ public struct StaleEntryCleanupInstructions: View {
                 )
                 CleanupStep(number: 4, text: "Remove any duplicate KeyPath entries")
                 CleanupStep(number: 5, text: "Add the current KeyPath using the '+' button")
-                CleanupStep(number: 6, text: "Also add 'kanata' if needed")
+                CleanupStep(number: 6, text: "Also add 'Kanata Engine' if needed")
             }
             .padding()
             .background(Color.blue.opacity(0.05))
