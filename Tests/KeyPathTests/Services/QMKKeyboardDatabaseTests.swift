@@ -29,12 +29,7 @@ final class QMKKeyboardDatabaseTests: XCTestCase {
     // MARK: - Search with Custom Layouts
 
     func testSearchIncludesCustomLayouts() async throws {
-        // Set up a test UserDefaults with a custom layout
-        let testSuiteName = "KeyPath.QMKDatabaseTests.\(UUID().uuidString)"
-        let testDefaults = UserDefaults(suiteName: testSuiteName)!
-        defer { testDefaults.removePersistentDomain(forName: testSuiteName) }
-
-        // Create a sample custom layout in the store
+        // Create a sample custom layout in the store (uses .standard, matching QMKKeyboardDatabase)
         let sampleJSON = """
         {
           "id": "test-custom",

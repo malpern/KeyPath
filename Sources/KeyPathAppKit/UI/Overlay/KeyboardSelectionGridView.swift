@@ -253,8 +253,12 @@ struct KeyboardSelectionGridView: View {
     private func importKeyboard(_ keyboard: KeyboardMetadata) {
         Task {
             do {
+                guard let infoJsonURL = keyboard.infoJsonURL else {
+                    throw QMKImportError.invalidURL("Keyboard has no remote URL to import from")
+                }
+
                 // Fetch JSON data first
-                let (jsonData, response) = try await URLSession.shared.data(from: keyboard.infoJsonURL)
+                let (jsonData, response) = try await URLSession.shared.data(from: infoJsonURL)
 
                 guard let httpResponse = response as? HTTPURLResponse,
                       (200 ... 299).contains(httpResponse.statusCode)
@@ -264,7 +268,7 @@ struct KeyboardSelectionGridView: View {
 
                 // Import using QMKImportService
                 let layout = try await QMKImportService.shared.importFromURL(
-                    keyboard.infoJsonURL,
+                    infoJsonURL,
                     layoutVariant: nil,
                     keyMappingType: .ansi
                 )
@@ -276,7 +280,7 @@ struct KeyboardSelectionGridView: View {
                 await QMKImportService.shared.saveCustomLayout(
                     layout: layout,
                     name: layoutName,
-                    sourceURL: keyboard.infoJsonURL.absoluteString,
+                    sourceURL: infoJsonURL.absoluteString,
                     layoutJSON: jsonData,
                     layoutVariant: nil
                 )

@@ -66,9 +66,9 @@ actor QMKKeyboardDatabase {
                 throw QMKDatabaseError.rateLimited(retryAfter: resetDate)
             }
 
-            // Exponential backoff: wait at least until reset, but cap at 120 seconds
-            let backoff = min(waitSeconds * pow(2.0, Double(attempt)), 120)
-            AppLogger.shared.info("⏳ [QMKDatabase] Rate limited (attempt \(attempt + 1)/\(maxRetryAttempts)). Waiting \(String(format: "%.1f", backoff))s before retry")
+            // Wait until the rate-limit window resets, capped at 120 seconds
+            let backoff = min(waitSeconds, 120)
+            AppLogger.shared.info("⏳ [QMKDatabase] Rate limited (attempt \(attempt + 1)/\(maxRetryAttempts)). Waiting \(String(format: "%.1f", backoff))s until reset")
 
             try await Task.sleep(for: .seconds(backoff))
 
@@ -309,8 +309,7 @@ actor QMKKeyboardDatabase {
                 url: stored.sourceURL,
                 maintainer: nil,
                 tags: ["custom"],
-                infoJsonURL: URL(string: stored.sourceURL ?? "https://localhost/placeholder")
-                    ?? URL(string: "https://localhost/placeholder")!
+                infoJsonURL: stored.sourceURL.flatMap { URL(string: $0) }
             )
         }
 

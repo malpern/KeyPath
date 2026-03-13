@@ -126,11 +126,6 @@ actor QMKImportService {
             throw QMKImportError.parseError("Failed to parse layout from JSON. The layout may have 0 valid keys.")
         }
 
-        // Validate the imported layout has a reasonable number of keys
-        guard layout.keys.count >= 1 else {
-            throw QMKImportError.parseError("Layout has no valid keys after parsing")
-        }
-
         return layout
     }
 

@@ -115,8 +115,8 @@ enum QMKLayoutParser {
 
     // MARK: - Validation Constants
 
-    /// Maximum allowed rotation value in degrees (full circle)
-    static let maxRotationDegrees: Double = 360.0
+    /// Period for rotation normalization (degrees); output is clamped to ±180°
+    static let rotationNormalizationPeriod: Double = 360.0
 
     /// Minimum allowed key size (prevents zero-size or negative-size keys)
     static let minimumKeySize: Double = 0.1
@@ -234,17 +234,16 @@ enum QMKLayoutParser {
         return min(size, maximumKeySize)
     }
 
-    /// Clamp rotation to valid range (-360...360)
+    /// Normalize rotation to the -180°...180° range
     static func clampRotation(_ degrees: Double) -> Double {
         if degrees.isNaN || degrees.isInfinite {
             return 0.0
         }
-        // Normalize to -360...360 range
-        var normalized = degrees.truncatingRemainder(dividingBy: maxRotationDegrees)
-        if normalized > maxRotationDegrees / 2 {
-            normalized -= maxRotationDegrees
-        } else if normalized < -maxRotationDegrees / 2 {
-            normalized += maxRotationDegrees
+        var normalized = degrees.truncatingRemainder(dividingBy: rotationNormalizationPeriod)
+        if normalized > rotationNormalizationPeriod / 2 {
+            normalized -= rotationNormalizationPeriod
+        } else if normalized < -rotationNormalizationPeriod / 2 {
+            normalized += rotationNormalizationPeriod
         }
         return normalized
     }
