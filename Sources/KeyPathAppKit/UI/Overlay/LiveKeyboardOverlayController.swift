@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathInstallationWizard
 import KeyPathWizardCore
 import SwiftUI
 

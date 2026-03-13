@@ -26,6 +26,10 @@ let package = Package(
             targets: ["KeyPathWizardCore"]
         ),
         .library(
+            name: "KeyPathInstallationWizard",
+            targets: ["KeyPathInstallationWizard"]
+        ),
+        .library(
             name: "KeyPathAppKit",
             targets: ["KeyPathAppKit"]
         ),
@@ -115,6 +119,15 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ]
         ),
+        // Installation wizard (extracted from KeyPathAppKit for incremental compilation)
+        .target(
+            name: "KeyPathInstallationWizard",
+            dependencies: ["KeyPathCore", "KeyPathPermissions", "KeyPathDaemonLifecycle", "KeyPathWizardCore"],
+            path: "Sources/KeyPathInstallationWizard",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
         // Main app library with UI and business logic
         .target(
             name: "KeyPathAppKit",
@@ -123,13 +136,12 @@ let package = Package(
                 "KeyPathPermissions",
                 "KeyPathDaemonLifecycle",
                 "KeyPathWizardCore",
+                "KeyPathInstallationWizard",
                 "KeyPathPluginKit",
                 .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/KeyPathAppKit",
-            exclude: [
-                "InstallationWizard/README.md"
-            ],
+            exclude: [],
             resources: [
                 .process("Resources")
             ],
@@ -257,7 +269,8 @@ let package = Package(
                 "KeyPathCore",
                 "KeyPathPermissions",
                 "KeyPathDaemonLifecycle",
-                "KeyPathWizardCore"
+                "KeyPathWizardCore",
+                "KeyPathInstallationWizard"
             ],
             path: "Tests/KeyPathTests",
             swiftSettings: [

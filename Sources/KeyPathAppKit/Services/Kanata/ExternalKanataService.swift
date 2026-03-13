@@ -3,7 +3,7 @@ import KeyPathCore
 
 /// Service for detecting and stopping external (non-KeyPath managed) Kanata processes
 /// Used during migration to take over keyboard control from an existing Kanata installation
-public enum ExternalKanataService {
+public enum ExternalKanataService: Sendable {
     // MARK: - Types
 
     /// Sendable result type so wizard UI can safely bridge across Task/MainActor boundaries under Swift 6 strict concurrency.

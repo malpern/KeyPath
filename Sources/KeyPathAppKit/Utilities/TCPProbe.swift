@@ -4,7 +4,7 @@ import Darwin
 ///
 /// Used by both `ServiceHealthChecker` (wizard health checks) and `KanataService`
 /// (fallback before declaring service failure when PID detection misses).
-enum TCPProbe {
+public enum TCPProbe: Sendable {
     /// Probe a TCP port on localhost. Blocking call — use from a detached task.
     ///
     /// Uses non-blocking `connect()` + `poll()` to avoid indefinite hangs.
@@ -13,7 +13,7 @@ enum TCPProbe {
     ///   - port: TCP port to probe on 127.0.0.1
     ///   - timeoutMs: Connection timeout in milliseconds (default 300)
     /// - Returns: `true` if the port accepted the connection
-    nonisolated static func probe(port: Int, timeoutMs: Int = 300) -> Bool {
+    public nonisolated static func probe(port: Int, timeoutMs: Int = 300) -> Bool {
         let sock = socket(AF_INET, SOCK_STREAM, 0)
         if sock < 0 { return false }
 

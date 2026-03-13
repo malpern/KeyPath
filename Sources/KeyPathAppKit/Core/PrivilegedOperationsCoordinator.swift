@@ -1,26 +1,11 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathInstallationWizard
+import KeyPathWizardCore
 
 @MainActor
-protocol PrivilegedOperationsCoordinating: AnyObject {
-    func cleanupPrivilegedHelper() async throws
-    func installRequiredRuntimeServices() async throws
-    func recoverRequiredRuntimeServices() async throws
-    func installServicesIfUninstalled(context: String) async throws -> Bool
-    func installNewsyslogConfig() async throws
-    func regenerateServiceConfiguration() async throws
-    func repairVHIDDaemonServices() async throws
-    func downloadAndInstallCorrectVHIDDriver() async throws
-
-    func activateVirtualHIDManager() async throws
-    func terminateProcess(pid: Int32) async throws
-    func killAllKanataProcesses() async throws
-    func restartKarabinerDaemonVerified() async throws -> Bool
-    func uninstallVirtualHIDDrivers() async throws
-    func disableKarabinerGrabber() async throws
-    func sudoExecuteCommand(_ command: String, description: String) async throws
-}
+protocol PrivilegedOperationsCoordinating: WizardPrivilegedOperating {}
 
 /// Coordinates all privileged operations with hybrid approach (helper vs direct sudo)
 ///
@@ -34,7 +19,7 @@ protocol PrivilegedOperationsCoordinating: AnyObject {
 /// try await coordinator.installRequiredRuntimeServices()
 /// ```
 @MainActor
-final class PrivilegedOperationsCoordinator {
+public final class PrivilegedOperationsCoordinator {
     private static let serviceGuardLogPrefix = "[ServiceInstallGuard]"
     private static let serviceInstallThrottle: TimeInterval = 30
     private static var lastServiceInstallAttempt: Date?
@@ -156,7 +141,7 @@ final class PrivilegedOperationsCoordinator {
     // MARK: - Unified Privileged Operations API
 
     /// Remove any installed SMJobBless helper and its daemon plist/logs (developer convenience)
-    func cleanupPrivilegedHelper() async throws {
+    public func cleanupPrivilegedHelper() async throws {
         AppLogger.shared.log("🧹 [PrivCoordinator] Cleaning up privileged helper (dev)")
 
         // Use tolerant chain so cleanup succeeds even if some files are absent
@@ -172,7 +157,7 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Install all LaunchDaemon services with explicit parameters
-    func installRequiredRuntimeServices() async throws {
+    public func installRequiredRuntimeServices() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Installing required split-runtime services")
 
         switch Self.operationMode {
@@ -194,7 +179,7 @@ final class PrivilegedOperationsCoordinator {
                 return override()
             }
         #endif
-        return await kanataDaemonManager.refreshManagementState()
+        return await kanataDaemonManager.refreshManagementStateInternal()
     }
 
     private func runServiceInstall() async throws {
@@ -279,7 +264,7 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Recover runtime services after a failed or stale service state.
-    func recoverRequiredRuntimeServices() async throws {
+    public func recoverRequiredRuntimeServices() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Recovering runtime services")
 
         #if DEBUG
@@ -352,7 +337,7 @@ final class PrivilegedOperationsCoordinator {
     /// Installs all LaunchDaemon services via SMAppService when the Kanata daemon is missing.
     /// - Returns: `true` if installation was performed.
     @discardableResult
-    func installServicesIfUninstalled(context: String) async throws -> Bool {
+    public func installServicesIfUninstalled(context: String) async throws -> Bool {
         let state = await currentServiceState()
         AppLogger.shared.log("\(Self.serviceGuardLogPrefix) \(context): state=\(state.description)")
 
@@ -420,7 +405,7 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Regenerate service configuration with current settings
-    func regenerateServiceConfiguration() async throws {
+    public func regenerateServiceConfiguration() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Regenerating service configuration via SMAppService")
         // Always use SMAppService path for Kanata
         try await sudoRegenerateConfig()
@@ -428,7 +413,7 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Install newsyslog config for log rotation
-    func installNewsyslogConfig() async throws {
+    public func installNewsyslogConfig() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Installing newsyslog config")
 
         switch Self.operationMode {
@@ -440,7 +425,7 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Repair VirtualHID daemon LaunchDaemon services
-    func repairVHIDDaemonServices() async throws {
+    public func repairVHIDDaemonServices() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Repairing VHID daemon services")
 
         switch Self.operationMode {
@@ -459,7 +444,7 @@ final class PrivilegedOperationsCoordinator {
     // MARK: VirtualHID Operations
 
     /// Activate VirtualHID Manager
-    func activateVirtualHIDManager() async throws {
+    public func activateVirtualHIDManager() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Activating VirtualHID Manager")
 
         switch Self.operationMode {
@@ -471,7 +456,7 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Uninstall all VirtualHID driver versions
-    func uninstallVirtualHIDDrivers() async throws {
+    public func uninstallVirtualHIDDrivers() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Uninstalling VirtualHID drivers")
 
         switch Self.operationMode {
@@ -499,7 +484,7 @@ final class PrivilegedOperationsCoordinator {
     ///
     /// **Automatic Fallback:** In release mode, attempts helper first, then falls back
     /// to sudo if helper fails. This handles phantom registrations and XPC issues gracefully.
-    func downloadAndInstallCorrectVHIDDriver() async throws {
+    public func downloadAndInstallCorrectVHIDDriver() async throws {
         AppLogger.shared.log(
             "🔐 [PrivCoordinator] Downloading and installing correct VHID driver version"
         )
@@ -524,7 +509,7 @@ final class PrivilegedOperationsCoordinator {
     // MARK: Process Management Operations
 
     /// Terminate a process by PID
-    func terminateProcess(pid: Int32) async throws {
+    public func terminateProcess(pid: Int32) async throws {
         try Self.validateProcessID(pid)
         AppLogger.shared.log("🔐 [PrivCoordinator] Terminating process PID=\(pid)")
 
@@ -537,7 +522,7 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Kill all Kanata processes
-    func killAllKanataProcesses() async throws {
+    public func killAllKanataProcesses() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Killing all Kanata processes")
 
         switch Self.operationMode {
@@ -552,7 +537,7 @@ final class PrivilegedOperationsCoordinator {
 
     /// Restart Karabiner VirtualHID daemon with verification (kill all + start + verify)
     /// Returns true if restart succeeded and daemon is healthy, false otherwise
-    func restartKarabinerDaemonVerified() async throws -> Bool {
+    public func restartKarabinerDaemonVerified() async throws -> Bool {
         AppLogger.shared.log("🔐 [PrivCoordinator] Restarting Karabiner daemon (verified)")
 
         switch Self.operationMode {
@@ -666,8 +651,18 @@ final class PrivilegedOperationsCoordinator {
             let now = Date()
             let remaining = deadline.timeIntervalSince(now)
             let timeoutMs = max(50, min(300, Int(remaining * 1000)))
+            let wizardManagementState: WizardServiceManagementState = {
+                switch managementState {
+                case .legacyActive: return .legacyActive
+                case .smappserviceActive: return .smappserviceActive
+                case .smappservicePending: return .smappservicePending
+                case .uninstalled: return .uninstalled
+                case .conflicted: return .conflicted
+                case .unknown: return .unknown
+                }
+            }()
             let runtimeSnapshot = await serviceHealthChecker.checkKanataServiceRuntimeSnapshot(
-                managementState: managementState,
+                managementState: wizardManagementState,
                 staleEnabledRegistration: false,
                 timeoutMs: timeoutMs
             )
@@ -906,7 +901,7 @@ final class PrivilegedOperationsCoordinator {
 
     // MARK: - Karabiner Conflict Management
 
-    func disableKarabinerGrabber() async throws {
+    public func disableKarabinerGrabber() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Disabling Karabiner grabber via helper")
         try await helperManager.disableKarabinerGrabber()
     }
@@ -1136,7 +1131,7 @@ final class PrivilegedOperationsCoordinator {
 
     /// Execute a shell command with administrator privileges using osascript
     /// Public method for use by KanataDaemonManager migration
-    func sudoExecuteCommand(_ command: String, description: String) async throws {
+    public func sudoExecuteCommand(_ command: String, description: String) async throws {
         AppLogger.shared.log("🔧 [PrivCoordinator] Executing admin command: \(description)")
         let result = try await AdminCommandExecutorHolder.shared.execute(
             command: command, description: description

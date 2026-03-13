@@ -399,7 +399,7 @@ public enum WizardSystemPaths {
     // MARK: - Running Kanata Process Detection
 
     /// Information about a running Kanata process
-    public struct RunningKanataInfo {
+    public struct RunningKanataInfo: Sendable {
         public let pid: Int
         public let configPath: String?
         public let binaryPath: String

@@ -18,12 +18,12 @@ import ServiceManagement
 ///   when the helper cannot perform privileged operations.
 @MainActor
 @Observable
-final class HelperMaintenance {
+public final class HelperMaintenance {
     /// Shared instance for UI integration
     static let shared = HelperMaintenance()
 
     /// Log lines for UI to present progress
-    private(set) var logLines: [String] = []
+    public private(set) var logLines: [String] = []
 
     /// Whether a cleanup run is currently in progress
     private(set) var isRunning: Bool = false
@@ -36,7 +36,7 @@ final class HelperMaintenance {
 
     /// Perform a complete cleanup and repair flow.
     /// - Returns: true on success (helper registered and responding), false otherwise.
-    func runCleanupAndRepair(useAppleScriptFallback: Bool = true) async -> Bool {
+    public func runCleanupAndRepair(useAppleScriptFallback: Bool = true) async -> Bool {
         guard !isRunning else { return false }
         isRunning = true
         logLines.removeAll()
@@ -112,7 +112,7 @@ final class HelperMaintenance {
     #if DEBUG
         nonisolated(unsafe) static var testDuplicateAppPathsOverride: (() -> [String]?)?
     #endif
-    nonisolated func detectDuplicateAppCopies() -> [String] {
+    public nonisolated func detectDuplicateAppCopies() -> [String] {
         var paths: [String] = []
         let process = Process()
         process.launchPath = "/usr/bin/mdfind"

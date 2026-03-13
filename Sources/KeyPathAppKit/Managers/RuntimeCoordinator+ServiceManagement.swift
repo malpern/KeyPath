@@ -23,21 +23,21 @@ extension RuntimeCoordinator {
     // MARK: - Service Management Helpers
 
     @discardableResult
-    func startKanata(reason: String = "Manual start", precomputedDecision: KanataRuntimePathDecision? = nil) async -> Bool {
+    public func startKanata(reason: String = "Manual start", precomputedDecision: KanataRuntimePathDecision? = nil) async -> Bool {
         await serviceLifecycleCoordinator.startKanata(reason: reason, precomputedDecision: precomputedDecision)
     }
 
     @discardableResult
-    func stopKanata(reason: String = "Manual stop") async -> Bool {
+    public func stopKanata(reason: String = "Manual stop") async -> Bool {
         await serviceLifecycleCoordinator.stopKanata(reason: reason)
     }
 
     @discardableResult
-    func restartKanata(reason: String = "Manual restart") async -> Bool {
+    public func restartKanata(reason: String = "Manual restart") async -> Bool {
         await serviceLifecycleCoordinator.restartKanata(reason: reason)
     }
 
-    func currentRuntimeStatus() async -> RuntimeStatus {
+    func currentRuntimeStatusInternal() async -> RuntimeStatus {
         await serviceLifecycleCoordinator.currentRuntimeStatus()
     }
 

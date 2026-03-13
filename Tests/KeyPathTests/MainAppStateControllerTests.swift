@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+@testable import KeyPathInstallationWizard
 import Testing
 
 /// Tests for MainAppStateController - main app validation coordination

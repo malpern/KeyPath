@@ -1,6 +1,7 @@
 import AppKit
 import KeyPathCore
 import KeyPathDaemonLifecycle
+import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathPluginKit
 import KeyPathWizardCore

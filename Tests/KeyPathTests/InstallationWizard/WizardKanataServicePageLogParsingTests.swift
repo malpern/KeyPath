@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+@testable import KeyPathInstallationWizard
 import XCTest
 
 final class WizardKanataServicePageLogParsingTests: XCTestCase {

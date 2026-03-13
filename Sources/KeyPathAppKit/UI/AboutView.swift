@@ -1,5 +1,6 @@
 import AppKit
 import KeyPathCore
+import KeyPathInstallationWizard
 import SwiftUI
 
 /// About window for KeyPath - app identity, system health, updates, links, and attribution

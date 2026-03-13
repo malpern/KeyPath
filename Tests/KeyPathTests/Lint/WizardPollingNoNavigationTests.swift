@@ -11,7 +11,7 @@ import Foundation
 final class WizardPollingNoNavigationTests: XCTestCase {
     func testPollingMethodsDoNotCallNavigate() throws {
         let root = repositoryRoot()
-        let pagesDir = root.appendingPathComponent("Sources/KeyPathAppKit/InstallationWizard/UI/Pages")
+        let pagesDir = root.appendingPathComponent("Sources/KeyPathInstallationWizard/UI/Pages")
 
         let fm = FileManager.default
         let files = try fm.contentsOfDirectory(at: pagesDir, includingPropertiesForKeys: nil)

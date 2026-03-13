@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
+import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
 import Observation
@@ -283,7 +284,7 @@ class MainAppStateController {
         // Poll runtime status for health transitions.
         serviceHealthTask = Task { @MainActor [weak self] in
             while let self, !Task.isCancelled {
-                let runtimeStatus = await kanataManager.currentRuntimeStatus()
+                let runtimeStatus = await kanataManager.currentRuntimeStatusInternal()
                 let isHealthy = runtimeStatus.isRunning
                 let wasHealthy = lastKnownRuntimeHealthy
 
@@ -788,7 +789,7 @@ class MainAppStateController {
             return true
         }
 
-        let managementState = await KanataDaemonManager.shared.refreshManagementState()
+        let managementState = await KanataDaemonManager.shared.refreshManagementStateInternal()
         return managementState == .smappservicePending
     }
 

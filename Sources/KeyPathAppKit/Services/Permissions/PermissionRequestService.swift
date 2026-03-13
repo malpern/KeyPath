@@ -8,7 +8,7 @@ import KeyPathCore
 /// - Requests are debounced to avoid nagging the user.
 /// - Requests are only attempted when the app is foreground to ensure the prompt is visible.
 @MainActor
-final class PermissionRequestService {
+public final class PermissionRequestService {
     static let shared = PermissionRequestService()
 
     private init() {}
@@ -45,7 +45,7 @@ final class PermissionRequestService {
     /// Request Input Monitoring permission using IOHIDRequestAccess().
     /// - Returns: true if already granted (no prompt shown), false otherwise.
     @discardableResult
-    func requestInputMonitoringPermission(ignoreCooldown: Bool = false) -> Bool {
+    public func requestInputMonitoringPermission(ignoreCooldown: Bool = false) -> Bool {
         // Foreground and cooldown guards
         ensureForeground()
         if !isForeground() {
@@ -77,7 +77,7 @@ final class PermissionRequestService {
     /// Request Accessibility permission using AXIsProcessTrustedWithOptions().
     /// - Returns: true if already granted (no prompt shown), false otherwise.
     @discardableResult
-    func requestAccessibilityPermission(ignoreCooldown: Bool = false) -> Bool {
+    public func requestAccessibilityPermission(ignoreCooldown: Bool = false) -> Bool {
         // Foreground and cooldown guards
         ensureForeground()
         if !isForeground() {

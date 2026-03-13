@@ -233,7 +233,7 @@ extension HelperManager {
         }
     }
 
-    func getKanataOutputBridgeStatus() async throws -> KanataOutputBridgeStatus {
+    public func getKanataOutputBridgeStatus() async throws -> KanataOutputBridgeStatus {
         try await executeValueXPCCall("getKanataOutputBridgeStatus") { proxy, reply in
             proxy.getKanataOutputBridgeStatus { payload, errorMessage in
                 if let errorMessage {

@@ -1,4 +1,5 @@
 import KeyPathCore
+import KeyPathInstallationWizard
 import SwiftUI
 
 #if os(macOS)

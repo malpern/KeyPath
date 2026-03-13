@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
 

@@ -6,7 +6,7 @@ import ServiceManagement
 ///
 /// This actor owns helper connection state and shared constants. Operation-specific
 /// behavior is split into focused extensions for maintainability.
-actor HelperManager {
+public actor HelperManager {
     // MARK: - Helper Health State
 
     enum HealthState: Equatable {

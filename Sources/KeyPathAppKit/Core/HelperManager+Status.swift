@@ -10,7 +10,7 @@ extension HelperManager {
     ///
     /// This is a synchronous check used by the wizard navigation engine to prioritize
     /// Login Items approval as a blocking dependency before other setup steps.
-    nonisolated func helperNeedsLoginItemsApproval() -> Bool {
+    public nonisolated func helperNeedsLoginItemsApproval() -> Bool {
         let svc = Self.smServiceFactory(Self.helperPlistName)
         return svc.status == .requiresApproval
     }
@@ -21,7 +21,7 @@ extension HelperManager {
     /// On macOS 13+, the helper binary remains embedded inside the app bundle and is
     /// invoked via `BundleProgram` in the plist; there is no binary at
     /// `/Library/PrivilegedHelperTools` as with legacy SMJobBless.
-    nonisolated func isHelperInstalled() async -> Bool {
+    public nonisolated func isHelperInstalled() async -> Bool {
         let svc = Self.smServiceFactory(Self.helperPlistName)
         if svc.status == .enabled { return true }
 
@@ -47,7 +47,7 @@ extension HelperManager {
 
     /// Get the version of the installed helper
     /// - Returns: Version string, or nil if helper not installed or version check fails
-    func getHelperVersion() async -> String? {
+    public func getHelperVersion() async -> String? {
         // Return cached version if available
         if let cached = cachedHelperVersion {
             return cached
@@ -164,7 +164,7 @@ extension HelperManager {
     /// - Returns true ONLY if XPC connection succeeds AND helper responds
     /// - Returns false for phantom registrations, connection failures, timeouts
     /// - Should be used by wizard to verify helper is truly working
-    func testHelperFunctionality() async -> Bool {
+    public func testHelperFunctionality() async -> Bool {
         #if DEBUG
             if let override = Self.testHelperFunctionalityOverride {
                 return await override()

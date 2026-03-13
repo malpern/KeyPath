@@ -1,4 +1,7 @@
 @testable import KeyPathAppKit
+import KeyPathDaemonLifecycle
+@testable import KeyPathInstallationWizard
+import KeyPathWizardCore
 @preconcurrency import XCTest
 
 /// Base test case class that provides common test seam setup for KeyPath tests.
@@ -35,6 +38,19 @@
 ///     // Your additional setup
 /// }
 /// ```
+/// Configure WizardDependencies for test environments.
+/// Called by both KeyPathTestCase and KeyPathAsyncTestCase.
+@MainActor
+private func configureWizardDependenciesForTests() {
+    WizardDependencies.privilegedOperations = PrivilegedOperationsCoordinator.shared
+    WizardDependencies.daemonManager = KanataDaemonManager.shared
+    if WizardDependencies.systemValidator == nil {
+        WizardDependencies.systemValidator = SystemValidator(
+            processLifecycleManager: ProcessLifecycleManager()
+        )
+    }
+}
+
 @MainActor
 open class KeyPathTestCase: XCTestCase {
     override open func setUp() {
@@ -43,6 +59,8 @@ open class KeyPathTestCase: XCTestCase {
         // Without this, detectConnectionHealth() spawns pgrep subprocesses with 3s timeouts that
         // can deadlock when run repeatedly in quick succession.
         VHIDDeviceManager.testPIDProvider = { [] }
+        // Configure WizardDependencies so InstallerEngine/PrivilegeBroker init don't crash.
+        configureWizardDependenciesForTests()
     }
 
     override open func tearDown() {
@@ -59,6 +77,8 @@ open class KeyPathAsyncTestCase: XCTestCase {
     override open func setUp() async throws {
         try await super.setUp()
         VHIDDeviceManager.testPIDProvider = { [] }
+        // Configure WizardDependencies so InstallerEngine/PrivilegeBroker init don't crash.
+        configureWizardDependenciesForTests()
     }
 
     override open func tearDown() async throws {

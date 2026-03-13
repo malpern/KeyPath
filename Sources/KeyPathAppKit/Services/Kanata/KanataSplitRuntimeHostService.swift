@@ -30,7 +30,7 @@ enum KanataSplitRuntimeHostExitInfo {
 }
 
 @MainActor
-final class KanataSplitRuntimeHostService {
+public final class KanataSplitRuntimeHostService {
     static let shared = KanataSplitRuntimeHostService()
 
     #if DEBUG
@@ -128,7 +128,7 @@ final class KanataSplitRuntimeHostService {
         return environment
     }
 
-    var isPersistentPassthruHostRunning: Bool {
+    public var isPersistentPassthruHostRunning: Bool {
         #if DEBUG
             if TestEnvironment.isRunningTests, let testPersistentHostPID = Self.testPersistentHostPID {
                 return testPersistentHostPID > 0
@@ -137,17 +137,17 @@ final class KanataSplitRuntimeHostService {
         return activeHostProcess?.isRunning == true
     }
 
-    var activePersistentHostPID: pid_t? {
+    public var activePersistentHostPID: Int? {
         #if DEBUG
             if TestEnvironment.isRunningTests,
                let testPersistentHostPID = Self.testPersistentHostPID,
                testPersistentHostPID > 0
             {
-                return testPersistentHostPID
+                return Int(testPersistentHostPID)
             }
         #endif
         guard activeHostProcess?.isRunning == true else { return nil }
-        return activeHostProcess?.processIdentifier
+        return activeHostProcess.map { Int($0.processIdentifier) }
     }
 
     func launchPassthruHost(

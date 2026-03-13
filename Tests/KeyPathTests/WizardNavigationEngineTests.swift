@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+@testable import KeyPathInstallationWizard
 import KeyPathCore
 import KeyPathWizardCore
 import ServiceManagement
@@ -41,7 +42,7 @@ class WizardNavigationEngineTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        let newEngine = WizardNavigationEngine()
+        let newEngine = await MainActor.run { WizardNavigationEngine() }
         engine = newEngine
         await MainActor.run {
             newEngine.markFDAPageShown()
@@ -56,6 +57,11 @@ class WizardNavigationEngineTests: XCTestCase {
         originalRunnerFactory = HelperManager.subprocessRunnerFactory
         HelperManager.subprocessRunnerFactory = { SubprocessRunnerFake.shared }
         await SubprocessRunnerFake.shared.reset()
+
+        // Wire WizardDependencies.helperManager so NavigationEngine uses the mocked smServiceFactory
+        await MainActor.run {
+            WizardDependencies.helperManager = HelperManager.shared
+        }
     }
 
     override func tearDown() async throws {

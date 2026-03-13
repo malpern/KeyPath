@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathInstallationWizard
 
 /// Coordinates configuration hot-reload when external file changes are detected.
 ///
@@ -247,6 +248,6 @@ final class ConfigHotReloadService {
         if let provider = serviceManagementStateProvider {
             return await provider()
         }
-        return await kanataDaemonManager.refreshManagementState()
+        return await kanataDaemonManager.refreshManagementStateInternal()
     }
 }

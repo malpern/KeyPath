@@ -1,0 +1,257 @@
+import Foundation
+import KeyPathCore
+import KeyPathWizardCore
+import SwiftUI
+
+/// Centralized interpreter for wizard state to ensure consistent UI status across all components
+/// Eliminates direct RuntimeCoordinator queries in UI and provides single source of truth
+public struct WizardStateInterpreter {
+    public init() {}
+
+    // MARK: - Permission Status
+
+    /// Get the status of a specific permission requirement
+    public func getPermissionStatus(_ permission: PermissionRequirement, in issues: [WizardIssue])
+        -> InstallationStatus
+    {
+        let relevant = issues.filter { $0.identifier == .permission(permission) }
+        return IssueSeverityInstallationStatusMapper.installationStatus(for: relevant)
+    }
+
+    /// Check if any permission issues exist
+    public func hasAnyPermissionIssues(in issues: [WizardIssue]) -> Bool {
+        issues.contains { $0.identifier.isPermission }
+    }
+
+    /// Get all permission issues
+    public func getPermissionIssues(in issues: [WizardIssue]) -> [WizardIssue] {
+        issues.filter(\.identifier.isPermission)
+    }
+
+    /// Check if a specific permission is granted
+    public func isPermissionGranted(_ permission: PermissionRequirement, in issues: [WizardIssue]) -> Bool {
+        !issues.contains { $0.identifier == .permission(permission) }
+    }
+
+    // MARK: - Component Status
+
+    /// Get the status of a specific component requirement
+    public func getComponentStatus(_ component: ComponentRequirement, in issues: [WizardIssue])
+        -> InstallationStatus
+    {
+        let hasIssue = issues.contains { $0.identifier == .component(component) }
+        return hasIssue ? .failed : .completed
+    }
+
+    /// Check if any component issues exist
+    public func hasAnyComponentIssues(in issues: [WizardIssue]) -> Bool {
+        issues.contains { $0.identifier.isComponent }
+    }
+
+    /// Get all component issues
+    public func getComponentIssues(in issues: [WizardIssue]) -> [WizardIssue] {
+        issues.filter(\.identifier.isComponent)
+    }
+
+    // MARK: - Conflict Status
+
+    /// Check if any conflicts exist
+    public func hasAnyConflicts(in issues: [WizardIssue]) -> Bool {
+        issues.contains { $0.identifier.isConflict }
+    }
+
+    /// Get all conflict issues
+    public func getConflictIssues(in issues: [WizardIssue]) -> [WizardIssue] {
+        issues.filter(\.identifier.isConflict)
+    }
+
+    /// Check if there are Karabiner-related conflicts specifically
+    public func hasKarabinerConflict(in issues: [WizardIssue]) -> Bool {
+        issues.contains { issue in
+            if case let .conflict(conflict) = issue.identifier {
+                if case .karabinerGrabberRunning = conflict {
+                    return true
+                }
+            }
+            return false
+        }
+    }
+
+    // MARK: - Daemon Status
+
+    /// Check if daemon is running (no daemon issues present)
+    public func isDaemonRunning(in issues: [WizardIssue]) -> Bool {
+        !issues.contains { $0.identifier.isDaemon }
+    }
+
+    /// Get daemon issues
+    public func getDaemonIssues(in issues: [WizardIssue]) -> [WizardIssue] {
+        issues.filter(\.identifier.isDaemon)
+    }
+
+    // MARK: - Background Services Status
+
+    /// Check if background services are enabled (no background service issues present)
+    public func areBackgroundServicesEnabled(in issues: [WizardIssue]) -> Bool {
+        !issues.contains { $0.category == .backgroundServices }
+    }
+
+    /// Get background service issues
+    public func getBackgroundServiceIssues(in issues: [WizardIssue]) -> [WizardIssue] {
+        issues.filter { $0.category == .backgroundServices }
+    }
+
+    // MARK: - Overall Status Computation
+
+    /// Determine if all requirements are met (no issues)
+    public func areAllRequirementsMet(in issues: [WizardIssue]) -> Bool {
+        issues.isEmpty
+    }
+
+    /// Determine if there are any blocking issues (critical or error severity)
+    public func hasBlockingIssues(in issues: [WizardIssue]) -> Bool {
+        issues.contains { $0.severity == .critical || $0.severity == .error }
+    }
+
+    /// Get the most critical issue severity present
+    public func getMostCriticalSeverity(in issues: [WizardIssue]) -> WizardIssue.IssueSeverity? {
+        if issues.contains(where: { $0.severity == .critical }) {
+            return .critical
+        } else if issues.contains(where: { $0.severity == .error }) {
+            return .error
+        } else if issues.contains(where: { $0.severity == .warning }) {
+            return .warning
+        } else if issues.contains(where: { $0.severity == .info }) {
+            return .info
+        }
+        return nil
+    }
+
+    // MARK: - Page-Specific Status
+
+    /// Get issues relevant to a specific wizard page
+    public func getRelevantIssues(for page: WizardPage, in issues: [WizardIssue]) -> [WizardIssue] {
+        switch page {
+        case .kanataMigration:
+            [] // Migration page doesn't use issues
+        case .conflicts:
+            getConflictIssues(in: issues)
+        case .inputMonitoring:
+            // Input Monitoring permission page
+            issues.filter {
+                $0.identifier == .permission(.kanataInputMonitoring)
+                    || $0.identifier == .permission(.keyPathInputMonitoring)
+            }
+        case .accessibility:
+            // Accessibility permission page
+            issues.filter {
+                $0.identifier == .permission(.kanataAccessibility)
+                    || $0.identifier == .permission(.keyPathAccessibility)
+                    || $0.identifier == .permission(.driverExtensionEnabled)
+            }
+        case .karabinerComponents:
+            // Karabiner-related components and background services
+            issues.filter { issue in
+                // Installation issues related to Karabiner
+                if issue.category == .installation {
+                    switch issue.identifier {
+                    case .component(.karabinerDriver),
+                         .component(.karabinerDaemon),
+                         .component(.vhidDeviceManager),
+                         .component(.vhidDeviceActivation),
+                         .component(.vhidDeviceRunning),
+                         .component(.vhidDaemonMisconfigured),
+                         .component(.vhidDriverVersionMismatch):
+                        return true
+                    default:
+                        return false
+                    }
+                }
+                // Include daemon issues only. Legacy recovery services are reported elsewhere.
+                return issue.category == .daemon
+            }
+        case .helper:
+            [] // Helper page shows helper status/actions directly
+        case .communication:
+            // Communication Server issues
+            issues.filter { issue in
+                if case let .component(component) = issue.identifier {
+                    switch component {
+                    case .kanataTCPServer,
+                         .communicationServerConfiguration, .communicationServerNotResponding,
+                         .tcpServerConfiguration, .tcpServerNotResponding:
+                        return true
+                    default:
+                        return false
+                    }
+                }
+                return false
+            }
+        case .service:
+            [] // Service page doesn't use issues, it shows real-time status
+        case .fullDiskAccess:
+            [] // FDA page doesn't use issues, it's optional
+        case .summary:
+            issues // Summary shows all issues
+        case .stopExternalKanata:
+            [] // Stop external kanata page doesn't use issues
+        case .karabinerImport:
+            [] // Karabiner import page doesn't use issues
+        }
+    }
+
+    /// Determine the overall status for a wizard page
+    public func getPageStatus(for page: WizardPage, in issues: [WizardIssue]) -> InstallationStatus {
+        let relevantIssues = getRelevantIssues(for: page, in: issues)
+
+        return IssueSeverityInstallationStatusMapper.installationStatus(for: relevantIssues)
+    }
+
+    // MARK: - UI Helper Methods
+
+    /// Get the appropriate color for a status
+    public func getStatusColor(_ status: InstallationStatus) -> Color {
+        switch status {
+        case .notStarted:
+            .secondary
+        case .inProgress:
+            .blue
+        case .warning:
+            .orange
+        case .completed:
+            .green
+        case .failed:
+            .red
+        case .unverified:
+            .secondary
+        }
+    }
+
+    /// Get the appropriate icon for a status
+    public func getStatusIcon(_ status: InstallationStatus) -> String {
+        switch status {
+        case .notStarted:
+            "circle"
+        case .inProgress:
+            "clock"
+        case .warning:
+            "exclamationmark.triangle.fill"
+        case .completed:
+            "checkmark.circle.fill"
+        case .failed:
+            "xmark.circle.fill"
+        case .unverified:
+            "questionmark.circle"
+        }
+    }
+
+    // MARK: - UI Prompts
+
+    /// Whether we should surface the Helper CTA on Summary.
+    /// Extracted for testability; default provider checks real helper install state.
+    public func shouldShowHelperCTA(
+        helperInstalledProvider: () async -> Bool = { await WizardDependencies.helperManager?.isHelperInstalled() ?? false }
+    ) async -> Bool {
+        await !helperInstalledProvider()
+    }
+}

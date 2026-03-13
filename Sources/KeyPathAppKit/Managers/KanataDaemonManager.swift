@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import KeyPathCore
+import KeyPathInstallationWizard
 import ServiceManagement
 
 /// Manager for Kanata LaunchDaemon registration via SMAppService
@@ -14,7 +15,7 @@ import ServiceManagement
 /// - Supports migration from launchctl to SMAppService
 /// - Supports rollback from SMAppService to launchctl
 @MainActor
-class KanataDaemonManager {
+public class KanataDaemonManager {
     // MARK: - SMAppService indirection for testability
 
     // Allows unit tests to inject a fake SMAppService and simulate states like `.notFound`.
@@ -57,7 +58,7 @@ class KanataDaemonManager {
     init(subprocessRunner: SubprocessRunner = .shared) {
         self.subprocessRunner = subprocessRunner
         AppLogger.shared.log("🔧 [KanataDaemonManager] Initialized")
-        Task { await refreshManagementState() }
+        Task { await refreshManagementStateInternal() }
     }
 
     // MARK: - Service Management State (Single Source of Truth)
@@ -120,7 +121,7 @@ class KanataDaemonManager {
     ///
     /// - Returns: The current ServiceManagementState
     @discardableResult
-    nonisolated func refreshManagementState() async -> ServiceManagementState {
+    nonisolated func refreshManagementStateInternal() async -> ServiceManagementState {
         let hasLegacy = Foundation.FileManager().fileExists(atPath: Self.legacyPlistPath)
         let svc = Self.smServiceFactory(Self.kanataPlistName)
         let smStatus = svc.status
@@ -189,9 +190,9 @@ class KanataDaemonManager {
     }
 
     /// Legacy static method alias for compatibility (deprecated)
-    @available(*, unavailable, message: "Use shared.refreshManagementState()")
+    @available(*, unavailable, message: "Use shared.refreshManagementStateInternal()")
     nonisolated static func determineServiceManagementState() async -> ServiceManagementState {
-        await shared.refreshManagementState()
+        await shared.refreshManagementStateInternal()
     }
 
     /// Helper function to check if Kanata process is running
@@ -275,7 +276,7 @@ class KanataDaemonManager {
     /// 2. Spawn failed state - launchd finds service but it crashes immediately (exit code 78)
     ///
     /// - Returns: true if service needs unregister/re-register cycle to fix
-    nonisolated func isRegisteredButNotLoaded() async -> Bool {
+    public nonisolated func isRegisteredButNotLoaded() async -> Bool {
         #if DEBUG
             if let override = Self.registeredButNotLoadedOverride {
                 return await override()
@@ -366,7 +367,7 @@ class KanataDaemonManager {
 
     /// Register Kanata daemon via SMAppService
     /// - Throws: KanataDaemonError if registration fails
-    func register() async throws {
+    public func register() async throws {
         AppLogger.shared.log(
             "🔐 [SMAPPSERVICE-TRIGGER] *** ENTRY POINT *** Registering Kanata daemon via SMAppService"
         )
@@ -635,7 +636,7 @@ class KanataDaemonManager {
 
     /// Unregister Kanata daemon via SMAppService
     /// - Throws: KanataDaemonError if unregistration fails
-    func unregister() async throws {
+    public func unregister() async throws {
         AppLogger.shared.log("🗑️ [KanataDaemonManager] Unregistering Kanata daemon via SMAppService")
         guard #available(macOS 13, *) else {
             throw KanataDaemonError.operationFailed("Requires macOS 13+ for SMAppService")

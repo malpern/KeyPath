@@ -6,7 +6,7 @@ import ServiceManagement
 
 @MainActor
 @Observable
-final class UninstallCoordinator {
+public final class UninstallCoordinator {
     private(set) var logLines: [String] = []
     private(set) var isRunning = false
     private(set) var didSucceed = false
@@ -31,7 +31,7 @@ final class UninstallCoordinator {
     }
 
     @discardableResult
-    func uninstall(deleteConfig: Bool = false) async -> Bool {
+    public func uninstall(deleteConfig: Bool = false) async -> Bool {
         guard !isRunning else { return false }
 
         isRunning = true

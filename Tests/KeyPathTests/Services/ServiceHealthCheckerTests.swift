@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+@testable import KeyPathInstallationWizard
 import ServiceManagement
 @preconcurrency import XCTest
 

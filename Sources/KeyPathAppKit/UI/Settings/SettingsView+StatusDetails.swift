@@ -1,4 +1,5 @@
 import KeyPathCore
+import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
 import SwiftUI
