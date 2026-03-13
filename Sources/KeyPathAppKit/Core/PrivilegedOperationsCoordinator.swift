@@ -651,16 +651,7 @@ public final class PrivilegedOperationsCoordinator {
             let now = Date()
             let remaining = deadline.timeIntervalSince(now)
             let timeoutMs = max(50, min(300, Int(remaining * 1000)))
-            let wizardManagementState: WizardServiceManagementState = {
-                switch managementState {
-                case .legacyActive: return .legacyActive
-                case .smappserviceActive: return .smappserviceActive
-                case .smappservicePending: return .smappservicePending
-                case .uninstalled: return .uninstalled
-                case .conflicted: return .conflicted
-                case .unknown: return .unknown
-                }
-            }()
+            let wizardManagementState = WizardServiceManagementState(managementState)
             let runtimeSnapshot = await serviceHealthChecker.checkKanataServiceRuntimeSnapshot(
                 managementState: wizardManagementState,
                 staleEnabledRegistration: false,

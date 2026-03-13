@@ -5,6 +5,34 @@ import KeyPathPermissions
 import KeyPathWizardCore
 import SwiftUI
 
+// MARK: - WizardServiceManagementState ↔ KanataDaemonManager.ServiceManagementState converters
+
+extension WizardServiceManagementState {
+    /// Convert from the internal ServiceManagementState type (defined in KeyPathAppKit).
+    init(_ state: KanataDaemonManager.ServiceManagementState) {
+        switch state {
+        case .legacyActive: self = .legacyActive
+        case .smappserviceActive: self = .smappserviceActive
+        case .smappservicePending: self = .smappservicePending
+        case .uninstalled: self = .uninstalled
+        case .conflicted: self = .conflicted
+        case .unknown: self = .unknown
+        }
+    }
+
+    /// Convert back to the internal ServiceManagementState type.
+    var asInternal: KanataDaemonManager.ServiceManagementState {
+        switch self {
+        case .legacyActive: return .legacyActive
+        case .smappserviceActive: return .smappserviceActive
+        case .smappservicePending: return .smappservicePending
+        case .uninstalled: return .uninstalled
+        case .conflicted: return .conflicted
+        case .unknown: return .unknown
+        }
+    }
+}
+
 // MARK: - RuntimeCoordinator + RuntimeCoordinating
 
 extension RuntimeCoordinator: RuntimeCoordinating {
@@ -46,15 +74,7 @@ extension HelperManager: WizardHelperManaging {}
 
 extension KanataDaemonManager: WizardDaemonManaging {
     public func refreshManagementState() async -> WizardServiceManagementState {
-        let state = await refreshManagementStateInternal()
-        switch state {
-        case .legacyActive: return .legacyActive
-        case .smappserviceActive: return .smappserviceActive
-        case .smappservicePending: return .smappservicePending
-        case .uninstalled: return .uninstalled
-        case .conflicted: return .conflicted
-        case .unknown: return .unknown
-        }
+        WizardServiceManagementState(await refreshManagementStateInternal())
     }
 
     public nonisolated var kanataServiceID: String {
@@ -66,16 +86,7 @@ extension KanataDaemonManager: WizardDaemonManaging {
     }
 
     public func preferredLaunchctlTargets(for state: WizardServiceManagementState) -> [String] {
-        let internalState: ServiceManagementState
-        switch state {
-        case .legacyActive: internalState = .legacyActive
-        case .smappserviceActive: internalState = .smappserviceActive
-        case .smappservicePending: internalState = .smappservicePending
-        case .uninstalled: internalState = .uninstalled
-        case .conflicted: internalState = .conflicted
-        case .unknown: internalState = .unknown
-        }
-        return Self.preferredLaunchctlTargets(for: internalState)
+        Self.preferredLaunchctlTargets(for: state.asInternal)
     }
 }
 

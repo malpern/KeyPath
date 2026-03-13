@@ -64,11 +64,15 @@ public protocol WizardPermissionRequesting: AnyObject, Sendable {
 
 // MARK: - PermissionService Protocol
 
+// STUB: WizardPermissionAnalyzing is an intentional no-op placeholder. Actual permission
+// analysis is deferred entirely to the Permission Oracle system (PermissionOracle.shared),
+// which uses IOHIDCheckAccess as the authoritative source. This type exists only to satisfy
+// call sites that historically expected a permission-analysis helper; callers should use
+// the Oracle and SystemSnapshot permission fields instead.
 public enum WizardPermissionAnalyzing {
     public static func analyzeKanataError(_: String) -> (
         isPermissionError: Bool, description: String, suggestedFix: String?
     ) {
-        // Oracle system - see permission snapshot for details
         (
             isPermissionError: false,
             description: "Oracle system - see permission snapshot for details",

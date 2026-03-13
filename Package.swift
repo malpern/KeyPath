@@ -141,7 +141,6 @@ let package = Package(
                 .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/KeyPathAppKit",
-            exclude: [],
             resources: [
                 .process("Resources")
             ],
