@@ -264,6 +264,7 @@ struct StatusSettingsTabView: View {
             InstallationWizardView(initialPage: page)
                 .customizeSheetWindow()
                 .environment(kanataManager)
+                .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator)
         }
         .alert("Permissions Required", isPresented: $showingPermissionAlert) {
             Button("Open Wizard") {

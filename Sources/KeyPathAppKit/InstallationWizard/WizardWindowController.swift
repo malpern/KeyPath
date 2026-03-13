@@ -57,9 +57,13 @@ final class WizardWindowController {
             hosting = NSHostingView(rootView:
                 styledView
                     .environment(viewModel)
+                    .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator)
             )
         } else {
-            hosting = NSHostingView(rootView: styledView)
+            hosting = NSHostingView(rootView:
+                styledView
+                    .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator)
+            )
         }
 
         let window = NSWindow(
