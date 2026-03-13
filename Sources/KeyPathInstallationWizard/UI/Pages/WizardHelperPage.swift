@@ -90,7 +90,7 @@ public struct WizardHelperPage: View {
     @State private var isLoadingHelperStatus = true
 
     private var isRunningAdHoc: Bool {
-        WizardSignatureHealthCheck.isRunningAdHoc()
+        WizardDependencies.isRunningAdHoc
     }
 
     private var nextStepButtonTitle: String {
@@ -136,10 +136,10 @@ public struct WizardHelperPage: View {
         .wizardDetailPage()
         .task {
             // Use functional test (XPC ping), not just launchd status, to avoid stale state
-            helperVerifiedInstalled = await WizardDependencies.helperManager!.testHelperFunctionality()
+            helperVerifiedInstalled = await WizardDependencies.helperManager?.testHelperFunctionality() ?? false
             // Check helper version on appear (only if functional)
             if helperVerifiedInstalled {
-                helperVersion = await WizardDependencies.helperManager!.getHelperVersion()
+                helperVersion = await WizardDependencies.helperManager?.getHelperVersion()
             }
             bundledVersion = getBundledHelperVersion()
             // Check if Login Items approval is needed
@@ -148,7 +148,7 @@ public struct WizardHelperPage: View {
             isLoadingHelperStatus = false
         }
         .onAppear {
-            duplicateCopies = WizardDependencies.helperMaintenance!.detectDuplicateAppCopies()
+            duplicateCopies = WizardDependencies.helperMaintenance?.detectDuplicateAppCopies() ?? []
             logLoginItemsDiagnostics()
         }
         .onDisappear {
@@ -401,7 +401,8 @@ public struct WizardHelperPage: View {
         hasLoggedDiagnostics = true
 
         let mainURL = Bundle.main.url(forResource: "permissions-login-items", withExtension: "png")
-        let moduleURL = WizardDependencies.resourceBundle!.url(forResource: "permissions-login-items", withExtension: "png")
+        let resourceBundle = WizardDependencies.resourceBundle ?? Bundle.main
+        let moduleURL = resourceBundle.url(forResource: "permissions-login-items", withExtension: "png")
         let mainImageLoaded = mainURL.flatMap { NSImage(contentsOf: $0) } != nil
         let moduleImageLoaded = moduleURL.flatMap { NSImage(contentsOf: $0) } != nil
         let windowHeight = NSApp.keyWindow?.frame.height ?? 0
@@ -420,7 +421,8 @@ public struct WizardHelperPage: View {
 
     private var loginItemsScreenshot: NSImage? {
         let resourceName = "permissions-login-items"
-        if let moduleURL = WizardDependencies.resourceBundle!.url(forResource: resourceName, withExtension: "png"),
+        let resourceBundle = WizardDependencies.resourceBundle ?? Bundle.main
+        if let moduleURL = resourceBundle.url(forResource: resourceName, withExtension: "png"),
            let image = NSImage(contentsOf: moduleURL)
         {
             return image
@@ -439,7 +441,15 @@ public struct WizardHelperPage: View {
             actionStatus = .inProgress(message: "Installing helper…")
         }
 
-        let ok = await WizardDependencies.helperMaintenance!.runCleanupAndRepair(useAppleScriptFallback: true)
+        guard let helperMaintenance = WizardDependencies.helperMaintenance else {
+            AppLogger.shared.log("⚠️ [WizardHelperPage] helperMaintenance not configured")
+            await MainActor.run {
+                isWorking = false
+                actionStatus = .error(message: "Wizard not fully configured")
+            }
+            return
+        }
+        let ok = await helperMaintenance.runCleanupAndRepair(useAppleScriptFallback: true)
 
         // Re-check approval status after install attempt
         let approvalNeeded = checkLoginItemsApprovalNeeded()
@@ -461,7 +471,7 @@ public struct WizardHelperPage: View {
                 startApprovalPolling()
             } else {
                 // Surface the last maintenance log line as a hint
-                let hint = WizardDependencies.helperMaintenance!.logLines.last
+                let hint = helperMaintenance.logLines.last
                     ?? "Unknown error (helper XPC not reachable)"
                 actionStatus = .error(message: "Install failed: \(hint)")
             }
@@ -472,8 +482,8 @@ public struct WizardHelperPage: View {
             // Give helper a moment to start responding
             _ = await WizardSleep.ms(500) // 0.5s
 
-            let functional = await WizardDependencies.helperManager!.testHelperFunctionality()
-            let version = await WizardDependencies.helperManager!.getHelperVersion()
+            let functional = await WizardDependencies.helperManager?.testHelperFunctionality() ?? false
+            let version = await WizardDependencies.helperManager?.getHelperVersion()
 
             await MainActor.run {
                 helperVerifiedInstalled = functional
@@ -520,7 +530,12 @@ public struct WizardHelperPage: View {
     }
 
     private func checkLoginItemsApprovalNeeded() -> Bool {
-        let svc = WizardDependencies.smServiceFactory!(WizardHelperConstants.helperPlistName) as! SMAppService
+        guard let factory = WizardDependencies.smServiceFactory,
+              let svc = factory(WizardHelperConstants.helperPlistName) as? SMAppService
+        else {
+            AppLogger.shared.log("⚠️ [WizardHelperPage] smServiceFactory not configured or wrong type")
+            return false
+        }
         return svc.status == .requiresApproval
     }
 
@@ -541,12 +556,17 @@ public struct WizardHelperPage: View {
     }
 
     private func checkApprovalStatus() async {
-        let svc = WizardDependencies.smServiceFactory!(WizardHelperConstants.helperPlistName) as! SMAppService
+        guard let factory = WizardDependencies.smServiceFactory,
+              let svc = factory(WizardHelperConstants.helperPlistName) as? SMAppService
+        else {
+            AppLogger.shared.log("⚠️ [WizardHelperPage] smServiceFactory not configured or wrong type")
+            return
+        }
         let status = svc.status
 
         // If no longer requires approval, check if helper is now healthy
         if status != .requiresApproval {
-            let healthy = await WizardDependencies.helperManager!.testHelperFunctionality()
+            let healthy = await WizardDependencies.helperManager?.testHelperFunctionality() ?? false
             if healthy {
                 // Success! Helper is approved and responding
                 stopApprovalPolling()
@@ -554,7 +574,7 @@ public struct WizardHelperPage: View {
                 // Bounce dock icon to get user's attention back to KeyPath
                 WizardWindowManager.shared.bounceDocIcon()
                 actionStatus = .success(message: "Helper approved and ready!")
-                helperVersion = await WizardDependencies.helperManager!.getHelperVersion()
+                helperVersion = await WizardDependencies.helperManager?.getHelperVersion()
                 scheduleStatusClear()
                 onRefresh() // Trigger parent refresh to update issues
             } else if status == .enabled {

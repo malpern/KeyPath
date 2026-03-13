@@ -63,8 +63,7 @@ extension InstallationWizardView {
 
         // Enrich daemon-related errors with a succinct diagnosis
         if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon {
-            let detail = await kanataManager!.getVirtualHIDBreakageSummary()
-            if !detail.isEmpty {
+            if let detail = await kanataManager?.getVirtualHIDBreakageSummary(), !detail.isEmpty {
                 message += "\n\n" + detail
             }
         }

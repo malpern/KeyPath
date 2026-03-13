@@ -10,6 +10,7 @@ import SwiftUI
 extension WizardServiceManagementState {
     /// Convert from the internal ServiceManagementState type (defined in KeyPathAppKit).
     init(_ state: KanataDaemonManager.ServiceManagementState) {
+        // EXHAUSTIVE: must mirror KanataDaemonManager.ServiceManagementState exactly — do not add a default case
         switch state {
         case .legacyActive: self = .legacyActive
         case .smappserviceActive: self = .smappserviceActive
@@ -22,6 +23,7 @@ extension WizardServiceManagementState {
 
     /// Convert back to the internal ServiceManagementState type.
     var asInternal: KanataDaemonManager.ServiceManagementState {
+        // EXHAUSTIVE: must mirror KanataDaemonManager.ServiceManagementState exactly — do not add a default case
         switch self {
         case .legacyActive: return .legacyActive
         case .smappserviceActive: return .smappserviceActive
@@ -143,6 +145,7 @@ extension UninstallCoordinator: WizardUninstalling {}
 /// Configure WizardDependencies at app launch (call from App.init or similar)
 @MainActor
 public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) {
+    WizardDependencies.isRunningAdHoc = WizardSignatureHealthCheck.isRunningAdHoc()
     WizardDependencies.runtimeCoordinator = runtimeCoordinator
     WizardDependencies.helperManager = HelperManager.shared
     WizardDependencies.daemonManager = KanataDaemonManager.shared

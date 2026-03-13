@@ -552,10 +552,10 @@ public final class InstallerEngine {
         if criteria.serviceID == KeyPathConstants.Bundle.daemonID,
            criteria.shouldBeRunning
         {
-            let managementState = await WizardDependencies.daemonManager!.refreshManagementState()
+            let managementState = await WizardDependencies.daemonManager?.refreshManagementState()
             if managementState == .smappservicePending {
                 AppLogger.shared.log(
-                    "🔍 [InstallerEngine] Kanata health check accepted pending Login Items approval (state=\(managementState.description))"
+                    "🔍 [InstallerEngine] Kanata health check accepted pending Login Items approval (state=\(managementState?.description ?? "nil"))"
                 )
                 return true
             }
@@ -563,7 +563,7 @@ public final class InstallerEngine {
             let runtimeSnapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot()
             let ready = ServiceHealthChecker.decideKanataHealth(for: runtimeSnapshot).isHealthy
             AppLogger.shared.log(
-                "🔍 [InstallerEngine] Kanata strict health check: state=\(managementState.description), running=\(runtimeSnapshot.isRunning), responding=\(runtimeSnapshot.isResponding), inputCaptureReady=\(runtimeSnapshot.inputCaptureReady), ready=\(ready)"
+                "🔍 [InstallerEngine] Kanata strict health check: state=\(managementState?.description ?? "nil"), running=\(runtimeSnapshot.isRunning), responding=\(runtimeSnapshot.isResponding), inputCaptureReady=\(runtimeSnapshot.inputCaptureReady), ready=\(ready)"
             )
             return ready
         }

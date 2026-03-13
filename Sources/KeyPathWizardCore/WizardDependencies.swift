@@ -98,6 +98,13 @@ public enum WizardDependencies {
 
     /// Factory to create notification observer managers
     nonisolated(unsafe) public static var createNotificationObserverManager: (() -> Any)?
+
+    // MARK: - Ad-hoc Signature Cache
+
+    /// Whether the app is running ad-hoc signed (not notarized).
+    /// Cached at startup by KeyPathAppKit to avoid blocking the main thread
+    /// with a synchronous codesign subprocess call from SwiftUI views.
+    nonisolated(unsafe) public static var isRunningAdHoc: Bool = false
 }
 
 // MARK: - Environment Keys

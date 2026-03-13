@@ -373,7 +373,11 @@ public struct WizardInputMonitoringPage: View {
         )
 
         // Use automatic prompt via IOHIDRequestAccess()
-        let alreadyGranted = WizardDependencies.permissionRequestService!.requestInputMonitoringPermission(
+        guard let permissionRequestService = WizardDependencies.permissionRequestService else {
+            AppLogger.shared.log("⚠️ [WizardInputMonitoringPage] permissionRequestService not configured")
+            return
+        }
+        let alreadyGranted = permissionRequestService.requestInputMonitoringPermission(
             ignoreCooldown: true
         )
         if alreadyGranted {

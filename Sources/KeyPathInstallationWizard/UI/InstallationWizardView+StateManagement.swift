@@ -13,9 +13,13 @@ extension InstallationWizardView {
         stateMachine.navigationEngine.resetNavigationState()
 
         // Configure state providers
-        stateMachine.configure(kanataManager: kanataManager!)
+        guard let kanataManager else {
+            AppLogger.shared.log("⚠️ [Wizard] kanataManager not configured — skipping wizard setup")
+            return
+        }
+        stateMachine.configure(kanataManager: kanataManager)
         autoFixer.configure(
-            kanataManager: kanataManager!,
+            kanataManager: kanataManager,
             toastManager: toastManager,
             statusReporter: { message in
                 showStatusBanner(message)

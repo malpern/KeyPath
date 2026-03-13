@@ -334,7 +334,11 @@ public struct WizardAccessibilityPage: View {
     private func openAccessibilityPermissionGrant() {
         AppLogger.shared.log("🔐 [WizardAccessibilityPage] Accessibility permission flow starting")
 
-        let alreadyGranted = WizardDependencies.permissionRequestService!.requestAccessibilityPermission(
+        guard let permissionRequestService = WizardDependencies.permissionRequestService else {
+            AppLogger.shared.log("⚠️ [WizardAccessibilityPage] permissionRequestService not configured")
+            return
+        }
+        let alreadyGranted = permissionRequestService.requestAccessibilityPermission(
             ignoreCooldown: true
         )
         if alreadyGranted {

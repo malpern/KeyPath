@@ -206,7 +206,7 @@ public struct WizardFullDiskAccessPage: View {
         )
 
         // Update shared cache so other parts of the app reflect FDA immediately.
-        WizardDependencies.fullDiskAccessChecker!.updateCachedValue(hasFullDiskAccess)
+        WizardDependencies.fullDiskAccessChecker?.updateCachedValue(hasFullDiskAccess)
     }
 
     private var nextStepButtonTitle: String {

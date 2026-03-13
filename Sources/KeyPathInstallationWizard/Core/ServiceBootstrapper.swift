@@ -45,6 +45,17 @@ public final class ServiceBootstrapper {
         let managerLoaded: Bool
     }
 
+    // MARK: - Safe Dependency Access
+
+    /// Returns `WizardDependencies.daemonManager`, logging a warning and returning nil if unconfigured.
+    private var daemonManager: (any WizardDaemonManaging)? {
+        guard let manager = WizardDependencies.daemonManager else {
+            AppLogger.shared.log("⚠️ [ServiceBootstrapper] daemonManager not configured")
+            return nil
+        }
+        return manager
+    }
+
     // MARK: - Restart Time Tracking
 
     /// Lock-protected dictionary tracking when services were last restarted
@@ -498,6 +509,11 @@ public final class ServiceBootstrapper {
             return true
         }
 
+        guard let daemonManager else {
+            AppLogger.shared.log("❌ [ServiceBootstrapper] daemonManager not configured — cannot recover services")
+            return false
+        }
+
         // Get initial service status
         let initialStatus = await ServiceHealthChecker.shared.getServiceStatus()
         var toRestart: [String] = []
@@ -523,7 +539,7 @@ public final class ServiceBootstrapper {
         }
 
         // Check SMAppService state
-        let state = await WizardDependencies.daemonManager!.refreshManagementState()
+        let state = await daemonManager.refreshManagementState()
         AppLogger.shared.log("🔍 [ServiceBootstrapper] SMAppService state: \(state.description)")
 
         // Auto-resolve legacy/conflicted state
@@ -532,7 +548,7 @@ public final class ServiceBootstrapper {
         }
 
         // Handle SMAppService broken state (common after clean uninstall)
-        let isRegisteredButBroken = await WizardDependencies.daemonManager!.isRegisteredButNotLoaded()
+        let isRegisteredButBroken = await daemonManager.isRegisteredButNotLoaded()
         if isRegisteredButBroken {
             let fixed = await fixBrokenSMAppServiceState()
             if !fixed {
@@ -580,7 +596,7 @@ public final class ServiceBootstrapper {
                 AppLogger.shared.log("🔧 [ServiceBootstrapper] Refreshing Kanata via SMAppService")
                 do {
                     markRestartTime(for: [Self.kanataServiceID])
-                    try await WizardDependencies.daemonManager!.unregister()
+                    try await daemonManager.unregister()
                     // Poll for service readiness with a short wait, instead of fixed sleep
                     for _ in 0 ..< 6 { // ~0.6s
                         if await !(ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID)) {
@@ -588,7 +604,7 @@ public final class ServiceBootstrapper {
                         }
                         _ = await WizardSleep.ms(100)
                     }
-                    try await WizardDependencies.daemonManager!.register()
+                    try await daemonManager.register()
                     markRestartTime(for: [Self.kanataServiceID])
                     toRestart.removeAll { $0 == Self.kanataServiceID }
                     AppLogger.shared.log("✅ [ServiceBootstrapper] Kanata SMAppService refreshed")
@@ -611,7 +627,7 @@ public final class ServiceBootstrapper {
         // Postcondition: verify all services are actually healthy before reporting success.
         // When SMAppService is pending approval, Kanata is intentionally not running —
         // accept that as a valid postcondition since the user must approve in Login Items.
-        let postState = await WizardDependencies.daemonManager!.refreshManagementState()
+        let postState = await daemonManager.refreshManagementState()
         let kanataPendingApproval = postState == .smappservicePending
 
         if kanataPendingApproval {
@@ -648,7 +664,11 @@ public final class ServiceBootstrapper {
 @MainActor
     private func resolveLegacyConflict() async {
         AppLogger.shared.log("🔄 [ServiceBootstrapper] Resolving legacy/conflicted state")
-        let legacyPlistPath = WizardDependencies.daemonManager!.legacyPlistPath
+        guard let daemonManager else {
+            AppLogger.shared.log("⚠️ [ServiceBootstrapper] daemonManager not configured — skipping legacy conflict resolution")
+            return
+        }
+        let legacyPlistPath = daemonManager.legacyPlistPath
         let command = """
         /bin/launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true && \
         /bin/rm -f '\(legacyPlistPath)' || true
@@ -673,19 +693,24 @@ public final class ServiceBootstrapper {
         AppLogger.shared.log("🔄 [ServiceBootstrapper] Fixing broken SMAppService state")
         AppLogger.shared.log("🐛 Known macOS bug: BundleProgram path caching after uninstall/reinstall")
 
+        guard let daemonManager else {
+            AppLogger.shared.log("❌ [ServiceBootstrapper] daemonManager not configured — cannot fix SMAppService state")
+            return false
+        }
+
         let maxRetries = 2
         for attempt in 1 ... maxRetries {
             do {
                 AppLogger.shared.log("🔄 Attempt \(attempt)/\(maxRetries)")
 
-                try await WizardDependencies.daemonManager!.unregister()
+                try await daemonManager.unregister()
                 for _ in 0 ..< 10 { // ~1s
                     if await !(ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID)) {
                         break
                     }
                     _ = await WizardSleep.ms(100)
                 }
-                try await WizardDependencies.daemonManager!.register()
+                try await daemonManager.register()
                 for _ in 0 ..< 20 { // ~2s
                     if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID) {
                         break
@@ -693,7 +718,7 @@ public final class ServiceBootstrapper {
                     _ = await WizardSleep.ms(100)
                 }
 
-                let stillBroken = await WizardDependencies.daemonManager!.isRegisteredButNotLoaded()
+                let stillBroken = await daemonManager.isRegisteredButNotLoaded()
                 if !stillBroken {
                     AppLogger.shared.log("✅ [ServiceBootstrapper] Fixed SMAppService broken state")
                     return true
@@ -912,14 +937,19 @@ public final class ServiceBootstrapper {
             return false
         }
 
+        guard let daemonManager else {
+            AppLogger.shared.log("❌ [ServiceBootstrapper] daemonManager not configured — cannot register via SMAppService")
+            return false
+        }
+
         // Check current state
-        var state = await WizardDependencies.daemonManager!.refreshManagementState()
+        var state = await daemonManager.refreshManagementState()
         AppLogger.shared.log("🔍 [ServiceBootstrapper] Current state: \(state.description)")
 
         // If conflicted, auto-resolve by removing legacy plist
         if state == .conflicted {
             AppLogger.shared.log("⚠️ [ServiceBootstrapper] Conflicted state - auto-resolving by removing legacy")
-            let legacyPlistPath = WizardDependencies.daemonManager!.legacyPlistPath
+            let legacyPlistPath = daemonManager.legacyPlistPath
             let command = """
             /bin/launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true && \
             /bin/rm -f '\(legacyPlistPath)' || true
@@ -934,7 +964,7 @@ public final class ServiceBootstrapper {
                 return false
             }
             AppLogger.shared.log("✅ [ServiceBootstrapper] Legacy plist removed, conflict resolved")
-            state = await WizardDependencies.daemonManager!.refreshManagementState()
+            state = await daemonManager.refreshManagementState()
             AppLogger.shared.log("🔍 [ServiceBootstrapper] Post-conflict state: \(state.description)")
         }
 
@@ -948,7 +978,7 @@ public final class ServiceBootstrapper {
 
         // If actively managed by SMAppService, validate that launchd can actually load it.
         if state == .smappserviceActive {
-            let isRegisteredButBroken = await WizardDependencies.daemonManager!.isRegisteredButNotLoaded()
+            let isRegisteredButBroken = await daemonManager.isRegisteredButNotLoaded()
             if isRegisteredButBroken {
                 AppLogger.shared.log(
                     "⚠️ [ServiceBootstrapper] SMAppService reports active, but daemon is not loaded. Running recovery."
@@ -971,12 +1001,12 @@ public final class ServiceBootstrapper {
         do {
             AppLogger.shared.log("🔧 [ServiceBootstrapper] Calling KanataDaemonManager.register()...")
             markRestartTime(for: [Self.kanataServiceID])
-            try await WizardDependencies.daemonManager!.register()
+            try await daemonManager.register()
             markRestartTime(for: [Self.kanataServiceID])
             AppLogger.shared.info("✅ [ServiceBootstrapper] Kanata daemon registered via SMAppService")
             return true
         } catch {
-            let postErrorState = await WizardDependencies.daemonManager!.refreshManagementState()
+            let postErrorState = await daemonManager.refreshManagementState()
             if postErrorState == .smappservicePending {
                 AppLogger.shared.log(
                     "⏳ [ServiceBootstrapper] Registration returned error but system is now pending approval"

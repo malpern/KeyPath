@@ -416,7 +416,7 @@ public struct WizardKarabinerComponentsPage: View {
 
         // If installation failed but SMAppService is merely awaiting approval, prompt the user
         // instead of sending them to the manual Karabiner-Elements flow (which is for true install failures).
-        let smState = await WizardDependencies.daemonManager!.refreshManagementState()
+        let smState = await WizardDependencies.daemonManager?.refreshManagementState()
         if smState == .smappservicePending {
             AppLogger.shared.log(
                 "💡 [Karabiner Fix] Auto-install blocked by SMAppService approval; prompting user instead of showing manual guide"

@@ -22,7 +22,11 @@ extension InstallationWizardView {
             defer { Task { @MainActor in fixInFlight = false } }
 
             // Check if Login Items approval is pending
-            let smState = await WizardDependencies.daemonManager!.refreshManagementState()
+            guard let daemonManager = WizardDependencies.daemonManager else {
+                AppLogger.shared.log("⚠️ [Wizard] daemonManager not configured")
+                return
+            }
+            let smState = await daemonManager.refreshManagementState()
             if smState == .smappservicePending {
                 await MainActor.run {
                     toastManager.showError(
@@ -34,7 +38,11 @@ extension InstallationWizardView {
             }
 
             // Run full repair via InstallerEngine (it handles all cases efficiently)
-            let report = await kanataManager!.runFullRepair(reason: "Wizard Fix button")
+            guard let kanataManager else {
+                AppLogger.shared.log("⚠️ [Wizard] kanataManager not configured")
+                return
+            }
+            let report = await kanataManager.runFullRepair(reason: "Wizard Fix button")
 
             // Show result toast
             await MainActor.run {
@@ -101,7 +109,7 @@ extension InstallationWizardView {
 
         // Short-circuit service installs when Login Items approval is pending
         if action == .installRequiredRuntimeServices,
-           await WizardDependencies.daemonManager!.refreshManagementState() == .smappservicePending
+           await WizardDependencies.daemonManager?.refreshManagementState() == .smappservicePending
         {
             if !suppressToast {
                 await MainActor.run {
@@ -123,7 +131,7 @@ extension InstallationWizardView {
         }
         let actionDescription = getAutoFixActionDescription(action)
 
-        let smState = await WizardDependencies.daemonManager!.refreshManagementState()
+        let smState = await WizardDependencies.daemonManager?.refreshManagementState()
 
         let deferToastActions: Set<AutoFixAction> = [
             .restartVirtualHIDDaemon, .installCorrectVHIDDriver, .repairVHIDDaemonServices,
@@ -201,7 +209,7 @@ extension InstallationWizardView {
                 if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon ||
                     action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices
                 {
-                    let smStatePost = await WizardDependencies.daemonManager!.refreshManagementState()
+                    let smStatePost = await WizardDependencies.daemonManager?.refreshManagementState()
                     // IMPORTANT: Run off MainActor to avoid blocking UI - detectConnectionHealth spawns pgrep subprocesses
                     let vhidHealthy = await Task.detached {
                         await VHIDDeviceManager().detectConnectionHealth()
@@ -216,7 +224,7 @@ extension InstallationWizardView {
                             }
                         }
                     } else if !suppressToast {
-                        let detail = await kanataManager!.getVirtualHIDBreakageSummary()
+                        let detail = await kanataManager?.getVirtualHIDBreakageSummary() ?? ""
                         AppLogger.shared.log(
                             "❌ [Wizard] Post-fix health check failed; will show diagnostic toast"
                         )

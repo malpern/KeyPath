@@ -15,7 +15,11 @@ extension InstallationWizardView {
 
     /// Quick summary to surface state when a fix times out
     public func describeServiceState() async -> String {
-        let state = await WizardDependencies.daemonManager!.refreshManagementState()
+        guard let daemonManager = WizardDependencies.daemonManager else {
+            AppLogger.shared.log("⚠️ [Wizard] daemonManager not configured")
+            return "daemonManager not configured"
+        }
+        let state = await daemonManager.refreshManagementState()
         let vhidRunning = await VHIDDeviceManager().detectRunning()
         return "VHID running=\(vhidRunning ? "yes" : "no"); services=\(state.description)"
     }

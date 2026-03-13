@@ -209,12 +209,16 @@ public struct WizardKanataServicePage: View {
     // MARK: - Actions
 
     private func startService() {
+        guard let kanataManager else {
+            AppLogger.shared.log("⚠️ [WizardKanataServicePage] kanataManager not configured")
+            return
+        }
         isPerformingAction = true
         serviceStatus = .starting
         actionStatus = .inProgress(message: "Starting KeyPath runtime…")
 
         Task { @MainActor in
-            _ = await kanataManager!.startKanata(reason: "Wizard service start button")
+            _ = await kanataManager.startKanata(reason: "Wizard service start button")
             isPerformingAction = false
             await refreshStatusAsync()
             evaluateServiceCompletion(target: .running, actionName: "Kanata start")
@@ -222,12 +226,16 @@ public struct WizardKanataServicePage: View {
     }
 
     private func restartService() {
+        guard let kanataManager else {
+            AppLogger.shared.log("⚠️ [WizardKanataServicePage] kanataManager not configured")
+            return
+        }
         isPerformingAction = true
         serviceStatus = .stopping
         actionStatus = .inProgress(message: "Restarting KeyPath runtime…")
 
         Task { @MainActor in
-            _ = await kanataManager!.restartKanata(reason: "Wizard service restart button")
+            _ = await kanataManager.restartKanata(reason: "Wizard service restart button")
             isPerformingAction = false
             await refreshStatusAsync()
             evaluateServiceCompletion(target: .running, actionName: "Kanata restart")
@@ -235,12 +243,16 @@ public struct WizardKanataServicePage: View {
     }
 
     private func stopService() {
+        guard let kanataManager else {
+            AppLogger.shared.log("⚠️ [WizardKanataServicePage] kanataManager not configured")
+            return
+        }
         isPerformingAction = true
         serviceStatus = .stopping
         actionStatus = .inProgress(message: "Stopping KeyPath runtime…")
 
         Task { @MainActor in
-            _ = await kanataManager!.stopKanata(reason: "Wizard service stop button")
+            _ = await kanataManager.stopKanata(reason: "Wizard service stop button")
             isPerformingAction = false
             await refreshStatusAsync()
             evaluateServiceCompletion(target: .stopped, actionName: "Kanata stop")
@@ -255,7 +267,11 @@ public struct WizardKanataServicePage: View {
     }
 
     private func refreshStatusAsync() async {
-        let runtimeStatus = await kanataManager!.currentRuntimeStatus()
+        guard let kanataManager else {
+            AppLogger.shared.log("⚠️ [WizardKanataServicePage] kanataManager not configured — skipping status refresh")
+            return
+        }
+        let runtimeStatus = await kanataManager.currentRuntimeStatus()
 
         let processStatus = ServiceStatusEvaluator.evaluate(
             kanataIsRunning: runtimeStatus.isRunning,

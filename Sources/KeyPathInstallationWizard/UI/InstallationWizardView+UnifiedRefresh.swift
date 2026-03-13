@@ -219,7 +219,11 @@ extension InstallationWizardView {
     public func startKeyPathRuntime() {
         Task {
             if stateMachine.wizardState != .active {
-                let operation = WizardOperations.startService(kanataManager: kanataManager!)
+                guard let kanataManager else {
+                    AppLogger.shared.log("⚠️ [Wizard] kanataManager not configured — cannot start runtime")
+                    return
+                }
+                let operation = WizardOperations.startService(kanataManager: kanataManager)
 
                 asyncOperationManager.execute(operation: operation) { (success: Bool) in
                     if success {
@@ -229,7 +233,7 @@ extension InstallationWizardView {
                     } else {
                         AppLogger.shared.log("❌ [Wizard] Failed to start KeyPath Runtime")
                         let failureMessage =
-                            kanataManager!.lastError
+                            kanataManager.lastError
                                 ?? "KeyPath Runtime failed to stay running. Review /var/log/com.keypath.kanata.stderr.log for details."
                         toastManager.showError(failureMessage)
                     }
@@ -318,10 +322,10 @@ extension InstallationWizardView {
                 }
 
                 // Check SMAppService status
-                let state = await WizardDependencies.daemonManager!.refreshManagementState()
+                let state = await WizardDependencies.daemonManager?.refreshManagementState()
                 // Only log every 10th attempt to reduce noise
                 if attempt % 10 == 1 {
-                    AppLogger.shared.log("🔍 [LoginItems] Poll #\(attempt)/\(maxAttempts): state=\(state)")
+                    AppLogger.shared.log("🔍 [LoginItems] Poll #\(attempt)/\(maxAttempts): state=\(state?.description ?? "nil")")
                 }
 
                 if state == .smappserviceActive {
