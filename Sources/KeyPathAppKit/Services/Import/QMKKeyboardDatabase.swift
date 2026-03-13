@@ -353,6 +353,13 @@ actor QMKKeyboardDatabase {
         cachedKeyboardList = nil
         cacheTimestamp = nil
     }
+
+    /// Seed the cache with pre-loaded keyboards (for testing or offline use).
+    /// Prevents network calls from `getKeyboardList()` until the cache expires.
+    func seedCache(with keyboards: [KeyboardMetadata]) {
+        cachedKeyboardList = keyboards
+        cacheTimestamp = Date()
+    }
 }
 
 /// Errors for QMK keyboard database operations

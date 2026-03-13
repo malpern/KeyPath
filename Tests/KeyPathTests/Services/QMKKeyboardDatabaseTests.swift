@@ -57,15 +57,13 @@ final class QMKKeyboardDatabaseTests: XCTestCase {
         store.save()
 
         defer {
-            // Clean up
             CustomLayoutStore(layouts: []).save()
         }
 
-        // Search should find the custom layout by name
+        // Seed the cache so searchKeyboards doesn't trigger network calls
         let database = QMKKeyboardDatabase.shared
-        // Note: This test exercises the search method's custom layout integration.
-        // The actual search combines QMK keyboards with custom layouts.
-        // We verify the custom layout appears in results by searching for its name.
+        await database.seedCache(with: [])
+
         let results = try await database.searchKeyboards("My Custom Board")
 
         // Custom layouts matching the query should appear in results
@@ -75,7 +73,6 @@ final class QMKKeyboardDatabaseTests: XCTestCase {
     }
 
     func testEmptySearchIncludesCustomLayouts() async throws {
-        // Create a sample custom layout
         let sampleJSON = """
         {
           "id": "empty-search-test",
@@ -105,7 +102,10 @@ final class QMKKeyboardDatabaseTests: XCTestCase {
             CustomLayoutStore(layouts: []).save()
         }
 
+        // Seed the cache so searchKeyboards doesn't trigger network calls
         let database = QMKKeyboardDatabase.shared
+        await database.seedCache(with: [])
+
         let results = try await database.searchKeyboards("")
 
         // Empty query should return custom layouts at the top
