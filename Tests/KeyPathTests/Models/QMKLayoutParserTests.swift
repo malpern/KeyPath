@@ -328,9 +328,9 @@ struct QMKLayoutParserTests {
         #expect(layout != nil, "Should parse keys with extreme rotation")
         #expect(layout?.keys.count == 2, "Both keys should be present")
 
-        // Rotation should be clamped to -360...360
+        // Rotation should be normalized to -180...180
         if let firstKey = layout?.keys.first {
-            #expect(abs(firstKey.rotation) <= 360.0, "Rotation should be clamped")
+            #expect(abs(firstKey.rotation) <= 180.0, "Rotation should be normalized to ±180°")
         }
     }
 
@@ -454,9 +454,8 @@ struct QMKLayoutParserTests {
         #expect(QMKLayoutParser.clampRotation(-15) == -15)
         #expect(QMKLayoutParser.clampRotation(Double.nan) == 0)
         #expect(QMKLayoutParser.clampRotation(Double.infinity) == 0)
-        // Large values should be normalized
-        let clamped720 = QMKLayoutParser.clampRotation(720)
-        #expect(abs(clamped720) <= 360, "720 degrees should normalize")
+        // Large values should be normalized: 720 mod 360 = 0
+        #expect(QMKLayoutParser.clampRotation(720) == 0, "720° should normalize to 0°")
     }
 
     // MARK: - Bundle Loading Tests

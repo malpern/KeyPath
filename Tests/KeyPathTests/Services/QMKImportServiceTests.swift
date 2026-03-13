@@ -287,7 +287,7 @@ final class QMKImportServiceTests: XCTestCase {
             if case .parseError = error {
                 // Expected - layout has 0 valid keys
             } else {
-                // Other QMKImportError types are also acceptable
+                XCTFail("Expected .parseError but got: \(error)")
             }
         }
     }
@@ -356,7 +356,7 @@ final class QMKImportServiceTests: XCTestCase {
 
         // Zero-width key should have been filtered out by the parser
         // Only 1 valid key should remain (the one with w: 1)
-        XCTAssertTrue(layout.keys.count >= 1, "Should have at least 1 valid key after filtering")
+        XCTAssertEqual(layout.keys.count, 1, "Should have exactly 1 valid key after filtering zero-width key")
     }
 
     // MARK: - Keycode Mapping Tests

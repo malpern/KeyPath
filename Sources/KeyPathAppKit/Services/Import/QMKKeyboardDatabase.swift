@@ -19,18 +19,20 @@ actor QMKKeyboardDatabase {
 
     // MARK: - Rate Limit Handling
 
-    /// Check if an HTTP response indicates a GitHub API rate limit
-    /// - Returns: The reset timestamp if rate-limited, nil otherwise
+    /// Check if an HTTP response indicates a GitHub API rate limit.
+    /// Only returns a reset date when `X-RateLimit-Remaining` is explicitly `0`.
+    /// Non-rate-limit 403s (auth errors, IP blocks) return nil immediately.
     private func rateLimitResetDate(from response: HTTPURLResponse) -> Date? {
         guard response.statusCode == 403 || response.statusCode == 429 else {
             return nil
         }
 
-        // Check X-RateLimit-Remaining header
-        if let remaining = response.value(forHTTPHeaderField: "X-RateLimit-Remaining"),
-           let remainingCount = Int(remaining), remainingCount > 0
-        {
-            return nil // Not rate-limited, some other 403 reason
+        // Only treat as rate-limited when the header is present AND equals zero.
+        // Missing header = not a rate-limit 403, so don't retry.
+        guard let remaining = response.value(forHTTPHeaderField: "X-RateLimit-Remaining"),
+              let remainingCount = Int(remaining), remainingCount == 0
+        else {
+            return nil
         }
 
         // Parse X-RateLimit-Reset header (Unix timestamp)
@@ -40,11 +42,12 @@ actor QMKKeyboardDatabase {
             return Date(timeIntervalSince1970: resetTimestamp)
         }
 
-        // No reset header, use a default backoff of 60 seconds
-        return Date(timeIntervalSinceNow: 60)
+        // Header says remaining=0 but no reset timestamp — use a short default
+        return Date(timeIntervalSinceNow: 10)
     }
 
-    /// Perform a URL request with retry and exponential backoff for rate limits
+    /// Perform a URL request with retry for rate limits.
+    /// Waits until the rate-limit window resets (capped at 10s) before retrying.
     /// - Parameters:
     ///   - url: The URL to fetch
     ///   - attempt: Current attempt number (0-based)
@@ -59,15 +62,14 @@ actor QMKKeyboardDatabase {
 
         // Check for rate limiting
         if let resetDate = rateLimitResetDate(from: httpResponse) {
-            let waitSeconds = max(resetDate.timeIntervalSinceNow, 1)
-
             if attempt >= maxRetryAttempts {
                 AppLogger.shared.warn("⚠️ [QMKDatabase] Rate limit exceeded after \(maxRetryAttempts) retries, giving up")
                 throw QMKDatabaseError.rateLimited(retryAfter: resetDate)
             }
 
-            // Wait until the rate-limit window resets, capped at 120 seconds
-            let backoff = min(waitSeconds, 120)
+            // Wait until the rate-limit window resets, capped at 10s to avoid blocking the UI
+            let waitSeconds = max(resetDate.timeIntervalSinceNow, 1)
+            let backoff = min(waitSeconds, 10)
             AppLogger.shared.info("⏳ [QMKDatabase] Rate limited (attempt \(attempt + 1)/\(maxRetryAttempts)). Waiting \(String(format: "%.1f", backoff))s until reset")
 
             try await Task.sleep(for: .seconds(backoff))
@@ -289,62 +291,41 @@ actor QMKKeyboardDatabase {
 
     // MARK: - Search
 
-    /// Search keyboards by query (searches name, manufacturer, tags)
-    /// Also includes matching custom layouts from CustomLayoutStore
-    /// Prioritizes bundled keyboards in results
+    /// Search keyboards by query (searches name, manufacturer, tags).
+    /// Returns only importable QMK keyboards — custom layouts are excluded since
+    /// they already appear in the layout picker and can't be re-imported.
+    /// Prioritizes bundled keyboards in results.
     /// - Parameter query: Search query (case-insensitive)
-    /// - Returns: Filtered array of keyboards (custom layouts first, then bundled, then others)
+    /// - Returns: Filtered array of keyboards (bundled first, then others, max 50)
     func searchKeyboards(_ query: String) async throws -> [KeyboardMetadata] {
         AppLogger.shared.info("🔍 [QMKDatabase] searchKeyboards called with query: '\(query)'")
         let allKeyboards = try await getKeyboardList()
         let bundledIds = Set(loadBundledKeyboards().map(\.id))
 
-        // Load custom layouts and convert to KeyboardMetadata for unified search
-        let customLayouts = CustomLayoutStore.load().layouts
-        let customMetadata: [KeyboardMetadata] = customLayouts.compactMap { stored in
-            KeyboardMetadata(
-                id: "custom-\(stored.id)",
-                name: stored.name,
-                manufacturer: nil,
-                url: stored.sourceURL,
-                maintainer: nil,
-                tags: ["custom"],
-                infoJsonURL: stored.sourceURL.flatMap { URL(string: $0) }
-            )
-        }
-
-        AppLogger.shared.info("📦 [QMKDatabase] Got \(allKeyboards.count) keyboards (\(bundledIds.count) bundled) + \(customMetadata.count) custom layouts")
+        AppLogger.shared.info("📦 [QMKDatabase] Got \(allKeyboards.count) keyboards (\(bundledIds.count) bundled)")
 
         guard !query.isEmpty else {
-            // Return custom layouts first, then bundled keyboards, then others
             let bundled = allKeyboards.filter { bundledIds.contains($0.id) }
             let others = allKeyboards.filter { !bundledIds.contains($0.id) }
-            let combined = customMetadata + bundled + others
-            let top50 = Array(combined.prefix(50))
-            AppLogger.shared.info("📦 [QMKDatabase] Empty query, returning top \(top50.count) keyboards (\(customMetadata.count) custom, \(bundled.count) bundled)")
+            let top50 = Array((bundled + others).prefix(50))
+            AppLogger.shared.info("📦 [QMKDatabase] Empty query, returning top \(top50.count) keyboards (\(bundled.count) bundled)")
             return top50
         }
 
         let lowerQuery = query.lowercased()
 
-        // Search custom layouts
-        let matchingCustom = customMetadata.filter { layout in
-            layout.name.lowercased().contains(lowerQuery)
-        }
-
-        // Search QMK keyboards
-        let matchingQMK = allKeyboards.filter { keyboard in
+        let matching = allKeyboards.filter { keyboard in
             keyboard.name.lowercased().contains(lowerQuery) ||
                 keyboard.manufacturer?.lowercased().contains(lowerQuery) == true ||
                 keyboard.tags.contains { $0.lowercased().contains(lowerQuery) }
         }
 
-        // Prioritize: custom matches, then bundled matches, then other matches
-        let bundledMatches = matchingQMK.filter { bundledIds.contains($0.id) }
-        let otherMatches = matchingQMK.filter { !bundledIds.contains($0.id) }
-        let filtered = Array((matchingCustom + bundledMatches + otherMatches).prefix(50))
+        // Prioritize bundled matches
+        let bundledMatches = matching.filter { bundledIds.contains($0.id) }
+        let otherMatches = matching.filter { !bundledIds.contains($0.id) }
+        let filtered = Array((bundledMatches + otherMatches).prefix(50))
 
-        AppLogger.shared.info("✅ [QMKDatabase] Filtered to \(filtered.count) keyboards matching '\(query)' (\(matchingCustom.count) custom, \(bundledMatches.count) bundled)")
+        AppLogger.shared.info("✅ [QMKDatabase] Filtered to \(filtered.count) keyboards matching '\(query)' (\(bundledMatches.count) bundled)")
         return filtered
     }
 
