@@ -311,9 +311,9 @@ enum QMKKeymapParser {
         case "DOWN": return "▼"
         case "LEFT": return "◀"
         case "RIGHT", "RGHT": return "▶"
-        case "PAGE_UP", "PGUP": return "pgu"
-        case "PAGE_DOWN", "PGDN": return "pgd"
-        case "HOME": return "hom"
+        case "PAGE_UP", "PGUP": return "pgup"
+        case "PAGE_DOWN", "PGDN": return "pgdn"
+        case "HOME": return "home"
         case "END": return "end"
         case "INSERT", "INS": return "ins"
         case "PRINT_SCREEN", "PSCR": return "prt"
@@ -340,9 +340,16 @@ enum QMKKeymapParser {
         case "KP_DOT", "PDOT": return "."
         case "KP_EQUAL", "PEQL": return "="
         case "APPLICATION", "APP": return "▤"
-        case "AUDIO_VOL_UP", "VOLU", "KB_VOLUME_UP": return "🔊"
-        case "AUDIO_VOL_DOWN", "VOLD", "KB_VOLUME_DOWN": return "🔉"
-        case "AUDIO_MUTE", "MUTE", "KB_MUTE": return "🔇"
+        case "AUDIO_VOL_UP", "VOLU", "KB_VOLUME_UP": return "v+"
+        case "AUDIO_VOL_DOWN", "VOLD", "KB_VOLUME_DOWN": return "v-"
+        case "AUDIO_MUTE", "MUTE", "KB_MUTE": return "mute"
+        // ISO / JIS keys
+        case "NONUS_BACKSLASH", "NUBS": return "§"
+        case "INTERNATIONAL_3", "INT3": return "¥"
+        case "INTERNATIONAL_1", "INT1": return "_"
+        case "KP_COMMA", "PCMM": return ","
+        case "LANGUAGE_1", "LNG1": return "かな"
+        case "LANGUAGE_2", "LNG2": return "英数"
         default:
             // Function keys
             if stripped.hasPrefix("F"), let num = Int(stripped.dropFirst(1)), num >= 1, num <= 24 {

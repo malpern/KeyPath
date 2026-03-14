@@ -174,6 +174,55 @@ struct QMKKeymapParserTests {
         #expect(QMKKeymapParser.resolveKeycode("KC_NO") == nil)
     }
 
+    @Test func resolveNavClusterLabels() {
+        // These labels must match hasSpecialLabel in OverlayKeycapView
+        let home = QMKKeymapParser.resolveKeycode("KC_HOME")
+        #expect(home?.label == "home")
+
+        let pgup = QMKKeymapParser.resolveKeycode("KC_PGUP")
+        #expect(pgup?.label == "pgup")
+
+        let pgdn = QMKKeymapParser.resolveKeycode("KC_PGDN")
+        #expect(pgdn?.label == "pgdn")
+
+        let del = QMKKeymapParser.resolveKeycode("KC_DEL")
+        #expect(del?.label == "⌦")
+
+        let end = QMKKeymapParser.resolveKeycode("KC_END")
+        #expect(end?.label == "end")
+
+        let ins = QMKKeymapParser.resolveKeycode("KC_INS")
+        #expect(ins?.label == "ins")
+    }
+
+    @Test func resolveMediaKeyLabels() {
+        let mute = QMKKeymapParser.resolveKeycode("KC_MUTE")
+        #expect(mute?.label == "mute")
+
+        let vold = QMKKeymapParser.resolveKeycode("KC_VOLD")
+        #expect(vold?.label == "v-")
+
+        let volu = QMKKeymapParser.resolveKeycode("KC_VOLU")
+        #expect(volu?.label == "v+")
+    }
+
+    @Test func resolveJISAndISOLabels() {
+        let nubs = QMKKeymapParser.resolveKeycode("KC_NUBS")
+        #expect(nubs?.label == "§")
+
+        let int3 = QMKKeymapParser.resolveKeycode("KC_INT3")
+        #expect(int3?.label == "¥")
+
+        let int1 = QMKKeymapParser.resolveKeycode("KC_INT1")
+        #expect(int1?.label == "_")
+
+        let lng1 = QMKKeymapParser.resolveKeycode("KC_LNG1")
+        #expect(lng1?.label == "かな")
+
+        let lng2 = QMKKeymapParser.resolveKeycode("KC_LNG2")
+        #expect(lng2?.label == "英数")
+    }
+
     // MARK: - Keycode Mapping Table
 
     @Test func keycodeTableHasAllLetters() {

@@ -227,8 +227,16 @@ extension OverlayKeycapView {
             // Navigation cluster keys (both cases for matching)
             "ins", "del", "home", "end", "pgup", "pgdn",
             "INS", "DEL", "HOME", "END", "PGUP", "PGDN",
+            // Forward delete symbol (QMK imports use ⌦)
+            "⌦",
+            // Num lock
+            "num",
+            // Volume/media keys (text labels from QMK imports)
+            "mute", "v-", "v+",
             // Numpad keys (not in standard keymaps)
             "clr", "CLR", "/", "*", "+", ".",
+            // ISO key
+            "§",
             // JIS-specific keys (not in standard keymaps)
             "¥", "英数", "かな", "_", "^", ":", "@", "fn", "Fn",
             // Menu/Application key
