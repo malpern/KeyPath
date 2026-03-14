@@ -231,7 +231,14 @@ final class OrphanDetector {
             if didAnything {
                 let resultAlert = NSAlert()
                 resultAlert.messageText = "Cleanup Complete"
-                resultAlert.informativeText = "Removed \(userFilesCleaned) file(s) from a previous KeyPath installation."
+                var parts: [String] = []
+                if userFilesCleaned > 0 {
+                    parts.append("Removed \(userFilesCleaned) file(s)")
+                }
+                if daemonsCleaned {
+                    parts.append("Removed system keyboard services")
+                }
+                resultAlert.informativeText = parts.joined(separator: " and ") + " from a previous KeyPath installation."
                 resultAlert.alertStyle = .informational
                 resultAlert.runModal()
             }
@@ -252,7 +259,9 @@ final class OrphanDetector {
         if daemonsError != nil {
             details.append("System services could not be removed (may require reinstall).")
         }
-        details.append("Remaining items will be cleaned on next uninstall.")
+        if deferredForNextUninstall {
+            details.append("Remaining items will be cleaned on next uninstall.")
+        }
 
         resultAlert.informativeText = details.joined(separator: "\n")
         resultAlert.alertStyle = .warning

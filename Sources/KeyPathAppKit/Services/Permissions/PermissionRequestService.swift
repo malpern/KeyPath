@@ -15,19 +15,33 @@ public final class PermissionRequestService {
 
     // MARK: - Startup guard
 
-    /// When true, permission requests are blocked. Prevents system prompts during app launch.
-    /// Callers must set `wizardContextActive = true` before requesting permissions.
-    private var _wizardContextActive = false
+    /// Reference-counted depth tracking for wizard context. Permission requests are only
+    /// allowed when depth > 0. Multiple callers (WizardWindowController, SettingsView sheet,
+    /// PermissionGate) can push/pop without clobbering each other.
+    private var _contextDepth = 0
 
-    /// Set to `true` when the wizard (or an explicit user action) is requesting permissions.
-    /// Permission requests are silently suppressed outside of wizard context to prevent
+    /// True when at least one caller has entered a wizard/permission context.
+    /// Permission requests are silently suppressed when false to prevent
     /// unexpected system dialogs at launch. See issue #248.
+    ///
+    /// Note: When suppressed, request methods return `false`, which means both
+    /// "permission not granted" and "request was blocked". Most callers use
+    /// `@discardableResult` so this is acceptable.
     public var wizardContextActive: Bool {
-        get { _wizardContextActive }
-        set {
-            _wizardContextActive = newValue
-            AppLogger.shared.log("🔐 [PermissionRequest] wizardContextActive = \(newValue)")
-        }
+        _contextDepth > 0
+    }
+
+    /// Increment the context depth. Call this when entering a wizard or user-initiated
+    /// permission flow. Pair with `leaveWizardContext()`.
+    public func enterWizardContext() {
+        _contextDepth += 1
+        AppLogger.shared.log("🔐 [PermissionRequest] enterWizardContext (depth: \(_contextDepth))")
+    }
+
+    /// Decrement the context depth. Call this when leaving a wizard or permission flow.
+    public func leaveWizardContext() {
+        _contextDepth = max(0, _contextDepth - 1)
+        AppLogger.shared.log("🔐 [PermissionRequest] leaveWizardContext (depth: \(_contextDepth))")
     }
 
     // MARK: - Debounce (cooldown) configuration

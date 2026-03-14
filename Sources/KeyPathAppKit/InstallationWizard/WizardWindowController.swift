@@ -44,7 +44,7 @@ final class WizardWindowController {
         }
 
         // Enable permission requests while wizard is open
-        PermissionRequestService.shared.wizardContextActive = true
+        PermissionRequestService.shared.enterWizardContext()
 
         AppLogger.shared.log("🔮 [WizardWindow] Opening wizard window (initialPage: \(initialPage?.displayName ?? "nil"))")
 
@@ -196,7 +196,7 @@ final class WizardWindowController {
     /// Called when the window is closed (either programmatically or by user)
     func handleWindowClosed() {
         // Disable permission requests when wizard closes
-        PermissionRequestService.shared.wizardContextActive = false
+        PermissionRequestService.shared.leaveWizardContext()
 
         AppLogger.shared.log("🎭 [WizardWindow] ========== WIZARD CLOSED ==========")
         resizeDebounceWorkItem?.cancel()
