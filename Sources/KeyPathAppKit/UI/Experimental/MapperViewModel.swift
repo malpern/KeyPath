@@ -49,6 +49,11 @@ class MapperViewModel {
     /// Apps that have a mapping for the currently selected input key
     var appsWithCurrentKeyMapping: [AppKeymap] = []
 
+    // MARK: - Device Condition
+
+    /// Selected device condition (nil = all keyboards)
+    var selectedDeviceCondition: DeviceConditionInfo?
+
     // MARK: - App Condition (Delegated to AppConditionManager)
 
     /// Manager for app condition (precondition) selection
@@ -312,11 +317,12 @@ class MapperViewModel {
             captureMode: .single
         )
 
-        // Clear previous selections first (including app condition - revert to "Everywhere")
+        // Clear previous selections first (including app/device conditions - revert to "Everywhere")
         selectedApp = nil
         selectedSystemAction = nil
         selectedURL = nil
         selectedAppCondition = nil
+        selectedDeviceCondition = nil
         clearShiftedOutput()
 
         // Set output based on action type

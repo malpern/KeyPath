@@ -15,6 +15,9 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
     public var behavior: MappingBehavior?
     /// Target layer for this rule (defaults to base)
     public var targetLayer: RuleCollectionLayer
+    /// Per-device output overrides. When present, the config generator wraps
+    /// the key output in a `(switch ((device N)) ...)` block.
+    public var deviceOverrides: [DeviceKeyOverride]?
 
     public init(
         id: UUID = UUID(),
@@ -26,7 +29,8 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
         notes: String? = nil,
         createdAt: Date = Date(),
         behavior: MappingBehavior? = nil,
-        targetLayer: RuleCollectionLayer = .base
+        targetLayer: RuleCollectionLayer = .base,
+        deviceOverrides: [DeviceKeyOverride]? = nil
     ) {
         self.id = id
         self.title = title
@@ -38,6 +42,7 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
         self.createdAt = createdAt
         self.behavior = behavior
         self.targetLayer = targetLayer
+        self.deviceOverrides = deviceOverrides
     }
 }
 
@@ -45,7 +50,7 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
 
 extension CustomRule: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, title, input, output, shiftedOutput, isEnabled, notes, createdAt, behavior, targetLayer
+        case id, title, input, output, shiftedOutput, isEnabled, notes, createdAt, behavior, targetLayer, deviceOverrides
     }
 
     public init(from decoder: Decoder) throws {
@@ -61,6 +66,7 @@ extension CustomRule: Codable {
         behavior = try container.decodeIfPresent(MappingBehavior.self, forKey: .behavior)
         // Default to .base for legacy JSON without targetLayer
         targetLayer = try container.decodeIfPresent(RuleCollectionLayer.self, forKey: .targetLayer) ?? .base
+        deviceOverrides = try container.decodeIfPresent([DeviceKeyOverride].self, forKey: .deviceOverrides)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -75,6 +81,7 @@ extension CustomRule: Codable {
         try container.encode(createdAt, forKey: .createdAt)
         try container.encodeIfPresent(behavior, forKey: .behavior)
         try container.encode(targetLayer, forKey: .targetLayer)
+        try container.encodeIfPresent(deviceOverrides, forKey: .deviceOverrides)
     }
 }
 
@@ -95,7 +102,7 @@ public extension CustomRule {
     }
 
     func asKeyMapping() -> KeyMapping {
-        KeyMapping(id: id, input: input, output: output, shiftedOutput: shiftedOutput, behavior: behavior)
+        KeyMapping(id: id, input: input, output: output, shiftedOutput: shiftedOutput, behavior: behavior, deviceOverrides: deviceOverrides)
     }
 
     func asRuleCollection() -> RuleCollection {

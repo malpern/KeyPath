@@ -780,7 +780,8 @@ extension RuleCollectionsManager {
                 shiftedOutput: existing.shiftedOutput,
                 isEnabled: true,
                 notes: existing.notes,
-                createdAt: existing.createdAt
+                createdAt: existing.createdAt,
+                deviceOverrides: existing.deviceOverrides
             )
         } else {
             CustomRule(input: input, output: output)

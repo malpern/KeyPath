@@ -23,6 +23,22 @@ public struct AppLaunchInfo: Equatable {
     }
 }
 
+// MARK: - Device Condition Info
+
+/// Info about a selected keyboard device for precondition (rule only applies on this device)
+public struct DeviceConditionInfo: Equatable, Identifiable {
+    public let deviceHash: String
+    public let displayName: String
+    public let sfSymbolName: String
+    public var id: String { deviceHash }
+
+    public init(deviceHash: String, displayName: String, sfSymbolName: String) {
+        self.deviceHash = deviceHash
+        self.displayName = displayName
+        self.sfSymbolName = sfSymbolName
+    }
+}
+
 // MARK: - App Condition Info
 
 /// Info about a selected app for precondition (rule only applies when this app is frontmost)

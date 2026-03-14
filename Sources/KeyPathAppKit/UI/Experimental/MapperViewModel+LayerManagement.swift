@@ -162,6 +162,13 @@ extension MapperViewModel {
         customRule.notes = "Launch \(app.name) [\(currentLayer) layer]"
         customRule.targetLayer = targetLayer
 
+        if let deviceCondition = selectedDeviceCondition {
+            customRule.deviceOverrides = [
+                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: app.kanataOutput, behavior: nil)
+            ]
+            customRule.output = inputKanata
+        }
+
         let success = await kanataManager.saveCustomRule(customRule, skipReload: false)
         AppLogger.shared.log("🚀 [MapperViewModel] saveCustomRule returned: \(success)")
 
@@ -221,6 +228,13 @@ extension MapperViewModel {
         var customRule = kanataManager.makeCustomRule(input: inputKanata, output: action.kanataOutput)
         customRule.notes = "\(action.name) [\(currentLayer) layer]"
         customRule.targetLayer = targetLayer
+
+        if let deviceCondition = selectedDeviceCondition {
+            customRule.deviceOverrides = [
+                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: action.kanataOutput, behavior: nil)
+            ]
+            customRule.output = inputKanata
+        }
 
         let success = await kanataManager.saveCustomRule(customRule, skipReload: false)
         AppLogger.shared.log("⚙️ [MapperViewModel] saveCustomRule returned: \(success)")
@@ -313,6 +327,13 @@ extension MapperViewModel {
         var customRule = kanataManager.makeCustomRule(input: inputKanata, output: outputKanata)
         customRule.notes = "Open \(url) [\(currentLayer) layer]"
         customRule.targetLayer = targetLayer
+
+        if let deviceCondition = selectedDeviceCondition {
+            customRule.deviceOverrides = [
+                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: outputKanata, behavior: nil)
+            ]
+            customRule.output = inputKanata
+        }
 
         let success = await kanataManager.saveCustomRule(customRule, skipReload: false)
         AppLogger.shared.log("🌐 [MapperViewModel] saveCustomRule returned: \(success)")
