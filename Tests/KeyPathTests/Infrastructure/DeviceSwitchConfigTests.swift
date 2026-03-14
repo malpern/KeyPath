@@ -49,13 +49,14 @@ final class DeviceSwitchConfigTests: XCTestCase {
         let result = KanataConfiguration.renderDeviceSwitchExpression(
             defaultOutput: "a",
             overrides: overrides,
-            connectedDevices: [device0, device1]
+            connectedDevices: [device0, device1],
+            inputKey: "a"
         )
 
         // Unknown hash should be skipped — only default case present
         XCTAssertFalse(result.contains("((device"), "Unknown device hash should be skipped")
         assertContains(result, "() a break")
-}
+    }
 
     func testMultipleDeviceOverrides_PreservesInputOrder() {
         let overrides = [
@@ -66,7 +67,8 @@ final class DeviceSwitchConfigTests: XCTestCase {
         let result = KanataConfiguration.renderDeviceSwitchExpression(
             defaultOutput: "a",
             overrides: overrides,
-            connectedDevices: [device0, device1]
+            connectedDevices: [device0, device1],
+            inputKey: "a"
         )
 
         // Overrides should appear in the order they are provided,
@@ -86,7 +88,8 @@ final class DeviceSwitchConfigTests: XCTestCase {
         let result = KanataConfiguration.renderDeviceSwitchExpression(
             defaultOutput: "caps",
             overrides: [],
-            connectedDevices: [device0]
+            connectedDevices: [device0],
+            inputKey: "caps"
         )
 
         assertContains(result, "() caps break")
@@ -184,7 +187,8 @@ final class DeviceSwitchConfigTests: XCTestCase {
         let result = KanataConfiguration.renderDeviceSwitchExpression(
             defaultOutput: "a",
             overrides: overrides,
-            connectedDevices: [device0, device1]
+            connectedDevices: [device0, device1],
+            inputKey: "a"
         )
 
         XCTAssertFalse(result.contains("((device"), "No device cases should be present")
