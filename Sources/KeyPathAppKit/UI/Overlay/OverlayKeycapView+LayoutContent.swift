@@ -491,40 +491,46 @@ extension OverlayKeycapView {
 
     @ViewBuilder
     var bottomAlignedContent: some View {
-        // For wide modifier keys, prefer text labels over symbols
-        // If a hold label is active (e.g., tap-hold -> Hyper), show it verbatim.
-        // Otherwise use the word-label for the effective label, then fall back to the physical key word-label.
-        let physicalMetadata = LabelMetadata.forLabel(key.label)
-        let wordLabel: String = {
-            if let holdLabel {
-                return holdLabel
-            }
-            // In Nav layer, always use text labels (not symbols) for unmapped keys
-            if currentLayerName.lowercased() == "nav" {
-                return physicalMetadata.wordLabel ?? key.label
-            }
-            return metadata.wordLabel ?? physicalMetadata.wordLabel ?? key.label
-        }()
-        let isRight = key.isRightSideKey
-        let isHold = holdLabel != nil
-
-        VStack {
-            Spacer(minLength: 0)
-            HStack {
-                if !isRight {
-                    labelText(wordLabel, isHoldLabel: isHold)
-                    Spacer(minLength: 0)
-                } else {
-                    Spacer(minLength: 0)
-                    labelText(wordLabel, isHoldLabel: isHold)
+        // When floating labels are enabled, non-special keys should defer to floating labels
+        // (e.g., 1.5u backslash key on TKL layouts — floating label renders | and \)
+        if useFloatingLabels, !hasSpecialLabel, !isRemappedKey {
+            Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            // For wide modifier keys, prefer text labels over symbols
+            // If a hold label is active (e.g., tap-hold -> Hyper), show it verbatim.
+            // Otherwise use the word-label for the effective label, then fall back to the physical key word-label.
+            let physicalMetadata = LabelMetadata.forLabel(key.label)
+            let wordLabel: String = {
+                if let holdLabel {
+                    return holdLabel
                 }
+                // In Nav layer, always use text labels (not symbols) for unmapped keys
+                if currentLayerName.lowercased() == "nav" {
+                    return physicalMetadata.wordLabel ?? key.label
+                }
+                return metadata.wordLabel ?? physicalMetadata.wordLabel ?? key.label
+            }()
+            let isRight = key.isRightSideKey
+            let isHold = holdLabel != nil
+
+            VStack {
+                Spacer(minLength: 0)
+                HStack {
+                    if !isRight {
+                        labelText(wordLabel, isHoldLabel: isHold)
+                        Spacer(minLength: 0)
+                    } else {
+                        Spacer(minLength: 0)
+                        labelText(wordLabel, isHoldLabel: isHold)
+                    }
+                }
+                .padding(.leading, 4 * scale)
+                .padding(.trailing, 4 * scale)
+                .padding(.bottom, 3 * scale)
             }
-            .padding(.leading, 4 * scale)
-            .padding(.trailing, 4 * scale)
-            .padding(.bottom, 3 * scale)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .foregroundStyle(foregroundColor)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .foregroundStyle(foregroundColor)
     }
 
     @ViewBuilder
