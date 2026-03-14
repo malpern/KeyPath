@@ -385,7 +385,7 @@ enum QMKLayoutParser {
     }
 
     /// Abbreviate a compound keycode token for display (e.g., "MO(1)" → "L1", "LT(2, KC_SPC)" → "L2")
-    private static func abbreviateToken(_ token: String) -> String {
+    static func abbreviateToken(_ token: String) -> String {
         let t = token.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.hasPrefix("MO(") {
             let num = String(t.dropFirst(3).dropLast()).trimmingCharacters(in: .whitespaces)

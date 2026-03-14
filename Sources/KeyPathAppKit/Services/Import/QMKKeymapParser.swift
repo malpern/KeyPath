@@ -323,6 +323,7 @@ enum QMKKeymapParser {
         case "PAUSE", "PAUS", "BRK": return "pse"
         case "NUM_LOCK", "NUM", "NUMLOCK": return "num"
         case "FN": return "fn"
+        case "HELP": return "help"
         case "MINUS", "MINS": return "-"
         case "EQUAL", "EQL": return "="
         case "LEFT_BRACKET", "LBRC": return "["

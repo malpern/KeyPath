@@ -239,6 +239,8 @@ extension OverlayKeycapView {
             "§",
             // JIS-specific keys (not in standard keymaps)
             "¥", "英数", "かな", "_", "^", ":", "@", "fn", "Fn",
+            // Help key
+            "help",
             // Menu/Application key
             "☰", "▤",
             // Numpad enter

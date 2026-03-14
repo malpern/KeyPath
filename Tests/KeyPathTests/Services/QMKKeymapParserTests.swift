@@ -223,6 +223,30 @@ struct QMKKeymapParserTests {
         #expect(lng2?.label == "英数")
     }
 
+    @Test func resolveHelpKeyLabel() {
+        let help = QMKKeymapParser.resolveKeycode("KC_HELP")
+        #expect(help?.label == "help")
+    }
+
+    // MARK: - Abbreviate Token Tests
+
+    @Test func abbreviateTokenMultiDigitLayers() {
+        #expect(QMKLayoutParser.abbreviateToken("MO(1)") == "L1")
+        #expect(QMKLayoutParser.abbreviateToken("MO(12)") == "L12")
+        #expect(QMKLayoutParser.abbreviateToken("TG(3)") == "T3")
+        #expect(QMKLayoutParser.abbreviateToken("TG(10)") == "T10")
+        #expect(QMKLayoutParser.abbreviateToken("LT(2, KC_SPC)") == "L2")
+        #expect(QMKLayoutParser.abbreviateToken("LT(15, KC_SPC)") == "L15")
+        #expect(QMKLayoutParser.abbreviateToken("OSL(4)") == "L4")
+        #expect(QMKLayoutParser.abbreviateToken("OSL(11)") == "L11")
+    }
+
+    @Test func abbreviateTokenSpecialKeys() {
+        #expect(QMKLayoutParser.abbreviateToken("QK_BOOT") == "⟲")
+        #expect(QMKLayoutParser.abbreviateToken("RGB_TOG") == "RGB")
+        #expect(QMKLayoutParser.abbreviateToken("BL_TOGG") == "BL")
+    }
+
     // MARK: - Keycode Mapping Table
 
     @Test func keycodeTableHasAllLetters() {

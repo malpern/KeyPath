@@ -719,43 +719,6 @@ private struct ImportLayoutCard: View {
     .frame(width: 400, height: 800)
 }
 
-// MARK: - Search Section Header
-
-private struct SearchSectionHeader: View {
-    let title: String
-    let count: Int
-    var subtitle: String?
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Text(title)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
-
-            Text("(\(count))")
-                .font(.caption2)
-                .foregroundColor(.secondary.opacity(0.7))
-
-            if let subtitle {
-                Text("·")
-                    .foregroundColor(.secondary.opacity(0.4))
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundColor(.secondary.opacity(0.6))
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, 14)
-        .padding(.top, 10)
-        .padding(.bottom, 4)
-        .accessibilityIdentifier("qmk-search-section-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
-        .accessibilityLabel("\(title) section, \(count) results")
-    }
-}
-
 // MARK: - Search Keyboard Row Component
 
 private struct SearchKeyboardRow: View {

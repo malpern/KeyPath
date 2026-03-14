@@ -547,29 +547,31 @@ actor QMKKeyboardDatabase {
         AppLogger.shared.info("🗑️ [QMKDatabase] Disk cache cleared")
     }
 
-    /// Seed the index with test data (prevents loading from bundle)
-    func seedIndex(with entries: [IndexEntry]) {
-        seededIndex = entries
-        indexEntries = nil
-    }
+    #if DEBUG
+        /// Seed the index with test data (prevents loading from bundle)
+        func seedIndex(with entries: [IndexEntry]) {
+            seededIndex = entries
+            indexEntries = nil
+        }
 
-    /// Seed metadata for testing
-    func seedMetadata(with metadata: [String: KeyboardMeta]) {
-        seededMetadata = metadata
-        metadataLookup = nil
-    }
+        /// Seed metadata for testing
+        func seedMetadata(with metadata: [String: KeyboardMeta]) {
+            seededMetadata = metadata
+            metadataLookup = nil
+        }
 
-    /// Seed bundled keyboards for testing
-    func seedBundledKeyboards(with keyboards: [KeyboardMetadata]) {
-        bundledKeyboards = keyboards
-        bundledIds = Set(keyboards.map(\.id))
-    }
+        /// Seed bundled keyboards for testing
+        func seedBundledKeyboards(with keyboards: [KeyboardMetadata]) {
+            bundledKeyboards = keyboards
+            bundledIds = Set(keyboards.map(\.id))
+        }
 
-    /// Legacy compatibility: seed the cache so old tests continue to pass
-    func seedCache(with keyboards: [KeyboardMetadata]) {
-        bundledKeyboards = keyboards
-        bundledIds = Set(keyboards.map(\.id))
-    }
+        /// Legacy compatibility: seed the cache so old tests continue to pass
+        func seedCache(with keyboards: [KeyboardMetadata]) {
+            bundledKeyboards = keyboards
+            bundledIds = Set(keyboards.map(\.id))
+        }
+    #endif
 }
 
 /// Errors for QMK keyboard database operations
