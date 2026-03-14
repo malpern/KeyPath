@@ -508,8 +508,14 @@ actor QMKKeyboardDatabase {
 
         do {
             let (data, response) = try await urlSession.data(from: url)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200,
+            guard let httpResponse = response as? HTTPURLResponse else { return nil }
+
+            if httpResponse.statusCode == 429 {
+                AppLogger.shared.info("⚠️ [QMKDatabase] GitHub rate limited fetching keymap for '\(keyboardPath)' — falling back to position-based parsing")
+                return nil
+            }
+
+            guard httpResponse.statusCode == 200,
                   let source = String(data: data, encoding: .utf8)
             else {
                 return nil
