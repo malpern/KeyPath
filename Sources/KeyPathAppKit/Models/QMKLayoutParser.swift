@@ -403,6 +403,10 @@ enum QMKLayoutParser {
             let num = String(t.dropFirst(4).dropLast()).trimmingCharacters(in: .whitespaces)
             return "L\(num)"
         }
+        if t.hasPrefix("DF(") {
+            let num = String(t.dropFirst(3).dropLast()).trimmingCharacters(in: .whitespaces)
+            return "D\(num)"
+        }
         if t.hasPrefix("QK_BOOT") { return "⟲" }
         if t.hasPrefix("RGB_") { return "RGB" }
         if t.hasPrefix("BL_") { return "BL" }

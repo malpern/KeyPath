@@ -52,7 +52,7 @@ enum QMKKeymapParser {
     /// - #define aliases (common patterns like _______ = KC_TRNS)
     private static func parseKeymapC(_ source: String) -> [String]? {
         // Strip block comments first
-        let stripped = stripBlockComments(source)
+        let stripped = stripComments(source)
 
         // Find the first LAYOUT block
         guard let layoutRange = findFirstLayoutBlock(in: stripped) else {
@@ -144,8 +144,8 @@ enum QMKKeymapParser {
         return t
     }
 
-    /// Strip C block comments (/* ... */) from source.
-    private static func stripBlockComments(_ source: String) -> String {
+    /// Strip C comments (/* ... */ block and // line) from source.
+    private static func stripComments(_ source: String) -> String {
         var result = ""
         var i = source.startIndex
 

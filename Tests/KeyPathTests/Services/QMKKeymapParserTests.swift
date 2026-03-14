@@ -239,6 +239,8 @@ struct QMKKeymapParserTests {
         #expect(QMKLayoutParser.abbreviateToken("LT(15, KC_SPC)") == "L15")
         #expect(QMKLayoutParser.abbreviateToken("OSL(4)") == "L4")
         #expect(QMKLayoutParser.abbreviateToken("OSL(11)") == "L11")
+        #expect(QMKLayoutParser.abbreviateToken("DF(2)") == "D2")
+        #expect(QMKLayoutParser.abbreviateToken("DF(0)") == "D0")
     }
 
     @Test func abbreviateTokenSpecialKeys() {
