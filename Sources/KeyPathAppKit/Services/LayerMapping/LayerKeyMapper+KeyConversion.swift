@@ -168,7 +168,7 @@ extension LayerKeyMapper {
     /// Convert Kanata key name to macOS key code
     func kanataKeyToKeyCode(_ kanataKey: String) -> UInt16? {
         // Reverse lookup using OverlayKeyboardView.keyCodeToKanataName
-        let allKeyCodes: [UInt16] = Array(0 ... 127) + [0xFFFF]
+        let allKeyCodes: [UInt16] = Array(0 ... 127) + [PhysicalKey.unmappedKeyCode]
         for code in allKeyCodes {
             let name = OverlayKeyboardView.keyCodeToKanataName(code)
             if name.lowercased() == kanataKey.lowercased() {

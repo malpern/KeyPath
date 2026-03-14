@@ -526,8 +526,8 @@ extension KanataConfiguration {
         let skip = defaultSkips.union(extraSkips)
 
         let keys = layout.keys.compactMap { key -> String? in
-            // Skip invalid keycodes (e.g., Touch ID uses 0xFFFF as placeholder)
-            guard key.keyCode != 0xFFFF else { return nil }
+            // Skip invalid keycodes (e.g., Touch ID, layer keys)
+            guard key.keyCode != PhysicalKey.unmappedKeyCode else { return nil }
             let name = OverlayKeyboardView.keyCodeToKanataName(key.keyCode).lowercased()
             // Skip unknown keycodes
             guard !name.hasPrefix("unknown-") else { return nil }

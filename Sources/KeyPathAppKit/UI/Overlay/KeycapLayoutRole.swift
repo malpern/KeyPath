@@ -127,13 +127,13 @@ extension PhysicalKey {
 
         // Touch ID / layer indicator: sentinel keyCode with specific label
         // Only the MacBook Touch ID key (🔒) gets this role
-        if keyCode == 0xFFFF, label == "🔒" {
+        if keyCode == PhysicalKey.unmappedKeyCode, label == "🔒" {
             return .touchId
         }
 
         // Sentinel keyCode keys without Touch ID label (Kinesis Lyr, Fn, etc.)
         // These should display as centered labels
-        if keyCode == 0xFFFF {
+        if keyCode == PhysicalKey.unmappedKeyCode {
             return .centered
         }
 

@@ -73,7 +73,7 @@ extension ANSIPositionTable {
                             continue
                         }
                     }
-                    let placeholder = UInt16(200 + key.index)
+                    let placeholder = PhysicalKey.placeholderKeyCodeBase + UInt16(key.index)
                     result.append(KeyMapping(index: key.index, keyCode: placeholder, label: "?"))
                 }
 
@@ -87,7 +87,7 @@ extension ANSIPositionTable {
                             continue
                         }
                     }
-                    let placeholder = UInt16(200 + key.index)
+                    let placeholder = PhysicalKey.placeholderKeyCodeBase + UInt16(key.index)
                     result.append(KeyMapping(index: key.index, keyCode: placeholder, label: "?"))
                 }
             }
@@ -98,7 +98,12 @@ extension ANSIPositionTable {
 
     // MARK: - Row Clustering
 
-    /// Cluster keys into rows by y-coordinate. Keys within ±0.4 units share a row.
+    /// Cluster keys into rows by y-coordinate proximity.
+    ///
+    /// QMK uses 1.0 = 1 key unit; standard row pitch is 1.0u. The 0.4u tolerance
+    /// accommodates staggered layouts where keys in the same row have slight Y offsets
+    /// (e.g., standard ANSI stagger ~0.25u between columns). Must stay below 0.5u to
+    /// avoid merging adjacent rows on compact keyboards with 0.75u row pitch.
     private static func clusterIntoRows(_ keys: [QMKKeyPosition]) -> [[QMKKeyPosition]] {
         let sorted = keys.sorted(by: { $0.y < $1.y })
         var rows: [[QMKKeyPosition]] = []
@@ -266,7 +271,7 @@ extension ANSIPositionTable {
                     continue
                 }
             }
-            result.append(KeyMapping(index: key.index, keyCode: UInt16(200 + key.index), label: "?"))
+            result.append(KeyMapping(index: key.index, keyCode: PhysicalKey.placeholderKeyCodeBase + UInt16(key.index), label: "?"))
         }
 
         // Map spacebar
@@ -274,7 +279,7 @@ extension ANSIPositionTable {
             result.append(KeyMapping(index: coreKeys[spaceIdx].index, keyCode: 49, label: "␣"))
             usedKeyCodes.insert(49)
         } else {
-            result.append(KeyMapping(index: coreKeys[spaceIdx].index, keyCode: UInt16(200 + coreKeys[spaceIdx].index), label: "?"))
+            result.append(KeyMapping(index: coreKeys[spaceIdx].index, keyCode: PhysicalKey.placeholderKeyCodeBase + UInt16(coreKeys[spaceIdx].index), label: "?"))
         }
 
         // Map right modifiers: RCmd, RAlt, Fn, RCtrl
@@ -288,7 +293,7 @@ extension ANSIPositionTable {
                     continue
                 }
             }
-            result.append(KeyMapping(index: key.index, keyCode: UInt16(200 + key.index), label: "?"))
+            result.append(KeyMapping(index: key.index, keyCode: PhysicalKey.placeholderKeyCodeBase + UInt16(key.index), label: "?"))
         }
 
         // Map extended keys (arrow keys after gap)
@@ -302,7 +307,7 @@ extension ANSIPositionTable {
                     continue
                 }
             }
-            result.append(KeyMapping(index: key.index, keyCode: UInt16(200 + key.index), label: "?"))
+            result.append(KeyMapping(index: key.index, keyCode: PhysicalKey.placeholderKeyCodeBase + UInt16(key.index), label: "?"))
         }
 
         return result
@@ -324,7 +329,7 @@ extension ANSIPositionTable {
                     continue
                 }
             }
-            result.append(KeyMapping(index: key.index, keyCode: UInt16(200 + key.index), label: "?"))
+            result.append(KeyMapping(index: key.index, keyCode: PhysicalKey.placeholderKeyCodeBase + UInt16(key.index), label: "?"))
         }
         return result
     }

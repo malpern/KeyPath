@@ -21,9 +21,9 @@ enum Kinesis360KeyMap {
         case (0, 3): (20, "3")
         case (0, 4): (21, "4")
         case (0, 5): (23, "5")
-        case (0, 6): (0xFFFF, "Lyr") // Layer key (no macOS equivalent)
+        case (0, 6): (PhysicalKey.unmappedKeyCode, "Lyr") // Layer key (no macOS equivalent)
         // Right: Fn 6 7 8 9 0 -
-        case (0, 14): (0xFFFF, "Fn") // Function (no direct equivalent)
+        case (0, 14): (PhysicalKey.unmappedKeyCode, "Fn") // Function (no direct equivalent)
         case (0, 15): (22, "6")
         case (0, 16): (26, "7")
         case (0, 17): (28, "8")
@@ -91,7 +91,7 @@ enum Kinesis360KeyMap {
         case (3, 20): (60, "⇧") // Right Shift
         // Row 4: Function row + thumb cluster bottom row
         // Left: Fn ` Caps ← →
-        case (4, 0): (0xFFFF, "Fn") // Function (Kinesis layer)
+        case (4, 0): (PhysicalKey.unmappedKeyCode, "Fn") // Function (Kinesis layer)
         case (4, 1): (50, "`") // Grave/Tilde
         case (4, 2): (57, "⇪") // Caps Lock
         case (4, 3): (123, "◀") // Left Arrow
@@ -109,7 +109,7 @@ enum Kinesis360KeyMap {
         case (4, 17): (125, "▼") // Down Arrow
         case (4, 18): (33, "[")
         case (4, 19): (30, "]")
-        case (4, 20): (0xFFFF, "Fn") // Function
+        case (4, 20): (PhysicalKey.unmappedKeyCode, "Fn") // Function
         default:
             nil
         }

@@ -332,7 +332,7 @@ struct QMKKeymapParserTests {
         #expect(result?.layout.keys[0].keyCode == 0x00)
 
         // MO(1) → layer key, should still count as matched
-        #expect(result?.layout.keys[1].keyCode == 0xFFFF)
+        #expect(result?.layout.keys[1].keyCode == PhysicalKey.unmappedKeyCode)
 
         // LT(2, KC_SPC) → base key is Space
         #expect(result?.layout.keys[2].keyCode == 0x31) // kVK_Space

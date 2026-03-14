@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// Parses QMK default keymap files (keymap.c or keymap.json) to extract
 /// the base layer's keycode assignments in sequential order.
@@ -282,6 +283,7 @@ enum QMKKeymapParser {
             return (macKeyCode, label)
         }
 
+        AppLogger.shared.debug("⚠️ [QMKKeymapParser] Unknown keycode '\(token)' (base: '\(baseKey)') — no macOS mapping")
         return nil
     }
 

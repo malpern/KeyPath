@@ -71,7 +71,7 @@ struct LauncherKeyboardView: View {
         // Row 0 has y=0 for esc and function keys
         // Main keyboard rows start at y >= 1.1 (rowSpacing from PhysicalLayout)
         let isFunctionRow = key.y < 1.0
-        let isTouchId = key.keyCode == 0xFFFF
+        let isTouchId = key.keyCode == PhysicalKey.unmappedKeyCode
 
         return !isFunctionRow && !isTouchId
     }

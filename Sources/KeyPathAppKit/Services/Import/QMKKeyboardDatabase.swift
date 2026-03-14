@@ -21,6 +21,15 @@ actor QMKKeyboardDatabase {
     /// QMK API base URL for fetching individual keyboard info
     private let qmkAPIBase = "https://keyboards.qmk.fm/v1/keyboards"
 
+    /// URLSession with 15-second timeout for QMK API and GitHub fetches.
+    /// Shorter than the 60s default to fail fast and fall back to alternative strategies.
+    private let urlSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 15
+        config.timeoutIntervalForResource = 30
+        return URLSession(configuration: config)
+    }()
+
     /// Bundled index: all QMK keyboard paths (loaded once from qmk-keyboard-index.json)
     private var indexEntries: [IndexEntry]?
 
@@ -407,7 +416,7 @@ actor QMKKeyboardDatabase {
 
         AppLogger.shared.info("🌐 [QMKDatabase] Fetching '\(keyboard.id)' from QMK API...")
 
-        let (data, response) = try await URLSession.shared.data(from: infoURL)
+        let (data, response) = try await urlSession.data(from: infoURL)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200 ... 299).contains(httpResponse.statusCode)
@@ -498,7 +507,7 @@ actor QMKKeyboardDatabase {
         guard let url = keymapURL else { return nil }
 
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await urlSession.data(from: url)
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200,
                   let source = String(data: data, encoding: .utf8)

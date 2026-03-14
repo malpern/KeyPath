@@ -338,23 +338,23 @@ enum QMKLayoutParser {
                 else if idx < keymapTokens.count {
                     let token = keymapTokens[idx]
                     if token == "_______" || token == "KC_TRNS" || token == "KC_TRANSPARENT" {
-                        keyCode = 0xFFFF
+                        keyCode = PhysicalKey.unmappedKeyCode
                         label = ""
                         matchedCount += 1 // Transparent is a valid assignment
                     } else if token == "KC_NO" || token == "XXXXXXX" {
-                        keyCode = 0xFFFF
+                        keyCode = PhysicalKey.unmappedKeyCode
                         label = ""
                         matchedCount += 1
                     } else {
                         // Layer key, macro, etc. — show abbreviated label
-                        keyCode = 0xFFFF
+                        keyCode = PhysicalKey.unmappedKeyCode
                         label = abbreviateToken(token)
                         matchedCount += 1
                     }
                 }
                 // Fallback: no keymap data for this position
                 else {
-                    keyCode = UInt16(200 + idx)
+                    keyCode = PhysicalKey.placeholderKeyCodeBase + UInt16(idx)
                     label = "?"
                 }
 
@@ -481,7 +481,7 @@ enum QMKLayoutParser {
                     keyCode = mapping.keyCode
                     label = mapping.label
                 } else {
-                    keyCode = UInt16(200 + idx)
+                    keyCode = PhysicalKey.placeholderKeyCodeBase + UInt16(idx)
                     label = "?"
                 }
 
