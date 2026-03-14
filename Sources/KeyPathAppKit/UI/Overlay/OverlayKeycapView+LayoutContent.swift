@@ -295,7 +295,8 @@ extension OverlayKeycapView {
         case "lyr": "layer"
         case "fn": "fn" // Function key for split keyboards
         case "mod": "mod"
-        case "␣": "space"
+        // Spacebar: never show a text label — keep it clean
+        // case "␣": intentionally omitted
         case "⌫": "delete"
         case "↩": "return"
         case "⏎": "enter"
