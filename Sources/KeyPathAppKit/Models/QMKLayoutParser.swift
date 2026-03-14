@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// Parser for QMK-style keyboard layout JSON files
 /// Format reference: https://docs.qmk.fm/reference_info_json
@@ -257,7 +258,7 @@ enum QMKLayoutParser {
                 keys: keys
             )
         } catch {
-            print("QMKLayoutParser: Failed to parse JSON: \(error)")
+            AppLogger.shared.error("⚠️ [QMKLayoutParser] Failed to parse JSON: \(error)")
             return nil
         }
     }
@@ -378,7 +379,7 @@ enum QMKLayoutParser {
                 matchRatio: matchRatio, totalKeys: totalKeys, unmatchedKeys: unmatchedKeys
             )
         } catch {
-            print("QMKLayoutParser: Failed to parse JSON: \(error)")
+            AppLogger.shared.error("⚠️ [QMKLayoutParser] Failed to parse JSON: \(error)")
             return nil
         }
     }
@@ -386,16 +387,20 @@ enum QMKLayoutParser {
     /// Abbreviate a compound keycode token for display (e.g., "MO(1)" → "L1", "LT(2, KC_SPC)" → "L2")
     private static func abbreviateToken(_ token: String) -> String {
         let t = token.trimmingCharacters(in: .whitespacesAndNewlines)
-        if t.hasPrefix("MO("), let num = t.dropFirst(3).dropLast().trimmingCharacters(in: .whitespaces).first {
+        if t.hasPrefix("MO(") {
+            let num = String(t.dropFirst(3).dropLast()).trimmingCharacters(in: .whitespaces)
             return "L\(num)"
         }
-        if t.hasPrefix("TG("), let num = t.dropFirst(3).dropLast().trimmingCharacters(in: .whitespaces).first {
+        if t.hasPrefix("TG(") {
+            let num = String(t.dropFirst(3).dropLast()).trimmingCharacters(in: .whitespaces)
             return "T\(num)"
         }
-        if t.hasPrefix("LT("), let num = t.dropFirst(3).prefix(while: { $0 != "," }).trimmingCharacters(in: .whitespaces).first {
+        if t.hasPrefix("LT(") {
+            let num = String(t.dropFirst(3).prefix(while: { $0 != "," })).trimmingCharacters(in: .whitespaces)
             return "L\(num)"
         }
-        if t.hasPrefix("OSL("), let num = t.dropFirst(4).dropLast().trimmingCharacters(in: .whitespaces).first {
+        if t.hasPrefix("OSL(") {
+            let num = String(t.dropFirst(4).dropLast()).trimmingCharacters(in: .whitespaces)
             return "L\(num)"
         }
         if t.hasPrefix("QK_BOOT") { return "⟲" }
@@ -505,7 +510,7 @@ enum QMKLayoutParser {
                 matchRatio: matchRatio, totalKeys: totalKeys, unmatchedKeys: unmatchedKeys
             )
         } catch {
-            print("QMKLayoutParser: Failed to parse JSON: \(error)")
+            AppLogger.shared.error("⚠️ [QMKLayoutParser] Failed to parse JSON: \(error)")
             return nil
         }
     }
@@ -548,11 +553,11 @@ enum QMKLayoutParser {
         nameOverride: String? = nil
     ) -> PhysicalLayout? {
         guard let url = KeyPathAppKitResources.url(forResource: filename, withExtension: "json") else {
-            print("QMKLayoutParser: Could not find \(filename).json in bundle")
+            AppLogger.shared.error("⚠️ [QMKLayoutParser] Could not find \(filename).json in bundle")
             return nil
         }
         guard let data = try? Data(contentsOf: url) else {
-            print("QMKLayoutParser: Could not read data from \(filename).json")
+            AppLogger.shared.error("⚠️ [QMKLayoutParser] Could not read data from \(filename).json")
             return nil
         }
         return parse(data: data, keyMapping: keyMapping, idOverride: idOverride, nameOverride: nameOverride)

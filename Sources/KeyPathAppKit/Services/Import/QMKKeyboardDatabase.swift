@@ -571,7 +571,6 @@ enum QMKDatabaseError: LocalizedError {
     case invalidURL(String)
     case networkError(String)
     case parseError(String)
-    case rateLimited(retryAfter: Date)
 
     var errorDescription: String? {
         switch self {
@@ -581,8 +580,6 @@ enum QMKDatabaseError: LocalizedError {
             "Network error: \(message)"
         case let .parseError(message):
             "Parse error: \(message)"
-        case let .rateLimited(retryAfter):
-            "Rate limit exceeded. Resets at \(retryAfter.formatted())"
         }
     }
 }

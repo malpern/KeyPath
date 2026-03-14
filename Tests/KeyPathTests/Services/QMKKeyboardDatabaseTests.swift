@@ -5,12 +5,6 @@ import XCTest
 final class QMKKeyboardDatabaseTests: XCTestCase {
     // MARK: - Error Description Tests
 
-    func testRateLimitedErrorDescription() {
-        let resetDate = Date(timeIntervalSince1970: 1_700_000_000)
-        let error = QMKDatabaseError.rateLimited(retryAfter: resetDate)
-        XCTAssertTrue(error.errorDescription?.contains("Rate limit") ?? false)
-    }
-
     func testNetworkErrorDescription() {
         let error = QMKDatabaseError.networkError("Connection refused")
         XCTAssertEqual(error.errorDescription, "Network error: Connection refused")
