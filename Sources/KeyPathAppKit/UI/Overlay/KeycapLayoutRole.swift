@@ -270,9 +270,23 @@ struct LabelMetadata {
             return action.sfSymbol
         }
 
-        // Edge cases: macOS system hotkey combos (from Mapper saving system actions as chords)
-        // These are the standard macOS keyboard shortcuts for function key actions
+        // QMK-imported key labels that should render as SF Symbols
         switch cleanLabel {
+        // Volume / mute (from QMK KC_MUTE, KC_VOLD, KC_VOLU)
+        case "mute": return "speaker.slash"
+        case "v-": return "speaker.wave.1"
+        case "v+": return "speaker.wave.3"
+        // Media transport (from QMK KC_MPLY, KC_MNXT, KC_MPRV, KC_MSTP)
+        case "play": return "playpause"
+        case "next": return "forward.end"
+        case "prev": return "backward.end"
+        case "stop": return "stop"
+        // Brightness (from QMK KC_BRIU, KC_BRID)
+        case "bri+": return "sun.max"
+        case "bri-": return "sun.min"
+        // Eject
+        case "eject": return "eject"
+        // macOS system hotkey combos (from Mapper saving system actions as chords)
         case "⌃⇧⌘Z": return "magnifyingglass" // Spotlight
         case "⌃⌘F": return "rectangle.3.group" // Mission Control
         case "⌃⌘L": return "square.grid.3x3" // Launchpad

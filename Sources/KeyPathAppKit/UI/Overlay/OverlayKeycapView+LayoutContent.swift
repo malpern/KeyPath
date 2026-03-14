@@ -231,14 +231,20 @@ extension OverlayKeycapView {
             "⌦",
             // Num lock
             "num",
-            // Volume/media keys (text labels from QMK imports)
+            // Volume/media keys (rendered as SF Symbols via LabelMetadata)
             "mute", "v-", "v+",
+            "play", "next", "prev", "stop", "eject",
+            // Brightness keys (rendered as SF Symbols via LabelMetadata)
+            "bri+", "bri-",
             // Numpad keys (not in standard keymaps)
             "clr", "CLR", "/", "*", "+", ".",
-            // ISO key
-            "§",
+            // ISO keys
+            "§", "#",
             // JIS-specific keys (not in standard keymaps)
             "¥", "英数", "かな", "_", "^", ":", "@", "fn", "Fn",
+            "kana", "henk", "mhen",
+            // Shifted punctuation aliases (from QMK keymaps)
+            "~", "(", ")", "{", "}", "<", ">",
             // Help key
             "help",
             // Menu/Application key

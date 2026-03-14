@@ -212,7 +212,10 @@ enum QMKKeymapParser {
         // Simple keycodes (no parentheses)
         if !trimmed.contains("(") {
             // Layer/system commands without args
-            if trimmed.hasPrefix("QK_") || trimmed.hasPrefix("RGB_") || trimmed.hasPrefix("BL_") {
+            if trimmed.hasPrefix("QK_") || trimmed.hasPrefix("RGB_") || trimmed.hasPrefix("BL_")
+                || trimmed.hasPrefix("UG_") || trimmed.hasPrefix("RM_") || trimmed.hasPrefix("CW_")
+                || trimmed.hasPrefix("SC_") || trimmed.hasPrefix("TL_") || trimmed.hasPrefix("STN_")
+            {
                 return nil
             }
             return trimmed
@@ -245,6 +248,12 @@ enum QMKKeymapParser {
              "RCTL", "RSFT", "RALT", "RGUI", "RCMD", "RWIN",
              "HYPR", "MEH", "C", "S", "A", "G",
              "LSA", "RSA", "SGUI", "LCA", "LSG", "LAG", "RSG", "RAG", "RCS":
+            return args.count >= 1 ? extractBaseKey(args[0]) : nil
+
+        // Mod-tap shorthands: CTL_T(kc), SFT_T(kc), etc. → base key is kc
+        case "CTL_T", "SFT_T", "ALT_T", "GUI_T",
+             "LSFT_T", "RSFT_T", "LCTL_T", "RCTL_T",
+             "LALT_T", "RALT_T", "LGUI_T", "RGUI_T":
             return args.count >= 1 ? extractBaseKey(args[0]) : nil
 
         // Tap-dance: TD(n) → no base key
@@ -288,7 +297,7 @@ enum QMKKeymapParser {
     }
 
     /// Generate a short display label for a QMK keycode name.
-    private static func keycodeLabel(_ keycode: String) -> String {
+    static func keycodeLabel(_ keycode: String) -> String {
         // Remove KC_ prefix and lowercase for display
         let stripped = keycode.hasPrefix("KC_") ? String(keycode.dropFirst(3)) : keycode
 
@@ -342,17 +351,41 @@ enum QMKKeymapParser {
         case "KP_ENTER", "PENT": return "↩"
         case "KP_DOT", "PDOT": return "."
         case "KP_EQUAL", "PEQL": return "="
-        case "APPLICATION", "APP": return "▤"
+        case "APPLICATION", "APP", "MENU": return "▤"
+        // Media / volume
         case "AUDIO_VOL_UP", "VOLU", "KB_VOLUME_UP": return "v+"
         case "AUDIO_VOL_DOWN", "VOLD", "KB_VOLUME_DOWN": return "v-"
         case "AUDIO_MUTE", "MUTE", "KB_MUTE": return "mute"
+        case "MEDIA_PLAY_PAUSE", "MPLY": return "play"
+        case "MEDIA_NEXT_TRACK", "MNXT", "MEDIA_FAST_FORWARD", "MFFD": return "next"
+        case "MEDIA_PREV_TRACK", "MPRV", "MEDIA_REWIND", "MRWD": return "prev"
+        case "MEDIA_STOP", "MSTP": return "stop"
+        case "MEDIA_EJECT", "EJCT": return "eject"
+        // Brightness
+        case "BRIGHTNESS_UP", "BRIU": return "bri+"
+        case "BRIGHTNESS_DOWN", "BRID": return "bri-"
         // ISO / JIS keys
         case "NONUS_BACKSLASH", "NUBS": return "§"
+        case "NONUS_HASH", "NUHS": return "#"
         case "INTERNATIONAL_3", "INT3": return "¥"
         case "INTERNATIONAL_1", "INT1": return "_"
+        case "INTERNATIONAL_2", "INT2": return "kana"
+        case "INTERNATIONAL_4", "INT4": return "henk"
+        case "INTERNATIONAL_5", "INT5": return "mhen"
         case "KP_COMMA", "PCMM": return ","
         case "LANGUAGE_1", "LNG1": return "かな"
         case "LANGUAGE_2", "LNG2": return "英数"
+        // Shifted punctuation aliases
+        case "TILD": return "~"
+        case "LEFT_PAREN", "LPRN": return "("
+        case "RIGHT_PAREN", "RPRN": return ")"
+        case "LEFT_CURLY_BRACE", "LCBR": return "{"
+        case "RIGHT_CURLY_BRACE", "RCBR": return "}"
+        case "PLUS": return "+"
+        case "HASH": return "#"
+        case "COLN": return ":"
+        case "LEFT_ANGLE_BRACKET", "LABK": return "<"
+        case "RIGHT_ANGLE_BRACKET", "RABK": return ">"
         default:
             // Function keys
             if stripped.hasPrefix("F"), let num = Int(stripped.dropFirst(1)), num >= 1, num <= 24 {

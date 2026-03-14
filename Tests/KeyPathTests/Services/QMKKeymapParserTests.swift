@@ -131,6 +131,21 @@ struct QMKKeymapParserTests {
         #expect(QMKKeymapParser.extractBaseKey("TO(0)") == nil)
     }
 
+    @Test func extractBaseKeyModTapShorthands() {
+        #expect(QMKKeymapParser.extractBaseKey("CTL_T(KC_ESC)") == "KC_ESC")
+        #expect(QMKKeymapParser.extractBaseKey("SFT_T(KC_Z)") == "KC_Z")
+        #expect(QMKKeymapParser.extractBaseKey("LSFT_T(KC_A)") == "KC_A")
+        #expect(QMKKeymapParser.extractBaseKey("LGUI_T(KC_SPC)") == "KC_SPC")
+        #expect(QMKKeymapParser.extractBaseKey("RCTL_T(KC_RBRC)") == "KC_RBRC")
+        #expect(QMKKeymapParser.extractBaseKey("ALT_T(KC_TAB)") == "KC_TAB")
+    }
+
+    @Test func extractBaseKeyFirmwareKeysReturnNil() {
+        #expect(QMKKeymapParser.extractBaseKey("UG_TOGG") == nil)
+        #expect(QMKKeymapParser.extractBaseKey("RM_NEXT") == nil)
+        #expect(QMKKeymapParser.extractBaseKey("CW_TOGG") == nil)
+    }
+
     @Test func extractBaseKeyTransparent() {
         #expect(QMKKeymapParser.extractBaseKey("_______") == nil)
         #expect(QMKKeymapParser.extractBaseKey("KC_TRNS") == nil)
@@ -206,9 +221,24 @@ struct QMKKeymapParserTests {
         #expect(volu?.label == "v+")
     }
 
+    @Test func resolveMediaTransportLabels() {
+        #expect(QMKKeymapParser.keycodeLabel("KC_MPLY") == "play")
+        #expect(QMKKeymapParser.keycodeLabel("KC_MNXT") == "next")
+        #expect(QMKKeymapParser.keycodeLabel("KC_MPRV") == "prev")
+        #expect(QMKKeymapParser.keycodeLabel("KC_MSTP") == "stop")
+        #expect(QMKKeymapParser.keycodeLabel("KC_EJCT") == "eject")
+    }
+
+    @Test func resolveBrightnessLabels() {
+        #expect(QMKKeymapParser.keycodeLabel("KC_BRIU") == "bri+")
+        #expect(QMKKeymapParser.keycodeLabel("KC_BRID") == "bri-")
+    }
+
     @Test func resolveJISAndISOLabels() {
         let nubs = QMKKeymapParser.resolveKeycode("KC_NUBS")
         #expect(nubs?.label == "§")
+
+        #expect(QMKKeymapParser.keycodeLabel("KC_NUHS") == "#")
 
         let int3 = QMKKeymapParser.resolveKeycode("KC_INT3")
         #expect(int3?.label == "¥")
@@ -216,11 +246,29 @@ struct QMKKeymapParserTests {
         let int1 = QMKKeymapParser.resolveKeycode("KC_INT1")
         #expect(int1?.label == "_")
 
+        #expect(QMKKeymapParser.keycodeLabel("KC_INT2") == "kana")
+        #expect(QMKKeymapParser.keycodeLabel("KC_INT4") == "henk")
+        #expect(QMKKeymapParser.keycodeLabel("KC_INT5") == "mhen")
+
         let lng1 = QMKKeymapParser.resolveKeycode("KC_LNG1")
         #expect(lng1?.label == "かな")
 
         let lng2 = QMKKeymapParser.resolveKeycode("KC_LNG2")
         #expect(lng2?.label == "英数")
+    }
+
+    @Test func resolveShiftedPunctuationLabels() {
+        #expect(QMKKeymapParser.keycodeLabel("KC_TILD") == "~")
+        #expect(QMKKeymapParser.keycodeLabel("KC_LPRN") == "(")
+        #expect(QMKKeymapParser.keycodeLabel("KC_RPRN") == ")")
+        #expect(QMKKeymapParser.keycodeLabel("KC_LCBR") == "{")
+        #expect(QMKKeymapParser.keycodeLabel("KC_RCBR") == "}")
+        #expect(QMKKeymapParser.keycodeLabel("KC_PLUS") == "+")
+        #expect(QMKKeymapParser.keycodeLabel("KC_COLN") == ":")
+    }
+
+    @Test func resolveMenuAlias() {
+        #expect(QMKKeymapParser.keycodeLabel("KC_MENU") == "▤")
     }
 
     @Test func resolveHelpKeyLabel() {
