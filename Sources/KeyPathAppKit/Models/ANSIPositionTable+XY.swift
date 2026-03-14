@@ -73,7 +73,7 @@ extension ANSIPositionTable {
                             continue
                         }
                     }
-                    let placeholder = PhysicalKey.placeholderKeyCodeBase + UInt16(key.index)
+                    let placeholder = PhysicalKey.placeholderKeyCode(for: key.index)
                     result.append(KeyMapping(index: key.index, keyCode: placeholder, label: "?"))
                 }
 
@@ -87,7 +87,7 @@ extension ANSIPositionTable {
                             continue
                         }
                     }
-                    let placeholder = PhysicalKey.placeholderKeyCodeBase + UInt16(key.index)
+                    let placeholder = PhysicalKey.placeholderKeyCode(for: key.index)
                     result.append(KeyMapping(index: key.index, keyCode: placeholder, label: "?"))
                 }
             }
@@ -271,7 +271,7 @@ extension ANSIPositionTable {
                     continue
                 }
             }
-            result.append(KeyMapping(index: key.index, keyCode: PhysicalKey.placeholderKeyCodeBase + UInt16(key.index), label: "?"))
+            result.append(KeyMapping(index: key.index, keyCode: PhysicalKey.placeholderKeyCode(for: key.index), label: "?"))
         }
 
         // Map spacebar
@@ -279,7 +279,7 @@ extension ANSIPositionTable {
             result.append(KeyMapping(index: coreKeys[spaceIdx].index, keyCode: 49, label: "␣"))
             usedKeyCodes.insert(49)
         } else {
-            result.append(KeyMapping(index: coreKeys[spaceIdx].index, keyCode: PhysicalKey.placeholderKeyCodeBase + UInt16(coreKeys[spaceIdx].index), label: "?"))
+            result.append(KeyMapping(index: coreKeys[spaceIdx].index, keyCode: PhysicalKey.placeholderKeyCode(for: coreKeys[spaceIdx].index), label: "?"))
         }
 
         // Map right modifiers: RCmd, RAlt, Fn, RCtrl
@@ -293,7 +293,7 @@ extension ANSIPositionTable {
                     continue
                 }
             }
-            result.append(KeyMapping(index: key.index, keyCode: PhysicalKey.placeholderKeyCodeBase + UInt16(key.index), label: "?"))
+            result.append(KeyMapping(index: key.index, keyCode: PhysicalKey.placeholderKeyCode(for: key.index), label: "?"))
         }
 
         // Map extended keys (arrow keys after gap)
@@ -307,7 +307,7 @@ extension ANSIPositionTable {
                     continue
                 }
             }
-            result.append(KeyMapping(index: key.index, keyCode: PhysicalKey.placeholderKeyCodeBase + UInt16(key.index), label: "?"))
+            result.append(KeyMapping(index: key.index, keyCode: PhysicalKey.placeholderKeyCode(for: key.index), label: "?"))
         }
 
         return result
@@ -329,7 +329,7 @@ extension ANSIPositionTable {
                     continue
                 }
             }
-            result.append(KeyMapping(index: key.index, keyCode: PhysicalKey.placeholderKeyCodeBase + UInt16(key.index), label: "?"))
+            result.append(KeyMapping(index: key.index, keyCode: PhysicalKey.placeholderKeyCode(for: key.index), label: "?"))
         }
         return result
     }

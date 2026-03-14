@@ -92,7 +92,7 @@ enum QMKKeycodeMapping {
         add(0x2C, "KC_SLASH", "KC_SLSH") // kVK_ANSI_Slash
 
         // ── Non-US Layout Keys ───────────────────────────────────
-        // KC_NONUS_HASH (HID 0x32) - mapped same as grave on ANSI
+        add(0x2A, "KC_NONUS_HASH", "KC_NUHS") // kVK_ANSI_Backslash (ISO # key)
         add(0x0A, "KC_NONUS_BACKSLASH", "KC_NUBS") // kVK_ISO_Section
 
         // ── Caps Lock ────────────────────────────────────────────
@@ -241,6 +241,7 @@ enum QMKKeycodeMapping {
     /// Maps HID Usage Page 0x07 usage codes to macOS CGKeyCode values.
     /// This is the underlying mapping that `qmkToMacOS` is built on,
     /// indexed by numeric HID usage code instead of string name.
+    /// TODO: Wire up for future HID descriptor-based key identification (not used in current keymap-based flow).
     static let hidUsageToMacOS: [UInt16: UInt16] = [
         // Letters (HID 0x04-0x1D)
         0x04: 0x00, // A

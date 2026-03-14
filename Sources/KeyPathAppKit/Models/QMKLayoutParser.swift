@@ -355,7 +355,7 @@ enum QMKLayoutParser {
                 }
                 // Fallback: no keymap data for this position
                 else {
-                    keyCode = PhysicalKey.placeholderKeyCodeBase + UInt16(idx)
+                    keyCode = PhysicalKey.placeholderKeyCode(for: idx)
                     label = "?"
                 }
 
@@ -490,7 +490,7 @@ enum QMKLayoutParser {
                     keyCode = mapping.keyCode
                     label = mapping.label
                 } else {
-                    keyCode = PhysicalKey.placeholderKeyCodeBase + UInt16(idx)
+                    keyCode = PhysicalKey.placeholderKeyCode(for: idx)
                     label = "?"
                 }
 

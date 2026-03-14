@@ -145,6 +145,8 @@ enum QMKKeymapParser {
     }
 
     /// Strip C comments (/* ... */ block and // line) from source.
+    /// Intentionally fail-silent: an unterminated block comment discards the rest of the file,
+    /// which causes keymap parsing to fail gracefully and fall back to position-based parsing.
     private static func stripComments(_ source: String) -> String {
         var result = ""
         var i = source.startIndex
