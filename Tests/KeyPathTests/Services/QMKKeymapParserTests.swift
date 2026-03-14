@@ -445,4 +445,38 @@ struct QMKKeymapParserTests {
         #expect(result?.layout.keys[2].label == "?") // No keymap entry
         #expect(result?.unmatchedKeys == 2)
     }
+
+    @Test func parseWithKeymapSkipsFilteredKeysCorrectly() {
+        // Layout has a zero-width key at index 1 that gets filtered out.
+        // keymapTokens[0]=A, [1]=B (filtered), [2]=C
+        // After filtering, validKeys has indices [0, 2].
+        // Key at original index 2 should get keymapTokens[2]=C, not keymapTokens[1]=B.
+        let json = """
+        {
+          "id": "test",
+          "name": "Test",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                {"matrix": [0,0], "x": 0, "y": 0},
+                {"matrix": [0,1], "x": 1, "y": 0, "w": 0},
+                {"matrix": [0,2], "x": 2, "y": 0}
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let keymapTokens = ["KC_A", "KC_B", "KC_C"]
+        let result = QMKLayoutParser.parseWithKeymap(
+            data: json,
+            keymapTokens: keymapTokens
+        )
+
+        #expect(result != nil)
+        #expect(result?.layout.keys.count == 2)
+        #expect(result?.layout.keys[0].keyCode == 0x00) // A (index 0)
+        #expect(result?.layout.keys[1].keyCode == 0x08) // C (index 2, not B)
+        #expect(result?.layout.keys[1].label == "c")
+    }
 }

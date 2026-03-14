@@ -312,12 +312,16 @@ enum QMKLayoutParser {
             }
             guard !validKeys.isEmpty else { return nil }
 
-            // Map keys by sequential index: keymapTokens[i] → validKeys[i]
+            // Map keys using original QMK layout index for token lookup.
+            // entry.index is the key's position in the raw QMK layout array, which
+            // corresponds 1:1 with keymapTokens. Using entry.index (not the enumerated
+            // idx) ensures correct alignment when keys are filtered from validKeys.
             var keys: [PhysicalKey] = []
             var matchedCount = 0
 
-            for (idx, entry) in validKeys.enumerated() {
+            for entry in validKeys {
                 let qmkKey = entry.qmkKey
+                let originalIdx = entry.index
                 let keyCode: UInt16
                 let label: String
 
@@ -328,16 +332,16 @@ enum QMKLayoutParser {
                     matchedCount += 1
                 }
                 // Second: use keymap token at this index
-                else if idx < keymapTokens.count,
-                        let resolved = QMKKeymapParser.resolveKeycode(keymapTokens[idx])
+                else if originalIdx < keymapTokens.count,
+                        let resolved = QMKKeymapParser.resolveKeycode(keymapTokens[originalIdx])
                 {
                     keyCode = resolved.keyCode
                     label = resolved.label
                     matchedCount += 1
                 }
                 // Third: token exists but is a layer/transparent key — render the key but with a layer indicator
-                else if idx < keymapTokens.count {
-                    let token = keymapTokens[idx]
+                else if originalIdx < keymapTokens.count {
+                    let token = keymapTokens[originalIdx]
                     if token == "_______" || token == "KC_TRNS" || token == "KC_TRANSPARENT" {
                         keyCode = PhysicalKey.unmappedKeyCode
                         label = ""
@@ -355,7 +359,7 @@ enum QMKLayoutParser {
                 }
                 // Fallback: no keymap data for this position
                 else {
-                    keyCode = PhysicalKey.placeholderKeyCode(for: idx)
+                    keyCode = PhysicalKey.placeholderKeyCode(for: originalIdx)
                     label = "?"
                 }
 
