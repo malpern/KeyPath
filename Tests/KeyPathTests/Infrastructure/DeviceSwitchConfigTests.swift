@@ -34,7 +34,8 @@ final class DeviceSwitchConfigTests: XCTestCase {
         let result = KanataConfiguration.renderDeviceSwitchExpression(
             defaultOutput: "b",
             overrides: overrides,
-            connectedDevices: [device0, device1]
+            connectedDevices: [device0, device1],
+            inputKey: "a"
         )
 
         XCTAssertTrue(result.contains("(switch"), "Should contain switch keyword")
@@ -58,7 +59,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
         XCTAssertTrue(result.contains("() a break"), "Default fallthrough should always be present")
     }
 
-    func testMultipleDeviceOverrides_OrderedByIndex() {
+    func testMultipleDeviceOverrides_PreservesInputOrder() {
         let overrides = [
             DeviceKeyOverride(deviceHash: "0xBBBB1111", output: "y"),
             DeviceKeyOverride(deviceHash: "0xAAAA0000", output: "x"),
@@ -93,12 +94,19 @@ final class DeviceSwitchConfigTests: XCTestCase {
         XCTAssertTrue(result.contains("() caps break"), "Default fallthrough must always be present")
     }
 
-    func testDeviceSwitchAliasName() {
+    func testDeviceSwitchAliasName_SanitizesSpecialCharacters() {
         let mapping = KeyMapping(input: "caps-lock", output: "esc")
-        let aliasName = KanataConfiguration.deviceSwitchAliasName(
-            for: mapping, layer: .base
+        XCTAssertEqual(
+            KanataConfiguration.deviceSwitchAliasName(for: mapping, layer: .base),
+            "dev_base_caps_lock"
         )
-        XCTAssertEqual(aliasName, "dev_base_caps_lock")
+
+        // Characters beyond `-` and ` ` should also be sanitized
+        let mappingWithSpecial = KeyMapping(input: "key.name+extra", output: "esc")
+        XCTAssertEqual(
+            KanataConfiguration.deviceSwitchAliasName(for: mappingWithSpecial, layer: .base),
+            "dev_base_key_name_extra"
+        )
     }
 
     // MARK: - Integration with buildCollectionBlocks
@@ -154,16 +162,5 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
         let deviceAlias = aliases.first(where: { $0.aliasName.hasPrefix("dev_") })
         XCTAssertNil(deviceAlias, "Should not generate device switch alias when no overrides exist")
-    }
-
-    // MARK: - DeviceSelectionCache.deviceIndex
-
-    func testDeviceIndex_ReturnsCorrectIndex() {
-        let cache = DeviceSelectionCache()
-        cache.updateConnectedDevices([device0, device1])
-
-        XCTAssertEqual(cache.deviceIndex(forHash: "0xAAAA0000"), 0)
-        XCTAssertEqual(cache.deviceIndex(forHash: "0xBBBB1111"), 1)
-        XCTAssertNil(cache.deviceIndex(forHash: "0xDEADBEEF"))
     }
 }

@@ -293,10 +293,14 @@ extension KanataConfiguration {
                 // wrap the output in a (switch ((device N)) ...) expression
                 if let overrides = mapping.deviceOverrides, !overrides.isEmpty {
                     let devices = DeviceSelectionCache.shared.getConnectedDevices()
+                    if devices.isEmpty {
+                        AppLogger.shared.debug("⚠️ [ConfigGen] Device overrides on key '\(mapping.input)' but no connected devices in cache — using default output only")
+                    }
                     let switchExpr = renderDeviceSwitchExpression(
                         defaultOutput: layerOutput,
                         overrides: overrides,
-                        connectedDevices: devices
+                        connectedDevices: devices,
+                        inputKey: mapping.input
                     )
                     let aliasName = deviceSwitchAliasName(for: mapping, layer: collection.targetLayer)
                     aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: switchExpr))
