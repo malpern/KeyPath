@@ -2,6 +2,29 @@ import Foundation
 import KeyPathCore
 import Observation
 
+/// Key label display style for modifier and action keys on the keyboard visualization.
+/// Controls whether keys like Delete, Tab, Caps Lock, Shift, Return show symbols or text.
+public enum KeyLabelStyle: String, CaseIterable, Sendable {
+    /// Unicode symbols: ⌫ ⇥ ⇪ ⇧ ↩ (matches 2026+ MacBooks and international keyboards)
+    case symbols
+    /// Text labels: delete, tab, caps lock, shift, return (matches pre-2026 US keyboards)
+    case text
+
+    public var displayName: String {
+        switch self {
+        case .symbols: "Symbols"
+        case .text: "Text"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .symbols: "⌫ ⇥ ⇪ ⇧ ↩ — matches 2026+ MacBooks"
+        case .text: "delete tab caps shift return — classic US style"
+        }
+    }
+}
+
 /// Communication protocol for Kanata integration
 /// TCP is the only supported protocol (Kanata v1.9.0 - see ADR-013)
 enum CommunicationProtocol: String, CaseIterable {
@@ -198,6 +221,16 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    // MARK: - Key Label Style
+
+    /// Whether modifier/action keys show symbols (⌫ ⇥ ⇪ ⇧ ↩) or text (delete tab caps shift return)
+    var keyLabelStyle: KeyLabelStyle {
+        didSet {
+            UserDefaults.standard.set(keyLabelStyle.rawValue, forKey: Keys.keyLabelStyle)
+            AppLogger.shared.log("🎨 [Preferences] keyLabelStyle = \(keyLabelStyle.rawValue)")
+        }
+    }
+
     // MARK: - Leader Key Configuration
 
     /// Primary leader key preference (Space → Nav by default)
@@ -324,6 +357,7 @@ final class PreferencesService: @unchecked Sendable {
         static let kindaVimLeaderHUDMode = "KeyPath.KindaVim.LeaderHUDMode"
         static let neovimReferenceTopics = "KeyPath.Neovim.ReferenceTopics"
         static let neovimReferenceTopicsVersion = "KeyPath.Neovim.ReferenceTopicsVersion"
+        static let keyLabelStyle = "KeyPath.Display.KeyLabelStyle"
         static let overlayHiddenHintShowCount = "KeyPath.Education.OverlayHiddenHintShowCount"
     }
 
@@ -340,6 +374,7 @@ final class PreferencesService: @unchecked Sendable {
         #else
             static let verboseKanataLogging = false // Release builds favor smaller logs
         #endif
+        static let keyLabelStyle = KeyLabelStyle.symbols
         static let accessibilityTestMode = false
         static let contextHUDDisplayMode = ContextHUDDisplayMode.both
         static let contextHUDTriggerMode = ContextHUDTriggerMode.holdToShow
@@ -380,6 +415,11 @@ final class PreferencesService: @unchecked Sendable {
         verboseKanataLogging =
             UserDefaults.standard.object(forKey: Keys.verboseKanataLogging) as? Bool
                 ?? Defaults.verboseKanataLogging
+
+        // Key label style
+        let keyLabelStyleString = UserDefaults.standard.string(forKey: Keys.keyLabelStyle)
+            ?? Defaults.keyLabelStyle.rawValue
+        keyLabelStyle = KeyLabelStyle(rawValue: keyLabelStyleString) ?? Defaults.keyLabelStyle
 
         // Testing preferences
         accessibilityTestMode =

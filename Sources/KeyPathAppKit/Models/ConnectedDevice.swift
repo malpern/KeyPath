@@ -27,12 +27,21 @@ struct ConnectedDevice: Codable, Identifiable, Hashable, Sendable {
     }
 
     /// Cleaned-up product name for display in the UI.
+    /// Falls back to the device hash when the product key is empty.
     var displayName: String {
-        DeviceDisplayNameFormatter.format(productKey)
+        let formatted = DeviceDisplayNameFormatter.format(productKey)
+        return formatted.isEmpty ? "Device \(hash.suffix(8))" : formatted
     }
 
     /// Formatted vendor:product hex string, e.g. "05ac:0342"
     var vendorProductHex: String {
         String(format: "%04x:%04x", vendorID, productID)
+    }
+
+    /// SF Symbol name for this device type.
+    /// Apple internal keyboards (vendor 0x05AC) use `laptopcomputer`;
+    /// all external keyboards use `keyboard`.
+    var sfSymbolName: String {
+        vendorID == 0x05AC ? "laptopcomputer" : "keyboard"
     }
 }

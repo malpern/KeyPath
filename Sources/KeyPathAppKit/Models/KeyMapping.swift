@@ -1,5 +1,23 @@
 import Foundation
 
+/// Per-device output override for a single key mapping.
+/// When a user has multiple keyboards and wants different behavior per device,
+/// each override specifies the output for a particular device (identified by hash).
+public struct DeviceKeyOverride: Codable, Equatable, Sendable {
+    /// Device hash from kanata --list (e.g., "0x1234ABCD")
+    public let deviceHash: String
+    /// Output action for this device (replaces the default output)
+    public let output: String
+    /// Optional advanced behavior override for this device
+    public let behavior: MappingBehavior?
+
+    public init(deviceHash: String, output: String, behavior: MappingBehavior? = nil) {
+        self.deviceHash = deviceHash
+        self.output = output
+        self.behavior = behavior
+    }
+}
+
 /// Represents a simple key mapping from input to output
 /// Used throughout the codebase for representing user-configured key remappings
 public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
@@ -22,6 +40,10 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     /// Advanced behavior (dual-role, tap-dance, macro). Nil means simple remap using `output`.
     public let behavior: MappingBehavior?
 
+    /// Per-device output overrides. When present, the config generator wraps
+    /// the key output in a `(switch ((device N)) ...)` block.
+    public let deviceOverrides: [DeviceKeyOverride]?
+
     public init(
         id: UUID = UUID(),
         input: String,
@@ -30,7 +52,8 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         ctrlOutput: String? = nil,
         description: String? = nil,
         sectionBreak: Bool = false,
-        behavior: MappingBehavior? = nil
+        behavior: MappingBehavior? = nil,
+        deviceOverrides: [DeviceKeyOverride]? = nil
     ) {
         self.id = id
         self.input = input
@@ -40,6 +63,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         self.description = description
         self.sectionBreak = sectionBreak
         self.behavior = behavior
+        self.deviceOverrides = deviceOverrides
     }
 
     /// Whether this mapping requires fork for modifier detection
@@ -48,7 +72,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, input, output, shiftedOutput, ctrlOutput, description, sectionBreak, behavior
+        case id, input, output, shiftedOutput, ctrlOutput, description, sectionBreak, behavior, deviceOverrides
     }
 
     public init(from decoder: Decoder) throws {
@@ -61,6 +85,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         description = try container.decodeIfPresent(String.self, forKey: .description)
         sectionBreak = (try? container.decode(Bool.self, forKey: .sectionBreak)) ?? false
         behavior = try container.decodeIfPresent(MappingBehavior.self, forKey: .behavior)
+        deviceOverrides = try container.decodeIfPresent([DeviceKeyOverride].self, forKey: .deviceOverrides)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -75,5 +100,6 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
             try container.encode(sectionBreak, forKey: .sectionBreak)
         }
         try container.encodeIfPresent(behavior, forKey: .behavior)
+        try container.encodeIfPresent(deviceOverrides, forKey: .deviceOverrides)
     }
 }

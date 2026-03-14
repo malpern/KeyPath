@@ -27,6 +27,54 @@
             )
         ]
 
+        // MARK: - Connected Devices (fake data for UI development)
+        // TODO: Remove once macOS multi-device support lands upstream:
+        //   - psych3r/driverkit#15 (macOS multi-device DriverKit support)
+        //   - jtroo/kanata#1974 (Kanata device-switch support)
+        // Tracked by: https://github.com/malpern/KeyPath/issues/254
+
+        static let connectedDevices: [ConnectedDevice] = [
+            ConnectedDevice(
+                hash: "0xABCD1234",
+                vendorID: 0x05AC,
+                productID: 0x0342,
+                productKey: "Apple Internal Keyboard / Trackpad",
+                isVirtualHID: false
+            ),
+            ConnectedDevice(
+                hash: "0xDEADBEEF",
+                vendorID: 0x29EA,
+                productID: 0x0041,
+                productKey: "Kinesis Advantage360 Pro",
+                isVirtualHID: false
+            ),
+            ConnectedDevice(
+                hash: "0xCAFEBABE",
+                vendorID: 0x1209,
+                productID: 0x4173,
+                productKey: "ZSA Moonlander Mark I",
+                isVirtualHID: false
+            ),
+            ConnectedDevice(
+                hash: "0x00FF00FF",
+                vendorID: 0x1532,
+                productID: 0x0084,
+                productKey: "Karabiner-DriverKit-VirtualHIDDevice-VirtualHIDKeyboard",
+                isVirtualHID: true
+            ),
+        ]
+
+        /// Physical devices only (excludes VirtualHID). Convenience for UI previews.
+        static var physicalDevices: [ConnectedDevice] {
+            connectedDevices.filter { !$0.isVirtualHID }
+        }
+
+        /// Prime the shared device cache with fake devices for previews.
+        /// Call this in preview `.task` or `.onAppear` blocks.
+        static func primeDeviceCache() {
+            DeviceSelectionCache.shared.updateConnectedDevices(connectedDevices)
+        }
+
         static var noIssues: [WizardIssue] {
             []
         }

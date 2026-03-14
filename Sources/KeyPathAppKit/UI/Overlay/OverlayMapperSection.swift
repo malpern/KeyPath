@@ -590,7 +590,7 @@ struct OverlayMapperSection: View {
 
     /// App condition dropdown - subtle when not set, shows app icon when set
     private var appConditionDropdown: some View {
-        let hasCondition = viewModel.selectedAppCondition != nil
+        let hasCondition = viewModel.selectedAppCondition != nil || viewModel.selectedDeviceCondition != nil
         let isNonDefault = hasCondition || selectedTapCount > 1
         let displayText = inputConditionDisplayText
 
@@ -604,6 +604,10 @@ struct OverlayMapperSection: View {
                     Image(nsImage: app.icon)
                         .resizable()
                         .frame(width: 12, height: 12)
+                }
+                if let device = viewModel.selectedDeviceCondition {
+                    Image(systemName: device.sfSymbolName)
+                        .font(.caption2)
                 }
                 Text(displayText)
                     .lineLimit(1)
@@ -638,18 +642,24 @@ struct OverlayMapperSection: View {
         default: nil
         }
         let appLabel = viewModel.selectedAppCondition?.displayName
+        let deviceLabel = viewModel.selectedDeviceCondition?.displayName
 
-        switch (tapLabel, appLabel) {
-        case let (tap?, app?): return "\(tap) · \(app)"
-        case let (tap?, nil): return "\(tap) · Everywhere"
-        case let (nil, app?): return app
-        default: return "Everywhere"
-        }
+        let parts = [tapLabel, appLabel, deviceLabel].compactMap { $0 }
+        return parts.isEmpty ? "Everywhere" : parts.joined(separator: " · ")
     }
 
-    /// Pre-load running apps when view appears for instant popover display
+    /// Physical (non-VirtualHID) devices currently connected
+    private var physicalDevices: [ConnectedDevice] {
+        DeviceSelectionCache.shared.getConnectedDevices().filter { !$0.isVirtualHID }
+    }
+
+    /// Pre-load running apps and connected devices when view appears for instant popover display
     private func preloadRunningApps() {
         cachedRunningApps = fetchRunningAppsSynchronously()
+        // Prime device cache so keyboard section appears in popover
+        if DeviceSelectionCache.shared.getConnectedDevices().isEmpty {
+            _ = DeviceEnumerationService.enumerateConnectedDevices()
+        }
     }
 
     /// Refresh the cached running apps list - synchronous since NSWorkspace is fast
@@ -681,12 +691,22 @@ struct OverlayMapperSection: View {
                     PopoverListDivider()
                 }
 
+                // App section
+                PopoverListDivider()
+                appSectionHeader
                 everywhereOption
-                PopoverListDivider()
-                onlyInHeader
                 runningAppsList
-                PopoverListDivider()
                 chooseAppOption
+
+                // Keyboard section — only shown when multiple physical devices are connected
+                if physicalDevices.count > 1 {
+                    PopoverListDivider()
+                    keyboardHeader
+                    allKeyboardsOption
+                    ForEach(physicalDevices) { device in
+                        deviceOption(for: device)
+                    }
+                }
             }
             .padding(.vertical, 6)
         }

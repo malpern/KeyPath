@@ -31,6 +31,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-031](adr-031-kanata-service-lifecycle-invariants-and-postcondition-enforcement.md) | Kanata Service Lifecycle Invariants and Postcondition Enforcement | Accepted |
 | [ADR-034](adr-034-kanata-engine-app-bundle-tcc-identity.md) | Kanata Engine.app Bundle for TCC Identity | Accepted |
 | [ADR-035](adr-035-bundle-id-tcc-detection-with-path-fallback.md) | Bundle ID TCC Detection with Path Fallback | Accepted |
+| [ADR-036](adr-036-per-device-key-mappings.md) | Per-Device Key Mappings via Conditional Switch Wrapping | Accepted |
 
 ## Key Decisions Summary
 
