@@ -573,16 +573,19 @@ extension MapperViewModel {
 
         // Skip identity mappings (A→A) - no point in saving a rule that does nothing
         // Also skip if user hasn't changed anything from defaults
+        // Exception: device-scoped mappings ARE identity for the default case but have overrides
         let inputKey = convertSequenceToKanataFormat(inputSeq).lowercased()
         let outputKey = convertSequenceToKanataFormat(outputSeq).lowercased()
         let hasAdvancedBehavior = advancedBehavior.hasAdvancedConfig
         let hasShiftedOutput = canUseShiftedOutput && currentShiftedOutputKanataString() != nil
+        let hasDeviceCondition = selectedDeviceCondition != nil
         if inputKey == outputKey,
            selectedApp == nil,
            selectedSystemAction == nil,
            selectedURL == nil,
            !hasAdvancedBehavior,
-           !hasShiftedOutput
+           !hasShiftedOutput,
+           !hasDeviceCondition
         {
             statusMessage = "Nothing to save - input and output are the same"
             statusIsError = true
@@ -677,6 +680,21 @@ extension MapperViewModel {
             AppLogger.shared.log("💾 [MapperViewModel] Adding chord behavior: keys=\(allKeys), output='\(chord.output)'")
         }
 
+        // Apply device condition: scoped output goes into deviceOverrides,
+        // default output becomes identity (pass-through for other devices)
+        if let deviceCondition = selectedDeviceCondition {
+            customRule.deviceOverrides = [
+                DeviceKeyOverride(
+                    deviceHash: deviceCondition.deviceHash,
+                    output: outputKanata,
+                    behavior: customRule.behavior
+                )
+            ]
+            // Default output becomes identity (pass-through for unmatched devices)
+            customRule.output = inputKanata
+            customRule.behavior = nil
+        }
+
         let customRuleSaved = await kanataManager.saveCustomRule(customRule, skipReload: false)
         AppLogger.shared.log("💾 [MapperViewModel] saveCustomRule returned: \(customRuleSaved)")
 
@@ -705,6 +723,7 @@ extension MapperViewModel {
         selectedSystemAction = nil
         selectedURL = nil
         selectedAppCondition = nil
+        selectedDeviceCondition = nil
         statusMessage = nil
         // Reset all advanced behavior settings
         advancedBehavior.reset()

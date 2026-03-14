@@ -35,4 +35,11 @@ struct ConnectedDevice: Codable, Identifiable, Hashable, Sendable {
     var vendorProductHex: String {
         String(format: "%04x:%04x", vendorID, productID)
     }
+
+    /// SF Symbol name for this device type.
+    /// Apple internal keyboards (vendor 0x05AC) use `laptopcomputer`;
+    /// all external keyboards use `keyboard`.
+    var sfSymbolName: String {
+        vendorID == 0x05AC ? "laptopcomputer" : "keyboard"
+    }
 }

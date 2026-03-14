@@ -98,10 +98,10 @@ extension OverlayMapperSection {
             selectedTapCount = count
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: isSelected ? "checkmark" : "circle")
-                    .font(isSelected ? .body.weight(.medium) : .body)
+                Image(systemName: "\(count).circle")
+                    .font(.title3)
                     .frame(width: 28)
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.5))
+                    .foregroundStyle(.secondary)
                 Text(label)
                     .font(.body)
                 Spacer()
@@ -109,6 +109,11 @@ extension OverlayMapperSection {
                     Circle()
                         .fill(Color.accentColor)
                         .frame(width: 5, height: 5)
+                }
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.body)
+                        .foregroundStyle(Color.accentColor)
                 }
             }
             .foregroundStyle(.primary)
@@ -122,18 +127,25 @@ extension OverlayMapperSection {
     }
 
     var everywhereOption: some View {
-        Button {
+        let isSelected = viewModel.selectedAppCondition == nil && viewModel.selectedDeviceCondition == nil
+        return Button {
             viewModel.selectedAppCondition = nil
+            viewModel.selectedDeviceCondition = nil
             isAppConditionPickerOpen = false
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: viewModel.selectedAppCondition == nil ? "checkmark" : "globe")
+                Image(systemName: "globe")
                     .font(.title2)
                     .frame(width: 28)
-                    .opacity(viewModel.selectedAppCondition == nil ? 1 : 0.6)
+                    .opacity(0.6)
                 Text("Everywhere")
                     .font(.body)
                 Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.body)
+                        .foregroundStyle(Color.accentColor)
+                }
             }
             .foregroundStyle(.primary)
             .padding(.horizontal, 12)
@@ -487,6 +499,79 @@ extension OverlayMapperSection {
                 }
             }
         }
+    }
+
+    // MARK: - Keyboard Section (Device Condition)
+
+    var keyboardHeader: some View {
+        HStack {
+            Text("Keyboard")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+    }
+
+    var allKeyboardsOption: some View {
+        Button {
+            viewModel.selectedDeviceCondition = nil
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "globe")
+                    .font(.title2)
+                    .frame(width: 28)
+                    .opacity(0.6)
+                Text("All Keyboards")
+                    .font(.body)
+                Spacer()
+                if viewModel.selectedDeviceCondition == nil {
+                    Image(systemName: "checkmark")
+                        .font(.body)
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(LayerPickerItemButtonStyle())
+        .focusable(false)
+    }
+
+    func deviceOption(for device: ConnectedDevice) -> some View {
+        let isSelected = viewModel.selectedDeviceCondition?.deviceHash == device.hash
+        return Button {
+            viewModel.selectedDeviceCondition = DeviceConditionInfo(
+                deviceHash: device.hash,
+                displayName: device.displayName,
+                sfSymbolName: device.sfSymbolName
+            )
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: device.sfSymbolName)
+                    .font(.title3)
+                    .frame(width: 24, height: 24)
+                Text(device.displayName)
+                    .font(.body)
+                    .lineLimit(1)
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.body)
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(LayerPickerItemButtonStyle())
+        .focusable(false)
+        .accessibilityIdentifier("overlay-mapper-device-\(device.hash)")
     }
 
     // Output type dropdown - select what happens when the key is triggered
