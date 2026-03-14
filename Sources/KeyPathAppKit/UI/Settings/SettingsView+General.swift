@@ -26,6 +26,38 @@ struct GeneralSettingsTabView: View {
                 // Shortcut List
                 ContextHUDSettingsSection()
 
+                // Key Label Style
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Key Labels")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    HStack(spacing: 10) {
+                        SettingsOptionCard(
+                            icon: "textformat.123",
+                            title: "Symbols",
+                            subtitle: "⌫ ⇥ ⇪ ⇧ ↩",
+                            isSelected: services.preferences.keyLabelStyle == .symbols
+                        ) {
+                            services.preferences.keyLabelStyle = .symbols
+                        }
+                        .accessibilityIdentifier("settings-key-label-symbols")
+                        .accessibilityLabel("Symbol key labels")
+
+                        SettingsOptionCard(
+                            icon: "textformat.abc",
+                            title: "Text",
+                            subtitle: "delete tab caps shift",
+                            isSelected: services.preferences.keyLabelStyle == .text
+                        ) {
+                            services.preferences.keyLabelStyle = .text
+                        }
+                        .accessibilityIdentifier("settings-key-label-text")
+                        .accessibilityLabel("Text key labels")
+                    }
+                    .accessibilityIdentifier("settings-key-label-style-picker")
+                }
+
                 // Capture Mode
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Capture Mode")

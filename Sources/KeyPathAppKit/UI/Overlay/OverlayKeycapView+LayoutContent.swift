@@ -256,44 +256,49 @@ extension OverlayKeycapView {
         return specialLabels.contains(effectiveLabel)
     }
 
-    /// Word labels for navigation/system keys (like ESC style)
+    /// Word labels for navigation/system keys (like ESC style).
+    /// When key label style is `.symbols`, modifier/action symbol keys (⌫ ⇥ ⇪ ⇧ ↩)
+    /// return nil so they render as their symbol directly rather than being converted to text.
     var navigationWordLabel: String? {
-        switch key.label.lowercased() {
-        // Navigation cluster
-        case "home": "home"
-        case "end": "end"
-        case "pgup": "pg up"
-        case "pgdn": "pg dn"
-        case "ins": "insert"
-        case "del": "del"
-        // Function row extras
-        case "prt": "print screen"
-        case "scr": "scroll"
-        case "pse": "pause"
-        // Numpad
-        case "clr": "clear"
-        // Menu/Application key (hamburger icon)
-        case "☰": "menu"
-        case "▤": "menu"
-        // Other special keys
-        case "lyr": "layer"
-        case "fn": "fn" // Function key for split keyboards
-        case "mod": "mod"
-        case "␣": "space"
-        case "⌫": "delete"
-        case "↩": "return"
-        case "⏎": "enter"
-        case "⌅": "enter"
-        // Modifier keys (text labels for split/ergonomic keyboards)
-        case "shift", "⇧": "shift"
-        case "control", "ctrl", "⌃": "ctrl"
-        case "option", "alt", "⌥": "opt"
-        case "command", "cmd", "⌘": "cmd"
-        // Layer keys (common in split keyboards like Corne)
-        case "lower", "lwr": "lower"
-        case "raise", "rse": "raise"
-        case "adjust", "adj": "adjust"
-        default: nil
+        let label = key.label.lowercased()
+        // Navigation/system keys always use text regardless of style
+        switch label {
+        case "home": return "home"
+        case "end": return "end"
+        case "pgup": return "pg up"
+        case "pgdn": return "pg dn"
+        case "ins": return "insert"
+        case "del": return "del"
+        case "prt": return "print screen"
+        case "scr": return "scroll"
+        case "pse": return "pause"
+        case "clr": return "clear"
+        case "☰", "▤": return "menu"
+        case "lyr": return "layer"
+        case "fn": return "fn"
+        case "mod": return "mod"
+        // Text-form modifier keys always show as text (split/ergonomic keyboards)
+        case "shift": return "shift"
+        case "control", "ctrl": return "ctrl"
+        case "option", "alt": return "opt"
+        case "command", "cmd": return "cmd"
+        case "lower", "lwr": return "lower"
+        case "raise", "rse": return "raise"
+        case "adjust", "adj": return "adjust"
+        default: break
+        }
+        // Symbol-form keys: text when .text style, nil when .symbols (renders symbol glyph)
+        guard PreferencesService.shared.keyLabelStyle == .text else { return nil }
+        switch label {
+        case "␣": return "space"
+        case "⌫": return "delete"
+        case "↩": return "return"
+        case "⏎", "⌅": return "enter"
+        case "⇧": return "shift"
+        case "⌃": return "ctrl"
+        case "⌥": return "opt"
+        case "⌘": return "cmd"
+        default: return nil
         }
     }
 
@@ -474,10 +479,11 @@ extension OverlayKeycapView {
 
     @ViewBuilder
     var bottomAlignedContent: some View {
-        // For wide modifier keys, prefer text labels over symbols
+        // For wide modifier keys, prefer text labels over symbols (unless symbols style is active).
         // If a hold label is active (e.g., tap-hold -> Hyper), show it verbatim.
         // Otherwise use the word-label for the effective label, then fall back to the physical key word-label.
         let physicalMetadata = LabelMetadata.forLabel(key.label)
+        let useSymbols = PreferencesService.shared.keyLabelStyle == .symbols
         let wordLabel: String = {
             if let holdLabel {
                 return holdLabel
@@ -485,6 +491,10 @@ extension OverlayKeycapView {
             // In Nav layer, always use text labels (not symbols) for unmapped keys
             if currentLayerName.lowercased() == "nav" {
                 return physicalMetadata.wordLabel ?? key.label
+            }
+            // When symbols style is active, show the symbol glyph directly for modifier/action keys
+            if useSymbols {
+                return metadata.wordLabel ?? key.label
             }
             return metadata.wordLabel ?? physicalMetadata.wordLabel ?? key.label
         }()
