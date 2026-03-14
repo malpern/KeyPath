@@ -216,7 +216,7 @@ extension OverlayKeycapView {
     /// but also check keymap label to ensure special keys render correctly.
     var hasSpecialLabel: Bool {
         let specialLabels: Set<String> = [
-            "Home", "End", "PgUp", "PgDn", "Del", "␣", "Lyr", "Fn", "Mod", "✦", "◆",
+            "Home", "End", "PgUp", "PgDn", "Del", "Lyr", "Fn", "Mod", "✦", "◆",
             "↩", "⌫", "⇥", "⇪", "esc", "⎋",
             // Arrow symbols (both solid and outline variants)
             "◀", "▶", "▲", "▼", "←", "→", "↑", "↓",
