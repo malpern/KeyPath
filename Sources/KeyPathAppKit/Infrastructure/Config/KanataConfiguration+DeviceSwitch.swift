@@ -37,6 +37,8 @@ extension KanataConfiguration {
                     output: override.output,
                     behavior: behavior
                 )
+                // TODO: Thread real hyperLinkedLayerInfos through when per-device
+                // behavior overrides involving hyper layers are supported in the UI.
                 output = KanataBehaviorRenderer.render(syntheticMapping, hyperLinkedLayerInfos: [])
             } else {
                 output = KanataKeyConverter.convertToKanataSequence(override.output)
@@ -51,7 +53,10 @@ extension KanataConfiguration {
     }
 
     /// Generate alias name for device switch expressions.
-    /// Sanitizes input to only contain `[a-zA-Z0-9_]` characters.
+    /// Uses layer + sanitized input key. The input key is unique within a layer
+    /// (Kanata enforces one output per source key per layer), so collisions
+    /// from sanitization (e.g., "caps-lock" vs "caps lock") cannot occur in
+    /// practice — the config generator deduplicates by source key before alias creation.
     static func deviceSwitchAliasName(for mapping: KeyMapping, layer: RuleCollectionLayer) -> String {
         let sanitized = sanitizeForAliasName(mapping.input)
         return "dev_\(layer.kanataName)_\(sanitized)"
