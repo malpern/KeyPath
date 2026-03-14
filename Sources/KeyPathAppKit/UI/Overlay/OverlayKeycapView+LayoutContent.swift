@@ -281,7 +281,7 @@ extension OverlayKeycapView {
         case "pgup": "pg up"
         case "pgdn": "pg dn"
         case "ins": "insert"
-        case "del": "del"
+        case "del", "⌦": "del"
         // Function row extras
         case "prt": "print screen"
         case "scr": "scroll"
