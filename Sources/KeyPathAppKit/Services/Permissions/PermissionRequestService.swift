@@ -13,6 +13,37 @@ public final class PermissionRequestService {
 
     private init() {}
 
+    // MARK: - Startup guard
+
+    /// Reference-counted depth tracking for wizard context. Permission requests are only
+    /// allowed when depth > 0. Multiple callers (WizardWindowController, SettingsView sheet,
+    /// PermissionGate) can push/pop without clobbering each other.
+    private var _contextDepth = 0
+
+    /// True when at least one caller has entered a wizard/permission context.
+    /// Permission requests are silently suppressed when false to prevent
+    /// unexpected system dialogs at launch. See issue #248.
+    ///
+    /// Note: When suppressed, request methods return `false`, which means both
+    /// "permission not granted" and "request was blocked". Most callers use
+    /// `@discardableResult` so this is acceptable.
+    public var wizardContextActive: Bool {
+        _contextDepth > 0
+    }
+
+    /// Increment the context depth. Call this when entering a wizard or user-initiated
+    /// permission flow. Pair with `leaveWizardContext()`.
+    public func enterWizardContext() {
+        _contextDepth += 1
+        AppLogger.shared.log("🔐 [PermissionRequest] enterWizardContext (depth: \(_contextDepth))")
+    }
+
+    /// Decrement the context depth. Call this when leaving a wizard or permission flow.
+    public func leaveWizardContext() {
+        _contextDepth = max(0, _contextDepth - 1)
+        AppLogger.shared.log("🔐 [PermissionRequest] leaveWizardContext (depth: \(_contextDepth))")
+    }
+
     // MARK: - Debounce (cooldown) configuration
 
     private let cooldownSeconds: TimeInterval = 20 * 60 // 20 minutes
@@ -46,6 +77,11 @@ public final class PermissionRequestService {
     /// - Returns: true if already granted (no prompt shown), false otherwise.
     @discardableResult
     public func requestInputMonitoringPermission(ignoreCooldown: Bool = false) -> Bool {
+        // Wizard context guard: block prompts outside wizard/user-initiated flows
+        guard wizardContextActive else {
+            AppLogger.shared.warn("⚠️ [PermissionRequest] Blocked IOHIDRequestAccess — not in wizard context")
+            return false
+        }
         // Foreground and cooldown guards
         ensureForeground()
         if !isForeground() {
@@ -78,6 +114,11 @@ public final class PermissionRequestService {
     /// - Returns: true if already granted (no prompt shown), false otherwise.
     @discardableResult
     public func requestAccessibilityPermission(ignoreCooldown: Bool = false) -> Bool {
+        // Wizard context guard: block prompts outside wizard/user-initiated flows
+        guard wizardContextActive else {
+            AppLogger.shared.warn("⚠️ [PermissionRequest] Blocked AX prompt — not in wizard context")
+            return false
+        }
         // Foreground and cooldown guards
         ensureForeground()
         if !isForeground() {

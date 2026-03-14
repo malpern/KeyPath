@@ -1,10 +1,17 @@
 name: KeyPath CI
 
 on:
-  push:
-    branches: [ main, master, split-arch, another-light-refactor ]
   pull_request:
-    branches: [ main, master, split-arch ]
+    branches: [ main, master ]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.github/workflows/publish-help-docs.yml'
+      - '.github/workflows/claude.yml'
+      - '.github/workflows/claude-code-review.yml'
+      - 'Sources/KeyPathAppKit/Resources/*.md'
+      - 'Sources/KeyPathAppKit/Resources/*.css'
+      - 'Sources/KeyPathAppKit/Resources/*.png'
 
 jobs:
   build-and-test:
@@ -180,13 +187,10 @@ jobs:
 
     - name: Install Tools (optional)
       run: |
-        # Install SwiftLint for linting
         if ! command -v swiftlint &> /dev/null; then
           echo "Installing SwiftLint..."
           brew install swiftlint
         fi
-
-        # Install SwiftFormat for formatting checks
         if ! command -v swiftformat &> /dev/null; then
           echo "Installing SwiftFormat..."
           brew install swiftformat
