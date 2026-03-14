@@ -653,9 +653,13 @@ struct OverlayMapperSection: View {
         DeviceSelectionCache.shared.getConnectedDevices().filter { !$0.isVirtualHID }
     }
 
-    /// Pre-load running apps when view appears for instant popover display
+    /// Pre-load running apps and connected devices when view appears for instant popover display
     private func preloadRunningApps() {
         cachedRunningApps = fetchRunningAppsSynchronously()
+        // Prime device cache so keyboard section appears in popover
+        if DeviceSelectionCache.shared.getConnectedDevices().isEmpty {
+            _ = DeviceEnumerationService.enumerateConnectedDevices()
+        }
     }
 
     /// Refresh the cached running apps list - synchronous since NSWorkspace is fast
@@ -687,11 +691,11 @@ struct OverlayMapperSection: View {
                     PopoverListDivider()
                 }
 
+                // App section
+                PopoverListDivider()
+                appSectionHeader
                 everywhereOption
-                PopoverListDivider()
-                onlyInHeader
                 runningAppsList
-                PopoverListDivider()
                 chooseAppOption
 
                 // Keyboard section — only shown when multiple physical devices are connected
