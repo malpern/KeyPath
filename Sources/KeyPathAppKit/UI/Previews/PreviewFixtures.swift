@@ -8,7 +8,32 @@
         static let customRulesPopulated: [CustomRule] = [
             CustomRule(title: "Home Row Down", input: "j", output: "down", isEnabled: true, notes: "Vim navigation"),
             CustomRule(title: "Home Row Up", input: "k", output: "up", isEnabled: true),
-            CustomRule(title: "Legacy Escape", input: "caps", output: "esc", isEnabled: false)
+            CustomRule(title: "Legacy Escape", input: "caps", output: "esc", isEnabled: false),
+        ]
+
+        /// Rules with device overrides for previewing the per-device grouping.
+        static let customRulesWithDeviceOverrides: [CustomRule] = customRulesPopulated + [
+            CustomRule(
+                title: "Kinesis: Caps → Ctrl",
+                input: "caps",
+                output: "caps",
+                isEnabled: true,
+                deviceOverrides: [DeviceKeyOverride(deviceHash: "0xDEADBEEF", output: "lctl")]
+            ),
+            CustomRule(
+                title: "Kinesis: Tab → Hyper",
+                input: "tab",
+                output: "tab",
+                isEnabled: true,
+                deviceOverrides: [DeviceKeyOverride(deviceHash: "0xDEADBEEF", output: "lmet")]
+            ),
+            CustomRule(
+                title: "Moonlander: A → Ctrl",
+                input: "a",
+                output: "a",
+                isEnabled: true,
+                deviceOverrides: [DeviceKeyOverride(deviceHash: "0xCAFEBABE", output: "lctl")]
+            ),
         ]
 
         static let appKeymapsPopulated: [AppKeymap] = [

@@ -648,9 +648,11 @@ struct OverlayMapperSection: View {
         return parts.isEmpty ? "Everywhere" : parts.joined(separator: " · ")
     }
 
-    /// Physical (non-VirtualHID) devices currently connected
+    /// Physical keyboard devices currently connected (excludes VirtualHID and trackpad-only devices)
     private var physicalDevices: [ConnectedDevice] {
-        DeviceSelectionCache.shared.getConnectedDevices().filter { !$0.isVirtualHID }
+        DeviceSelectionCache.shared.getConnectedDevices().filter { device in
+            !device.isVirtualHID && !device.isTrackpadOnly
+        }
     }
 
     /// Pre-load running apps and connected devices when view appears for instant popover display

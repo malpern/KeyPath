@@ -123,6 +123,34 @@ struct CustomRulesListView: View {
         !rules.isEmpty || !appKeymaps.isEmpty
     }
 
+    /// Rules without device overrides — apply on all keyboards.
+    private var globalRules: [CustomRule] {
+        rules.filter { $0.deviceOverrides == nil || $0.deviceOverrides?.isEmpty == true }
+    }
+
+    /// Rules grouped by their first device override hash.
+    private var deviceGroupedRules: [(device: ConnectedDevice?, hash: String, rules: [CustomRule])] {
+        let deviceRules = rules.filter { !($0.deviceOverrides ?? []).isEmpty }
+        let grouped = Dictionary(grouping: deviceRules) { rule -> String in
+            rule.deviceOverrides?.first?.deviceHash ?? ""
+        }
+        let connectedDevices = DeviceSelectionCache.shared.getConnectedDevices()
+
+        return grouped.map { hash, rules in
+            let device = connectedDevices.first(where: { $0.hash == hash })
+            return (device: device, hash: hash, rules: rules)
+        }
+        .sorted { lhs, rhs in
+            // Connected devices first, then by name
+            let lhsConnected = lhs.device != nil
+            let rhsConnected = rhs.device != nil
+            if lhsConnected != rhsConnected { return lhsConnected }
+            let lhsName = lhs.device?.displayName ?? lhs.hash
+            let rhsName = rhs.device?.displayName ?? rhs.hash
+            return lhsName.localizedCaseInsensitiveCompare(rhsName) == .orderedAscending
+        }
+    }
+
     var body: some View {
         if !hasAnyRules {
             VStack(spacing: 20) {
@@ -148,17 +176,44 @@ struct CustomRulesListView: View {
         } else {
             ScrollView {
                 LazyVStack(spacing: 16) {
-                    // MARK: - Everywhere Section
+                    // MARK: - All Keyboards Section
 
-                    if !rules.isEmpty {
+                    if !globalRules.isEmpty {
                         RulesSectionHeader(
-                            title: "Everywhere",
-                            systemImage: "globe",
-                            subtitle: "These rules apply in all apps"
+                            title: "All Keyboards",
+                            systemImage: "keyboard",
+                            subtitle: "These rules apply on every keyboard"
                         )
                         .padding(.horizontal, 16)
 
-                        ForEach(rules) { rule in
+                        ForEach(globalRules) { rule in
+                            CustomRuleRow(
+                                rule: rule,
+                                onToggle: { isOn in
+                                    onToggleRule(rule, isOn)
+                                },
+                                onEditInDrawer: {
+                                    onEditRule(rule)
+                                },
+                                onDelete: {
+                                    onDeleteRule(rule)
+                                }
+                            )
+                            .padding(.horizontal, 16)
+                        }
+                    }
+
+                    // MARK: - Per-Device Sections
+
+                    ForEach(deviceGroupedRules, id: \.hash) { group in
+                        DeviceRulesSectionHeader(
+                            device: group.device,
+                            deviceHash: group.hash
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.top, globalRules.isEmpty ? 0 : 8)
+
+                        ForEach(group.rules) { rule in
                             CustomRuleRow(
                                 rule: rule,
                                 onToggle: { isOn in
@@ -180,7 +235,7 @@ struct CustomRulesListView: View {
                     ForEach(appKeymaps) { keymap in
                         AppRulesSectionHeader(keymap: keymap)
                             .padding(.horizontal, 16)
-                            .padding(.top, rules.isEmpty ? 0 : 8)
+                            .padding(.top, (globalRules.isEmpty && deviceGroupedRules.isEmpty) ? 0 : 8)
 
                         ForEach(keymap.overrides) { override in
                             AppRuleRow(
@@ -197,6 +252,61 @@ struct CustomRulesListView: View {
                 .padding(.vertical, 12)
             }
         }
+    }
+}
+
+// MARK: - Device Rules Section Header
+
+/// Section header for device-specific rules showing keyboard icon and device name.
+/// Disconnected devices appear dimmed.
+struct DeviceRulesSectionHeader: View {
+    let device: ConnectedDevice?
+    let deviceHash: String
+
+    private var isConnected: Bool { device != nil }
+    private var displayName: String {
+        device?.displayName ?? "Device \(deviceHash.suffix(8))"
+    }
+
+    private var sfSymbolName: String {
+        device?.sfSymbolName ?? "keyboard"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Image(systemName: sfSymbolName)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                Text(displayName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+
+                if !isConnected {
+                    Text("Disconnected")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(Color.secondary.opacity(0.15))
+                        )
+                }
+
+                Spacer()
+            }
+
+            Text(isConnected
+                ? "Only applies on this keyboard"
+                : "This keyboard is not currently connected")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+        .opacity(isConnected ? 1.0 : 0.6)
     }
 }
 
@@ -501,5 +611,18 @@ struct CustomRuleRow: View {
             onDeleteAppRule: { _, _ in }
         )
         .frame(width: 760, height: 420)
+    }
+
+    #Preview("Custom Rules - Device Grouped") {
+        CustomRulesListView(
+            rules: PreviewFixtures.customRulesWithDeviceOverrides,
+            appKeymaps: PreviewFixtures.appKeymapsPopulated,
+            onToggleRule: { _, _ in },
+            onEditRule: { _ in },
+            onDeleteRule: { _ in },
+            onDeleteAppRule: { _, _ in }
+        )
+        .frame(width: 760, height: 600)
+        .onAppear { PreviewFixtures.primeDeviceCache() }
     }
 #endif
