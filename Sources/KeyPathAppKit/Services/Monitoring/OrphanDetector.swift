@@ -248,22 +248,7 @@ final class OrphanDetector {
         // There were real failures — show simplified partial result
         let resultAlert = NSAlert()
         resultAlert.messageText = "Cleanup Partially Complete"
-
-        var details: [String] = []
-        if userFilesCleaned > 0 {
-            details.append("Removed \(userFilesCleaned) file(s).")
-        }
-        if !userFilesFailed.isEmpty {
-            details.append("Some files could not be removed automatically.")
-        }
-        if daemonsError != nil {
-            details.append("System services could not be removed (may require reinstall).")
-        }
-        if deferredForNextUninstall {
-            details.append("Remaining items will be cleaned on next uninstall.")
-        }
-
-        resultAlert.informativeText = details.joined(separator: "\n")
+        resultAlert.informativeText = "Some leftover files could not be removed. They will be cleaned up automatically on next uninstall."
         resultAlert.alertStyle = .warning
         resultAlert.runModal()
     }
