@@ -289,6 +289,20 @@ extension KanataConfiguration {
                     layerOutput = KanataKeyConverter.convertToKanataSequence(trimmedOutput)
                 }
 
+                // Per-device switch wrapping: if this key has device overrides,
+                // wrap the output in a (switch ((device N)) ...) expression
+                if let overrides = mapping.deviceOverrides, !overrides.isEmpty {
+                    let devices = DeviceSelectionCache.shared.getConnectedDevices()
+                    let switchExpr = renderDeviceSwitchExpression(
+                        defaultOutput: layerOutput,
+                        overrides: overrides,
+                        connectedDevices: devices
+                    )
+                    let aliasName = deviceSwitchAliasName(for: mapping, layer: collection.targetLayer)
+                    aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: switchExpr))
+                    layerOutput = "@\(aliasName)"
+                }
+
                 if collection.targetLayer != .base {
                     layerOutputs[collection.targetLayer] = wrapWithOneShotExit(
                         layerOutput,

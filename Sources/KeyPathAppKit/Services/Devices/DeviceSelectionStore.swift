@@ -53,6 +53,14 @@ final class DeviceSelectionCache: @unchecked Sendable {
         return selections[hash]?.isEnabled ?? true
     }
 
+    /// Map device hash to its index in the current connected device list.
+    /// Returns nil if the device is not currently connected.
+    func deviceIndex(forHash hash: String) -> Int? {
+        lock.lock()
+        defer { lock.unlock() }
+        return connectedDevices.firstIndex(where: { $0.hash == hash })
+    }
+
     /// Get all cached selections.
     func allSelections() -> [DeviceSelection] {
         lock.lock()
