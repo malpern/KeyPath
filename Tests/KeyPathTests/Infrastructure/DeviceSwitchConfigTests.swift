@@ -36,9 +36,9 @@ final class DeviceSwitchConfigTests: XCTestCase {
             inputKey: "a"
         )
 
-        XCTAssertTrue(result.contains("(switch"), "Should contain switch keyword")
-        XCTAssertTrue(result.contains("((device 0)) x break"), "Should map device 0 to override output")
-        XCTAssertTrue(result.contains("() b break"), "Should contain default fallthrough")
+        assertContains(result, "(switch")
+        assertContains(result, "((device 0)) x break")
+        assertContains(result, "() b break")
     }
 
     func testDeviceOverrideWithUnknownHash_SkipsCase() {
@@ -54,8 +54,8 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
         // Unknown hash should be skipped — only default case present
         XCTAssertFalse(result.contains("((device"), "Unknown device hash should be skipped")
-        XCTAssertTrue(result.contains("() a break"), "Default fallthrough should always be present")
-    }
+        assertContains(result, "() a break")
+}
 
     func testMultipleDeviceOverrides_PreservesInputOrder() {
         let overrides = [
@@ -89,7 +89,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
             connectedDevices: [device0]
         )
 
-        XCTAssertTrue(result.contains("() caps break"), "Default fallthrough must always be present")
+        assertContains(result, "() caps break")
     }
 
     func testDeviceSwitchAliasName_SanitizesSpecialCharacters() {
@@ -125,11 +125,11 @@ final class DeviceSwitchConfigTests: XCTestCase {
             inputKey: "a"
         )
 
-        XCTAssertTrue(result.contains("(switch"), "Should contain switch keyword")
-        XCTAssertTrue(result.contains("(tap-hold"), "Behavior override should render tap-hold")
-        XCTAssertTrue(result.contains("lctl"), "Should contain hold action")
-        XCTAssertTrue(result.contains("((device 0))"), "Should have device 0 case")
-        XCTAssertTrue(result.contains("() b break"), "Default fallthrough should be present")
+        assertContains(result, "(switch")
+        assertContains(result, "(tap-hold")
+        assertContains(result, "lctl")
+        assertContains(result, "((device 0))")
+        assertContains(result, "() b break")
     }
 
     func testDeviceOverrideWithMacro_RendersMacro() {
@@ -147,9 +147,9 @@ final class DeviceSwitchConfigTests: XCTestCase {
             inputKey: "a"
         )
 
-        XCTAssertTrue(result.contains("(macro"), "Macro behavior should render macro expression")
-        XCTAssertTrue(result.contains("((device 1))"), "Should map to device index 1")
-        XCTAssertTrue(result.contains("() a break"), "Default fallthrough should be present")
+        assertContains(result, "(macro")
+        assertContains(result, "((device 1))")
+        assertContains(result, "() a break")
     }
 
     func testDeviceOverrideMixedBehaviorAndSimple() {
@@ -170,9 +170,9 @@ final class DeviceSwitchConfigTests: XCTestCase {
             inputKey: "a"
         )
 
-        XCTAssertTrue(result.contains("((device 0)) (tap-hold"), "Device 0 should get tap-hold")
-        XCTAssertTrue(result.contains("((device 1)) caps break"), "Device 1 should get simple remap")
-        XCTAssertTrue(result.contains("() a break"), "Default fallthrough should be present")
+        assertContains(result, "((device 0)) (tap-hold")
+        assertContains(result, "((device 1)) caps break")
+        assertContains(result, "() a break")
     }
 
     func testAllOverridesUnresolvable_EmitsOnlyDefault() {
@@ -188,7 +188,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
         )
 
         XCTAssertFalse(result.contains("((device"), "No device cases should be present")
-        XCTAssertTrue(result.contains("() a break"), "Only default fallthrough should be present")
+        assertContains(result, "() a break")
     }
 
     // MARK: - Full Config Snapshot Tests
@@ -290,8 +290,11 @@ final class DeviceSwitchConfigTests: XCTestCase {
     }
 
     func testFullConfigEmptyCacheWithOverrides_UsesDefault() {
-        // When device cache is empty, overrides should be silently skipped
-        // (this tests the graceful degradation path)
+        // When device cache is empty, overrides should be silently skipped.
+        // The switch alias is still emitted with only the default case — this is
+        // intentional: the code path doesn't special-case empty caches to avoid
+        // complexity. The degenerate (switch () default break) is functionally
+        // equivalent to a plain output and Kanata handles it correctly.
         let cache = DeviceSelectionCache.shared
         cache.reset() // Ensure empty
         defer { cache.reset() }
@@ -310,10 +313,9 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
         let config = KanataConfiguration.generateFromCollections([collection])
 
-        // Should still have the switch alias (with only default case)
+        // Switch alias emitted with only default case (no device-specific cases)
         assertContains(config, "dev_base_a")
         assertContains(config, "() b break")
-        // Should NOT have any device-specific cases
         XCTAssertFalse(config.contains("((device"), "Empty cache should produce no device cases")
     }
 
@@ -348,9 +350,9 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
         let deviceAlias = aliases.first(where: { $0.aliasName.hasPrefix("dev_") })
         XCTAssertNotNil(deviceAlias, "Should generate a device switch alias")
-        XCTAssertTrue(deviceAlias!.definition.contains("(switch"), "Alias should contain switch block")
-        XCTAssertTrue(deviceAlias!.definition.contains("((device 0)) x break"), "Should contain device override")
-        XCTAssertTrue(deviceAlias!.definition.contains("() b break"), "Should contain default fallthrough")
+        assertContains(deviceAlias!.definition, "(switch")
+        assertContains(deviceAlias!.definition, "((device 0)) x break")
+        assertContains(deviceAlias!.definition, "() b break")
     }
 
     func testCollectionWithoutDeviceOverrides_NoSwitchAlias() {
