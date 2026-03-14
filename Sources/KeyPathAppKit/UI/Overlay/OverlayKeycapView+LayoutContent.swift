@@ -216,7 +216,7 @@ extension OverlayKeycapView {
     /// but also check keymap label to ensure special keys render correctly.
     var hasSpecialLabel: Bool {
         let specialLabels: Set<String> = [
-            "Home", "End", "PgUp", "PgDn", "Del", "␣", "Lyr", "Fn", "Mod", "✦", "◆",
+            "Home", "End", "PgUp", "PgDn", "Del", "Lyr", "Fn", "Mod", "✦", "◆",
             "↩", "⌫", "⇥", "⇪", "esc", "⎋",
             // Arrow symbols (both solid and outline variants)
             "◀", "▶", "▲", "▼", "←", "→", "↑", "↓",
@@ -227,10 +227,26 @@ extension OverlayKeycapView {
             // Navigation cluster keys (both cases for matching)
             "ins", "del", "home", "end", "pgup", "pgdn",
             "INS", "DEL", "HOME", "END", "PGUP", "PGDN",
+            // Forward delete symbol (QMK imports use ⌦)
+            "⌦",
+            // Num lock
+            "num",
+            // Volume/media keys (rendered as SF Symbols via LabelMetadata)
+            "mute", "v-", "v+",
+            "play", "next", "prev", "stop", "eject",
+            // Brightness keys (rendered as SF Symbols via LabelMetadata)
+            "bri+", "bri-",
             // Numpad keys (not in standard keymaps)
             "clr", "CLR", "/", "*", "+", ".",
+            // ISO keys
+            "§", "#",
             // JIS-specific keys (not in standard keymaps)
             "¥", "英数", "かな", "_", "^", ":", "@", "fn", "Fn",
+            "kana", "henk", "mhen",
+            // Shifted punctuation aliases (from QMK keymaps)
+            "~", "(", ")", "{", "}", "<", ">",
+            // Help key
+            "help",
             // Menu/Application key
             "☰", "▤",
             // Numpad enter
@@ -268,7 +284,7 @@ extension OverlayKeycapView {
         case "pgup": return "pg up"
         case "pgdn": return "pg dn"
         case "ins": return "insert"
-        case "del": return "del"
+        case "del", "⌦": return "del"
         case "prt": return "print screen"
         case "scr": return "scroll"
         case "pse": return "pause"
@@ -290,7 +306,6 @@ extension OverlayKeycapView {
         // Symbol-form keys: text when .text style, nil when .symbols (renders symbol glyph)
         guard PreferencesService.shared.keyLabelStyle == .text else { return nil }
         switch label {
-        case "␣": return "space"
         case "⌫": return "delete"
         case "↩": return "return"
         case "⏎", "⌅": return "enter"
@@ -479,45 +494,51 @@ extension OverlayKeycapView {
 
     @ViewBuilder
     var bottomAlignedContent: some View {
-        // For wide modifier keys, prefer text labels over symbols (unless symbols style is active).
-        // If a hold label is active (e.g., tap-hold -> Hyper), show it verbatim.
-        // Otherwise use the word-label for the effective label, then fall back to the physical key word-label.
-        let physicalMetadata = LabelMetadata.forLabel(key.label)
-        let useSymbols = PreferencesService.shared.keyLabelStyle == .symbols
-        let wordLabel: String = {
-            if let holdLabel {
-                return holdLabel
-            }
-            // In Nav layer, always use text labels (not symbols) for unmapped keys
-            if currentLayerName.lowercased() == "nav" {
-                return physicalMetadata.wordLabel ?? key.label
-            }
-            // When symbols style is active, show the symbol glyph directly for modifier/action keys
-            if useSymbols {
-                return metadata.wordLabel ?? key.label
-            }
-            return metadata.wordLabel ?? physicalMetadata.wordLabel ?? key.label
-        }()
-        let isRight = key.isRightSideKey
-        let isHold = holdLabel != nil
-
-        VStack {
-            Spacer(minLength: 0)
-            HStack {
-                if !isRight {
-                    labelText(wordLabel, isHoldLabel: isHold)
-                    Spacer(minLength: 0)
-                } else {
-                    Spacer(minLength: 0)
-                    labelText(wordLabel, isHoldLabel: isHold)
+        // When floating labels are enabled, non-special keys should defer to floating labels
+        // (e.g., 1.5u backslash key on TKL layouts — floating label renders | and \)
+        if useFloatingLabels, !hasSpecialLabel, !isRemappedKey {
+            Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            // For wide modifier keys, prefer text labels over symbols (unless symbols style is active).
+            // If a hold label is active (e.g., tap-hold -> Hyper), show it verbatim.
+            // Otherwise use the word-label for the effective label, then fall back to the physical key word-label.
+            let physicalMetadata = LabelMetadata.forLabel(key.label)
+            let useSymbols = PreferencesService.shared.keyLabelStyle == .symbols
+            let wordLabel: String = {
+                if let holdLabel {
+                    return holdLabel
                 }
+                // In Nav layer, always use text labels (not symbols) for unmapped keys
+                if currentLayerName.lowercased() == "nav" {
+                    return physicalMetadata.wordLabel ?? key.label
+                }
+                // When symbols style is active, show the symbol glyph directly for modifier/action keys
+                if useSymbols {
+                    return metadata.wordLabel ?? key.label
+                }
+                return metadata.wordLabel ?? physicalMetadata.wordLabel ?? key.label
+            }()
+            let isRight = key.isRightSideKey
+            let isHold = holdLabel != nil
+
+            VStack {
+                Spacer(minLength: 0)
+                HStack {
+                    if !isRight {
+                        labelText(wordLabel, isHoldLabel: isHold)
+                        Spacer(minLength: 0)
+                    } else {
+                        Spacer(minLength: 0)
+                        labelText(wordLabel, isHoldLabel: isHold)
+                    }
+                }
+                .padding(.leading, 4 * scale)
+                .padding(.trailing, 4 * scale)
+                .padding(.bottom, 3 * scale)
             }
-            .padding(.leading, 4 * scale)
-            .padding(.trailing, 4 * scale)
-            .padding(.bottom, 3 * scale)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .foregroundStyle(foregroundColor)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .foregroundStyle(foregroundColor)
     }
 
     @ViewBuilder

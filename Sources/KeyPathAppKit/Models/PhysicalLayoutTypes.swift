@@ -36,6 +36,21 @@ enum LayoutCategory: String, CaseIterable, Identifiable {
 
 /// Represents a single physical key on a keyboard layout
 struct PhysicalKey: Identifiable, Hashable {
+    /// Sentinel keyCode for keys with no macOS equivalent (layer switches, transparent, macros).
+    /// Uses 0xFFFF which is outside the valid macOS virtual keyCode range (0x00–0x7F).
+    static let unmappedKeyCode: UInt16 = 0xFFFF
+
+    /// Base for placeholder keyCodes assigned to unrecognized keys during QMK import.
+    /// Uses 0xF000+ to avoid collision with real macOS keyCodes (0x00–0x7F range).
+    /// Range 0xF000–0xFFFE supports up to 4094 placeholder keys per layout.
+    static let placeholderKeyCodeBase: UInt16 = 0xF000
+
+    /// Safe placeholder keyCode for a given index, clamped to avoid overflow past unmappedKeyCode.
+    static func placeholderKeyCode(for index: Int) -> UInt16 {
+        let clamped = UInt16(clamping: min(max(0, index), 0xFFE))
+        return placeholderKeyCodeBase + clamped
+    }
+
     let id: UUID
     let keyCode: UInt16 // CGEvent key code (matches KeyboardCapture)
     let label: String // Display label ("A", "Shift", "⌘", "🔅")

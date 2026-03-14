@@ -62,7 +62,7 @@ import SwiftUI
     HStack(spacing: 8) {
         // Base layer (muted)
         OverlayKeycapView(
-            key: PhysicalKey(keyCode: 0xFFFF, label: "🔒", x: 14.5, y: 0, width: 1.0),
+            key: PhysicalKey(keyCode: PhysicalKey.unmappedKeyCode, label: "🔒", x: 14.5, y: 0, width: 1.0),
             baseLabel: "🔒",
             isPressed: false,
             scale: 1.5,
@@ -73,7 +73,7 @@ import SwiftUI
 
         // Active layer (full opacity)
         OverlayKeycapView(
-            key: PhysicalKey(keyCode: 0xFFFF, label: "🔒", x: 14.5, y: 0, width: 1.0),
+            key: PhysicalKey(keyCode: PhysicalKey.unmappedKeyCode, label: "🔒", x: 14.5, y: 0, width: 1.0),
             baseLabel: "🔒",
             isPressed: false,
             scale: 1.5,
@@ -84,7 +84,7 @@ import SwiftUI
 
         // Loading state
         OverlayKeycapView(
-            key: PhysicalKey(keyCode: 0xFFFF, label: "🔒", x: 14.5, y: 0, width: 1.0),
+            key: PhysicalKey(keyCode: PhysicalKey.unmappedKeyCode, label: "🔒", x: 14.5, y: 0, width: 1.0),
             baseLabel: "🔒",
             isPressed: false,
             scale: 1.5,

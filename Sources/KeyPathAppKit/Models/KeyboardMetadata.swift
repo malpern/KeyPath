@@ -2,15 +2,16 @@ import Foundation
 
 /// Metadata for a QMK keyboard, used for search and display
 struct KeyboardMetadata: Identifiable, Hashable, Sendable {
-    let id: String // Directory name (e.g., "crkbd")
+    let id: String // QMK path (e.g., "crkbd/rev1", "mode/m65s")
     let name: String // Display name (e.g., "Corne (crkbd)")
     let manufacturer: String? // Manufacturer name (e.g., "foostan")
     let url: URL? // Product page URL
     let maintainer: String? // GitHub username
     let tags: [String] // Inferred tags (split, RGB, ortho, OLED, etc.)
-    let infoJsonURL: URL? // Raw GitHub URL to info.json (nil for custom/local layouts)
+    let infoJsonURL: URL? // QMK API URL to info.json (nil for custom/local layouts)
+    let isBundled: Bool // Whether this keyboard has full layout data in popular-keyboards.json
 
-    /// Initialize from QMK keyboard info and directory path
+    /// Initialize with all fields
     init(
         id: String,
         name: String,
@@ -18,7 +19,8 @@ struct KeyboardMetadata: Identifiable, Hashable, Sendable {
         url: String? = nil,
         maintainer: String? = nil,
         tags: [String] = [],
-        infoJsonURL: URL? = nil
+        infoJsonURL: URL? = nil,
+        isBundled: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -27,6 +29,7 @@ struct KeyboardMetadata: Identifiable, Hashable, Sendable {
         self.maintainer = maintainer
         self.tags = tags
         self.infoJsonURL = infoJsonURL
+        self.isBundled = isBundled
     }
 
     /// Initialize from QMKKeyboardInfo and directory path
@@ -42,5 +45,6 @@ struct KeyboardMetadata: Identifiable, Hashable, Sendable {
         maintainer = info.maintainer
         tags = info.features?.tags ?? []
         self.infoJsonURL = infoJsonURL
+        isBundled = false
     }
 }

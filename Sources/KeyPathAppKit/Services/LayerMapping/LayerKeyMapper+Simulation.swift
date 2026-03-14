@@ -78,7 +78,7 @@ extension LayerKeyMapper {
 
         // Get all physical keys from the provided layout
         let physicalKeys = layout.keys
-            .filter { $0.keyCode != 0xFFFF } // Skip sentinel keys (e.g., Touch ID, Kinesis Layer/Fn)
+            .filter { $0.keyCode != PhysicalKey.unmappedKeyCode } // Skip sentinel keys (e.g., Touch ID, Kinesis Layer/Fn)
             .filter { !OverlayKeyboardView.keyCodeToKanataName($0.keyCode).starts(with: "unknown") }
 
         let startLayer = layer.lowercased() == "base" ? "base" : layer.lowercased()
@@ -395,7 +395,7 @@ extension LayerKeyMapper {
         var mapping: [UInt16: LayerKeyInfo] = [:]
 
         let physicalKeys = layout.keys
-            .filter { $0.keyCode != 0xFFFF } // Skip sentinel keys (e.g., Touch ID, Kinesis Layer/Fn)
+            .filter { $0.keyCode != PhysicalKey.unmappedKeyCode } // Skip sentinel keys (e.g., Touch ID, Kinesis Layer/Fn)
             .filter { !OverlayKeyboardView.keyCodeToKanataName($0.keyCode).starts(with: "unknown") }
 
         for key in physicalKeys {

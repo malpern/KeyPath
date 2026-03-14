@@ -226,7 +226,7 @@ extension OverlayKeycapView {
     @ViewBuilder
     var standardKeyContent: some View {
         // TouchID/Power key: ALWAYS show drawer icon regardless of mode
-        if key.keyCode == 0xFFFF {
+        if key.keyCode == PhysicalKey.unmappedKeyCode {
             touchIdContent
         }
         // Launcher mode: ALL keys use launcher styling (icons for mapped, labels for unmapped)

@@ -56,7 +56,7 @@ struct AnimatedKeyboardTransformGrid: View {
         ]
 
         let keys = activeLayout.keys.compactMap { key -> TransformDisplayKey? in
-            guard key.keyCode != 0xFFFF else { return nil }
+            guard key.keyCode != PhysicalKey.unmappedKeyCode else { return nil }
             let canonical = OverlayKeyboardView.keyCodeToKanataName(key.keyCode).lowercased()
             guard desiredKeys.contains(canonical) else { return nil }
             return displayKey(for: key, canonical: canonical)

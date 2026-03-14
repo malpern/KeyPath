@@ -94,26 +94,40 @@ struct PhysicalLayout: Identifiable {
         let store = CustomLayoutStore.load()
 
         let layouts: [PhysicalLayout] = store.layouts.compactMap { storedLayout -> PhysicalLayout? in
-            // Determine keycode mapping type from variant
-            let keyMappingType: KeyMappingType = if let variant = storedLayout.layoutVariant?.lowercased(), variant.contains("iso") {
-                .iso
-            } else {
-                .ansi
+            let layoutId = "custom-\(storedLayout.id)"
+
+            // Strategy 1: Use cached keymap tokens (best quality)
+            if let keymapTokens = storedLayout.defaultKeymap,
+               let result = QMKLayoutParser.parseWithKeymap(
+                   data: storedLayout.layoutJSON,
+                   keymapTokens: keymapTokens,
+                   idOverride: layoutId,
+                   nameOverride: storedLayout.name
+               )
+            {
+                return result.layout
             }
 
-            // Choose keycode mapping function
-            let keyMapping: (Int, Int) -> (keyCode: UInt16, label: String)? = switch keyMappingType {
-            case .ansi:
-                ANSIPositionTable.keyMapping(row:col:)
-            case .iso:
+            // Strategy 2: Position-based parsing (works for any QMK keyboard)
+            if let result = QMKLayoutParser.parseByPositionWithQuality(
+                data: storedLayout.layoutJSON,
+                idOverride: layoutId,
+                nameOverride: storedLayout.name
+            ) {
+                return result.layout
+            }
+
+            // Strategy 3: Matrix-based parsing for bundled keyboards with known matrices
+            let keyMapping: (Int, Int) -> (keyCode: UInt16, label: String)? = if let variant = storedLayout.layoutVariant?.lowercased(), variant.contains("iso") {
                 ISOPositionTable.keyMapping(row:col:)
+            } else {
+                ANSIPositionTable.keyMapping(row:col:)
             }
 
-            // Re-parse the layout from stored JSON
             guard let layout = QMKLayoutParser.parse(
                 data: storedLayout.layoutJSON,
                 keyMapping: keyMapping,
-                idOverride: "custom-\(storedLayout.id)",
+                idOverride: layoutId,
                 nameOverride: storedLayout.name
             ) else {
                 return nil
@@ -161,6 +175,6 @@ struct PhysicalLayout: Identifiable {
 
     /// Whether this layout has action keys (Touch ID, Layer, etc.) that open the drawer
     var hasDrawerButtons: Bool {
-        keys.contains { $0.keyCode == 0xFFFF }
+        keys.contains { $0.keyCode == PhysicalKey.unmappedKeyCode }
     }
 }

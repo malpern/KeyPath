@@ -1,89 +1,205 @@
 import Foundation
 import KeyPathCore
 
-/// Service for searching and caching QMK keyboard metadata from GitHub
+/// Service for searching QMK keyboards using a bundled index of 3,700+ keyboards.
+///
+/// Architecture:
+/// - **Search**: Instant, local-only. Uses a bundled `qmk-keyboard-index.json` (77KB)
+///   containing all QMK keyboard paths, plus `qmk-keyboard-metadata.json` (~400KB)
+///   with human-readable names and manufacturers. No network calls during search.
+/// - **Ranking**: Prefix matches on vendor/board name score highest, word-boundary
+///   matches next, substring matches lowest. Bundled keyboards always first.
+/// - **Bundled popular keyboards**: `popular-keyboards.json` contains ~18 curated keyboards
+///   with full layout data inline. These are prioritized in search results.
+/// - **On-demand fetch**: When a user selects a keyboard from search results, the full
+///   `info.json` is fetched from `keyboards.qmk.fm` and cached to disk.
+/// - **Disk cache**: Fetched layouts are stored in `~/Library/Caches/KeyPath/qmk/`
+///   to avoid re-downloading.
 actor QMKKeyboardDatabase {
     static let shared = QMKKeyboardDatabase()
 
-    private var cachedKeyboardList: [KeyboardMetadata]?
-    private var cacheTimestamp: Date?
-    private let cacheTTL: TimeInterval = 3600 // 1 hour
+    /// QMK API base URL for fetching individual keyboard info
+    private let qmkAPIBase = "https://keyboards.qmk.fm/v1/keyboards"
 
-    private let baseURL = "https://api.github.com/repos/qmk/qmk_firmware/contents/keyboards"
-    private let rawBaseURL = "https://raw.githubusercontent.com/qmk/qmk_firmware/master/keyboards"
+    /// URLSession with 15-second timeout for QMK API and GitHub fetches.
+    /// Shorter than the 60s default to fail fast and fall back to alternative strategies.
+    private let urlSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 15
+        config.timeoutIntervalForResource = 30
+        return URLSession(configuration: config)
+    }()
 
-    /// Maximum number of retry attempts for rate-limited requests
-    private let maxRetryAttempts = 3
+    /// Bundled index: all QMK keyboard paths (loaded once from qmk-keyboard-index.json)
+    private var indexEntries: [IndexEntry]?
+
+    /// Metadata lookup: keyboard_name and manufacturer from qmk-keyboard-metadata.json
+    private var metadataLookup: [String: KeyboardMeta]?
+
+    /// Bundled popular keyboards with full layout data
+    private var bundledKeyboards: [KeyboardMetadata]?
+
+    /// Set of bundled keyboard IDs for quick lookup
+    private var bundledIds: Set<String> = []
+
+    /// Disk cache directory for fetched keyboard layouts
+    private let cacheDirectory: URL = {
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        return caches.appendingPathComponent("KeyPath/qmk", isDirectory: true)
+    }()
+
+    /// For test injection: override the full search index
+    private var seededIndex: [IndexEntry]?
+
+    /// For test injection: override metadata
+    private var seededMetadata: [String: KeyboardMeta]?
 
     private init() {}
 
-    // MARK: - Rate Limit Handling
+    // MARK: - Types
 
-    /// Check if an HTTP response indicates a GitHub API rate limit.
-    /// Only returns a reset date when `X-RateLimit-Remaining` is explicitly `0`.
-    /// Non-rate-limit 403s (auth errors, IP blocks) return nil immediately.
-    private func rateLimitResetDate(from response: HTTPURLResponse) -> Date? {
-        guard response.statusCode == 403 || response.statusCode == 429 else {
-            return nil
+    /// Lightweight entry from the QMK keyboard index (path only, no layout data)
+    struct IndexEntry: Sendable {
+        /// Full QMK path (e.g., "crkbd/rev1", "mode/m65s", "keychron/q1/ansi")
+        let path: String
+
+        /// Path components split for matching (e.g., ["crkbd", "rev1"])
+        let components: [String]
+
+        /// First path component (vendor/brand, e.g., "crkbd", "mode", "keychron")
+        let vendor: String
+
+        init(path: String) {
+            self.path = path
+            components = path.split(separator: "/").map(String.init)
+            vendor = components.first ?? path
         }
-
-        // Only treat as rate-limited when the header is present AND equals zero.
-        // Missing header = not a rate-limit 403, so don't retry.
-        guard let remaining = response.value(forHTTPHeaderField: "X-RateLimit-Remaining"),
-              let remainingCount = Int(remaining), remainingCount == 0
-        else {
-            return nil
-        }
-
-        // Parse X-RateLimit-Reset header (Unix timestamp)
-        if let resetString = response.value(forHTTPHeaderField: "X-RateLimit-Reset"),
-           let resetTimestamp = TimeInterval(resetString)
-        {
-            return Date(timeIntervalSince1970: resetTimestamp)
-        }
-
-        // Header says remaining=0 but no reset timestamp — use a short default
-        return Date(timeIntervalSinceNow: 10)
     }
 
-    /// Perform a URL request with retry for rate limits.
-    /// Waits until the rate-limit window resets (capped at 10s) before retrying.
-    /// - Parameters:
-    ///   - url: The URL to fetch
-    ///   - attempt: Current attempt number (0-based)
-    /// - Returns: Tuple of data and HTTP response
-    /// - Throws: QMKDatabaseError if all retries are exhausted
-    private func fetchWithRateLimitRetry(url: URL, attempt: Int = 0) async throws -> (Data, HTTPURLResponse) {
-        let (data, response) = try await URLSession.shared.data(from: url)
+    /// Compact metadata from the bundled metadata index
+    struct KeyboardMeta: Sendable {
+        let name: String? // e.g., "Corne", "GMMK Pro ANSI"
+        let manufacturer: String? // e.g., "foostan", "Glorious"
+    }
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw QMKDatabaseError.networkError("Invalid response type")
+    // MARK: - Index Loading
+
+    /// Load the bundled QMK keyboard index (3,700+ paths, ~77KB)
+    private func loadIndex() -> [IndexEntry] {
+        if let cached = indexEntries { return cached }
+        if let seeded = seededIndex { return seeded }
+
+        guard let url = KeyPathAppKitResources.url(forResource: "qmk-keyboard-index", withExtension: "json") else {
+            AppLogger.shared.warn("⚠️ [QMKDatabase] qmk-keyboard-index.json not found in bundle")
+            return []
         }
 
-        // Check for rate limiting
-        if let resetDate = rateLimitResetDate(from: httpResponse) {
-            if attempt >= maxRetryAttempts {
-                AppLogger.shared.warn("⚠️ [QMKDatabase] Rate limit exceeded after \(maxRetryAttempts) retries, giving up")
-                throw QMKDatabaseError.rateLimited(retryAfter: resetDate)
+        guard let data = try? Data(contentsOf: url) else {
+            AppLogger.shared.warn("⚠️ [QMKDatabase] Failed to read qmk-keyboard-index.json")
+            return []
+        }
+
+        struct QMKIndex: Decodable {
+            let keyboards: [String]
+        }
+
+        do {
+            let index = try JSONDecoder().decode(QMKIndex.self, from: data)
+            let entries = index.keyboards.map { IndexEntry(path: $0) }
+            indexEntries = entries
+            AppLogger.shared.info("✅ [QMKDatabase] Loaded \(entries.count) keyboards from bundled index")
+            return entries
+        } catch {
+            AppLogger.shared.error("❌ [QMKDatabase] Failed to parse keyboard index: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    // MARK: - Metadata Loading
+
+    /// Load the bundled metadata index (keyboard_name + manufacturer for all keyboards)
+    private func loadMetadata() -> [String: KeyboardMeta] {
+        if let cached = metadataLookup { return cached }
+        if let seeded = seededMetadata { return seeded }
+
+        guard let url = KeyPathAppKitResources.url(forResource: "qmk-keyboard-metadata", withExtension: "json") else {
+            AppLogger.shared.warn("⚠️ [QMKDatabase] qmk-keyboard-metadata.json not found in bundle")
+            return [:]
+        }
+
+        guard let data = try? Data(contentsOf: url) else {
+            AppLogger.shared.warn("⚠️ [QMKDatabase] Failed to read qmk-keyboard-metadata.json")
+            return [:]
+        }
+
+        // Compact format: {"keyboards": {"path": {"n": "name", "m": "manufacturer"}}}
+        struct MetadataIndex: Decodable {
+            let keyboards: [String: MetadataEntry]
+        }
+        struct MetadataEntry: Decodable {
+            let n: String? // keyboard_name
+            let m: String? // manufacturer
+        }
+
+        do {
+            let index = try JSONDecoder().decode(MetadataIndex.self, from: data)
+            let lookup = index.keyboards.reduce(into: [String: KeyboardMeta]()) { result, pair in
+                result[pair.key] = KeyboardMeta(name: pair.value.n, manufacturer: pair.value.m)
             }
-
-            // Wait until the rate-limit window resets, capped at 10s to avoid blocking the UI
-            let waitSeconds = max(resetDate.timeIntervalSinceNow, 1)
-            let backoff = min(waitSeconds, 10)
-            AppLogger.shared.info("⏳ [QMKDatabase] Rate limited (attempt \(attempt + 1)/\(maxRetryAttempts)). Waiting \(String(format: "%.1f", backoff))s until reset")
-
-            try await Task.sleep(for: .seconds(backoff))
-
-            return try await fetchWithRateLimitRetry(url: url, attempt: attempt + 1)
+            metadataLookup = lookup
+            AppLogger.shared.info("✅ [QMKDatabase] Loaded metadata for \(lookup.count) keyboards")
+            return lookup
+        } catch {
+            AppLogger.shared.error("❌ [QMKDatabase] Failed to parse keyboard metadata: \(error.localizedDescription)")
+            return [:]
         }
-
-        return (data, httpResponse)
     }
 
-    // MARK: - Bundled Keyboards
+    /// Build a display name for an index entry using metadata + smart formatting fallback
+    private func displayName(for entry: IndexEntry, meta: KeyboardMeta?) -> String {
+        // If metadata has a real keyboard_name that differs from the path, use it
+        if let name = meta?.name, !name.isEmpty {
+            let pathDerived = entry.components.last ?? entry.path
+            // Only use the metadata name if it adds value over the path
+            if name.lowercased() != pathDerived.lowercased() {
+                return name
+            }
+        }
 
-    /// Load bundled popular keyboards (instant, no network)
+        // Smart path formatting: capitalize components, filter noise
+        return Self.formatPath(entry.components)
+    }
+
+    /// Format path components into a readable display name.
+    /// Filters out revision/variant noise and capitalizes meaningfully.
+    static func formatPath(_ components: [String]) -> String {
+        // Filter out pure revision components when there's a meaningful name
+        let meaningful = components.filter { component in
+            let lower = component.lowercased()
+            // Keep the component if it's not just a revision/variant marker
+            let isRevision = lower.hasPrefix("rev") && lower.count <= 6
+            let isVersion = lower.hasPrefix("v") && lower.dropFirst().allSatisfy(\.isNumber)
+            let isMicrocontroller = ["promicro", "elite_c", "rp2040", "splinky_3", "stemcell"].contains(lower)
+            return !isRevision && !isVersion && !isMicrocontroller
+        }
+
+        return (meaningful.isEmpty ? components : meaningful)
+            .map { component in
+                // Capitalize first letter, preserve rest (handles "ErgoDox", "GMMK" etc.)
+                if component == component.lowercased() {
+                    return component.prefix(1).uppercased() + component.dropFirst()
+                }
+                return component
+            }
+            .joined(separator: " ")
+    }
+
+    // MARK: - Bundled Popular Keyboards
+
+    /// Load bundled popular keyboards with full layout data (instant, no network)
     private func loadBundledKeyboards() -> [KeyboardMetadata] {
+        if let cached = bundledKeyboards { return cached }
+
         guard let url = KeyPathAppKitResources.url(forResource: "popular-keyboards", withExtension: "json") else {
             AppLogger.shared.warn("⚠️ [QMKDatabase] popular-keyboards.json not found in bundle")
             return []
@@ -94,10 +210,17 @@ actor QMKKeyboardDatabase {
             return []
         }
 
+        struct BundledKeyboardInfo: Decodable {
+            let manufacturer: String?
+            let url: String?
+            let maintainer: String?
+            let features: QMKLayoutParser.QMKFeatures?
+        }
+
         struct BundledKeyboard: Decodable {
             let path: String
             let display_name: String?
-            let info: QMKLayoutParser.QMKKeyboardInfo
+            let info: BundledKeyboardInfo
         }
 
         struct BundledDatabase: Decodable {
@@ -108,24 +231,23 @@ actor QMKKeyboardDatabase {
         do {
             let bundle = try JSONDecoder().decode(BundledDatabase.self, from: data)
             let keyboards = bundle.keyboards.compactMap { bundled -> KeyboardMetadata? in
-                // Extract directory name from path (last component)
-                let directoryName = bundled.path.split(separator: "/").last.map(String.init) ?? bundled.path
-                let infoJsonURL = URL(string: "\(rawBaseURL)/\(bundled.path)/info.json")!
-
-                // Use display_name from bundle if available, otherwise derive from info
-                let displayName = bundled.display_name ?? bundled.info.name
+                let displayName = bundled.display_name ?? bundled.path
+                let apiURL = URL(string: "\(qmkAPIBase)/\(bundled.path)/info.json")
 
                 return KeyboardMetadata(
-                    id: directoryName,
+                    id: bundled.path,
                     name: displayName,
                     manufacturer: bundled.info.manufacturer,
                     url: bundled.info.url,
                     maintainer: bundled.info.maintainer,
                     tags: bundled.info.features?.tags ?? [],
-                    infoJsonURL: infoJsonURL
+                    infoJsonURL: apiURL,
+                    isBundled: true
                 )
             }
-            AppLogger.shared.info("✅ [QMKDatabase] Loaded \(keyboards.count) keyboards from bundle")
+            bundledKeyboards = keyboards
+            bundledIds = Set(keyboards.map(\.id))
+            AppLogger.shared.info("✅ [QMKDatabase] Loaded \(keyboards.count) bundled popular keyboards")
             return keyboards
         } catch {
             AppLogger.shared.error("❌ [QMKDatabase] Failed to parse bundled keyboards: \(error.localizedDescription)")
@@ -133,214 +255,323 @@ actor QMKKeyboardDatabase {
         }
     }
 
-    // MARK: - Network Refresh
+    // MARK: - Search
 
-    /// Refresh the keyboard list from GitHub API
-    /// - Returns: Array of keyboard metadata
-    /// - Throws: QMKDatabaseError
-    func refreshKeyboardList() async throws -> [KeyboardMetadata] {
-        AppLogger.shared.info("🔍 [QMKDatabase] Refreshing keyboard list from GitHub...")
+    /// Search keyboards by query. Purely local — no network calls.
+    /// Results are ranked: prefix matches on vendor/name score highest.
+    /// Bundled keyboards (with full layout data) are prioritized in results.
+    ///
+    /// - Parameter query: Search query (case-insensitive)
+    /// - Returns: Array of matching keyboards (bundled first, ranked by relevance, max 50)
+    func searchKeyboards(_ query: String) async throws -> [KeyboardMetadata] {
+        let bundled = loadBundledKeyboards()
+        let index = loadIndex()
+        let metadata = loadMetadata()
 
-        guard let url = URL(string: baseURL) else {
-            throw QMKDatabaseError.invalidURL("Invalid GitHub API URL")
+        guard !query.isEmpty else {
+            // Empty query: return bundled keyboards only (they have curated names/metadata)
+            return Array(bundled.prefix(50))
         }
 
-        // Fetch keyboard directories with rate limit retry
-        let (data, httpResponse): (Data, HTTPURLResponse)
-        do {
-            (data, httpResponse) = try await fetchWithRateLimitRetry(url: url)
-        } catch let error as QMKDatabaseError {
-            if case .rateLimited = error {
-                AppLogger.shared.warn("⚠️ [QMKDatabase] Rate limited during refresh, falling back to bundled/cached keyboards")
-                return cachedKeyboardList ?? loadBundledKeyboards()
+        let lowerQuery = query.lowercased().trimmingCharacters(in: .whitespaces)
+        let queryWords = lowerQuery.split(separator: " ").map(String.init)
+
+        // 1. Score and filter bundled keyboards
+        let scoredBundled: [(KeyboardMetadata, Int)] = bundled.compactMap { keyboard in
+            let score = Self.multiWordScore(
+                words: queryWords,
+                name: keyboard.name.lowercased(),
+                id: keyboard.id.lowercased(),
+                manufacturer: keyboard.manufacturer?.lowercased()
+            )
+            return score > 0 ? (keyboard, score + 1000) : nil // +1000 to always rank bundled first
+        }
+
+        // 2. Score and filter index entries (excluding bundled)
+        let bundledPaths = bundledIds
+        let scoredIndex: [(KeyboardMetadata, Int)] = index.compactMap { entry in
+            guard !bundledPaths.contains(entry.path) else { return nil }
+
+            let meta = metadata[entry.path]
+            let name = displayName(for: entry, meta: meta)
+            let searchName = (meta?.name ?? name).lowercased()
+            let searchMfg = meta?.manufacturer?.lowercased()
+
+            let score = Self.multiWordScore(
+                words: queryWords,
+                name: searchName,
+                id: entry.path.lowercased(),
+                manufacturer: searchMfg
+            )
+            guard score > 0 else { return nil }
+
+            let kb = KeyboardMetadata(
+                id: entry.path,
+                name: name,
+                manufacturer: meta?.manufacturer ?? Self.formatPath([entry.vendor]),
+                infoJsonURL: URL(string: "\(qmkAPIBase)/\(entry.path)/info.json"),
+                isBundled: false
+            )
+            return (kb, score)
+        }
+
+        // 3. Combine, sort by score descending, deduplicate by display name, cap at 50
+        let allScored = scoredBundled + scoredIndex
+        let sorted = allScored.sorted { $0.1 > $1.1 }
+        var seen = Set<String>()
+        var results: [KeyboardMetadata] = []
+        for (keyboard, _) in sorted {
+            let key = "\(keyboard.name.lowercased())|\(keyboard.manufacturer?.lowercased() ?? "")"
+            if seen.insert(key).inserted {
+                results.append(keyboard)
+                if results.count >= 50 { break }
             }
-            throw error
         }
-
-        guard (200 ... 299).contains(httpResponse.statusCode) else {
-            throw QMKDatabaseError.networkError("HTTP \(httpResponse.statusCode): \(HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode))")
-        }
-
-        // Parse GitHub API response (array of directory entries)
-        struct GitHubContent: Decodable {
-            let name: String
-            let type: String
-            let path: String
-        }
-
-        let contents: [GitHubContent]
-        do {
-            contents = try JSONDecoder().decode([GitHubContent].self, from: data)
-        } catch {
-            throw QMKDatabaseError.parseError("Failed to parse GitHub API response: \(error.localizedDescription)")
-        }
-
-        // Filter to directories only
-        let keyboardDirs = contents.filter { $0.type == "dir" }
-        AppLogger.shared.info("📦 [QMKDatabase] Found \(keyboardDirs.count) keyboard directories")
-
-        // Fetch info.json for each keyboard (with concurrency limit)
-        // Limit to first 100 keyboards for initial load (can expand later)
-        let maxKeyboards = min(keyboardDirs.count, 100)
-        AppLogger.shared.info("📦 [QMKDatabase] Processing first \(maxKeyboards) of \(keyboardDirs.count) keyboards")
-
-        var keyboards: [KeyboardMetadata] = []
-
-        // Process in batches to limit concurrent requests
-        let batchSize = 20
-        for i in stride(from: 0, to: maxKeyboards, by: batchSize) {
-            let batch = Array(keyboardDirs[i ..< min(i + batchSize, maxKeyboards)])
-
-            await withTaskGroup(of: KeyboardMetadata?.self) { group in
-                for dir in batch {
-                    group.addTask {
-                        await self.fetchKeyboardMetadata(directoryName: dir.name, path: dir.path)
-                    }
-                }
-
-                for await keyboard in group {
-                    if let keyboard {
-                        keyboards.append(keyboard)
-                    }
-                }
-            }
-
-            // Log progress
-            AppLogger.shared.info("📊 [QMKDatabase] Progress: \(keyboards.count)/\(maxKeyboards) keyboards loaded")
-        }
-
-        AppLogger.shared.info("✅ [QMKDatabase] Loaded \(keyboards.count) keyboards")
-
-        // Update cache
-        cachedKeyboardList = keyboards
-        cacheTimestamp = Date()
-
-        return keyboards
+        return results
     }
 
-    /// Fetch metadata for a single keyboard
-    private func fetchKeyboardMetadata(directoryName: String, path: String) async -> KeyboardMetadata? {
-        let infoJsonURL = URL(string: "\(rawBaseURL)/\(path)/info.json")!
+    /// Score a keyboard against a search query. Returns 0 for no match.
+    ///
+    /// Scoring:
+    /// - Exact match on any path component: 100
+    /// - Prefix match on vendor or board name: 80
+    /// - Word-boundary match (query at start of a slash-separated segment): 60
+    /// - Substring match on name or manufacturer: 40
+    /// - Substring match on full path: 20
+    static func searchScore(query: String, name: String, id: String, manufacturer: String?) -> Int {
+        let pathComponents = id.split(separator: "/").map { $0.lowercased() }
+
+        // Exact match on any component
+        if pathComponents.contains(where: { $0 == query }) {
+            return 100
+        }
+
+        // Prefix match on any component
+        if pathComponents.contains(where: { $0.hasPrefix(query) }) {
+            return 80
+        }
+
+        // Name contains query (metadata name like "Corne", "GMMK Pro ANSI")
+        if name.hasPrefix(query) {
+            return 75
+        }
+        if name.contains(query) {
+            return 50
+        }
+
+        // Manufacturer match
+        if let mfg = manufacturer {
+            if mfg.hasPrefix(query) { return 70 }
+            if mfg.contains(query) { return 45 }
+        }
+
+        // Substring match on full path
+        if id.contains(query) {
+            return 20
+        }
+
+        return 0
+    }
+
+    /// Score a keyboard against a multi-word query. All words must match somewhere.
+    /// The final score is the minimum per-word score (weakest link), so results
+    /// that match all words well rank highest.
+    static func multiWordScore(words: [String], name: String, id: String, manufacturer: String?) -> Int {
+        guard !words.isEmpty else { return 0 }
+
+        // Single word: delegate directly
+        if words.count == 1 {
+            return searchScore(query: words[0], name: name, id: id, manufacturer: manufacturer)
+        }
+
+        // Multi-word: every word must match, take minimum score
+        var minScore = Int.max
+        for word in words {
+            let score = searchScore(query: word, name: name, id: id, manufacturer: manufacturer)
+            if score == 0 { return 0 } // All words must match
+            minScore = min(minScore, score)
+        }
+        return minScore
+    }
+
+    // MARK: - On-Demand Fetch
+
+    /// Fetch the full keyboard info.json for a specific keyboard.
+    /// Checks disk cache first, then fetches from QMK API.
+    /// The QMK API wraps data in `{"keyboards": {"path": {<info>}}}`.
+    ///
+    /// - Parameter keyboard: The keyboard metadata (must have a valid infoJsonURL)
+    /// - Returns: Raw JSON data suitable for QMKLayoutParser
+    /// - Throws: QMKDatabaseError on network or parse failure
+    func fetchKeyboardData(_ keyboard: KeyboardMetadata) async throws -> Data {
+        // Check disk cache first
+        if let cached = readFromDiskCache(keyboardPath: keyboard.id) {
+            AppLogger.shared.info("✅ [QMKDatabase] Cache hit for '\(keyboard.id)'")
+            return cached
+        }
+
+        guard let infoURL = keyboard.infoJsonURL else {
+            throw QMKDatabaseError.invalidURL("Keyboard '\(keyboard.id)' has no info URL")
+        }
+
+        AppLogger.shared.info("🌐 [QMKDatabase] Fetching '\(keyboard.id)' from QMK API...")
+
+        let (data, response) = try await urlSession.data(from: infoURL)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200 ... 299).contains(httpResponse.statusCode)
+        else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            throw QMKDatabaseError.networkError("HTTP \(code) fetching \(keyboard.id)")
+        }
+
+        // QMK API wraps data: {"keyboards": {"path": {<info>}}, "last_updated": "..."}
+        // We need to unwrap to just the inner keyboard object for our parser.
+        let unwrapped = try unwrapQMKAPIResponse(data, keyboardPath: keyboard.id)
+
+        // Cache to disk
+        writeToDiskCache(keyboardPath: keyboard.id, data: unwrapped)
+
+        return unwrapped
+    }
+
+    // MARK: - QMK API Response Unwrapping
+
+    /// Unwrap QMK API response from `{"keyboards": {"path": {...}}}` to just the inner object.
+    /// The inner object is what our QMKLayoutParser expects (has `layouts`, `keyboard_name`, etc.).
+    private func unwrapQMKAPIResponse(_ data: Data, keyboardPath: String) throws -> Data {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let keyboards = json["keyboards"] as? [String: Any]
+        else {
+            // Not wrapped — might be raw info.json from GitHub, return as-is
+            return data
+        }
+
+        // Find the keyboard entry — try exact path match first, then first entry
+        let keyboardData: Any
+        if let exact = keyboards[keyboardPath] {
+            keyboardData = exact
+        } else if let first = keyboards.values.first {
+            keyboardData = first
+        } else {
+            throw QMKDatabaseError.parseError("No keyboard data found in QMK API response for '\(keyboardPath)'")
+        }
+
+        return try JSONSerialization.data(withJSONObject: keyboardData)
+    }
+
+    // MARK: - Disk Cache
+
+    private func cacheFilePath(for keyboardPath: String) -> URL {
+        // Replace slashes with dashes for flat cache directory
+        let safeName = keyboardPath.replacingOccurrences(of: "/", with: "--")
+        return cacheDirectory.appendingPathComponent("\(safeName).json")
+    }
+
+    private func readFromDiskCache(keyboardPath: String) -> Data? {
+        let path = cacheFilePath(for: keyboardPath)
+        guard FileManager.default.fileExists(atPath: path.path) else { return nil }
+        return try? Data(contentsOf: path)
+    }
+
+    private func writeToDiskCache(keyboardPath: String, data: Data) {
+        let path = cacheFilePath(for: keyboardPath)
+        do {
+            try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+            try data.write(to: path, options: .atomic)
+            AppLogger.shared.debug("💾 [QMKDatabase] Cached '\(keyboardPath)' to disk")
+        } catch {
+            AppLogger.shared.debug("⚠️ [QMKDatabase] Failed to cache '\(keyboardPath)': \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Default Keymap Fetch
+
+    /// Fetch the default keymap.c for a keyboard from the QMK firmware GitHub repo.
+    /// Returns the parsed base layer keycodes, or nil if fetch/parse fails.
+    /// This is a best-effort operation — failure is expected for some keyboards.
+    func fetchDefaultKeymap(keyboardPath: String) async -> [String]? {
+        // Check disk cache first (keymap files are cached separately with a "-keymap" suffix)
+        let cacheKey = "\(keyboardPath)-keymap"
+        if let cached = readFromDiskCache(keyboardPath: cacheKey),
+           let source = String(data: cached, encoding: .utf8),
+           let keycodes = QMKKeymapParser.parseBaseLayer(from: source)
+        {
+            return keycodes
+        }
+
+        // Try fetching keymap.c from GitHub (the standard location)
+        let baseURL = "https://raw.githubusercontent.com/qmk/qmk_firmware/master/keyboards"
+        let keymapURL = URL(string: "\(baseURL)/\(keyboardPath)/keymaps/default/keymap.c")
+
+        guard let url = keymapURL else { return nil }
 
         do {
-            let (data, response) = try await URLSession.shared.data(from: infoJsonURL)
+            let (data, response) = try await urlSession.data(from: url)
+            guard let httpResponse = response as? HTTPURLResponse else { return nil }
 
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200 ... 299).contains(httpResponse.statusCode)
-            else {
-                return nil // Skip keyboards without valid info.json
-            }
-
-            // Parse QMK info.json
-            let info: QMKLayoutParser.QMKKeyboardInfo
-            do {
-                info = try JSONDecoder().decode(QMKLayoutParser.QMKKeyboardInfo.self, from: data)
-            } catch {
-                AppLogger.shared.debug("⚠️ [QMKDatabase] Failed to parse info.json for \(directoryName): \(error.localizedDescription)")
+            if httpResponse.statusCode == 429 {
+                AppLogger.shared.info("⚠️ [QMKDatabase] GitHub rate limited fetching keymap for '\(keyboardPath)' — falling back to position-based parsing")
                 return nil
             }
 
-            return KeyboardMetadata(
-                directoryName: directoryName,
-                info: info,
-                infoJsonURL: infoJsonURL
-            )
+            guard httpResponse.statusCode == 200,
+                  let source = String(data: data, encoding: .utf8)
+            else {
+                return nil
+            }
+
+            // Cache the raw keymap.c for future use
+            writeToDiskCache(keyboardPath: cacheKey, data: data)
+
+            return QMKKeymapParser.parseBaseLayer(from: source)
         } catch {
-            // Silently skip keyboards that fail to load
+            AppLogger.shared.debug("⚠️ [QMKDatabase] Failed to fetch keymap for '\(keyboardPath)': \(error.localizedDescription)")
             return nil
         }
     }
 
-    // MARK: - Keyboard List Access
+    // MARK: - Cache Management
 
-    /// Get keyboard list: bundled first (instant), then cached, then network
-    func getKeyboardList() async throws -> [KeyboardMetadata] {
-        // Always start with bundled keyboards (instant)
-        var keyboards = loadBundledKeyboards()
-        let bundledIds = Set(keyboards.map(\.id))
-
-        // Check cache for additional keyboards
-        if let cached = cachedKeyboardList,
-           let timestamp = cacheTimestamp,
-           Date().timeIntervalSince(timestamp) < cacheTTL
-        {
-            // Add network keyboards that aren't in bundle
-            let additional = cached.filter { !bundledIds.contains($0.id) }
-            keyboards.append(contentsOf: additional)
-            AppLogger.shared.info("✅ [QMKDatabase] Using \(keyboards.count) keyboards (\(bundledIds.count) bundled + \(additional.count) cached)")
-            return keyboards
-        }
-
-        // Refresh from network (adds to bundled list)
-        AppLogger.shared.info("🔄 [QMKDatabase] Cache expired, refreshing from network...")
-        do {
-            let networkKeyboards = try await refreshKeyboardList()
-
-            // Combine: bundled + network (deduplicated by ID)
-            let additionalNetwork = networkKeyboards.filter { !bundledIds.contains($0.id) }
-            keyboards.append(contentsOf: additionalNetwork)
-
-            AppLogger.shared.info("✅ [QMKDatabase] Total: \(keyboards.count) keyboards (\(bundledIds.count) bundled + \(additionalNetwork.count) network)")
-        } catch {
-            // Gracefully degrade: if network fails, return bundled keyboards
-            AppLogger.shared.warn("⚠️ [QMKDatabase] Network refresh failed, using bundled keyboards only: \(error.localizedDescription)")
-        }
-
-        return keyboards
-    }
-
-    // MARK: - Search
-
-    /// Search keyboards by query (searches name, manufacturer, tags).
-    /// Returns only importable QMK keyboards — custom layouts are excluded since
-    /// they already appear in the layout picker and can't be re-imported.
-    /// Prioritizes bundled keyboards in results.
-    /// - Parameter query: Search query (case-insensitive)
-    /// - Returns: Filtered array of keyboards (bundled first, then others, max 50)
-    func searchKeyboards(_ query: String) async throws -> [KeyboardMetadata] {
-        AppLogger.shared.info("🔍 [QMKDatabase] searchKeyboards called with query: '\(query)'")
-        let allKeyboards = try await getKeyboardList()
-        let bundledIds = Set(loadBundledKeyboards().map(\.id))
-
-        AppLogger.shared.info("📦 [QMKDatabase] Got \(allKeyboards.count) keyboards (\(bundledIds.count) bundled)")
-
-        guard !query.isEmpty else {
-            let bundled = allKeyboards.filter { bundledIds.contains($0.id) }
-            let others = allKeyboards.filter { !bundledIds.contains($0.id) }
-            let top50 = Array((bundled + others).prefix(50))
-            AppLogger.shared.info("📦 [QMKDatabase] Empty query, returning top \(top50.count) keyboards (\(bundled.count) bundled)")
-            return top50
-        }
-
-        let lowerQuery = query.lowercased()
-
-        let matching = allKeyboards.filter { keyboard in
-            keyboard.name.lowercased().contains(lowerQuery) ||
-                keyboard.manufacturer?.lowercased().contains(lowerQuery) == true ||
-                keyboard.tags.contains { $0.lowercased().contains(lowerQuery) }
-        }
-
-        // Prioritize bundled matches
-        let bundledMatches = matching.filter { bundledIds.contains($0.id) }
-        let otherMatches = matching.filter { !bundledIds.contains($0.id) }
-        let filtered = Array((bundledMatches + otherMatches).prefix(50))
-
-        AppLogger.shared.info("✅ [QMKDatabase] Filtered to \(filtered.count) keyboards matching '\(query)' (\(bundledMatches.count) bundled)")
-        return filtered
-    }
-
-    /// Invalidate the cache (force refresh on next request)
+    /// Invalidate the in-memory caches (force reload on next request)
     func invalidateCache() {
-        cachedKeyboardList = nil
-        cacheTimestamp = nil
+        indexEntries = nil
+        metadataLookup = nil
+        bundledKeyboards = nil
+        bundledIds = []
     }
 
-    /// Seed the cache with pre-loaded keyboards (for testing or offline use).
-    /// Prevents network calls from `getKeyboardList()` until the cache expires.
-    func seedCache(with keyboards: [KeyboardMetadata]) {
-        cachedKeyboardList = keyboards
-        cacheTimestamp = Date()
+    /// Clear the disk cache of fetched keyboard layouts
+    func clearDiskCache() {
+        try? FileManager.default.removeItem(at: cacheDirectory)
+        AppLogger.shared.info("🗑️ [QMKDatabase] Disk cache cleared")
     }
+
+    #if DEBUG
+        /// Seed the index with test data (prevents loading from bundle)
+        func seedIndex(with entries: [IndexEntry]) {
+            seededIndex = entries
+            indexEntries = nil
+        }
+
+        /// Seed metadata for testing
+        func seedMetadata(with metadata: [String: KeyboardMeta]) {
+            seededMetadata = metadata
+            metadataLookup = nil
+        }
+
+        /// Seed bundled keyboards for testing
+        func seedBundledKeyboards(with keyboards: [KeyboardMetadata]) {
+            bundledKeyboards = keyboards
+            bundledIds = Set(keyboards.map(\.id))
+        }
+
+        /// Legacy compatibility: seed the cache so old tests continue to pass
+        func seedCache(with keyboards: [KeyboardMetadata]) {
+            bundledKeyboards = keyboards
+            bundledIds = Set(keyboards.map(\.id))
+        }
+    #endif
 }
 
 /// Errors for QMK keyboard database operations
@@ -348,7 +579,6 @@ enum QMKDatabaseError: LocalizedError {
     case invalidURL(String)
     case networkError(String)
     case parseError(String)
-    case rateLimited(retryAfter: Date)
 
     var errorDescription: String? {
         switch self {
@@ -358,8 +588,6 @@ enum QMKDatabaseError: LocalizedError {
             "Network error: \(message)"
         case let .parseError(message):
             "Parse error: \(message)"
-        case let .rateLimited(retryAfter):
-            "GitHub API rate limit exceeded. Resets at \(retryAfter.formatted())"
         }
     }
 }

@@ -35,13 +35,15 @@ struct StoredLayout: Codable, Identifiable {
     let layoutJSON: Data // Raw QMK JSON for re-parsing
     let importDate: Date
     let layoutVariant: String? // Selected layout variant (e.g., "ansi", "iso")
+    let defaultKeymap: [String]? // Cached keymap tokens for keymap-based parsing
 
     init(id: String = UUID().uuidString,
          name: String,
          sourceURL: String? = nil,
          layoutJSON: Data,
          importDate: Date = Date(),
-         layoutVariant: String? = nil)
+         layoutVariant: String? = nil,
+         defaultKeymap: [String]? = nil)
     {
         self.id = id
         self.name = name
@@ -49,5 +51,6 @@ struct StoredLayout: Codable, Identifiable {
         self.layoutJSON = layoutJSON
         self.importDate = importDate
         self.layoutVariant = layoutVariant
+        self.defaultKeymap = defaultKeymap
     }
 }

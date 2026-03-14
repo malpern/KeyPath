@@ -1,0 +1,3 @@
+# QMK keyboard index contains keyboard path names (e.g. "handwired/10k")
+# that trigger false positive generic-api-key matches
+Sources/KeyPathAppKit/Resources/qmk-keyboard-index.json:generic-api-key:1
