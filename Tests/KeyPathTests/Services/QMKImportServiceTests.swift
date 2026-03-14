@@ -383,6 +383,138 @@ final class QMKImportServiceTests: XCTestCase {
         }
     }
 
+    // MARK: - Keymap Caching Roundtrip
+
+    func testSaveAndLoadWithCachedKeymap() async {
+        // Build a simple 2-key layout JSON
+        let json = """
+        {
+          "id": "cache-test",
+          "name": "Cache Test",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                {"matrix": [0,0], "x": 0, "y": 0},
+                {"matrix": [0,1], "x": 1, "y": 0}
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let keymapTokens = ["KC_A", "KC_B"]
+
+        // Parse with keymap to get layout
+        guard let result = QMKLayoutParser.parseWithKeymap(
+            data: json,
+            keymapTokens: keymapTokens,
+            idOverride: "custom-test-cache",
+            nameOverride: "Cache Test"
+        ) else {
+            XCTFail("parseWithKeymap should succeed")
+            return
+        }
+
+        // Save with cached keymap tokens
+        await service.saveCustomLayout(
+            layout: result.layout,
+            name: "Cache Test",
+            sourceURL: nil,
+            layoutJSON: json,
+            layoutVariant: nil,
+            defaultKeymap: keymapTokens
+        )
+
+        // Reload from storage
+        let loadedLayouts = await service.loadCustomLayouts()
+        XCTAssertEqual(loadedLayouts.count, 1)
+
+        guard let loaded = loadedLayouts.first else {
+            XCTFail("Should have one layout")
+            return
+        }
+
+        // Verify the reloaded layout used keymap-based parsing (keys should have real keyCodes)
+        XCTAssertEqual(loaded.keys.count, 2)
+        XCTAssertEqual(loaded.keys[0].keyCode, 0x00, "First key should be A (0x00) from cached keymap")
+        XCTAssertEqual(loaded.keys[0].label, "a")
+        XCTAssertEqual(loaded.keys[1].keyCode, 0x0B, "Second key should be B (0x0B) from cached keymap")
+        XCTAssertEqual(loaded.keys[1].label, "b")
+    }
+
+    func testSaveWithoutKeymapFallsBackToPositionParsing() async {
+        // Save without keymap tokens — should still reload via position-based fallback
+        let json = """
+        {
+          "id": "no-keymap-test",
+          "name": "No Keymap",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                {"matrix": [0,0], "x": 0, "y": 0},
+                {"matrix": [0,1], "x": 1, "y": 0}
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        // Parse with position-based approach (no keymap)
+        guard let result = QMKLayoutParser.parseByPositionWithQuality(
+            data: json,
+            idOverride: "custom-test-no-keymap",
+            nameOverride: "No Keymap"
+        ) else {
+            XCTFail("parseByPositionWithQuality should succeed")
+            return
+        }
+
+        // Save without keymap
+        await service.saveCustomLayout(
+            layout: result.layout,
+            name: "No Keymap",
+            sourceURL: nil,
+            layoutJSON: json,
+            layoutVariant: nil
+            // defaultKeymap is nil
+        )
+
+        // Reload — should succeed via position-based fallback
+        let loadedLayouts = await service.loadCustomLayouts()
+        XCTAssertEqual(loadedLayouts.count, 1)
+        XCTAssertEqual(loadedLayouts.first?.keys.count, 2)
+    }
+
+    func testStoredLayoutKeymapCodableRoundtrip() throws {
+        // Verify the defaultKeymap field survives encode/decode
+        let stored = try StoredLayout(
+            id: "roundtrip-test",
+            name: "Roundtrip",
+            layoutJSON: XCTUnwrap("{}".data(using: .utf8)),
+            defaultKeymap: ["KC_A", "LT(1, KC_SPC)", "MO(2)"]
+        )
+
+        let encoded = try JSONEncoder().encode(stored)
+        let decoded = try JSONDecoder().decode(StoredLayout.self, from: encoded)
+
+        XCTAssertEqual(decoded.defaultKeymap, ["KC_A", "LT(1, KC_SPC)", "MO(2)"])
+    }
+
+    func testStoredLayoutWithoutKeymapDecodesAsNil() throws {
+        // Verify backward compatibility: old stored layouts without defaultKeymap decode fine
+        let json = """
+        {
+          "id": "old-format",
+          "name": "Old Format",
+          "layoutJSON": "e30=",
+          "importDate": 0
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(StoredLayout.self, from: json)
+        XCTAssertNil(decoded.defaultKeymap, "Missing defaultKeymap should decode as nil for backward compatibility")
+    }
+
     func testISOMapping() async throws {
         // Create temporary file
         let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)

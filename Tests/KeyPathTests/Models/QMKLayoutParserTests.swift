@@ -523,6 +523,347 @@ struct QMKLayoutParserTests {
         #expect(keyHome?.label == "Home", "Label should come from JSON")
     }
 
+    // MARK: - Row-Based Position Mapping Tests
+
+    @Test func rowBasedMappingTKLLayout() throws {
+        // Simulate a TKL with 6 rows: function, number, top alpha, home, bottom, modifier
+        // Only test a subset of each row for brevity
+        let json = """
+        {
+          "id": "tkl-test",
+          "name": "TKL Test",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                {"matrix":[0,0], "x":0, "y":0},
+                {"matrix":[0,1], "x":2, "y":0},
+                {"matrix":[0,2], "x":3, "y":0},
+                {"matrix":[0,3], "x":4, "y":0},
+                {"matrix":[0,4], "x":5, "y":0},
+                {"matrix":[0,5], "x":6.5, "y":0},
+                {"matrix":[0,6], "x":7.5, "y":0},
+                {"matrix":[0,7], "x":8.5, "y":0},
+                {"matrix":[0,8], "x":9.5, "y":0},
+                {"matrix":[0,9], "x":11, "y":0},
+                {"matrix":[0,10], "x":12, "y":0},
+                {"matrix":[0,11], "x":13, "y":0},
+                {"matrix":[0,12], "x":14, "y":0},
+
+                {"matrix":[1,0], "x":0, "y":1.5},
+                {"matrix":[1,1], "x":1, "y":1.5},
+                {"matrix":[1,2], "x":2, "y":1.5},
+                {"matrix":[1,3], "x":3, "y":1.5},
+                {"matrix":[1,4], "x":4, "y":1.5},
+                {"matrix":[1,5], "x":5, "y":1.5},
+                {"matrix":[1,6], "x":6, "y":1.5},
+                {"matrix":[1,7], "x":7, "y":1.5},
+                {"matrix":[1,8], "x":8, "y":1.5},
+                {"matrix":[1,9], "x":9, "y":1.5},
+                {"matrix":[1,10], "x":10, "y":1.5},
+                {"matrix":[1,11], "x":11, "y":1.5},
+                {"matrix":[1,12], "x":12, "y":1.5},
+                {"matrix":[1,13], "x":13, "y":1.5, "w":2},
+
+                {"matrix":[2,0], "x":0, "y":2.5, "w":1.5},
+                {"matrix":[2,1], "x":1.5, "y":2.5},
+                {"matrix":[2,2], "x":2.5, "y":2.5},
+                {"matrix":[2,3], "x":3.5, "y":2.5},
+
+                {"matrix":[3,0], "x":0, "y":3.5, "w":1.75},
+                {"matrix":[3,1], "x":1.75, "y":3.5},
+                {"matrix":[3,2], "x":2.75, "y":3.5},
+                {"matrix":[3,3], "x":3.75, "y":3.5},
+
+                {"matrix":[4,0], "x":0, "y":4.5, "w":2.25},
+                {"matrix":[4,1], "x":2.25, "y":4.5},
+                {"matrix":[4,2], "x":3.25, "y":4.5},
+
+                {"matrix":[5,0], "x":0, "y":5.5, "w":1.25},
+                {"matrix":[5,1], "x":1.25, "y":5.5, "w":1.25},
+                {"matrix":[5,2], "x":2.5, "y":5.5, "w":1.25},
+                {"matrix":[5,3], "x":3.75, "y":5.5, "w":6.25},
+                {"matrix":[5,4], "x":10, "y":5.5, "w":1.25},
+                {"matrix":[5,5], "x":11.25, "y":5.5, "w":1.25}
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let result = QMKLayoutParser.parseByPositionWithQuality(data: json)
+        #expect(result != nil, "Should parse TKL layout")
+
+        let keys = try #require(result?.layout.keys)
+
+        // Function row: first key should be ESC (keyCode 53)
+        let escKey = keys.first { $0.x == 0 && $0.y == 0 }
+        #expect(escKey?.keyCode == 53, "First key in function row should be ESC")
+        #expect(escKey?.label == "esc", "ESC label")
+
+        // Number row: first key should be backtick (keyCode 50)
+        let backtickKey = keys.first { $0.x == 0 && $0.y == 1.5 }
+        #expect(backtickKey?.keyCode == 50, "First key in number row should be backtick")
+
+        // Number row: second key should be "1" (keyCode 18)
+        let oneKey = keys.first { $0.x == 1 && $0.y == 1.5 }
+        #expect(oneKey?.keyCode == 18, "Second key in number row should be 1")
+
+        // Top alpha: first key should be Tab (keyCode 48)
+        let tabKey = keys.first { $0.x == 0 && $0.y == 2.5 }
+        #expect(tabKey?.keyCode == 48, "First key in top alpha should be Tab")
+
+        // Top alpha: second key should be Q (keyCode 12)
+        let qKey = keys.first { $0.x == 1.5 && $0.y == 2.5 }
+        #expect(qKey?.keyCode == 12, "Second key in top alpha should be Q")
+
+        // Home row: first key should be CapsLock (keyCode 57)
+        let capsKey = keys.first { $0.x == 0 && $0.y == 3.5 }
+        #expect(capsKey?.keyCode == 57, "First key in home row should be CapsLock")
+
+        // Home row: second key should be A (keyCode 0)
+        let aKey = keys.first { $0.x == 1.75 && $0.y == 3.5 }
+        #expect(aKey?.keyCode == 0, "Second key in home row should be A")
+
+        // Bottom row: first key should be LShift (keyCode 56)
+        let shiftKey = keys.first { $0.x == 0 && $0.y == 4.5 }
+        #expect(shiftKey?.keyCode == 56, "First key in bottom row should be LShift")
+
+        // Modifier row: spacebar should be keyCode 49
+        let spaceKey = keys.first { $0.y == 5.5 && $0.width > 3 }
+        #expect(spaceKey?.keyCode == 49, "Spacebar should have keyCode 49")
+
+        // Quality should be high
+        #expect(try #require(result?.matchRatio) > 0.9, "TKL should have high match ratio")
+    }
+
+    @Test func rowBasedMapping60PercentLayout() throws {
+        // 5-row 60% layout: number, top alpha, home, bottom, modifier
+        let json = """
+        {
+          "id": "60pct-test",
+          "name": "60% Test",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                {"matrix":[0,0], "x":0, "y":0},
+                {"matrix":[0,1], "x":1, "y":0},
+                {"matrix":[0,2], "x":2, "y":0},
+                {"matrix":[0,3], "x":3, "y":0},
+                {"matrix":[0,4], "x":4, "y":0},
+                {"matrix":[0,5], "x":5, "y":0},
+                {"matrix":[0,6], "x":6, "y":0},
+                {"matrix":[0,7], "x":7, "y":0},
+                {"matrix":[0,8], "x":8, "y":0},
+                {"matrix":[0,9], "x":9, "y":0},
+                {"matrix":[0,10], "x":10, "y":0},
+                {"matrix":[0,11], "x":11, "y":0},
+                {"matrix":[0,12], "x":12, "y":0},
+                {"matrix":[0,13], "x":13, "y":0, "w":2},
+
+                {"matrix":[1,0], "x":0, "y":1, "w":1.5},
+                {"matrix":[1,1], "x":1.5, "y":1},
+                {"matrix":[1,2], "x":2.5, "y":1},
+                {"matrix":[1,3], "x":3.5, "y":1},
+                {"matrix":[1,4], "x":4.5, "y":1},
+                {"matrix":[1,5], "x":5.5, "y":1},
+                {"matrix":[1,6], "x":6.5, "y":1},
+                {"matrix":[1,7], "x":7.5, "y":1},
+                {"matrix":[1,8], "x":8.5, "y":1},
+                {"matrix":[1,9], "x":9.5, "y":1},
+                {"matrix":[1,10], "x":10.5, "y":1},
+                {"matrix":[1,11], "x":11.5, "y":1},
+                {"matrix":[1,12], "x":12.5, "y":1},
+                {"matrix":[1,13], "x":13.5, "y":1, "w":1.5},
+
+                {"matrix":[2,0], "x":0, "y":2, "w":1.75},
+                {"matrix":[2,1], "x":1.75, "y":2},
+                {"matrix":[2,2], "x":2.75, "y":2},
+                {"matrix":[2,3], "x":3.75, "y":2},
+                {"matrix":[2,4], "x":4.75, "y":2},
+                {"matrix":[2,5], "x":5.75, "y":2},
+                {"matrix":[2,6], "x":6.75, "y":2},
+                {"matrix":[2,7], "x":7.75, "y":2},
+                {"matrix":[2,8], "x":8.75, "y":2},
+                {"matrix":[2,9], "x":9.75, "y":2},
+                {"matrix":[2,10], "x":10.75, "y":2},
+                {"matrix":[2,11], "x":11.75, "y":2},
+                {"matrix":[2,12], "x":12.75, "y":2, "w":2.25},
+
+                {"matrix":[3,0], "x":0, "y":3, "w":2.25},
+                {"matrix":[3,1], "x":2.25, "y":3},
+                {"matrix":[3,2], "x":3.25, "y":3},
+                {"matrix":[3,3], "x":4.25, "y":3},
+                {"matrix":[3,4], "x":5.25, "y":3},
+                {"matrix":[3,5], "x":6.25, "y":3},
+                {"matrix":[3,6], "x":7.25, "y":3},
+                {"matrix":[3,7], "x":8.25, "y":3},
+                {"matrix":[3,8], "x":9.25, "y":3},
+                {"matrix":[3,9], "x":10.25, "y":3},
+                {"matrix":[3,10], "x":11.25, "y":3},
+                {"matrix":[3,11], "x":12.25, "y":3, "w":2.75},
+
+                {"matrix":[4,0], "x":0, "y":4, "w":1.25},
+                {"matrix":[4,1], "x":1.25, "y":4, "w":1.25},
+                {"matrix":[4,2], "x":2.5, "y":4, "w":1.25},
+                {"matrix":[4,3], "x":3.75, "y":4, "w":6.25},
+                {"matrix":[4,4], "x":10, "y":4, "w":1.25},
+                {"matrix":[4,5], "x":11.25, "y":4, "w":1.25},
+                {"matrix":[4,6], "x":12.5, "y":4, "w":1.25},
+                {"matrix":[4,7], "x":13.75, "y":4, "w":1.25}
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let result = QMKLayoutParser.parseByPositionWithQuality(data: json)
+        #expect(result != nil, "Should parse 60% layout")
+
+        let keys = try #require(result?.layout.keys)
+
+        // Row 0 is number row (no function row in 60%)
+        let backtick = keys.first { $0.x == 0 && $0.y == 0 }
+        #expect(backtick?.keyCode == 50, "First key in 60% should be backtick (number row)")
+
+        // Row 1 is top alpha
+        let tab = keys.first { $0.x == 0 && $0.y == 1 }
+        #expect(tab?.keyCode == 48, "First key in row 1 should be Tab")
+
+        let q = keys.first { $0.x == 1.5 && $0.y == 1 }
+        #expect(q?.keyCode == 12, "Q key")
+
+        // Row 2 is home row
+        let caps = keys.first { $0.x == 0 && $0.y == 2 }
+        #expect(caps?.keyCode == 57, "CapsLock in home row")
+
+        let a = keys.first { $0.x == 1.75 && $0.y == 2 }
+        #expect(a?.keyCode == 0, "A key")
+
+        // Row 3 is bottom row
+        let lshift = keys.first { $0.x == 0 && $0.y == 3 }
+        #expect(lshift?.keyCode == 56, "LShift in bottom row")
+
+        let z = keys.first { $0.x == 2.25 && $0.y == 3 }
+        #expect(z?.keyCode == 6, "Z key")
+
+        // Row 4 is modifier row — spacebar
+        let space = keys.first { $0.y == 4 && $0.width > 3 }
+        #expect(space?.keyCode == 49, "Spacebar in modifier row")
+
+        #expect(try #require(result?.matchRatio) > 0.9, "60% should have high match ratio")
+    }
+
+    @Test func rowBasedMappingNavClusterDetection() throws {
+        // TKL number row with nav cluster separated by gap
+        let json = """
+        {
+          "id": "nav-test",
+          "name": "Nav Test",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                {"matrix":[0,0], "x":0, "y":0},
+                {"matrix":[0,1], "x":2, "y":0},
+                {"matrix":[0,2], "x":3, "y":0},
+                {"matrix":[0,3], "x":4, "y":0},
+                {"matrix":[0,4], "x":5, "y":0},
+                {"matrix":[0,5], "x":6.5, "y":0},
+                {"matrix":[0,6], "x":7.5, "y":0},
+                {"matrix":[0,7], "x":8.5, "y":0},
+                {"matrix":[0,8], "x":9.5, "y":0},
+                {"matrix":[0,9], "x":11, "y":0},
+                {"matrix":[0,10], "x":12, "y":0},
+                {"matrix":[0,11], "x":13, "y":0},
+                {"matrix":[0,12], "x":14, "y":0},
+                {"matrix":[0,13], "x":15.5, "y":0},
+                {"matrix":[0,14], "x":16.5, "y":0},
+                {"matrix":[0,15], "x":17.5, "y":0},
+
+                {"matrix":[1,0], "x":0, "y":1.5},
+                {"matrix":[1,1], "x":1, "y":1.5},
+                {"matrix":[1,2], "x":2, "y":1.5},
+                {"matrix":[1,3], "x":3, "y":1.5},
+                {"matrix":[1,4], "x":4, "y":1.5},
+                {"matrix":[1,5], "x":5, "y":1.5},
+                {"matrix":[1,6], "x":6, "y":1.5},
+                {"matrix":[1,7], "x":7, "y":1.5},
+                {"matrix":[1,8], "x":8, "y":1.5},
+                {"matrix":[1,9], "x":9, "y":1.5},
+                {"matrix":[1,10], "x":10, "y":1.5},
+                {"matrix":[1,11], "x":11, "y":1.5},
+                {"matrix":[1,12], "x":12, "y":1.5},
+                {"matrix":[1,13], "x":13, "y":1.5, "w":2},
+                {"matrix":[1,14], "x":15.5, "y":1.5},
+                {"matrix":[1,15], "x":16.5, "y":1.5},
+                {"matrix":[1,16], "x":17.5, "y":1.5},
+
+                {"matrix":[2,0], "x":0, "y":2.5, "w":1.5},
+                {"matrix":[2,1], "x":1.5, "y":2.5},
+                {"matrix":[2,2], "x":2.5, "y":2.5},
+                {"matrix":[2,3], "x":3.5, "y":2.5},
+
+                {"matrix":[3,0], "x":0, "y":3.5, "w":1.75},
+                {"matrix":[3,1], "x":1.75, "y":3.5},
+
+                {"matrix":[4,0], "x":0, "y":4.5, "w":2.25},
+                {"matrix":[4,1], "x":2.25, "y":4.5},
+
+                {"matrix":[5,0], "x":0, "y":5.5, "w":1.25},
+                {"matrix":[5,1], "x":1.25, "y":5.5, "w":1.25},
+                {"matrix":[5,2], "x":2.5, "y":5.5, "w":1.25},
+                {"matrix":[5,3], "x":3.75, "y":5.5, "w":6.25}
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let result = QMKLayoutParser.parseByPositionWithQuality(data: json)
+        #expect(result != nil)
+
+        let keys = try #require(result?.layout.keys)
+
+        // Nav cluster keys in the number row (after the gap at x=15.5)
+        let insKey = keys.first { $0.x == 15.5 && $0.y == 1.5 }
+        #expect(insKey?.keyCode == 114, "Nav cluster first key should be Ins")
+
+        let homKey = keys.first { $0.x == 16.5 && $0.y == 1.5 }
+        #expect(homKey?.keyCode == 115, "Nav cluster second key should be Home")
+
+        let pguKey = keys.first { $0.x == 17.5 && $0.y == 1.5 }
+        #expect(pguKey?.keyCode == 116, "Nav cluster third key should be PgUp")
+    }
+
+    @Test func rowBasedMappingModifierRowSpacebarAnchor() {
+        // Test that modifier row correctly anchors on spacebar
+        // even with different numbers of modifier keys
+        let positions: [ANSIPositionTable.QMKKeyPosition] = [
+            .init(x: 0, y: 0, width: 1.5, index: 0), // LCtrl
+            .init(x: 1.5, y: 0, width: 1, index: 1), // LAlt
+            .init(x: 2.5, y: 0, width: 1.5, index: 2), // LCmd
+            .init(x: 4, y: 0, width: 7, index: 3), // Space (7u)
+            .init(x: 11, y: 0, width: 1.5, index: 4), // RCmd
+            .init(x: 12.5, y: 0, width: 1, index: 5), // RAlt
+            .init(x: 13.5, y: 0, width: 1.5, index: 6), // RCtrl
+        ]
+
+        let mappings = ANSIPositionTable.mapKeysByRow(qmkKeys: positions)
+        let byIndex = Dictionary(uniqueKeysWithValues: mappings.map { ($0.index, $0) })
+
+        // Space should be 49
+        #expect(byIndex[3]?.keyCode == 49, "Spacebar should be keyCode 49")
+        #expect(byIndex[3]?.label == "␣", "Spacebar label")
+
+        // Left mods: LCtrl, LAlt, LCmd
+        #expect(byIndex[0]?.keyCode == 59, "LCtrl")
+        #expect(byIndex[1]?.keyCode == 58, "LAlt")
+        #expect(byIndex[2]?.keyCode == 55, "LCmd")
+
+        // Right mods: RCmd, RAlt, Fn/RCtrl
+        #expect(byIndex[4]?.keyCode == 54, "RCmd")
+        #expect(byIndex[5]?.keyCode == 61, "RAlt")
+    }
+
     @Test func parseJSONWithMixedKeyCodeAndFallback() {
         // JSON where some keys have embedded keyCode/label, others don't
         let mixedJSON = """

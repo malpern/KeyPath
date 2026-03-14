@@ -141,7 +141,8 @@ actor QMKImportService {
         name: String,
         sourceURL: String?,
         layoutJSON: Data,
-        layoutVariant: String?
+        layoutVariant: String?,
+        defaultKeymap: [String]? = nil
     ) {
         var store = CustomLayoutStore.load(from: userDefaults)
 
@@ -164,7 +165,8 @@ actor QMKImportService {
             name: uniqueName,
             sourceURL: sourceURL,
             layoutJSON: layoutJSON,
-            layoutVariant: layoutVariant
+            layoutVariant: layoutVariant,
+            defaultKeymap: defaultKeymap
         )
 
         store.layouts.append(storedLayout)
@@ -174,10 +176,50 @@ actor QMKImportService {
         PhysicalLayout.invalidateCustomLayoutCache()
     }
 
+    /// Replace any existing QMK-imported layout with a new one (at most 1 QMK import at a time).
+    /// Removes all existing QMK imports (those with a sourceURL containing "keyboards.qmk.fm"),
+    /// then saves the new one.
+    func replaceQMKImport(
+        layout: PhysicalLayout,
+        name: String,
+        sourceURL: String?,
+        layoutJSON: Data,
+        layoutVariant: String?,
+        defaultKeymap: [String]? = nil
+    ) {
+        var store = CustomLayoutStore.load(from: userDefaults)
+
+        // Remove existing QMK imports
+        store.layouts.removeAll { stored in
+            stored.sourceURL?.contains("keyboards.qmk.fm") == true
+        }
+        store.save(to: userDefaults)
+
+        // Save the new one
+        saveCustomLayout(
+            layout: layout,
+            name: name,
+            sourceURL: sourceURL,
+            layoutJSON: layoutJSON,
+            layoutVariant: layoutVariant,
+            defaultKeymap: defaultKeymap
+        )
+    }
+
     /// Load all custom layouts from storage
     /// - Returns: Array of PhysicalLayout objects reconstructed from stored data
     func loadCustomLayouts() -> [PhysicalLayout] {
-        let store = CustomLayoutStore.load(from: userDefaults)
+        var store = CustomLayoutStore.load(from: userDefaults)
+
+        // Deduplicate QMK imports: keep only the most recent one
+        let qmkImports = store.layouts.filter { $0.sourceURL?.contains("keyboards.qmk.fm") == true }
+        if qmkImports.count > 1 {
+            let newest = qmkImports.max(by: { $0.importDate < $1.importDate })
+            store.layouts.removeAll { stored in
+                stored.sourceURL?.contains("keyboards.qmk.fm") == true && stored.id != newest?.id
+            }
+            store.save(to: userDefaults)
+        }
 
         return store.layouts.compactMap { storedLayout in
             // Determine keycode mapping type from variant
@@ -189,16 +231,38 @@ actor QMKImportService {
 
             // Re-parse the layout from stored JSON, preserving the stored ID
             do {
-                // Pass nil for sourceURL so we can set the ID explicitly
+                let layoutId = "custom-\(storedLayout.id)"
+
+                // Strategy 1: Use cached keymap tokens (best quality)
+                if let keymapTokens = storedLayout.defaultKeymap,
+                   let result = QMKLayoutParser.parseWithKeymap(
+                       data: storedLayout.layoutJSON,
+                       keymapTokens: keymapTokens,
+                       idOverride: layoutId,
+                       nameOverride: storedLayout.name
+                   )
+                {
+                    return result.layout
+                }
+
+                // Strategy 2: Position-based parsing (works regardless of matrix wiring)
+                if let result = QMKLayoutParser.parseByPositionWithQuality(
+                    data: storedLayout.layoutJSON,
+                    idOverride: layoutId,
+                    nameOverride: storedLayout.name
+                ) {
+                    return result.layout
+                }
+
+                // Strategy 3: Matrix-based parsing for bundled keyboards with known matrices
                 let layout = try parseQMKData(
                     storedLayout.layoutJSON,
                     sourceURL: nil,
                     layoutVariant: storedLayout.layoutVariant,
                     keyMappingType: keyMappingType
                 )
-                // Override ID to match stored layout ID
                 return PhysicalLayout(
-                    id: "custom-\(storedLayout.id)",
+                    id: layoutId,
                     name: storedLayout.name,
                     keys: layout.keys
                 )

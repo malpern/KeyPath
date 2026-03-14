@@ -94,19 +94,17 @@ struct KeyboardSelectionGridView: View {
     // MARK: - Search Bar
 
     private var searchBar: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.secondary)
-                .font(.system(size: 11))
+                .font(.system(size: 12, weight: .medium))
 
-            TextField("Search keyboards...", text: $searchText)
-                .textFieldStyle(.roundedBorder)
-                .controlSize(.small)
-                .font(.caption)
+            TextField("Search 3,700+ keyboards...", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
                 .focused($isSearchFocused)
                 .accessibilityIdentifier("qmk-search-field")
                 .accessibilityLabel("Search keyboards")
-                .frame(maxWidth: .infinity) // Ensure TextField expands
 
             if !searchText.isEmpty {
                 Button {
@@ -114,15 +112,23 @@ struct KeyboardSelectionGridView: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
-                        .font(.system(size: 11))
+                        .font(.system(size: 12))
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("qmk-search-clear-button")
                 .accessibilityLabel("Clear search")
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(Color(NSColor.controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
+        )
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
     }
 
     // MARK: - Search Results View
@@ -134,7 +140,7 @@ struct KeyboardSelectionGridView: View {
                     ProgressView()
                         .scaleEffect(0.8)
                     Text("Searching...")
-                        .font(.caption)
+                        .font(.callout)
                         .foregroundColor(.secondary)
                         .padding(.top, 8)
                 }
@@ -142,9 +148,10 @@ struct KeyboardSelectionGridView: View {
             } else if let error = searchError {
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
+                        .font(.title2)
                         .foregroundColor(.orange)
                     Text(error)
-                        .font(.caption)
+                        .font(.callout)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -153,26 +160,23 @@ struct KeyboardSelectionGridView: View {
             } else if searchKeyboards.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "keyboard")
-                        .font(.system(size: 32))
-                        .foregroundColor(.secondary.opacity(0.5))
+                        .font(.system(size: 36))
+                        .foregroundColor(.secondary.opacity(0.4))
                     Text("No keyboards found matching '\(searchText)'")
-                        .font(.caption)
+                        .font(.callout)
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 1) {
+                    LazyVStack(spacing: 0) {
                         ForEach(searchKeyboards) { keyboard in
-                            SearchKeyboardRow(
-                                keyboard: keyboard,
-                                onSelect: {
-                                    importKeyboard(keyboard)
-                                }
-                            )
+                            SearchKeyboardRow(keyboard: keyboard) {
+                                importKeyboard(keyboard)
+                            }
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 2)
                 }
             }
         }
@@ -253,45 +257,68 @@ struct KeyboardSelectionGridView: View {
     private func importKeyboard(_ keyboard: KeyboardMetadata) {
         Task {
             do {
-                guard let infoJsonURL = keyboard.infoJsonURL else {
-                    throw QMKImportError.invalidURL("Keyboard has no remote URL to import from")
+                // Fetch keyboard data (uses disk cache, handles QMK API unwrapping)
+                let jsonData = try await QMKKeyboardDatabase.shared.fetchKeyboardData(keyboard)
+
+                // Parse the layout from the fetched/cached data
+                let info = try JSONDecoder().decode(QMKLayoutParser.QMKKeyboardInfo.self, from: jsonData)
+
+                guard !info.layouts.isEmpty else {
+                    throw QMKImportError.noLayoutFound("No layout definitions found for '\(keyboard.name)'")
                 }
 
-                // Fetch JSON data first
-                let (jsonData, response) = try await URLSession.shared.data(from: infoJsonURL)
+                let layoutId = "custom-\(UUID().uuidString)"
 
-                guard let httpResponse = response as? HTTPURLResponse,
-                      (200 ... 299).contains(httpResponse.statusCode)
-                else {
-                    throw QMKImportError.networkError("Failed to fetch keyboard JSON")
+                // Strategy: try keymap-based parsing first (standard approach), fall back to row-based
+                let result: QMKLayoutParser.ParseResult
+                var cachedKeymapTokens: [String]?
+
+                // Fetch default keymap from GitHub (best-effort, non-blocking)
+                if let keymapTokens = await QMKKeyboardDatabase.shared.fetchDefaultKeymap(keyboardPath: keyboard.id),
+                   let keymapResult = QMKLayoutParser.parseWithKeymap(
+                       data: jsonData,
+                       keymapTokens: keymapTokens,
+                       idOverride: layoutId,
+                       nameOverride: keyboard.name
+                   )
+                {
+                    result = keymapResult
+                    cachedKeymapTokens = keymapTokens
                 }
-
-                // Import using QMKImportService
-                let layout = try await QMKImportService.shared.importFromURL(
-                    infoJsonURL,
-                    layoutVariant: nil,
-                    keyMappingType: .ansi
-                )
+                // Fallback: row-based position inference
+                else if let positionResult = QMKLayoutParser.parseByPositionWithQuality(
+                    data: jsonData,
+                    idOverride: layoutId,
+                    nameOverride: keyboard.name
+                ) {
+                    result = positionResult
+                } else {
+                    throw QMKImportError.parseError("Failed to parse layout for '\(keyboard.name)'")
+                }
 
                 // Generate a user-friendly name
                 let layoutName = "\(keyboard.name)\(keyboard.manufacturer.map { " by \($0)" } ?? "")"
 
-                // Save as custom layout
-                await QMKImportService.shared.saveCustomLayout(
-                    layout: layout,
+                // Replace any existing QMK import (at most 1 at a time)
+                await QMKImportService.shared.replaceQMKImport(
+                    layout: result.layout,
                     name: layoutName,
-                    sourceURL: infoJsonURL.absoluteString,
+                    sourceURL: keyboard.infoJsonURL?.absoluteString,
                     layoutJSON: jsonData,
-                    layoutVariant: nil
+                    layoutVariant: nil,
+                    defaultKeymap: cachedKeymapTokens
                 )
 
                 await MainActor.run {
-                    // Select the imported layout
-                    selectedLayoutId = layout.id
-                    // Clear search
+                    selectedLayoutId = result.layout.id
                     searchText = ""
-                    // Refresh the view
                     refreshTrigger = UUID()
+
+                    // Show warning for low match quality
+                    if !result.isHighQuality {
+                        let pct = Int(result.matchRatio * 100)
+                        searchError = "Imported \(keyboard.name) — \(result.unmatchedKeys) of \(result.totalKeys) keys couldn't be identified (\(pct)% matched). Key highlighting and remapping may not work correctly for unmatched keys."
+                    }
                 }
             } catch {
                 await MainActor.run {
@@ -654,11 +681,50 @@ private struct ImportLayoutCard: View {
     .frame(width: 400, height: 800)
 }
 
+// MARK: - Search Section Header
+
+private struct SearchSectionHeader: View {
+    let title: String
+    let count: Int
+    var subtitle: String?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+
+            Text("(\(count))")
+                .font(.caption2)
+                .foregroundColor(.secondary.opacity(0.7))
+
+            if let subtitle {
+                Text("·")
+                    .foregroundColor(.secondary.opacity(0.4))
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundColor(.secondary.opacity(0.6))
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 10)
+        .padding(.bottom, 4)
+        .accessibilityIdentifier("qmk-search-section-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+        .accessibilityLabel("\(title) section, \(count) results")
+    }
+}
+
 // MARK: - Search Keyboard Row Component
 
 private struct SearchKeyboardRow: View {
     let keyboard: KeyboardMetadata
     let onSelect: () -> Void
+
+    @State private var isHovering = false
 
     private var accessibilityLabel: String {
         var parts: [String] = [keyboard.name, "keyboard"]
@@ -671,23 +737,46 @@ private struct SearchKeyboardRow: View {
         return parts.joined(separator: ", ")
     }
 
+    /// Keyboard icon based on tags/type
+    private var keyboardIcon: String {
+        if keyboard.tags.contains("split") {
+            return "rectangle.split.2x1"
+        }
+        return "keyboard"
+    }
+
     var body: some View {
         Button(action: onSelect) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 10) {
+                // Keyboard icon
+                Image(systemName: keyboardIcon)
+                    .font(.system(size: 16))
+                    .foregroundColor(.secondary.opacity(0.6))
+                    .frame(width: 24, alignment: .center)
+
+                // Name, manufacturer, and path
+                VStack(alignment: .leading, spacing: 2) {
                     Text(keyboard.name)
-                        .font(.body)
+                        .font(.callout)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
+                        .lineLimit(1)
 
-                    if let manufacturer = keyboard.manufacturer {
-                        Text(manufacturer)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    HStack(spacing: 6) {
+                        if let manufacturer = keyboard.manufacturer, !manufacturer.isEmpty {
+                            Text(manufacturer)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                        Text(keyboard.id)
+                            .font(.caption2)
+                            .foregroundColor(.secondary.opacity(0.5))
+                            .lineLimit(1)
                     }
                 }
 
-                Spacer()
+                Spacer(minLength: 4)
 
                 // Tags
                 HStack(spacing: 4) {
@@ -698,9 +787,15 @@ private struct SearchKeyboardRow: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
+            .background(isHovering ? Color.accentColor.opacity(0.1) : Color.clear)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isHovering = hovering
+            }
+        }
         .accessibilityIdentifier("qmk-search-keyboard-row-\(keyboard.id)")
         .accessibilityLabel(accessibilityLabel)
     }
