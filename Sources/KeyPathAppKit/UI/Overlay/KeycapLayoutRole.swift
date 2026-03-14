@@ -150,12 +150,13 @@ extension PhysicalKey {
             return .arrow
         }
 
-        // Wide keys: width >= 1.5 (shift, return, delete, tab, caps, spacebar)
+        // Spacebar by keyCode (catches split spacebars at 2-3u width)
+        if keyCode == 49 {
+            return .centered
+        }
+
+        // Wide keys: width >= 1.5 (shift, return, delete, tab, caps)
         if width >= 1.5 {
-            // Spacebar is very wide (> 5 units) - centered content
-            if width > 5 {
-                return .centered
-            }
             return .bottomAligned
         }
 
