@@ -294,14 +294,8 @@ struct QMKKeyboardSearchView: View {
 
                 await MainActor.run {
                     selectedLayoutId = result.layout.id
-
-                    if !result.isHighQuality {
-                        let pct = Int(result.matchRatio * 100)
-                        errorMessage = "Imported \(keyboard.name) — \(result.unmatchedKeys) of \(result.totalKeys) keys couldn't be identified (\(pct)% matched). Key highlighting and remapping may not work correctly for unmatched keys."
-                    } else {
-                        onImportComplete?()
-                        dismiss()
-                    }
+                    onImportComplete?()
+                    dismiss()
                 }
             } catch {
                 await MainActor.run {

@@ -24,9 +24,21 @@ struct KeyboardSelectionGridView: View {
     @State private var searchError: String?
     @State private var searchTask: Task<Void, Never>?
 
+    // Import feedback toast
+    @State private var importToastMessage: String?
+    @State private var importToastType: KanataViewModel.ToastType = .success
+
     /// Grouped layouts by category (computed to reflect custom layout changes)
+    /// When a custom layout is selected, the Custom section moves to the top
     private var groupedLayouts: [(category: LayoutCategory, layouts: [PhysicalLayout])] {
-        PhysicalLayout.layoutsByCategory()
+        var groups = PhysicalLayout.layoutsByCategory()
+        if selectedLayoutId.hasPrefix("custom-"),
+           let customIndex = groups.firstIndex(where: { $0.category == .custom })
+        {
+            let customGroup = groups.remove(at: customIndex)
+            groups.insert(customGroup, at: 0)
+        }
+        return groups
     }
 
     /// Grid layout: 1 column for single-row keyboard previews
@@ -68,6 +80,16 @@ struct KeyboardSelectionGridView: View {
                 layoutGridView
             }
         }
+        .overlay(alignment: .top) {
+            if let message = importToastMessage {
+                ToastView(message: message, type: importToastType)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(1000)
+                    .accessibilityIdentifier("import-toast-message")
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: importToastMessage)
         .sheet(isPresented: $showImportSheet) {
             QMKImportSheet(
                 selectedLayoutId: $selectedLayoutId,
@@ -314,16 +336,32 @@ struct KeyboardSelectionGridView: View {
                     searchText = ""
                     refreshTrigger = UUID()
 
-                    // Show warning for low match quality
                     if !result.isHighQuality {
                         let pct = Int(result.matchRatio * 100)
-                        searchError = "Imported \(keyboard.name) — \(result.unmatchedKeys) of \(result.totalKeys) keys couldn't be identified (\(pct)% matched). Key highlighting and remapping may not work correctly for unmatched keys."
+                        showImportToast(
+                            "Imported \(keyboard.name) — \(pct)% of keys matched. Some keys may not highlight correctly.",
+                            type: .warning,
+                            duration: 7.0
+                        )
+                    } else {
+                        showImportToast("Imported \(keyboard.name)", type: .success)
                     }
                 }
             } catch {
                 await MainActor.run {
-                    searchError = "Failed to import keyboard: \(error.localizedDescription)"
+                    showImportToast("Failed to import: \(error.localizedDescription)", type: .error, duration: 5.0)
                 }
+            }
+        }
+    }
+
+    private func showImportToast(_ message: String, type: KanataViewModel.ToastType, duration: TimeInterval = 3.0) {
+        importToastType = type
+        importToastMessage = message
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(duration))
+            if importToastMessage == message {
+                importToastMessage = nil
             }
         }
     }
