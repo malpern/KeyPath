@@ -156,6 +156,17 @@ extension OverlayMapperSection {
         .focusable(false)
     }
 
+    var appSectionHeader: some View {
+        HStack {
+            Text("Active App")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+    }
+
     var onlyInHeader: some View {
         HStack {
             Text("Only in...")
