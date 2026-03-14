@@ -13,6 +13,23 @@ public final class PermissionRequestService {
 
     private init() {}
 
+    // MARK: - Startup guard
+
+    /// When true, permission requests are blocked. Prevents system prompts during app launch.
+    /// Callers must set `wizardContextActive = true` before requesting permissions.
+    private var _wizardContextActive = false
+
+    /// Set to `true` when the wizard (or an explicit user action) is requesting permissions.
+    /// Permission requests are silently suppressed outside of wizard context to prevent
+    /// unexpected system dialogs at launch. See issue #248.
+    public var wizardContextActive: Bool {
+        get { _wizardContextActive }
+        set {
+            _wizardContextActive = newValue
+            AppLogger.shared.log("🔐 [PermissionRequest] wizardContextActive = \(newValue)")
+        }
+    }
+
     // MARK: - Debounce (cooldown) configuration
 
     private let cooldownSeconds: TimeInterval = 20 * 60 // 20 minutes
@@ -46,6 +63,11 @@ public final class PermissionRequestService {
     /// - Returns: true if already granted (no prompt shown), false otherwise.
     @discardableResult
     public func requestInputMonitoringPermission(ignoreCooldown: Bool = false) -> Bool {
+        // Wizard context guard: block prompts outside wizard/user-initiated flows
+        guard wizardContextActive else {
+            AppLogger.shared.warn("⚠️ [PermissionRequest] Blocked IOHIDRequestAccess — not in wizard context")
+            return false
+        }
         // Foreground and cooldown guards
         ensureForeground()
         if !isForeground() {
@@ -78,6 +100,11 @@ public final class PermissionRequestService {
     /// - Returns: true if already granted (no prompt shown), false otherwise.
     @discardableResult
     public func requestAccessibilityPermission(ignoreCooldown: Bool = false) -> Bool {
+        // Wizard context guard: block prompts outside wizard/user-initiated flows
+        guard wizardContextActive else {
+            AppLogger.shared.warn("⚠️ [PermissionRequest] Blocked AX prompt — not in wizard context")
+            return false
+        }
         // Foreground and cooldown guards
         ensureForeground()
         if !isForeground() {

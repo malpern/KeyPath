@@ -259,12 +259,14 @@ struct StatusSettingsTabView: View {
         .settingsBackground()
         .withToasts(settingsToastManager)
         .sheet(item: $wizardInitialPage, onDismiss: {
+            PermissionRequestService.shared.wizardContextActive = false
             Task { await refreshStatus() }
         }) { page in
             InstallationWizardView(initialPage: page)
                 .customizeSheetWindow()
                 .environment(kanataManager)
                 .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator)
+                .onAppear { PermissionRequestService.shared.wizardContextActive = true }
         }
         .alert("Permissions Required", isPresented: $showingPermissionAlert) {
             Button("Open Wizard") {

@@ -231,51 +231,28 @@ final class OrphanDetector {
             if didAnything {
                 let resultAlert = NSAlert()
                 resultAlert.messageText = "Cleanup Complete"
-                var details: [String] = []
-                if userFilesCleaned > 0 {
-                    details.append("✅ Removed \(userFilesCleaned) user file(s)")
-                }
-                if daemonsCleaned {
-                    details.append("✅ Removed system keyboard services")
-                }
-                if deferredForNextUninstall {
-                    details.append("")
-                    details.append("Application Support data will be cleaned automatically on next uninstall.")
-                }
-                resultAlert.informativeText = details.joined(separator: "\n")
+                resultAlert.informativeText = "Removed \(userFilesCleaned) file(s) from a previous KeyPath installation."
                 resultAlert.alertStyle = .informational
                 resultAlert.runModal()
             }
             return
         }
 
-        // There were real failures — show partial result
+        // There were real failures — show simplified partial result
         let resultAlert = NSAlert()
         resultAlert.messageText = "Cleanup Partially Complete"
-        var details: [String] = []
 
+        var details: [String] = []
         if userFilesCleaned > 0 {
-            details.append("✅ Removed \(userFilesCleaned) user file(s)")
+            details.append("Removed \(userFilesCleaned) file(s).")
         }
         if !userFilesFailed.isEmpty {
-            details.append("❌ Could not remove:")
-            details.append(contentsOf: userFilesFailed.map { "  • \($0.name) (\($0.reason))" })
+            details.append("Some files could not be removed automatically.")
         }
-        if daemonsCleaned {
-            details.append("✅ Removed system keyboard services")
+        if daemonsError != nil {
+            details.append("System services could not be removed (may require reinstall).")
         }
-        if let error = daemonsError {
-            details.append("❌ Failed to remove system services:")
-            details.append("  \(error)")
-        }
-        if deferredForNextUninstall {
-            details.append("")
-            details.append("Application Support data will be cleaned automatically on next uninstall.")
-        }
-        if !userFilesFailed.isEmpty {
-            details.append("")
-            details.append("You may need to remove failed items manually.")
-        }
+        details.append("Remaining items will be cleaned on next uninstall.")
 
         resultAlert.informativeText = details.joined(separator: "\n")
         resultAlert.alertStyle = .warning

@@ -160,6 +160,8 @@ final class PermissionGate {
         }
 
         // Request automatically for KeyPath.app (Kanata must still be toggled by user if needed)
+        permissionService.wizardContextActive = true
+        defer { permissionService.wizardContextActive = false }
         for perm in eval.missingKeyPath {
             switch perm {
             case .inputMonitoring:
