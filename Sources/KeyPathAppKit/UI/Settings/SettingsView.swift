@@ -281,6 +281,15 @@ struct StatusSettingsTabView: View {
         .task {
             await refreshStatus()
         }
+        // Subscribe to background validation from MainAppStateController.
+        // When the periodic validation loop (every ~60s) or service health change
+        // triggers a revalidation, this ensures the Settings tab updates automatically
+        // instead of showing stale data from the initial .task fetch.
+        .onChange(of: MainAppStateController.shared.lastValidationDate) { _, _ in
+            Task {
+                await refreshStatus()
+            }
+        }
         // Removed legacy onReceive(currentState)
         .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
             Task {
@@ -296,8 +305,15 @@ struct StatusSettingsTabView: View {
     // MARK: - Helpers
 
     private func refreshStatus() async {
-        // Use RuntimeCoordinator (via façade) to get fresh status
-        let context = await kanataManager.inspectSystemContext()
+        // Use MainAppStateController's cached context — it has a properly-configured
+        // SystemValidator. RuntimeCoordinator's InstallerEngine was initialized before
+        // WizardDependencies.systemValidator was set, so it always returns empty context.
+        let context: SystemContext
+        if let cached = MainAppStateController.shared.lastValidatedSystemContext {
+            context = cached
+        } else {
+            context = await kanataManager.inspectSystemContext()
+        }
         let snapshot = context.permissions
         let adapted = await MainActor.run { SystemContextAdapter.adapt(context) }
         let tcpOk = await checkTCPConfiguration()
