@@ -1,5 +1,4 @@
 // swiftlint:disable file_length
-import Foundation
 
 // MARK: - QMK Locale Keycode Aliases
 

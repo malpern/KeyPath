@@ -282,13 +282,15 @@ struct QMKKeymapParserTests {
         let jpYen = QMKKeymapParser.resolveKeycode("JP_YEN")
         #expect(jpYen != nil, "JP_YEN should resolve via locale alias")
 
-        // French AZERTY — FR_A is at the Q position
+        // French AZERTY — FR_A is at the Q position (label shows physical position)
         let frA = QMKKeymapParser.resolveKeycode("FR_A")
         #expect(frA?.keyCode == 12, "FR_A should resolve to KC_Q (keyCode 12) on AZERTY")
+        #expect(frA?.label == "q", "FR_A label should be 'q' (physical position, not locale character)")
 
-        // German QWERTZ — DE_Z is at the Y position
+        // German QWERTZ — DE_Z is at the Y position (label shows physical position)
         let deZ = QMKKeymapParser.resolveKeycode("DE_Z")
         #expect(deZ?.keyCode == 16, "DE_Z should resolve to KC_Y (keyCode 16) on QWERTZ")
+        #expect(deZ?.label == "y", "DE_Z label should be 'y' (physical position, not locale character)")
 
         // Korean
         let krHaen = QMKKeymapParser.resolveKeycode("KR_HAEN")
