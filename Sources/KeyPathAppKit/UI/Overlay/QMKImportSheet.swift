@@ -394,7 +394,7 @@ struct QMKImportSheet: View {
     /// Handles patterns like:
     ///   github.com/qmk/qmk_firmware/.../keyboards/crkbd/rev1/...
     ///   raw.githubusercontent.com/qmk/qmk_firmware/.../keyboards/crkbd/rev1/info.json
-    static func extractKeyboardPath(from urlString: String) -> String? {
+    nonisolated static func extractKeyboardPath(from urlString: String) -> String? {
         guard let range = urlString.range(of: "keyboards/") else { return nil }
         let afterKeyboards = String(urlString[range.upperBound...])
         // Remove trailing file components like /info.json, /keymap.c, etc.
