@@ -37,7 +37,7 @@ Kanata remaps scancodes **before** the OS applies the keyboard layout. `UCKeyTra
 
 5. **Uppercase for display**: Single-letter results are uppercased for visual consistency with the static keymaps.
 
-6. **System keymap as default**: New users get `"system"` as their default keymap ID. Existing users keep their stored preference.
+6. **System keymap is opt-in**: QWERTY remains the default keymap (with SVG illustrations). The System keymap is available in the keymaps panel for international users and QMK boards that lack static illustrations.
 
 7. **All labels in `coreLabels`**: The system keymap puts all labels into `coreLabels` (not `extraLabels`) so the punctuation toggle is irrelevant — all keys are always labeled.
 
