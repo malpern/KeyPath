@@ -173,8 +173,8 @@ struct PhysicalLayout: Identifiable {
         all.first { $0.id == id }
     }
 
-    /// Whether this layout has action keys (Touch ID, Layer, etc.) that open the drawer
+    /// Whether this layout has a Touch ID key that acts as the drawer toggle
     var hasDrawerButtons: Bool {
-        keys.contains { $0.keyCode == PhysicalKey.unmappedKeyCode }
+        keys.contains { $0.keyCode == PhysicalKey.unmappedKeyCode && $0.label == "🔒" }
     }
 }
