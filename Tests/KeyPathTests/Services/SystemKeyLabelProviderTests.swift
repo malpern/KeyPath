@@ -3,6 +3,9 @@
 
 // MARK: - Mock Label Provider
 
+/// Mock that returns whatever labels it's given — including for modifier keyCodes.
+/// The real UCKeyTranslateLabelProvider filters modifiers out; the mock does not,
+/// which lets us verify that SystemKeyLabelProvider's refresh() handles filtering.
 struct MockKeyLabelProvider: KeyLabelQuerying {
     let mockLabels: [UInt16: (base: String, shifted: String)]
 
@@ -20,6 +23,18 @@ struct MockKeyLabelProvider: KeyLabelQuerying {
 // MARK: - Tests
 
 final class SystemKeyLabelProviderTests: XCTestCase {
+    /// Restore the shared provider to its default state after each test
+    /// that mutates it, even if assertions fail.
+    @MainActor
+    private func withRestoredProvider(_ body: (SystemKeyLabelProvider) -> Void) {
+        let provider = SystemKeyLabelProvider.shared
+        addTeardownBlock { @MainActor in
+            provider.labelProvider = UCKeyTranslateLabelProvider()
+            provider.refresh()
+        }
+        body(provider)
+    }
+
     @MainActor
     func testMockProviderReturnsKnownLabels() {
         let mock = MockKeyLabelProvider(mockLabels: [
@@ -38,22 +53,19 @@ final class SystemKeyLabelProviderTests: XCTestCase {
 
     @MainActor
     func testSystemKeymapFindReturnsDynamicKeymap() {
-        // LogicalKeymap.find(id: "system") should return a non-nil keymap
-        let keymap = LogicalKeymap.find(id: "system")
+        let keymap = LogicalKeymap.find(id: LogicalKeymap.systemId)
         XCTAssertNotNil(keymap)
-        XCTAssertEqual(keymap?.id, "system")
+        XCTAssertEqual(keymap?.id, LogicalKeymap.systemId)
         XCTAssertEqual(keymap?.name, "System")
     }
 
     @MainActor
     func testSystemKeymapDefaultId() {
-        // Default ID should be "system" for new users
-        XCTAssertEqual(LogicalKeymap.defaultId, "system")
+        XCTAssertEqual(LogicalKeymap.defaultId, LogicalKeymap.systemId)
     }
 
     @MainActor
     func testStaticKeymapsStillResolve() {
-        // Existing static keymaps should still be findable
         XCTAssertNotNil(LogicalKeymap.find(id: "qwerty-us"))
         XCTAssertNotNil(LogicalKeymap.find(id: "colemak"))
         XCTAssertNotNil(LogicalKeymap.find(id: "azerty"))
@@ -63,86 +75,72 @@ final class SystemKeyLabelProviderTests: XCTestCase {
 
     @MainActor
     func testProviderRefreshWithMock() {
-        let provider = SystemKeyLabelProvider.shared
+        withRestoredProvider { provider in
+            let frenchMock = MockKeyLabelProvider(mockLabels: [
+                0: (base: "Q", shifted: "Q"), // a→q in AZERTY
+                12: (base: "A", shifted: "A"), // q→a in AZERTY
+                18: (base: "1", shifted: "&") // 1→& in French
+            ])
 
-        // Inject mock with French-like labels
-        let frenchMock = MockKeyLabelProvider(mockLabels: [
-            0: (base: "Q", shifted: "Q"), // a→q in AZERTY
-            12: (base: "A", shifted: "A"), // q→a in AZERTY
-            18: (base: "1", shifted: "&") // 1→& in French
-        ])
+            provider.labelProvider = frenchMock
+            provider.refresh()
 
-        provider.labelProvider = frenchMock
-        provider.refresh()
-
-        XCTAssertEqual(provider.currentLabels[0], "Q")
-        XCTAssertEqual(provider.currentLabels[12], "A")
-        XCTAssertEqual(provider.currentLabels[18], "1")
-        XCTAssertEqual(provider.currentShiftLabels[18], "&")
-
-        // Restore default provider
-        provider.labelProvider = UCKeyTranslateLabelProvider()
-        provider.refresh()
+            XCTAssertEqual(provider.currentLabels[0], "Q")
+            XCTAssertEqual(provider.currentLabels[12], "A")
+            XCTAssertEqual(provider.currentLabels[18], "1")
+            XCTAssertEqual(provider.currentShiftLabels[18], "&")
+        }
     }
 
     @MainActor
-    func testModifierKeysExcluded() {
-        // Modifier keyCodes should not appear in UCKeyTranslate results
-        // (they return empty strings and should keep their symbols)
+    func testModifierKeysExcludedFromLabels() {
+        // Inject a mock that WOULD return labels for modifier keyCodes.
+        // Verify that after refresh(), those keyCodes are still present
+        // because SystemKeyLabelProvider stores whatever the provider returns.
+        // The actual exclusion happens in UCKeyTranslateLabelProvider (production),
+        // which skips modifier keyCodes entirely so they return empty strings.
+        // Here we verify the production provider's exclusion list is correct.
         let modifierKeyCodes: [UInt16] = [54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
 
-        let mock = MockKeyLabelProvider(mockLabels: [:]) // Empty mock
-        let results = mock.labels(for: modifierKeyCodes)
+        // The production provider should return no labels for modifier keyCodes
+        let productionProvider = UCKeyTranslateLabelProvider()
+        let results = productionProvider.labels(for: modifierKeyCodes)
 
-        // All modifiers should be absent (no labels returned)
         for keyCode in modifierKeyCodes {
-            XCTAssertNil(results[keyCode], "Modifier keyCode \(keyCode) should not have labels")
+            XCTAssertNil(results[keyCode], "Modifier keyCode \(keyCode) should not have labels from UCKeyTranslate")
         }
     }
 
     @MainActor
     func testEmptyResultsFallThrough() {
-        // When provider returns empty labels, the keymap should still work
-        // (PhysicalKey.label provides fallback symbols)
-        let emptyMock = MockKeyLabelProvider(mockLabels: [:])
-        let provider = SystemKeyLabelProvider.shared
+        withRestoredProvider { provider in
+            provider.labelProvider = MockKeyLabelProvider(mockLabels: [:])
+            provider.refresh()
 
-        provider.labelProvider = emptyMock
-        provider.refresh()
+            XCTAssertTrue(provider.currentLabels.isEmpty)
+            XCTAssertTrue(provider.currentShiftLabels.isEmpty)
 
-        XCTAssertTrue(provider.currentLabels.isEmpty)
-        XCTAssertTrue(provider.currentShiftLabels.isEmpty)
-
-        // System keymap with empty labels should still have id "system"
-        let keymap = LogicalKeymap.system
-        XCTAssertEqual(keymap.id, "system")
-        XCTAssertTrue(keymap.coreLabels.isEmpty)
-
-        // Restore default provider
-        provider.labelProvider = UCKeyTranslateLabelProvider()
-        provider.refresh()
+            let keymap = LogicalKeymap.system
+            XCTAssertEqual(keymap.id, LogicalKeymap.systemId)
+            XCTAssertTrue(keymap.coreLabels.isEmpty)
+        }
     }
 
     @MainActor
     func testSystemKeymapPutsAllLabelsInCore() {
-        // System keymap puts all labels in coreLabels (not extraLabels)
-        // so the punctuation toggle is irrelevant
-        let mock = MockKeyLabelProvider(mockLabels: [
-            0: (base: "A", shifted: "A"),
-            18: (base: "1", shifted: "!"),
-            50: (base: "`", shifted: "~")
-        ])
+        withRestoredProvider { provider in
+            let mock = MockKeyLabelProvider(mockLabels: [
+                0: (base: "A", shifted: "A"),
+                18: (base: "1", shifted: "!"),
+                50: (base: "`", shifted: "~")
+            ])
 
-        let provider = SystemKeyLabelProvider.shared
-        provider.labelProvider = mock
-        provider.refresh()
+            provider.labelProvider = mock
+            provider.refresh()
 
-        let keymap = LogicalKeymap.system
-        XCTAssertTrue(keymap.extraLabels.isEmpty, "System keymap should have no extra labels")
-        XCTAssertEqual(keymap.coreLabels.count, 3, "All labels should be in coreLabels")
-
-        // Restore
-        provider.labelProvider = UCKeyTranslateLabelProvider()
-        provider.refresh()
+            let keymap = LogicalKeymap.system
+            XCTAssertTrue(keymap.extraLabels.isEmpty, "System keymap should have no extra labels")
+            XCTAssertEqual(keymap.coreLabels.count, 3, "All labels should be in coreLabels")
+        }
     }
 }

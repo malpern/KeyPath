@@ -234,14 +234,15 @@ struct OverlayKeycapView: View {
         OpticalAdjustments.forLabel(effectiveLabel)
     }
 
-    /// Metadata for current label, with custom shift override from LayerKeyInfo or system keymap
+    /// Metadata for current label, with shift overrides.
+    /// Priority: user's layer customization > system keymap > static lookup
     var metadata: LabelMetadata {
         var meta = LabelMetadata.forLabel(effectiveLabel)
-        if let customShift = layerKeyInfo?.customShiftLabel {
-            meta.shiftSymbol = customShift
-        }
         if let shiftOverride = shiftLabelOverride {
             meta.shiftSymbol = shiftOverride
+        }
+        if let customShift = layerKeyInfo?.customShiftLabel {
+            meta.shiftSymbol = customShift
         }
         return meta
     }

@@ -76,7 +76,7 @@ extension RuleCollectionsManager {
     func detectKeymapConflicts(keymapId: String, includePunctuation: Bool) -> [RuleConflictInfo] {
         guard let keymap = LogicalKeymap.find(id: keymapId),
               keymapId != "qwerty-us",
-              keymapId != "system"
+              keymapId != LogicalKeymap.systemId
         else {
             return []
         }

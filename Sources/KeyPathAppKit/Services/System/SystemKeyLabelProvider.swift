@@ -117,8 +117,8 @@ struct UCKeyTranslateLabelProvider: KeyLabelQuerying, Sendable {
         54, 55, 56, 57, 58, 59, 60, 61, 62, 63 // rcmd, lcmd, lshift, capslock, lopt, lctrl, rshift, ropt, rctrl, fn
     ]
 
-    /// Shift key modifier flag for UCKeyTranslate
-    private static let shiftKey: UInt32 = 0x0200 // kCGEventFlagMaskShift >> 16
+    /// Carbon shiftKey constant; pass (shiftKey >> 8) to UCKeyTranslate as modifierKeyState
+    private static let shiftKey: UInt32 = 0x0200
 
     /// Get the UCKeyboardLayout data from the current input source
     private static func currentLayoutData() -> CFData? {

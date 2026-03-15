@@ -346,7 +346,7 @@ struct OverlayKeyboardView: View {
         let launcherMapping = launcherMappings[baseLabel.lowercased()]
 
         // Look up per-key shift label from system keymap when active
-        let shiftOverride: String? = if keymap.id == "system" {
+        let shiftOverride: String? = if keymap.id == LogicalKeymap.systemId {
             systemShiftLabel(for: key.keyCode)
         } else {
             nil
@@ -478,7 +478,7 @@ struct OverlayKeyboardView: View {
     /// Get shift override for a floating label (by label string, not keyCode).
     @MainActor
     private func floatingLabelShiftOverride(for label: String) -> String? {
-        guard keymap.id == "system" else { return nil }
+        guard keymap.id == LogicalKeymap.systemId else { return nil }
         guard let keyCode = labelToKeyCode[label.uppercased()] else { return nil }
         return systemShiftLabel(for: keyCode)
     }

@@ -59,7 +59,7 @@ extension RuleCollectionsManager {
         runMigrations()
 
         // Restore keymap collection if a non-identity layout was active
-        if activeKeymapId != "qwerty-us", activeKeymapId != "system" {
+        if activeKeymapId != "qwerty-us", activeKeymapId != LogicalKeymap.systemId {
             if let keymapCollection = KeymapMappingGenerator.generateCollection(
                 for: activeKeymapId,
                 includePunctuation: keymapIncludesPunctuation

@@ -112,11 +112,11 @@ extension OverlayInspectorPanel {
         VStack(alignment: .leading, spacing: 16) {
             // System keymap card (uses current OS input source)
             SystemKeymapCard(
-                isSelected: selectedKeymapId == "system",
+                isSelected: selectedKeymapId == LogicalKeymap.systemId,
                 isDark: isDark,
                 fadeAmount: fadeAmount
             ) {
-                selectedKeymapId = "system"
+                selectedKeymapId = LogicalKeymap.systemId
             }
 
             // Alt layouts section (QWERTY + ergonomic layouts) - no header
