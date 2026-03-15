@@ -118,13 +118,4 @@ enum JISPositionTable {
         }
     }
 
-    /// Get key mapping with support for custom mappings
-    static func keyMapping(row: Int, col: Int, customMappings: [((Int, Int), (UInt16, String))] = []) -> (keyCode: UInt16, label: String)? {
-        // Check custom mappings first
-        if let custom = customMappings.first(where: { $0.0 == (row, col) }) {
-            return custom.1
-        }
-        // Fall back to standard JIS mapping
-        return keyMapping(row: row, col: col)
-    }
 }
