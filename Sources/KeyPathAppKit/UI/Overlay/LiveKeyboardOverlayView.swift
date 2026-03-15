@@ -618,7 +618,11 @@ struct LiveKeyboardOverlayView: View {
                 if allowKeyboardDrag {
                     keyboardView
                         .contentShape(Rectangle())
-                        .highPriorityGesture(
+                        // Use simultaneousGesture (not highPriority) so the Touch ID keycap's
+                        // TapGesture can fire alongside this drag gesture. Non-TouchID keycaps
+                        // already have .allowsHitTesting(false) when the drawer is closed,
+                        // so there's no risk of accidental key clicks during drag.
+                        .simultaneousGesture(
                             DragGesture(minimumDistance: 3, coordinateSpace: .global)
                                 .onChanged { _ in
                                     if !isKeyboardDragging, let window = findOverlayWindow() {
