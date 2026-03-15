@@ -51,17 +51,15 @@ enum DeviceEnumerationService {
 
     // MARK: - Dev Fake Devices
 
-    #if DEBUG
-        // DEV FALLBACK: macOS multi-device is blocked upstream (psych3r/driverkit#15).
-        // These fake devices let the keyboard picker UI be tested with a single physical keyboard.
-        // TODO: Remove once upstream lands. Tracked by #254.
-        private static let devFakeDevices: [ConnectedDevice] = [
-            ConnectedDevice(hash: "0xDEADBEEF", vendorID: 0x29EA, productID: 0x0041,
-                            productKey: "Kinesis Advantage360 Pro", isVirtualHID: false),
-            ConnectedDevice(hash: "0xCAFEBABE", vendorID: 0x1209, productID: 0x4173,
-                            productKey: "ZSA Moonlander Mark I", isVirtualHID: false),
-        ]
-    #endif
+    // DEV FALLBACK: macOS multi-device is blocked upstream (psych3r/driverkit#15).
+    // These fake devices let the keyboard picker UI be tested with a single physical keyboard.
+    // TODO: Remove once upstream lands. Tracked by #254.
+    private static let devFakeDevices: [ConnectedDevice] = [
+        ConnectedDevice(hash: "0xDEADBEEF", vendorID: 0x29EA, productID: 0x0041,
+                        productKey: "Kinesis Advantage360 Pro", isVirtualHID: false),
+        ConnectedDevice(hash: "0xCAFEBABE", vendorID: 0x1209, productID: 0x4173,
+                        productKey: "ZSA Moonlander Mark I", isVirtualHID: false),
+    ]
 
     // MARK: - Enumeration
 
@@ -75,13 +73,9 @@ enum DeviceEnumerationService {
             let fm = Foundation.FileManager()
             guard let kanataPath = candidates.first(where: { fm.isExecutableFile(atPath: $0) }) else {
                 AppLogger.shared.warn("⚠️ [DeviceEnumeration] No kanata binary found at known paths")
-                #if DEBUG
-                    let fallback = devFakeDevices
-                    DeviceSelectionCache.shared.updateConnectedDevices(fallback)
-                    return fallback
-                #else
-                    return []
-                #endif
+                let fallback = devFakeDevices
+                DeviceSelectionCache.shared.updateConnectedDevices(fallback)
+                return fallback
             }
 
             do {
@@ -107,17 +101,15 @@ enum DeviceEnumerationService {
                 var devices = parseAllDevices(fromKanataList: output)
                 AppLogger.shared.log("🔌 [DeviceEnumeration] Found \(devices.count) device(s): \(devices.map(\.displayName).joined(separator: ", "))")
 
-                #if DEBUG
-                    // Supplement with fake devices when fewer than 2 physical keyboards detected
-                    let physicalCount = devices.filter { !$0.isVirtualHID }.count
-                    if physicalCount < 2 {
-                        let fakes = devFakeDevices.filter { fake in
-                            !devices.contains(where: { $0.hash == fake.hash })
-                        }
-                        devices.append(contentsOf: fakes)
-                        AppLogger.shared.log("🔌 [DeviceEnumeration] Added \(fakes.count) fake device(s) for UI development")
+                // Supplement with fake devices when fewer than 2 physical keyboards detected
+                let physicalCount = devices.filter { !$0.isVirtualHID }.count
+                if physicalCount < 2 {
+                    let fakes = devFakeDevices.filter { fake in
+                        !devices.contains(where: { $0.hash == fake.hash })
                     }
-                #endif
+                    devices.append(contentsOf: fakes)
+                    AppLogger.shared.log("🔌 [DeviceEnumeration] Added \(fakes.count) fake device(s) for UI development")
+                }
 
                 // Cache for synchronous config generator reads
                 DeviceSelectionCache.shared.updateConnectedDevices(devices)
