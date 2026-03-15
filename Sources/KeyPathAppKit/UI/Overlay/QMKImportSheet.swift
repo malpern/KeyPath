@@ -397,12 +397,14 @@ struct QMKImportSheet: View {
     nonisolated static func extractKeyboardPath(from urlString: String) -> String? {
         guard let range = urlString.range(of: "keyboards/") else { return nil }
         let afterKeyboards = String(urlString[range.upperBound...])
-        // Remove trailing file components like /info.json, /keymap.c, etc.
         let components = afterKeyboards.components(separatedBy: "/")
-        // Find where the keyboard path ends (before files like info.json, keymaps, etc.)
+        // Stop at "keymaps" folder or known terminal file extensions (.json, .c, .h, .md).
+        // Don't stop on dots in general — QMK has keyboards with dotted versions like "jones/rev03.1".
         var pathComponents: [String] = []
         for component in components {
-            if component.contains(".") || component == "keymaps" {
+            if component == "keymaps" || component.hasSuffix(".json") || component.hasSuffix(".c") ||
+                component.hasSuffix(".h") || component.hasSuffix(".md")
+            {
                 break
             }
             pathComponents.append(component)

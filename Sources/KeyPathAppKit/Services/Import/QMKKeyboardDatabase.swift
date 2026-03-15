@@ -548,6 +548,8 @@ actor QMKKeyboardDatabase {
     /// parseBaseLayer handles both C and JSON formats.
     /// Returns the parsed base layer keycodes, or nil if fetch/parse fails.
     /// This is a best-effort operation — failure is expected for some keyboards.
+    /// Note: only tries the canonical `keymaps/default/` path. Keyboards without
+    /// this folder (e.g. via-only boards) will return nil and fall back to position-based parsing.
     func fetchDefaultKeymap(keyboardPath: String) async -> [String]? {
         // Check disk cache first (keymap files are cached separately with a "-keymap" suffix)
         let cacheKey = "\(keyboardPath)-keymap"

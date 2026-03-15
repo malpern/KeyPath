@@ -723,6 +723,14 @@ final class QMKImportServiceTests: XCTestCase {
         )
     }
 
+    func testExtractKeyboardPathWithDottedVersion() {
+        // QMK keyboards with dotted version suffixes like "jones/rev03.1"
+        XCTAssertEqual(
+            QMKImportSheet.extractKeyboardPath(from: "https://raw.githubusercontent.com/qmk/qmk_firmware/master/keyboards/jones/rev03.1/keymaps/default/keymap.c"),
+            "jones/rev03.1"
+        )
+    }
+
     func testExtractKeyboardPathReturnsNilForNonQMKURL() {
         XCTAssertNil(
             QMKImportSheet.extractKeyboardPath(from: "https://example.com/some/other/url")
