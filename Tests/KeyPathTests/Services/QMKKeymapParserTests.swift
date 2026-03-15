@@ -273,6 +273,46 @@ struct QMKKeymapParserTests {
         #expect(lng2?.label == "英数")
     }
 
+    @Test func resolveLocaleAliasKeycodes() {
+        // Japanese aliases
+        let jpQ = QMKKeymapParser.resolveKeycode("JP_Q")
+        #expect(jpQ?.keyCode == 12, "JP_Q should resolve to KC_Q (keyCode 12)")
+        #expect(jpQ?.label == "q")
+
+        let jpYen = QMKKeymapParser.resolveKeycode("JP_YEN")
+        #expect(jpYen != nil, "JP_YEN should resolve via locale alias")
+
+        // French AZERTY — FR_A is at the Q position (label shows physical position)
+        let frA = QMKKeymapParser.resolveKeycode("FR_A")
+        #expect(frA?.keyCode == 12, "FR_A should resolve to KC_Q (keyCode 12) on AZERTY")
+        #expect(frA?.label == "q", "FR_A label should be 'q' (physical position, not locale character)")
+
+        // German QWERTZ — DE_Z is at the Y position (label shows physical position)
+        let deZ = QMKKeymapParser.resolveKeycode("DE_Z")
+        #expect(deZ?.keyCode == 16, "DE_Z should resolve to KC_Y (keyCode 16) on QWERTZ")
+        #expect(deZ?.label == "y", "DE_Z label should be 'y' (physical position, not locale character)")
+
+        // Korean
+        let krHaen = QMKKeymapParser.resolveKeycode("KR_HAEN")
+        #expect(krHaen != nil, "KR_HAEN should resolve via locale alias")
+
+        // Nordic
+        let noArng = QMKKeymapParser.resolveKeycode("NO_ARNG")
+        #expect(noArng != nil, "NO_ARNG should resolve via locale alias")
+
+        // Dead key (resolves to base key position — label is the position, not the dead character)
+        let deAcut = QMKKeymapParser.resolveKeycode("DE_ACUT")
+        #expect(deAcut != nil, "DE_ACUT should resolve via locale alias")
+
+        // JIS bracket (shifted naming — extractBaseKey passes through, alias resolves)
+        let jpLbrc = QMKKeymapParser.resolveKeycode("JP_LBRC")
+        #expect(jpLbrc != nil, "JP_LBRC should resolve via locale alias")
+
+        // Unknown locale code should still return nil
+        let unknown = QMKKeymapParser.resolveKeycode("ZZ_FAKE")
+        #expect(unknown == nil, "Unknown locale alias should return nil")
+    }
+
     @Test func resolveShiftedPunctuationLabels() {
         #expect(QMKKeymapParser.keycodeLabel("KC_TILD") == "~")
         #expect(QMKKeymapParser.keycodeLabel("KC_LPRN") == "(")

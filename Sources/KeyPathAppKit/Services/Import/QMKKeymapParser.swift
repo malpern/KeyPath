@@ -302,6 +302,14 @@ enum QMKKeymapParser {
             return (macKeyCode, label)
         }
 
+        // Try locale alias resolution (JP_Q → KC_Q, FR_A → KC_Q, DE_Z → KC_Y, etc.)
+        if let canonicalKey = QMKKeycodeMapping.localeAliases[baseKey],
+           let macKeyCode = QMKKeycodeMapping.qmkToMacOS[canonicalKey]
+        {
+            let label = keycodeLabel(canonicalKey)
+            return (macKeyCode, label)
+        }
+
         // Fall back to display-only keycodes (mouse keys, media, etc.)
         if let displayLabel = QMKKeycodeMapping.qmkDisplayOnly[baseKey] {
             return (PhysicalKey.unmappedKeyCode, displayLabel)
