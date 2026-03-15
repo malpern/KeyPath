@@ -66,7 +66,8 @@ final class SystemKeyLabelProviderTests: XCTestCase {
 
     @MainActor
     func testSystemKeymapDefaultId() {
-        XCTAssertEqual(LogicalKeymap.defaultId, LogicalKeymap.systemId)
+        // QWERTY remains the default — System is opt-in for QMK/international users
+        XCTAssertEqual(LogicalKeymap.defaultId, LogicalKeymap.qwertyUSId)
     }
 
     @MainActor

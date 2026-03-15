@@ -25,7 +25,7 @@ struct LogicalKeymap: Identifiable {
 
     static let systemId = "system"
     static let qwertyUSId = "qwerty-us"
-    static let defaultId = systemId
+    static let defaultId = qwertyUSId
 
     // MARK: - Layout Registry
 
