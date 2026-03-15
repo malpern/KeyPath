@@ -525,6 +525,10 @@ struct HomeRowTimingSection: View {
                     .foregroundStyle(.secondary)
             }
 
+            if !hrmObservability.recentTraceEvents.isEmpty {
+                liveTraceSection
+            }
+
             if !hrmObservability.recommendations.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Recommendation Preview")
@@ -588,6 +592,49 @@ struct HomeRowTimingSection: View {
                 }
             }
         }
+    }
+
+    // MARK: - Live Decision Stream
+
+    private var liveTraceSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Live Decision Stream")
+                .font(.caption.weight(.semibold))
+
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(hrmObservability.recentTraceEvents.suffix(10).reversed()) { event in
+                    HStack(spacing: 6) {
+                        Text(event.key)
+                            .font(.caption.monospaced())
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Color.secondary.opacity(0.12))
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+
+                        Text(event.decision == .tap ? "tap" : "hold")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(event.decision == .tap ? .blue : .orange)
+                            .frame(width: 28, alignment: .leading)
+
+                        Text(event.shortExplanation)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        Text(event.latencyDisplay)
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .frame(width: 36, alignment: .trailing)
+
+                        Text(event.formattedTimestamp)
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("home-row-mods-hrm-live-trace")
     }
 
     private func hrmMetricChip(title: String, value: String) -> some View {

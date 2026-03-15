@@ -306,3 +306,34 @@ public struct KanataHrmTraceEvent: Codable, Sendable, Equatable {
         )
     }
 }
+
+// MARK: - Identifiable & Display Helpers
+
+extension KanataHrmTraceEvent: Identifiable {
+    public var id: String {
+        "\(key)-\(decision.rawValue)-\(timestamp?.timeIntervalSince1970 ?? 0)"
+    }
+
+    /// One-line explanation like "opposite-hand" or "release-before-timeout"
+    var shortExplanation: String {
+        reason.displayName
+    }
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f
+    }()
+
+    /// Formatted timestamp like "12:04:31"
+    var formattedTimestamp: String {
+        guard let timestamp else { return "" }
+        return Self.timeFormatter.string(from: timestamp)
+    }
+
+    /// Latency display like "12ms" or em-dash
+    var latencyDisplay: String {
+        if let ms = decideLatencyMs { return "\(ms)ms" }
+        return "\u{2014}"
+    }
+}
