@@ -333,6 +333,38 @@ final class QMKKeyboardDatabaseTests: XCTestCase {
         XCTAssertEqual(results.count, 0, "'mode 80' should not match mode/m65s")
     }
 
+    // MARK: - Built-in Layout Mapping Tests
+
+    func testBuiltInLayoutMappingResolvesToRealLayouts() {
+        // Every value in qmkToBuiltInLayout must correspond to a real PhysicalLayout.
+        // This prevents typos in the mapping table from silently breaking the redirect.
+        for (qmkPath, builtInId) in QMKKeyboardDatabase.qmkToBuiltInLayout {
+            XCTAssertNotNil(
+                PhysicalLayout.find(id: builtInId),
+                "qmkToBuiltInLayout[\"\(qmkPath)\"] = \"\(builtInId)\" does not resolve to a real PhysicalLayout"
+            )
+        }
+    }
+
+    func testSearchResultsIncludeBuiltInLayoutId() async throws {
+        let database = QMKKeyboardDatabase.shared
+
+        await database.seedIndex(with: [
+            .init(path: "crkbd/rev1"),
+            .init(path: "mode/m65s"),
+        ])
+        await database.seedBundledKeyboards(with: [])
+        await database.seedMetadata(with: [:])
+
+        let results = try await database.searchKeyboards("crkbd")
+        XCTAssertEqual(results.first?.builtInLayoutId, "corne",
+                       "crkbd/rev1 should be tagged with built-in layout 'corne'")
+
+        let modeResults = try await database.searchKeyboards("mode")
+        XCTAssertNil(modeResults.first?.builtInLayoutId,
+                     "mode/m65s should not have a built-in layout mapping")
+    }
+
     // MARK: - Legacy seedCache compatibility
 
     func testSeedCacheSetsBundledKeyboards() async throws {

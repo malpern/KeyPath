@@ -48,7 +48,7 @@ actor QMKKeyboardDatabase {
     /// QMK paths that map to built-in PhysicalLayout IDs.
     /// When a search result matches one of these, selecting it activates the
     /// built-in layout directly instead of importing from QMK.
-    private static let qmkToBuiltInLayout: [String: String] = [
+    static let qmkToBuiltInLayout: [String: String] = [
         // Corne (crkbd) variants
         "crkbd": "corne",
         "crkbd/rev1": "corne",

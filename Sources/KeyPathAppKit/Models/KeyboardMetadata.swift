@@ -49,6 +49,7 @@ struct KeyboardMetadata: Identifiable, Hashable, Sendable {
         tags = info.features?.tags ?? []
         self.infoJsonURL = infoJsonURL
         isBundled = false
+        // Built-in mapping is applied by QMKKeyboardDatabase, not at init time
         builtInLayoutId = nil
     }
 }
