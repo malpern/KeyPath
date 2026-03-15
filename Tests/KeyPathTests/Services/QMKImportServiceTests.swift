@@ -590,6 +590,153 @@ final class QMKImportServiceTests: XCTestCase {
         XCTAssertNotEqual(row3col13?.keyCode, 36, "JIS Enter should not extend to (3,13)")
     }
 
+    // MARK: - Keyboard Path Tests (#283)
+
+    func testStoredLayoutKeyboardPathCodableRoundtrip() throws {
+        let stored = try StoredLayout(
+            id: "path-test",
+            name: "Path Test",
+            layoutJSON: XCTUnwrap("{}".data(using: .utf8)),
+            keyboardPath: "crkbd/rev1"
+        )
+
+        let encoded = try JSONEncoder().encode(stored)
+        let decoded = try JSONDecoder().decode(StoredLayout.self, from: encoded)
+
+        XCTAssertEqual(decoded.keyboardPath, "crkbd/rev1")
+    }
+
+    func testStoredLayoutWithoutKeyboardPathDecodesAsNil() throws {
+        // Backward compatibility: old stored layouts without keyboardPath decode fine
+        let json = """
+        {
+          "id": "old-format-2",
+          "name": "Old Format",
+          "layoutJSON": "e30=",
+          "importDate": 0
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(StoredLayout.self, from: json)
+        XCTAssertNil(decoded.keyboardPath, "Missing keyboardPath should decode as nil for backward compatibility")
+    }
+
+    func testSaveWithKeyboardPath() async {
+        let json = """
+        {
+          "id": "path-save-test",
+          "name": "Path Save",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                {"matrix": [0,0], "x": 0, "y": 0},
+                {"matrix": [0,1], "x": 1, "y": 0}
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        guard let result = QMKLayoutParser.parseByPositionWithQuality(
+            data: json,
+            idOverride: "custom-path-save",
+            nameOverride: "Path Save"
+        ) else {
+            XCTFail("parseByPositionWithQuality should succeed")
+            return
+        }
+
+        await service.saveCustomLayout(
+            layout: result.layout,
+            name: "Path Save",
+            sourceURL: nil,
+            layoutJSON: json,
+            layoutVariant: nil,
+            keyboardPath: "test/keyboard"
+        )
+
+        let layoutId = result.layout.id.hasPrefix("custom-") ? String(result.layout.id.dropFirst(7)) : result.layout.id
+        let hasPath = await service.hasKeyboardPath(layoutId: layoutId)
+        XCTAssertTrue(hasPath, "Layout saved with keyboardPath should report hasKeyboardPath == true")
+    }
+
+    func testHasKeyboardPathReturnsFalseWithoutPath() async {
+        let json = """
+        {
+          "id": "no-path-test",
+          "name": "No Path",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                {"matrix": [0,0], "x": 0, "y": 0}
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        guard let result = QMKLayoutParser.parseByPositionWithQuality(
+            data: json,
+            idOverride: "custom-no-path",
+            nameOverride: "No Path"
+        ) else {
+            XCTFail("parseByPositionWithQuality should succeed")
+            return
+        }
+
+        await service.saveCustomLayout(
+            layout: result.layout,
+            name: "No Path",
+            sourceURL: nil,
+            layoutJSON: json,
+            layoutVariant: nil
+            // No keyboardPath
+        )
+
+        let layoutId = result.layout.id.hasPrefix("custom-") ? String(result.layout.id.dropFirst(7)) : result.layout.id
+        let hasPath = await service.hasKeyboardPath(layoutId: layoutId)
+        XCTAssertFalse(hasPath, "Layout without keyboardPath should report hasKeyboardPath == false")
+    }
+
+    func testRefreshKeymapFailsWithoutKeyboardPath() async {
+        let result = await service.refreshKeymap(layoutId: "nonexistent")
+        if case let .failure(message) = result {
+            XCTAssertTrue(message.contains("not found"), "Should report layout not found")
+        } else {
+            XCTFail("Should return failure for nonexistent layout")
+        }
+    }
+
+    // MARK: - Extract Keyboard Path Tests (#283)
+
+    func testExtractKeyboardPathFromGitHubURL() {
+        XCTAssertEqual(
+            QMKImportSheet.extractKeyboardPath(from: "https://raw.githubusercontent.com/qmk/qmk_firmware/master/keyboards/crkbd/rev1/info.json"),
+            "crkbd/rev1"
+        )
+    }
+
+    func testExtractKeyboardPathFromQMKURL() {
+        XCTAssertEqual(
+            QMKImportSheet.extractKeyboardPath(from: "https://keyboards.qmk.fm/v1/keyboards/sofle/rev1/info.json"),
+            "sofle/rev1"
+        )
+    }
+
+    func testExtractKeyboardPathWithDottedVersion() {
+        // QMK keyboards with dotted version suffixes like "jones/rev03.1"
+        XCTAssertEqual(
+            QMKImportSheet.extractKeyboardPath(from: "https://raw.githubusercontent.com/qmk/qmk_firmware/master/keyboards/jones/rev03.1/keymaps/default/keymap.c"),
+            "jones/rev03.1"
+        )
+    }
+
+    func testExtractKeyboardPathReturnsNilForNonQMKURL() {
+        XCTAssertNil(
+            QMKImportSheet.extractKeyboardPath(from: "https://example.com/some/other/url")
+        )
+    }
+
     func testJISVariantDetectionInLoadCustomLayouts() async {
         // Use a layout with enough keys to trigger matrix-based parsing with JIS table
         let json = """

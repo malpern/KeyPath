@@ -309,7 +309,8 @@ struct QMKKeyboardSearchView: View {
                     sourceURL: keyboard.infoJsonURL?.absoluteString,
                     layoutJSON: jsonData,
                     layoutVariant: nil,
-                    defaultKeymap: cachedKeymapTokens
+                    defaultKeymap: cachedKeymapTokens,
+                    keyboardPath: keyboard.id
                 )
 
                 await MainActor.run {
@@ -321,6 +322,12 @@ struct QMKKeyboardSearchView: View {
                         showImportToast(
                             "Imported \(keyboard.name) — only \(pct)% of keys matched. Layout may not be usable.",
                             type: .error,
+                            duration: 7.0
+                        )
+                    } else if cachedKeymapTokens == nil {
+                        showImportToast(
+                            "Imported \(keyboard.name) with limited key labels — keymap not available for this keyboard.",
+                            type: .warning,
                             duration: 7.0
                         )
                     } else if !result.isHighQuality {
