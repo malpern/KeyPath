@@ -381,32 +381,10 @@ class MainAppStateController {
             )
 
             // Clear startup mode flag now that services are ready
-            // This ensures Oracle runs full permission checks for accurate results
-            let cacheStart = Date()
-            AppLogger.shared.log("⏱️ [TIMING] Cache operations START")
             if FeatureFlags.shared.startupModeActive {
                 FeatureFlags.shared.deactivateStartupMode()
                 AppLogger.shared.log(
-                    "🔍 [MainAppStateController] Cleared startup mode flag for accurate validation"
-                )
-
-                // Invalidate Oracle cache so it runs fresh permission checks without startup mode
-                await PermissionOracle.shared.invalidateCache()
-                AppLogger.shared.debug(
-                    "🔍 [MainAppStateController] Invalidated Oracle cache to force fresh permission checks"
-                )
-            }
-            let cacheDuration = Date().timeIntervalSince(cacheStart)
-            if cacheDuration > 0.01 {
-                AppLogger.shared.log(
-                    "⏱️ [TIMING] Cache operations COMPLETE: \(String(format: "%.3f", cacheDuration))s"
-                )
-                AppLogger.shared.log(
-                    "⏱️ [MainAppStateController] Cache operations completed in \(String(format: "%.3f", cacheDuration))s"
-                )
-            } else {
-                AppLogger.shared.log(
-                    "⏱️ [TIMING] Cache operations COMPLETE: \(String(format: "%.3f", cacheDuration))s (skipped)"
+                    "🔍 [MainAppStateController] Cleared startup mode flag"
                 )
             }
 
