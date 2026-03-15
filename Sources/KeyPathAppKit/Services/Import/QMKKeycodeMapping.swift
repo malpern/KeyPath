@@ -193,6 +193,10 @@ enum QMKKeycodeMapping {
         add(0x66, "KC_LANGUAGE_2", "KC_LNG2") // kVK_JIS_Eisu
         add(0x68, "KC_LANGUAGE_1", "KC_LNG1") // kVK_JIS_Kana
 
+        // ── Grave Escape (QK_GESC) ──────────────────────────────
+        // Sends Esc normally, ` when Shift or GUI is held. Map to Esc.
+        add(0x35, "QK_GESC", "QK_GRAVE_ESCAPE") // kVK_Escape
+
         // ── Media Keys (NX key codes, sent via CGEvent) ──────────
         // These use NX_KEYTYPE_* constants, not kVK_ values.
         // They are handled differently on macOS (via HID system events,
@@ -216,6 +220,57 @@ enum QMKKeycodeMapping {
     }()
 
     // swiftlint:enable function_body_length
+
+    // MARK: - Display-Only Keycodes
+
+    /// QMK keycodes that have no macOS CGKeyCode equivalent but should still
+    /// display meaningful labels (e.g. mouse buttons, media playback).
+    /// Keys here resolve with `PhysicalKey.unmappedKeyCode` (0xFFFF) as keyCode.
+    static let qmkDisplayOnly: [String: String] = {
+        var map: [String: String] = [:]
+
+        func add(_ label: String, _ names: String...) {
+            for name in names {
+                map[name] = label
+            }
+        }
+
+        // ── Mouse Buttons ──────────────────────────────────────────
+        add("M1", "MS_BTN1")
+        add("M2", "MS_BTN2")
+        add("M3", "MS_BTN3")
+        add("M4", "MS_BTN4")
+        add("M5", "MS_BTN5")
+
+        // ── Mouse Movement ─────────────────────────────────────────
+        // swiftlint:disable:next line_length
+        add("M\u{2191}", "MS_UP") // M↑
+        add("M\u{2193}", "MS_DOWN") // M↓
+        add("M\u{2190}", "MS_LEFT") // M←
+        add("M\u{2192}", "MS_RGHT") // M→
+
+        // ── Mouse Scroll ───────────────────────────────────────────
+        add("Scr\u{2191}", "MS_WHLU") // Scroll↑
+        add("Scr\u{2193}", "MS_WHLD") // Scroll↓
+
+        // ── Media Playback ─────────────────────────────────────────
+        // NX_KEYTYPE_PLAY = 16, NX_KEYTYPE_NEXT = 17, etc.
+        // No standard CGKeyCode; handled via HID system events.
+        add("play", "KC_MEDIA_PLAY_PAUSE", "KC_MPLY")
+        add("next", "KC_MEDIA_NEXT_TRACK", "KC_MNXT")
+        add("prev", "KC_MEDIA_PREV_TRACK", "KC_MPRV")
+        add("stop", "KC_MEDIA_STOP", "KC_MSTP")
+        add("sel", "KC_MEDIA_SELECT", "KC_MSEL")
+        add("eject", "KC_MEDIA_EJECT", "KC_EJCT")
+        add("ffwd", "KC_MEDIA_FAST_FORWARD", "KC_MFFD")
+        add("rwnd", "KC_MEDIA_REWIND", "KC_MRWD")
+
+        // ── Brightness ─────────────────────────────────────────────
+        add("bri+", "KC_BRIGHTNESS_UP", "KC_BRIU")
+        add("bri-", "KC_BRIGHTNESS_DOWN", "KC_BRID")
+
+        return map
+    }()
 
     // MARK: - Reverse Lookup
 

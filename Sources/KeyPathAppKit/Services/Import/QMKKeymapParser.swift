@@ -213,8 +213,11 @@ enum QMKKeymapParser {
 
         // Simple keycodes (no parentheses)
         if !trimmed.contains("(") {
-            // Layer/system commands without args
-            if trimmed.hasPrefix("QK_") || trimmed.hasPrefix("RGB_") || trimmed.hasPrefix("BL_")
+            // Layer/system commands without args — except QK_GESC which is a real key
+            if trimmed.hasPrefix("QK_"), trimmed != "QK_GESC", trimmed != "QK_GRAVE_ESCAPE" {
+                return nil
+            }
+            if trimmed.hasPrefix("RGB_") || trimmed.hasPrefix("BL_")
                 || trimmed.hasPrefix("UG_") || trimmed.hasPrefix("RM_") || trimmed.hasPrefix("CW_")
                 || trimmed.hasPrefix("SC_") || trimmed.hasPrefix("TL_") || trimmed.hasPrefix("STN_")
             {
@@ -283,6 +286,8 @@ enum QMKKeymapParser {
 
     /// Resolve a keymap token to a macOS keyCode and display label.
     /// Returns nil for layer keys, transparent keys, and unknown keycodes.
+    /// Keys with no macOS equivalent (mouse buttons, media playback) resolve
+    /// with `PhysicalKey.unmappedKeyCode` (0xFFFF) and a descriptive label.
     static func resolveKeycode(_ token: String) -> (keyCode: UInt16, label: String)? {
         guard let baseKey = extractBaseKey(token) else {
             return nil
@@ -294,12 +299,22 @@ enum QMKKeymapParser {
             return (macKeyCode, label)
         }
 
+        // Fall back to display-only keycodes (mouse keys, media, etc.)
+        if let displayLabel = QMKKeycodeMapping.qmkDisplayOnly[baseKey] {
+            return (PhysicalKey.unmappedKeyCode, displayLabel)
+        }
+
         AppLogger.shared.debug("⚠️ [QMKKeymapParser] Unknown keycode '\(token)' (base: '\(baseKey)') — no macOS mapping")
         return nil
     }
 
     /// Generate a short display label for a QMK keycode name.
     static func keycodeLabel(_ keycode: String) -> String {
+        // Handle QK_ prefixed keycodes
+        if keycode == "QK_GESC" || keycode == "QK_GRAVE_ESCAPE" {
+            return "esc"
+        }
+
         // Remove KC_ prefix and lowercase for display
         let stripped = keycode.hasPrefix("KC_") ? String(keycode.dropFirst(3)) : keycode
 

@@ -276,6 +276,98 @@ struct QMKKeymapParserTests {
         #expect(help?.label == "help")
     }
 
+    // MARK: - Grave Escape and ISO Hash (#258)
+
+    @Test func resolveGraveEscape() {
+        let gesc = QMKKeymapParser.resolveKeycode("QK_GESC")
+        #expect(gesc?.keyCode == 0x35) // kVK_Escape
+        #expect(gesc?.label == "esc")
+
+        let gescLong = QMKKeymapParser.resolveKeycode("QK_GRAVE_ESCAPE")
+        #expect(gescLong?.keyCode == 0x35)
+        #expect(gescLong?.label == "esc")
+    }
+
+    @Test func resolveNUHS() {
+        let nuhs = QMKKeymapParser.resolveKeycode("KC_NUHS")
+        #expect(nuhs?.keyCode == 0x2A) // kVK_ANSI_Backslash (ISO hash)
+        #expect(nuhs?.label == "#")
+    }
+
+    // MARK: - Mouse Keys (#256)
+
+    @Test func resolveMouseButtons() {
+        let btn1 = QMKKeymapParser.resolveKeycode("MS_BTN1")
+        #expect(btn1?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(btn1?.label == "M1")
+
+        let btn5 = QMKKeymapParser.resolveKeycode("MS_BTN5")
+        #expect(btn5?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(btn5?.label == "M5")
+    }
+
+    @Test func resolveMouseMovement() {
+        let up = QMKKeymapParser.resolveKeycode("MS_UP")
+        #expect(up?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(up?.label == "M\u{2191}") // M↑
+
+        let down = QMKKeymapParser.resolveKeycode("MS_DOWN")
+        #expect(down?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(down?.label == "M\u{2193}") // M↓
+
+        let left = QMKKeymapParser.resolveKeycode("MS_LEFT")
+        #expect(left?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(left?.label == "M\u{2190}") // M←
+
+        let right = QMKKeymapParser.resolveKeycode("MS_RGHT")
+        #expect(right?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(right?.label == "M\u{2192}") // M→
+    }
+
+    @Test func resolveMouseScroll() {
+        let scrollUp = QMKKeymapParser.resolveKeycode("MS_WHLU")
+        #expect(scrollUp?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(scrollUp?.label == "Scr\u{2191}") // Scroll↑
+
+        let scrollDown = QMKKeymapParser.resolveKeycode("MS_WHLD")
+        #expect(scrollDown?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(scrollDown?.label == "Scr\u{2193}") // Scroll↓
+    }
+
+    // MARK: - Media Playback Keys (#257)
+
+    @Test func resolveMediaPlaybackKeys() {
+        let play = QMKKeymapParser.resolveKeycode("KC_MPLY")
+        #expect(play?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(play?.label == "play")
+
+        let next = QMKKeymapParser.resolveKeycode("KC_MNXT")
+        #expect(next?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(next?.label == "next")
+
+        let prev = QMKKeymapParser.resolveKeycode("KC_MPRV")
+        #expect(prev?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(prev?.label == "prev")
+
+        let stop = QMKKeymapParser.resolveKeycode("KC_MSTP")
+        #expect(stop?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(stop?.label == "stop")
+
+        let sel = QMKKeymapParser.resolveKeycode("KC_MSEL")
+        #expect(sel?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(sel?.label == "sel")
+    }
+
+    @Test func resolveMediaPlaybackLongNames() {
+        let play = QMKKeymapParser.resolveKeycode("KC_MEDIA_PLAY_PAUSE")
+        #expect(play?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(play?.label == "play")
+
+        let next = QMKKeymapParser.resolveKeycode("KC_MEDIA_NEXT_TRACK")
+        #expect(next?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(next?.label == "next")
+    }
+
     // MARK: - Abbreviate Token Tests
 
     @Test func abbreviateTokenMultiDigitLayers() {
