@@ -707,6 +707,70 @@ final class QMKImportServiceTests: XCTestCase {
         }
     }
 
+    func testRefreshKeymapHappyPath() async {
+        // Save a layout with keyboardPath but no keymap tokens
+        let json = """
+        {
+          "id": "refresh-test",
+          "name": "Refresh Test",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                {"matrix": [0,0], "x": 0, "y": 0},
+                {"matrix": [0,1], "x": 1, "y": 0}
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        guard let result = QMKLayoutParser.parseByPositionWithQuality(
+            data: json,
+            idOverride: "custom-refresh-happy",
+            nameOverride: "Refresh Test"
+        ) else {
+            XCTFail("parseByPositionWithQuality should succeed")
+            return
+        }
+
+        await service.saveCustomLayout(
+            layout: result.layout,
+            name: "Refresh Test",
+            sourceURL: nil,
+            layoutJSON: json,
+            layoutVariant: nil,
+            defaultKeymap: nil, // No keymap initially
+            keyboardPath: "test/refresh-board"
+        )
+
+        let layoutId = result.layout.id.hasPrefix("custom-") ? String(result.layout.id.dropFirst(7)) : result.layout.id
+
+        // Seed keymap tokens so fetchDefaultKeymap returns them without network
+        await QMKKeyboardDatabase.shared.seedKeymapTokens(
+            keyboardPath: "test/refresh-board",
+            tokens: ["KC_A", "KC_B"]
+        )
+
+        // Refresh should succeed
+        let refreshResult = await service.refreshKeymap(layoutId: layoutId)
+
+        // Clean up seeded tokens
+        await QMKKeyboardDatabase.shared.clearSeededKeymapTokens()
+
+        switch refreshResult {
+        case let .success(tokenCount):
+            XCTAssertEqual(tokenCount, 2, "Should report 2 tokens refreshed")
+        case let .failure(message):
+            XCTFail("Expected success but got failure: \(message)")
+        }
+
+        // Verify the stored layout now has keymap tokens
+        let store = CustomLayoutStore.load(from: testUserDefaults)
+        let storedLayout = store.layouts.first { $0.id == layoutId }
+        XCTAssertNotNil(storedLayout?.defaultKeymap, "Stored layout should have keymap tokens after refresh")
+        XCTAssertEqual(storedLayout?.defaultKeymap, ["KC_A", "KC_B"], "Stored keymap tokens should match fetched tokens")
+    }
+
     // MARK: - Extract Keyboard Path Tests (#283)
 
     func testExtractKeyboardPathFromGitHubURL() {

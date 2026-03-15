@@ -80,6 +80,9 @@ actor QMKKeyboardDatabase {
     /// For test injection: override metadata
     private var seededMetadata: [String: KeyboardMeta]?
 
+    /// Test-only: overrides fetchDefaultKeymap to return these tokens instead of hitting network
+    private var seededKeymapTokens: [String: [String]]?
+
     private init() {}
 
     // MARK: - Types
@@ -551,6 +554,11 @@ actor QMKKeyboardDatabase {
     /// Note: only tries the canonical `keymaps/default/` path. Keyboards without
     /// this folder (e.g. via-only boards) will return nil and fall back to position-based parsing.
     func fetchDefaultKeymap(keyboardPath: String) async -> [String]? {
+        // Test override: return seeded tokens without network
+        if let seeded = seededKeymapTokens?[keyboardPath] {
+            return seeded
+        }
+
         // Check disk cache first (keymap files are cached separately with a "-keymap" suffix)
         let cacheKey = "\(keyboardPath)-keymap"
         if let cached = readFromDiskCache(keyboardPath: cacheKey),
@@ -642,6 +650,19 @@ actor QMKKeyboardDatabase {
         func seedCache(with keyboards: [KeyboardMetadata]) {
             bundledKeyboards = keyboards
             bundledIds = Set(keyboards.map(\.id))
+        }
+
+        /// Seed keymap tokens for testing refreshKeymap without network
+        func seedKeymapTokens(keyboardPath: String, tokens: [String]) {
+            if seededKeymapTokens == nil {
+                seededKeymapTokens = [:]
+            }
+            seededKeymapTokens?[keyboardPath] = tokens
+        }
+
+        /// Clear seeded keymap tokens
+        func clearSeededKeymapTokens() {
+            seededKeymapTokens = nil
         }
     #endif
 }
