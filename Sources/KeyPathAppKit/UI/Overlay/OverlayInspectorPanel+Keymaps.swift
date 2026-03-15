@@ -43,6 +43,25 @@ private struct SystemKeymapCard: View {
         .onHover { isHovering = $0 }
     }
 
+    private var settingsLink: some View {
+        Button {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension") {
+                NSWorkspace.shared.open(url)
+            }
+        } label: {
+            HStack(spacing: 2) {
+                Text("Change in System Settings")
+                    .font(.caption2)
+                Image(systemName: "arrow.up.forward")
+                    .font(.system(size: 7, weight: .semibold))
+            }
+            .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 1)
+        .accessibilityIdentifier("system-keymap-settings-link")
+    }
+
     private var cardContent: some View {
         HStack(spacing: 10) {
             Image(systemName: "globe")
@@ -58,6 +77,10 @@ private struct SystemKeymapCard: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+
+                if isSelected {
+                    settingsLink
+                }
             }
 
             Spacer()
