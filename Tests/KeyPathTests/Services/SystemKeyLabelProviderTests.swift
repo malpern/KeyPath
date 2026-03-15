@@ -52,11 +52,16 @@ final class SystemKeyLabelProviderTests: XCTestCase {
     }
 
     @MainActor
-    func testSystemKeymapFindReturnsDynamicKeymap() {
-        let keymap = LogicalKeymap.find(id: LogicalKeymap.systemId)
-        XCTAssertNotNil(keymap)
-        XCTAssertEqual(keymap?.id, LogicalKeymap.systemId)
-        XCTAssertEqual(keymap?.name, "System")
+    func testSystemKeymapFindReturnsNil() {
+        // find() returns nil for system — use resolve() from @MainActor UI code
+        XCTAssertNil(LogicalKeymap.find(id: LogicalKeymap.systemId))
+    }
+
+    @MainActor
+    func testSystemKeymapResolveReturnsDynamicKeymap() {
+        let keymap = LogicalKeymap.resolve(id: LogicalKeymap.systemId)
+        XCTAssertEqual(keymap.id, LogicalKeymap.systemId)
+        XCTAssertEqual(keymap.name, "System")
     }
 
     @MainActor

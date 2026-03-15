@@ -59,20 +59,10 @@ struct LogicalKeymap: Identifiable {
         qwertz
     ]
 
+    /// Look up a static keymap by ID. Returns nil for unknown IDs and for `systemId`.
+    /// The "system" keymap is dynamic (@MainActor) — use `resolve(id:)` from UI code instead.
     static func find(id: String) -> LogicalKeymap? {
-        if id == systemId {
-            // Return a minimal placeholder from nonisolated context.
-            // UI code should use resolve(id:) for reactive system keymap labels.
-            return LogicalKeymap(
-                id: systemId,
-                name: "System",
-                description: "Uses your Mac's current input source.",
-                learnMoreURL: URL(string: "https://support.apple.com/guide/mac-help/change-input-sources-mchlp1406/mac")!,
-                iconFilename: "QWERTY",
-                coreLabels: [:],
-                extraLabels: [:]
-            )
-        }
+        if id == systemId { return nil }
         return all.first { $0.id == id }
     }
 
