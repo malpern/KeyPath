@@ -224,7 +224,7 @@ public actor PermissionOracle {
         let start = Date()
 
         // Get KeyPath permissions (local, always authoritative)
-        let keyPathSet = checkKeyPathPermissions()
+        let keyPathSet = await checkKeyPathPermissions()
 
         // Get Kanata permissions (UDP primary, functional verification)
         let kanataSet = await checkKanataPermissions()
@@ -266,51 +266,42 @@ public actor PermissionOracle {
 
     // MARK: - KeyPath Permission Detection (Always Authoritative)
 
-    private func checkKeyPathPermissions() -> PermissionSet {
+    /// Check KeyPath's own permissions using non-prompting APIs only.
+    ///
+    /// IMPORTANT: We intentionally do NOT call `IOHIDCheckAccess()` here because
+    /// it triggers the macOS "Keystroke Receiving" system prompt if the app hasn't
+    /// been granted Input Monitoring yet. That prompt should only appear during the
+    /// Installation Wizard flow (via `PermissionRequestService.requestInputMonitoringPermission()`).
+    ///
+    /// Instead, we use:
+    /// - `AXIsProcessTrusted()` for Accessibility (never prompts)
+    /// - TCC database reading for Input Monitoring (passive, no prompt)
+    private func checkKeyPathPermissions() async -> PermissionSet {
         let start = Date()
 
         // Accessibility check via official Apple API (no prompt)
         let axGranted = AXIsProcessTrusted()
         let accessibility: Status = axGranted ? .granted : .denied
 
-        // Input Monitoring check via official Apple API (no prompt, no CGEvent tap)
-        // Skip during startup if this is the first call to avoid UI freezing
-        var inputMonitoring: Status = .unknown
-
-        if FeatureFlags.shared.startupModeActive {
-            // During startup, skip the potentially blocking IOHIDCheckAccess call
-            AppLogger.shared.log(
-                "🔮 [Oracle] Startup mode - skipping IOHIDCheckAccess to prevent UI freeze"
-            )
-            inputMonitoring = .unknown
-        } else {
-            // Normal operation - safe to call IOHIDCheckAccess
-            let accessCheckStart = Date()
-            let accessType = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
-            let accessCheckDuration = Date().timeIntervalSince(accessCheckStart)
-
-            if accessCheckDuration > 2.0 {
-                AppLogger.shared.log(
-                    "⚠️ [Oracle] IOHIDCheckAccess took \(String(format: "%.3f", accessCheckDuration))s - unusually slow"
-                )
-            }
-
-            let imGranted = accessType == kIOHIDAccessTypeGranted
-            inputMonitoring = imGranted ? .granted : .denied
-        }
+        // Input Monitoring: use TCC database reading (passive, no prompt).
+        // IOHIDCheckAccess would trigger the system permission dialog on first call,
+        // which we only want during the wizard flow.
+        let keyPathBundleID = Bundle.main.bundleIdentifier ?? "com.keypath.KeyPath"
+        let tccIM = await tccStatus(forBundleID: keyPathBundleID, service: .inputMonitoring)
+        let inputMonitoring: Status = tccIM ?? .unknown
 
         let duration = Date().timeIntervalSince(start)
+        let source = tccIM != nil ? "keypath.ax-api+tcc-im" : "keypath.ax-api-only"
+        let confidence: Confidence = tccIM != nil ? .high : .low
         AppLogger.shared.log(
-            "🔮 [Oracle] KeyPath permission check completed in \(String(format: "%.3f", duration))s - AX: \(accessibility), IM: \(inputMonitoring)"
+            "🔮 [Oracle] KeyPath permission check completed in \(String(format: "%.3f", duration))s - AX: \(accessibility), IM: \(inputMonitoring) (source: \(source))"
         )
-
-        let isStartupMode = if case .unknown = inputMonitoring { true } else { false }
 
         return PermissionSet(
             accessibility: accessibility,
             inputMonitoring: inputMonitoring,
-            source: isStartupMode ? "keypath.startup-mode" : "keypath.official-apis",
-            confidence: isStartupMode ? .low : .high,
+            source: source,
+            confidence: confidence,
             timestamp: Date()
         )
     }
