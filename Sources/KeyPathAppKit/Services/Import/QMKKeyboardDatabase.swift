@@ -48,19 +48,24 @@ actor QMKKeyboardDatabase {
     /// QMK paths that map to built-in PhysicalLayout IDs.
     /// When a search result matches one of these, selecting it activates the
     /// built-in layout directly instead of importing from QMK.
-    private static let qmkToBuiltInLayout: [String: String] = [
-        // Ergonomic / split keyboards
+    static let qmkToBuiltInLayout: [String: String] = [
+        // Corne (crkbd) variants
         "crkbd": "corne",
         "crkbd/rev1": "corne",
         "crkbd/r2g": "corne",
         "crkbd/rev4_0/standard": "corne",
         "crkbd/rev4_1/standard": "corne",
+        // Sofle variants
         "sofle": "sofle",
         "sofle/rev1": "sofle",
+        "sofle/keyhive": "sofle",
+        // Ferris Sweep
         "ferris/sweep": "ferris-sweep",
-        // HHKB
+        // HHKB variants
         "hhkb": "hhkb",
-        "hhkb/ansi": "hhkb",
+        "hhkb/ansi/32u2": "hhkb",
+        "hhkb/ansi/32u4": "hhkb",
+        "hhkb/yang": "hhkb",
     ]
 
     /// Disk cache directory for fetched keyboard layouts

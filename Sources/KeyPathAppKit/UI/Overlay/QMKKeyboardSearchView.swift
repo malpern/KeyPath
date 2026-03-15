@@ -239,7 +239,9 @@ struct QMKKeyboardSearchView: View {
 
     private func importKeyboard(_ keyboard: KeyboardMetadata) {
         // If this QMK keyboard has a built-in equivalent, select it directly
-        if let builtInId = keyboard.builtInLayoutId {
+        if let builtInId = keyboard.builtInLayoutId,
+           PhysicalLayout.find(id: builtInId) != nil
+        {
             selectedLayoutId = builtInId
             onImportComplete?()
             dismiss()
