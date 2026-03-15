@@ -579,14 +579,19 @@ final class QMKImportServiceTests: XCTestCase {
     }
 
     func testJISPositionTableEnterIsLShaped() {
-        // Enter should appear at both (2, 12) and (2, 13) like ISO
+        // Enter should appear at both (2, 12) and (2, 13)
         let enter1 = JISPositionTable.keyMapping(row: 2, col: 12)
         let enter2 = JISPositionTable.keyMapping(row: 2, col: 13)
         XCTAssertEqual(enter1?.keyCode, 36, "JIS Enter at (2,12) should have keyCode 36")
         XCTAssertEqual(enter2?.keyCode, 36, "JIS Enter at (2,13) should have keyCode 36")
+
+        // JIS L-shaped Enter doesn't extend to (3,13) — that position is Up Arrow on larger layouts
+        let row3col13 = JISPositionTable.keyMapping(row: 3, col: 13)
+        XCTAssertNotEqual(row3col13?.keyCode, 36, "JIS Enter should not extend to (3,13)")
     }
 
     func testJISVariantDetectionInLoadCustomLayouts() async {
+        // Use a layout with enough keys to trigger matrix-based parsing with JIS table
         let json = """
         {
           "id": "jis-detect-test",
@@ -595,7 +600,8 @@ final class QMKImportServiceTests: XCTestCase {
             "default_transform": {
               "layout": [
                 {"row": 0, "col": 0, "x": 0, "y": 0, "w": 1},
-                {"row": 0, "col": 1, "x": 1, "y": 0, "w": 1}
+                {"row": 0, "col": 1, "x": 1, "y": 0, "w": 1},
+                {"row": 1, "col": 13, "x": 13, "y": 1, "w": 1}
               ]
             }
           }
@@ -622,5 +628,14 @@ final class QMKImportServiceTests: XCTestCase {
 
         let loadedLayouts = await service.loadCustomLayouts()
         XCTAssertEqual(loadedLayouts.count, 1, "JIS variant layout should load successfully")
+
+        // Verify the reloaded layout used JIS mapping — row 1, col 13 should be Yen (0x5D), not backslash (42)
+        if let layout = loadedLayouts.first {
+            let yenKey = layout.keys.first { $0.keyCode == 0x5D }
+            let backslashKey = layout.keys.first { $0.keyCode == 42 }
+            // With JIS detection, we expect Yen key, not ANSI backslash
+            XCTAssertTrue(yenKey != nil || backslashKey == nil,
+                          "JIS variant should use JIS position table (Yen at row 1 col 13, not backslash)")
+        }
     }
 }

@@ -343,13 +343,6 @@ struct QMKImportSheet: View {
             let unmatchedKeys = layout.keys.filter { $0.label == "?" }.count
             let matchRatio = totalKeys > 0 ? Double(totalKeys - unmatchedKeys) / Double(totalKeys) : 0
 
-            if matchRatio < 0.5 {
-                let pct = Int(matchRatio * 100)
-                warningMessage = "Poor import quality: only \(pct)% of keys matched. The layout may not be usable. Try a different keyboard type or layout variant."
-                isLoading = false
-                // Still save so user can inspect it, but warn prominently
-            }
-
             // Save the layout
             await QMKImportService.shared.saveCustomLayout(
                 layout: layout,
@@ -362,21 +355,20 @@ struct QMKImportSheet: View {
             // Select the imported layout
             selectedLayoutId = layout.id
 
-            // Show quality warning if not high quality (but still usable)
-            if matchRatio >= 0.5, matchRatio < 0.9 {
-                let pct = Int(matchRatio * 100)
-                warningMessage = "Imported with \(pct)% key match. Some keys may not highlight correctly."
-                isLoading = false
-                // Don't dismiss — let user see the warning and close manually
-                onImportComplete?()
-                return
-            }
-
             // Notify completion handler
             onImportComplete?()
 
-            // Dismiss sheet (only for high-quality imports or very poor ones that already warned)
-            if matchRatio >= 0.9 {
+            // Show quality feedback and dismiss based on quality
+            if matchRatio < 0.5 {
+                let pct = Int(matchRatio * 100)
+                warningMessage = "Poor import quality: only \(pct)% of keys matched. The layout may not be usable. Try a different keyboard type or layout variant."
+                isLoading = false
+            } else if matchRatio < 0.9 {
+                let pct = Int(matchRatio * 100)
+                warningMessage = "Imported with \(pct)% key match. Some keys may not highlight correctly."
+                isLoading = false
+            } else {
+                isLoading = false
                 dismiss()
             }
 
