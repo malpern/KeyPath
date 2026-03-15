@@ -536,9 +536,16 @@ actor QMKKeyboardDatabase {
         }
     }
 
+    private func deleteFromDiskCache(keyboardPath: String) {
+        let path = cacheFilePath(for: keyboardPath)
+        try? FileManager.default.removeItem(at: path)
+    }
+
     // MARK: - Default Keymap Fetch
 
-    /// Fetch the default keymap.c for a keyboard from the QMK firmware GitHub repo.
+    /// Fetch the default keymap for a keyboard from the QMK firmware GitHub repo.
+    /// Tries keymap.c first, then keymap.json as fallback.
+    /// parseBaseLayer handles both C and JSON formats.
     /// Returns the parsed base layer keycodes, or nil if fetch/parse fails.
     /// This is a best-effort operation — failure is expected for some keyboards.
     func fetchDefaultKeymap(keyboardPath: String) async -> [String]? {
@@ -551,35 +558,47 @@ actor QMKKeyboardDatabase {
             return keycodes
         }
 
-        // Try fetching keymap.c from GitHub (the standard location)
+        // Try fetching keymap files from GitHub — keymap.c first, then keymap.json as fallback
         let baseURL = "https://raw.githubusercontent.com/qmk/qmk_firmware/master/keyboards"
-        let keymapURL = URL(string: "\(baseURL)/\(keyboardPath)/keymaps/default/keymap.c")
+        let keymapFiles = ["keymap.c", "keymap.json"]
 
-        guard let url = keymapURL else { return nil }
-
-        do {
-            let (data, response) = try await urlSession.data(from: url)
-            guard let httpResponse = response as? HTTPURLResponse else { return nil }
-
-            if httpResponse.statusCode == 429 {
-                AppLogger.shared.info("⚠️ [QMKDatabase] GitHub rate limited fetching keymap for '\(keyboardPath)' — falling back to position-based parsing")
-                return nil
+        for keymapFile in keymapFiles {
+            guard let url = URL(string: "\(baseURL)/\(keyboardPath)/keymaps/default/\(keymapFile)") else {
+                continue
             }
 
-            guard httpResponse.statusCode == 200,
-                  let source = String(data: data, encoding: .utf8)
-            else {
-                return nil
+            do {
+                let (data, response) = try await urlSession.data(from: url)
+                guard let httpResponse = response as? HTTPURLResponse else { continue }
+
+                if httpResponse.statusCode == 429 {
+                    AppLogger.shared.info("⚠️ [QMKDatabase] GitHub rate limited fetching keymap for '\(keyboardPath)' — falling back to position-based parsing")
+                    return nil
+                }
+
+                guard httpResponse.statusCode == 200,
+                      let source = String(data: data, encoding: .utf8),
+                      let keycodes = QMKKeymapParser.parseBaseLayer(from: source)
+                else {
+                    continue // Try next file format
+                }
+
+                // Cache the raw keymap for future use
+                writeToDiskCache(keyboardPath: cacheKey, data: data)
+                return keycodes
+            } catch {
+                AppLogger.shared.debug("⚠️ [QMKDatabase] Failed to fetch \(keymapFile) for '\(keyboardPath)': \(error.localizedDescription)")
+                continue // Try next file format
             }
-
-            // Cache the raw keymap.c for future use
-            writeToDiskCache(keyboardPath: cacheKey, data: data)
-
-            return QMKKeymapParser.parseBaseLayer(from: source)
-        } catch {
-            AppLogger.shared.debug("⚠️ [QMKDatabase] Failed to fetch keymap for '\(keyboardPath)': \(error.localizedDescription)")
-            return nil
         }
+
+        return nil
+    }
+
+    /// Invalidate the cached keymap for a specific keyboard path, forcing a fresh fetch.
+    func invalidateKeymapCache(keyboardPath: String) {
+        let cacheKey = "\(keyboardPath)-keymap"
+        deleteFromDiskCache(keyboardPath: cacheKey)
     }
 
     // MARK: - Cache Management

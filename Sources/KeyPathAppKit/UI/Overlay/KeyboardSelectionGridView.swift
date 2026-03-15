@@ -217,7 +217,10 @@ struct KeyboardSelectionGridView: View {
                             selectedLayoutId: $selectedLayoutId,
                             isDark: isDark,
                             showImportSheet: $showImportSheet,
-                            refreshTrigger: $refreshTrigger
+                            refreshTrigger: $refreshTrigger,
+                            onToast: { message, type in
+                                showImportToast(message, type: type, duration: 5.0)
+                            }
                         )
                         .id(group.category.id)
                     }
@@ -338,7 +341,8 @@ struct KeyboardSelectionGridView: View {
                     sourceURL: keyboard.infoJsonURL?.absoluteString,
                     layoutJSON: jsonData,
                     layoutVariant: nil,
-                    defaultKeymap: cachedKeymapTokens
+                    defaultKeymap: cachedKeymapTokens,
+                    keyboardPath: keyboard.id
                 )
 
                 await MainActor.run {
@@ -351,6 +355,12 @@ struct KeyboardSelectionGridView: View {
                         showImportToast(
                             "Imported \(keyboard.name) — only \(pct)% of keys matched. Layout may not be usable.",
                             type: .error,
+                            duration: 7.0
+                        )
+                    } else if cachedKeymapTokens == nil {
+                        showImportToast(
+                            "Imported \(keyboard.name) with limited key labels — keymap not available for this keyboard.",
+                            type: .warning,
                             duration: 7.0
                         )
                     } else if !result.isHighQuality {
@@ -392,6 +402,7 @@ private struct LayoutCategorySection: View {
     let isDark: Bool
     @Binding var showImportSheet: Bool
     @Binding var refreshTrigger: UUID
+    var onToast: ((String, KanataViewModel.ToastType) -> Void)?
 
     private let columns = [
         GridItem(.flexible(), spacing: 12)
@@ -461,6 +472,22 @@ private struct LayoutCategorySection: View {
                                 refreshTrigger = UUID()
                             }
                         }
+                    } onRefreshKeymap: {
+                        if layout.id.hasPrefix("custom-") {
+                            Task {
+                                let layoutId = String(layout.id.dropFirst(7))
+                                let result = await QMKImportService.shared.refreshKeymap(layoutId: layoutId)
+                                await MainActor.run {
+                                    switch result {
+                                    case let .success(tokenCount):
+                                        refreshTrigger = UUID()
+                                        onToast?("Keymap refreshed — \(tokenCount) keys mapped", .success)
+                                    case let .failure(message):
+                                        onToast?(message, .warning)
+                                    }
+                                }
+                            }
+                        }
                     }
                     .id("layout-\(layout.id)")
                 }
@@ -484,6 +511,7 @@ private struct KeyboardIllustrationCard: View {
     let isCustom: Bool
     let onSelect: () -> Void
     let onDelete: (() -> Void)?
+    let onRefreshKeymap: (() -> Void)?
 
     @State private var isHovering = false
     @State private var showDeleteConfirmation = false
@@ -497,7 +525,8 @@ private struct KeyboardIllustrationCard: View {
         isDark: Bool,
         isCustom: Bool = false,
         onSelect: @escaping () -> Void,
-        onDelete: (() -> Void)? = nil
+        onDelete: (() -> Void)? = nil,
+        onRefreshKeymap: (() -> Void)? = nil
     ) {
         self.layout = layout
         self.isSelected = isSelected
@@ -505,6 +534,7 @@ private struct KeyboardIllustrationCard: View {
         self.isCustom = isCustom
         self.onSelect = onSelect
         self.onDelete = onDelete
+        self.onRefreshKeymap = onRefreshKeymap
     }
 
     var body: some View {
@@ -562,13 +592,24 @@ private struct KeyboardIllustrationCard: View {
         // No scale "pop" animation on selection - keeps drawer stable
         // Selection ring and shadow changes provide sufficient visual feedback
         .contextMenu {
-            if isCustom, onDelete != nil {
-                Button(role: .destructive) {
-                    showDeleteConfirmation = true
-                } label: {
-                    Label("Delete Layout", systemImage: "trash")
+            if isCustom {
+                if onRefreshKeymap != nil {
+                    Button {
+                        onRefreshKeymap?()
+                    } label: {
+                        Label("Refresh Keymap", systemImage: "arrow.clockwise")
+                    }
+                    .accessibilityIdentifier("refresh-keymap-button")
                 }
-                .accessibilityIdentifier("delete-custom-layout-button")
+
+                if onDelete != nil {
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Label("Delete Layout", systemImage: "trash")
+                    }
+                    .accessibilityIdentifier("delete-custom-layout-button")
+                }
             }
         }
         .confirmationDialog(

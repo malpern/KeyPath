@@ -138,13 +138,15 @@ actor QMKImportService {
     ///   - sourceURL: Original import URL (if any)
     ///   - layoutJSON: Raw JSON data used to create the layout
     ///   - layoutVariant: Selected layout variant name
+    ///   - keyboardPath: QMK keyboard path for re-fetching keymap
     func saveCustomLayout(
         layout: PhysicalLayout,
         name: String,
         sourceURL: String?,
         layoutJSON: Data,
         layoutVariant: String?,
-        defaultKeymap: [String]? = nil
+        defaultKeymap: [String]? = nil,
+        keyboardPath: String? = nil
     ) {
         var store = CustomLayoutStore.load(from: userDefaults)
 
@@ -168,7 +170,8 @@ actor QMKImportService {
             sourceURL: sourceURL,
             layoutJSON: layoutJSON,
             layoutVariant: layoutVariant,
-            defaultKeymap: defaultKeymap
+            defaultKeymap: defaultKeymap,
+            keyboardPath: keyboardPath
         )
 
         store.layouts.append(storedLayout)
@@ -187,7 +190,8 @@ actor QMKImportService {
         sourceURL: String?,
         layoutJSON: Data,
         layoutVariant: String?,
-        defaultKeymap: [String]? = nil
+        defaultKeymap: [String]? = nil,
+        keyboardPath: String? = nil
     ) {
         var store = CustomLayoutStore.load(from: userDefaults)
 
@@ -204,8 +208,64 @@ actor QMKImportService {
             sourceURL: sourceURL,
             layoutJSON: layoutJSON,
             layoutVariant: layoutVariant,
-            defaultKeymap: defaultKeymap
+            defaultKeymap: defaultKeymap,
+            keyboardPath: keyboardPath
         )
+    }
+
+    /// Check if a stored layout has a keyboard path (needed for keymap re-fetch).
+    func hasKeyboardPath(layoutId: String) -> Bool {
+        let store = CustomLayoutStore.load(from: userDefaults)
+        return store.layouts.first { $0.id == layoutId }?.keyboardPath != nil
+    }
+
+    /// Result of a keymap refresh attempt
+    enum KeymapRefreshResult {
+        case success(tokenCount: Int)
+        case failure(String)
+    }
+
+    /// Re-fetch the keymap for a stored layout and update it in place.
+    func refreshKeymap(layoutId: String) async -> KeymapRefreshResult {
+        var store = CustomLayoutStore.load(from: userDefaults)
+
+        guard let index = store.layouts.firstIndex(where: { $0.id == layoutId }) else {
+            return .failure("Layout not found")
+        }
+
+        let storedLayout = store.layouts[index]
+
+        guard let kbPath = storedLayout.keyboardPath else {
+            return .failure("No keyboard path available for re-fetch")
+        }
+
+        // Invalidate the cached keymap to force a fresh fetch
+        await QMKKeyboardDatabase.shared.invalidateKeymapCache(keyboardPath: kbPath)
+
+        // Attempt to fetch the keymap
+        guard let keymapTokens = await QMKKeyboardDatabase.shared.fetchDefaultKeymap(keyboardPath: kbPath) else {
+            return .failure("Could not fetch keymap — GitHub may be rate-limited or the keymap is unavailable for this keyboard")
+        }
+
+        // Update the stored layout with the new keymap tokens
+        let updated = StoredLayout(
+            id: storedLayout.id,
+            name: storedLayout.name,
+            sourceURL: storedLayout.sourceURL,
+            layoutJSON: storedLayout.layoutJSON,
+            importDate: storedLayout.importDate,
+            layoutVariant: storedLayout.layoutVariant,
+            defaultKeymap: keymapTokens,
+            keyboardPath: storedLayout.keyboardPath
+        )
+
+        store.layouts[index] = updated
+        store.save(to: userDefaults)
+
+        // Invalidate cache so UI refreshes with new labels
+        PhysicalLayout.invalidateCustomLayoutCache()
+
+        return .success(tokenCount: keymapTokens.count)
     }
 
     /// Load all custom layouts from storage

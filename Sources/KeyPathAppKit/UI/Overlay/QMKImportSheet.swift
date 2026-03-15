@@ -338,6 +338,13 @@ struct QMKImportSheet: View {
                 )
             }
 
+            // Try to fetch keymap tokens for better label quality
+            let keyboardPath = importMethod == .url ? Self.extractKeyboardPath(from: urlString) : nil
+            var keymapTokens: [String]?
+            if let kbPath = keyboardPath {
+                keymapTokens = await QMKKeyboardDatabase.shared.fetchDefaultKeymap(keyboardPath: kbPath)
+            }
+
             // Check import quality before saving
             let totalKeys = layout.keys.count
             let unmatchedKeys = layout.keys.filter { $0.label == "?" }.count
@@ -349,7 +356,9 @@ struct QMKImportSheet: View {
                 name: layoutName,
                 sourceURL: importMethod == .url ? urlString : nil,
                 layoutJSON: jsonData,
-                layoutVariant: selectedVariant
+                layoutVariant: selectedVariant,
+                defaultKeymap: keymapTokens,
+                keyboardPath: keyboardPath
             )
 
             // Select the imported layout
@@ -359,7 +368,10 @@ struct QMKImportSheet: View {
             onImportComplete?()
 
             // Show quality feedback and dismiss based on quality
-            if matchRatio < 0.5 {
+            if keymapTokens == nil, keyboardPath != nil {
+                warningMessage = "Imported with limited key labels — keymap not available for this keyboard."
+                isLoading = false
+            } else if matchRatio < 0.5 {
                 let pct = Int(matchRatio * 100)
                 warningMessage = "Poor import quality: only \(pct)% of keys matched. The layout may not be usable. Try a different keyboard type or layout variant."
                 isLoading = false
@@ -376,6 +388,27 @@ struct QMKImportSheet: View {
             errorMessage = error.localizedDescription
             isLoading = false
         }
+    }
+
+    /// Extract QMK keyboard path from a GitHub URL.
+    /// Handles patterns like:
+    ///   github.com/qmk/qmk_firmware/.../keyboards/crkbd/rev1/...
+    ///   raw.githubusercontent.com/qmk/qmk_firmware/.../keyboards/crkbd/rev1/info.json
+    static func extractKeyboardPath(from urlString: String) -> String? {
+        guard let range = urlString.range(of: "keyboards/") else { return nil }
+        let afterKeyboards = String(urlString[range.upperBound...])
+        // Remove trailing file components like /info.json, /keymap.c, etc.
+        let components = afterKeyboards.components(separatedBy: "/")
+        // Find where the keyboard path ends (before files like info.json, keymaps, etc.)
+        var pathComponents: [String] = []
+        for component in components {
+            if component.contains(".") || component == "keymaps" {
+                break
+            }
+            pathComponents.append(component)
+        }
+        let path = pathComponents.joined(separator: "/")
+        return path.isEmpty ? nil : path
     }
 }
 
