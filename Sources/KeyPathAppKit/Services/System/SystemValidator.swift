@@ -546,19 +546,11 @@ public class SystemValidator {
             "🔍 [SystemValidator] checkHealth() - Karabiner daemon check complete: \(karabinerDaemonRunning) (took \(String(format: "%.3f", karabinerDuration))s)"
         )
 
-        // ⚠️ FIX: Use ServiceHealthChecker instead of vhidDeviceManager.detectConnectionHealth()
-        // VHIDDeviceManager.detectConnectionHealth() uses pgrep with retries and can HANG in TaskGroups!
-        // Per ADR-022 and VHIDDeviceManager docs, use launchctl-based health check instead.
+        // Reuse karabinerDaemonRunning for vhidHealthy — both check the same service ID
+        // ("com.keypath.karabiner-vhiddaemon"), so there's no need for a second launchctl call.
+        let vhidHealthy = karabinerDaemonRunning
         AppLogger.shared.log(
-            "🔍 [SystemValidator] checkHealth() - About to check VHID daemon health (via ServiceHealthChecker)..."
-        )
-        let vhidStart = Date()
-        let vhidHealthy = await ServiceHealthChecker.shared.isServiceHealthy(
-            serviceID: "com.keypath.karabiner-vhiddaemon"
-        )
-        let vhidDuration = Date().timeIntervalSince(vhidStart)
-        AppLogger.shared.log(
-            "🔍 [SystemValidator] checkHealth() - VHID daemon check complete: \(vhidHealthy) (took \(String(format: "%.3f", vhidDuration))s)"
+            "🔍 [SystemValidator] checkHealth() - VHID daemon health reused from karabinerDaemonRunning: \(vhidHealthy)"
         )
 
         let totalDuration = Date().timeIntervalSince(startTime)

@@ -4,6 +4,7 @@ import KeyPathCore
 import KeyPathWizardCore
 import Network
 import os.lock
+import os.lock
 
 /// Handles health checking and status reporting for LaunchDaemon services.
 ///
@@ -19,12 +20,32 @@ import os.lock
 /// ## Service Configuration Checks
 /// - `isKanataPlistInstalled`: Check if Kanata plist exists
 /// - `isVHIDDaemonConfiguredCorrectly`: Verify VHID plist configuration
-// SAFETY: @unchecked Sendable — singleton with no mutable instance state.
-// All methods are stateless queries delegating to SubprocessRunner or file checks.
+// SAFETY: @unchecked Sendable — singleton with mutable state protected by OSAllocatedUnfairLock.
+// The healthCache provides short-lived deduplication (~2s TTL) so that parallel validation tasks
+// (e.g. checkHealth + checkComponents in SystemValidator) don't spawn redundant launchctl calls.
 public final class ServiceHealthChecker: @unchecked Sendable {
     @MainActor public static let shared = ServiceHealthChecker()
     private nonisolated static let launchctlNotFoundExitCode: Int32 = 113
     private nonisolated static let kanataRestartGraceWindow: TimeInterval = 12.0
+
+    // MARK: - Short-lived health cache
+
+    private struct HealthCacheEntry {
+        let result: Bool
+        let timestamp: Date
+        func isValid(ttl: TimeInterval) -> Bool {
+            Date().timeIntervalSince(timestamp) < ttl
+        }
+    }
+
+    private nonisolated static let healthCacheTTL: TimeInterval = 2.0
+
+    private let healthCache = OSAllocatedUnfairLock(initialState: [String: HealthCacheEntry]())
+
+    /// Clear cached health results. Useful in tests or after service state changes.
+    public nonisolated func invalidateHealthCache() {
+        healthCache.withLock { $0.removeAll() }
+    }
 
     // MARK: - Dependencies
 
@@ -207,6 +228,27 @@ public final class ServiceHealthChecker: @unchecked Sendable {
     /// - Parameter serviceID: The service identifier to check
     /// - Returns: `true` if the service is healthy
     public nonisolated func isServiceHealthy(serviceID: String) async -> Bool {
+        // Check short-lived cache first — avoids redundant launchctl calls within the same
+        // validation cycle when multiple parallel tasks query the same service.
+        if let cached = healthCache.withLock({ $0[serviceID] }),
+           cached.isValid(ttl: Self.healthCacheTTL)
+        {
+            AppLogger.shared.log(
+                "🔍 [ServiceHealthChecker] isServiceHealthy() CACHE HIT for: \(serviceID) → \(cached.result)"
+            )
+            return cached.result
+        }
+
+        let result = await _isServiceHealthyUncached(serviceID: serviceID)
+
+        healthCache.withLock {
+            $0[serviceID] = HealthCacheEntry(result: result, timestamp: Date())
+        }
+
+        return result
+    }
+
+    private nonisolated func _isServiceHealthyUncached(serviceID: String) async -> Bool {
         AppLogger.shared.log(
             "🔍 [ServiceHealthChecker] isServiceHealthy() ENTRY - HEALTH CHECK (system/print) for: \(serviceID)"
         )
