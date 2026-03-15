@@ -27,10 +27,10 @@ xcrun llvm-cov report \
   -instr-profile "$PROFDATA" \
   "$TEST_BINARY" | tee "$OUT_DIR/coverage-report.txt"
 
-xcrun llvm-cov export \
-  -format=text \
-  -instr-profile "$PROFDATA" \
-  "$TEST_BINARY" > "$OUT_DIR/coverage.json"
+# Skip llvm-cov export — it generates a multi-MB JSON file that hangs on CI
+# runners and is not used by the coverage floor check. Re-enable locally if
+# you need per-file coverage data:
+#   xcrun llvm-cov export -format=text -instr-profile "$PROFDATA" "$TEST_BINARY" > "$OUT_DIR/coverage.json"
 
 TOTAL_LINE="$(grep '^TOTAL' "$OUT_DIR/coverage-report.txt" || true)"
 if [[ -n "$TOTAL_LINE" ]]; then

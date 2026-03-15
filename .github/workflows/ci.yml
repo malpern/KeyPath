@@ -106,6 +106,7 @@ jobs:
         ./Scripts/verify-kanata-plist.sh Sources/KeyPathApp/com.keypath.kanata.plist
 
     - name: Generate Coverage (single pass)
+      timeout-minutes: 5
       run: |
         echo "Generating coverage with combined filter..."
         swift test --enable-code-coverage --filter 'KeyPathErrorTests|PermissionOracleTests'

@@ -4,8 +4,10 @@ enum DeviceDisplayNameFormatter {
     static func format(_ productKey: String) -> String {
         productKey
             .replacingOccurrences(of: " / Trackpad", with: "")
+            .replacingOccurrences(of: "/ Trackpad", with: "")
+            .replacingOccurrences(of: "/Trackpad", with: "")
             .replacingOccurrences(of: "Karabiner-DriverKit-VirtualHIDDevice-", with: "")
-            .trimmingCharacters(in: .whitespaces)
+            .trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet(charactersIn: "/")))
     }
 }
 
@@ -36,6 +38,13 @@ struct ConnectedDevice: Codable, Identifiable, Hashable, Sendable {
     /// Formatted vendor:product hex string, e.g. "05ac:0342"
     var vendorProductHex: String {
         String(format: "%04x:%04x", vendorID, productID)
+    }
+
+    /// True if this device appears to be a trackpad with no keyboard functionality.
+    /// These are filtered out of the keyboard picker since they can't produce key events.
+    var isTrackpadOnly: Bool {
+        let lower = productKey.lowercased()
+        return lower.contains("trackpad") && !lower.contains("keyboard")
     }
 
     /// SF Symbol name for this device type.
