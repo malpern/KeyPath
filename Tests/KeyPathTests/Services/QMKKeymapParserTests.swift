@@ -294,6 +294,18 @@ struct QMKKeymapParserTests {
         let krHaen = QMKKeymapParser.resolveKeycode("KR_HAEN")
         #expect(krHaen != nil, "KR_HAEN should resolve via locale alias")
 
+        // Nordic
+        let noArng = QMKKeymapParser.resolveKeycode("NO_ARNG")
+        #expect(noArng != nil, "NO_ARNG should resolve via locale alias")
+
+        // Dead key (resolves to base key position — label is the position, not the dead character)
+        let deAcut = QMKKeymapParser.resolveKeycode("DE_ACUT")
+        #expect(deAcut != nil, "DE_ACUT should resolve via locale alias")
+
+        // JIS bracket (shifted naming — extractBaseKey passes through, alias resolves)
+        let jpLbrc = QMKKeymapParser.resolveKeycode("JP_LBRC")
+        #expect(jpLbrc != nil, "JP_LBRC should resolve via locale alias")
+
         // Unknown locale code should still return nil
         let unknown = QMKKeymapParser.resolveKeycode("ZZ_FAKE")
         #expect(unknown == nil, "Unknown locale alias should return nil")

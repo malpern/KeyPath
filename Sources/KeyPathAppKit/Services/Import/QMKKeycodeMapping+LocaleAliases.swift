@@ -10,7 +10,8 @@ import Foundation
 /// maps to `KC_Q` (because A is in the Q position on AZERTY).
 ///
 /// This table covers base-tier mappings only (no Shift/AltGr variants).
-/// Generated from QMK firmware `quantum/keymap_extras/` headers.
+/// Generated from QMK firmware `quantum/keymap_extras/` headers (2024-Q4 snapshot).
+/// Refresh procedure: docs/architecture/upstream-maintenance-plan.md
 ///
 /// Supported locales: JP, DE, FR, UK, KR, ES, IT, BR, BP (Bépo), DV (Dvorak), CM (Colemak),
 /// CH (Swiss), DK, NO, SE, PT, TR, CZ, HU, PL, RO, HR, SI, BE, EE, IS, LV, LT, GR, IL,
