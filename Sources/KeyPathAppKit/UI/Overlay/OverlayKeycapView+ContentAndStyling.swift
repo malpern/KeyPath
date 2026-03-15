@@ -235,8 +235,10 @@ extension OverlayKeycapView {
     /// Standard key content routing (used for .standard legend style)
     @ViewBuilder
     var standardKeyContent: some View {
-        // TouchID/Power key: ALWAYS show drawer icon regardless of mode
-        if key.keyCode == PhysicalKey.unmappedKeyCode {
+        // TouchID/Drawer key: ALWAYS show drawer icon regardless of mode
+        // Only for keys with .touchId role (keyCode 0xFFFF + label "🔒"),
+        // NOT all unmapped keys (layer switches like L0, T1 should show their labels)
+        if key.layoutRole == .touchId {
             touchIdContent
         }
         // Launcher mode: ALL keys use launcher styling (icons for mapped, labels for unmapped)
