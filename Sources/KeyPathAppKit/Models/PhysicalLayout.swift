@@ -96,6 +96,8 @@ struct PhysicalLayout: Identifiable {
         let layouts: [PhysicalLayout] = store.layouts.compactMap { storedLayout -> PhysicalLayout? in
             let layoutId = "custom-\(storedLayout.id)"
 
+            let parsed: PhysicalLayout?
+
             // Strategy 1: Use cached keymap tokens (best quality)
             if let keymapTokens = storedLayout.defaultKeymap,
                let result = QMKLayoutParser.parseWithKeymap(
@@ -105,35 +107,34 @@ struct PhysicalLayout: Identifiable {
                    nameOverride: storedLayout.name
                )
             {
-                return result.layout
+                parsed = result.layout
             }
-
             // Strategy 2: Position-based parsing (works for any QMK keyboard)
-            if let result = QMKLayoutParser.parseByPositionWithQuality(
+            else if let result = QMKLayoutParser.parseByPositionWithQuality(
                 data: storedLayout.layoutJSON,
                 idOverride: layoutId,
                 nameOverride: storedLayout.name
             ) {
-                return result.layout
+                parsed = result.layout
             }
-
             // Strategy 3: Matrix-based parsing for bundled keyboards with known matrices
-            let keyMapping: (Int, Int) -> (keyCode: UInt16, label: String)? = if let variant = storedLayout.layoutVariant?.lowercased(), variant.contains("iso") {
-                ISOPositionTable.keyMapping(row:col:)
-            } else {
-                ANSIPositionTable.keyMapping(row:col:)
+            else {
+                let keyMapping: (Int, Int) -> (keyCode: UInt16, label: String)? = if let variant = storedLayout.layoutVariant?.lowercased(), variant.contains("iso") {
+                    ISOPositionTable.keyMapping(row:col:)
+                } else {
+                    ANSIPositionTable.keyMapping(row:col:)
+                }
+
+                parsed = QMKLayoutParser.parse(
+                    data: storedLayout.layoutJSON,
+                    keyMapping: keyMapping,
+                    idOverride: layoutId,
+                    nameOverride: storedLayout.name
+                )
             }
 
-            guard let layout = QMKLayoutParser.parse(
-                data: storedLayout.layoutJSON,
-                keyMapping: keyMapping,
-                idOverride: layoutId,
-                nameOverride: storedLayout.name
-            ) else {
-                return nil
-            }
-
-            return layout
+            // Inject drawer key if the layout has layer keys but no drawer button
+            return parsed?.withDrawerKeyInjected()
         }
 
         // Update cache
@@ -176,5 +177,66 @@ struct PhysicalLayout: Identifiable {
     /// Whether this layout has a Touch ID key that acts as the drawer toggle
     var hasDrawerButtons: Bool {
         keys.contains { $0.keyCode == PhysicalKey.unmappedKeyCode && $0.label == "🔒" }
+    }
+
+    // MARK: - Drawer Key Injection
+
+    /// Whether a label indicates a pure layer-switch key (MO, TG, OSL, DF abbreviations).
+    /// These are candidates for drawer key injection. Layer-taps (LT) resolve to their
+    /// base key with a real keyCode, so they're naturally excluded.
+    static func isLayerKeyLabel(_ label: String) -> Bool {
+        guard label.count >= 2, label.count <= 3 else { return false }
+        let first = label.first!
+        guard "LTD".contains(first) else { return false }
+        return label.dropFirst().allSatisfy(\.isNumber)
+    }
+
+    /// For QMK-imported layouts without a drawer key, find the best layer key
+    /// candidate and convert it to the drawer toggle (🔒).
+    ///
+    /// Picks the rightmost pure layer-switch key (highest x), breaking ties with
+    /// bottom-most (highest y). Layer-taps (LT) that resolve to a base key are
+    /// excluded since they're typing keys.
+    func withDrawerKeyInjected() -> PhysicalLayout {
+        // Already has a drawer button — no injection needed
+        guard !hasDrawerButtons else { return self }
+
+        // Only apply to custom/QMK layouts (not built-in)
+        guard id.hasPrefix("custom-") else { return self }
+
+        // Find candidate layer keys
+        let candidates = keys.enumerated().filter { _, key in
+            key.keyCode == PhysicalKey.unmappedKeyCode
+                && Self.isLayerKeyLabel(key.label)
+        }
+
+        guard let best = candidates.max(by: { a, b in
+            if a.element.visualX != b.element.visualX {
+                return a.element.visualX < b.element.visualX // rightmost wins
+            }
+            return a.element.visualY < b.element.visualY // bottom-most breaks ties
+        }) else {
+            return self // No candidates found
+        }
+
+        // Build new keys array with the chosen key's label replaced
+        var newKeys = keys
+        newKeys[best.offset] = PhysicalKey(
+            id: best.element.id,
+            keyCode: best.element.keyCode,
+            label: "🔒",
+            x: best.element.x,
+            y: best.element.y,
+            width: best.element.width,
+            height: best.element.height,
+            rotation: best.element.rotation,
+            rotationPivotX: best.element.rotationPivotX,
+            rotationPivotY: best.element.rotationPivotY,
+            shiftLabel: best.element.shiftLabel,
+            subLabel: best.element.subLabel,
+            tertiaryLabel: best.element.tertiaryLabel
+        )
+
+        return PhysicalLayout(id: id, name: name, keys: newKeys, totalWidth: totalWidth, totalHeight: totalHeight)
     }
 }

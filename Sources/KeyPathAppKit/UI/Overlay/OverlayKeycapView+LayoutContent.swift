@@ -268,6 +268,11 @@ extension OverlayKeycapView {
             return true
         }
 
+        // Layer switch abbreviations (L0-L9, T0-T9, D0-D9 from QMK imports)
+        if PhysicalLayout.isLayerKeyLabel(key.label) {
+            return true
+        }
+
         // Also treat mapped output labels (e.g., Hyper/Meh) as special so they render in keycaps
         return specialLabels.contains(effectiveLabel)
     }
@@ -383,6 +388,9 @@ extension OverlayKeycapView {
                     .font(.system(size: 14 * scale, weight: .medium))
                     .foregroundStyle(foregroundColor)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if PhysicalLayout.isLayerKeyLabel(key.label) {
+                // Layer switch key (L0, T1, D2, etc.) — show layers icon
+                layerKeyContent(label: key.label)
             } else {
                 // For special keys, prefer key.label if effectiveLabel is empty
                 // Numpad keys just show their number/symbol centered
@@ -708,6 +716,22 @@ extension OverlayKeycapView {
                 .foregroundStyle(foregroundColor)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    // MARK: - Layout: Layer Key
+
+    /// Layer switch key content: SF Symbol icon with layer label below
+    @ViewBuilder
+    func layerKeyContent(label: String) -> some View {
+        VStack(spacing: 1 * scale) {
+            Image(systemName: "square.3.layers.3d")
+                .font(.system(size: 10 * scale, weight: .regular))
+                .foregroundStyle(foregroundColor.opacity(0.7))
+            Text(label)
+                .font(.system(size: 7 * scale, weight: .regular))
+                .foregroundStyle(foregroundColor.opacity(0.6))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Layout: ESC Key
