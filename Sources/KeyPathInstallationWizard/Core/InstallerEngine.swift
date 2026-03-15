@@ -20,8 +20,14 @@ public protocol InstallerEnginePrivilegedRouting: AnyObject {
 public final class InstallerEngine {
     // MARK: - Dependencies
 
-    /// System validator for detecting current system state
-    private let systemValidator: (any WizardSystemValidating)?
+    /// System validator for detecting current system state.
+    /// Lazily resolved: prefers an injected validator, then falls back to
+    /// WizardDependencies.systemValidator at call-time (not init-time) so that
+    /// InstallerEngine can be created before WizardDependencies is configured.
+    private let injectedValidator: (any WizardSystemValidating)?
+    private var systemValidator: (any WizardSystemValidating)? {
+        injectedValidator ?? WizardDependencies.systemValidator
+    }
 
     /// System requirements checker for compatibility info
     private let systemRequirements: SystemRequirements
@@ -32,8 +38,7 @@ public final class InstallerEngine {
         systemValidator injectedValidator: (any WizardSystemValidating)? = nil,
         kanataManager: (any RuntimeCoordinating)? = nil
     ) {
-        // Use injected validator, then WizardDependencies, otherwise error at use-site
-        systemValidator = injectedValidator ?? WizardDependencies.systemValidator
+        self.injectedValidator = injectedValidator
 
         // Create SystemRequirements instance
         systemRequirements = SystemRequirements()
