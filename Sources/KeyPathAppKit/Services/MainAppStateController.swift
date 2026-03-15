@@ -26,6 +26,9 @@ class MainAppStateController {
     var validationState: ValidationState? // nil = not yet validated, show nothing
     var issues: [WizardIssue] = []
     var lastValidationDate: Date?
+    /// Latest validated system context — consumed by Settings Status tab to avoid
+    /// running a redundant validation through an unconfigured InstallerEngine.
+    private(set) var lastValidatedSystemContext: SystemContext?
 
     // MARK: - Validation State (compatible with StartupValidator)
 
@@ -613,6 +616,7 @@ class MainAppStateController {
         let adapted = SystemContextAdapter.adapt(context)
 
         // Update published state
+        lastValidatedSystemContext = context
         issues = adapted.issues
         lastValidationDate = Date()
         lastValidationTime = Date() // Track for cooldown optimization
