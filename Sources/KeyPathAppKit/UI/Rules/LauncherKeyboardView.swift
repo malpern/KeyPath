@@ -20,7 +20,7 @@ struct LauncherKeyboardView: View {
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
     private var activeKeymap: LogicalKeymap {
-        LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
+        .resolve(id: selectedKeymapId)
     }
 
     private var includeKeymapPunctuation: Bool {

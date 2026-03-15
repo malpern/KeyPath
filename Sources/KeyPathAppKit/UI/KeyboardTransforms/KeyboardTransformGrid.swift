@@ -31,7 +31,7 @@ struct KeyboardTransformGrid: View {
     }
 
     private var activeKeymap: LogicalKeymap {
-        LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
+        .resolve(id: selectedKeymapId)
     }
 
     private var activeLayout: PhysicalLayout {

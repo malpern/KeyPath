@@ -23,7 +23,7 @@ struct LogicalKeymap: Identifiable {
         label(for: key.keyCode, includeExtraKeys: includeExtraKeys) ?? key.label
     }
 
-    static let defaultId = "qwerty-us"
+    static let defaultId = "system"
 
     // MARK: - Layout Registry
 
@@ -58,7 +58,51 @@ struct LogicalKeymap: Identifiable {
     ]
 
     static func find(id: String) -> LogicalKeymap? {
-        all.first { $0.id == id }
+        if id == "system" {
+            // Return a minimal placeholder from nonisolated context.
+            // UI code should use resolve(id:) for reactive system keymap labels.
+            return LogicalKeymap(
+                id: "system",
+                name: "System",
+                description: "Uses your Mac's current input source.",
+                learnMoreURL: URL(string: "https://support.apple.com/guide/mac-help/change-input-sources-mchlp1406/mac")!,
+                iconFilename: "QWERTY",
+                coreLabels: [:],
+                extraLabels: [:]
+            )
+        }
+        return all.first { $0.id == id }
+    }
+
+    /// Resolve a keymap ID to a LogicalKeymap, with reactive system keymap support.
+    /// Use this from @MainActor UI code instead of find(id:) for proper system keymap reactivity.
+    @MainActor
+    static func resolve(id: String) -> LogicalKeymap {
+        if id == "system" {
+            return system
+        }
+        return all.first { $0.id == id } ?? qwertyUS
+    }
+
+    /// Dynamic keymap built from the current macOS input source via UCKeyTranslate.
+    /// Labels update automatically when the user switches input sources.
+    /// Use this from @MainActor UI code for reactive label updates.
+    @MainActor
+    static var system: LogicalKeymap {
+        let provider = SystemKeyLabelProvider.shared
+        let labels = provider.currentLabels
+
+        // Put ALL labels into coreLabels so they always display
+        // (punctuation toggle is irrelevant for system keymap — all keys are labeled)
+        return LogicalKeymap(
+            id: "system",
+            name: "System",
+            description: "Uses your Mac's current input source (\(provider.inputSourceName)).",
+            learnMoreURL: URL(string: "https://support.apple.com/guide/mac-help/change-input-sources-mchlp1406/mac")!,
+            iconFilename: "QWERTY", // Fallback icon; UI uses globe SF Symbol instead
+            coreLabels: labels,
+            extraLabels: [:]
+        )
     }
 
     static let qwertyUS: LogicalKeymap = .init(

@@ -15,7 +15,7 @@ struct HomeRowKeyButton: View {
 
     private var displayLabel: String {
         guard let keyCode = LogicalKeymap.keyCode(forQwertyLabel: key),
-              let label = (LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS)
+              let label = LogicalKeymap.resolve(id: selectedKeymapId)
               .label(for: keyCode, includeExtraKeys: false)
         else {
             return key.uppercased()

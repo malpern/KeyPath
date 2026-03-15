@@ -245,7 +245,9 @@ struct OverlayKeyboardView: View {
                             animateVisibility: false,
                             // Pass fade amount and dark mode for glow effect
                             fadeAmount: fadeAmount,
-                            isDarkMode: isDarkMode
+                            isDarkMode: isDarkMode,
+                            // System keymap shift label override
+                            shiftSymbolOverride: floatingLabelShiftOverride(for: label)
                         )
                     }
                 }
@@ -343,6 +345,13 @@ struct OverlayKeyboardView: View {
         // Look up launcher mapping for this key (lowercase key name)
         let launcherMapping = launcherMappings[baseLabel.lowercased()]
 
+        // Look up per-key shift label from system keymap when active
+        let shiftOverride: String? = if keymap.id == "system" {
+            systemShiftLabel(for: key.keyCode)
+        } else {
+            nil
+        }
+
         return OverlayKeycapView(
             key: key,
             baseLabel: baseLabel,
@@ -380,6 +389,8 @@ struct OverlayKeyboardView: View {
             isInspectorVisible: isInspectorVisible,
             // Custom icon from push-msg
             customIcon: customIcons[key.keyCode],
+            // Shift label override from system keymap
+            shiftLabelOverride: shiftOverride,
             // Launcher mode state
             isLauncherMode: isLauncherMode,
             launcherMapping: launcherMapping,
@@ -443,6 +454,33 @@ struct OverlayKeyboardView: View {
         let positionX = baseX + halfWidth + keyGap * scale
         let leftEdge = positionX - halfWidth
         return max(0, leftEdge)
+    }
+
+    // MARK: - System Keymap Shift Labels
+
+    /// Get the shift label for a keyCode from the system keymap provider.
+    /// Returns nil if the shifted character is the same as the base uppercased (e.g., a→A).
+    @MainActor
+    private func systemShiftLabel(for keyCode: UInt16) -> String? {
+        let provider = SystemKeyLabelProvider.shared
+        guard let shifted = provider.currentShiftLabels[keyCode],
+              let base = provider.currentLabels[keyCode]
+        else {
+            return nil
+        }
+        // Don't show shift label if it's just the uppercase of the base (e.g., a→A)
+        if shifted == base.uppercased(), base.count == 1 {
+            return nil
+        }
+        return shifted
+    }
+
+    /// Get shift override for a floating label (by label string, not keyCode).
+    @MainActor
+    private func floatingLabelShiftOverride(for label: String) -> String? {
+        guard keymap.id == "system" else { return nil }
+        guard let keyCode = labelToKeyCode[label.uppercased()] else { return nil }
+        return systemShiftLabel(for: keyCode)
     }
 
     // MARK: - Key Code to Kanata Name Mapping
@@ -582,6 +620,7 @@ private struct FloatingKeymapLabel: View {
     var animateVisibility: Bool = true // Set false for instant show/hide (e.g., launcher mode)
     var fadeAmount: CGFloat = 0 // 0 = fully visible, 1 = fully faded (for glow effect)
     var isDarkMode: Bool = false // Whether dark mode is active (enables glow effect)
+    var shiftSymbolOverride: String? // Dynamic shift symbol from system keymap
 
     /// Randomized animation parameters (seeded by label for consistency)
     private var springResponse: Double {
@@ -602,8 +641,9 @@ private struct FloatingKeymapLabel: View {
     }
 
     /// Shift symbol for this key (e.g., "1" -> "!", ";" -> ":")
+    /// Uses system keymap override when available, falls back to static lookup.
     private var shiftSymbol: String? {
-        LabelMetadata.forLabel(label).shiftSymbol
+        shiftSymbolOverride ?? LabelMetadata.forLabel(label).shiftSymbol
     }
 
     /// Optical adjustments for shift symbol

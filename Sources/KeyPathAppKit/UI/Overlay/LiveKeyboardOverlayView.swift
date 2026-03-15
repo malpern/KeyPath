@@ -114,7 +114,7 @@ struct LiveKeyboardOverlayView: View {
 
     /// The currently selected logical keymap for labeling
     private var activeKeymap: LogicalKeymap {
-        LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
+        .resolve(id: selectedKeymapId)
     }
 
     /// Whether to apply number row + outer punctuation mappings
