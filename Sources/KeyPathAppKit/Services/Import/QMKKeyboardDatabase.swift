@@ -39,6 +39,9 @@ actor QMKKeyboardDatabase {
     /// Bundled popular keyboards with full layout data
     private var bundledKeyboards: [KeyboardMetadata]?
 
+    /// Bundled keyboard layout JSON data by path (avoids network fetch for popular keyboards)
+    private var bundledKeyboardData: [String: Data] = [:]
+
     /// Set of bundled keyboard IDs for quick lookup
     private var bundledIds: Set<String> = []
 
@@ -230,9 +233,22 @@ actor QMKKeyboardDatabase {
 
         do {
             let bundle = try JSONDecoder().decode(BundledDatabase.self, from: data)
-            let keyboards = bundle.keyboards.compactMap { bundled -> KeyboardMetadata? in
+
+            // Also parse with JSONSerialization to extract full info objects (preserves layouts)
+            let rawJSON = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let rawKeyboards = rawJSON?["keyboards"] as? [[String: Any]] ?? []
+
+            let keyboards = bundle.keyboards.enumerated().compactMap { index, bundled -> KeyboardMetadata? in
                 let displayName = bundled.display_name ?? bundled.path
                 let apiURL = URL(string: "\(qmkAPIBase)/\(bundled.path)/info.json")
+
+                // Cache the full info JSON so fetchKeyboardData can use it without network
+                if index < rawKeyboards.count,
+                   let infoObj = rawKeyboards[index]["info"],
+                   let infoData = try? JSONSerialization.data(withJSONObject: infoObj)
+                {
+                    bundledKeyboardData[bundled.path] = infoData
+                }
 
                 return KeyboardMetadata(
                     id: bundled.path,
@@ -404,6 +420,16 @@ actor QMKKeyboardDatabase {
     /// - Returns: Raw JSON data suitable for QMKLayoutParser
     /// - Throws: QMKDatabaseError on network or parse failure
     func fetchKeyboardData(_ keyboard: KeyboardMetadata) async throws -> Data {
+        // Check bundled data first (popular keyboards have full layout data inline)
+        if keyboard.isBundled {
+            // Ensure bundled data is loaded
+            _ = loadBundledKeyboards()
+            if let bundled = bundledKeyboardData[keyboard.id] {
+                AppLogger.shared.info("✅ [QMKDatabase] Using bundled data for '\(keyboard.id)'")
+                return bundled
+            }
+        }
+
         // Check disk cache first
         if let cached = readFromDiskCache(keyboardPath: keyboard.id) {
             AppLogger.shared.info("✅ [QMKDatabase] Cache hit for '\(keyboard.id)'")
