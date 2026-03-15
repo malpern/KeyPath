@@ -346,7 +346,14 @@ struct KeyboardSelectionGridView: View {
                     searchText = ""
                     refreshTrigger = UUID()
 
-                    if !result.isHighQuality {
+                    if !result.isUsable {
+                        let pct = Int(result.matchRatio * 100)
+                        showImportToast(
+                            "Imported \(keyboard.name) — only \(pct)% of keys matched. Layout may not be usable.",
+                            type: .error,
+                            duration: 7.0
+                        )
+                    } else if !result.isHighQuality {
                         let pct = Int(result.matchRatio * 100)
                         showImportToast(
                             "Imported \(keyboard.name) — \(pct)% of keys matched. Some keys may not highlight correctly.",
