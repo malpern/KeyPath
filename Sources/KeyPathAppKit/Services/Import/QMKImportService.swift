@@ -101,6 +101,8 @@ actor QMKImportService {
             ANSIPositionTable.keyMapping(row:col:)
         case .iso:
             ISOPositionTable.keyMapping(row:col:)
+        case .jis:
+            JISPositionTable.keyMapping(row:col:)
         }
 
         // Generate ID only for new imports (when sourceURL is provided)
@@ -223,8 +225,14 @@ actor QMKImportService {
 
         return store.layouts.compactMap { storedLayout in
             // Determine keycode mapping type from variant
-            let keyMappingType: KeyMappingType = if let variant = storedLayout.layoutVariant?.lowercased(), variant.contains("iso") {
-                .iso
+            let keyMappingType: KeyMappingType = if let variant = storedLayout.layoutVariant?.lowercased() {
+                if variant.contains("jis") || variant.contains("jp") {
+                    .jis
+                } else if variant.contains("iso") {
+                    .iso
+                } else {
+                    .ansi
+                }
             } else {
                 .ansi
             }
@@ -304,6 +312,7 @@ actor QMKImportService {
 enum KeyMappingType {
     case ansi
     case iso
+    case jis
 }
 
 /// Errors that can occur during QMK import

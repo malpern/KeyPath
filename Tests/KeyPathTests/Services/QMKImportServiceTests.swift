@@ -531,4 +531,96 @@ final class QMKImportServiceTests: XCTestCase {
         // Verify keys have proper keycodes from ISO mapping
         XCTAssertFalse(layout.keys.isEmpty)
     }
+
+    // MARK: - JIS Mapping Tests
+
+    func testJISMapping() async throws {
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("test-jis-\(UUID().uuidString).json")
+        try sampleQMKJSON.write(to: tempFile)
+        defer { try? FileManager.default.removeItem(at: tempFile) }
+
+        let layout = try await service.importFromFile(
+            tempFile,
+            layoutVariant: nil,
+            keyMappingType: .jis
+        )
+
+        XCTAssertFalse(layout.keys.isEmpty)
+    }
+
+    func testJISPositionTableAlphaKeys() {
+        // Verify JIS alpha keys match ANSI (they should be identical)
+        let jisA = JISPositionTable.keyMapping(row: 2, col: 1)
+        XCTAssertEqual(jisA?.keyCode, 0, "JIS 'a' should have keyCode 0")
+        XCTAssertEqual(jisA?.label, "a")
+
+        let jisQ = JISPositionTable.keyMapping(row: 1, col: 1)
+        XCTAssertEqual(jisQ?.keyCode, 12, "JIS 'q' should have keyCode 12")
+        XCTAssertEqual(jisQ?.label, "q")
+    }
+
+    func testJISPositionTableUniqueKeys() {
+        // Yen key (row 1, col 13 — replaces ANSI backslash)
+        let yen = JISPositionTable.keyMapping(row: 1, col: 13)
+        XCTAssertEqual(yen?.keyCode, 0x5D, "JIS Yen key should have keyCode 0x5D")
+
+        // Underscore key (row 3, col 11)
+        let underscore = JISPositionTable.keyMapping(row: 3, col: 11)
+        XCTAssertEqual(underscore?.keyCode, 0x5E, "JIS Underscore key should have keyCode 0x5E")
+
+        // Eisu key (row 4, col 3)
+        let eisu = JISPositionTable.keyMapping(row: 4, col: 3)
+        XCTAssertEqual(eisu?.keyCode, 0x66, "JIS Eisu key should have keyCode 0x66")
+
+        // Kana key (row 4, col 5)
+        let kana = JISPositionTable.keyMapping(row: 4, col: 5)
+        XCTAssertEqual(kana?.keyCode, 0x68, "JIS Kana key should have keyCode 0x68")
+    }
+
+    func testJISPositionTableEnterIsLShaped() {
+        // Enter should appear at both (2, 12) and (2, 13) like ISO
+        let enter1 = JISPositionTable.keyMapping(row: 2, col: 12)
+        let enter2 = JISPositionTable.keyMapping(row: 2, col: 13)
+        XCTAssertEqual(enter1?.keyCode, 36, "JIS Enter at (2,12) should have keyCode 36")
+        XCTAssertEqual(enter2?.keyCode, 36, "JIS Enter at (2,13) should have keyCode 36")
+    }
+
+    func testJISVariantDetectionInLoadCustomLayouts() async {
+        let json = """
+        {
+          "id": "jis-detect-test",
+          "name": "JIS Detect",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                {"row": 0, "col": 0, "x": 0, "y": 0, "w": 1},
+                {"row": 0, "col": 1, "x": 1, "y": 0, "w": 1}
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        guard let result = QMKLayoutParser.parseByPositionWithQuality(
+            data: json,
+            idOverride: "custom-jis-detect",
+            nameOverride: "JIS Detect"
+        ) else {
+            XCTFail("parseByPositionWithQuality should succeed")
+            return
+        }
+
+        // Save with a JIS variant name — should auto-detect JIS on reload
+        await service.saveCustomLayout(
+            layout: result.layout,
+            name: "JIS Detect",
+            sourceURL: nil,
+            layoutJSON: json,
+            layoutVariant: "LAYOUT_jp"
+        )
+
+        let loadedLayouts = await service.loadCustomLayouts()
+        XCTAssertEqual(loadedLayouts.count, 1, "JIS variant layout should load successfully")
+    }
 }

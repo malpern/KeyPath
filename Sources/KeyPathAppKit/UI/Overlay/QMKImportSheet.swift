@@ -120,11 +120,12 @@ struct QMKImportSheet: View {
                         Text("Keyboard Type")
                             .font(.headline)
                         Picker("Keyboard Type", selection: $keyMappingType) {
-                            Text("ANSI (US Standard)").tag(KeyMappingType.ansi)
-                            Text("ISO (International)").tag(KeyMappingType.iso)
+                            Text("ANSI (US)").tag(KeyMappingType.ansi)
+                            Text("ISO (Intl)").tag(KeyMappingType.iso)
+                            Text("JIS (JP)").tag(KeyMappingType.jis)
                         }
                         .pickerStyle(.segmented)
-                        Text("Select ANSI for US keyboards, ISO for European/International keyboards")
+                        Text("Select ANSI for US keyboards, ISO for European/International, JIS for Japanese keyboards")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -141,7 +142,17 @@ struct QMKImportSheet: View {
                                 }
                             }
                             .pickerStyle(.menu)
-                            Text("Some keyboards have multiple layout variants (ANSI, ISO, etc.)")
+                            .onChange(of: selectedVariant) { _, newValue in
+                                guard let variant = newValue?.lowercased() else { return }
+                                if variant.contains("jis") || variant.contains("jp") {
+                                    keyMappingType = .jis
+                                } else if variant.contains("iso") {
+                                    keyMappingType = .iso
+                                } else if variant.contains("ansi") {
+                                    keyMappingType = .ansi
+                                }
+                            }
+                            Text("Some keyboards have multiple layout variants (ANSI, ISO, JIS, etc.)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -327,6 +338,18 @@ struct QMKImportSheet: View {
                 )
             }
 
+            // Check import quality before saving
+            let totalKeys = layout.keys.count
+            let unmatchedKeys = layout.keys.filter { $0.label == "?" }.count
+            let matchRatio = totalKeys > 0 ? Double(totalKeys - unmatchedKeys) / Double(totalKeys) : 0
+
+            if matchRatio < 0.5 {
+                let pct = Int(matchRatio * 100)
+                warningMessage = "Poor import quality: only \(pct)% of keys matched. The layout may not be usable. Try a different keyboard type or layout variant."
+                isLoading = false
+                // Still save so user can inspect it, but warn prominently
+            }
+
             // Save the layout
             await QMKImportService.shared.saveCustomLayout(
                 layout: layout,
@@ -339,11 +362,23 @@ struct QMKImportSheet: View {
             // Select the imported layout
             selectedLayoutId = layout.id
 
+            // Show quality warning if not high quality (but still usable)
+            if matchRatio >= 0.5, matchRatio < 0.9 {
+                let pct = Int(matchRatio * 100)
+                warningMessage = "Imported with \(pct)% key match. Some keys may not highlight correctly."
+                isLoading = false
+                // Don't dismiss — let user see the warning and close manually
+                onImportComplete?()
+                return
+            }
+
             // Notify completion handler
             onImportComplete?()
 
-            // Dismiss sheet
-            dismiss()
+            // Dismiss sheet (only for high-quality imports or very poor ones that already warned)
+            if matchRatio >= 0.9 {
+                dismiss()
+            }
 
         } catch {
             errorMessage = error.localizedDescription

@@ -14,6 +14,8 @@ struct QMKKeyboardSearchView: View {
     @State private var selectedIndex: Int?
     @State private var errorMessage: String?
     @State private var searchTask: Task<Void, Never>?
+    @State private var importToastMessage: String?
+    @State private var importToastType: KanataViewModel.ToastType = .success
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,6 +36,14 @@ struct QMKKeyboardSearchView: View {
                 statusBar
             }
         }
+        .overlay(alignment: .bottom) {
+            if let message = importToastMessage {
+                ToastView(message: message, type: importToastType)
+                    .padding(.bottom, 40)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: importToastMessage)
         .frame(width: 500, height: 450)
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -305,12 +315,41 @@ struct QMKKeyboardSearchView: View {
                 await MainActor.run {
                     selectedLayoutId = result.layout.id
                     onImportComplete?()
-                    dismiss()
+
+                    if !result.isUsable {
+                        let pct = Int(result.matchRatio * 100)
+                        showImportToast(
+                            "Imported \(keyboard.name) — only \(pct)% of keys matched. Layout may not be usable.",
+                            type: .error,
+                            duration: 7.0
+                        )
+                    } else if !result.isHighQuality {
+                        let pct = Int(result.matchRatio * 100)
+                        showImportToast(
+                            "Imported \(keyboard.name) — \(pct)% of keys matched. Some keys may not highlight correctly.",
+                            type: .warning,
+                            duration: 7.0
+                        )
+                    } else {
+                        showImportToast("Imported \(keyboard.name)", type: .success)
+                        dismiss()
+                    }
                 }
             } catch {
                 await MainActor.run {
                     errorMessage = "Failed to import keyboard: \(error.localizedDescription)"
                 }
+            }
+        }
+    }
+
+    private func showImportToast(_ message: String, type: KanataViewModel.ToastType, duration: TimeInterval = 3.0) {
+        importToastType = type
+        importToastMessage = message
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(duration))
+            if importToastMessage == message {
+                importToastMessage = nil
             }
         }
     }
