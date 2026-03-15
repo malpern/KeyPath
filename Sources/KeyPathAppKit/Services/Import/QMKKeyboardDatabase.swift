@@ -590,12 +590,17 @@ actor QMKKeyboardDatabase {
     // MARK: - Default Keymap Fetch
 
     /// Fetch the default keymap for a keyboard from the QMK firmware GitHub repo.
-    /// Tries keymap.c first, then keymap.json as fallback.
     /// parseBaseLayer handles both C and JSON formats.
     /// Returns the parsed base layer keycodes, or nil if fetch/parse fails.
     /// This is a best-effort operation — failure is expected for some keyboards.
-    /// Note: only tries the canonical `keymaps/default/` path. Keyboards without
-    /// this folder (e.g. via-only boards) will return nil and fall back to position-based parsing.
+    ///
+    /// Fallback order:
+    ///   1. Disk cache
+    ///   2. keymaps/default/keymap.c  →  keymaps/default/keymap.json
+    ///   3. keymaps/via/keymap.c      →  keymaps/via/keymap.json
+    ///
+    /// The `via` fallback covers ~40-60% of VIA-compatible split/ortho boards
+    /// whose `default/` folder is sparse or missing.
     func fetchDefaultKeymap(keyboardPath: String) async -> [String]? {
         // Test override: return seeded tokens without network
         if let seeded = seededKeymapTokens?[keyboardPath] {
@@ -611,37 +616,47 @@ actor QMKKeyboardDatabase {
             return keycodes
         }
 
-        // Try fetching keymap files from GitHub — keymap.c first, then keymap.json as fallback
         let baseURL = "https://raw.githubusercontent.com/qmk/qmk_firmware/master/keyboards"
+
+        // Try each keymap folder in order. `via` keymaps tend to have every
+        // physical key assigned to a real keycode, making them a better label
+        // source than sparse `default` keymaps on split/ortho boards.
+        let keymapFolders = ["default", "via"]
         let keymapFiles = ["keymap.c", "keymap.json"]
 
-        for keymapFile in keymapFiles {
-            guard let url = URL(string: "\(baseURL)/\(keyboardPath)/keymaps/default/\(keymapFile)") else {
-                continue
-            }
-
-            do {
-                let (data, response) = try await urlSession.data(from: url)
-                guard let httpResponse = response as? HTTPURLResponse else { continue }
-
-                if httpResponse.statusCode == 429 {
-                    AppLogger.shared.info("⚠️ [QMKDatabase] GitHub rate limited fetching keymap for '\(keyboardPath)' — falling back to position-based parsing")
-                    return nil
+        for folder in keymapFolders {
+            for keymapFile in keymapFiles {
+                guard let url = URL(string: "\(baseURL)/\(keyboardPath)/keymaps/\(folder)/\(keymapFile)") else {
+                    continue
                 }
 
-                guard httpResponse.statusCode == 200,
-                      let source = String(data: data, encoding: .utf8),
-                      let keycodes = QMKKeymapParser.parseBaseLayer(from: source)
-                else {
-                    continue // Try next file format
-                }
+                do {
+                    let (data, response) = try await urlSession.data(from: url)
+                    guard let httpResponse = response as? HTTPURLResponse else { continue }
 
-                // Cache the raw keymap for future use
-                writeToDiskCache(keyboardPath: cacheKey, data: data)
-                return keycodes
-            } catch {
-                AppLogger.shared.debug("⚠️ [QMKDatabase] Failed to fetch \(keymapFile) for '\(keyboardPath)': \(error.localizedDescription)")
-                continue // Try next file format
+                    if httpResponse.statusCode == 429 {
+                        AppLogger.shared.info("⚠️ [QMKDatabase] GitHub rate limited fetching keymap for '\(keyboardPath)' — falling back to position-based parsing")
+                        return nil
+                    }
+
+                    guard httpResponse.statusCode == 200,
+                          let source = String(data: data, encoding: .utf8),
+                          let keycodes = QMKKeymapParser.parseBaseLayer(from: source)
+                    else {
+                        continue // Try next folder/file combination
+                    }
+
+                    if folder != "default" {
+                        AppLogger.shared.info("[QMKDatabase] Used '\(folder)/\(keymapFile)' keymap fallback for '\(keyboardPath)'")
+                    }
+
+                    // Cache the raw keymap for future use
+                    writeToDiskCache(keyboardPath: cacheKey, data: data)
+                    return keycodes
+                } catch {
+                    AppLogger.shared.debug("⚠️ [QMKDatabase] Failed to fetch \(folder)/\(keymapFile) for '\(keyboardPath)': \(error.localizedDescription)")
+                    continue
+                }
             }
         }
 
