@@ -45,6 +45,24 @@ actor QMKKeyboardDatabase {
     /// Set of bundled keyboard IDs for quick lookup
     private var bundledIds: Set<String> = []
 
+    /// QMK paths that map to built-in PhysicalLayout IDs.
+    /// When a search result matches one of these, selecting it activates the
+    /// built-in layout directly instead of importing from QMK.
+    private static let qmkToBuiltInLayout: [String: String] = [
+        // Ergonomic / split keyboards
+        "crkbd": "corne",
+        "crkbd/rev1": "corne",
+        "crkbd/r2g": "corne",
+        "crkbd/rev4_0/standard": "corne",
+        "crkbd/rev4_1/standard": "corne",
+        "sofle": "sofle",
+        "sofle/rev1": "sofle",
+        "ferris/sweep": "ferris-sweep",
+        // HHKB
+        "hhkb": "hhkb",
+        "hhkb/ansi": "hhkb",
+    ]
+
     /// Disk cache directory for fetched keyboard layouts
     private let cacheDirectory: URL = {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -258,7 +276,8 @@ actor QMKKeyboardDatabase {
                     maintainer: bundled.info.maintainer,
                     tags: bundled.info.features?.tags ?? [],
                     infoJsonURL: apiURL,
-                    isBundled: true
+                    isBundled: true,
+                    builtInLayoutId: Self.qmkToBuiltInLayout[bundled.path]
                 )
             }
             bundledKeyboards = keyboards
@@ -326,7 +345,8 @@ actor QMKKeyboardDatabase {
                 name: name,
                 manufacturer: meta?.manufacturer ?? Self.formatPath([entry.vendor]),
                 infoJsonURL: URL(string: "\(qmkAPIBase)/\(entry.path)/info.json"),
-                isBundled: false
+                isBundled: false,
+                builtInLayoutId: Self.qmkToBuiltInLayout[entry.path]
             )
             return (kb, score)
         }
