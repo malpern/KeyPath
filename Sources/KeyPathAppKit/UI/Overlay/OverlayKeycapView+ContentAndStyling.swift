@@ -108,15 +108,25 @@ extension OverlayKeycapView {
         // Click behavior based on drawer state:
         // - Drawer CLOSED: only Touch ID key captures clicks (opens drawer), all other keys pass through for window drag
         // - Drawer OPEN: all keys capture clicks for mapping
-        // The `including:` parameter completely disables the gesture when .none, allowing window drag to work
+        // Touch ID uses highPriorityGesture(TapGesture) so it wins over the parent keyboard's
+        // highPriorityGesture(DragGesture) which would otherwise swallow tap events.
+        // Other keys use simultaneousGesture(DragGesture) so they coexist with keyboard drag.
+        .highPriorityGesture(
+            TapGesture()
+                .onEnded {
+                    guard key.layoutRole == .touchId, let onKeyClick else { return }
+                    onKeyClick(key, layerKeyInfo)
+                },
+            including: key.layoutRole == .touchId ? .all : .none
+        )
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onEnded { _ in
-                    guard let onKeyClick else { return }
+                    guard key.layoutRole != .touchId, let onKeyClick else { return }
                     onKeyClick(key, layerKeyInfo)
                 },
-            // Only capture gestures when drawer is open OR this is the Touch ID key
-            including: (isInspectorVisible || key.layoutRole == .touchId) ? .all : .none
+            // Only capture gestures when drawer is open (Touch ID handled by highPriorityGesture above)
+            including: isInspectorVisible ? .all : .none
         )
         .onAppear {
             loadAppIconIfNeeded()
