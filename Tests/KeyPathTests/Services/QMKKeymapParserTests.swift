@@ -273,6 +273,32 @@ struct QMKKeymapParserTests {
         #expect(lng2?.label == "英数")
     }
 
+    @Test func resolveLocaleAliasKeycodes() {
+        // Japanese aliases
+        let jpQ = QMKKeymapParser.resolveKeycode("JP_Q")
+        #expect(jpQ?.keyCode == 12, "JP_Q should resolve to KC_Q (keyCode 12)")
+        #expect(jpQ?.label == "q")
+
+        let jpYen = QMKKeymapParser.resolveKeycode("JP_YEN")
+        #expect(jpYen != nil, "JP_YEN should resolve via locale alias")
+
+        // French AZERTY — FR_A is at the Q position
+        let frA = QMKKeymapParser.resolveKeycode("FR_A")
+        #expect(frA?.keyCode == 12, "FR_A should resolve to KC_Q (keyCode 12) on AZERTY")
+
+        // German QWERTZ — DE_Z is at the Y position
+        let deZ = QMKKeymapParser.resolveKeycode("DE_Z")
+        #expect(deZ?.keyCode == 16, "DE_Z should resolve to KC_Y (keyCode 16) on QWERTZ")
+
+        // Korean
+        let krHaen = QMKKeymapParser.resolveKeycode("KR_HAEN")
+        #expect(krHaen != nil, "KR_HAEN should resolve via locale alias")
+
+        // Unknown locale code should still return nil
+        let unknown = QMKKeymapParser.resolveKeycode("ZZ_FAKE")
+        #expect(unknown == nil, "Unknown locale alias should return nil")
+    }
+
     @Test func resolveShiftedPunctuationLabels() {
         #expect(QMKKeymapParser.keycodeLabel("KC_TILD") == "~")
         #expect(QMKKeymapParser.keycodeLabel("KC_LPRN") == "(")
