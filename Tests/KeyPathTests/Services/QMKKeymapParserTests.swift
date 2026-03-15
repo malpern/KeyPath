@@ -226,12 +226,28 @@ struct QMKKeymapParserTests {
         #expect(QMKKeymapParser.keycodeLabel("KC_MNXT") == "next")
         #expect(QMKKeymapParser.keycodeLabel("KC_MPRV") == "prev")
         #expect(QMKKeymapParser.keycodeLabel("KC_MSTP") == "stop")
-        #expect(QMKKeymapParser.keycodeLabel("KC_EJCT") == "eject")
+        #expect(QMKKeymapParser.keycodeLabel("KC_EJCT") == "⏏")
+        #expect(QMKKeymapParser.keycodeLabel("KC_MFFD") == "⏩")
+        #expect(QMKKeymapParser.keycodeLabel("KC_MRWD") == "⏪")
     }
 
-    @Test func resolveBrightnessLabels() {
-        #expect(QMKKeymapParser.keycodeLabel("KC_BRIU") == "bri+")
-        #expect(QMKKeymapParser.keycodeLabel("KC_BRID") == "bri-")
+    @Test func resolveBrightnessKeys() {
+        let briUp = QMKKeymapParser.resolveKeycode("KC_BRIU")
+        #expect(briUp?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(briUp?.label == "bri+")
+
+        let briDown = QMKKeymapParser.resolveKeycode("KC_BRID")
+        #expect(briDown?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(briDown?.label == "bri-")
+
+        // Long-name aliases
+        let briUpLong = QMKKeymapParser.resolveKeycode("KC_BRIGHTNESS_UP")
+        #expect(briUpLong?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(briUpLong?.label == "bri+")
+
+        let briDownLong = QMKKeymapParser.resolveKeycode("KC_BRIGHTNESS_DOWN")
+        #expect(briDownLong?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(briDownLong?.label == "bri-")
     }
 
     @Test func resolveJISAndISOLabels() {
@@ -301,6 +317,18 @@ struct QMKKeymapParserTests {
         #expect(btn1?.keyCode == PhysicalKey.unmappedKeyCode)
         #expect(btn1?.label == "M1")
 
+        let btn2 = QMKKeymapParser.resolveKeycode("MS_BTN2")
+        #expect(btn2?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(btn2?.label == "M2")
+
+        let btn3 = QMKKeymapParser.resolveKeycode("MS_BTN3")
+        #expect(btn3?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(btn3?.label == "M3")
+
+        let btn4 = QMKKeymapParser.resolveKeycode("MS_BTN4")
+        #expect(btn4?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(btn4?.label == "M4")
+
         let btn5 = QMKKeymapParser.resolveKeycode("MS_BTN5")
         #expect(btn5?.keyCode == PhysicalKey.unmappedKeyCode)
         #expect(btn5?.label == "M5")
@@ -356,6 +384,18 @@ struct QMKKeymapParserTests {
         let sel = QMKKeymapParser.resolveKeycode("KC_MSEL")
         #expect(sel?.keyCode == PhysicalKey.unmappedKeyCode)
         #expect(sel?.label == "sel")
+
+        let eject = QMKKeymapParser.resolveKeycode("KC_EJCT")
+        #expect(eject?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(eject?.label == "⏏")
+
+        let ffwd = QMKKeymapParser.resolveKeycode("KC_MFFD")
+        #expect(ffwd?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(ffwd?.label == "⏩")
+
+        let rwnd = QMKKeymapParser.resolveKeycode("KC_MRWD")
+        #expect(rwnd?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(rwnd?.label == "⏪")
     }
 
     @Test func resolveMediaPlaybackLongNames() {
@@ -366,6 +406,30 @@ struct QMKKeymapParserTests {
         let next = QMKKeymapParser.resolveKeycode("KC_MEDIA_NEXT_TRACK")
         #expect(next?.keyCode == PhysicalKey.unmappedKeyCode)
         #expect(next?.label == "next")
+
+        let prev = QMKKeymapParser.resolveKeycode("KC_MEDIA_PREV_TRACK")
+        #expect(prev?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(prev?.label == "prev")
+
+        let stop = QMKKeymapParser.resolveKeycode("KC_MEDIA_STOP")
+        #expect(stop?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(stop?.label == "stop")
+
+        let sel = QMKKeymapParser.resolveKeycode("KC_MEDIA_SELECT")
+        #expect(sel?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(sel?.label == "sel")
+
+        let eject = QMKKeymapParser.resolveKeycode("KC_MEDIA_EJECT")
+        #expect(eject?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(eject?.label == "⏏")
+
+        let ffwd = QMKKeymapParser.resolveKeycode("KC_MEDIA_FAST_FORWARD")
+        #expect(ffwd?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(ffwd?.label == "⏩")
+
+        let rwnd = QMKKeymapParser.resolveKeycode("KC_MEDIA_REWIND")
+        #expect(rwnd?.keyCode == PhysicalKey.unmappedKeyCode)
+        #expect(rwnd?.label == "⏪")
     }
 
     // MARK: - Abbreviate Token Tests

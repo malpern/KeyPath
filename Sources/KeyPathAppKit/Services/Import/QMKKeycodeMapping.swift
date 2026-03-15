@@ -260,10 +260,10 @@ enum QMKKeycodeMapping {
         add("next", "KC_MEDIA_NEXT_TRACK", "KC_MNXT")
         add("prev", "KC_MEDIA_PREV_TRACK", "KC_MPRV")
         add("stop", "KC_MEDIA_STOP", "KC_MSTP")
+        add("⏏", "KC_MEDIA_EJECT", "KC_EJCT")
+        add("⏩", "KC_MEDIA_FAST_FORWARD", "KC_MFFD")
+        add("⏪", "KC_MEDIA_REWIND", "KC_MRWD")
         add("sel", "KC_MEDIA_SELECT", "KC_MSEL")
-        add("eject", "KC_MEDIA_EJECT", "KC_EJCT")
-        add("ffwd", "KC_MEDIA_FAST_FORWARD", "KC_MFFD")
-        add("rwnd", "KC_MEDIA_REWIND", "KC_MRWD")
 
         // ── Brightness ─────────────────────────────────────────────
         add("bri+", "KC_BRIGHTNESS_UP", "KC_BRIU")

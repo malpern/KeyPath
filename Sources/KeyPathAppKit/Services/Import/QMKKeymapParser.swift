@@ -188,6 +188,9 @@ enum QMKKeymapParser {
         return result
     }
 
+    /// QK_ keycodes that map to real keys (not firmware commands).
+    private static let mappedQKKeycodes: Set<String> = ["QK_GESC", "QK_GRAVE_ESCAPE"]
+
     // MARK: - Compound Keycode Extraction
 
     /// Extract the base key from a compound QMK keycode expression.
@@ -213,8 +216,8 @@ enum QMKKeymapParser {
 
         // Simple keycodes (no parentheses)
         if !trimmed.contains("(") {
-            // Layer/system commands without args — except QK_GESC which is a real key
-            if trimmed.hasPrefix("QK_"), trimmed != "QK_GESC", trimmed != "QK_GRAVE_ESCAPE" {
+            // Layer/system commands without args — except mapped QK_ keycodes
+            if trimmed.hasPrefix("QK_"), !Self.mappedQKKeycodes.contains(trimmed) {
                 return nil
             }
             if trimmed.hasPrefix("RGB_") || trimmed.hasPrefix("BL_")
@@ -374,10 +377,12 @@ enum QMKKeymapParser {
         case "AUDIO_VOL_DOWN", "VOLD", "KB_VOLUME_DOWN": return "v-"
         case "AUDIO_MUTE", "MUTE", "KB_MUTE": return "mute"
         case "MEDIA_PLAY_PAUSE", "MPLY": return "play"
-        case "MEDIA_NEXT_TRACK", "MNXT", "MEDIA_FAST_FORWARD", "MFFD": return "next"
-        case "MEDIA_PREV_TRACK", "MPRV", "MEDIA_REWIND", "MRWD": return "prev"
+        case "MEDIA_NEXT_TRACK", "MNXT": return "next"
+        case "MEDIA_PREV_TRACK", "MPRV": return "prev"
         case "MEDIA_STOP", "MSTP": return "stop"
-        case "MEDIA_EJECT", "EJCT": return "eject"
+        case "MEDIA_EJECT", "EJCT": return "⏏"
+        case "MEDIA_FAST_FORWARD", "MFFD": return "⏩"
+        case "MEDIA_REWIND", "MRWD": return "⏪"
         // Brightness
         case "BRIGHTNESS_UP", "BRIU": return "bri+"
         case "BRIGHTNESS_DOWN", "BRID": return "bri-"
