@@ -75,7 +75,7 @@ extension RuleCollectionsManager {
     /// Returns information about which custom rules target keys that the keymap will remap.
     func detectKeymapConflicts(keymapId: String, includePunctuation: Bool) -> [RuleConflictInfo] {
         guard let keymap = LogicalKeymap.find(id: keymapId),
-              keymapId != "qwerty-us",
+              keymapId != LogicalKeymap.qwertyUSId,
               keymapId != LogicalKeymap.systemId
         else {
             return []

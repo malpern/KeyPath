@@ -23,7 +23,7 @@ enum KeymapMappingGenerator {
         includePunctuation: Bool
     ) -> [KeyMapping] {
         // QWERTY and System are identity mappings - no remapping needed
-        guard targetLayout.id != "qwerty-us", targetLayout.id != LogicalKeymap.systemId else {
+        guard targetLayout.id != LogicalKeymap.qwertyUSId, targetLayout.id != LogicalKeymap.systemId else {
             return []
         }
 
@@ -93,7 +93,7 @@ enum KeymapMappingGenerator {
         }
 
         // QWERTY and System don't need remapping collections
-        guard keymapId != "qwerty-us", keymapId != LogicalKeymap.systemId else {
+        guard keymapId != LogicalKeymap.qwertyUSId, keymapId != LogicalKeymap.systemId else {
             return nil
         }
 
