@@ -188,6 +188,9 @@ enum QMKKeymapParser {
         return result
     }
 
+    /// QK_ keycodes that map to real keys (not firmware commands).
+    private static let mappedQKKeycodes: Set<String> = ["QK_GESC", "QK_GRAVE_ESCAPE"]
+
     // MARK: - Compound Keycode Extraction
 
     /// Extract the base key from a compound QMK keycode expression.
@@ -213,8 +216,11 @@ enum QMKKeymapParser {
 
         // Simple keycodes (no parentheses)
         if !trimmed.contains("(") {
-            // Layer/system commands without args
-            if trimmed.hasPrefix("QK_") || trimmed.hasPrefix("RGB_") || trimmed.hasPrefix("BL_")
+            // Layer/system commands without args — except mapped QK_ keycodes
+            if trimmed.hasPrefix("QK_"), !Self.mappedQKKeycodes.contains(trimmed) {
+                return nil
+            }
+            if trimmed.hasPrefix("RGB_") || trimmed.hasPrefix("BL_")
                 || trimmed.hasPrefix("UG_") || trimmed.hasPrefix("RM_") || trimmed.hasPrefix("CW_")
                 || trimmed.hasPrefix("SC_") || trimmed.hasPrefix("TL_") || trimmed.hasPrefix("STN_")
             {
@@ -283,6 +289,8 @@ enum QMKKeymapParser {
 
     /// Resolve a keymap token to a macOS keyCode and display label.
     /// Returns nil for layer keys, transparent keys, and unknown keycodes.
+    /// Keys with no macOS equivalent (mouse buttons, media playback) resolve
+    /// with `PhysicalKey.unmappedKeyCode` (0xFFFF) and a descriptive label.
     static func resolveKeycode(_ token: String) -> (keyCode: UInt16, label: String)? {
         guard let baseKey = extractBaseKey(token) else {
             return nil
@@ -294,12 +302,22 @@ enum QMKKeymapParser {
             return (macKeyCode, label)
         }
 
+        // Fall back to display-only keycodes (mouse keys, media, etc.)
+        if let displayLabel = QMKKeycodeMapping.qmkDisplayOnly[baseKey] {
+            return (PhysicalKey.unmappedKeyCode, displayLabel)
+        }
+
         AppLogger.shared.debug("⚠️ [QMKKeymapParser] Unknown keycode '\(token)' (base: '\(baseKey)') — no macOS mapping")
         return nil
     }
 
     /// Generate a short display label for a QMK keycode name.
     static func keycodeLabel(_ keycode: String) -> String {
+        // Handle QK_ prefixed keycodes
+        if keycode == "QK_GESC" || keycode == "QK_GRAVE_ESCAPE" {
+            return "esc"
+        }
+
         // Remove KC_ prefix and lowercase for display
         let stripped = keycode.hasPrefix("KC_") ? String(keycode.dropFirst(3)) : keycode
 
@@ -359,10 +377,12 @@ enum QMKKeymapParser {
         case "AUDIO_VOL_DOWN", "VOLD", "KB_VOLUME_DOWN": return "v-"
         case "AUDIO_MUTE", "MUTE", "KB_MUTE": return "mute"
         case "MEDIA_PLAY_PAUSE", "MPLY": return "play"
-        case "MEDIA_NEXT_TRACK", "MNXT", "MEDIA_FAST_FORWARD", "MFFD": return "next"
-        case "MEDIA_PREV_TRACK", "MPRV", "MEDIA_REWIND", "MRWD": return "prev"
+        case "MEDIA_NEXT_TRACK", "MNXT": return "next"
+        case "MEDIA_PREV_TRACK", "MPRV": return "prev"
         case "MEDIA_STOP", "MSTP": return "stop"
-        case "MEDIA_EJECT", "EJCT": return "eject"
+        case "MEDIA_EJECT", "EJCT": return "⏏"
+        case "MEDIA_FAST_FORWARD", "MFFD": return "⏩"
+        case "MEDIA_REWIND", "MRWD": return "⏪"
         // Brightness
         case "BRIGHTNESS_UP", "BRIU": return "bri+"
         case "BRIGHTNESS_DOWN", "BRID": return "bri-"
