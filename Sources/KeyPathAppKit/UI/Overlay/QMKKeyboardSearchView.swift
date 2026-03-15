@@ -238,6 +238,14 @@ struct QMKKeyboardSearchView: View {
     }
 
     private func importKeyboard(_ keyboard: KeyboardMetadata) {
+        // If this QMK keyboard has a built-in equivalent, select it directly
+        if let builtInId = keyboard.builtInLayoutId {
+            selectedLayoutId = builtInId
+            onImportComplete?()
+            dismiss()
+            return
+        }
+
         Task {
             do {
                 // Fetch keyboard data (uses disk cache, handles QMK API unwrapping)
@@ -368,6 +376,15 @@ private struct PopoverKeyboardRow: View {
 
                 // Tags
                 HStack(spacing: 4) {
+                    if keyboard.builtInLayoutId != nil {
+                        Text("Built-in")
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.15))
+                            .foregroundColor(.green)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
                     ForEach(keyboard.tags.prefix(3), id: \.self) { tag in
                         TagBadge(tag: tag, keyboardId: keyboard.id)
                     }

@@ -10,6 +10,7 @@ struct KeyboardMetadata: Identifiable, Hashable, Sendable {
     let tags: [String] // Inferred tags (split, RGB, ortho, OLED, etc.)
     let infoJsonURL: URL? // QMK API URL to info.json (nil for custom/local layouts)
     let isBundled: Bool // Whether this keyboard has full layout data in popular-keyboards.json
+    let builtInLayoutId: String? // If set, this QMK keyboard has a built-in PhysicalLayout equivalent
 
     /// Initialize with all fields
     init(
@@ -20,7 +21,8 @@ struct KeyboardMetadata: Identifiable, Hashable, Sendable {
         maintainer: String? = nil,
         tags: [String] = [],
         infoJsonURL: URL? = nil,
-        isBundled: Bool = false
+        isBundled: Bool = false,
+        builtInLayoutId: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -30,6 +32,7 @@ struct KeyboardMetadata: Identifiable, Hashable, Sendable {
         self.tags = tags
         self.infoJsonURL = infoJsonURL
         self.isBundled = isBundled
+        self.builtInLayoutId = builtInLayoutId
     }
 
     /// Initialize from QMKKeyboardInfo and directory path
@@ -46,5 +49,6 @@ struct KeyboardMetadata: Identifiable, Hashable, Sendable {
         tags = info.features?.tags ?? []
         self.infoJsonURL = infoJsonURL
         isBundled = false
+        builtInLayoutId = nil
     }
 }
