@@ -32,7 +32,7 @@ struct NumpadTransformGrid: View {
     private static let operatorKeyCodes: [UInt16] = [0, 1, 2, 3, 5] // A S D F G
 
     private var activeKeymap: LogicalKeymap {
-        LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
+        .resolve(id: selectedKeymapId)
     }
 
     private var includePunctuation: Bool {

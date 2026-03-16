@@ -16,7 +16,7 @@ struct HomeRowLayerTogglesModalView: View {
     @State private var showLayerPicker = false
 
     private var activeKeymap: LogicalKeymap {
-        LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
+        .resolve(id: selectedKeymapId)
     }
 
     private var homeRowDisplayLabels: [String: String] {

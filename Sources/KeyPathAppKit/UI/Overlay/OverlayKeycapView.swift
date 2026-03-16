@@ -55,6 +55,8 @@ struct OverlayKeycapView: View {
     var isInspectorVisible: Bool = false
     /// Custom icon name set via push-msg (e.g., "arrow-left", "safari")
     var customIcon: String?
+    /// Override for shift label from system keymap (e.g., French: 1→&, not 1→!)
+    var shiftLabelOverride: String?
 
     // MARK: - Launcher Mode
 
@@ -232,9 +234,13 @@ struct OverlayKeycapView: View {
         OpticalAdjustments.forLabel(effectiveLabel)
     }
 
-    /// Metadata for current label, with custom shift override from LayerKeyInfo
+    /// Metadata for current label, with shift overrides.
+    /// Priority: user's layer customization > system keymap > static lookup
     var metadata: LabelMetadata {
         var meta = LabelMetadata.forLabel(effectiveLabel)
+        if let shiftOverride = shiftLabelOverride {
+            meta.shiftSymbol = shiftOverride
+        }
         if let customShift = layerKeyInfo?.customShiftLabel {
             meta.shiftSymbol = customShift
         }

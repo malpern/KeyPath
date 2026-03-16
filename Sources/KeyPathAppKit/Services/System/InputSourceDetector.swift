@@ -96,6 +96,9 @@ public final class InputSourceDetector {
 
         inputSourceID = newID
 
+        // Refresh system key labels for the new input source
+        SystemKeyLabelProvider.shared.refresh()
+
         // Detect if Japanese IME is active
         let isJapanese = newID.contains("Kotoeri") ||
             newID.contains("ATOK") ||

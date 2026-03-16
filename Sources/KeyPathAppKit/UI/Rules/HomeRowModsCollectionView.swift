@@ -22,7 +22,7 @@ struct HomeRowModsCollectionView: View {
     @State private var showingHelp = false
 
     private var activeKeymap: LogicalKeymap {
-        LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
+        .resolve(id: selectedKeymapId)
     }
 
     private var homeRowDisplayLabels: [String: String] {
