@@ -77,6 +77,8 @@ struct OverlayKeyboardView: View {
 
     /// Cached label-to-keyCode mapping (recomputed when layout/keymap changes)
     @State private var cachedLabelToKeyCode: [String: UInt16] = [:]
+    /// Cached floating label pool (recomputed alongside labelToKeyCode)
+    @State private var cachedAllLabels: [String] = []
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -146,14 +148,18 @@ struct OverlayKeyboardView: View {
     }()
 
     /// All labels for floating label animation — base pool plus any dynamic labels from the active keymap.
-    /// Sorted for stable ForEach ordering.
+    /// Cached alongside labelToKeyCode to avoid recomputation on every body pass.
     private var allLabels: [String] {
-        var labels = Self.baseLabels
-        // Add labels from the active keymap that aren't in the base pool
-        // (covers international characters like Turkish ğ/ş, Nordic ð/þ, Polish ł/ź)
-        for label in labelToKeyCode.keys {
-            labels.insert(label)
+        if !cachedAllLabels.isEmpty {
+            return cachedAllLabels
         }
+        return rebuildAllLabelsCache()
+    }
+
+    /// Rebuild the floating label pool from base labels + active keymap labels.
+    private func rebuildAllLabelsCache() -> [String] {
+        var labels = Self.baseLabels
+        labels.formUnion(labelToKeyCode.keys)
         return labels.sorted()
     }
 
@@ -279,6 +285,7 @@ struct OverlayKeyboardView: View {
             previousKeymapId = newValue
             // Rebuild labelToKeyCode cache when keymap changes
             cachedLabelToKeyCode = rebuildLabelToKeyCodeCache()
+            cachedAllLabels = rebuildAllLabelsCache()
 
             // Activate keymap transition window to enable floating label animation
             // during keymap switches (QWERTY → Dvorak, etc.)
@@ -291,15 +298,18 @@ struct OverlayKeyboardView: View {
         .onChange(of: includeKeymapPunctuation) { _, _ in
             // Rebuild labelToKeyCode cache when punctuation toggle changes
             cachedLabelToKeyCode = rebuildLabelToKeyCodeCache()
+            cachedAllLabels = rebuildAllLabelsCache()
         }
         .onChange(of: layout.id) { _, _ in
             // Rebuild labelToKeyCode cache when layout changes
             cachedLabelToKeyCode = rebuildLabelToKeyCodeCache()
+            cachedAllLabels = rebuildAllLabelsCache()
         }
         .onAppear {
             previousKeymapId = keymap.id
             // Build initial cache
             cachedLabelToKeyCode = rebuildLabelToKeyCodeCache()
+            cachedAllLabels = rebuildAllLabelsCache()
             // Enable animation after initial render completes
             // This ensures the first load positions keys without animation,
             // but subsequent keymap changes animate properly (deferred to next run loop tick)
