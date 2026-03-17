@@ -30,9 +30,11 @@ final class AutoDetectKeyboardController {
     private var connectedVIDPIDs: Set<String> = []
 
     func startObserving() {
-        connectCancellable = HIDDeviceMonitor.shared.$lastConnectedKeyboard
-            .compactMap { $0 }
-            .removeDuplicates(by: { $0.id == $1.id })
+        // Use notifications (fire-once) instead of @Published (replays current value).
+        // This prevents stale lastConnectedKeyboard from triggering on re-subscribe.
+        connectCancellable = NotificationCenter.default
+            .publisher(for: .hidKeyboardConnected)
+            .compactMap { $0.userInfo?["event"] as? HIDDeviceMonitor.HIDKeyboardEvent }
             .sink { [weak self] event in
                 Task { @MainActor in
                     await self?.handleNewKeyboard(event)
