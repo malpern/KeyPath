@@ -71,15 +71,3 @@ final class QMKVIDPIDIndexTests: XCTestCase {
         XCTAssertNil(match)
     }
 }
-
-// MARK: - MatchType Equatable
-
-extension QMKVIDPIDIndex.MatchType: @retroactive Equatable {
-    public static func == (lhs: QMKVIDPIDIndex.MatchType, rhs: QMKVIDPIDIndex.MatchType) -> Bool {
-        switch (lhs, rhs) {
-        case (.exactVIDPID, .exactVIDPID): true
-        case (.vidOnly, .vidOnly): true
-        default: false
-        }
-    }
-}

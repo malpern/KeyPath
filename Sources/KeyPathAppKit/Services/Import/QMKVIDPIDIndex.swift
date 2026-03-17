@@ -6,7 +6,7 @@ import KeyPathCore
 /// Uses a bundled `qmk-vid-pid-index.json` that maps VID:PID pairs to QMK keyboard paths.
 /// Supports exact VID:PID match and vendor-only fallback.
 enum QMKVIDPIDIndex {
-    enum MatchType: Sendable {
+    enum MatchType: Sendable, Equatable {
         case exactVIDPID
         case vidOnly
     }
