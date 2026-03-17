@@ -6,7 +6,6 @@ final class AutoDetectKeyboardControllerTests: XCTestCase {
     private var controller: AutoDetectKeyboardController!
 
     override func setUp() async throws {
-        try await super.setUp()
         controller = AutoDetectKeyboardController()
         QMKVIDPIDIndex.resetCache()
         QMKVIDPIDIndex.seededEntries = [:]
@@ -17,7 +16,6 @@ final class AutoDetectKeyboardControllerTests: XCTestCase {
         controller.dismissToast()
         controller = nil
         QMKVIDPIDIndex.resetCache()
-        try await super.tearDown()
     }
 
     // MARK: - Lifecycle / Replay Prevention
