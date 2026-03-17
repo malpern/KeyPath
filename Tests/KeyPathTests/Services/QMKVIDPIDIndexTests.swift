@@ -1,73 +1,130 @@
 @testable import KeyPathAppKit
 import XCTest
 
-final class QMKVIDPIDIndexTests: XCTestCase {
+final class KeyboardDetectionIndexTests: KeyPathTestCase {
     override func setUp() {
-        QMKVIDPIDIndex.resetCache()
+        super.setUp()
+        KeyboardDetectionIndex.resetCache()
     }
 
     override func tearDown() {
-        QMKVIDPIDIndex.resetCache()
+        KeyboardDetectionIndex.resetCache()
+        super.tearDown()
     }
 
     func testExactVIDPIDMatch() {
-        QMKVIDPIDIndex.seededEntries = [
-            "4653:0001": ["sofle/rev1"],
-            "4653": ["sofle", "sofle/rev1", "sofle/keyhive"],
-        ]
+        KeyboardDetectionIndex.seedIndex(
+            exactEntries: [
+                .init(
+                    matchKey: "4653:0001",
+                    matchType: .exactVIDPID,
+                    source: .via,
+                    confidence: .high,
+                    displayName: "Sofle",
+                    manufacturer: nil,
+                    qmkPath: "sofle/rev1",
+                    builtInLayoutId: "sofle"
+                )
+            ],
+            vendorFallbackEntries: [
+                .init(
+                    matchKey: "4653",
+                    matchType: .vendorOnly,
+                    source: .qmk,
+                    confidence: .low,
+                    displayName: "Sofle",
+                    manufacturer: nil,
+                    qmkPath: "sofle",
+                    builtInLayoutId: "sofle"
+                )
+            ]
+        )
 
-        let match = QMKVIDPIDIndex.lookup(vendorID: 0x4653, productID: 0x0001)
+        let match = KeyboardDetectionIndex.lookup(vendorID: 0x4653, productID: 0x0001)
         XCTAssertNotNil(match)
-        XCTAssertEqual(match?.matchType, .exactVIDPID)
-        XCTAssertEqual(match?.keyboardPaths, ["sofle/rev1"])
+        XCTAssertEqual(match?.record.matchType, .exactVIDPID)
+        XCTAssertEqual(match?.record.qmkPath, "sofle/rev1")
+        XCTAssertEqual(match?.record.source, .via)
     }
 
     func testVIDOnlyFallback() {
-        QMKVIDPIDIndex.seededEntries = [
-            "4653": ["sofle", "sofle/rev1"],
-        ]
+        KeyboardDetectionIndex.seedIndex(
+            exactEntries: [],
+            vendorFallbackEntries: [
+                .init(
+                    matchKey: "4653",
+                    matchType: .vendorOnly,
+                    source: .qmk,
+                    confidence: .low,
+                    displayName: "Sofle",
+                    manufacturer: nil,
+                    qmkPath: "sofle",
+                    builtInLayoutId: "sofle"
+                )
+            ]
+        )
 
-        // Unknown PID but known VID
-        let match = QMKVIDPIDIndex.lookup(vendorID: 0x4653, productID: 0x9999)
+        let match = KeyboardDetectionIndex.lookup(vendorID: 0x4653, productID: 0x9999)
         XCTAssertNotNil(match)
-        XCTAssertEqual(match?.matchType, .vidOnly)
-        XCTAssertEqual(match?.keyboardPaths, ["sofle", "sofle/rev1"])
+        XCTAssertEqual(match?.record.matchType, .vendorOnly)
+        XCTAssertEqual(match?.record.qmkPath, "sofle")
+        XCTAssertEqual(match?.record.confidence, .low)
     }
 
     func testNoMatch() {
-        QMKVIDPIDIndex.seededEntries = [
-            "4653:0001": ["sofle/rev1"],
-        ]
+        KeyboardDetectionIndex.seedIndex(exactEntries: [])
 
-        let match = QMKVIDPIDIndex.lookup(vendorID: 0x0000, productID: 0x0000)
+        let match = KeyboardDetectionIndex.lookup(vendorID: 0x0000, productID: 0x0000)
         XCTAssertNil(match)
     }
 
     func testExactMatchTakesPriorityOverVIDOnly() {
-        QMKVIDPIDIndex.seededEntries = [
-            "CB10:1256": ["crkbd/rev4_0/standard"],
-            "CB10": ["crkbd", "crkbd/rev1", "crkbd/r2g"],
-        ]
+        KeyboardDetectionIndex.seedIndex(
+            exactEntries: [
+                .init(
+                    matchKey: "CB10:1256",
+                    matchType: .exactVIDPID,
+                    source: .via,
+                    confidence: .high,
+                    displayName: "Corne Keyboard",
+                    manufacturer: nil,
+                    qmkPath: "crkbd/rev4_0/standard",
+                    builtInLayoutId: "corne"
+                )
+            ],
+            vendorFallbackEntries: [
+                .init(
+                    matchKey: "CB10",
+                    matchType: .vendorOnly,
+                    source: .qmk,
+                    confidence: .low,
+                    displayName: "Corne",
+                    manufacturer: nil,
+                    qmkPath: "crkbd",
+                    builtInLayoutId: "corne"
+                )
+            ]
+        )
 
-        let match = QMKVIDPIDIndex.lookup(vendorID: 0xCB10, productID: 0x1256)
-        XCTAssertEqual(match?.matchType, .exactVIDPID)
-        XCTAssertEqual(match?.keyboardPaths, ["crkbd/rev4_0/standard"])
+        let match = KeyboardDetectionIndex.lookup(vendorID: 0xCB10, productID: 0x1256)
+        XCTAssertEqual(match?.record.matchType, .exactVIDPID)
+        XCTAssertEqual(match?.record.qmkPath, "crkbd/rev4_0/standard")
     }
 
     func testFormatKey() {
-        XCTAssertEqual(QMKVIDPIDIndex.formatKey(vendorID: 0x4653, productID: 0x0001), "4653:0001")
-        XCTAssertEqual(QMKVIDPIDIndex.formatKey(vendorID: 0x05AC, productID: 0x0342), "05AC:0342")
+        XCTAssertEqual(KeyboardDetectionIndex.formatKey(vendorID: 0x4653, productID: 0x0001), "4653:0001")
+        XCTAssertEqual(KeyboardDetectionIndex.formatKey(vendorID: 0x05AC, productID: 0x0342), "05AC:0342")
     }
 
     func testFormatVIDKey() {
-        XCTAssertEqual(QMKVIDPIDIndex.formatVIDKey(vendorID: 0x4653), "4653")
-        XCTAssertEqual(QMKVIDPIDIndex.formatVIDKey(vendorID: 0x05AC), "05AC")
+        XCTAssertEqual(KeyboardDetectionIndex.formatVIDKey(vendorID: 0x4653), "4653")
+        XCTAssertEqual(KeyboardDetectionIndex.formatVIDKey(vendorID: 0x05AC), "05AC")
     }
 
     func testEmptyIndex() {
-        QMKVIDPIDIndex.seededEntries = [:]
+        KeyboardDetectionIndex.seedIndex(exactEntries: [])
 
-        let match = QMKVIDPIDIndex.lookup(vendorID: 0x4653, productID: 0x0001)
+        let match = KeyboardDetectionIndex.lookup(vendorID: 0x4653, productID: 0x0001)
         XCTAssertNil(match)
     }
 }

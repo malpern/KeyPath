@@ -9,6 +9,7 @@ set -euo pipefail
 #   ./Scripts/release.sh 1.2.0              # Bumps to specified version first
 #   ./Scripts/release.sh --dry-run          # Show what would happen without doing it
 #   ./Scripts/release.sh --dry-run 1.2.0    # Dry run with version bump
+#   ./Scripts/release.sh --refresh-keyboard-data
 #   ./Scripts/release.sh --skip-notarize    # Local release build without notarization
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
@@ -17,6 +18,7 @@ INFO_PLIST="$REPO_ROOT/Sources/KeyPathApp/Info.plist"
 
 DRY_RUN=false
 SKIP_NOTARIZE=false
+REFRESH_KEYBOARD_DATA=false
 NEW_VERSION=""
 
 # Parse arguments
@@ -28,12 +30,15 @@ for arg in "$@"; do
         --skip-notarize)
             SKIP_NOTARIZE=true
             ;;
+        --refresh-keyboard-data)
+            REFRESH_KEYBOARD_DATA=true
+            ;;
         *)
             if [[ $arg =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
                 NEW_VERSION="$arg"
             else
                 echo "❌ Invalid argument: $arg"
-                echo "Usage: $0 [--dry-run] [--skip-notarize] [X.Y.Z]"
+                echo "Usage: $0 [--dry-run] [--skip-notarize] [--refresh-keyboard-data] [X.Y.Z]"
                 exit 1
             fi
             ;;
@@ -72,6 +77,9 @@ echo "🎯 Release version: $VERSION"
 if [ "$SKIP_NOTARIZE" = true ]; then
     echo "⚠️  Notarization: skipped (--skip-notarize)"
 fi
+if [ "$REFRESH_KEYBOARD_DATA" = true ]; then
+    echo "🗂️  Keyboard data: refresh before build"
+fi
 echo ""
 
 # Check for uncommitted changes
@@ -92,21 +100,39 @@ fi
 if [ "$DRY_RUN" = true ]; then
     echo "🔍 [DRY RUN] Would perform the following steps:"
     echo ""
-    echo "   1. Build and sign KeyPath"
-    echo "   2. Create Sparkle archive: dist/sparkle/KeyPath-${VERSION}.zip"
-    echo "   3. Sign with EdDSA"
-    echo "   4. Generate appcast entry"
+    if [ "$REFRESH_KEYBOARD_DATA" = true ]; then
+        echo "   1. Refresh keyboard detection data"
+        echo "   2. Build and sign KeyPath"
+        echo "   3. Create Sparkle archive: dist/sparkle/KeyPath-${VERSION}.zip"
+        echo "   4. Sign with EdDSA"
+        echo "   5. Generate appcast entry"
+    else
+        echo "   1. Build and sign KeyPath"
+        echo "   2. Create Sparkle archive: dist/sparkle/KeyPath-${VERSION}.zip"
+        echo "   3. Sign with EdDSA"
+        echo "   4. Generate appcast entry"
+    fi
+    NEXT_STEP=5
+    if [ "$REFRESH_KEYBOARD_DATA" = true ]; then
+        NEXT_STEP=6
+    fi
     echo ""
     echo "   Then you would:"
-    echo "   5. git add -A && git commit -m 'chore: release v${VERSION}'"
-    echo "   6. git tag v${VERSION}"
-    echo "   7. git push origin main --tags"
-    echo "   8. Create GitHub Release and upload ZIP"
-    echo "   9. Update appcast.xml with generated entry"
-    echo "   10. git add appcast.xml && git commit -m 'chore: update appcast for v${VERSION}'"
-    echo "   11. git push"
+    echo "   ${NEXT_STEP}. git add -A && git commit -m 'chore: release v${VERSION}'"
+    echo "   $((NEXT_STEP + 1)). git tag v${VERSION}"
+    echo "   $((NEXT_STEP + 2)). git push origin main --tags"
+    echo "   $((NEXT_STEP + 3)). Create GitHub Release and upload ZIP"
+    echo "   $((NEXT_STEP + 4)). Update appcast.xml with generated entry"
+    echo "   $((NEXT_STEP + 5)). git add appcast.xml && git commit -m 'chore: update appcast for v${VERSION}'"
+    echo "   $((NEXT_STEP + 6)). git push"
     echo ""
     exit 0
+fi
+
+if [ "$REFRESH_KEYBOARD_DATA" = true ]; then
+    echo "🗂️ Refreshing keyboard detection data..."
+    chmod +x ./Scripts/refresh-keyboard-detection-data.sh
+    ./Scripts/refresh-keyboard-detection-data.sh
 fi
 
 # Build the release

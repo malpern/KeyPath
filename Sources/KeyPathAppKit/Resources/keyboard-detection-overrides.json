@@ -1,0 +1,51 @@
+{
+  "version": "1.0",
+  "exactEntries": [
+    {
+      "vendorId": "0x4653",
+      "productId": "0x0001",
+      "displayName": "Sofle",
+      "qmkPath": "sofle/rev1",
+      "builtInLayoutId": "sofle"
+    },
+    {
+      "vendorId": "0xCB10",
+      "productId": "0x1133",
+      "displayName": "Corne Keyboard",
+      "qmkPath": "crkbd/rev1",
+      "builtInLayoutId": "corne"
+    },
+    {
+      "vendorId": "0xCB10",
+      "productId": "0x1256",
+      "displayName": "Corne Keyboard",
+      "qmkPath": "crkbd/rev4_0/standard",
+      "builtInLayoutId": "corne"
+    },
+    {
+      "vendorId": "0xFC32",
+      "productId": "0x1287",
+      "displayName": "Ferris Sweep",
+      "qmkPath": "ferris/sweep",
+      "builtInLayoutId": "ferris-sweep"
+    }
+  ],
+  "qmkPathBuiltInAliases": {
+    "crkbd": "corne",
+    "crkbd/rev1": "corne",
+    "crkbd/r2g": "corne",
+    "crkbd/rev4_0/standard": "corne",
+    "crkbd/rev4_1/standard": "corne",
+    "sofle": "sofle",
+    "sofle/rev1": "sofle",
+    "sofle/keyhive": "sofle",
+    "ferris/sweep": "ferris-sweep",
+    "hhkb": "hhkb",
+    "hhkb/ansi/32u2": "hhkb",
+    "hhkb/ansi/32u4": "hhkb",
+    "hhkb/yang": "hhkb",
+    "splitkb/aurora/corne/rev1": "corne",
+    "splitkb/aurora/sweep/rev1": "ferris-sweep",
+    "splitkb/aurora/sofle_v2/rev1": "sofle"
+  }
+}
