@@ -5,19 +5,19 @@ import XCTest
 final class AutoDetectKeyboardControllerTests: XCTestCase {
     private var controller: AutoDetectKeyboardController!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         controller = AutoDetectKeyboardController()
         QMKVIDPIDIndex.resetCache()
         QMKVIDPIDIndex.seededEntries = [:]
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         controller.stopObserving()
         controller.dismissToast()
         controller = nil
         QMKVIDPIDIndex.resetCache()
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Lifecycle / Replay Prevention
