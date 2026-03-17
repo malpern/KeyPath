@@ -66,4 +66,9 @@ extension Notification.Name {
     static let deviceSelectionChanged = Notification.Name("KeyPath.Devices.SelectionChanged")
     /// Device selection apply completed. userInfo["success"] = Bool
     static let deviceSelectionApplyCompleted = Notification.Name("KeyPath.Devices.ApplyCompleted")
+
+    /// HID keyboard connected (posted by HIDDeviceMonitor). object = HIDKeyboardEvent
+    static let hidKeyboardConnected = Notification.Name("KeyPath.HID.KeyboardConnected")
+    /// HID keyboard disconnected (posted by HIDDeviceMonitor). object = HIDKeyboardEvent
+    static let hidKeyboardDisconnected = Notification.Name("KeyPath.HID.KeyboardDisconnected")
 }

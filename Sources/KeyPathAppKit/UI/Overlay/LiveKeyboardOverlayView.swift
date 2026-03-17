@@ -101,6 +101,9 @@ struct LiveKeyboardOverlayView: View {
     @State private var overlayLaunchTime = Date()
     @State private var toastManager = WizardToastManager()
     @State private var lastReloadFailureToastAt: Date?
+    private var autoDetectController: AutoDetectKeyboardController {
+        .shared
+    }
 
     @State var showingValidationFailureModal = false
     @State var validationFailureErrors: [String] = []
@@ -273,6 +276,7 @@ struct LiveKeyboardOverlayView: View {
             onAppearAction: {
                 uiState.keyboardAspectRatio = keyboardAspectRatio
                 inputSourceDetector.startMonitoring()
+                autoDetectController.startObserving()
                 if !isMapperAvailable, inspectorSection == .mapper {
                     inspectorSection = hasCustomRules ? .customRules : .launchers
                 }
@@ -288,6 +292,7 @@ struct LiveKeyboardOverlayView: View {
             },
             onDisappearAction: {
                 inputSourceDetector.stopMonitoring()
+                autoDetectController.stopObserving()
             },
             onLoadCustomRulesState: { loadCustomRulesState() },
             onServiceIssueChange: { handleRuntimeIssueChange($0) },
@@ -425,6 +430,20 @@ struct LiveKeyboardOverlayView: View {
             onResetAllRules: { resetAllCustomRules() },
             configPath: kanataViewModel?.configPath ?? ""
         ))
+        .overlay(alignment: .top) {
+            if autoDetectController.showingToast {
+                AutoDetectToastView(
+                    keyboardName: autoDetectController.toastKeyboardName,
+                    isAutoSwitch: autoDetectController.toastIsAutoSwitch,
+                    onAccept: { autoDetectController.acceptDetection() },
+                    onDismiss: { autoDetectController.dismissToast() }
+                )
+                .padding(.top, 8)
+                .padding(.horizontal, 16)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(999)
+            }
+        }
         .withToasts(toastManager)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("keyboard-overlay")
@@ -933,45 +952,45 @@ extension LiveKeyboardOverlayView {
         onRuleHover: @escaping (String?) -> Void
     ) -> some View {
         OverlayInspectorPanel(
-                selectedSection: inspectorSection,
-                onSelectSection: { selectInspectorSection($0) },
-                fadeAmount: fadeAmount,
-                isMapperAvailable: isMapperAvailable,
-                kanataViewModel: kanataViewModel,
-                inspectorReveal: inspectorReveal,
-                inspectorTotalWidth: inspectorTotalWidth,
-                inspectorLeadingGap: inspectorLeadingGap,
-                healthIndicatorState: healthIndicatorState,
-                onHealthTap: onHealthTap,
-                onKeymapChanged: onKeymapChanged,
-                isSettingsShelfActive: isSettingsShelfActive,
-                onToggleSettingsShelf: toggleSettingsShelf,
-                onKeySelected: onKeySelected,
-                layerKeyMap: viewModel.layerKeyMap,
-                hasCustomRules: hasCustomRules,
-                customRules: cachedCustomRules,
-                appKeymaps: appKeymaps,
-                onDeleteAppRule: { keymap, override in
-                    deleteAppRule(keymap: keymap, override: override)
-                },
-                onDeleteGlobalRule: { rule in
-                    Task {
-                        await kanataViewModel?.removeCustomRule(rule.id)
-                        loadCustomRulesState()
-                    }
-                },
-                onResetAllRules: {
-                    showResetAllRulesConfirmation = true
-                },
-                onCreateNewAppRule: {
-                    inspectorSection = .mapper
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        NotificationCenter.default.post(name: .openMapperAppConditionPicker, object: nil)
-                    }
-                },
-                onRuleHover: onRuleHover
-            )
-            .frame(width: inspectorTotalWidth, alignment: .trailing)
+            selectedSection: inspectorSection,
+            onSelectSection: { selectInspectorSection($0) },
+            fadeAmount: fadeAmount,
+            isMapperAvailable: isMapperAvailable,
+            kanataViewModel: kanataViewModel,
+            inspectorReveal: inspectorReveal,
+            inspectorTotalWidth: inspectorTotalWidth,
+            inspectorLeadingGap: inspectorLeadingGap,
+            healthIndicatorState: healthIndicatorState,
+            onHealthTap: onHealthTap,
+            onKeymapChanged: onKeymapChanged,
+            isSettingsShelfActive: isSettingsShelfActive,
+            onToggleSettingsShelf: toggleSettingsShelf,
+            onKeySelected: onKeySelected,
+            layerKeyMap: viewModel.layerKeyMap,
+            hasCustomRules: hasCustomRules,
+            customRules: cachedCustomRules,
+            appKeymaps: appKeymaps,
+            onDeleteAppRule: { keymap, override in
+                deleteAppRule(keymap: keymap, override: override)
+            },
+            onDeleteGlobalRule: { rule in
+                Task {
+                    await kanataViewModel?.removeCustomRule(rule.id)
+                    loadCustomRulesState()
+                }
+            },
+            onResetAllRules: {
+                showResetAllRulesConfirmation = true
+            },
+            onCreateNewAppRule: {
+                inspectorSection = .mapper
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    NotificationCenter.default.post(name: .openMapperAppConditionPicker, object: nil)
+                }
+            },
+            onRuleHover: onRuleHover
+        )
+        .frame(width: inspectorTotalWidth, alignment: .trailing)
     }
 
     private func moveKeyboardWindow(deltaX: CGFloat, deltaY: CGFloat) {
