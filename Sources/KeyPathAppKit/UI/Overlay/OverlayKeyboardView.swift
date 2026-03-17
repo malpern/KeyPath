@@ -77,6 +77,8 @@ struct OverlayKeyboardView: View {
 
     /// Cached label-to-keyCode mapping (recomputed when layout/keymap changes)
     @State private var cachedLabelToKeyCode: [String: UInt16] = [:]
+    /// Cached floating label pool (recomputed alongside labelToKeyCode)
+    @State private var cachedAllLabels: [String] = []
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -130,22 +132,36 @@ struct OverlayKeyboardView: View {
         return result
     }
 
-    /// All labels that can appear on the keyboard (letters + numbers + punctuation + international)
-    private static let allLabels: [String] = {
+    /// Base set of labels for floating label animation (A-Z, 0-9, common punctuation).
+    /// The active keymap may contribute additional labels (e.g., Turkish ğ, Nordic ð).
+    private static let baseLabels: Set<String> = {
         // Letters A-Z (uppercase for consistent matching)
         let letters = (65 ... 90).map { String(UnicodeScalar($0)) }
         // Numbers 0-9
         let numbers = (0 ... 9).map { String($0) }
         // Common punctuation
         let punctuation = [";", "'", ",", ".", "/", "[", "]", "\\", "`", "-", "="]
-        // International characters commonly used in keyboard layouts
-        // QWERTZ (German): ö, ä, ü, ß
-        // AZERTY (French): é, è, ê, à, ç
-        // Other European: ñ, å, ø, æ
+        // International characters commonly used in static keymaps
         let international = ["ö", "Ö", "ä", "Ä", "ü", "Ü", "ß", "é", "É", "è", "È", "ê", "Ê",
                              "à", "À", "ç", "Ç", "ñ", "Ñ", "å", "Å", "ø", "Ø", "æ", "Æ"]
-        return letters + numbers + punctuation + international
+        return Set(letters + numbers + punctuation + international)
     }()
+
+    /// All labels for floating label animation — base pool plus any dynamic labels from the active keymap.
+    /// Cached alongside labelToKeyCode to avoid recomputation on every body pass.
+    private var allLabels: [String] {
+        if !cachedAllLabels.isEmpty {
+            return cachedAllLabels
+        }
+        return rebuildAllLabelsCache()
+    }
+
+    /// Rebuild the floating label pool from base labels + active keymap labels.
+    private func rebuildAllLabelsCache() -> [String] {
+        var labels = Self.baseLabels
+        labels.formUnion(labelToKeyCode.keys)
+        return labels.sorted()
+    }
 
     /// Special labels that should always render in keycaps (not as floating labels)
     /// Matches the special labels set in OverlayKeycapView.hasSpecialLabel
@@ -221,7 +237,7 @@ struct OverlayKeyboardView: View {
                 // Note: frames are calculated directly from layout, no GeometryReader needed.
                 // Skip floating labels for non-standard legend styles (dots show circles, not letters)
                 if !reduceMotion, activeColorway.legendStyle == .standard {
-                    ForEach(Self.allLabels, id: \.self) { label in
+                    ForEach(allLabels, id: \.self) { label in
                         // In launcher mode or layer mode, hide ALL floating labels for a clean look
                         // (mapped keys show icon + small letter, unmapped keys show small label)
                         FloatingKeymapLabel(
@@ -269,6 +285,7 @@ struct OverlayKeyboardView: View {
             previousKeymapId = newValue
             // Rebuild labelToKeyCode cache when keymap changes
             cachedLabelToKeyCode = rebuildLabelToKeyCodeCache()
+            cachedAllLabels = rebuildAllLabelsCache()
 
             // Activate keymap transition window to enable floating label animation
             // during keymap switches (QWERTY → Dvorak, etc.)
@@ -281,15 +298,18 @@ struct OverlayKeyboardView: View {
         .onChange(of: includeKeymapPunctuation) { _, _ in
             // Rebuild labelToKeyCode cache when punctuation toggle changes
             cachedLabelToKeyCode = rebuildLabelToKeyCodeCache()
+            cachedAllLabels = rebuildAllLabelsCache()
         }
         .onChange(of: layout.id) { _, _ in
             // Rebuild labelToKeyCode cache when layout changes
             cachedLabelToKeyCode = rebuildLabelToKeyCodeCache()
+            cachedAllLabels = rebuildAllLabelsCache()
         }
         .onAppear {
             previousKeymapId = keymap.id
             // Build initial cache
             cachedLabelToKeyCode = rebuildLabelToKeyCodeCache()
+            cachedAllLabels = rebuildAllLabelsCache()
             // Enable animation after initial render completes
             // This ensures the first load positions keys without animation,
             // but subsequent keymap changes animate properly (deferred to next run loop tick)
