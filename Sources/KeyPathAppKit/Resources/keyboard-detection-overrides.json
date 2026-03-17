@@ -1,6 +1,35 @@
 {
   "version": "1.0",
-  "exactEntries": [],
+  "exactEntries": [
+    {
+      "vendorId": "0x4653",
+      "productId": "0x0001",
+      "displayName": "Sofle",
+      "qmkPath": "sofle/rev1",
+      "builtInLayoutId": "sofle"
+    },
+    {
+      "vendorId": "0xCB10",
+      "productId": "0x1133",
+      "displayName": "Corne Keyboard",
+      "qmkPath": "crkbd/rev1",
+      "builtInLayoutId": "corne"
+    },
+    {
+      "vendorId": "0xCB10",
+      "productId": "0x1256",
+      "displayName": "Corne Keyboard",
+      "qmkPath": "crkbd/rev4_0/standard",
+      "builtInLayoutId": "corne"
+    },
+    {
+      "vendorId": "0xFC32",
+      "productId": "0x1287",
+      "displayName": "Ferris Sweep",
+      "qmkPath": "ferris/sweep",
+      "builtInLayoutId": "ferris-sweep"
+    }
+  ],
   "qmkPathBuiltInAliases": {
     "crkbd": "corne",
     "crkbd/rev1": "corne",

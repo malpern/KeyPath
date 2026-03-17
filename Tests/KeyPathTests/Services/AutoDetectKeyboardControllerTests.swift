@@ -2,10 +2,11 @@
 import XCTest
 
 @MainActor
-final class AutoDetectKeyboardControllerTests: XCTestCase {
+final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
     private var controller: AutoDetectKeyboardController!
 
     override func setUp() async throws {
+        try await super.setUp()
         controller = AutoDetectKeyboardController()
         KeyboardDetectionIndex.resetCache()
         KeyboardDetectionIndex.seedIndex(exactEntries: [])
@@ -16,6 +17,7 @@ final class AutoDetectKeyboardControllerTests: XCTestCase {
         controller.dismissToast()
         controller = nil
         KeyboardDetectionIndex.resetCache()
+        try await super.tearDown()
     }
 
     // MARK: - Lifecycle / Replay Prevention

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "generated": "2026-03-17T16:20:14Z",
+  "generated": "2026-03-17T16:54:09Z",
   "exactEntries": [
     {
       "matchKey": "0007:0007",
@@ -5133,6 +5133,16 @@
       "builtInLayoutId": null
     },
     {
+      "matchKey": "4653:0001",
+      "matchType": "exactVIDPID",
+      "source": "override",
+      "confidence": "high",
+      "displayName": "Sofle",
+      "manufacturer": null,
+      "qmkPath": "sofle/rev1",
+      "builtInLayoutId": "sofle"
+    },
+    {
       "matchKey": "4658:4C53",
       "matchType": "exactVIDPID",
       "source": "via",
@@ -8488,6 +8498,16 @@
       "source": "via",
       "confidence": "high",
       "displayName": "PloopyCo Trackball Mini",
+      "manufacturer": null,
+      "qmkPath": "ploopyco/trackball",
+      "builtInLayoutId": null
+    },
+    {
+      "matchKey": "5043:4CE5",
+      "matchType": "exactVIDPID",
+      "source": "via",
+      "confidence": "high",
+      "displayName": "Ploopy Nano 2 Trackball",
       "manufacturer": null,
       "qmkPath": "ploopyco/trackball",
       "builtInLayoutId": null
@@ -18223,6 +18243,16 @@
       "builtInLayoutId": null
     },
     {
+      "matchKey": "CB10:1133",
+      "matchType": "exactVIDPID",
+      "source": "override",
+      "confidence": "high",
+      "displayName": "Corne Keyboard",
+      "manufacturer": null,
+      "qmkPath": "crkbd/rev1",
+      "builtInLayoutId": "corne"
+    },
+    {
       "matchKey": "CB10:1144",
       "matchType": "exactVIDPID",
       "source": "via",
@@ -18261,6 +18291,16 @@
       "manufacturer": null,
       "qmkPath": "keebio/bamfk1",
       "builtInLayoutId": null
+    },
+    {
+      "matchKey": "CB10:1256",
+      "matchType": "exactVIDPID",
+      "source": "override",
+      "confidence": "high",
+      "displayName": "Corne Keyboard",
+      "manufacturer": null,
+      "qmkPath": "crkbd/rev4_0/standard",
+      "builtInLayoutId": "corne"
     },
     {
       "matchKey": "CB10:1257",
@@ -19801,6 +19841,16 @@
       "manufacturer": null,
       "qmkPath": "sofle",
       "builtInLayoutId": "sofle"
+    },
+    {
+      "matchKey": "FC32:1287",
+      "matchType": "exactVIDPID",
+      "source": "override",
+      "confidence": "high",
+      "displayName": "Ferris Sweep",
+      "manufacturer": null,
+      "qmkPath": "ferris/sweep",
+      "builtInLayoutId": "ferris-sweep"
     },
     {
       "matchKey": "FE32:0065",

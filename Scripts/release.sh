@@ -112,15 +112,19 @@ if [ "$DRY_RUN" = true ]; then
         echo "   3. Sign with EdDSA"
         echo "   4. Generate appcast entry"
     fi
+    NEXT_STEP=5
+    if [ "$REFRESH_KEYBOARD_DATA" = true ]; then
+        NEXT_STEP=6
+    fi
     echo ""
     echo "   Then you would:"
-    echo "   6. git add -A && git commit -m 'chore: release v${VERSION}'"
-    echo "   7. git tag v${VERSION}"
-    echo "   8. git push origin main --tags"
-    echo "   9. Create GitHub Release and upload ZIP"
-    echo "   10. Update appcast.xml with generated entry"
-    echo "   11. git add appcast.xml && git commit -m 'chore: update appcast for v${VERSION}'"
-    echo "   12. git push"
+    echo "   ${NEXT_STEP}. git add -A && git commit -m 'chore: release v${VERSION}'"
+    echo "   $((NEXT_STEP + 1)). git tag v${VERSION}"
+    echo "   $((NEXT_STEP + 2)). git push origin main --tags"
+    echo "   $((NEXT_STEP + 3)). Create GitHub Release and upload ZIP"
+    echo "   $((NEXT_STEP + 4)). Update appcast.xml with generated entry"
+    echo "   $((NEXT_STEP + 5)). git add appcast.xml && git commit -m 'chore: update appcast for v${VERSION}'"
+    echo "   $((NEXT_STEP + 6)). git push"
     echo ""
     exit 0
 fi

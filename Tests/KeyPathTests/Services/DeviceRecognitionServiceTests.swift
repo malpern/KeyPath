@@ -1,13 +1,15 @@
 @testable import KeyPathAppKit
 import XCTest
 
-final class DeviceRecognitionServiceTests: XCTestCase {
+final class DeviceRecognitionServiceTests: KeyPathTestCase {
     override func setUp() {
+        super.setUp()
         KeyboardDetectionIndex.resetCache()
     }
 
     override func tearDown() {
         KeyboardDetectionIndex.resetCache()
+        super.tearDown()
     }
 
     func testRecognizeBuiltInKeyboardFromVIAExactMatch() async {

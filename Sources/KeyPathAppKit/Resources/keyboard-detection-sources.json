@@ -1,13 +1,13 @@
 {
   "version": "1.0",
-  "generated": "2026-03-17T16:20:14Z",
+  "generated": "2026-03-17T16:54:09Z",
   "generator": "Scripts/generate_keyboard_detection_index.py",
   "upstream": {
     "via": {
       "repo": "https://github.com/the-via/keyboards",
       "ref": "master",
-      "revision": "b4b9281282c7f9406ecd477fca20a4d7a0c98315",
-      "parsedFiles": 2001,
+      "revision": "4048fcc7e5265b17fee6ee104eb8076352dd1180",
+      "parsedFiles": 2002,
       "skippedFiles": 0
     },
     "qmk": {
@@ -23,15 +23,15 @@
     }
   },
   "coverage": {
-    "exactEntries": 1999,
+    "exactEntries": 2004,
     "vendorFallbackEntries": 4,
     "exactEntriesBySource": {
-      "override": 0,
-      "via": 1986,
+      "override": 4,
+      "via": 1987,
       "qmk": 13
     },
     "resolvedExactConflicts": 7,
-    "unresolvedExactConflicts": 9,
+    "unresolvedExactConflicts": 5,
     "unresolvedVendorFallbacks": 3
   }
 }

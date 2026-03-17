@@ -1,13 +1,15 @@
 @testable import KeyPathAppKit
 import XCTest
 
-final class KeyboardDetectionIndexTests: XCTestCase {
+final class KeyboardDetectionIndexTests: KeyPathTestCase {
     override func setUp() {
+        super.setUp()
         KeyboardDetectionIndex.resetCache()
     }
 
     override func tearDown() {
         KeyboardDetectionIndex.resetCache()
+        super.tearDown()
     }
 
     func testExactVIDPIDMatch() {
@@ -40,7 +42,7 @@ final class KeyboardDetectionIndexTests: XCTestCase {
 
         let match = KeyboardDetectionIndex.lookup(vendorID: 0x4653, productID: 0x0001)
         XCTAssertNotNil(match)
-        XCTAssertEqual(match?.matchType, .exactVIDPID)
+        XCTAssertEqual(match?.record.matchType, .exactVIDPID)
         XCTAssertEqual(match?.record.qmkPath, "sofle/rev1")
         XCTAssertEqual(match?.record.source, .via)
     }
@@ -64,7 +66,7 @@ final class KeyboardDetectionIndexTests: XCTestCase {
 
         let match = KeyboardDetectionIndex.lookup(vendorID: 0x4653, productID: 0x9999)
         XCTAssertNotNil(match)
-        XCTAssertEqual(match?.matchType, .vendorOnly)
+        XCTAssertEqual(match?.record.matchType, .vendorOnly)
         XCTAssertEqual(match?.record.qmkPath, "sofle")
         XCTAssertEqual(match?.record.confidence, .low)
     }
@@ -105,7 +107,7 @@ final class KeyboardDetectionIndexTests: XCTestCase {
         )
 
         let match = KeyboardDetectionIndex.lookup(vendorID: 0xCB10, productID: 0x1256)
-        XCTAssertEqual(match?.matchType, .exactVIDPID)
+        XCTAssertEqual(match?.record.matchType, .exactVIDPID)
         XCTAssertEqual(match?.record.qmkPath, "crkbd/rev4_0/standard")
     }
 

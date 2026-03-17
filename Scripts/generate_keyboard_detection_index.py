@@ -17,7 +17,6 @@ import argparse
 import io
 import json
 import tarfile
-import tempfile
 import urllib.request
 from collections import defaultdict
 from dataclasses import dataclass
@@ -41,10 +40,10 @@ DEFAULT_REPORT_OUTPUT = PROJECT_ROOT / "docs" / "reports" / "keyboard-detection-
 VIA_REPO = "the-via/keyboards"
 VIA_REF = "master"
 VIA_COMMIT_API = f"https://api.github.com/repos/{VIA_REPO}/commits/{VIA_REF}"
-VIA_TARBALL = f"https://codeload.github.com/{VIA_REPO}/tar.gz/refs/heads/{VIA_REF}"
 
 EXACT_DROP_THRESHOLD = 0.10
 VENDOR_DROP_THRESHOLD = 0.25
+MAX_FETCH_BYTES = 50 * 1024 * 1024
 
 
 class GenerationError(RuntimeError):
@@ -91,6 +90,8 @@ def format_hex(value: Any, *, field: str, context: str) -> str:
     if value is None:
         raise GenerationError(f"Missing {field} for {context}")
     if isinstance(value, int):
+        if value < 0 or value > 0xFFFF:
+            raise GenerationError(f"{field} '{value}' out of 16-bit range for {context}")
         return f"{value:04X}"
     if isinstance(value, str):
         raw = value.strip()
@@ -99,7 +100,10 @@ def format_hex(value: Any, *, field: str, context: str) -> str:
         raw = raw.upper()
         if not raw or any(ch not in "0123456789ABCDEF" for ch in raw):
             raise GenerationError(f"Malformed {field} '{value}' for {context}")
-        return raw.zfill(4)
+        normalized = raw.zfill(4)
+        if len(normalized) > 4:
+            raise GenerationError(f"{field} '{value}' out of 16-bit range for {context}")
+        return normalized
     raise GenerationError(f"Unsupported {field} value '{value}' for {context}")
 
 
@@ -249,12 +253,25 @@ def load_qmk_vid_pid_index(
 def fetch_url_bytes(url: str) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": "KeyPath/1.0"})
     with urllib.request.urlopen(req, timeout=60) as response:
-        return response.read()
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            chunk = response.read(1024 * 1024)
+            if not chunk:
+                return b"".join(chunks)
+            chunks.append(chunk)
+            total += len(chunk)
+            if total > MAX_FETCH_BYTES:
+                raise GenerationError(f"Fetch exceeded {MAX_FETCH_BYTES} bytes: {url}")
 
 
 def fetch_via_revision() -> str:
     payload = json.loads(fetch_url_bytes(VIA_COMMIT_API))
     return payload["sha"]
+
+
+def via_tarball_url(revision: str) -> str:
+    return f"https://codeload.github.com/{VIA_REPO}/tar.gz/{revision}"
 
 
 def derive_qmk_path_from_via_member(member_name: str) -> str:
@@ -277,7 +294,7 @@ def load_via_exact_records(
     built_in_aliases: dict[str, str],
 ) -> tuple[dict[str, DetectionRecord], dict[str, Any]]:
     revision = fetch_via_revision()
-    tarball = fetch_url_bytes(VIA_TARBALL)
+    tarball = fetch_url_bytes(via_tarball_url(revision))
 
     grouped: dict[str, list[DetectionRecord]] = defaultdict(list)
     parsed_files = 0
@@ -384,7 +401,8 @@ def merge_exact_records(
     resolved_conflicts: list[dict[str, Any]] = []
     unresolved_conflicts: list[dict[str, Any]] = []
 
-    for source_name, incoming in (("via", via_exact),):
+    def apply_source_records(source_name: str, incoming: dict[str, DetectionRecord]) -> None:
+        nonlocal merged, resolved_conflicts, unresolved_conflicts
         for key, record in incoming.items():
             existing = merged.get(key)
             if existing and existing != record:
@@ -404,6 +422,8 @@ def merge_exact_records(
                     "reason": f"{source_name} entry takes precedence",
                 })
             merged[key] = record
+
+    apply_source_records("via", via_exact)
 
     for key, record in override_exact.items():
         existing = merged.get(key)

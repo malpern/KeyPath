@@ -33,7 +33,6 @@ enum KeyboardDetectionIndex {
 
     struct Match: Sendable, Equatable {
         let record: Record
-        let matchType: MatchType
     }
 
     private struct IndexFile: Codable {
@@ -48,6 +47,7 @@ enum KeyboardDetectionIndex {
         let vendorFallbackEntries: [String: Record]
     }
 
+    private static let cacheLock = NSLock()
     nonisolated(unsafe) private static var cached: Cache?
 
     #if DEBUG
@@ -55,12 +55,16 @@ enum KeyboardDetectionIndex {
         nonisolated(unsafe) private static var seededVendorFallbackEntries: [Record]?
 
         static func seedIndex(exactEntries: [Record], vendorFallbackEntries: [Record] = []) {
+            cacheLock.lock()
+            defer { cacheLock.unlock() }
             seededExactEntries = exactEntries
             seededVendorFallbackEntries = vendorFallbackEntries
             cached = nil
         }
 
         static func resetCache() {
+            cacheLock.lock()
+            defer { cacheLock.unlock() }
             cached = nil
             seededExactEntries = nil
             seededVendorFallbackEntries = nil
@@ -75,12 +79,12 @@ enum KeyboardDetectionIndex {
 
         let vidPidKey = formatKey(vendorID: vendorID, productID: productID)
         if let record = cache.exactEntries[vidPidKey] {
-            return Match(record: record, matchType: .exactVIDPID)
+            return Match(record: record)
         }
 
         let vidKey = formatVIDKey(vendorID: vendorID)
         if let record = cache.vendorFallbackEntries[vidKey] {
-            return Match(record: record, matchType: .vendorOnly)
+            return Match(record: record)
         }
 
         return nil
@@ -95,6 +99,9 @@ enum KeyboardDetectionIndex {
     }
 
     private static func loadCache() -> Cache {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+
         if let cached { return cached }
 
         #if DEBUG

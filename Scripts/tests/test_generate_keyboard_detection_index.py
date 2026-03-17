@@ -4,6 +4,7 @@ import unittest
 from unittest import mock
 
 from Scripts.generate_keyboard_detection_index import (
+    MAX_FETCH_BYTES,
     DetectionRecord,
     GenerationError,
     build_override_records,
@@ -29,6 +30,12 @@ class GenerateKeyboardDetectionIndexTests(unittest.TestCase):
     def test_format_hex_rejects_malformed_ids(self):
         with self.assertRaises(GenerationError):
             format_hex("0xZZZZ", field="vendorId", context="fixture")
+
+    def test_format_hex_rejects_out_of_range_values(self):
+        with self.assertRaises(GenerationError):
+            format_hex(0x1_0000, field="vendorId", context="fixture")
+        with self.assertRaises(GenerationError):
+            format_hex("0x10000", field="productId", context="fixture")
 
     def test_via_loader_parses_representative_definitions(self):
         tarball = make_via_tarball({
@@ -97,6 +104,30 @@ class GenerateKeyboardDetectionIndexTests(unittest.TestCase):
         self.assertEqual(merged["4653:0001"].display_name, "Sofle Override")
         self.assertEqual(len(conflicts), 2)
         self.assertEqual(unresolved, [])
+
+    def test_fetch_url_bytes_enforces_size_limit(self):
+        too_large = b"x" * (MAX_FETCH_BYTES + 1)
+
+        class Response:
+            def __enter__(self):
+                self.offset = 0
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self, size):
+                if self.offset >= len(too_large):
+                    return b""
+                chunk = too_large[self.offset:self.offset + size]
+                self.offset += len(chunk)
+                return chunk
+
+        with mock.patch("Scripts.generate_keyboard_detection_index.urllib.request.urlopen", return_value=Response()):
+            from Scripts.generate_keyboard_detection_index import fetch_url_bytes
+
+            with self.assertRaises(GenerationError):
+                fetch_url_bytes("https://example.com/big.tar.gz")
 
 
 if __name__ == "__main__":

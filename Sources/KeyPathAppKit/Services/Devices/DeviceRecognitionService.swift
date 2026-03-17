@@ -24,7 +24,8 @@ actor DeviceRecognitionService {
         }
 
         let record = match.record
-        let metadata: QMKKeyboardDatabase.KeyboardMeta? = if let qmkPath = record.qmkPath {
+        let shouldFetchMetadata = (record.displayName.isEmpty || record.manufacturer == nil) && record.qmkPath != nil
+        let metadata: QMKKeyboardDatabase.KeyboardMeta? = if shouldFetchMetadata, let qmkPath = record.qmkPath {
             await QMKKeyboardDatabase.shared.metadataForPath(qmkPath)
         } else {
             nil
@@ -49,7 +50,7 @@ actor DeviceRecognitionService {
             isBuiltIn: isBuiltIn,
             needsImport: !isBuiltIn,
             source: record.source,
-            matchType: match.matchType,
+            matchType: record.matchType,
             deviceEvent: event
         )
     }
