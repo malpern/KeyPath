@@ -15,6 +15,7 @@ actor DeviceRecognitionService {
         let needsImport: Bool
         let source: KeyboardDetectionIndex.Source
         let matchType: KeyboardDetectionIndex.MatchType
+        let confidence: KeyboardDetectionIndex.Confidence
         let deviceEvent: HIDDeviceMonitor.HIDKeyboardEvent
     }
 
@@ -51,6 +52,7 @@ actor DeviceRecognitionService {
             needsImport: !isBuiltIn,
             source: record.source,
             matchType: record.matchType,
+            confidence: record.confidence,
             deviceEvent: event
         )
     }

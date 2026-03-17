@@ -95,38 +95,22 @@ final class OrphanDetector {
 
     private func showOrphanCleanupAlert(hasFiles: Bool, hasDaemons: Bool) {
         let alert = NSAlert()
-        alert.messageText = "Leftover Files Detected"
-
-        // Build list of what was found
-        var foundItems: [String] = []
-        if hasFiles {
-            foundItems.append("• Application Support files")
-            foundItems.append("• Log files")
-            foundItems.append("• Preferences")
-        }
-        if hasDaemons {
-            foundItems.append("• System keyboard services (requires authorization)")
-        }
+        alert.messageText = "Clean Up Leftover Files?"
 
         alert.informativeText = """
-        It looks like KeyPath was previously deleted manually (dragged to Trash) instead of using the Uninstall button.
+        Files from a previous KeyPath installation were found. \
+        Would you like to remove them?
 
-        Some files were left behind:
-        \(foundItems.joined(separator: "\n"))
-
-        Would you like to clean these up now?
-
-        Note: Your keyboard configuration will be preserved.
+        Your keyboard configuration will be preserved.
         """
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "Clean Up Now")
+        alert.addButton(withTitle: "Clean Up")
         alert.addButton(withTitle: "Keep Files")
-        alert.addButton(withTitle: "Remind Me Later")
 
         let response = alert.runModal()
 
         switch response {
-        case .alertFirstButtonReturn: // Clean Up Now
+        case .alertFirstButtonReturn: // Clean Up
             AppLogger.shared.log("🧹 [OrphanDetector] User chose to clean up orphaned files")
             Task {
                 await performCleanup(cleanFiles: hasFiles, cleanDaemons: hasDaemons)
@@ -134,12 +118,6 @@ final class OrphanDetector {
 
         case .alertSecondButtonReturn: // Keep Files
             AppLogger.shared.log("🧹 [OrphanDetector] User chose to keep orphaned files")
-    // Do nothing, alert won't show again
-
-        case .alertThirdButtonReturn: // Remind Me Later
-            AppLogger.shared.log("🧹 [OrphanDetector] User chose 'Remind Me Later'")
-            // Reset the flag so we can show the alert again
-            UserDefaults.standard.set(false, forKey: Self.hasShownOrphanAlertKey)
 
         default:
             break

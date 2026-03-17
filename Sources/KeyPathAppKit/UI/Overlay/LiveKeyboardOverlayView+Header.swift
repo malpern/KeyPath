@@ -107,6 +107,9 @@ struct OverlayDragHeader: View {
     let onToggleInspector: () -> Void
     /// Callback when health indicator is tapped (to launch wizard)
     let onHealthTap: () -> Void
+    let connectedKeyboards: [AutoDetectKeyboardController.ConnectedKeyboard]
+    let activeKeyboardID: String?
+    let onKeyboardSelected: (String) -> Void
     /// Callback when a layer is selected in the picker
     let onLayerSelected: (String) -> Void
     /// Callback when a new layer is created
@@ -138,6 +141,58 @@ struct OverlayDragHeader: View {
     @State private var layerPickerArrowEdge: Edge = .top
     /// When the health indicator dismissed — used to suppress "No TCP" briefly at startup
     @State private var healthDismissedAt: Date?
+
+    init(
+        isDark: Bool,
+        fadeAmount: CGFloat,
+        height: CGFloat,
+        inspectorWidth: CGFloat,
+        reduceTransparency: Bool,
+        isInspectorOpen: Bool,
+        isDragging: Binding<Bool>,
+        isHoveringButton: Binding<Bool>,
+        inputModeIndicator: String?,
+        currentLayerName: String,
+        isLauncherMode: Bool,
+        isKanataConnected: Bool,
+        healthIndicatorState: HealthIndicatorState,
+        drawerButtonHighlighted: Bool,
+        layoutHasDrawerButtons: Bool,
+        onClose: @escaping () -> Void,
+        onToggleInspector: @escaping () -> Void,
+        onHealthTap: @escaping () -> Void,
+        connectedKeyboards: [AutoDetectKeyboardController.ConnectedKeyboard] = [],
+        activeKeyboardID: String? = nil,
+        onKeyboardSelected: @escaping (String) -> Void = { _ in },
+        onLayerSelected: @escaping (String) -> Void,
+        onCreateLayer: ((String) -> Void)? = nil,
+        onDeleteLayer: ((String) -> Void)? = nil
+    ) {
+        self.isDark = isDark
+        self.fadeAmount = fadeAmount
+        self.height = height
+        self.inspectorWidth = inspectorWidth
+        self.reduceTransparency = reduceTransparency
+        self.isInspectorOpen = isInspectorOpen
+        _isDragging = isDragging
+        _isHoveringButton = isHoveringButton
+        self.inputModeIndicator = inputModeIndicator
+        self.currentLayerName = currentLayerName
+        self.isLauncherMode = isLauncherMode
+        self.isKanataConnected = isKanataConnected
+        self.healthIndicatorState = healthIndicatorState
+        self.drawerButtonHighlighted = drawerButtonHighlighted
+        self.layoutHasDrawerButtons = layoutHasDrawerButtons
+        self.onClose = onClose
+        self.onToggleInspector = onToggleInspector
+        self.onHealthTap = onHealthTap
+        self.connectedKeyboards = connectedKeyboards
+        self.activeKeyboardID = activeKeyboardID
+        self.onKeyboardSelected = onKeyboardSelected
+        self.onLayerSelected = onLayerSelected
+        self.onCreateLayer = onCreateLayer
+        self.onDeleteLayer = onDeleteLayer
+    }
 
     /// System layers that cannot be deleted
     private static let systemLayers: Set<String> = ["base", "nav", "navigation", "launcher"]
@@ -570,6 +625,11 @@ struct OverlayDragHeader: View {
     /// Popover showing available layers
     private var layerPickerPopover: some View {
         VStack(spacing: 0) {
+            if !connectedKeyboards.isEmpty {
+                keyboardPickerSection
+                PopoverListDivider()
+            }
+
             ForEach(availableLayers.indices, id: \.self) { index in
                 let layer = availableLayers[index]
                 layerPickerRow(layer: layer, index: index)
@@ -607,6 +667,74 @@ struct OverlayDragHeader: View {
         .padding(.vertical, 6)
         .frame(minWidth: 200)
         .pickerPopoverChrome()
+    }
+
+    @ViewBuilder
+    private var keyboardPickerSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Connected Keyboards")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 2)
+
+            ForEach(connectedKeyboards) { keyboard in
+                keyboardPickerRow(keyboard)
+            }
+        }
+        .padding(.top, 2)
+        .padding(.bottom, 6)
+    }
+
+    private func keyboardPickerRow(_ keyboard: AutoDetectKeyboardController.ConnectedKeyboard) -> some View {
+        let isCurrentKeyboard = activeKeyboardID == keyboard.id
+        let accessibilityID = "keyboard-picker-\(keyboard.vidPidKey.replacingOccurrences(of: ":", with: "-"))"
+
+        return Button {
+            isLayerPickerOpen = false
+            onKeyboardSelected(keyboard.id)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "keyboard")
+                    .font(.body)
+                    .frame(width: 20)
+                    .foregroundStyle(isCurrentKeyboard ? Color.accentColor : .secondary)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(keyboard.keyboardName)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    Text(keyboard.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                if isCurrentKeyboard {
+                    Image(systemName: "checkmark")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                } else if keyboard.status == .importRequired {
+                    Text("Import")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                } else if keyboard.status == .unrecognized {
+                    Text("Search")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(LayerPickerButtonStyle())
+        .focusable(false)
+        .accessibilityIdentifier(accessibilityID)
     }
 
     /// Individual layer row in the picker

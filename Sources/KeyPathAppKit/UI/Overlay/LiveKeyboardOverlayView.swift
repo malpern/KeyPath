@@ -434,7 +434,8 @@ struct LiveKeyboardOverlayView: View {
             if autoDetectController.showingToast {
                 AutoDetectToastView(
                     keyboardName: autoDetectController.toastKeyboardName,
-                    isAutoSwitch: autoDetectController.toastIsAutoSwitch,
+                    mode: autoDetectController.toastMode,
+                    confidence: autoDetectController.toastConfidence,
                     onAccept: { autoDetectController.acceptDetection() },
                     onDismiss: { autoDetectController.dismissToast() }
                 )
@@ -443,6 +444,24 @@ struct LiveKeyboardOverlayView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .zIndex(999)
             }
+        }
+        .sheet(
+            isPresented: Binding(
+                get: { autoDetectController.isKeyboardSearchPresented },
+                set: { isPresented in
+                    if !isPresented {
+                        autoDetectController.dismissKeyboardSearch()
+                    }
+                }
+            )
+        ) {
+            QMKKeyboardSearchView(
+                selectedLayoutId: $selectedLayoutId,
+                initialQuery: autoDetectController.keyboardSearchQuery,
+                onImportComplete: {
+                    autoDetectController.rememberCurrentLayoutSelection(layoutId: selectedLayoutId)
+                }
+            )
         }
         .withToasts(toastManager)
         .accessibilityElement(children: .contain)
@@ -488,6 +507,11 @@ struct LiveKeyboardOverlayView: View {
                 onClose: { onClose?() },
                 onToggleInspector: { onToggleInspector?() },
                 onHealthTap: { onHealthIndicatorTap?() },
+                connectedKeyboards: autoDetectController.connectedKeyboards,
+                activeKeyboardID: autoDetectController.activeKeyboardID,
+                onKeyboardSelected: { keyboardID in
+                    autoDetectController.selectKeyboard(keyboardID)
+                },
                 onLayerSelected: { layerName in
                     Task {
                         _ = await kanataViewModel?.changeLayer(layerName)

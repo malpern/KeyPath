@@ -200,5 +200,44 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
 
         XCTAssertFalse(controller.showingToast, "No toast for unrecognized keyboards")
         XCTAssertNil(controller.pendingResult)
+        XCTAssertEqual(controller.connectedKeyboards.count, 1)
+        XCTAssertEqual(controller.connectedKeyboards.first?.status, .unrecognized)
+        XCTAssertEqual(controller.activeKeyboard?.keyboardName, "Apple Internal Keyboard")
+    }
+
+    func testRecognizedKeyboardBecomesActiveConnectedKeyboard() async {
+        KeyboardDetectionIndex.seedIndex(exactEntries: [
+            .init(
+                matchKey: "CB10:1256",
+                matchType: .exactVIDPID,
+                source: .via,
+                confidence: .high,
+                displayName: "Corne Keyboard",
+                manufacturer: nil,
+                qmkPath: "crkbd/rev4_0/standard",
+                builtInLayoutId: "corne"
+            )
+        ])
+
+        controller.startObserving()
+
+        let event = HIDDeviceMonitor.HIDKeyboardEvent(
+            vendorID: 0xCB10,
+            productID: 0x1256,
+            productName: "Corne Keyboard",
+            isConnected: true
+        )
+        NotificationCenter.default.post(
+            name: .hidKeyboardConnected,
+            object: nil,
+            userInfo: ["event": event]
+        )
+
+        try? await Task.sleep(for: .milliseconds(100))
+
+        XCTAssertEqual(controller.connectedKeyboards.count, 1)
+        XCTAssertEqual(controller.activeKeyboard?.id, event.id)
+        XCTAssertEqual(controller.activeKeyboard?.layoutId, "corne")
+        XCTAssertEqual(controller.activeKeyboard?.status, .suggested)
     }
 }
