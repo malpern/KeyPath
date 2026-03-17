@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "generated": "2026-03-17T15:25:11Z",
+  "generator": "Scripts/generate_keyboard_detection_index.py",
+  "upstream": {
+    "via": {
+      "repo": "https://github.com/the-via/keyboards",
+      "ref": "master",
+      "revision": "b4b9281282c7f9406ecd477fca20a4d7a0c98315",
+      "parsedFiles": 2001,
+      "skippedFiles": 0
+    },
+    "qmk": {
+      "keyboardIndexPath": "Sources/KeyPathAppKit/Resources/qmk-keyboard-index.json",
+      "keyboardCount": 3713,
+      "metadataPath": "Sources/KeyPathAppKit/Resources/qmk-keyboard-metadata.json",
+      "metadataCount": 3714,
+      "vidPidIndexPath": "Sources/KeyPathAppKit/Resources/qmk-vid-pid-index.json",
+      "vidPidGenerated": "2026-03-16",
+      "vidPidVersion": "1.0",
+      "exactSourceEntries": 23,
+      "vendorSourceEntries": 4
+    }
+  },
+  "coverage": {
+    "exactEntries": 1999,
+    "vendorFallbackEntries": 4,
+    "exactEntriesBySource": {
+      "override": 0,
+      "via": 1986,
+      "qmk": 13
+    },
+    "resolvedExactConflicts": 7,
+    "unresolvedExactConflicts": 9,
+    "unresolvedVendorFallbacks": 3
+  }
+}

@@ -59,13 +59,17 @@ actor QMKKeyboardDatabase {
         "sofle": "sofle",
         "sofle/rev1": "sofle",
         "sofle/keyhive": "sofle",
+        "splitkb/aurora/sofle_v2/rev1": "sofle",
         // Ferris Sweep
         "ferris/sweep": "ferris-sweep",
+        "splitkb/aurora/sweep/rev1": "ferris-sweep",
         // HHKB variants
         "hhkb": "hhkb",
         "hhkb/ansi/32u2": "hhkb",
         "hhkb/ansi/32u4": "hhkb",
         "hhkb/yang": "hhkb",
+        // Additional Corne-family aliases
+        "splitkb/aurora/corne/rev1": "corne",
     ]
 
     /// Disk cache directory for fetched keyboard layouts

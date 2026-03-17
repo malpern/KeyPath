@@ -81,11 +81,13 @@ final class AutoDetectKeyboardController {
 
         // No binding → try to recognize
         guard let result = await DeviceRecognitionService.shared.recognize(event: event) else {
-            AppLogger.shared.log("🔌 [AutoDetect] No QMK match for \(event.productName) (\(vidPidKey))")
+            AppLogger.shared.log("🔌 [AutoDetect] No keyboard match for \(event.productName) (\(vidPidKey))")
             return
         }
 
-        AppLogger.shared.log("🔌 [AutoDetect] Recognized \(result.keyboardName) (built-in: \(result.isBuiltIn), path: \(result.qmkPath))")
+        AppLogger.shared.log(
+            "🔌 [AutoDetect] Recognized \(result.keyboardName) (built-in: \(result.isBuiltIn), path: \(result.qmkPath ?? "none"), source: \(result.source.rawValue), match: \(result.matchType.rawValue))"
+        )
 
         // Show confirmation toast
         pendingResult = result
@@ -169,7 +171,10 @@ final class AutoDetectKeyboardController {
     // MARK: - QMK Import
 
     private func performQMKImport(result: DeviceRecognitionService.RecognitionResult) {
-        let qmkPath = result.qmkPath
+        guard let qmkPath = result.qmkPath else {
+            AppLogger.shared.warn("🔌 [AutoDetect] Missing QMK path for '\(result.keyboardName)'")
+            return
+        }
 
         importTask = Task {
             do {

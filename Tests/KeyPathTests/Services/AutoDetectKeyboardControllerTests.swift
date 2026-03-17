@@ -7,15 +7,15 @@ final class AutoDetectKeyboardControllerTests: XCTestCase {
 
     override func setUp() async throws {
         controller = AutoDetectKeyboardController()
-        QMKVIDPIDIndex.resetCache()
-        QMKVIDPIDIndex.seededEntries = [:]
+        KeyboardDetectionIndex.resetCache()
+        KeyboardDetectionIndex.seedIndex(exactEntries: [])
     }
 
     override func tearDown() async throws {
         controller.stopObserving()
         controller.dismissToast()
         controller = nil
-        QMKVIDPIDIndex.resetCache()
+        KeyboardDetectionIndex.resetCache()
     }
 
     // MARK: - Lifecycle / Replay Prevention
@@ -23,10 +23,18 @@ final class AutoDetectKeyboardControllerTests: XCTestCase {
     /// Verifies that restarting observation without a new plug-in event
     /// does not replay a stale connection and trigger a toast or auto-switch.
     func testRestartObservationDoesNotReplayStaleEvent() async {
-        // Seed a recognizable keyboard
-        QMKVIDPIDIndex.seededEntries = [
-            "CB10:1256": ["crkbd/rev4_0/standard"],
-        ]
+        KeyboardDetectionIndex.seedIndex(exactEntries: [
+            .init(
+                matchKey: "CB10:1256",
+                matchType: .exactVIDPID,
+                source: .via,
+                confidence: .high,
+                displayName: "Corne Keyboard",
+                manufacturer: nil,
+                qmkPath: "crkbd/rev4_0/standard",
+                builtInLayoutId: "corne"
+            )
+        ])
 
         controller.startObserving()
 
@@ -74,9 +82,18 @@ final class AutoDetectKeyboardControllerTests: XCTestCase {
     /// Verifies that duplicate connect notifications for the same device
     /// don't produce multiple toasts.
     func testDuplicateConnectDoesNotSpamToast() async {
-        QMKVIDPIDIndex.seededEntries = [
-            "CB10:1256": ["crkbd/rev4_0/standard"],
-        ]
+        KeyboardDetectionIndex.seedIndex(exactEntries: [
+            .init(
+                matchKey: "CB10:1256",
+                matchType: .exactVIDPID,
+                source: .via,
+                confidence: .high,
+                displayName: "Corne Keyboard",
+                manufacturer: nil,
+                qmkPath: "crkbd/rev4_0/standard",
+                builtInLayoutId: "corne"
+            )
+        ])
 
         controller.startObserving()
 
@@ -108,9 +125,18 @@ final class AutoDetectKeyboardControllerTests: XCTestCase {
     /// Verifies that disconnecting then reconnecting the same keyboard
     /// triggers detection again (connectedVIDPIDs cleared on disconnect).
     func testReconnectAfterDisconnectTriggersDetection() async {
-        QMKVIDPIDIndex.seededEntries = [
-            "CB10:1256": ["crkbd/rev4_0/standard"],
-        ]
+        KeyboardDetectionIndex.seedIndex(exactEntries: [
+            .init(
+                matchKey: "CB10:1256",
+                matchType: .exactVIDPID,
+                source: .via,
+                confidence: .high,
+                displayName: "Corne Keyboard",
+                manufacturer: nil,
+                qmkPath: "crkbd/rev4_0/standard",
+                builtInLayoutId: "corne"
+            )
+        ])
 
         controller.startObserving()
 
@@ -152,7 +178,7 @@ final class AutoDetectKeyboardControllerTests: XCTestCase {
 
     /// Verifies that an unrecognized keyboard (no VID:PID match) does not show a toast.
     func testUnrecognizedKeyboardDoesNotShowToast() async {
-        QMKVIDPIDIndex.seededEntries = [:] // No matches
+        KeyboardDetectionIndex.seedIndex(exactEntries: []) // No matches
 
         controller.startObserving()
 
