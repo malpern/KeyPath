@@ -8,18 +8,22 @@ class SoundPlayer {
 
     private var successSound: NSSound?
     private var errorSound: NSSound?
+    private var deviceConnectedSound: NSSound?
+    private var deviceDisconnectedSound: NSSound?
 
     private init() {
         setupSounds()
     }
 
     private func setupSounds() {
-        // Use system sounds for now - these are always available
+        // Use system sounds - these are always available
         successSound = NSSound(named: "Glass")
         errorSound = NSSound(named: "Basso")
+        deviceConnectedSound = NSSound(named: "Funk")
+        deviceDisconnectedSound = NSSound(named: "Bottle")
 
         AppLogger.shared.log(
-            "🔊 [SoundPlayer] Initialized with Glass (success) and Basso (error) sounds"
+            "🔊 [SoundPlayer] Initialized with Glass (success), Basso (error), Funk (connect), Bottle (disconnect) sounds"
         )
     }
 
@@ -45,6 +49,16 @@ class SoundPlayer {
         // Already on @MainActor; play directly
         sound.play()
         AppLogger.shared.log("🔊 [SoundPlayer] Playing error sound (Basso)")
+    }
+
+    /// Play sound when a keyboard is detected/connected
+    func playDeviceConnectedSound() {
+        deviceConnectedSound?.play()
+    }
+
+    /// Play sound when a keyboard is disconnected
+    func playDeviceDisconnectedSound() {
+        deviceDisconnectedSound?.play()
     }
 
     /// Test if sounds are available

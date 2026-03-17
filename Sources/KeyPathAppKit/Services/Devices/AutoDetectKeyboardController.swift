@@ -75,6 +75,7 @@ final class AutoDetectKeyboardController {
         ) {
             AppLogger.shared.log("🔌 [AutoDetect] Known keyboard \(binding.keyboardName) — auto-switching to \(binding.layoutId)")
             UserDefaults.standard.set(binding.layoutId, forKey: LayoutPreferences.layoutIdKey)
+            SoundPlayer.shared.playDeviceConnectedSound()
             showAutoSwitchToast(keyboardName: binding.keyboardName)
             return
         }
@@ -90,6 +91,7 @@ final class AutoDetectKeyboardController {
         )
 
         // Show confirmation toast
+        SoundPlayer.shared.playDeviceConnectedSound()
         pendingResult = result
         toastKeyboardName = result.keyboardName
         toastIsAutoSwitch = false
@@ -101,6 +103,7 @@ final class AutoDetectKeyboardController {
 
     private func handleKeyboardDisconnected(_ event: HIDDeviceMonitor.HIDKeyboardEvent) {
         connectedVIDPIDs.remove(event.vidPidKey)
+        SoundPlayer.shared.playDeviceDisconnectedSound()
     }
 
     // MARK: - User Actions
