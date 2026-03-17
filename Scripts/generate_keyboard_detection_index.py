@@ -267,9 +267,9 @@ def derive_qmk_path_from_via_member(member_name: str) -> str:
     rel_parts = parts[start:]
     filename = path.stem
     directory_parts = rel_parts[:-1]
-    if directory_parts and directory_parts[-1].lower() == filename.lower():
+    if directory_parts:
         return "/".join(directory_parts)
-    return "/".join(directory_parts + [filename])
+    return filename
 
 
 def load_via_exact_records(

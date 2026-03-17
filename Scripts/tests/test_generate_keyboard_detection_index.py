@@ -7,6 +7,7 @@ from Scripts.generate_keyboard_detection_index import (
     DetectionRecord,
     GenerationError,
     build_override_records,
+    derive_qmk_path_from_via_member,
     format_hex,
     load_via_exact_records,
     merge_exact_records,
@@ -49,6 +50,10 @@ class GenerateKeyboardDetectionIndexTests(unittest.TestCase):
         self.assertEqual(resolved["4653:0001"].qmk_path, "crkbd")
         self.assertEqual(resolved["4653:0001"].built_in_layout_id, "corne")
         self.assertEqual(resolved["1209:2303"].qmk_path, "boardsource/unicorne")
+
+    def test_derive_qmk_path_from_via_member_prefers_directory_path(self):
+        self.assertEqual(derive_qmk_path_from_via_member("the-via-keyboards-sha/v3/wavtype/p01_ultra/via.json"), "wavtype/p01_ultra")
+        self.assertEqual(derive_qmk_path_from_via_member("the-via-keyboards-sha/v3/bakeneko60.json"), "bakeneko60")
 
     def test_merge_prefers_override_then_via_then_qmk(self):
         qmk = {

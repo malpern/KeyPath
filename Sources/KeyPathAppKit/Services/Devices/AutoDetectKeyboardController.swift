@@ -119,12 +119,18 @@ final class AutoDetectKeyboardController {
             performQMKImport(result: result)
         }
 
-        dismissToast()
+        clearToast(cancelImport: false)
     }
 
     func dismissToast() {
+        clearToast(cancelImport: true)
+    }
+
+    private func clearToast(cancelImport: Bool) {
         autoDismissTask?.cancel()
-        importTask?.cancel()
+        if cancelImport {
+            importTask?.cancel()
+        }
         withAnimation(.easeOut(duration: 0.25)) {
             showingToast = false
         }
