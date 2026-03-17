@@ -32,10 +32,9 @@ final class HIDDeviceMonitor: ObservableObject {
     /// The most recently connected keyboard (for toast display)
     @Published private(set) var lastConnectedKeyboard: HIDKeyboardEvent?
 
-    private var isMonitoring = false
-
     /// Dedicated thread for the IOKit run loop — GCD queues can reclaim threads,
     /// which would silently kill the run loop and stop all IOKit callbacks.
+    /// Also serves as the liveness guard: non-nil means monitoring is active.
     private nonisolated(unsafe) var monitorThread: Thread?
     /// Guard for `_monitorRunLoop` — CFRunLoop is not Sendable so we can't use Mutex/OSAllocatedUnfairLock.
     /// Safety: only accessed under `runLoopLock`; CFRunLoopStop is cross-thread safe per Apple docs.
@@ -47,8 +46,7 @@ final class HIDDeviceMonitor: ObservableObject {
     private var trackedDeviceIDs: [UInt: HIDKeyboardEvent] = [:]
 
     func startMonitoring() {
-        guard !isMonitoring else { return }
-        isMonitoring = true
+        guard monitorThread == nil else { return }
 
         let thread = Thread { [weak self] in
             self?.setupHIDManager()
@@ -62,8 +60,7 @@ final class HIDDeviceMonitor: ObservableObject {
     }
 
     func stopMonitoring() {
-        guard isMonitoring else { return }
-        isMonitoring = false
+        guard monitorThread != nil else { return }
 
         runLoopLock.lock()
         let runLoop = _monitorRunLoop
@@ -89,6 +86,8 @@ final class HIDDeviceMonitor: ObservableObject {
         IOHIDManagerSetDeviceMatching(manager, matching as CFDictionary)
 
         // Register callbacks
+        // SAFETY: passUnretained is safe because HIDDeviceMonitor is a singleton
+        // (static let shared) — it is never deallocated during app lifetime.
         let context = Unmanaged.passUnretained(self).toOpaque()
 
         IOHIDManagerRegisterDeviceMatchingCallback(manager, { context, _, _, device in

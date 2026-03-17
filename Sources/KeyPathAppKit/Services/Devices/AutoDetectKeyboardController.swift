@@ -25,6 +25,7 @@ final class AutoDetectKeyboardController {
     private var connectCancellable: AnyCancellable?
     private var disconnectCancellable: AnyCancellable?
     private var autoDismissTask: Task<Void, Never>?
+    private var importTask: Task<Void, Never>?
     /// Tracks VID:PIDs of currently connected keyboards to avoid re-prompting.
     /// Cleared on disconnect so reconnecting the same keyboard triggers auto-switch.
     private var connectedVIDPIDs: Set<String> = []
@@ -121,6 +122,7 @@ final class AutoDetectKeyboardController {
 
     func dismissToast() {
         autoDismissTask?.cancel()
+        importTask?.cancel()
         withAnimation(.easeOut(duration: 0.25)) {
             showingToast = false
         }
@@ -156,7 +158,11 @@ final class AutoDetectKeyboardController {
             acceptedAt: Date()
         )
         Task {
-            try? await DeviceLayoutBindingStore.shared.saveBinding(binding)
+            do {
+                try await DeviceLayoutBindingStore.shared.saveBinding(binding)
+            } catch {
+                AppLogger.shared.warn("🔌 [AutoDetect] Failed to save binding for \(result.keyboardName): \(error.localizedDescription)")
+            }
         }
     }
 
@@ -165,9 +171,11 @@ final class AutoDetectKeyboardController {
     private func performQMKImport(result: DeviceRecognitionService.RecognitionResult) {
         let qmkPath = result.qmkPath
 
-        Task {
+        importTask = Task {
             do {
                 let jsonData = try await QMKKeyboardDatabase.shared.fetchKeyboardData(byPath: qmkPath)
+                guard !Task.isCancelled else { return }
+
                 let info = try JSONDecoder().decode(QMKLayoutParser.QMKKeyboardInfo.self, from: jsonData)
 
                 guard !info.layouts.isEmpty else {
@@ -202,6 +210,8 @@ final class AutoDetectKeyboardController {
                     return
                 }
 
+                guard !Task.isCancelled else { return }
+
                 let layoutName = "\(result.keyboardName)\(result.manufacturer.map { " by \($0)" } ?? "")"
                 let sourceURL = "https://keyboards.qmk.fm/v1/keyboards/\(qmkPath)/info.json"
 
@@ -215,11 +225,15 @@ final class AutoDetectKeyboardController {
                     keyboardPath: qmkPath
                 )
 
+                guard !Task.isCancelled else { return }
+
                 // Switch to the imported layout and save the binding
                 UserDefaults.standard.set(parseResult.layout.id, forKey: LayoutPreferences.layoutIdKey)
                 saveBinding(result: result, layoutId: parseResult.layout.id)
                 AppLogger.shared.log("🔌 [AutoDetect] Imported and selected QMK layout: \(layoutName)")
 
+            } catch is CancellationError {
+                AppLogger.shared.log("🔌 [AutoDetect] QMK import cancelled for '\(result.keyboardName)'")
             } catch {
                 AppLogger.shared.warn("🔌 [AutoDetect] QMK import failed for '\(result.keyboardName)': \(error.localizedDescription)")
             }

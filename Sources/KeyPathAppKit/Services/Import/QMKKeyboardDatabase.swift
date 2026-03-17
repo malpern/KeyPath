@@ -298,10 +298,8 @@ actor QMKKeyboardDatabase {
         }
     }
 
-    // MARK: - Search
+    // MARK: - Metadata Lookup
 
-    /// Search keyboards by query. Purely local — no network calls.
-    /// Results are ranked: prefix matches on vendor/name score highest.
     /// Look up metadata (name + manufacturer) for a QMK keyboard path.
     /// Used by `DeviceRecognitionService` to display detected keyboard info.
     func metadataForPath(_ path: String) -> KeyboardMeta? {
@@ -309,6 +307,10 @@ actor QMKKeyboardDatabase {
         return metadata[path]
     }
 
+    // MARK: - Search
+
+    /// Search keyboards by query. Purely local — no network calls.
+    /// Results are ranked: prefix matches on vendor/name score highest.
     /// Bundled keyboards (with full layout data) are prioritized in results.
     ///
     /// - Parameter query: Search query (case-insensitive)

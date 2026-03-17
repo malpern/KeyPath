@@ -37,29 +37,9 @@ struct AutoDetectToastView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
                 .accessibilityIdentifier("auto-detect-accept-button")
-
-                Button {
-                    onDismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.footnote.weight(.medium))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Dismiss")
-                .accessibilityIdentifier("auto-detect-dismiss-button")
-            } else {
-                Button {
-                    onDismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.footnote.weight(.medium))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Dismiss")
-                .accessibilityIdentifier("auto-detect-dismiss-button")
             }
+
+            dismissButton
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -76,5 +56,18 @@ struct AutoDetectToastView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("auto-detect-toast")
+    }
+
+    private var dismissButton: some View {
+        Button {
+            onDismiss()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.footnote.weight(.medium))
+                .foregroundColor(.secondary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Dismiss")
+        .accessibilityIdentifier("auto-detect-dismiss-button")
     }
 }
