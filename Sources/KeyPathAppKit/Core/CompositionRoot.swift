@@ -124,6 +124,10 @@ enum CompositionRoot {
             // Initialize WindowManager with retry logic for CGS APIs
             await WindowManager.shared.initializeWithRetry()
             AppLogger.shared.info("🪟 [App] WindowManager initialization complete")
+
+            // Start HID device monitoring for auto-detect keyboard on plug-in
+            HIDDeviceMonitor.shared.startMonitoring()
+            AppLogger.shared.info("🔌 [App] HID device monitor started")
         }
     }
 }

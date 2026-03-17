@@ -298,6 +298,15 @@ actor QMKKeyboardDatabase {
         }
     }
 
+    // MARK: - Metadata Lookup
+
+    /// Look up metadata (name + manufacturer) for a QMK keyboard path.
+    /// Used by `DeviceRecognitionService` to display detected keyboard info.
+    func metadataForPath(_ path: String) -> KeyboardMeta? {
+        let metadata = loadMetadata()
+        return metadata[path]
+    }
+
     // MARK: - Search
 
     /// Search keyboards by query. Purely local — no network calls.
@@ -486,6 +495,36 @@ actor QMKKeyboardDatabase {
         // Cache to disk
         writeToDiskCache(keyboardPath: keyboard.id, data: unwrapped)
 
+        return unwrapped
+    }
+
+    /// Fetch keyboard data by QMK path (e.g. "clueboard/66/rev3").
+    /// Constructs the QMK API URL internally — callers don't need to know URL details.
+    /// Uses disk cache when available, same as `fetchKeyboardData(_:)`.
+    func fetchKeyboardData(byPath qmkPath: String) async throws -> Data {
+        // Check disk cache first
+        if let cached = readFromDiskCache(keyboardPath: qmkPath) {
+            AppLogger.shared.info("✅ [QMKDatabase] Cache hit for '\(qmkPath)'")
+            return cached
+        }
+
+        guard let infoURL = URL(string: "\(qmkAPIBase)/\(qmkPath)/info.json") else {
+            throw QMKDatabaseError.invalidURL("Cannot construct URL for path '\(qmkPath)'")
+        }
+
+        AppLogger.shared.info("🌐 [QMKDatabase] Fetching '\(qmkPath)' from QMK API...")
+
+        let (data, response) = try await urlSession.data(from: infoURL)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200 ... 299).contains(httpResponse.statusCode)
+        else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            throw QMKDatabaseError.networkError("HTTP \(code) fetching \(qmkPath)")
+        }
+
+        let unwrapped = try unwrapQMKAPIResponse(data, keyboardPath: qmkPath)
+        writeToDiskCache(keyboardPath: qmkPath, data: unwrapped)
         return unwrapped
     }
 
