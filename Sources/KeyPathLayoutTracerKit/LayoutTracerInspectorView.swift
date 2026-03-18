@@ -5,6 +5,7 @@ struct LayoutTracerInspectorView: View {
     let onOpenImage: () -> Void
     let onClearImage: () -> Void
     let onOpenLayout: () -> Void
+    let onAnalyzeImage: () -> Void
     let availableLayouts: [LayoutCatalogEntry]
     let onSelectLayout: (LayoutCatalogEntry) -> Void
     @State private var layoutSearch = ""
@@ -86,6 +87,15 @@ struct LayoutTracerInspectorView: View {
                 .tracerGlassButtonStyle()
                 .help("Open Layout")
                 .accessibilityIdentifier("layoutTracer.openLayout")
+
+                Button(action: onAnalyzeImage) {
+                    Label("Analyze Image", systemImage: "sparkles.rectangle.stack")
+                        .labelStyle(.iconOnly)
+                }
+                .tracerGlassButtonStyle()
+                .help("Analyze Image")
+                .disabled(document.backgroundImageURL == nil)
+                .accessibilityIdentifier("layoutTracer.analyzeImage")
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -134,6 +144,58 @@ struct LayoutTracerInspectorView: View {
                 Text(layoutFileURL.lastPathComponent)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            if document.backgroundImageURL != nil, (document.hasLayoutOverlay || document.hasAnalysisProposals) {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        if document.hasLayoutOverlay {
+                            Toggle(isOn: $document.showsLayoutLayer) {
+                                Image(systemName: "square.stack.3d.up")
+                            }
+                            .toggleStyle(.button)
+                            .help("Show Layout Overlay")
+                            .accessibilityIdentifier("layoutTracer.layout.toggle")
+                        }
+
+                        if document.hasAnalysisProposals {
+                            Toggle(isOn: $document.showsAnalysisLayer) {
+                                Image(systemName: "sparkles.rectangle.stack")
+                            }
+                            .toggleStyle(.button)
+                            .help("Show Analysis Overlay")
+                            .accessibilityIdentifier("layoutTracer.analysis.toggle")
+                        }
+                    }
+
+                    if document.hasAnalysisProposals {
+                        HStack {
+                            Button {
+                                document.promoteAnalysisProposals()
+                            } label: {
+                                Image(systemName: "arrow.down.to.line.compact")
+                            }
+                            .tracerGlassButtonStyle()
+                            .help("Promote Analysis")
+                            .accessibilityIdentifier("layoutTracer.analysis.promote")
+
+                            Button {
+                                document.clearAnalysis()
+                            } label: {
+                                Image(systemName: "xmark.bin")
+                            }
+                            .tracerGlassButtonStyle()
+                            .help("Clear Analysis")
+                            .accessibilityIdentifier("layoutTracer.analysis.clear")
+                        }
+
+                        if let analysis = document.analysis {
+                            Text("\(analysis.proposals.count) proposals via \(analysis.modelVersion)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
             }
 
             HStack {

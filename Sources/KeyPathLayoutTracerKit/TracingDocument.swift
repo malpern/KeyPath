@@ -13,6 +13,8 @@ final class TracingDocument {
         var backgroundImageSize: CGSize
         var keys: [TracingKey]
         var guides: [TracingGuide]
+        var analysis: LayoutAnalysisDocument?
+        var showsAnalysisLayer: Bool
         var selectedKeyID: UUID?
         var selectedGuideID: UUID?
         var isLayoutSelected: Bool
@@ -30,6 +32,9 @@ final class TracingDocument {
     var backgroundImageSize = CGSize(width: 1600, height: 700)
     var keys: [TracingKey] = []
     var guides: [TracingGuide] = []
+    var analysis: LayoutAnalysisDocument?
+    var showsAnalysisLayer = true
+    var showsLayoutLayer = true
     var selectedKeyID: UUID?
     var selectedGuideID: UUID?
     var isLayoutSelected = false
@@ -97,6 +102,14 @@ final class TracingDocument {
 
     var hasGuides: Bool {
         !guides.isEmpty
+    }
+
+    var hasAnalysisProposals: Bool {
+        !(analysis?.proposals.isEmpty ?? true)
+    }
+
+    var hasLayoutOverlay: Bool {
+        !keys.isEmpty
     }
 
     func loadImage(from url: URL) throws {
@@ -300,6 +313,33 @@ final class TracingDocument {
         redoStack.removeAll()
     }
 
+    func loadAnalysis(from data: Data) throws {
+        captureUndoSnapshot()
+        analysis = try LayoutAnalysisImporter.load(from: data)
+        showsAnalysisLayer = true
+        redoStack.removeAll()
+    }
+
+    func clearAnalysis() {
+        guard analysis != nil else { return }
+        captureUndoSnapshot()
+        analysis = nil
+        redoStack.removeAll()
+    }
+
+    func promoteAnalysisProposals() {
+        guard let currentAnalysis = analysis, !currentAnalysis.proposals.isEmpty else { return }
+        captureUndoSnapshot()
+        let startingCount = keys.count
+        let promoted = currentAnalysis.proposals.enumerated().map { index, proposal in
+            proposal.asTracingKey(index: startingCount + index + 1)
+        }
+        keys.append(contentsOf: promoted)
+        selectedKeyID = promoted.first?.id
+        analysis = nil
+        redoStack.removeAll()
+    }
+
     func exportJSON() throws -> Data {
         let exportedWidth: Double? = exportsExplicitBounds ? (editorTotalWidth / coordinateScale) : nil
         let exportedHeight: Double? = exportsExplicitBounds ? (editorTotalHeight / coordinateScale) : nil
@@ -487,6 +527,8 @@ final class TracingDocument {
             backgroundImageSize: backgroundImageSize,
             keys: keys,
             guides: guides,
+            analysis: analysis,
+            showsAnalysisLayer: showsAnalysisLayer,
             selectedKeyID: selectedKeyID,
             selectedGuideID: selectedGuideID,
             isLayoutSelected: isLayoutSelected
@@ -501,6 +543,8 @@ final class TracingDocument {
         backgroundImageSize = snapshot.backgroundImageSize
         keys = snapshot.keys
         guides = snapshot.guides
+        analysis = snapshot.analysis
+        showsAnalysisLayer = snapshot.showsAnalysisLayer
         selectedKeyID = snapshot.selectedKeyID
         selectedGuideID = snapshot.selectedGuideID
         isLayoutSelected = snapshot.isLayoutSelected

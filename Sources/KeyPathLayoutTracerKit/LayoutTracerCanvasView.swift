@@ -42,21 +42,34 @@ struct LayoutTracerCanvasView: View {
                             .offset(x: canvasOrigin.x, y: canvasOrigin.y)
                     }
 
-                    ForEach(document.guides) { guide in
-                        GuideOverlayView(
-                            guide: guide,
-                            isSelected: guide.id == document.selectedGuideID,
-                            contentSize: contentSize,
-                            canvasOrigin: canvasOrigin,
-                            zoom: document.zoom,
-                            coordinateScale: document.coordinateScale,
-                            onSelect: {
-                                document.selectGuide(id: guide.id)
-                            },
-                            onMove: { translation, final in
-                                moveGuide(id: guide.id, translation: translation, final: final)
-                            }
-                        )
+                    if document.showsAnalysisLayer, let analysis = document.analysis {
+                        ForEach(analysis.proposals) { proposal in
+                            AnalysisProposalOverlayView(
+                                proposal: proposal,
+                                zoom: document.zoom,
+                                coordinateScale: document.coordinateScale,
+                                canvasOrigin: canvasOrigin
+                            )
+                        }
+                    }
+
+                    if document.showsLayoutLayer {
+                        ForEach(document.guides) { guide in
+                            GuideOverlayView(
+                                guide: guide,
+                                isSelected: guide.id == document.selectedGuideID,
+                                contentSize: contentSize,
+                                canvasOrigin: canvasOrigin,
+                                zoom: document.zoom,
+                                coordinateScale: document.coordinateScale,
+                                onSelect: {
+                                    document.selectGuide(id: guide.id)
+                                },
+                                onMove: { translation, final in
+                                    moveGuide(id: guide.id, translation: translation, final: final)
+                                }
+                            )
+                        }
                     }
 
                     if let pendingVerticalGuide {
@@ -73,7 +86,7 @@ struct LayoutTracerCanvasView: View {
                             .offset(x: canvasOrigin.x, y: canvasOrigin.y + (pendingHorizontalGuide * document.zoom * document.coordinateScale) - 1)
                     }
 
-                    if let layoutBounds = document.layoutBounds {
+                    if document.showsLayoutLayer, let layoutBounds = document.layoutBounds {
                         LayoutBoundsOverlayView(
                             bounds: layoutBounds,
                             isSelected: document.isLayoutSelected,
@@ -92,23 +105,25 @@ struct LayoutTracerCanvasView: View {
                         )
                     }
 
-                    ForEach(document.keys) { key in
-                        KeyOverlayView(
-                            key: key,
-                            isSelected: key.id == document.selectedKeyID,
-                            cornerRadius: document.keyCornerRadius,
-                            zoom: document.zoom,
-                            coordinateScale: document.coordinateScale,
-                            canvasOrigin: canvasOrigin,
-                            onSelect: { document.selectKey(id: key.id) },
-                            onMove: { translation, final in
-                                move(keyID: key.id, translation: translation, final: final)
-                            },
-                            onResize: { translation, final in
-                                resize(keyID: key.id, translation: translation, final: final)
-                            }
-                        )
+                    if document.showsLayoutLayer {
+                        ForEach(document.keys) { key in
+                            KeyOverlayView(
+                                key: key,
+                                isSelected: key.id == document.selectedKeyID,
+                                cornerRadius: document.keyCornerRadius,
+                                zoom: document.zoom,
+                                coordinateScale: document.coordinateScale,
+                                canvasOrigin: canvasOrigin,
+                                onSelect: { document.selectKey(id: key.id) },
+                                onMove: { translation, final in
+                                    move(keyID: key.id, translation: translation, final: final)
+                                },
+                                onResize: { translation, final in
+                                    resize(keyID: key.id, translation: translation, final: final)
+                                }
+                            )
                         }
+                    }
                 }
                 .frame(width: contentSize.width + rulerThickness, height: contentSize.height + rulerThickness, alignment: .topLeading)
                 .background(canvasBackground)
@@ -325,9 +340,9 @@ struct LayoutTracerCanvasView: View {
     }
 
     private func handleCanvasTap(at location: CGPoint, canvasOrigin: CGPoint) {
-        if let keyID = keyID(at: location, canvasOrigin: canvasOrigin) {
+        if document.showsLayoutLayer, let keyID = keyID(at: location, canvasOrigin: canvasOrigin) {
             document.selectKey(id: keyID)
-        } else if layoutContains(location: location, canvasOrigin: canvasOrigin) {
+        } else if document.showsLayoutLayer, layoutContains(location: location, canvasOrigin: canvasOrigin) {
             document.selectLayout()
         } else {
             document.selectKey(id: nil)
@@ -363,9 +378,9 @@ struct LayoutTracerCanvasView: View {
     }
 
     private func handleDeleteCommand() {
-        if document.selectedGuideID != nil {
+        if document.showsLayoutLayer, document.selectedGuideID != nil {
             document.removeSelectedGuide()
-        } else if document.selectedKeyID != nil {
+        } else if document.showsLayoutLayer, document.selectedKeyID != nil {
             document.removeSelectedKey()
         }
     }

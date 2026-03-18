@@ -15,10 +15,22 @@ Or:
 /Users/malpern/local-code/KeyPath-layout-tracer/Scripts/run-layout-tracer.sh
 ```
 
+## Analysis Setup
+
+Install the Python analysis environment once:
+
+```bash
+cd /Users/malpern/local-code/KeyPath-layout-tracer
+./Scripts/setup-layout-analysis-env.sh
+```
+
+The tracer app will automatically use `.venv-layout-analysis/bin/python` if it exists.
+
 ## Current MVP
 
 - open a keyboard image
 - open an existing KeyPath native layout JSON
+- analyze a keyboard image into a separate proposal layer
 - add/select/delete keys
 - drag keys
 - resize keys from the bottom-right handle
@@ -31,3 +43,6 @@ Or:
 - This tool focuses on geometry only.
 - Labels and keycodes are placeholders by default but can be edited in the inspector.
 - Exported JSON matches the native `PhysicalLayout` shape used by KeyPath built-in layouts.
+- `Analyze Image` runs `Scripts/analyze_keyboard_image.py` and loads a separate analysis layer over the photo.
+- The analyzer prefers an Ultralytics OBB model when available and otherwise falls back to OpenCV contour detection.
+- Python dependencies are defined in [requirements-layout-analysis.txt](/Users/malpern/local-code/KeyPath-layout-tracer/Scripts/requirements-layout-analysis.txt).

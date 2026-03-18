@@ -27,6 +27,7 @@ struct LayoutTracerRootView: View {
                 onOpenImage: openImage,
                 onClearImage: clearImage,
                 onOpenLayout: openLayout,
+                onAnalyzeImage: analyzeImage,
                 availableLayouts: availableLayouts,
                 onSelectLayout: { layout in
                     loadLayout(from: layout.fileURL)
@@ -105,6 +106,16 @@ struct LayoutTracerRootView: View {
         do {
             try document.loadLayout(from: url)
             document.fitCanvasToViewport()
+        } catch {
+            documentError = error.localizedDescription
+        }
+    }
+
+    private func analyzeImage() {
+        guard let imageURL = document.backgroundImageURL else { return }
+        do {
+            let result = try LayoutAnalysisRunner.analyze(imageURL: imageURL)
+            try document.loadAnalysis(from: result.data)
         } catch {
             documentError = error.localizedDescription
         }
