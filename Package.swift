@@ -49,6 +49,14 @@ let package = Package(
             name: "KeyPathKanataLauncher",
             targets: ["KeyPathKanataLauncher"]
         ),
+        .library(
+            name: "KeyPathLayoutTracerKit",
+            targets: ["KeyPathLayoutTracerKit"]
+        ),
+        .executable(
+            name: "KeyPathLayoutTracer",
+            targets: ["KeyPathLayoutTracer"]
+        ),
         .executable(
             name: "smappservice-poc",
             targets: ["SMAppServicePOC"]
@@ -204,6 +212,21 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ]
         ),
+        .target(
+            name: "KeyPathLayoutTracerKit",
+            path: "Sources/KeyPathLayoutTracerKit",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .executableTarget(
+            name: "KeyPathLayoutTracer",
+            dependencies: ["KeyPathLayoutTracerKit"],
+            path: "Sources/KeyPathLayoutTracer",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
         // SMAppService POC test utility
         .executableTarget(
             name: "SMAppServicePOC",
@@ -289,6 +312,16 @@ let package = Package(
             ],
             path: "Tests/KeyPathSnapshotTests",
             exclude: ["__Snapshots__"],
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .testTarget(
+            name: "KeyPathLayoutTracerTests",
+            dependencies: [
+                "KeyPathLayoutTracerKit"
+            ],
+            path: "Tests/KeyPathLayoutTracerTests",
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
