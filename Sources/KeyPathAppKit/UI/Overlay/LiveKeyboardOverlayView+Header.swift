@@ -630,6 +630,8 @@ struct OverlayDragHeader: View {
                 PopoverListDivider()
             }
 
+            layerPickerSectionHeader
+
             ForEach(availableLayers.indices, id: \.self) { index in
                 let layer = availableLayers[index]
                 layerPickerRow(layer: layer, index: index)
@@ -686,6 +688,16 @@ struct OverlayDragHeader: View {
         .padding(.bottom, 6)
     }
 
+    private var layerPickerSectionHeader: some View {
+        Text("Layers")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.top, connectedKeyboards.isEmpty ? 2 : 6)
+            .padding(.bottom, 6)
+    }
+
     private func keyboardPickerRow(_ keyboard: AutoDetectKeyboardController.ConnectedKeyboard) -> some View {
         let isCurrentKeyboard = activeKeyboardID == keyboard.id
         let accessibilityID = "keyboard-picker-\(keyboard.vidPidKey.replacingOccurrences(of: ":", with: "-"))"
@@ -720,6 +732,10 @@ struct OverlayDragHeader: View {
                         .foregroundStyle(Color.accentColor)
                 } else if keyboard.status == .importRequired {
                     Text("Import")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                } else if keyboard.status == .possibleMatch {
+                    Text("Review")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
                 } else if keyboard.status == .unrecognized {

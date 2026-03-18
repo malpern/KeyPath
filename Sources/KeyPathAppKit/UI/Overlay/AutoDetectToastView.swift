@@ -8,6 +8,7 @@ struct AutoDetectToastView: View {
     let keyboardName: String
     let mode: AutoDetectKeyboardController.ToastMode
     let confidence: KeyboardDetectionIndex.Confidence
+    let errorMessage: String?
     let onAccept: () -> Void
     let onDismiss: () -> Void
 
@@ -15,9 +16,14 @@ struct AutoDetectToastView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: iconName)
-                .font(.title3)
-                .foregroundStyle(.secondary)
+            if mode == .importingKeyboard {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Image(systemName: iconName)
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(titleText)
@@ -69,6 +75,12 @@ struct AutoDetectToastView: View {
             confidence == .low ? "questionmark.keyboard" : "keyboard.badge.ellipsis"
         case .importKeyboard:
             "square.and.arrow.down"
+        case .importingKeyboard:
+            "square.and.arrow.down"
+        case .importSucceeded:
+            "checkmark.circle"
+        case .importFailed:
+            "exclamationmark.triangle"
         }
     }
 
@@ -80,6 +92,12 @@ struct AutoDetectToastView: View {
             confidence == .low ? "Possible match: \(keyboardName)" : "Detected \(keyboardName)"
         case .importKeyboard:
             "Detected \(keyboardName)"
+        case .importingKeyboard:
+            "Importing layout for \(keyboardName)"
+        case .importSucceeded:
+            "Imported layout for \(keyboardName)"
+        case .importFailed:
+            "Couldn’t import \(keyboardName)"
         }
     }
 
@@ -91,6 +109,12 @@ struct AutoDetectToastView: View {
             confidence == .low ? "Use this layout and remember it for next time?" : "Using this layout now. Remember it for next time?"
         case .importKeyboard:
             "Import a layout for this keyboard?"
+        case .importingKeyboard:
+            "Fetching the layout and preparing it for KeyPath."
+        case .importSucceeded:
+            "Using this layout now."
+        case .importFailed:
+            errorMessage ?? "You can search for a layout instead."
         }
     }
 
@@ -102,6 +126,12 @@ struct AutoDetectToastView: View {
             "Remember"
         case .importKeyboard:
             "Import Layout"
+        case .importingKeyboard:
+            nil
+        case .importSucceeded:
+            nil
+        case .importFailed:
+            "Search Layouts"
         }
     }
 

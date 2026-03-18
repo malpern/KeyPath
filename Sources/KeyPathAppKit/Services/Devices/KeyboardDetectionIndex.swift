@@ -42,6 +42,19 @@ enum KeyboardDetectionIndex {
         let vendorFallbackEntries: [Record]
     }
 
+    private struct OverridesFile: Codable {
+        struct OverrideExactEntry: Codable {
+            let vendorId: String
+            let productId: String
+            let displayName: String
+            let qmkPath: String?
+            let builtInLayoutId: String?
+        }
+
+        let version: String
+        let exactEntries: [OverrideExactEntry]
+    }
+
     private struct Cache: Sendable {
         let exactEntries: [String: Record]
         let vendorFallbackEntries: [String: Record]
@@ -125,13 +138,18 @@ enum KeyboardDetectionIndex {
         do {
             let data = try Data(contentsOf: url)
             let file = try JSONDecoder().decode(IndexFile.self, from: data)
+            let overrideEntries = loadOverrideEntries()
+            var exactEntries = Dictionary(uniqueKeysWithValues: file.exactEntries.map { ($0.matchKey, $0) })
+            for overrideEntry in overrideEntries {
+                exactEntries[overrideEntry.matchKey] = overrideEntry
+            }
             let cache = Cache(
-                exactEntries: Dictionary(uniqueKeysWithValues: file.exactEntries.map { ($0.matchKey, $0) }),
+                exactEntries: exactEntries,
                 vendorFallbackEntries: Dictionary(uniqueKeysWithValues: file.vendorFallbackEntries.map { ($0.matchKey, $0) })
             )
             cached = cache
             AppLogger.shared.log(
-                "🔌 [KeyboardDetectionIndex] Loaded \(file.exactEntries.count) exact and \(file.vendorFallbackEntries.count) vendor fallback entries (v\(file.version))"
+                "🔌 [KeyboardDetectionIndex] Loaded \(exactEntries.count) exact and \(file.vendorFallbackEntries.count) vendor fallback entries (v\(file.version))"
             )
             return cache
         } catch {
@@ -140,5 +158,44 @@ enum KeyboardDetectionIndex {
             cached = empty
             return empty
         }
+    }
+
+    private static func loadOverrideEntries() -> [Record] {
+        guard let url = KeyPathAppKitResources.url(forResource: "keyboard-detection-overrides", withExtension: "json") else {
+            return []
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let file = try JSONDecoder().decode(OverridesFile.self, from: data)
+            return file.exactEntries.compactMap { entry in
+                guard let vendorID = parseHex(entry.vendorId),
+                      let productID = parseHex(entry.productId)
+                else {
+                    AppLogger.shared.warn("⚠️ [KeyboardDetectionIndex] Skipping invalid override entry \(entry.vendorId):\(entry.productId)")
+                    return nil
+                }
+
+                return Record(
+                    matchKey: formatKey(vendorID: vendorID, productID: productID),
+                    matchType: .exactVIDPID,
+                    source: .override,
+                    confidence: .high,
+                    displayName: entry.displayName,
+                    manufacturer: nil,
+                    qmkPath: entry.qmkPath,
+                    builtInLayoutId: entry.builtInLayoutId
+                )
+            }
+        } catch {
+            AppLogger.shared.warn("⚠️ [KeyboardDetectionIndex] Failed to load keyboard-detection-overrides.json: \(error)")
+            return []
+        }
+    }
+
+    private static func parseHex(_ value: String) -> Int? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = trimmed.lowercased().hasPrefix("0x") ? String(trimmed.dropFirst(2)) : trimmed
+        return Int(normalized, radix: 16)
     }
 }

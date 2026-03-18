@@ -41,6 +41,10 @@ struct PhysicalLayout: Identifiable {
     /// US Standard layouts (ANSI-based)
     static let usLayouts: [PhysicalLayout] = [
         macBookUS,
+        magicKeyboardCompact,
+        magicKeyboardTouchID,
+        magicKeyboardNumpad,
+        magicKeyboardTouchIDNumpad,
         ansi100Percent,
         ansi80Percent,
         ansi75Percent,
@@ -61,6 +65,7 @@ struct PhysicalLayout: Identifiable {
     /// Ergonomic and split keyboards
     static let ergonomicLayouts: [PhysicalLayout] = [
         kinesisAdvantage360,
+        kinesisMWave,
         corne,
         sofle,
         ferrisSweep,

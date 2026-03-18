@@ -13,16 +13,24 @@ import SwiftUI
 final class AutoDetectKeyboardController {
     static let shared = AutoDetectKeyboardController()
 
+    private struct BaselineDisplayContext: Equatable {
+        let layoutId: String
+        let keymapId: String
+        let includePunctuationStore: String
+    }
+
     struct ConnectedKeyboard: Identifiable, Equatable {
         enum Status: Equatable {
             case remembered
             case suggested
+            case possibleMatch
             case importRequired
             case unrecognized
         }
 
         let event: HIDDeviceMonitor.HIDKeyboardEvent
         var keyboardName: String
+        var detectedKeyboardName: String?
         var manufacturer: String?
         var layoutId: String?
         var qmkPath: String?
@@ -33,7 +41,9 @@ final class AutoDetectKeyboardController {
 
         var id: String { event.id }
         var vidPidKey: String { event.vidPidKey }
-        var canActivateOverlay: Bool { layoutId != nil }
+        var canActivateOverlay: Bool {
+            layoutId != nil && status != .possibleMatch
+        }
 
         var subtitle: String {
             switch status {
@@ -44,6 +54,8 @@ final class AutoDetectKeyboardController {
                     return PhysicalLayout.find(id: layoutId)?.name ?? "Suggested layout"
                 }
                 return "Suggested keyboard"
+            case .possibleMatch:
+                return detectedKeyboardName.map { "Possible match: \($0)" } ?? "Possible match"
             case .importRequired:
                 return "Import required"
             case .unrecognized:
@@ -56,6 +68,9 @@ final class AutoDetectKeyboardController {
         case autoSwitch
         case rememberKeyboard
         case importKeyboard
+        case importingKeyboard
+        case importSucceeded
+        case importFailed
     }
 
     // MARK: - Toast State
@@ -64,6 +79,7 @@ final class AutoDetectKeyboardController {
     var toastKeyboardName = ""
     var toastMode: ToastMode = .autoSwitch
     var toastConfidence: KeyboardDetectionIndex.Confidence = .high
+    var toastErrorMessage: String?
     var pendingResult: DeviceRecognitionService.RecognitionResult?
     var connectedKeyboards: [ConnectedKeyboard] = []
     var activeKeyboardID: String?
@@ -80,6 +96,42 @@ final class AutoDetectKeyboardController {
     /// Cleared on disconnect so reconnecting the same keyboard triggers auto-switch.
     private var connectedVIDPIDs: Set<String> = []
     private var recognitionResultsByKeyboardID: [String: DeviceRecognitionService.RecognitionResult] = [:]
+    private var baselineDisplayContext: BaselineDisplayContext
+    private let bindingStore: DeviceLayoutBindingStore
+    private let displayContextStore: KeyboardDisplayContextStore
+    private let recognitionService: DeviceRecognitionService
+    private let initialKeyboardEventsProvider: () -> [HIDDeviceMonitor.HIDKeyboardEvent]
+
+    private static let baselineLayoutDefaultsKey = "AutoDetectKeyboardController.baselineLayoutId"
+    private static let baselineKeymapDefaultsKey = "AutoDetectKeyboardController.baselineKeymapId"
+    private static let baselinePunctuationDefaultsKey = "AutoDetectKeyboardController.baselineIncludePunctuationStore"
+
+    init(
+        bindingStore: DeviceLayoutBindingStore = .shared,
+        displayContextStore: KeyboardDisplayContextStore = .shared,
+        recognitionService: DeviceRecognitionService = .shared,
+        initialKeyboardEventsProvider: @escaping () -> [HIDDeviceMonitor.HIDKeyboardEvent] = {
+            let current = HIDDeviceMonitor.shared.connectedKeyboards
+            return current.isEmpty ? HIDDeviceMonitor.currentKeyboardSnapshot() : current
+        }
+    ) {
+        let defaults = UserDefaults.standard
+        self.baselineDisplayContext = BaselineDisplayContext(
+            layoutId: defaults.string(forKey: Self.baselineLayoutDefaultsKey)
+                ?? defaults.string(forKey: LayoutPreferences.layoutIdKey)
+                ?? LayoutPreferences.defaultLayoutId,
+            keymapId: defaults.string(forKey: Self.baselineKeymapDefaultsKey)
+                ?? defaults.string(forKey: KeymapPreferences.keymapIdKey)
+                ?? LogicalKeymap.defaultId,
+            includePunctuationStore: defaults.string(forKey: Self.baselinePunctuationDefaultsKey)
+                ?? defaults.string(forKey: KeymapPreferences.includePunctuationStoreKey)
+                ?? "{}"
+        )
+        self.bindingStore = bindingStore
+        self.displayContextStore = displayContextStore
+        self.recognitionService = recognitionService
+        self.initialKeyboardEventsProvider = initialKeyboardEventsProvider
+    }
 
     func startObserving() {
         // Use notifications (fire-once) instead of @Published (replays current value).
@@ -101,6 +153,15 @@ final class AutoDetectKeyboardController {
                     self?.handleKeyboardDisconnected(event)
                 }
             }
+
+        let initialEvents = initialKeyboardEventsProvider()
+        guard !initialEvents.isEmpty else { return }
+
+        Task { @MainActor in
+            for event in initialEvents {
+                await handleNewKeyboard(event, showFeedback: false)
+            }
+        }
     }
 
     func stopObserving() {
@@ -112,7 +173,7 @@ final class AutoDetectKeyboardController {
 
     // MARK: - Core Flow
 
-    private func handleNewKeyboard(_ event: HIDDeviceMonitor.HIDKeyboardEvent) async {
+    private func handleNewKeyboard(_ event: HIDDeviceMonitor.HIDKeyboardEvent, showFeedback: Bool = true) async {
         let vidPidKey = event.vidPidKey
 
         // Deduplicate while connected (don't re-prompt for already-connected device)
@@ -120,7 +181,7 @@ final class AutoDetectKeyboardController {
         connectedVIDPIDs.insert(vidPidKey)
 
         // Check for existing accepted binding → auto-switch silently
-        if let binding = await DeviceLayoutBindingStore.shared.binding(
+        if let binding = await bindingStore.binding(
             vendorID: event.vendorID,
             productID: event.productID
         ) {
@@ -140,18 +201,21 @@ final class AutoDetectKeyboardController {
                 makeActive: true
             )
             UserDefaults.standard.set(binding.layoutId, forKey: LayoutPreferences.layoutIdKey)
-            SoundPlayer.shared.playDeviceConnectedSound()
-            showAutoSwitchToast(keyboardName: binding.keyboardName)
+            if showFeedback {
+                SoundPlayer.shared.playDeviceConnectedSound()
+                showAutoSwitchToast(keyboardName: binding.keyboardName)
+            }
             return
         }
 
         // No binding → try to recognize
-        guard let result = await DeviceRecognitionService.shared.recognize(event: event) else {
+        guard let result = await recognitionService.recognize(event: event) else {
             AppLogger.shared.log("🔌 [AutoDetect] No keyboard match for \(event.productName) (\(vidPidKey))")
             upsertConnectedKeyboard(
                 ConnectedKeyboard(
                     event: event,
                     keyboardName: event.productName,
+                    detectedKeyboardName: nil,
                     manufacturer: nil,
                     layoutId: nil,
                     qmkPath: nil,
@@ -171,35 +235,52 @@ final class AutoDetectKeyboardController {
             "🔌 [AutoDetect] Recognized \(result.keyboardName) (built-in: \(result.isBuiltIn), path: \(result.qmkPath ?? "none"), source: \(result.source.rawValue), match: \(result.matchType.rawValue))"
         )
 
+        let keyboardStatus: ConnectedKeyboard.Status
+        if result.confidence == .low {
+            keyboardStatus = .possibleMatch
+        } else if result.isBuiltIn {
+            keyboardStatus = .suggested
+        } else {
+            keyboardStatus = .importRequired
+        }
+
         upsertConnectedKeyboard(
             ConnectedKeyboard(
                 event: event,
-                keyboardName: result.keyboardName,
+                keyboardName: result.confidence == .low ? event.productName : result.keyboardName,
+                detectedKeyboardName: result.keyboardName,
                 manufacturer: result.manufacturer,
                 layoutId: result.layoutId,
                 qmkPath: result.qmkPath,
                 source: result.source,
                 matchType: result.matchType,
                 confidence: result.confidence,
-                status: result.isBuiltIn ? .suggested : .importRequired
+                status: keyboardStatus
             ),
-            makeActive: true
+            makeActive: result.confidence == .high
         )
+
+        if result.confidence == .low {
+            AppLogger.shared.log("🔌 [AutoDetect] Keeping possible match for review only: \(event.productName) → \(result.keyboardName)")
+            return
+        }
 
         if result.isBuiltIn, let layoutId = result.layoutId {
             UserDefaults.standard.set(layoutId, forKey: LayoutPreferences.layoutIdKey)
         }
 
         // Show confirmation toast
-        SoundPlayer.shared.playDeviceConnectedSound()
-        pendingResult = result
-        toastKeyboardName = result.keyboardName
-        toastMode = result.isBuiltIn ? .rememberKeyboard : .importKeyboard
-        toastConfidence = result.confidence
-        withAnimation(.spring(duration: 0.4, bounce: 0.2)) {
-            showingToast = true
+        if showFeedback {
+            SoundPlayer.shared.playDeviceConnectedSound()
+            pendingResult = result
+            toastKeyboardName = result.keyboardName
+            toastMode = result.isBuiltIn ? .rememberKeyboard : .importKeyboard
+            toastConfidence = result.confidence
+            withAnimation(.spring(duration: 0.4, bounce: 0.2)) {
+                showingToast = true
+            }
+            scheduleAutoDismiss(seconds: 8)
         }
-        scheduleAutoDismiss(seconds: 8)
     }
 
     private func handleKeyboardDisconnected(_ event: HIDDeviceMonitor.HIDKeyboardEvent) {
@@ -219,6 +300,12 @@ final class AutoDetectKeyboardController {
     // MARK: - User Actions
 
     func acceptDetection() {
+        if toastMode == .importFailed {
+            presentKeyboardSearch(for: pendingResult?.deviceEvent.id)
+            clearToast(cancelImport: false)
+            return
+        }
+
         guard let result = pendingResult else { return }
         autoDismissTask?.cancel()
 
@@ -227,12 +314,14 @@ final class AutoDetectKeyboardController {
             saveBinding(result: result, layoutId: layoutId)
             markKeyboardAsRemembered(eventID: result.deviceEvent.id, layoutId: layoutId)
             AppLogger.shared.log("🔌 [AutoDetect] Accepted built-in layout: \(layoutId)")
+            clearToast(cancelImport: false)
         } else {
             // QMK import needed — run inline
             performQMKImport(result: result)
+            withAnimation(.spring(duration: 0.4, bounce: 0.2)) {
+                showingToast = true
+            }
         }
-
-        clearToast(cancelImport: false)
     }
 
     func dismissToast() {
@@ -256,7 +345,7 @@ final class AutoDetectKeyboardController {
                 showingToast = true
             }
             scheduleAutoDismiss(seconds: 8)
-        } else if keyboard.status == .unrecognized {
+        } else if keyboard.status == .possibleMatch || keyboard.status == .unrecognized {
             presentKeyboardSearch(for: keyboardID)
         }
     }
@@ -267,7 +356,7 @@ final class AutoDetectKeyboardController {
         } ?? activeKeyboard.flatMap { active in
             connectedKeyboards.first(where: { $0.id == active.id })
         }
-        keyboardSearchQuery = keyboard?.keyboardName ?? keyboard?.event.productName ?? ""
+        keyboardSearchQuery = keyboard?.event.productName ?? keyboard?.keyboardName ?? ""
         isKeyboardSearchPresented = true
     }
 
@@ -287,13 +376,143 @@ final class AutoDetectKeyboardController {
 
         Task {
             do {
-                try await DeviceLayoutBindingStore.shared.saveBinding(binding)
+                try await bindingStore.saveBinding(binding)
             } catch {
                 AppLogger.shared.warn("🔌 [AutoDetect] Failed to save binding for \(keyboard.keyboardName): \(error.localizedDescription)")
             }
         }
 
         markKeyboardAsRemembered(eventID: keyboard.id, layoutId: layoutId)
+    }
+
+    func overlayDisplayContextDidChange(
+        layoutId: String,
+        keymapId: String,
+        includePunctuationStore: String
+    ) {
+        guard let keyboard = activeKeyboard, keyboard.canActivateOverlay else {
+            updateBaselineDisplayContext(
+                layoutId: layoutId,
+                keymapId: keymapId,
+                includePunctuationStore: includePunctuationStore
+            )
+            return
+        }
+
+        let context = KeyboardDisplayContextStore.Context(
+            vendorProductKey: keyboard.vidPidKey,
+            layoutId: layoutId,
+            keymapId: keymapId,
+            includePunctuationStore: includePunctuationStore,
+            keyboardName: keyboard.keyboardName,
+            updatedAt: Date()
+        )
+
+        Task {
+            do {
+                try await displayContextStore.saveContext(context)
+            } catch {
+                AppLogger.shared.warn("🔌 [AutoDetect] Failed to save display context for \(keyboard.keyboardName): \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func activeKeyboardDidChange(
+        from previousKeyboardID: String?,
+        to newKeyboardID: String?,
+        currentLayoutId: String,
+        currentKeymapId: String,
+        includePunctuationStore: String
+    ) async -> KeyboardDisplayContextStore.Context? {
+        if let previousKeyboardID,
+           activeKeyboardID != previousKeyboardID,
+           let previousKeyboard = connectedKeyboards.first(where: { $0.id == previousKeyboardID }),
+           previousKeyboard.canActivateOverlay
+        {
+            let context = KeyboardDisplayContextStore.Context(
+                vendorProductKey: previousKeyboard.vidPidKey,
+                layoutId: currentLayoutId,
+                keymapId: currentKeymapId,
+                includePunctuationStore: includePunctuationStore,
+                keyboardName: previousKeyboard.keyboardName,
+                updatedAt: Date()
+            )
+
+            do {
+                try await displayContextStore.saveContext(context)
+            } catch {
+                AppLogger.shared.warn("🔌 [AutoDetect] Failed to save context for \(previousKeyboard.keyboardName): \(error.localizedDescription)")
+            }
+        }
+
+        guard let newKeyboardID,
+              let newKeyboard = connectedKeyboards.first(where: { $0.id == newKeyboardID }),
+              newKeyboard.canActivateOverlay
+        else {
+            return KeyboardDisplayContextStore.Context(
+                vendorProductKey: "__baseline__",
+                layoutId: baselineDisplayContext.layoutId,
+                keymapId: baselineDisplayContext.keymapId,
+                includePunctuationStore: baselineDisplayContext.includePunctuationStore,
+                keyboardName: "Current Keyboard",
+                updatedAt: Date()
+            )
+        }
+
+        return await displayContextStore.context(vendorProductKey: newKeyboard.vidPidKey)
+    }
+
+    func forgetKeyboard(_ keyboardID: String) {
+        guard let keyboard = connectedKeyboards.first(where: { $0.id == keyboardID }) else { return }
+
+        Task {
+            do {
+                try await bindingStore.removeBinding(
+                    vendorID: keyboard.event.vendorID,
+                    productID: keyboard.event.productID
+                )
+            } catch {
+                AppLogger.shared.warn("🔌 [AutoDetect] Failed to remove binding for \(keyboard.keyboardName): \(error.localizedDescription)")
+            }
+
+            do {
+                try await displayContextStore.removeContext(vendorProductKey: keyboard.vidPidKey)
+            } catch {
+                AppLogger.shared.warn("🔌 [AutoDetect] Failed to remove display context for \(keyboard.keyboardName): \(error.localizedDescription)")
+            }
+        }
+
+        if let result = recognitionResultsByKeyboardID[keyboardID] {
+            if result.confidence == .low {
+                updateKeyboardStatus(
+                    eventID: keyboardID,
+                    status: .possibleMatch,
+                    layoutId: result.layoutId,
+                    confidence: result.confidence
+                )
+            } else if result.isBuiltIn {
+                updateKeyboardStatus(
+                    eventID: keyboardID,
+                    status: .suggested,
+                    layoutId: result.layoutId,
+                    confidence: result.confidence
+                )
+            } else {
+                updateKeyboardStatus(
+                    eventID: keyboardID,
+                    status: .importRequired,
+                    layoutId: nil,
+                    confidence: result.confidence
+                )
+            }
+        } else {
+            updateKeyboardStatus(
+                eventID: keyboardID,
+                status: .unrecognized,
+                layoutId: nil,
+                confidence: nil
+            )
+        }
     }
 
     var activeKeyboard: ConnectedKeyboard? {
@@ -310,6 +529,7 @@ final class AutoDetectKeyboardController {
             showingToast = false
         }
         pendingResult = nil
+        toastErrorMessage = nil
     }
 
     // MARK: - Helpers
@@ -318,6 +538,7 @@ final class AutoDetectKeyboardController {
         toastKeyboardName = keyboardName
         toastMode = .autoSwitch
         toastConfidence = .high
+        toastErrorMessage = nil
         withAnimation(.spring(duration: 0.4, bounce: 0.2)) {
             showingToast = true
         }
@@ -343,7 +564,7 @@ final class AutoDetectKeyboardController {
         )
         Task {
             do {
-                try await DeviceLayoutBindingStore.shared.saveBinding(binding)
+                try await bindingStore.saveBinding(binding)
             } catch {
                 AppLogger.shared.warn("🔌 [AutoDetect] Failed to save binding for \(result.keyboardName): \(error.localizedDescription)")
             }
@@ -367,6 +588,38 @@ final class AutoDetectKeyboardController {
         connectedKeyboards[index].layoutId = layoutId
         connectedKeyboards[index].status = .remembered
         connectedKeyboards[index].confidence = .high
+        connectedKeyboards[index].detectedKeyboardName = connectedKeyboards[index].keyboardName
+    }
+
+    private func updateKeyboardStatus(
+        eventID: String,
+        status: ConnectedKeyboard.Status,
+        layoutId: String?,
+        confidence: KeyboardDetectionIndex.Confidence?
+    ) {
+        guard let index = connectedKeyboards.firstIndex(where: { $0.id == eventID }) else { return }
+        connectedKeyboards[index].layoutId = layoutId
+        connectedKeyboards[index].status = status
+        connectedKeyboards[index].confidence = confidence
+    }
+
+    private func updateBaselineDisplayContext(
+        layoutId: String,
+        keymapId: String,
+        includePunctuationStore: String
+    ) {
+        let updatedContext = BaselineDisplayContext(
+            layoutId: layoutId,
+            keymapId: keymapId,
+            includePunctuationStore: includePunctuationStore
+        )
+        guard updatedContext != baselineDisplayContext else { return }
+
+        baselineDisplayContext = updatedContext
+        let defaults = UserDefaults.standard
+        defaults.set(layoutId, forKey: Self.baselineLayoutDefaultsKey)
+        defaults.set(keymapId, forKey: Self.baselineKeymapDefaultsKey)
+        defaults.set(includePunctuationStore, forKey: Self.baselinePunctuationDefaultsKey)
     }
 
     // MARK: - QMK Import
@@ -376,6 +629,11 @@ final class AutoDetectKeyboardController {
             AppLogger.shared.warn("🔌 [AutoDetect] Missing QMK path for '\(result.keyboardName)'")
             return
         }
+
+        toastKeyboardName = result.keyboardName
+        toastMode = .importingKeyboard
+        toastConfidence = result.confidence
+        toastErrorMessage = nil
 
         importTask = Task {
             do {
@@ -438,11 +696,20 @@ final class AutoDetectKeyboardController {
                 saveBinding(result: result, layoutId: parseResult.layout.id)
                 markKeyboardAsRemembered(eventID: result.deviceEvent.id, layoutId: parseResult.layout.id)
                 AppLogger.shared.log("🔌 [AutoDetect] Imported and selected QMK layout: \(layoutName)")
+                toastMode = .importSucceeded
+                toastErrorMessage = nil
+                scheduleAutoDismiss(seconds: 3)
 
             } catch is CancellationError {
                 AppLogger.shared.log("🔌 [AutoDetect] QMK import cancelled for '\(result.keyboardName)'")
             } catch {
                 AppLogger.shared.warn("🔌 [AutoDetect] QMK import failed for '\(result.keyboardName)': \(error.localizedDescription)")
+                toastMode = .importFailed
+                toastErrorMessage = error.localizedDescription
+                toastConfidence = result.confidence
+                withAnimation(.spring(duration: 0.4, bounce: 0.2)) {
+                    showingToast = true
+                }
             }
         }
     }

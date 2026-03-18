@@ -20,6 +20,10 @@ actor DeviceRecognitionService {
     }
 
     func recognize(event: HIDDeviceMonitor.HIDKeyboardEvent) async -> RecognitionResult? {
+        if let appleResult = AppleKeyboardRecognizer.recognize(event: event) {
+            return appleResult
+        }
+
         guard let match = KeyboardDetectionIndex.lookup(vendorID: event.vendorID, productID: event.productID) else {
             return nil
         }

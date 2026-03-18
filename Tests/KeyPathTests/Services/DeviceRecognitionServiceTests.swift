@@ -80,9 +80,9 @@ final class DeviceRecognitionServiceTests: KeyPathTestCase {
         KeyboardDetectionIndex.seedIndex(exactEntries: [])
 
         let event = HIDDeviceMonitor.HIDKeyboardEvent(
-            vendorID: 0x05AC,
-            productID: 0x0342,
-            productName: "Apple Internal Keyboard",
+            vendorID: 0x1337,
+            productID: 0xBEEF,
+            productName: "Mystery Board",
             isConnected: true
         )
 
@@ -90,6 +90,67 @@ final class DeviceRecognitionServiceTests: KeyPathTestCase {
         let result = await service.recognize(event: event)
 
         XCTAssertNil(result)
+    }
+
+    func testRecognizeAppleInternalKeyboardAsBuiltInMacBook() async {
+        KeyboardDetectionIndex.seedIndex(exactEntries: [])
+
+        let event = HIDDeviceMonitor.HIDKeyboardEvent(
+            vendorID: 0x05AC,
+            productID: 0x0342,
+            productName: "Apple Internal Keyboard / Trackpad",
+            isConnected: true
+        )
+
+        let service = DeviceRecognitionService()
+        let result = await service.recognize(event: event)
+
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result?.keyboardName, "MacBook Keyboard")
+        XCTAssertEqual(result?.manufacturer, "Apple")
+        XCTAssertTrue(result?.isBuiltIn ?? false)
+        XCTAssertFalse(result?.needsImport ?? true)
+        XCTAssertNotNil(result?.layoutId)
+        XCTAssertEqual(result?.source, .override)
+    }
+
+    func testRecognizeZeroIdentityAppleInternalKeyboardAsBuiltInMacBook() async {
+        KeyboardDetectionIndex.seedIndex(exactEntries: [])
+
+        let event = HIDDeviceMonitor.HIDKeyboardEvent(
+            vendorID: 0x0000,
+            productID: 0x0000,
+            productName: "Apple Internal Keyboard / Trackpad",
+            isConnected: true
+        )
+
+        let service = DeviceRecognitionService()
+        let result = await service.recognize(event: event)
+
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result?.keyboardName, "MacBook Keyboard")
+        XCTAssertTrue(result?.isBuiltIn ?? false)
+        XCTAssertFalse(result?.needsImport ?? true)
+    }
+
+    func testRecognizeAppleMagicKeyboardWithNumericKeypad() async {
+        KeyboardDetectionIndex.seedIndex(exactEntries: [])
+
+        let event = HIDDeviceMonitor.HIDKeyboardEvent(
+            vendorID: 0x05AC,
+            productID: 0x026C,
+            productName: "Magic Keyboard with Numeric Keypad",
+            isConnected: true
+        )
+
+        let service = DeviceRecognitionService()
+        let result = await service.recognize(event: event)
+
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result?.keyboardName, "Magic Keyboard with Numeric Keypad")
+        XCTAssertEqual(result?.layoutId, "magic-keyboard-numpad")
+        XCTAssertTrue(result?.isBuiltIn ?? false)
+        XCTAssertEqual(result?.source, .override)
     }
 
     func testVendorFallbackStillWorksWhenItCollapsesToSingleBuiltInLayout() async {

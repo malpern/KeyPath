@@ -9,6 +9,7 @@ import SwiftUI
 
 struct StatusSettingsTabView: View {
     @Environment(KanataViewModel.self) var kanataManager
+    @State private var autoDetectController = AutoDetectKeyboardController.shared
 
     @State var wizardInitialPage: WizardPage? // nil = don't show wizard
     @State private var showSetupBanner = false
@@ -254,6 +255,10 @@ struct StatusSettingsTabView: View {
             .padding(.horizontal, 20)
             .padding(.top, 24)
 
+            keyboardDetailsSection
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+
             Spacer()
         }
         .settingsBackground()
@@ -299,6 +304,102 @@ struct StatusSettingsTabView: View {
         .onChange(of: isServiceRunning) { _, _ in
             // Sync local optimistic state when actual service state updates
             localServiceRunning = nil
+        }
+    }
+
+    @ViewBuilder
+    private var keyboardDetailsSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Connected Keyboard")
+                .font(.headline)
+                .foregroundColor(.secondary)
+
+            if let activeKeyboard = autoDetectController.activeKeyboard {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .firstTextBaseline) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(activeKeyboard.keyboardName)
+                                .font(.title3.weight(.semibold))
+
+                            Text(activeKeyboard.subtitle)
+                                .font(.callout)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        if activeKeyboard.status == .remembered {
+                            Text("Remembered")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.green)
+                        }
+                    }
+
+                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                        keyboardInfoRow(title: "VID:PID", value: activeKeyboard.vidPidKey)
+                        keyboardInfoRow(title: "Manufacturer", value: activeKeyboard.manufacturer ?? "Unknown")
+                        keyboardInfoRow(title: "Source", value: activeKeyboard.source?.rawValue.capitalized ?? "Manual")
+                        keyboardInfoRow(title: "Match", value: activeKeyboard.matchType?.rawValue ?? "None")
+                        keyboardInfoRow(title: "Confidence", value: activeKeyboard.confidence?.rawValue.capitalized ?? "Unknown")
+                        keyboardInfoRow(
+                            title: "Layout",
+                            value: activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Not selected"
+                        )
+                    }
+
+                    HStack(spacing: 12) {
+                        Button("Forget This Keyboard") {
+                            autoDetectController.forgetKeyboard(activeKeyboard.id)
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("status-forget-keyboard-button")
+
+                        Button("Search Layouts") {
+                            autoDetectController.presentKeyboardSearch(for: activeKeyboard.id)
+                            LiveKeyboardOverlayController.shared.showForQuickLaunch()
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("status-search-keyboard-layouts-button")
+                    }
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color(NSColor.controlBackgroundColor))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                )
+                .accessibilityIdentifier("status-connected-keyboard-panel")
+            } else {
+                Text("No connected keyboard is currently selected for the overlay.")
+                    .font(.callout)
+                    .foregroundColor(.secondary)
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color(NSColor.controlBackgroundColor))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                    )
+                    .accessibilityIdentifier("status-no-connected-keyboard-panel")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func keyboardInfoRow(title: String, value: String) -> some View {
+        GridRow {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.callout)
+                .textSelection(.enabled)
         }
     }
 
