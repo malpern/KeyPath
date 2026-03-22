@@ -1,5 +1,12 @@
 # HRM Execution Brief
 
+Superseded as the primary roadmap by:
+
+- `../../../kanata-pr/docs/hrm-roadmap.md` for kanata engine work
+- `./hrm-roadmap.md` for KeyPath integration work
+
+This brief remains as historical implementation context.
+
 This document is a standalone brief for implementing the next round of
 home-row-mod (HRM) improvements in kanata for KeyPath.
 
