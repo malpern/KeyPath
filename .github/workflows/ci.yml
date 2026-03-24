@@ -16,7 +16,7 @@ on:
 jobs:
   build-and-test:
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       COVERAGE_BASELINE_PERCENT: "0.27"
       COVERAGE_TOLERANCE_PERCENT: "0.01"
@@ -106,7 +106,9 @@ jobs:
         ./Scripts/verify-kanata-plist.sh Sources/KeyPathApp/com.keypath.kanata.plist
 
     - name: Generate Coverage (single pass)
-      timeout-minutes: 5
+      # Coverage instrumentation triggers a separate rebuild of the package.
+      # On current GitHub macOS runners that rebuild takes a bit over 5 minutes.
+      timeout-minutes: 8
       run: |
         echo "Generating coverage with combined filter..."
         swift test --enable-code-coverage --filter 'KeyPathErrorTests|PermissionOracleTests'
