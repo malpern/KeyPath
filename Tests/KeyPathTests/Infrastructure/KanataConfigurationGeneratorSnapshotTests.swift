@@ -207,7 +207,7 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
                 enabledKeys: ["a", "f"],
                 modifierAssignments: ["a": "lsft", "f": "lmet"],
                 holdMode: .modifiers,
-                oppositeHandActivation: true
+                oppositeHandMode: .press
             ))
         )
 
@@ -232,7 +232,7 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
                 enabledKeys: ["a"],
                 modifierAssignments: ["a": "lsft"],
                 holdMode: .modifiers,
-                oppositeHandActivation: false
+                oppositeHandMode: .off
             ))
         )
 
@@ -259,7 +259,7 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
                 modifierAssignments: ["a": "lsft"],
                 holdMode: .modifiers,
                 timing: timing,
-                oppositeHandActivation: true
+                oppositeHandMode: .press
             ))
         )
 
@@ -290,7 +290,7 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
                 modifierAssignments: ["a": "lsft"],
                 holdMode: .modifiers,
                 timing: timing,
-                oppositeHandActivation: true
+                oppositeHandMode: .press
             ))
         )
 

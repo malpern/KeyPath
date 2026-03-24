@@ -1,5 +1,25 @@
 import Foundation
 
+/// How opposite-hand detection behaves for tap-hold keys.
+public enum OppositeHandMode: String, Codable, Sendable {
+    /// Disabled — any key can trigger hold.
+    case off
+    /// Hold triggers on opposite-hand key **press** (faster, may misfire on fast same-hand rolls).
+    case press
+    /// Hold triggers on opposite-hand key **press+release** (more forgiving for fast typists).
+    case release
+
+    public var displayName: String {
+        switch self {
+        case .off: "Off"
+        case .press: "On Press"
+        case .release: "On Release"
+        }
+    }
+
+    public var isEnabled: Bool { self != .off }
+}
+
 /// Timing UI complexity level for home row mods
 public enum TimingMode: String, Codable, Sendable {
     case basic // Shared timing, no per-finger sliders
@@ -42,10 +62,10 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
     /// Whether expert raw timing fields are expanded
     public var showExpertTiming: Bool
 
-    /// When true, hold actions (modifiers or layers) only activate when a key on the other hand
-    /// is pressed. Same-hand typing always produces letters.
-    /// Uses Kanata's `tap-hold-opposite-hand` with `defhands`.
-    public var oppositeHandActivation: Bool
+    /// How opposite-hand detection behaves.
+    /// `.press` uses `tap-hold-opposite-hand`, `.release` uses `tap-hold-opposite-hand-release`.
+    /// Both require a global `defhands` block.
+    public var oppositeHandMode: OppositeHandMode
 
     public init(
         enabledKeys: Set<String> = ["a", "s", "d", "f", "j", "k", "l", ";"],
@@ -59,7 +79,7 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         showAdvanced: Bool = false,
         timingMode: TimingMode = .basic,
         showExpertTiming: Bool = false,
-        oppositeHandActivation: Bool = true
+        oppositeHandMode: OppositeHandMode = .press
     ) {
         self.enabledKeys = enabledKeys
         self.modifierAssignments = modifierAssignments
@@ -72,7 +92,13 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         self.showAdvanced = showAdvanced
         self.timingMode = timingMode
         self.showExpertTiming = showExpertTiming
-        self.oppositeHandActivation = oppositeHandActivation
+        self.oppositeHandMode = oppositeHandMode
+    }
+
+    /// Backward-compatible accessor for code that just needs to know if opposite-hand is enabled.
+    public var oppositeHandActivation: Bool {
+        get { oppositeHandMode.isEnabled }
+        set { oppositeHandMode = newValue ? .press : .off }
     }
 
     /// Mac-first CAGS mapping
@@ -116,7 +142,8 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         case showAdvanced
         case timingMode
         case showExpertTiming
-        case oppositeHandActivation
+        case oppositeHandMode
+        case oppositeHandActivation // legacy Bool key for backward-compatible decoding
         case splitHandDetection // legacy key for backward-compatible decoding
     }
 
@@ -142,9 +169,15 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         showAdvanced = try container.decodeIfPresent(Bool.self, forKey: .showAdvanced) ?? false
         timingMode = try container.decodeIfPresent(TimingMode.self, forKey: .timingMode) ?? .basic
         showExpertTiming = try container.decodeIfPresent(Bool.self, forKey: .showExpertTiming) ?? false
-        let newKey = try container.decodeIfPresent(Bool.self, forKey: .oppositeHandActivation)
-        let legacyKey = try container.decodeIfPresent(Bool.self, forKey: .splitHandDetection)
-        oppositeHandActivation = newKey ?? legacyKey ?? true
+        // Try new enum key first, then migrate from legacy Bool keys
+        if let mode = try container.decodeIfPresent(OppositeHandMode.self, forKey: .oppositeHandMode) {
+            oppositeHandMode = mode
+        } else {
+            let legacyNew = try container.decodeIfPresent(Bool.self, forKey: .oppositeHandActivation)
+            let legacyOld = try container.decodeIfPresent(Bool.self, forKey: .splitHandDetection)
+            let enabled = legacyNew ?? legacyOld ?? true
+            oppositeHandMode = enabled ? .press : .off
+        }
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -160,7 +193,7 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         try container.encode(showAdvanced, forKey: .showAdvanced)
         try container.encode(timingMode, forKey: .timingMode)
         try container.encode(showExpertTiming, forKey: .showExpertTiming)
-        try container.encode(oppositeHandActivation, forKey: .oppositeHandActivation)
+        try container.encode(oppositeHandMode, forKey: .oppositeHandMode)
     }
 }
 

@@ -91,11 +91,13 @@ public enum TapOrTapDanceBehavior: Codable, Equatable, Sendable {
 /// Settings for a tap-hold (dual-role) key.
 ///
 /// **Variant Priority** (renderer uses first matching condition):
-/// 1. `useOppositeHand` → `tap-hold-opposite-hand` (native opposite-hand HRM)
-/// 2. `customTapKeys` (non-empty) → `tap-hold-release-keys` (legacy split-hand HRM)
-/// 3. `activateHoldOnOtherKey` → `tap-hold-press`
-/// 4. `quickTap` → `tap-hold-release`
-/// 5. Otherwise → `tap-hold` (basic)
+/// 1. `useReleaseOrder` → `tap-hold-release-order` (purely release-order based)
+/// 2. `useOppositeHandRelease` → `tap-hold-opposite-hand-release` (release-time opposite-hand)
+/// 3. `useOppositeHand` → `tap-hold-opposite-hand` (press-time opposite-hand HRM)
+/// 4. `customTapKeys` (non-empty) → `tap-hold-release-keys` (legacy split-hand HRM)
+/// 5. `activateHoldOnOtherKey` → `tap-hold-press`
+/// 6. `quickTap` → `tap-hold-release`
+/// 7. Otherwise → `tap-hold` (basic)
 public struct DualRoleBehavior: Codable, Equatable, Sendable {
     /// Action when tapped (e.g., "a", "esc", or a macro string).
     public var tapAction: String
@@ -122,9 +124,20 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
     /// Only used when `customTapKeys` is non-empty and other flags are false.
     public var customTapKeys: [String]
 
-    /// If true, uses Kanata's `tap-hold-opposite-hand` variant.
+    /// If true, uses Kanata's `tap-hold-opposite-hand` variant (press-time).
     /// Requires a global `defhands` block to define left/right hand keys.
     public var useOppositeHand: Bool
+
+    /// If true, uses Kanata's `tap-hold-opposite-hand-release` variant (release-time).
+    /// More forgiving than `useOppositeHand` — waits for the interrupting key's full
+    /// press+release before committing to hold. Requires `defhands`.
+    public var useOppositeHandRelease: Bool
+
+    /// If true, uses Kanata's `tap-hold-release-order` variant.
+    /// Purely release-order based — no timeout latency. If another key is pressed and
+    /// released while held, resolves as hold; if released first, resolves as tap.
+    /// Uses a single timeout (`tapTimeout` as buffer-ms).
+    public var useReleaseOrder: Bool
 
     /// Per-action override for `tap-hold-require-prior-idle`.
     /// When set, appends `(require-prior-idle N)` to the tap-hold expression.
@@ -141,6 +154,8 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
         quickTap: Bool = false,
         customTapKeys: [String] = [],
         useOppositeHand: Bool = false,
+        useOppositeHandRelease: Bool = false,
+        useReleaseOrder: Bool = false,
         requirePriorIdleOverrideMs: Int? = nil
     ) {
         self.tapAction = tapAction
@@ -152,6 +167,8 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
         self.quickTap = quickTap
         self.customTapKeys = customTapKeys
         self.useOppositeHand = useOppositeHand
+        self.useOppositeHandRelease = useOppositeHandRelease
+        self.useReleaseOrder = useReleaseOrder
         self.requirePriorIdleOverrideMs = requirePriorIdleOverrideMs
     }
 

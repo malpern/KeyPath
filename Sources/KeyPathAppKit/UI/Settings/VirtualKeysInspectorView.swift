@@ -225,6 +225,15 @@ struct VirtualKeysInspectorView: View {
         isLoading = true
         errorMessage = nil
 
+        // Try live TCP query first (returns keys from running kanata, including dynamic includes)
+        let liveNames = await loadVirtualKeysFromTCP()
+        if let liveNames, !liveNames.isEmpty {
+            virtualKeys = liveNames.map { VirtualKey(name: $0, action: "", source: .fakekeys) }
+            isLoading = false
+            return
+        }
+
+        // Fall back to static config file parsing
         do {
             let configPath = KeyPathConstants.Config.mainConfigPath
             let content = try String(contentsOfFile: configPath, encoding: .utf8)
@@ -235,6 +244,20 @@ struct VirtualKeysInspectorView: View {
         }
 
         isLoading = false
+    }
+
+    private func loadVirtualKeysFromTCP() async -> [String]? {
+        let port = services.preferences.tcpServerPort
+        let client = KanataTCPClient(port: port, timeout: 3.0)
+        defer { Task { await client.cancelInflightAndCloseConnection() } }
+
+        guard await client.checkServerStatus() else { return nil }
+
+        do {
+            return try await client.requestFakeKeyNames()
+        } catch {
+            return nil
+        }
     }
 
     private func copyDeepLink(_ key: VirtualKey) {

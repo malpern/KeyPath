@@ -202,19 +202,26 @@ struct HomeRowTimingSection: View {
             // MARK: - Opposite-Hand Activation
 
             HStack(spacing: 4) {
-                Toggle("Opposite-hand activation", isOn: Binding(
-                    get: { config.oppositeHandActivation },
+                Text("Opposite-hand activation")
+                Spacer()
+                Picker("", selection: Binding(
+                    get: { config.oppositeHandMode },
                     set: { newValue in
-                        config.oppositeHandActivation = newValue
+                        config.oppositeHandMode = newValue
                         updateConfig()
                     }
-                ))
-                .toggleStyle(.checkbox)
-                .accessibilityIdentifier("home-row-mods-opposite-hand-toggle")
-                .accessibilityLabel("Opposite-hand activation")
+                )) {
+                    ForEach([OppositeHandMode.off, .press, .release], id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 220)
+                .accessibilityIdentifier("home-row-mods-opposite-hand-picker")
+                .accessibilityLabel("Opposite-hand activation mode")
 
                 InfoTip(
-                    "Hold actions (modifiers or layers) only activate when you press a key with the other hand. Same-hand typing always produces letters — no accidental modifiers during fast rolls."
+                    "Hold actions (modifiers or layers) only activate when you press a key with the other hand. Same-hand typing always produces letters — no accidental modifiers during fast rolls.\n\nOn Press: Faster response, may misfire on fast same-hand rolls.\nOn Release: More forgiving — waits for the other-hand key to be released before committing."
                 )
             }
 

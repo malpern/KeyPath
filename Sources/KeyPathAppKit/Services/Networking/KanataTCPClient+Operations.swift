@@ -129,6 +129,25 @@ extension KanataTCPClient {
         }
     }
 
+    /// Request defined virtual/fake key names from the running Kanata instance.
+    ///
+    /// Returns the list of virtual key names defined in the active config via
+    /// `defvirtualkeys` or `deffakekeys`. Unlike static file parsing, this returns
+    /// keys from dynamically included configs that the file parser can't see.
+    func requestFakeKeyNames() async throws -> [String] {
+        try await withErrorRecovery {
+            let requestId = generateRequestId()
+            let requestData = try JSONEncoder().encode(["RequestFakeKeyNames": ["request_id": requestId]])
+            let responseData = try await send(requestData)
+            if let response = try extractMessage(
+                named: "FakeKeyNames", into: TcpFakeKeyNames.self, from: responseData
+            ) {
+                return response.names
+            }
+            throw KeyPathError.communication(.invalidResponse)
+        }
+    }
+
     /// Request aggregate HRM stats from Kanata.
     ///
     /// Requires server capability: `hrm-stats`.
