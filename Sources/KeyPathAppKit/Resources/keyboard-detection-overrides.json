@@ -28,6 +28,12 @@
       "displayName": "Ferris Sweep",
       "qmkPath": "ferris/sweep",
       "builtInLayoutId": "ferris-sweep"
+    },
+    {
+      "vendorId": "0x29EA",
+      "productId": "0x1001",
+      "displayName": "Kinesis mWave",
+      "builtInLayoutId": "kinesis-mwave"
     }
   ],
   "qmkPathBuiltInAliases": {

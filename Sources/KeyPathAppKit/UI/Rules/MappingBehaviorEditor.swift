@@ -25,6 +25,7 @@ struct MappingBehaviorEditor: View {
     @State private var holdTimeout: Int = 200
     @State private var activateHoldOnOtherKey: Bool = false
     @State private var quickTap: Bool = false
+    @State private var useReleaseOrder: Bool = false
 
     // Tap-dance state
     @State private var tapDanceWindow: Int = 200
@@ -201,6 +202,14 @@ struct MappingBehaviorEditor: View {
                             .onChange(of: quickTap) { _, _ in syncBehaviorFromState() }
                         InfoTip("Fast taps always register as tap")
                     }
+
+                    HStack(spacing: 4) {
+                        Toggle("Release order", isOn: $useReleaseOrder)
+                            .accessibilityIdentifier("mapping-behavior-release-order-toggle")
+                            .accessibilityLabel("Release order")
+                            .onChange(of: useReleaseOrder) { _, _ in syncBehaviorFromState() }
+                        InfoTip("Decide tap vs hold purely by release order — no timeout latency. If you release the key before any other key, it's a tap. Ideal for spacebar-as-modifier.")
+                    }
                 }
                 .padding(.vertical, 4)
             }
@@ -324,6 +333,7 @@ struct MappingBehaviorEditor: View {
             holdTimeout = dr.holdTimeout
             activateHoldOnOtherKey = dr.activateHoldOnOtherKey
             quickTap = dr.quickTap
+            useReleaseOrder = dr.useReleaseOrder
 
         case let .tapOrTapDance(tapBehavior):
             switch tapBehavior {
@@ -364,7 +374,8 @@ struct MappingBehaviorEditor: View {
                 tapTimeout: tapTimeout,
                 holdTimeout: holdTimeout,
                 activateHoldOnOtherKey: activateHoldOnOtherKey,
-                quickTap: quickTap
+                quickTap: quickTap,
+                useReleaseOrder: useReleaseOrder
             ))
 
         case .tapDance:

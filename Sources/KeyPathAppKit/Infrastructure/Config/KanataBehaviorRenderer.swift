@@ -95,10 +95,19 @@ public enum KanataBehaviorRenderer {
         let tapTimeoutStr = tapTimeout == 200 ? "$tap-timeout" : "\(tapTimeout)"
         let holdTimeoutStr = holdTimeout == 200 ? "$hold-timeout" : "\(holdTimeout)"
 
-        // Choose variant based on flags (priority: useOppositeHand > customTapKeys > activateHoldOnOtherKey > quickTap > basic)
+        // Choose variant based on flags (priority: releaseOrder > oppositeHandRelease > oppositeHand > customTapKeys > activateHoldOnOtherKey > quickTap > basic)
         let base: String
-        if dr.useOppositeHand {
-            // tap-hold-opposite-hand: native opposite-hand detection via defhands.
+        if dr.useReleaseOrder {
+            // tap-hold-release-order: purely release-order based, no timeout latency.
+            // Kanata PR #1970: (tap-hold-release-order <buffer-ms> <tap> <hold>)
+            base = "(tap-hold-release-order \(tapTimeoutStr) \(tapAction) \(holdAction))"
+        } else if dr.useOppositeHandRelease {
+            // tap-hold-opposite-hand-release: release-time opposite-hand detection.
+            // More forgiving than press-time — waits for interrupting key's press+release.
+            // Kanata PR #1991: (tap-hold-opposite-hand-release <timeout> <tap> <hold>)
+            base = "(tap-hold-opposite-hand-release \(holdTimeoutStr) \(tapAction) \(holdAction))"
+        } else if dr.useOppositeHand {
+            // tap-hold-opposite-hand: press-time opposite-hand detection via defhands.
             // Uses a single timeout (hold-time) — not dual tap/hold timeouts.
             // Kanata PR #1955: (tap-hold-opposite-hand <timeout> <tap> <hold>)
             base = "(tap-hold-opposite-hand \(holdTimeoutStr) \(tapAction) \(holdAction))"

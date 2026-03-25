@@ -16,6 +16,10 @@ enum KeyboardTypeDetector {
 
     /// Detects the current keyboard type from IOKit HID.
     /// Returns the keyboard type of the first keyboard found (typically the built-in one).
+    ///
+    /// - Warning: Calls `IOHIDManagerOpen` which triggers the Input Monitoring
+    ///   permission prompt if not already granted. Callers must check permissions
+    ///   before calling this method (e.g. via `PermissionOracle`).
     static func detect() -> KeyboardType {
         // Create HID manager to find keyboard devices
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))

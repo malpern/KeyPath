@@ -69,6 +69,48 @@ extension PhysicalLayout {
         return PhysicalLayout(id: "macbook-korean", name: "MacBook Korean", keys: [], totalWidth: 15.54, totalHeight: 6.05)
     }()
 
+    // MARK: - Apple Magic Keyboard Family
+
+    static let magicKeyboardCompact: PhysicalLayout = {
+        PhysicalLayout(
+            id: "magic-keyboard-compact",
+            name: "Magic Keyboard",
+            keys: macBookUS.keys,
+            totalWidth: macBookUS.totalWidth,
+            totalHeight: macBookUS.totalHeight
+        )
+    }()
+
+    static let magicKeyboardTouchID: PhysicalLayout = {
+        PhysicalLayout(
+            id: "magic-keyboard-touchid",
+            name: "Magic Keyboard with Touch ID",
+            keys: macBookUS.keys,
+            totalWidth: macBookUS.totalWidth,
+            totalHeight: macBookUS.totalHeight
+        )
+    }()
+
+    static let magicKeyboardNumpad: PhysicalLayout = {
+        PhysicalLayout(
+            id: "magic-keyboard-numpad",
+            name: "Magic Keyboard with Numeric Keypad",
+            keys: ansi100Percent.keys,
+            totalWidth: ansi100Percent.totalWidth,
+            totalHeight: ansi100Percent.totalHeight
+        )
+    }()
+
+    static let magicKeyboardTouchIDNumpad: PhysicalLayout = {
+        PhysicalLayout(
+            id: "magic-keyboard-touchid-numpad",
+            name: "Magic Keyboard with Touch ID and Numeric Keypad",
+            keys: ansi100Percent.keys,
+            totalWidth: ansi100Percent.totalWidth,
+            totalHeight: ansi100Percent.totalHeight
+        )
+    }()
+
     // MARK: - Kinesis Advantage 360
 
     /// Kinesis Advantage 360 split ergonomic keyboard layout
@@ -97,6 +139,27 @@ extension PhysicalLayout {
             keys: [],
             totalWidth: 18.75,
             totalHeight: 7.25
+        )
+    }()
+
+    /// Kinesis mWave split ergonomic keyboard layout
+    /// Physical layout loaded from native JSON: Resources/Keyboards/kinesis-mwave.json
+    static let kinesisMWave: PhysicalLayout = {
+        if let layout = PhysicalLayoutLoader.loadFromBundle(
+            filename: "kinesis-mwave",
+            idOverride: "kinesis-mwave",
+            nameOverride: "Kinesis mWave"
+        ) {
+            return layout
+        }
+
+        print("PhysicalLayout: Failed to load Kinesis mWave from JSON, using fallback")
+        return PhysicalLayout(
+            id: "kinesis-mwave",
+            name: "Kinesis mWave",
+            keys: [],
+            totalWidth: 20.0,
+            totalHeight: 7.5
         )
     }()
 

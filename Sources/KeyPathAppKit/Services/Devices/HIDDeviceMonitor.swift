@@ -45,6 +45,52 @@ final class HIDDeviceMonitor: ObservableObject {
     /// Track devices by opaque pointer value (avoids sending IOHIDDevice across isolation)
     private var trackedDeviceIDs: [UInt: HIDKeyboardEvent] = [:]
 
+    static func currentKeyboardSnapshot() -> [HIDKeyboardEvent] {
+        let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
+        let matching: [String: Any] = [
+            kIOHIDDeviceUsagePageKey as String: kHIDPage_GenericDesktop,
+            kIOHIDDeviceUsageKey as String: kHIDUsage_GD_Keyboard,
+        ]
+
+        IOHIDManagerSetDeviceMatching(manager, matching as CFDictionary)
+        IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
+        defer {
+            IOHIDManagerClose(manager, IOOptionBits(kIOHIDOptionsTypeNone))
+        }
+
+        guard let devices = IOHIDManagerCopyDevices(manager) as? Set<IOHIDDevice> else {
+            return []
+        }
+
+        return devices.compactMap { device in
+            let vendorID = IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? Int ?? 0
+            let productID = IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as? Int ?? 0
+            let productName = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String ?? "Unknown Keyboard"
+
+            let lowerName = productName.lowercased()
+            let isAppleInternalKeyboard = lowerName.contains("apple internal keyboard")
+
+            guard vendorID != 0 || productID != 0 || isAppleInternalKeyboard else { return nil }
+            guard !productName.contains("VirtualHID") else { return nil }
+
+            return HIDKeyboardEvent(
+                vendorID: vendorID,
+                productID: productID,
+                productName: productName,
+                isConnected: true
+            )
+        }
+        .sorted { lhs, rhs in
+            if lhs.vendorID != rhs.vendorID {
+                return lhs.vendorID < rhs.vendorID
+            }
+            if lhs.productID != rhs.productID {
+                return lhs.productID < rhs.productID
+            }
+            return lhs.productName < rhs.productName
+        }
+    }
+
     func startMonitoring() {
         guard monitorThread == nil else { return }
 
@@ -163,8 +209,12 @@ final class HIDDeviceMonitor: ObservableObject {
         let productID = IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as? Int ?? 0
         let productName = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String ?? "Unknown Keyboard"
 
-        // Filter out VID:PID 0:0 (BLE devices with no USB identity)
-        guard vendorID != 0 || productID != 0 else { return nil }
+        let lowerName = productName.lowercased()
+        let isAppleInternalKeyboard = lowerName.contains("apple internal keyboard")
+
+        // Filter out VID:PID 0:0 devices unless they are the built-in Apple keyboard,
+        // which some systems report through a composite internal keyboard/trackpad node.
+        guard vendorID != 0 || productID != 0 || isAppleInternalKeyboard else { return nil }
 
         // Filter out VirtualHID devices
         guard !productName.contains("VirtualHID") else { return nil }

@@ -36,7 +36,8 @@ extension KanataConfiguration {
                 activateHoldOnOtherKey: !config.oppositeHandActivation,
                 quickTap: config.timing.quickTapEnabled,
                 customTapKeys: [],
-                useOppositeHand: config.oppositeHandActivation
+                useOppositeHand: config.oppositeHandMode == .press,
+                useOppositeHandRelease: config.oppositeHandMode == .release
             )
 
             let mapping = KeyMapping(
@@ -77,7 +78,8 @@ extension KanataConfiguration {
                 activateHoldOnOtherKey: !config.oppositeHandActivation,
                 quickTap: config.timing.quickTapEnabled,
                 customTapKeys: [],
-                useOppositeHand: config.oppositeHandActivation
+                useOppositeHand: config.oppositeHandMode == .press,
+                useOppositeHandRelease: config.oppositeHandMode == .release
             )
 
             let mapping = KeyMapping(

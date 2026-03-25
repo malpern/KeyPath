@@ -151,7 +151,7 @@ struct KanataBehaviorRendererTests {
             enabledKeys: ["a"],
             modifierAssignments: ["a": "lsft"],
             holdMode: .modifiers,
-            oppositeHandActivation: true
+            oppositeHandMode: .press
         )
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
         let rendered = KanataBehaviorRenderer.render(mappings[0])
@@ -166,7 +166,7 @@ struct KanataBehaviorRendererTests {
             enabledKeys: ["j"],
             modifierAssignments: ["j": "rmet"],
             holdMode: .modifiers,
-            oppositeHandActivation: true
+            oppositeHandMode: .press
         )
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
         let rendered = KanataBehaviorRenderer.render(mappings[0])
@@ -179,7 +179,7 @@ struct KanataBehaviorRendererTests {
             enabledKeys: ["a"],
             modifierAssignments: ["a": "lsft"],
             holdMode: .modifiers,
-            oppositeHandActivation: false
+            oppositeHandMode: .off
         )
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
         let rendered = KanataBehaviorRenderer.render(mappings[0])
@@ -520,7 +520,7 @@ struct KanataBehaviorRendererTests {
             layerAssignments: ["a": "nav", "s": "sym"],
             holdMode: .layers,
             layerToggleMode: .whileHeld,
-            oppositeHandActivation: false
+            oppositeHandMode: .off
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -550,7 +550,7 @@ struct KanataBehaviorRendererTests {
             layerAssignments: ["a": "nav"],
             holdMode: .layers,
             layerToggleMode: .toggle,
-            oppositeHandActivation: false
+            oppositeHandMode: .off
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)

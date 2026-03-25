@@ -20,8 +20,8 @@ public struct HomeRowLayerTogglesConfig: Codable, Equatable, Sendable {
     /// Whether advanced options are shown
     public var showAdvanced: Bool
 
-    /// When true, hold actions only activate when a key on the other hand is pressed.
-    public var oppositeHandActivation: Bool
+    /// How opposite-hand detection behaves.
+    public var oppositeHandMode: OppositeHandMode
 
     public init(
         enabledKeys: Set<String> = ["a", "s", "d", "f", "j", "k", "l", ";"],
@@ -30,7 +30,7 @@ public struct HomeRowLayerTogglesConfig: Codable, Equatable, Sendable {
         keySelection: KeySelection = .both,
         toggleMode: LayerToggleMode = .whileHeld,
         showAdvanced: Bool = false,
-        oppositeHandActivation: Bool = true
+        oppositeHandMode: OppositeHandMode = .press
     ) {
         self.enabledKeys = enabledKeys
         self.layerAssignments = layerAssignments
@@ -38,7 +38,13 @@ public struct HomeRowLayerTogglesConfig: Codable, Equatable, Sendable {
         self.keySelection = keySelection
         self.toggleMode = toggleMode
         self.showAdvanced = showAdvanced
-        self.oppositeHandActivation = oppositeHandActivation
+        self.oppositeHandMode = oppositeHandMode
+    }
+
+    /// Backward-compatible accessor for code that just needs to know if opposite-hand is enabled.
+    public var oppositeHandActivation: Bool {
+        get { oppositeHandMode.isEnabled }
+        set { oppositeHandMode = newValue ? .press : .off }
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -48,7 +54,8 @@ public struct HomeRowLayerTogglesConfig: Codable, Equatable, Sendable {
         case keySelection
         case toggleMode
         case showAdvanced
-        case oppositeHandActivation
+        case oppositeHandMode
+        case oppositeHandActivation // legacy Bool key for backward-compatible decoding
         case splitHandDetection // legacy key for backward-compatible decoding
     }
 
@@ -60,9 +67,14 @@ public struct HomeRowLayerTogglesConfig: Codable, Equatable, Sendable {
         keySelection = try container.decodeIfPresent(KeySelection.self, forKey: .keySelection) ?? .both
         toggleMode = try container.decodeIfPresent(LayerToggleMode.self, forKey: .toggleMode) ?? .whileHeld
         showAdvanced = try container.decodeIfPresent(Bool.self, forKey: .showAdvanced) ?? false
-        let newKey = try container.decodeIfPresent(Bool.self, forKey: .oppositeHandActivation)
-        let legacyKey = try container.decodeIfPresent(Bool.self, forKey: .splitHandDetection)
-        oppositeHandActivation = newKey ?? legacyKey ?? true
+        if let mode = try container.decodeIfPresent(OppositeHandMode.self, forKey: .oppositeHandMode) {
+            oppositeHandMode = mode
+        } else {
+            let legacyNew = try container.decodeIfPresent(Bool.self, forKey: .oppositeHandActivation)
+            let legacyOld = try container.decodeIfPresent(Bool.self, forKey: .splitHandDetection)
+            let enabled = legacyNew ?? legacyOld ?? true
+            oppositeHandMode = enabled ? .press : .off
+        }
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -73,7 +85,7 @@ public struct HomeRowLayerTogglesConfig: Codable, Equatable, Sendable {
         try container.encode(keySelection, forKey: .keySelection)
         try container.encode(toggleMode, forKey: .toggleMode)
         try container.encode(showAdvanced, forKey: .showAdvanced)
-        try container.encode(oppositeHandActivation, forKey: .oppositeHandActivation)
+        try container.encode(oppositeHandMode, forKey: .oppositeHandMode)
     }
 
     /// Default layer assignments (community standard mirror setup)

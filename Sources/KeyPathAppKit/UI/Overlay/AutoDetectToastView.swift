@@ -6,7 +6,9 @@ import SwiftUI
 /// Repeat detection (binding exists): brief "Switched to [Name]" confirmation.
 struct AutoDetectToastView: View {
     let keyboardName: String
-    let isAutoSwitch: Bool
+    let mode: AutoDetectKeyboardController.ToastMode
+    let confidence: KeyboardDetectionIndex.Confidence
+    let errorMessage: String?
     let onAccept: () -> Void
     let onDismiss: () -> Void
 
@@ -14,24 +16,31 @@ struct AutoDetectToastView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "keyboard.badge.ellipsis")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-
-            if isAutoSwitch {
-                Text("Switched to **\(keyboardName)**")
-                    .font(.body)
-                    .foregroundColor(.primary)
+            if mode == .importingKeyboard {
+                ProgressView()
+                    .controlSize(.small)
             } else {
-                Text("Detected **\(keyboardName)** — Switch layout?")
-                    .font(.body)
-                    .foregroundColor(.primary)
+                Image(systemName: iconName)
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleText)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
+
+                if let subtitleText {
+                    Text(subtitleText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Spacer()
 
-            if !isAutoSwitch {
-                Button("Accept") {
+            if let primaryActionTitle {
+                Button(primaryActionTitle) {
                     onAccept()
                 }
                 .buttonStyle(.borderedProminent)
@@ -56,6 +65,74 @@ struct AutoDetectToastView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("auto-detect-toast")
+    }
+
+    private var iconName: String {
+        switch mode {
+        case .autoSwitch:
+            "keyboard"
+        case .rememberKeyboard:
+            confidence == .low ? "questionmark.keyboard" : "keyboard.badge.ellipsis"
+        case .importKeyboard:
+            "square.and.arrow.down"
+        case .importingKeyboard:
+            "square.and.arrow.down"
+        case .importSucceeded:
+            "checkmark.circle"
+        case .importFailed:
+            "exclamationmark.triangle"
+        }
+    }
+
+    private var titleText: String {
+        switch mode {
+        case .autoSwitch:
+            "Switched to \(keyboardName)"
+        case .rememberKeyboard:
+            confidence == .low ? "Possible match: \(keyboardName)" : "Detected \(keyboardName)"
+        case .importKeyboard:
+            "Detected \(keyboardName)"
+        case .importingKeyboard:
+            "Importing layout for \(keyboardName)"
+        case .importSucceeded:
+            "Imported layout for \(keyboardName)"
+        case .importFailed:
+            "Couldn’t import \(keyboardName)"
+        }
+    }
+
+    private var subtitleText: String? {
+        switch mode {
+        case .autoSwitch:
+            nil
+        case .rememberKeyboard:
+            confidence == .low ? "Use this layout and remember it for next time?" : "Using this layout now. Remember it for next time?"
+        case .importKeyboard:
+            "Import a layout for this keyboard?"
+        case .importingKeyboard:
+            "Fetching the layout and preparing it for KeyPath."
+        case .importSucceeded:
+            "Using this layout now."
+        case .importFailed:
+            errorMessage ?? "You can search for a layout instead."
+        }
+    }
+
+    private var primaryActionTitle: String? {
+        switch mode {
+        case .autoSwitch:
+            nil
+        case .rememberKeyboard:
+            "Remember"
+        case .importKeyboard:
+            "Import Layout"
+        case .importingKeyboard:
+            nil
+        case .importSucceeded:
+            nil
+        case .importFailed:
+            "Search Layouts"
+        }
     }
 
     private var dismissButton: some View {

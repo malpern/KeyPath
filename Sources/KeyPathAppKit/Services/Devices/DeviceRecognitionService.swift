@@ -15,10 +15,15 @@ actor DeviceRecognitionService {
         let needsImport: Bool
         let source: KeyboardDetectionIndex.Source
         let matchType: KeyboardDetectionIndex.MatchType
+        let confidence: KeyboardDetectionIndex.Confidence
         let deviceEvent: HIDDeviceMonitor.HIDKeyboardEvent
     }
 
     func recognize(event: HIDDeviceMonitor.HIDKeyboardEvent) async -> RecognitionResult? {
+        if let appleResult = AppleKeyboardRecognizer.recognize(event: event) {
+            return appleResult
+        }
+
         guard let match = KeyboardDetectionIndex.lookup(vendorID: event.vendorID, productID: event.productID) else {
             return nil
         }
@@ -51,6 +56,7 @@ actor DeviceRecognitionService {
             needsImport: !isBuiltIn,
             source: record.source,
             matchType: record.matchType,
+            confidence: record.confidence,
             deviceEvent: event
         )
     }

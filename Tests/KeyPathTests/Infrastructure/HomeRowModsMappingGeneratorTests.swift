@@ -9,7 +9,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             layerAssignments: ["a": "nav"],
             holdMode: .modifiers,
             layerToggleMode: .whileHeld,
-            oppositeHandActivation: false
+            oppositeHandMode: .off
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -29,7 +29,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             layerAssignments: ["a": "nav"],
             holdMode: .layers,
             layerToggleMode: .toggle,
-            oppositeHandActivation: false
+            oppositeHandMode: .off
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -49,7 +49,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             enabledKeys: ["a"],
             modifierAssignments: ["a": "lsft"],
             holdMode: .modifiers,
-            oppositeHandActivation: true
+            oppositeHandMode: .press
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -67,7 +67,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             enabledKeys: ["a"],
             modifierAssignments: ["a": "lsft"],
             holdMode: .modifiers,
-            oppositeHandActivation: false
+            oppositeHandMode: .off
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -90,7 +90,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             modifierAssignments: ["a": "lsft"],
             holdMode: .modifiers,
             timing: timing,
-            oppositeHandActivation: true
+            oppositeHandMode: .press
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -109,7 +109,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             layerAssignments: ["a": "nav"],
             holdMode: .layers,
             layerToggleMode: .whileHeld,
-            oppositeHandActivation: true
+            oppositeHandMode: .press
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -127,7 +127,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             modifierAssignments: HomeRowModsConfig.cagsMacDefault,
             holdMode: .modifiers,
             keySelection: .leftOnly,
-            oppositeHandActivation: true
+            oppositeHandMode: .press
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -143,7 +143,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
         let config = HomeRowLayerTogglesConfig(
             enabledKeys: ["a", "j"],
             layerAssignments: ["a": "nav", "j": "sym"],
-            oppositeHandActivation: true
+            oppositeHandMode: .press
         )
 
         let mappings = KanataConfiguration.generateHomeRowLayerTogglesMappings(from: config)
@@ -165,7 +165,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             enabledKeys: Set(HomeRowModsConfig.allKeys),
             modifierAssignments: HomeRowModsConfig.cagsMacDefault,
             holdMode: .modifiers,
-            oppositeHandActivation: true
+            oppositeHandMode: .press
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -185,7 +185,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             enabledKeys: Set(HomeRowModsConfig.allKeys),
             modifierAssignments: HomeRowModsConfig.cagsMacDefault,
             holdMode: .modifiers,
-            oppositeHandActivation: false
+            oppositeHandMode: .off
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -204,7 +204,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             layerAssignments: ["a": "nav", "s": "sym", "d": "num", "f": "fun"],
             holdMode: .layers,
             layerToggleMode: .whileHeld,
-            oppositeHandActivation: false
+            oppositeHandMode: .off
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -235,7 +235,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             layerAssignments: ["a": "nav"],
             holdMode: .layers,
             layerToggleMode: .toggle,
-            oppositeHandActivation: false
+            oppositeHandMode: .off
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
@@ -255,7 +255,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             layerAssignments: ["a": "nav"],
             holdMode: .modifiers,
             layerToggleMode: .whileHeld,
-            oppositeHandActivation: false
+            oppositeHandMode: .off
         )
 
         let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)

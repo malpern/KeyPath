@@ -101,6 +101,7 @@ struct LiveKeyboardOverlayView: View {
     @State private var overlayLaunchTime = Date()
     @State private var toastManager = WizardToastManager()
     @State private var lastReloadFailureToastAt: Date?
+    @State private var autoDetectToastHeight: CGFloat = 88
     private var autoDetectController: AutoDetectKeyboardController {
         .shared
     }
@@ -130,6 +131,26 @@ struct LiveKeyboardOverlayView: View {
 
     private var settingsShelfAnimation: Animation {
         .spring(response: 0.5, dampingFraction: 0.72, blendDuration: 0.12)
+    }
+
+    private var autoDetectToastGap: CGFloat { 10 }
+
+    private var autoDetectToastOffsetY: CGFloat {
+        guard let window = findOverlayWindow(),
+              let screen = window.screen ?? NSScreen.main
+        else {
+            return -(autoDetectToastHeight + autoDetectToastGap)
+        }
+
+        let visibleFrame = screen.visibleFrame
+        let roomAbove = visibleFrame.maxY - window.frame.maxY
+        let requiredHeight = autoDetectToastHeight + autoDetectToastGap
+
+        if roomAbove >= requiredHeight {
+            return -requiredHeight
+        }
+
+        return window.frame.height + autoDetectToastGap
     }
 
     // MARK: - Actions
@@ -434,20 +455,93 @@ struct LiveKeyboardOverlayView: View {
             if autoDetectController.showingToast {
                 AutoDetectToastView(
                     keyboardName: autoDetectController.toastKeyboardName,
-                    isAutoSwitch: autoDetectController.toastIsAutoSwitch,
+                    mode: autoDetectController.toastMode,
+                    confidence: autoDetectController.toastConfidence,
+                    errorMessage: autoDetectController.toastErrorMessage,
                     onAccept: { autoDetectController.acceptDetection() },
                     onDismiss: { autoDetectController.dismissToast() }
                 )
-                .padding(.top, 8)
                 .padding(.horizontal, 16)
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear {
+                                autoDetectToastHeight = proxy.size.height
+                            }
+                            .onChange(of: proxy.size.height) { _, newHeight in
+                                autoDetectToastHeight = newHeight
+                            }
+                    }
+                }
+                .offset(y: autoDetectToastOffsetY)
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .zIndex(999)
             }
+        }
+        .sheet(
+            isPresented: Binding(
+                get: { autoDetectController.isKeyboardSearchPresented },
+                set: { isPresented in
+                    if !isPresented {
+                        autoDetectController.dismissKeyboardSearch()
+                    }
+                }
+            )
+        ) {
+            QMKKeyboardSearchView(
+                selectedLayoutId: $selectedLayoutId,
+                initialQuery: autoDetectController.keyboardSearchQuery,
+                onImportComplete: {
+                    autoDetectController.rememberCurrentLayoutSelection(layoutId: selectedLayoutId)
+                }
+            )
         }
         .withToasts(toastManager)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("keyboard-overlay")
         .accessibilityLabel("KeyPath keyboard overlay")
+        .onChange(of: selectedLayoutId) { _, newLayoutId in
+            autoDetectController.overlayDisplayContextDidChange(
+                layoutId: newLayoutId,
+                keymapId: selectedKeymapId,
+                includePunctuationStore: keymapIncludePunctuationStore
+            )
+        }
+        .onChange(of: selectedKeymapId) { _, newKeymapId in
+            autoDetectController.overlayDisplayContextDidChange(
+                layoutId: selectedLayoutId,
+                keymapId: newKeymapId,
+                includePunctuationStore: keymapIncludePunctuationStore
+            )
+        }
+        .onChange(of: keymapIncludePunctuationStore) { _, newStore in
+            autoDetectController.overlayDisplayContextDidChange(
+                layoutId: selectedLayoutId,
+                keymapId: selectedKeymapId,
+                includePunctuationStore: newStore
+            )
+        }
+        .onChange(of: autoDetectController.activeKeyboardID) { oldKeyboardID, newKeyboardID in
+            Task { @MainActor in
+                if let restoredContext = await autoDetectController.activeKeyboardDidChange(
+                    from: oldKeyboardID,
+                    to: newKeyboardID,
+                    currentLayoutId: selectedLayoutId,
+                    currentKeymapId: selectedKeymapId,
+                    includePunctuationStore: keymapIncludePunctuationStore
+                ) {
+                    if selectedLayoutId != restoredContext.layoutId {
+                        selectedLayoutId = restoredContext.layoutId
+                    }
+                    if selectedKeymapId != restoredContext.keymapId {
+                        selectedKeymapId = restoredContext.keymapId
+                    }
+                    if keymapIncludePunctuationStore != restoredContext.includePunctuationStore {
+                        keymapIncludePunctuationStore = restoredContext.includePunctuationStore
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Overlay Content
@@ -488,6 +582,11 @@ struct LiveKeyboardOverlayView: View {
                 onClose: { onClose?() },
                 onToggleInspector: { onToggleInspector?() },
                 onHealthTap: { onHealthIndicatorTap?() },
+                connectedKeyboards: autoDetectController.connectedKeyboards,
+                activeKeyboardID: autoDetectController.activeKeyboardID,
+                onKeyboardSelected: { keyboardID in
+                    autoDetectController.selectKeyboard(keyboardID)
+                },
                 onLayerSelected: { layerName in
                     Task {
                         _ = await kanataViewModel?.changeLayer(layerName)

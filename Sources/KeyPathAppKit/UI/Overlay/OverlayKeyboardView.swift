@@ -167,7 +167,7 @@ struct OverlayKeyboardView: View {
     /// Matches the special labels set in OverlayKeycapView.hasSpecialLabel
     private static let specialLabels: Set<String> = [
         "Home", "End", "PgUp", "PgDn", "Del", "␣", "Lyr", "Fn", "Mod", "✦", "◆",
-        "↩", "⌫", "⇥", "⇪", "esc", "⎋",
+        "↩", "⌫", "⇥", "⇪", "esc", "ESC", "⎋", "🔒",
         // Arrow symbols (both solid and outline variants)
         "◀", "▶", "▲", "▼", "←", "→", "↑", "↓",
         // Number row (not in standard keymaps, render directly)
@@ -188,8 +188,9 @@ struct OverlayKeyboardView: View {
     ]
 
     /// Check if a label is special (should render in keycap, not as floating label)
+    /// Checks both original and lowercased to handle labels that arrive uppercased from labelToKeyCode
     private static func isSpecialLabel(_ label: String) -> Bool {
-        specialLabels.contains(label)
+        specialLabels.contains(label) || specialLabels.contains(label.lowercased())
     }
 
     /// Check if a label's key has been remapped to a different output

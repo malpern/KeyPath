@@ -125,9 +125,29 @@ enum CompositionRoot {
             await WindowManager.shared.initializeWithRetry()
             AppLogger.shared.info("🪟 [App] WindowManager initialization complete")
 
-            // Start HID device monitoring for auto-detect keyboard on plug-in
-            HIDDeviceMonitor.shared.startMonitoring()
-            AppLogger.shared.info("🔌 [App] HID device monitor started")
+            // Guard HID access: IOHIDManagerOpen triggers the Input Monitoring
+            // permission prompt, so only use it if permission is already granted.
+            let snapshot = await PermissionOracle.shared.currentSnapshot()
+            if snapshot.keyPath.inputMonitoring.isReady {
+                // Start HID device monitoring for auto-detect keyboard on plug-in
+                HIDDeviceMonitor.shared.startMonitoring()
+                AppLogger.shared.info("🔌 [App] HID device monitor started")
+
+                // Refine keyboard layout only on first launch (before user has made an explicit choice).
+                // We use a separate flag so we don't override a user who explicitly chose the ANSI default.
+                let layoutRefinedKey = "keypath.layoutRefinedAtStartup"
+                if !UserDefaults.standard.bool(forKey: layoutRefinedKey) {
+                    UserDefaults.standard.set(true, forKey: layoutRefinedKey)
+                    let layoutKey = LayoutPreferences.layoutIdKey
+                    let recommended = KeyboardTypeDetector.recommendedLayoutId()
+                    if recommended != LayoutPreferences.defaultLayoutId {
+                        UserDefaults.standard.set(recommended, forKey: layoutKey)
+                        AppLogger.shared.info("⌨️ [App] Refined keyboard layout to \(recommended) via HID detection")
+                    }
+                }
+            } else {
+                AppLogger.shared.info("🔌 [App] HID device monitor skipped (Input Monitoring not yet granted)")
+            }
         }
     }
 }

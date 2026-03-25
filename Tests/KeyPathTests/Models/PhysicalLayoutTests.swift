@@ -21,6 +21,12 @@ struct PhysicalLayoutTests {
         #expect(layout?.name == "Kinesis Advantage 360")
     }
 
+    @Test func findKinesisMWaveLayout() {
+        let layout = PhysicalLayout.find(id: "kinesis-mwave")
+        #expect(layout != nil, "Should find Kinesis mWave layout")
+        #expect(layout?.name == "Kinesis mWave")
+    }
+
     @Test func findUnknownLayoutReturnsNil() {
         let layout = PhysicalLayout.find(id: "unknown-keyboard")
         #expect(layout == nil, "Unknown layout ID should return nil")
@@ -66,6 +72,21 @@ struct PhysicalLayoutTests {
         let layout = PhysicalLayout.kinesisAdvantage360
         let tallKeys = layout.keys.filter { $0.height > 1.5 }
         #expect(!tallKeys.isEmpty, "Kinesis should have tall thumb keys (height > 1.5)")
+    }
+
+    @Test func kinesisMWaveLayoutHasKeys() {
+        let layout = PhysicalLayout.kinesisMWave
+        #expect(!layout.keys.isEmpty, "mWave layout should have keys")
+        #expect(layout.keys.count > 50, "mWave should have over 50 keys")
+    }
+
+    @Test func kinesisMWaveLayoutHasSplitGap() {
+        let layout = PhysicalLayout.kinesisMWave
+        let leftKeys = layout.keys.filter { $0.x < 6.5 }
+        let rightKeys = layout.keys.filter { $0.x > 9.5 }
+        #expect(!leftKeys.isEmpty, "mWave should have left-half keys")
+        #expect(!rightKeys.isEmpty, "mWave should have right-half keys")
+        #expect(layout.totalWidth > 16, "mWave should have width accounting for the split gap")
     }
 
     // MARK: - PhysicalKey Tests

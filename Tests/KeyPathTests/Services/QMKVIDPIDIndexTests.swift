@@ -127,4 +127,15 @@ final class KeyboardDetectionIndexTests: KeyPathTestCase {
         let match = KeyboardDetectionIndex.lookup(vendorID: 0x4653, productID: 0x0001)
         XCTAssertNil(match)
     }
+
+    func testBundleOverrideAddsExactMWaveMatch() {
+        KeyboardDetectionIndex.resetCache()
+
+        let match = KeyboardDetectionIndex.lookup(vendorID: 0x29EA, productID: 0x1001)
+        XCTAssertNotNil(match)
+        XCTAssertEqual(match?.record.matchType, .exactVIDPID)
+        XCTAssertEqual(match?.record.source, .override)
+        XCTAssertEqual(match?.record.displayName, "Kinesis mWave")
+        XCTAssertEqual(match?.record.builtInLayoutId, "kinesis-mwave")
+    }
 }

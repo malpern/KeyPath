@@ -5,6 +5,7 @@ import SwiftUI
 struct QMKKeyboardSearchView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var selectedLayoutId: String
+    var initialQuery: String = ""
     var onImportComplete: (() -> Void)?
 
     @State private var searchText = ""
@@ -46,11 +47,14 @@ struct QMKKeyboardSearchView: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: importToastMessage)
         .frame(width: 500, height: 450)
         .onAppear {
+            if !initialQuery.isEmpty {
+                searchText = initialQuery
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 isSearchFocused = true
             }
             Task {
-                await performSearch(query: "")
+                await performSearch(query: initialQuery)
             }
         }
         .onChange(of: searchText) { _, newValue in

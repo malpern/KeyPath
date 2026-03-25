@@ -82,6 +82,11 @@ extension KanataTCPClient {
         let request_id: UInt64?
     }
 
+    struct TcpFakeKeyNames: Codable, Sendable {
+        let names: [String]
+        let request_id: UInt64?
+    }
+
     struct ReloadResult: Codable {
         // Kanata protocol has multiple variants in the wild:
         // - Older: { "ReloadResult": { "ready": true|false, "timeout_ms": ... } }
