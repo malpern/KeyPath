@@ -63,11 +63,13 @@ enum LayoutAnalysisRunner {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-        let venvPython = repoRoot
-            .appendingPathComponent(".venv-layout-analysis", isDirectory: true)
-            .appendingPathComponent("bin/python")
-        if FileManager.default.isExecutableFile(atPath: venvPython.path) {
-            return venvPython
+        for venvName in [".venv-layout-analysis", ".venv"] {
+            let venvPython = repoRoot
+                .appendingPathComponent(venvName, isDirectory: true)
+                .appendingPathComponent("bin/python")
+            if FileManager.default.isExecutableFile(atPath: venvPython.path) {
+                return venvPython
+            }
         }
         return URL(fileURLWithPath: "/usr/bin/python3")
     }

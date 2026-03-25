@@ -385,7 +385,7 @@ final class KanataErrorMonitor {
 
     private func showErrorToast(_ error: KanataError) {
         let severityIcon = error.severity == .critical ? "⚠️" : "⚡"
-        let message = "\(severityIcon) Kanata Error: \(error.message). Click health indicator to view diagnostics."
+        let message = "\(severityIcon) Remapping issue: \(error.message). Click the status icon for details."
 
         Task { @MainActor in
             UserFeedbackService.show(message: message)

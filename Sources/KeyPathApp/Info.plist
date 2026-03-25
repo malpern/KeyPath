@@ -63,5 +63,11 @@
 	<key>SUEnableSystemProfiling</key>
 	<false/>
 
+	<!-- Privacy Usage Descriptions -->
+	<key>NSAccessibilityUsageDescription</key>
+	<string>KeyPath needs Accessibility access to remap your keyboard shortcuts and monitor key events.</string>
+	<key>NSInputMonitoringUsageDescription</key>
+	<string>KeyPath needs Input Monitoring access to detect keystrokes and apply your custom key mappings.</string>
+
 </dict>
 </plist>

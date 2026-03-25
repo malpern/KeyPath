@@ -1,5 +1,7 @@
 ![From Karabiner-Elements](header-karabiner-users.png)
 
+# Switching From Karabiner-Elements
+
 If you're using [Karabiner-Elements](https://karabiner-elements.pqrs.org/) and curious about KeyPath, this page maps the concepts you know to how KeyPath works — and helps you decide if switching makes sense.
 
 ---
@@ -180,7 +182,7 @@ KeyPath's per-finger timing, opposite-hand activation, and fast typing protectio
 | Caps Lock → Escape/Control | Pre-built rule with tap-hold |
 | Caps Lock → Hyper | Pre-built "Caps Lock Remap" → Hyper mode |
 | Home row mods | Pre-built "Home Row Mods" rule |
-| Vi-style arrows (HJKL) | Custom rule or [Vim Navigation](help:use-cases#vim-navigation-everywhere) |
+| Vi-style arrows (HJKL) | Custom rule or [What You Can Build](help:use-cases) |
 | App-specific shortcuts | Custom Rules tab |
 | Launch apps from keyboard | [app launching](help:action-uri) |
 | Window snapping | [Window Management](help:window-management) |
