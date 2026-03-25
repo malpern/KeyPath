@@ -133,9 +133,12 @@ enum CompositionRoot {
                 HIDDeviceMonitor.shared.startMonitoring()
                 AppLogger.shared.info("🔌 [App] HID device monitor started")
 
-                // Refine keyboard layout default if still set to ANSI from synchronous first-launch default
-                let layoutKey = LayoutPreferences.layoutIdKey
-                if UserDefaults.standard.string(forKey: layoutKey) == LayoutPreferences.defaultLayoutId {
+                // Refine keyboard layout only on first launch (before user has made an explicit choice).
+                // We use a separate flag so we don't override a user who explicitly chose the ANSI default.
+                let layoutRefinedKey = "keypath.layoutRefinedAtStartup"
+                if !UserDefaults.standard.bool(forKey: layoutRefinedKey) {
+                    UserDefaults.standard.set(true, forKey: layoutRefinedKey)
+                    let layoutKey = LayoutPreferences.layoutIdKey
                     let recommended = KeyboardTypeDetector.recommendedLayoutId()
                     if recommended != LayoutPreferences.defaultLayoutId {
                         UserDefaults.standard.set(recommended, forKey: layoutKey)

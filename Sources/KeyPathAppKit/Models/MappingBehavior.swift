@@ -145,6 +145,30 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
     /// When `nil`, the global defcfg value applies.
     public var requirePriorIdleOverrideMs: Int?
 
+    // Custom decoder for backward compatibility: older saved rules may not
+    // contain useOppositeHandRelease, useReleaseOrder, or requirePriorIdleOverrideMs.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        tapAction = try container.decode(String.self, forKey: .tapAction)
+        holdAction = try container.decode(String.self, forKey: .holdAction)
+        tapTimeout = try container.decodeIfPresent(Int.self, forKey: .tapTimeout) ?? 200
+        holdTimeout = try container.decodeIfPresent(Int.self, forKey: .holdTimeout) ?? 200
+        activateHoldOnOtherKey = try container.decodeIfPresent(Bool.self, forKey: .activateHoldOnOtherKey) ?? false
+        quickTap = try container.decodeIfPresent(Bool.self, forKey: .quickTap) ?? false
+        customTapKeys = try container.decodeIfPresent([String].self, forKey: .customTapKeys) ?? []
+        useOppositeHand = try container.decodeIfPresent(Bool.self, forKey: .useOppositeHand) ?? false
+        useOppositeHandRelease = try container.decodeIfPresent(Bool.self, forKey: .useOppositeHandRelease) ?? false
+        useReleaseOrder = try container.decodeIfPresent(Bool.self, forKey: .useReleaseOrder) ?? false
+        requirePriorIdleOverrideMs = try container.decodeIfPresent(Int.self, forKey: .requirePriorIdleOverrideMs)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case tapAction, holdAction, tapTimeout, holdTimeout
+        case activateHoldOnOtherKey, quickTap, customTapKeys
+        case useOppositeHand, useOppositeHandRelease, useReleaseOrder
+        case requirePriorIdleOverrideMs
+    }
+
     public init(
         tapAction: String,
         holdAction: String,
