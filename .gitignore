@@ -84,3 +84,9 @@ Scripts/ui-tests/results/
 # Local agent/editor state
 .claude/
 tmp/
+.agent/
+.agents/
+.augment/
+.kiro/
+skills/
+skills-lock.json
