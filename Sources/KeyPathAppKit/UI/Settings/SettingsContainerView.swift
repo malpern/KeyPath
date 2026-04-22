@@ -37,37 +37,35 @@ struct SettingsContainerView: View {
     @Environment(KanataViewModel.self) var kanataManager
     @State private var selection: SettingsTab = .status
     @State private var canManageRules: Bool = true
-    private var requiredSettingsWidth: CGFloat {
-        SettingsTabLayout.requiredWidth(forTabCount: SettingsTab.visibleTabs.count)
-    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            SettingsTabPicker(selection: $selection, rulesEnabled: canManageRules)
-                .padding(.bottom, 12)
+        TabView(selection: $selection) {
+            StatusSettingsTabView()
+                .tabItem { Label("Status", systemImage: "gauge.with.dots.needle.bottom.50percent") }
+                .tag(SettingsTab.status)
 
             Group {
-                switch selection {
-                case .general:
-                    GeneralSettingsTabView()
-                case .status:
-                    StatusSettingsTabView()
-                case .rules:
-                    if canManageRules {
-                        RulesTabView()
-                    } else {
-                        RulesDisabledView(onOpenStatus: { selection = .status })
-                    }
-                case .advanced:
-                    AdvancedSettingsTabView()
+                if canManageRules {
+                    RulesTabView()
+                } else {
+                    RulesDisabledView(onOpenStatus: { selection = .status })
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .tabItem { Label("Rules", systemImage: "list.bullet") }
+            .tag(SettingsTab.rules)
+
+            GeneralSettingsTabView()
+                .tabItem { Label("General", systemImage: "gearshape") }
+                .tag(SettingsTab.general)
+
+            AdvancedSettingsTabView()
+                .tabItem { Label("Repair/Remove", systemImage: "wrench.and.screwdriver") }
+                .tag(SettingsTab.advanced)
         }
         .frame(
-            minWidth: requiredSettingsWidth,
-            idealWidth: requiredSettingsWidth,
-            maxWidth: requiredSettingsWidth,
+            minWidth: 680,
+            idealWidth: 680,
+            maxWidth: 680,
             minHeight: 550,
             idealHeight: 700
         )
@@ -86,7 +84,6 @@ struct SettingsContainerView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .showDiagnostics)) { _ in
             selection = .advanced
-            // Post another notification to switch to errors tab within advanced settings
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 NotificationCenter.default.post(name: .showErrorsTab, object: nil)
             }
@@ -113,96 +110,6 @@ struct SettingsContainerView: View {
                 selection = .status
             }
         }
-    }
-}
-
-// MARK: - Settings Tab Picker
-
-private struct SettingsTabPicker: View {
-    @Binding var selection: SettingsTab
-    let rulesEnabled: Bool
-
-    var body: some View {
-        HStack(spacing: SettingsTabLayout.spacing) {
-            ForEach(SettingsTab.visibleTabs, id: \.self) { tab in
-                let disabled = (tab == .rules && !rulesEnabled)
-                SettingsTabButton(
-                    tab: tab,
-                    isSelected: selection == tab,
-                    disabled: disabled,
-                    action: {
-                        guard !disabled else {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                                selection = .status
-                            }
-                            return
-                        }
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { selection = tab }
-                    }
-                )
-            }
-        }
-        .padding(.horizontal, SettingsTabLayout.horizontalPadding)
-        .padding(.top, SettingsTabLayout.topPadding)
-    }
-}
-
-private struct SettingsTabButton: View {
-    let tab: SettingsTab
-    let isSelected: Bool
-    let disabled: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: tab.icon)
-                    .font(.title)
-                    .foregroundColor(disabled ? Color.secondary.opacity(0.35)
-                        : (isSelected ? Color.accentColor : Color.secondary))
-                    .frame(width: 54, height: 54)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color(NSColor.controlBackgroundColor))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(
-                                disabled ? Color(NSColor.separatorColor)
-                                    : (isSelected ? Color.accentColor : Color(NSColor.separatorColor)),
-                                lineWidth: isSelected && !disabled ? 2 : 1
-                            )
-                    )
-
-                Text(tab.title)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(disabled ? .secondary.opacity(0.6)
-                        : (isSelected ? .primary : .secondary))
-            }
-            .frame(width: SettingsTabLayout.buttonWidth)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .focusEffectDisabled()
-        .disabled(disabled)
-        .accessibilityIdentifier("settings-tab-\(tab.accessibilityId)")
-        .accessibilityLabel(tab.title)
-    }
-}
-
-private enum SettingsTabLayout {
-    static let buttonWidth: CGFloat = 120
-    static let spacing: CGFloat = 24
-    static let horizontalPadding: CGFloat = 24
-    static let topPadding: CGFloat = 28
-    static let minimumWindowWidth: CGFloat = 680
-
-    static func requiredWidth(forTabCount tabCount: Int) -> CGFloat {
-        guard tabCount > 0 else { return minimumWindowWidth }
-        let totalButtonWidth = CGFloat(tabCount) * buttonWidth
-        let totalSpacing = CGFloat(max(0, tabCount - 1)) * spacing
-        let totalPadding = horizontalPadding * 2
-        return max(minimumWindowWidth, totalButtonWidth + totalSpacing + totalPadding)
     }
 }
 

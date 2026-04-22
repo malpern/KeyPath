@@ -125,10 +125,12 @@ enum CompositionRoot {
             await WindowManager.shared.initializeWithRetry()
             AppLogger.shared.info("🪟 [App] WindowManager initialization complete")
 
-            // Guard HID access: IOHIDManagerOpen triggers the Input Monitoring
-            // permission prompt, so only use it if permission is already granted.
+            // HID device monitoring (connect/disconnect detection) uses IOHIDManager
+            // with kIOHIDOptionsTypeNone, which does NOT require Input Monitoring.
+            // Only seize-mode (reading key events) needs IM. Start unconditionally
+            // so keyboard plug-in detection always works.
             let snapshot = await PermissionOracle.shared.currentSnapshot()
-            if snapshot.keyPath.inputMonitoring.isReady {
+            if !snapshot.keyPath.inputMonitoring.isBlocking {
                 // Start HID device monitoring for auto-detect keyboard on plug-in
                 HIDDeviceMonitor.shared.startMonitoring()
                 AppLogger.shared.info("🔌 [App] HID device monitor started")
