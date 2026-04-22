@@ -334,12 +334,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "either"
-version = "1.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
-
-[[package]]
 name = "encode_unicode"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -602,15 +596,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7655c9839580ee829dfacba1d1278c2b7883e50a277ff7541299489d6bdfdc45"
 
 [[package]]
-name = "itertools"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
-dependencies = [
- "either",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -638,11 +623,12 @@ dependencies = [
 
 [[package]]
 name = "kanata"
-version = "1.11.0"
+version = "1.12.0-prerelease-2"
 dependencies = [
  "anyhow",
  "arboard",
  "clap",
+ "core-foundation",
  "core-graphics",
  "dirs",
  "encode_unicode",
@@ -652,7 +638,7 @@ dependencies = [
  "kanata-keyberon",
  "kanata-parser",
  "kanata-tcp-protocol",
- "karabiner-driverkit",
+ "karabiner-driverkit 0.3.0",
  "libc",
  "log",
  "miette",
@@ -677,7 +663,7 @@ dependencies = [
 
 [[package]]
 name = "kanata-keyberon"
-version = "0.1110.0"
+version = "0.1120.1"
 dependencies = [
  "arraydeque",
  "heapless",
@@ -697,12 +683,11 @@ dependencies = [
 
 [[package]]
 name = "kanata-parser"
-version = "0.1110.0"
+version = "0.1120.1"
 dependencies = [
  "anyhow",
  "bitflags 2.11.0",
  "bytemuck",
- "itertools",
  "kanata-keyberon",
  "log",
  "miette",
@@ -716,7 +701,7 @@ dependencies = [
 
 [[package]]
 name = "kanata-tcp-protocol"
-version = "0.1110.0"
+version = "0.1120.1"
 dependencies = [
  "serde",
  "serde_derive",
@@ -734,12 +719,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "karabiner-driverkit"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b20bae7924951876a41b469ac758032c42f5a142103d47a3bfe843dd954a1761"
+dependencies = [
+ "cc",
+ "os_info",
+]
+
+[[package]]
 name = "keypath-kanata-host-bridge"
 version = "0.1.0"
 dependencies = [
  "kanata",
  "kanata-parser",
- "karabiner-driverkit",
+ "karabiner-driverkit 0.2.2",
  "parking_lot",
 ]
 

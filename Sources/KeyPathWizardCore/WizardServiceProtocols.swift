@@ -31,6 +31,9 @@ public protocol WizardHelperMaintaining: AnyObject, Sendable {
     func detectDuplicateAppCopies() -> [String]
     func runCleanupAndRepair(useAppleScriptFallback: Bool) async -> Bool
     var logLines: [String] { get }
+    /// Most recent explicit failure line (❌/⚠️-prefixed), excluding the
+    /// "Cleanup & Repair started/finished" bookends. nil when no failure was logged.
+    var lastErrorLine: String? { get }
 }
 
 // MARK: - UninstallCoordinator Protocol

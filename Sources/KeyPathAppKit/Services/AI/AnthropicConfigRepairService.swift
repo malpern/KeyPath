@@ -52,7 +52,7 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
                 domain: "ClaudeAPI", code: 1,
                 userInfo: [
                     NSLocalizedDescriptionKey:
-                        "Claude API key not found. Set ANTHROPIC_API_KEY environment variable or add in Settings."
+                        "AI repair requires an API key. Add one in Settings → General → AI Configuration."
                 ]
             )
         }

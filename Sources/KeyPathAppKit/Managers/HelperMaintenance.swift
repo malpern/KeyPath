@@ -25,6 +25,20 @@ public final class HelperMaintenance {
     /// Log lines for UI to present progress
     public private(set) var logLines: [String] = []
 
+    /// The most recent failure line from the current (or most recently completed) run.
+    /// Scans `logLines` from newest to oldest for an explicit failure marker.
+    /// Skips the "🧹 Cleanup & Repair finished"/"started" bookend lines emitted
+    /// by `runCleanupAndRepair` so UI callers don't surface them as error text.
+    public var lastErrorLine: String? {
+        for line in logLines.reversed() {
+            if line.hasPrefix("🧹 Cleanup & Repair") { continue }
+            if line.hasPrefix("❌") || line.hasPrefix("⚠️") {
+                return line
+            }
+        }
+        return nil
+    }
+
     /// Whether a cleanup run is currently in progress
     private(set) var isRunning: Bool = false
 

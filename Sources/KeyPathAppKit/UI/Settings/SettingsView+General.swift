@@ -210,28 +210,16 @@ struct GeneralSettingsTabView: View {
     // MARK: - Helpers
 
     private func openLogFile(_ filePath: String) {
-        // Try to open with Zed editor first (if available)
-        let zedProcess = Process()
-        zedProcess.executableURL = URL(fileURLWithPath: "/usr/local/bin/zed")
-        zedProcess.arguments = [filePath]
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-t", filePath]
 
         do {
-            try zedProcess.run()
-            AppLogger.shared.log("📝 [Settings] Opened log in Zed: \(filePath)")
-            return
+            try process.run()
+            AppLogger.shared.log("📝 [Settings] Opened log in default text editor: \(filePath)")
         } catch {
-            // Fallback: Try to open with default text editor
-            let fallbackProcess = Process()
-            fallbackProcess.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            fallbackProcess.arguments = ["-t", filePath]
-
-            do {
-                try fallbackProcess.run()
-                AppLogger.shared.log("📝 [Settings] Opened log in default text editor: \(filePath)")
-            } catch {
-                AppLogger.shared.log("❌ [Settings] Failed to open log file: \(error.localizedDescription)")
-                settingsToastManager.showError("Failed to open log file")
-            }
+            AppLogger.shared.log("❌ [Settings] Failed to open log file: \(error.localizedDescription)")
+            settingsToastManager.showError("Failed to open log file")
         }
     }
 }

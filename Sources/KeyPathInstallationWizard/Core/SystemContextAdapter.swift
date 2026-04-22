@@ -123,6 +123,19 @@ public struct SystemContextAdapter {
         if !context.components.vhidDeviceHealthy {
             missing.append(.vhidDeviceRunning)
         }
+        // The privileged output-bridge companion ships inside the app bundle
+        // but must be copied to /Library/LaunchDaemons by the helper. When the
+        // helper hasn't done that yet, kanata cannot start — surface it as a
+        // missing component so the wizard routes to .karabinerComponents
+        // (where the .installRequiredRuntimeServices auto-fix lives) instead
+        // of falling through to the service page that can't recover on its own.
+        if let bridge = context.system.outputBridgeStatus,
+           bridge.requiresPrivilegedBridge,
+           !bridge.available,
+           !missing.contains(.vhidDeviceManager)
+        {
+            missing.append(.vhidDeviceManager)
+        }
         return missing
     }
 
@@ -285,6 +298,25 @@ public struct SystemContextAdapter {
                     category: .installation,
                     title: "VHID Services Unhealthy",
                     description: "Karabiner VirtualHID services (daemon and manager) are not healthy",
+                    autoFixAction: .installRequiredRuntimeServices,
+                    userAction: nil
+                )
+            )
+        } else if let bridge = context.system.outputBridgeStatus,
+                  bridge.requiresPrivilegedBridge,
+                  !bridge.available
+        {
+            // Bridge is missing but VHID is otherwise healthy — surface a
+            // dedicated issue so the user understands what's actually wrong.
+            // Routes to .karabinerComponents via the existing identifier.
+            issues.append(
+                WizardIssue(
+                    identifier: .component(.vhidDeviceManager),
+                    severity: .error,
+                    category: .installation,
+                    title: "Privileged Output Bridge Missing",
+                    description: bridge.detail
+                        ?? "The privileged output companion LaunchDaemon is not installed. Kanata cannot start without it.",
                     autoFixAction: .installRequiredRuntimeServices,
                     userAction: nil
                 )

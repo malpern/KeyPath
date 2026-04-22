@@ -115,12 +115,12 @@ public extension FeatureFlags {
         UserDefaults.standard.set(enabled, forKey: keyboardSuppressionDebugEnabledKey)
     }
 
-    /// Reset TCC permissions and preferences on uninstall for fresh install testing (default ON)
+    /// Reset TCC permissions and preferences on uninstall for fresh install testing (default OFF)
     /// When enabled, uninstall also clears Accessibility, Input Monitoring, and Full Disk Access
     /// permissions plus UserDefaults, allowing a true "first launch" experience.
     static var uninstallForTesting: Bool {
         if UserDefaults.standard.object(forKey: uninstallForTestingKey) == nil {
-            return true // default ON
+            return false // default OFF for production
         }
         return UserDefaults.standard.bool(forKey: uninstallForTestingKey)
     }

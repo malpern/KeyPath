@@ -231,14 +231,14 @@ struct AboutView: View {
 
             LinkButton(
                 title: "Website",
-                url: "http://keypath-app.com/",
+                url: "https://keypath-app.com/",
                 icon: "globe",
                 accessibilityId: "about-link-website"
             )
 
             LinkButton(
                 title: "Email",
-                url: "mailto:malpern@gmail.com",
+                url: "mailto:support@keypath-app.com",
                 icon: "envelope",
                 accessibilityId: "about-link-email"
             )

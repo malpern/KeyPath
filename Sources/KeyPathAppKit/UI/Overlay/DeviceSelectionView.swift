@@ -173,7 +173,7 @@ struct DeviceSelectionView: View {
                 DeviceEnumerationService.enumerateConnectedDevices()
             }.value
             if devices.isEmpty {
-                errorMessage = "Kanata binary not found or returned no devices."
+                errorMessage = "No keyboards detected. Please check your connections or reinstall KeyPath."
                 return
             }
             connectedDevices = devices

@@ -49,6 +49,7 @@ struct StatusSettingsTabView: View {
     }
 
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 0) {
             if FeatureFlags.allowOptionalWizard, showSetupBanner {
                 SetupBanner {
@@ -258,8 +259,8 @@ struct StatusSettingsTabView: View {
             keyboardDetailsSection
                 .padding(.horizontal, 20)
                 .padding(.top, 24)
-
-            Spacer()
+                .padding(.bottom, 20)
+        }
         }
         .settingsBackground()
         .withToasts(settingsToastManager)
@@ -307,6 +308,8 @@ struct StatusSettingsTabView: View {
         }
     }
 
+    @State private var showKeyboardDetails = false
+
     @ViewBuilder
     private var keyboardDetailsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -315,52 +318,86 @@ struct StatusSettingsTabView: View {
                 .foregroundColor(.secondary)
 
             if let activeKeyboard = autoDetectController.activeKeyboard {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(activeKeyboard.keyboardName)
-                                .font(.title3.weight(.semibold))
+                VStack(alignment: .leading, spacing: 16) {
+                    // Hero: icon + name + status
+                    HStack(spacing: 14) {
+                        Image(systemName: "keyboard.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 44, height: 44)
+                            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-                            Text(activeKeyboard.subtitle)
-                                .font(.callout)
-                                .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(activeKeyboard.keyboardName)
+                                .font(.body.weight(.semibold))
+
+                            if let manufacturer = activeKeyboard.manufacturer {
+                                Text(manufacturer)
+                                    .font(.callout)
+                                    .foregroundColor(.secondary)
+                            }
                         }
 
                         Spacer()
 
-                        if activeKeyboard.status == .remembered {
-                            Text("Remembered")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.green)
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(.green)
+                                .frame(width: 7, height: 7)
+                            Text(activeKeyboard.status == .remembered ? "Remembered" : "Connected")
+                                .font(.caption.weight(.medium))
+                                .foregroundColor(.secondary)
                         }
                     }
 
-                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
-                        keyboardInfoRow(title: "VID:PID", value: activeKeyboard.vidPidKey)
-                        keyboardInfoRow(title: "Manufacturer", value: activeKeyboard.manufacturer ?? "Unknown")
-                        keyboardInfoRow(title: "Source", value: activeKeyboard.source?.rawValue.capitalized ?? "Manual")
-                        keyboardInfoRow(title: "Match", value: activeKeyboard.matchType?.rawValue ?? "None")
-                        keyboardInfoRow(title: "Confidence", value: activeKeyboard.confidence?.rawValue.capitalized ?? "Unknown")
-                        keyboardInfoRow(
-                            title: "Layout",
-                            value: activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Not selected"
-                        )
-                    }
+                    Divider()
 
-                    HStack(spacing: 12) {
-                        Button("Forget This Keyboard") {
-                            autoDetectController.forgetKeyboard(activeKeyboard.id)
-                        }
-                        .buttonStyle(.bordered)
-                        .accessibilityIdentifier("status-forget-keyboard-button")
+                    // Layout picker row
+                    HStack {
+                        Text("Layout")
+                            .foregroundColor(.secondary)
 
-                        Button("Search Layouts") {
+                        Spacer()
+
+                        Button {
                             autoDetectController.presentKeyboardSearch(for: activeKeyboard.id)
                             LiveKeyboardOverlayController.shared.showForQuickLaunch()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Not selected")
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundColor(.secondary)
+                            }
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.plain)
+                        .foregroundColor(.primary)
                         .accessibilityIdentifier("status-search-keyboard-layouts-button")
                     }
+
+                    // Technical details disclosure
+                    DisclosureGroup("Details", isExpanded: $showKeyboardDetails) {
+                        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                            keyboardInfoRow(title: "VID:PID", value: activeKeyboard.vidPidKey)
+                            keyboardInfoRow(title: "Source", value: activeKeyboard.source?.rawValue.capitalized ?? "Manual")
+                            keyboardInfoRow(title: "Match", value: activeKeyboard.matchType?.rawValue ?? "None")
+                            keyboardInfoRow(title: "Confidence", value: activeKeyboard.confidence?.rawValue.capitalized ?? "Unknown")
+                        }
+                        .padding(.top, 6)
+                    }
+                    .font(.callout)
+                    .foregroundColor(.secondary)
+
+                    // Destructive action
+                    Button(role: .destructive) {
+                        autoDetectController.forgetKeyboard(activeKeyboard.id)
+                    } label: {
+                        Text("Forget This Keyboard")
+                            .font(.callout)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(.red)
+                    .accessibilityIdentifier("status-forget-keyboard-button")
                 }
                 .padding(16)
                 .background(
@@ -373,20 +410,27 @@ struct StatusSettingsTabView: View {
                 )
                 .accessibilityIdentifier("status-connected-keyboard-panel")
             } else {
-                Text("No connected keyboard is currently selected for the overlay.")
-                    .font(.callout)
-                    .foregroundColor(.secondary)
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color(NSColor.controlBackgroundColor))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-                    )
-                    .accessibilityIdentifier("status-no-connected-keyboard-panel")
+                HStack(spacing: 14) {
+                    Image(systemName: "keyboard")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 44, height: 44)
+
+                    Text("No keyboard connected")
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color(NSColor.controlBackgroundColor))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                )
+                .accessibilityIdentifier("status-no-connected-keyboard-panel")
             }
         }
     }
