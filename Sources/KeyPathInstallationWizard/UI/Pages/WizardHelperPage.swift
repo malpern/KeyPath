@@ -470,8 +470,10 @@ public struct WizardHelperPage: View {
                 // Start polling for approval status changes
                 startApprovalPolling()
             } else {
-                // Surface the last maintenance log line as a hint
-                let hint = helperMaintenance.logLines.last
+                // Surface the most informative failure line. Fall back to the
+                // last log line only if no explicit ❌/⚠️ marker is present.
+                let hint = helperMaintenance.lastErrorLine
+                    ?? helperMaintenance.logLines.last
                     ?? "Unknown error (helper XPC not reachable)"
                 actionStatus = .error(message: "Install failed: \(hint)")
             }
