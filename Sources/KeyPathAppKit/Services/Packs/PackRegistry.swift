@@ -16,7 +16,8 @@ public enum PackRegistry {
         backupCapsLock,
         vimNavigation,
         windowSnapping,
-        missionControl
+        missionControl,
+        autoShiftSymbols
     ]
 
     /// Look up a pack by id. Returns nil if unknown.
@@ -266,5 +267,39 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.missionControl
+    )
+
+    // MARK: - Pack 9: Auto Shift Symbols
+
+    /// Collection-backed pack over `autoShiftSymbols`. Tap a symbol key
+    /// normally; hold it slightly longer (~180ms) to get the shifted
+    /// variant — no Shift reach needed. Tap hyphen for `-`; hold for `_`.
+    /// Tap apostrophe for `'`; hold for `"`. Etc.
+    ///
+    /// Bindings here are illustrative: the kanata config is generated
+    /// from the collection's `AutoShiftSymbolsConfig` at install, not
+    /// from these templates. They exist so Pack Detail's fallback block
+    /// can show users what they'll get without needing a dedicated editor.
+    public static let autoShiftSymbols = Pack(
+        id: "com.keypath.pack.auto-shift-symbols",
+        version: "1.0.0",
+        name: "Auto Shift Symbols",
+        tagline: "Hold a symbol key for its shifted version",
+        shortDescription:
+            "Tap `-` for `-`, hold for `_`. Tap `'` for `'`, hold for `\"`. Tap `/` for `/`, hold for `?`. Works for all the usual shifted-symbol pairs — no more awkward Shift stretches.",
+        longDescription: "",
+        category: "Productivity",
+        iconSymbol: "arrow.up.square",
+        quickSettings: [],
+        bindings: [
+            PackBindingTemplate(input: "-", output: "-", holdOutput: "S--", title: "- · tap / _ · hold"),
+            PackBindingTemplate(input: "=", output: "=", holdOutput: "S-=", title: "= · tap / + · hold"),
+            PackBindingTemplate(input: "'", output: "'", holdOutput: "S-'", title: "' · tap / \" · hold"),
+            PackBindingTemplate(input: ";", output: ";", holdOutput: "S-;", title: "; · tap / : · hold"),
+            PackBindingTemplate(input: ",", output: ",", holdOutput: "S-,", title: ", · tap / < · hold"),
+            PackBindingTemplate(input: ".", output: ".", holdOutput: "S-.", title: ". · tap / > · hold"),
+            PackBindingTemplate(input: "/", output: "/", holdOutput: "S-/", title: "/ · tap / ? · hold")
+        ],
+        associatedCollectionID: RuleCollectionIdentifier.autoShiftSymbols
     )
 }
