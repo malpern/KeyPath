@@ -549,9 +549,16 @@ extension KanataConfiguration {
             let name = OverlayKeyboardView.keyCodeToKanataName(key.keyCode).lowercased()
             // Skip unknown keycodes
             guard !name.hasPrefix("unknown-") else { return nil }
+            // Early skip via the raw kanata name (covers defaults like "leftmeta").
             guard !skip.contains(name) else { return nil }
             let converted = KanataKeyConverter.convertToKanataKey(name)
             let kanata = normalizeInternationalKey(converted)
+            // Second skip pass against the *converted* kanata name so callers
+            // that pass activator keys in kanata form (e.g. ";" rather than
+            // "semicolon") correctly exclude them. Without this, nested-layer
+            // activators from source layers like nav get silently replaced by
+            // an "XX blocker" entry, breaking their runtime activation.
+            guard !skip.contains(kanata) else { return nil }
             guard !mappedKeys.contains(kanata) else { return nil }
             return kanata
         }
