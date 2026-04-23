@@ -18,6 +18,10 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
     /// Per-device output overrides. When present, the config generator wraps
     /// the key output in a `(switch ((device N)) ...)` block.
     public var deviceOverrides: [DeviceKeyOverride]?
+    /// Source pack ID, if this rule was contributed by a pack install.
+    /// nil = direct user-authored rule. Enables the pack uninstall path to
+    /// find and remove its rules without disturbing user-authored ones.
+    public var packSource: String?
 
     public init(
         id: UUID = UUID(),
@@ -30,7 +34,8 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
         createdAt: Date = Date(),
         behavior: MappingBehavior? = nil,
         targetLayer: RuleCollectionLayer = .base,
-        deviceOverrides: [DeviceKeyOverride]? = nil
+        deviceOverrides: [DeviceKeyOverride]? = nil,
+        packSource: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -43,6 +48,7 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
         self.behavior = behavior
         self.targetLayer = targetLayer
         self.deviceOverrides = deviceOverrides
+        self.packSource = packSource
     }
 }
 
@@ -50,7 +56,7 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
 
 extension CustomRule: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, title, input, output, shiftedOutput, isEnabled, notes, createdAt, behavior, targetLayer, deviceOverrides
+        case id, title, input, output, shiftedOutput, isEnabled, notes, createdAt, behavior, targetLayer, deviceOverrides, packSource
     }
 
     public init(from decoder: Decoder) throws {
@@ -67,6 +73,7 @@ extension CustomRule: Codable {
         // Default to .base for legacy JSON without targetLayer
         targetLayer = try container.decodeIfPresent(RuleCollectionLayer.self, forKey: .targetLayer) ?? .base
         deviceOverrides = try container.decodeIfPresent([DeviceKeyOverride].self, forKey: .deviceOverrides)
+        packSource = try container.decodeIfPresent(String.self, forKey: .packSource)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -82,6 +89,7 @@ extension CustomRule: Codable {
         try container.encodeIfPresent(behavior, forKey: .behavior)
         try container.encode(targetLayer, forKey: .targetLayer)
         try container.encodeIfPresent(deviceOverrides, forKey: .deviceOverrides)
+        try container.encodeIfPresent(packSource, forKey: .packSource)
     }
 }
 
