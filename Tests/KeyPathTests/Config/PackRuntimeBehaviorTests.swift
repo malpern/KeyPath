@@ -74,6 +74,25 @@ final class PackRuntimeBehaviorTests: XCTestCase {
                       "Short tap on 'a' should emit 'a'; got: \(output)")
     }
 
+    /// Window Snapping is activated via Leader → w (nested layer). The
+    /// simulator cannot observe `push-msg` outputs (they go through TCP,
+    /// which isn't running in the sim), so instead we assert on the
+    /// `finalLayer` — holding space+w should land us in the "window" layer
+    /// where action keys fire Accessibility-driven window moves.
+    func testWindowSnappingNestedLayerActivation() throws {
+        let result = try simulateFull(
+            collectionIDs: [
+                RuleCollectionIdentifier.windowSnapping,
+                // The window layer is nested inside nav; nav is activated by
+                // vimNavigation's Space-hold activator.
+                RuleCollectionIdentifier.vimNavigation
+            ],
+            script: "↓spc 🕐300 ↓w 🕐200"
+        )
+        XCTAssertEqual(result.finalLayer, "window",
+                       "Holding space + w should put us in the 'window' layer for window-snapping actions")
+    }
+
     /// Vim Navigation's headline: hold Space → nav layer; inside the layer,
     /// h/j/k/l emit arrow keys. Without the Space-hold activation the letter
     /// should come through as-is. This checks both paths in one script.
@@ -99,11 +118,16 @@ final class PackRuntimeBehaviorTests: XCTestCase {
 
     private struct SimResult: Decodable {
         let events: [SimEvent]
+        let finalLayer: String?
     }
 
     /// Generate a kanata config with the given collections enabled, drive
     /// the simulator with `script`, return the parsed events.
     private func simulate(collectionIDs: [UUID], script: String) throws -> [SimEvent] {
+        try simulateFull(collectionIDs: collectionIDs, script: script).events
+    }
+
+    private func simulateFull(collectionIDs: [UUID], script: String) throws -> SimResult {
         guard let simulator = simulatorURL else {
             throw XCTSkip("kanata_simulated_input binary not available")
         }
@@ -142,17 +166,17 @@ final class PackRuntimeBehaviorTests: XCTestCase {
         guard process.terminationStatus == 0 else {
             let err = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             XCTFail("simulator exited \(process.terminationStatus): \(err)")
-            return []
+            return SimResult(events: [], finalLayer: nil)
         }
 
         // Some log lines (info/warn) can precede the JSON block. Find the
         // first '{' and decode from there.
         guard let start = data.firstIndex(of: UInt8(ascii: "{")) else {
             XCTFail("simulator output contained no JSON: \(String(data: data, encoding: .utf8) ?? "")")
-            return []
+            return SimResult(events: [], finalLayer: nil)
         }
         let json = data[start...]
-        return try JSONDecoder().decode(SimResult.self, from: Data(json)).events
+        return try JSONDecoder().decode(SimResult.self, from: Data(json))
     }
 
     /// Pull the distinct key identifiers from output events (press-only),

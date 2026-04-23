@@ -19,6 +19,7 @@ final class PackRegistryTests: XCTestCase {
         XCTAssertTrue(ids.contains("com.keypath.pack.delete-enhancement"))
         XCTAssertTrue(ids.contains("com.keypath.pack.backup-caps-lock"))
         XCTAssertTrue(ids.contains("com.keypath.pack.vim-navigation"))
+        XCTAssertTrue(ids.contains("com.keypath.pack.window-snapping"))
     }
 
     func testCollectionBackedPacksPointAtRealCollections() {
