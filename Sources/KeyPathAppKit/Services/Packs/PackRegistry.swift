@@ -13,7 +13,8 @@ public enum PackRegistry {
         homeRowMods,
         escapeRemap,
         deleteEnhancement,
-        backupCapsLock
+        backupCapsLock,
+        vimNavigation
     ]
 
     /// Look up a pack by id. Returns nil if unknown.
@@ -189,5 +190,28 @@ public enum PackRegistry {
             PackBindingTemplate(input: "lsft-rsft", output: "caps", title: "Backup Caps Lock")
         ],
         associatedCollectionID: RuleCollectionIdentifier.backupCapsLock
+    )
+
+    // MARK: - Pack 6: Vim Navigation
+
+    /// Collection-backed pack over `vimNavigation`. Activated by holding Space
+    /// (the collection's momentary activator) to enter the navigation layer;
+    /// inside that layer, hjkl become arrows, y/p are copy/paste, u is undo,
+    /// etc. The pack ships with no explicit bindings — Pack Detail reads the
+    /// mapping table from the associated collection so there's a single source
+    /// of truth if the collection is updated.
+    public static let vimNavigation = Pack(
+        id: "com.keypath.pack.vim-navigation",
+        version: "1.0.0",
+        name: "Vim Navigation",
+        tagline: "Hold Space for hjkl arrows and Vim motions",
+        shortDescription:
+            "Hold Space to enter Vim mode. h/j/k/l become arrow keys, y/p are copy/paste, u is undo, / is find. Release Space to go back to normal typing.",
+        longDescription: "",
+        category: "Navigation",
+        iconSymbol: "arrow.up.and.down.and.arrow.left.and.right",
+        quickSettings: [],
+        bindings: [],
+        associatedCollectionID: RuleCollectionIdentifier.vimNavigation
     )
 }

@@ -74,6 +74,21 @@ final class PackRuntimeBehaviorTests: XCTestCase {
                       "Short tap on 'a' should emit 'a'; got: \(output)")
     }
 
+    /// Vim Navigation's headline: hold Space → nav layer; inside the layer,
+    /// h/j/k/l emit arrow keys. Without the Space-hold activation the letter
+    /// should come through as-is. This checks both paths in one script.
+    func testVimNavigationSpaceHoldMakesJEmitDown() throws {
+        let events = try simulate(
+            collectionIDs: [RuleCollectionIdentifier.vimNavigation],
+            // Hold space for 300ms (past the layer activation delay), tap j,
+            // then release. The j press should map to `down`.
+            script: "↓spc 🕐300 ↓j 🕐30 ↑j 🕐30 ↑spc 🕐30"
+        )
+        let output = outputKeys(events)
+        XCTAssertTrue(output.contains("down"),
+                      "j inside nav layer should emit 'down'; got: \(output)")
+    }
+
     // MARK: - Harness
 
     private struct SimEvent: Decodable {

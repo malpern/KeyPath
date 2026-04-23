@@ -422,6 +422,12 @@ struct PackDetailView: View {
                 .opacity(isInstalled ? 1.0 : 0.55)
                 .animation(.easeInOut(duration: 0.2), value: isInstalled)
             }
+        } else if pack.bindings.isEmpty, let collection = liveAssociatedCollection,
+                  !collection.mappings.isEmpty {
+            // Collection-backed pack with no explicit bindings — e.g. Vim
+            // Navigation. Render the collection's mapping table so there's
+            // a single source of truth if the collection changes upstream.
+            collectionMappingsBlock(collection)
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 Divider()
@@ -523,6 +529,46 @@ struct PackDetailView: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 2)
+    }
+
+    /// Read-only mapping table for collection-backed packs whose behavior is
+    /// a fixed table rather than a user-tuned picker (e.g. Vim Navigation).
+    /// Sourced directly from the collection so there's no risk of drift.
+    @ViewBuilder
+    private func collectionMappingsBlock(_ collection: RuleCollection) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            if let hint = collection.activationHint, !hint.isEmpty {
+                Text(hint)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 2)
+            }
+            Text("What this will change")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+            // Compact two-column layout — keycap on the left, description on
+            // the right. Keeps Pack Detail scannable even when the collection
+            // has ~15-20 mappings.
+            LazyVGrid(
+                columns: [
+                    GridItem(.fixed(72), alignment: .leading),
+                    GridItem(.flexible(), alignment: .leading)
+                ],
+                alignment: .leading,
+                spacing: 4
+            ) {
+                ForEach(collection.mappings) { mapping in
+                    KeyCapChip(text: RuleBehaviorSummaryView.formatKeyForBehavior(mapping.input))
+                    Text(mapping.description ?? mapping.output)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                }
+            }
+            .opacity(isInstalled ? 1.0 : 0.6)
+            .animation(.easeInOut(duration: 0.2), value: isInstalled)
+        }
     }
 
     // MARK: - Toast overlay
