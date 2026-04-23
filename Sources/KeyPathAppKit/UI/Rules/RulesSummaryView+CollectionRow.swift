@@ -363,7 +363,7 @@ struct ExpandableCollectionRow: View {
                 } else if displayStyle == .tapHoldPicker, let coll = collection {
                     // Tap-hold picker for dual-role keys
                     TapHoldPickerContent(
-                        collection: coll,
+                        config: coll.configuration.tapHoldPickerConfig,
                         onSelectTapOutput: { tap in
                             onSelectTapOutput?(tap)
                         },

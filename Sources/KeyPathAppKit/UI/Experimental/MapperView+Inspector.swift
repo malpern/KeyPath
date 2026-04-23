@@ -7,6 +7,7 @@ import SwiftUI
 /// Contains output type selection (key, app, system action, URL).
 struct MapperInspectorPanel: View {
     @Bindable var viewModel: MapperViewModel
+    @Environment(KanataViewModel.self) private var kanataManager
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
@@ -17,6 +18,16 @@ struct MapperInspectorPanel: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                // Pack suggestions for the current input key. Only visible
+                // when ≥ 1 Starter Kit pack targets the selected input —
+                // turns the inspector into a discovery surface for new users
+                // who don't know the Gallery exists.
+                if !packSuggestions.isEmpty {
+                    packSuggestionsSection
+                    Divider()
+                        .padding(.vertical, 4)
+                }
+
                 // App Condition Section (precondition - rule only applies when app is active)
                 appConditionSection
 
@@ -47,6 +58,147 @@ struct MapperInspectorPanel: View {
                 .stroke(Color(white: isDark ? 0.3 : 0.75), lineWidth: 1)
         )
         .clipShape(LeftRoundedRectangle(radius: 10))
+    }
+
+    // MARK: - Pack Suggestions
+
+    /// Pack selected by the user to open in Pack Detail (sheet presentation).
+    @State private var packForDetail: Pack?
+
+    /// Packs from the Starter Kit whose bindings target the currently
+    /// selected input key. Empty ⇒ the section doesn't render.
+    private var packSuggestions: [Pack] {
+        guard let kanataKey = currentInputKanataToken else { return [] }
+        return PackRegistry.packsTargeting(kanataKey: kanataKey)
+    }
+
+    /// The input key's kanata-style identifier (e.g. "caps", "d", "rmet")
+    /// — pulled from the first key of the captured input sequence.
+    private var currentInputKanataToken: String? {
+        viewModel.inputSequence?.keys.first?.baseKey.lowercased()
+    }
+
+    @ViewBuilder
+    private var packSuggestionsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.tint)
+                Text("Popular for this key")
+                    .font(.subheadline.weight(.semibold))
+            }
+            Text("Pre-made packs that already map \(inputDisplayLabel). One click installs all of it.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(spacing: 6) {
+                ForEach(packSuggestions) { pack in
+                    packSuggestionRow(pack)
+                }
+            }
+
+            Button {
+                GalleryWindowController.shared.showWindow(kanataManager: kanataManagerForGallery())
+            } label: {
+                HStack(spacing: 4) {
+                    Text("Browse Gallery")
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 9, weight: .semibold))
+                }
+                .font(.system(size: 11, weight: .medium))
+            }
+            .buttonStyle(.link)
+            .padding(.top, 2)
+        }
+        .sheet(item: $packForDetail) { pack in
+            PackDetailView(pack: pack)
+                .environment(kanataManagerForGallery())
+        }
+    }
+
+    /// A single pack suggestion as a compact clickable row. Shows the pack's
+    /// hero icon, name, and tagline, plus an install state indicator.
+    private func packSuggestionRow(_ pack: Pack) -> some View {
+        Button(action: { packForDetail = pack }) {
+            HStack(spacing: 10) {
+                packRowIcon(pack)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(pack.name)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Text(pack.tagline)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Color(nsColor: .separatorColor).opacity(0.6), lineWidth: 0.5)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Compact hero icon — same vocabulary as the pack card / Pack Detail
+    /// header but shrunk down for an inspector-width row.
+    private func packRowIcon(_ pack: Pack) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.accentColor.opacity(0.12))
+                .frame(width: 34, height: 34)
+            if let secondary = pack.iconSecondarySymbol {
+                HStack(spacing: 1) {
+                    Image(systemName: pack.iconSymbol)
+                        .font(.system(size: 11, weight: .semibold))
+                    Image(systemName: secondary)
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundStyle(.tint)
+                .symbolRenderingMode(.hierarchical)
+            } else {
+                Image(systemName: pack.iconSymbol)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.tint)
+                    .symbolRenderingMode(.hierarchical)
+            }
+        }
+    }
+
+    private func kanataManagerForGallery() -> KanataViewModel {
+        kanataManager
+    }
+
+    /// Display-friendly label for the current input (⇪, D, ⌘, etc.).
+    private var inputDisplayLabel: String {
+        guard let token = currentInputKanataToken else { return "this key" }
+        switch token {
+        case "caps": return "⇪ Caps Lock"
+        case "lmet", "rmet": return "⌘ Command"
+        case "lalt", "ralt": return "⌥ Option"
+        case "lctl", "rctl": return "⌃ Control"
+        case "lsft", "rsft": return "⇧ Shift"
+        case "spc": return "Space"
+        case "ret": return "Return"
+        case "esc": return "Escape"
+        case "tab": return "Tab"
+        case "bspc": return "Delete"
+        default: return token.count == 1 ? token.uppercased() : token
+        }
     }
 
     // MARK: - App Condition Section

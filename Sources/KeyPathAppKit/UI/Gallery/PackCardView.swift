@@ -17,19 +17,26 @@ struct PackCardView: View {
     let pack: Pack
     let isInstalled: Bool
     let onSelect: () -> Void
+    /// Invoked when the inline toggle is flipped. Mirrors Pack Detail's
+    /// switch so users can turn a pack on/off without opening the sheet.
+    var onToggle: ((Bool) -> Void)? = nil
+    var isToggleBusy: Bool = false
 
     @State private var isHovering = false
     @State private var isPressed = false
 
     var body: some View {
         Button(action: onSelect) {
+            // Category chip dropped per the grouped Gallery layout — the
+            // section header above the grid already says which category
+            // these cards belong to, so repeating it on every tile just
+            // adds noise.
             VStack(alignment: .leading, spacing: 14) {
-                topRow
                 hero
                 copy
             }
             .padding(16)
-            .frame(width: 260, height: 208, alignment: .topLeading)
+            .frame(width: 260, height: 212, alignment: .topLeading)
             .background(cardBackground)
             .overlay(cardBorder)
             .contentShape(Rectangle())
@@ -59,15 +66,28 @@ struct PackCardView: View {
 
     // MARK: - Anatomy
 
-    /// Category chip on the left, installed badge on the right.
+    /// Category chip on the left, no trailing control (the on/off toggle
+    /// now lives alongside the title below the hero image).
     private var topRow: some View {
         HStack(alignment: .center) {
             categoryChip
             Spacer(minLength: 8)
-            if isInstalled {
-                installedBadge
-            }
         }
+    }
+
+    private var toggleControl: some View {
+        Toggle(
+            "",
+            isOn: Binding(
+                get: { isInstalled },
+                set: { onToggle?($0) }
+            )
+        )
+        .labelsHidden()
+        .toggleStyle(.switch)
+        .controlSize(.small)
+        .disabled(isToggleBusy || onToggle == nil)
+        .accessibilityLabel(isInstalled ? "Turn off \(pack.name)" : "Turn on \(pack.name)")
     }
 
     private var categoryChip: some View {
@@ -137,17 +157,24 @@ struct PackCardView: View {
     }
 
     private var copy: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(pack.name)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(pack.name)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
 
-            Text(pack.tagline)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
+                Text(pack.tagline)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+            // Toggle sits to the right of the title, under the hero image —
+            // aligned to the top of the copy block so it lines up visually
+            // with the first line of the title regardless of tagline length.
+            toggleControl
         }
     }
 

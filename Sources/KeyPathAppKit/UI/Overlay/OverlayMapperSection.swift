@@ -540,7 +540,7 @@ struct OverlayMapperSection: View {
                 .scaleEffect(scale, anchor: .leading)
                 .frame(width: availableWidth, height: proxy.size.height, alignment: .leading)
             }
-            .frame(height: 160)
+            .frame(height: 122)
 
             if viewModel.showAdvanced {
                 AdvancedBehaviorContent(viewModel: viewModel)
@@ -548,6 +548,8 @@ struct OverlayMapperSection: View {
                     .saturation(Double(1 - fadeAmount))
                     .opacity(Double(1 - fadeAmount * 0.5))
             }
+
+            packSuggestionsBanner
 
             Spacer(minLength: 0)
 
@@ -582,6 +584,68 @@ struct OverlayMapperSection: View {
             .opacity(Double(1 - fadeAmount * 0.5))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .sheet(item: $packForDetail) { pack in
+            if let vm = kanataViewModel {
+                PackDetailView(pack: pack).environment(vm)
+            }
+        }
+    }
+
+    @State private var packForDetail: Pack?
+
+    private var currentInputKanataToken: String? {
+        viewModel.inputSequence?.keys.first?.baseKey.lowercased()
+    }
+
+    private var packSuggestions: [Pack] {
+        guard let token = currentInputKanataToken else { return [] }
+        return PackRegistry.packsTargeting(kanataKey: token)
+    }
+
+    @ViewBuilder
+    private var packSuggestionsBanner: some View {
+        if !packSuggestions.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Suggested")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                ForEach(packSuggestions) { pack in
+                    Button { packForDetail = pack } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "square.grid.2x2")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.tint)
+                                .symbolRenderingMode(.hierarchical)
+                                .frame(width: 20)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(pack.name)
+                                    .font(.caption2)
+                                    .foregroundStyle(.primary)
+                                Text(pack.shortDescription)
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.accentColor.opacity(0.08))
+                        )
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.top, 2)
+            .padding(.leading, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     private var multiTapPanelContent: some View {
