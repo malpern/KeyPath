@@ -41,7 +41,16 @@ struct PackCardView: View {
                 y: isHovering ? 5 : 2)
         .animation(.spring(response: 0.32, dampingFraction: 0.85), value: isHovering)
         .animation(.easeOut(duration: 0.1), value: isPressed)
-        .onHover { isHovering = $0 }
+        .onHover { hovering in
+            isHovering = hovering
+            // Pointing-hand cursor says "this is tappable" without the card
+            // needing a visible affordance (button outline, etc).
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
         .onLongPressGesture(minimumDuration: 0.01, maximumDistance: .infinity,
                             pressing: { isPressed = $0 }, perform: {})
         .accessibilityLabel("\(pack.name). \(pack.category). \(pack.tagline)")
