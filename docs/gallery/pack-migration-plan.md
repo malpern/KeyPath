@@ -106,7 +106,7 @@ For each pack ported:
 
 ## Known generator gaps surfaced by packs
 
-- **Nested-layer activators from unmapped source keys** — When a collection declares `momentaryActivator(sourceLayer: .navigation, input: X)` and X isn't already mapped within the nav layer by some other collection, the generator writes `XX` (no-op) into the nav layer's slot for X rather than the expected `@layer_<target>_<X>` alias. Visible on Numpad (`;` activator from nav) but the alias itself is correctly defined — it just isn't referenced in the source layer's deflayer. Window Snapping didn't hit this because `w` is mapped within nav through some other path. Covered by `--check` (config parses) but breaks runtime activation.
+- ~~**Nested-layer activators from unmapped source keys**~~ — **Fixed** in the Numpad pack PR. Root cause was `navigationUnmappedKeys` skipping activator keys by their pre-conversion name but callers passed post-conversion kanata names, so keys like `;` fell through, got rendered as `XX` blockers, and overwrote the activator entry in dedupe. Fix adds a second skip pass against the converted name.
 
 ## Risks / known sharp edges
 
