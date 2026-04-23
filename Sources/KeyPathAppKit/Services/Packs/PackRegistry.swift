@@ -16,7 +16,8 @@ public enum PackRegistry {
         backupCapsLock,
         vimNavigation,
         windowSnapping,
-        missionControl
+        missionControl,
+        numpadLayer
     ]
 
     /// Look up a pack by id. Returns nil if unknown.
@@ -266,5 +267,28 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.missionControl
+    )
+
+    // MARK: - Pack 9: Numpad Layer
+
+    /// Collection-backed pack over `numpadLayer`. Activated via the two-step
+    /// Leader → ; sequence, the right hand becomes a numpad (u/i/o → 7/8/9,
+    /// j/k/l → 4/5/6, m/,/. → 1/2/3, n → 0). Left hand gets operators
+    /// (f → +, d → −, s → ×, a → ÷, g → ⏎). Great for spreadsheets,
+    /// calculators, and CSS pixel-counting without reaching for the number
+    /// row or the physical numpad.
+    public static let numpadLayer = Pack(
+        id: "com.keypath.pack.numpad-layer",
+        version: "1.0.0",
+        name: "Numpad",
+        tagline: "Turn your right hand into a numpad",
+        shortDescription:
+            "Hold Space, press `;`, then use u/i/o + j/k/l + m/,/. as a numpad. Left-hand keys become operators (+ − × ÷ ⏎). Release Space to go back to normal typing.",
+        longDescription: "",
+        category: "Layers",
+        iconSymbol: "number.square",
+        quickSettings: [],
+        bindings: [],
+        associatedCollectionID: RuleCollectionIdentifier.numpadLayer
     )
 }

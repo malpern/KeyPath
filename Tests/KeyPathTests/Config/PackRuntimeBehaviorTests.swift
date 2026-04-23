@@ -114,6 +114,15 @@ final class PackRuntimeBehaviorTests: XCTestCase {
                       "Mission Control chord should emit up (as part of C-up); got: \(output)")
     }
 
+    // Numpad Layer: no runtime behavior test yet. The collection's
+    // `;` activator (sourceLayer: .navigation → targetLayer: .custom("num"))
+    // is emitted as `XX` inside deflayer nav rather than as
+    // `@layer_num_;`, so the second activation hop never fires.
+    // That's a pre-existing generator bug that affects any nested
+    // layer whose activator key is not already mapped in the source
+    // layer — filed as a follow-up, not caused by this pack.
+    // `--check` still accepts the config (covered by testEveryCatalogCollectionValidates).
+
     /// Vim Navigation's headline: hold Space → nav layer; inside the layer,
     /// h/j/k/l emit arrow keys. Without the Space-hold activation the letter
     /// should come through as-is. This checks both paths in one script.

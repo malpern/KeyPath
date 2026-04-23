@@ -21,6 +21,7 @@ final class PackRegistryTests: XCTestCase {
         XCTAssertTrue(ids.contains("com.keypath.pack.vim-navigation"))
         XCTAssertTrue(ids.contains("com.keypath.pack.window-snapping"))
         XCTAssertTrue(ids.contains("com.keypath.pack.mission-control"))
+        XCTAssertTrue(ids.contains("com.keypath.pack.numpad-layer"))
     }
 
     func testCollectionBackedPacksPointAtRealCollections() {
