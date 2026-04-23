@@ -14,7 +14,8 @@ public enum PackRegistry {
         escapeRemap,
         deleteEnhancement,
         backupCapsLock,
-        vimNavigation
+        vimNavigation,
+        windowSnapping
     ]
 
     /// Look up a pack by id. Returns nil if unknown.
@@ -213,5 +214,33 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.vimNavigation
+    )
+
+    // MARK: - Pack 7: Window Snapping
+
+    /// Collection-backed pack over `windowSnapping`. Entered as a nested
+    /// layer — Leader → w takes you to the window layer, then action keys
+    /// (l/r for halves, u/i/j/k for corners, [/] for displays, ,/. for
+    /// Spaces) fire Accessibility-driven window moves.
+    ///
+    /// **Runtime dependency:** window moves require Accessibility API
+    /// access. If the user has not granted it, pressing the action keys
+    /// will parse but do nothing — kanata emits a `push-msg` that KeyPath
+    /// intercepts; no AX access means no window ever moves. Surfacing a
+    /// permission-check UI at install time is tracked as follow-up work
+    /// (see docs/gallery/pack-migration-plan.md Tier-3 notes).
+    public static let windowSnapping = Pack(
+        id: "com.keypath.pack.window-snapping",
+        version: "1.0.0",
+        name: "Window Snapping",
+        tagline: "Snap, move, and tile windows with Leader → w",
+        shortDescription:
+            "Hold Space, press W, then: L/R for left/right halves, M to maximize, U/I/J/K for corners, [ ] for displays, , . for Spaces, Z to undo. Requires Accessibility access (macOS will prompt on first use).",
+        longDescription: "",
+        category: "Productivity",
+        iconSymbol: "rectangle.split.2x2",
+        quickSettings: [],
+        bindings: [],
+        associatedCollectionID: RuleCollectionIdentifier.windowSnapping
     )
 }
