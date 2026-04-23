@@ -18,13 +18,8 @@ final class GalleryWindowController {
             return
         }
 
-        let content = GalleryView(onSelect: { pack in
-            // Phase 3 will replace this with Pack Detail (Direction C).
-            // For M1 Phase 2, we show a placeholder sheet via the App so we
-            // can verify the click-through works end to end.
-            PackDetailPresenter.shared.present(pack, kanataManager: kanataManager)
-        })
-        .environment(kanataManager)
+        let content = GalleryView()
+            .environment(kanataManager)
 
         let hosting = NSHostingView(rootView: content)
 

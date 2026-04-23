@@ -13,11 +13,8 @@ struct GalleryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(KanataViewModel.self) private var kanataManager
 
-    /// Callback invoked when user taps a pack card. Caller is responsible for
-    /// presenting Pack Detail; Gallery itself doesn't know about Pack Detail.
-    let onSelect: (Pack) -> Void
-
     @State private var installedIDs: Set<String> = []
+    @State private var packForDetail: Pack?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,6 +25,10 @@ struct GalleryView: View {
         .frame(minWidth: 560, idealWidth: 780, minHeight: 420, idealHeight: 520)
         .task {
             await refreshInstalledIDs()
+        }
+        .sheet(item: $packForDetail, onDismiss: { Task { await refreshInstalledIDs() } }) { pack in
+            PackDetailView(pack: pack)
+                .environment(kanataManager)
         }
     }
 
@@ -81,7 +82,7 @@ struct GalleryView: View {
                         PackCardView(
                             pack: pack,
                             isInstalled: installedIDs.contains(pack.id),
-                            onSelect: { onSelect(pack) }
+                            onSelect: { packForDetail = pack }
                         )
                     }
                 }
