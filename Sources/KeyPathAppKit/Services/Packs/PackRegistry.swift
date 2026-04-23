@@ -14,7 +14,8 @@ public enum PackRegistry {
         escapeRemap,
         deleteEnhancement,
         backupCapsLock,
-        vimNavigation
+        vimNavigation,
+        homeRowLayerToggles
     ]
 
     /// Look up a pack by id. Returns nil if unknown.
@@ -213,5 +214,26 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.vimNavigation
+    )
+
+    // MARK: - Pack 7: Home Row Layer Toggles
+
+    /// Collection-backed pack over `homeRowLayerToggles`. Same home-row
+    /// ergonomics as Home Row Mods, but holding a key enters a *layer*
+    /// instead of emitting a modifier — so a/s/d/f can each open a dedicated
+    /// navigation / symbol / numpad surface while tap still types the letter.
+    public static let homeRowLayerToggles = Pack(
+        id: "com.keypath.pack.home-row-layer-toggles",
+        version: "1.0.0",
+        name: "Home Row Layers",
+        tagline: "Hold a home row key to enter a custom layer",
+        shortDescription:
+            "Tap home row keys normally; hold one to open the layer you've assigned to it. Great for putting a numpad, symbol set, or navigation cluster under a single finger without leaving home position.",
+        longDescription: "",
+        category: "Navigation",
+        iconSymbol: "square.3.layers.3d",
+        quickSettings: [],
+        bindings: [],
+        associatedCollectionID: RuleCollectionIdentifier.homeRowLayerToggles
     )
 }

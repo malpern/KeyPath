@@ -60,6 +60,7 @@ struct RuleCollectionCatalog {
             escapeRemap,
             deleteRemap,
             homeRowMods,
+            homeRowLayerToggles,
             chordGroups,
             sequences,
             numpadLayer,

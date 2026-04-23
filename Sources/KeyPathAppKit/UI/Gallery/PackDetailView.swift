@@ -45,6 +45,11 @@ struct PackDetailView: View {
     /// to a persisted collection config is follow-up work.
     @State private var homeRowModsConfig: HomeRowModsConfig = .init()
 
+    /// Same shape as `homeRowModsConfig` but for the Home Row Layer Toggles
+    /// pack — tap = letter, hold = *layer* instead of a modifier. Seeded from
+    /// the live collection in `refreshInstallState`.
+    @State private var homeRowLayerTogglesConfig: HomeRowLayerTogglesConfig = .init()
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
@@ -348,7 +353,22 @@ struct PackDetailView: View {
 
     @ViewBuilder
     private var bindingsBlock: some View {
-        if isHomeRowModsPack, let collectionID = pack.associatedCollectionID {
+        if let layerTogglesCollection = associatedHomeRowLayerTogglesCollection {
+            // Home Row Layer Toggles uses the same interactive-keyboard shape
+            // as HRM but with a layer picker instead of a modifier picker.
+            // Reuses the exact view the Rules tab uses.
+            VStack(alignment: .leading, spacing: 0) {
+                Divider()
+                HomeRowLayerTogglesCollectionView(
+                    config: $homeRowLayerTogglesConfig,
+                    onConfigChanged: { newConfig in
+                        Task { await applyHomeRowLayerTogglesEdit(newConfig, collectionID: layerTogglesCollection.id) }
+                    }
+                )
+                .opacity(isInstalled ? 1.0 : 0.55)
+                .animation(.easeInOut(duration: 0.2), value: isInstalled)
+            }
+        } else if isHomeRowModsPack, let collectionID = pack.associatedCollectionID {
             // Home Row Mods uses a different configuration shape than the
             // tap-hold picker — interactive keyboard + layered mods —
             // so we embed the same view the Rules tab uses. All layer-
@@ -452,6 +472,15 @@ struct PackDetailView: View {
         if let live { return live }
         return RuleCollectionCatalog().defaultCollections()
             .first { $0.id == collectionID }
+    }
+
+    /// Collection with a `.homeRowLayerToggles` configuration — drives the
+    /// HomeRowLayerTogglesCollectionView dispatch.
+    private var associatedHomeRowLayerTogglesCollection: RuleCollection? {
+        guard let collection = liveAssociatedCollection,
+              case .homeRowLayerToggles = collection.configuration
+        else { return nil }
+        return collection
     }
 
     /// Collection with a `.singleKeyPicker` configuration — drives the
@@ -687,7 +716,17 @@ struct PackDetailView: View {
             if let liveHomeRow {
                 homeRowModsConfig = liveHomeRow
             }
+            if let liveLayers = liveHomeRowLayerTogglesConfig() {
+                homeRowLayerTogglesConfig = liveLayers
+            }
         }
+    }
+
+    private func liveHomeRowLayerTogglesConfig() -> HomeRowLayerTogglesConfig? {
+        guard let collection = associatedHomeRowLayerTogglesCollection,
+              case let .homeRowLayerToggles(cfg) = collection.configuration
+        else { return nil }
+        return cfg
     }
 
     private func liveSingleKeySelection() async -> String? {
@@ -715,6 +754,20 @@ struct PackDetailView: View {
         // returns Bool-for-newly-enabled). Mirrors Rules' call site. If we
         // want surfaced error toasts here later, call the manager directly.
         await kanataManager.updateHomeRowModsConfig(
+            collectionId: collectionID,
+            config: newConfig
+        )
+    }
+
+    /// Same pattern as `applyHomeRowEdit` but for the Home Row Layer Toggles
+    /// pack. Install-then-persist; install's reload is suppressed so the
+    /// config save issues the single reload.
+    private func applyHomeRowLayerTogglesEdit(_ newConfig: HomeRowLayerTogglesConfig, collectionID: UUID) async {
+        homeRowLayerTogglesConfig = newConfig
+        if !isInstalled {
+            await install(skipFinalReload: true)
+        }
+        await kanataManager.updateHomeRowLayerTogglesConfig(
             collectionId: collectionID,
             config: newConfig
         )
