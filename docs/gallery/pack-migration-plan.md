@@ -48,9 +48,14 @@ The collection's Rules-tab editor exists but isn't generalized for Pack Detail y
 
 | Collection | Config type | New editor needed |
 |------------|-------------|-------------------|
-| Home Row Layer Toggles | homeRowLayerToggles | Similar to HRM editor — candidate for shared view |
 | Numpad / Symbol / Fun layers | layerPresetPicker | Layer preset picker with key-map preview |
 | Launcher (Quick Launcher) | launcherGrid | Per-key app/target grid |
+
+> **Removed:** Home Row Layer Toggles was on this list initially but is
+> legacy — it's been unified into Home Row Mods (via `holdMode: .layers`).
+> `RuleCollectionsManagerTests.testCatalogDoesNotExposeSeparateHomeRowLayerTogglesRule`
+> enforces this. The existing Home Row Mods pack already covers both
+> modifier and layer hold modes via the shared `HomeRowModsCollectionView`.
 
 ### Tier 3 — Different shape of pack
 
