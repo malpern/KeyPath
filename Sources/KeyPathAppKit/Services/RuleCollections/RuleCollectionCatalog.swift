@@ -327,13 +327,17 @@ struct RuleCollectionCatalog {
             name: "Mission Control",
             summary: "Quick access to Mission Control, App Exposé, and Desktop switching.",
             category: .navigation,
+            // Inputs are expressed as kanata chords (space-separated physical
+            // keys). The generator emits these into defchordsv2; a modifier-
+            // prefix form like "C-M-A-up" would end up in defsrc, which only
+            // accepts single physical keys and fails validation.
             mappings: [
-                KeyMapping(input: "C-M-A-up", output: "C-up", description: "Mission Control"),
-                KeyMapping(input: "C-M-A-down", output: "C-down", description: "App Exposé"),
-                KeyMapping(input: "C-M-A-left", output: "C-left", description: "Previous Desktop"),
-                KeyMapping(input: "C-M-A-right", output: "C-right", description: "Next Desktop"),
-                KeyMapping(input: "C-M-A-d", output: "f11", description: "Show Desktop"),
-                KeyMapping(input: "C-M-A-n", output: "C-S-n", description: "Notification Center")
+                KeyMapping(input: "lctl lmet lalt up", output: "C-up", description: "Mission Control"),
+                KeyMapping(input: "lctl lmet lalt down", output: "C-down", description: "App Exposé"),
+                KeyMapping(input: "lctl lmet lalt left", output: "C-left", description: "Previous Desktop"),
+                KeyMapping(input: "lctl lmet lalt right", output: "C-right", description: "Next Desktop"),
+                KeyMapping(input: "lctl lmet lalt d", output: "f11", description: "Show Desktop"),
+                KeyMapping(input: "lctl lmet lalt n", output: "C-S-n", description: "Notification Center")
             ],
             isEnabled: false,
             isSystemDefault: false,

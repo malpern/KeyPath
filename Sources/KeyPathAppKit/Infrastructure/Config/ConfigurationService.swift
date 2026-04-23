@@ -742,6 +742,16 @@ public enum KanataKeyConverter {
             "rightbrace": "]",
             "leftbracket": "[",
             "rightbracket": "]",
+            // Short aliases produced internally (e.g. AutoShiftSymbolsConfig.allSymbolKeys)
+            // that kanata itself doesn't accept in defsrc. Map them to the literal
+            // single-char tokens kanata does accept.
+            "apos": "'",
+            "bsls": "\\",
+            "comm": ",",
+            "lbrc": "[",
+            "rbrc": "]",
+            "scln": ";",
+            "slsh": "/",
             // International/locale-specific keys
             // Korean keyboard keys
             "hangeul": "kana", // Korean Hanja key → maps to Japanese kana (similar input mode toggle)
