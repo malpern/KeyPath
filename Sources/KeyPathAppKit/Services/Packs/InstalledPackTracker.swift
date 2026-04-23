@@ -98,7 +98,9 @@ public actor InstalledPackTracker {
 
         do {
             let data = try Data(contentsOf: fileURL)
-            let decoded = try JSONDecoder().decode([String: InstalledPackRecord].self, from: data)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let decoded = try decoder.decode([String: InstalledPackRecord].self, from: data)
             records = decoded
             AppLogger.shared.log(
                 "📦 [PackTracker] Loaded \(records.count) installed pack record(s)"

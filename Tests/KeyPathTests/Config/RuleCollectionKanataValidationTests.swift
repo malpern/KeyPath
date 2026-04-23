@@ -14,19 +14,31 @@ import XCTest
 /// Rust build), the test skips rather than fails — CI environments that
 /// need this coverage should build kanata first.
 final class RuleCollectionKanataValidationTests: XCTestCase {
-    private static let kanataBinaryPath =
-        "/Users/malpern/local-code/KeyPath/External/kanata/target/aarch64-apple-darwin/release/kanata"
-
+    /// Resolve the kanata binary. CI should set `KEYPATH_KANATA_PATH` to an
+    /// explicit location; locally we fall back to the repo's debug build.
     private var kanataURL: URL? {
-        let url = URL(fileURLWithPath: Self.kanataBinaryPath)
-        return FileManager.default.isExecutableFile(atPath: url.path) ? url : nil
+        let candidates: [String] = [
+            ProcessInfo.processInfo.environment["KEYPATH_KANATA_PATH"],
+            // Repo-relative fallback (works from any checkout location).
+            URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent() // Config
+                .deletingLastPathComponent() // KeyPathTests
+                .deletingLastPathComponent() // Tests
+                .deletingLastPathComponent() // repo root
+                .appendingPathComponent("External/kanata/target/aarch64-apple-darwin/release/kanata")
+                .path
+        ].compactMap { $0 }
+
+        return candidates
+            .map { URL(fileURLWithPath: $0) }
+            .first { FileManager.default.isExecutableFile(atPath: $0.path) }
     }
 
     // MARK: - Per-collection
 
     func testEveryCatalogCollectionValidates() throws {
         guard let kanata = kanataURL else {
-            throw XCTSkip("kanata binary not available at \(Self.kanataBinaryPath)")
+            throw XCTSkip("kanata binary not available (set KEYPATH_KANATA_PATH or build External/kanata)")
         }
 
         let catalog = RuleCollectionCatalog().defaultCollections()
@@ -72,7 +84,7 @@ final class RuleCollectionKanataValidationTests: XCTestCase {
 
     private func validateCombo(named label: String, ids: [UUID]) throws {
         guard let kanata = kanataURL else {
-            throw XCTSkip("kanata binary not available at \(Self.kanataBinaryPath)")
+            throw XCTSkip("kanata binary not available (set KEYPATH_KANATA_PATH or build External/kanata)")
         }
         let catalog = RuleCollectionCatalog().defaultCollections()
         let collections: [RuleCollection] = ids.compactMap { id in

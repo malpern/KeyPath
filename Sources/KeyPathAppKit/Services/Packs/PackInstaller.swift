@@ -127,7 +127,13 @@ public final class PackInstaller {
         if let pack = PackRegistry.pack(id: packID),
            let collectionID = pack.associatedCollectionID
         {
-            _ = await manager.toggleCollection(id: collectionID, isEnabled: false)
+            let ok = await manager.toggleCollection(id: collectionID, isEnabled: false)
+            guard ok else {
+                // Leave the tracker record alone — the collection is still
+                // enabled, so the pack is still effectively installed. Surface
+                // the failure so the UI rolls its toggle back to "on".
+                throw InstallError.saveFailed("could not disable associated rule collection")
+            }
             try await InstalledPackTracker.shared.remove(packID: packID)
             AppLogger.shared.log(
                 "✅ [PackInstaller] Uninstalled pack '\(packID)' via collection toggle off (id=\(collectionID))"
