@@ -45,7 +45,8 @@ public final class PackInstaller {
     func install(
         _ pack: Pack,
         quickSettingValues: [String: Int] = [:],
-        manager: RuleCollectionsManager
+        manager: RuleCollectionsManager,
+        skipFinalReload: Bool = false
     ) async throws -> InstalledPackRecord {
         AppLogger.shared.log(
             "📦 [PackInstaller] Installing pack '\(pack.name)' (id=\(pack.id), v\(pack.version))"
@@ -54,14 +55,39 @@ public final class PackInstaller {
         // Resolve effective quick-setting values (user-provided ∪ defaults).
         let resolvedSettings = resolveQuickSettings(pack: pack, overrides: quickSettingValues)
 
+        // Collection-backed packs (e.g. Home Row Mods) don't generate custom
+        // rules — they just toggle the built-in RuleCollection on.
+        if let collectionID = pack.associatedCollectionID {
+            let ok = await manager.toggleCollection(id: collectionID, isEnabled: true)
+            if !ok {
+                throw InstallError.saveFailed("could not enable associated rule collection")
+            }
+            let record = InstalledPackRecord(
+                packID: pack.id,
+                version: pack.version,
+                installedAt: Date(),
+                quickSettingValues: resolvedSettings
+            )
+            try await InstalledPackTracker.shared.upsert(record)
+            AppLogger.shared.log(
+                "✅ [PackInstaller] Installed pack '\(pack.name)' via collection toggle (id=\(collectionID))"
+            )
+            return record
+        }
+
         // Build CustomRule entries from templates.
         let rules = renderBindings(for: pack, quickSettings: resolvedSettings)
 
         // Append rules in one batch: use skipReload=true for all but the
         // last, so we only regenerate the config file once at the end.
+        // Callers that chain an immediate edit after install can pass
+        // `skipFinalReload: true` to suppress even the last reload, so a
+        // followup `updateTapHold` fires exactly one reload for the
+        // combined result (and doesn't trip the TCP reload cooldown).
         for (index, rule) in rules.enumerated() {
             let isLast = (index == rules.count - 1)
-            let ok = await manager.saveCustomRule(rule, skipReload: !isLast)
+            let suppressReload = !isLast || skipFinalReload
+            let ok = await manager.saveCustomRule(rule, skipReload: suppressReload)
             if !ok {
                 AppLogger.shared.log(
                     "❌ [PackInstaller] Failed to save rule \(index + 1)/\(rules.count) for pack '\(pack.id)'"
@@ -95,6 +121,20 @@ public final class PackInstaller {
     ) async throws {
         AppLogger.shared.log("📦 [PackInstaller] Uninstalling pack '\(packID)'")
 
+        // Collection-backed packs uninstall by disabling the associated
+        // built-in collection; they don't have their own CustomRules to
+        // remove.
+        if let pack = PackRegistry.pack(id: packID),
+           let collectionID = pack.associatedCollectionID
+        {
+            _ = await manager.toggleCollection(id: collectionID, isEnabled: false)
+            try await InstalledPackTracker.shared.remove(packID: packID)
+            AppLogger.shared.log(
+                "✅ [PackInstaller] Uninstalled pack '\(packID)' via collection toggle off (id=\(collectionID))"
+            )
+            return
+        }
+
         // Snapshot current rule set, drop those owned by this pack.
         let before = await manager.snapshotCurrentRules()
         let packRules = before.filter { $0.packSource == packID }
@@ -123,6 +163,79 @@ public final class PackInstaller {
         AppLogger.shared.log(
             "✅ [PackInstaller] Uninstalled pack '\(packID)': removed \(packRules.count) rule(s)"
         )
+    }
+
+    /// Update the tap/hold outputs on an installed pack binding. Used by
+    /// Pack Detail's embedded picker so changing the Tap or Hold preset
+    /// immediately rewrites the underlying `CustomRule` and triggers a
+    /// Kanata config reload.
+    ///
+    /// If `tap` / `hold` is nil that side is left unchanged. If the rule is
+    /// currently a simple remap (no dual-role behavior) but a `hold` value
+    /// is supplied, it gets upgraded to a dual-role binding.
+    ///
+    /// Returns true if a rule was found, updated, and saved.
+    @discardableResult
+    func updateTapHold(
+        packID: String,
+        input: String,
+        tap: String? = nil,
+        hold: String? = nil,
+        manager: RuleCollectionsManager
+    ) async -> Bool {
+        let snapshot = await manager.snapshotCurrentRules()
+        let normalizedInput = input.lowercased()
+        guard var rule = snapshot.first(where: {
+            $0.packSource == packID && $0.input.lowercased() == normalizedInput
+        }) else {
+            AppLogger.shared.log(
+                "⚠️ [PackInstaller] updateTapHold: no rule found for pack '\(packID)' input '\(input)'"
+            )
+            return false
+        }
+
+        let existingDual: DualRoleBehavior? = {
+            if case let .dualRole(dr) = rule.behavior { return dr }
+            return nil
+        }()
+
+        let newTap = tap ?? existingDual?.tapAction ?? rule.output
+        let newHold = hold ?? existingDual?.holdAction
+
+        if let newHold, !newHold.isEmpty {
+            rule.output = newTap
+            rule.behavior = .dualRole(
+                DualRoleBehavior(
+                    tapAction: newTap,
+                    holdAction: newHold,
+                    tapTimeout: existingDual?.tapTimeout ?? 200,
+                    holdTimeout: existingDual?.holdTimeout ?? 200,
+                    activateHoldOnOtherKey: existingDual?.activateHoldOnOtherKey ?? true,
+                    quickTap: existingDual?.quickTap ?? false,
+                    customTapKeys: existingDual?.customTapKeys ?? [],
+                    useOppositeHand: existingDual?.useOppositeHand ?? false,
+                    useOppositeHandRelease: existingDual?.useOppositeHandRelease ?? false,
+                    useReleaseOrder: existingDual?.useReleaseOrder ?? false,
+                    requirePriorIdleOverrideMs: existingDual?.requirePriorIdleOverrideMs
+                )
+            )
+        } else {
+            // Simple remap (no hold).
+            rule.output = newTap
+            rule.behavior = nil
+        }
+
+        let ok = await manager.saveCustomRule(rule, skipReload: false)
+        if ok {
+            AppLogger.shared.log(
+                "✅ [PackInstaller] updateTapHold: pack '\(packID)' input '\(input)' tap='\(newTap)' hold='\(newHold ?? "—")'"
+            )
+        } else {
+            AppLogger.shared.log(
+                "❌ [PackInstaller] updateTapHold: save failed for pack '\(packID)' input '\(input)'"
+            )
+        }
+        return ok
     }
 
     /// Is this pack currently installed?

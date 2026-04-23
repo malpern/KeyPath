@@ -51,6 +51,14 @@ public struct Pack: Identifiable, Equatable, Sendable {
     /// values at install time.
     public let bindings: [PackBindingTemplate]
 
+    /// Optional pointer at an existing built-in `RuleCollection` this pack
+    /// wraps. When set, install/uninstall *toggle the collection* rather
+    /// than creating `CustomRule`s — and Pack Detail edits flow through the
+    /// same persistence path Rules uses (e.g. `updateHomeRowModsConfig`).
+    /// Used for packs whose underlying functionality is already modeled as
+    /// a rule collection (Home Row Mods, future layers, etc).
+    public let associatedCollectionID: UUID?
+
     public init(
         id: String,
         version: String,
@@ -63,7 +71,8 @@ public struct Pack: Identifiable, Equatable, Sendable {
         iconSymbol: String,
         iconSecondarySymbol: String? = nil,
         quickSettings: [PackQuickSetting] = [],
-        bindings: [PackBindingTemplate]
+        bindings: [PackBindingTemplate],
+        associatedCollectionID: UUID? = nil
     ) {
         self.id = id
         self.version = version
@@ -77,6 +86,7 @@ public struct Pack: Identifiable, Equatable, Sendable {
         self.iconSecondarySymbol = iconSecondarySymbol
         self.quickSettings = quickSettings
         self.bindings = bindings
+        self.associatedCollectionID = associatedCollectionID
     }
 
     /// The physical keys this pack affects. Drives Pack Detail's keyboard
