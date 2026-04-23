@@ -114,6 +114,28 @@ final class PackRuntimeBehaviorTests: XCTestCase {
                       "Mission Control chord should emit up (as part of C-up); got: \(output)")
     }
 
+    /// Auto Shift Symbols makes symbol keys dual-role: quick tap emits the
+    /// symbol normally; holding past ~180ms emits the shifted variant. We
+    /// check the tap path — hold emits `S-'` which the simulator renders as
+    /// lsft + apostrophe, but timing is picky across platforms so we just
+    /// pin down the easy case (short tap must still give the raw symbol).
+    func testAutoShiftSymbolsShortTapEmitsRawSymbol() throws {
+        let events = try simulate(
+            collectionIDs: [RuleCollectionIdentifier.autoShiftSymbols],
+            // 30ms well under the ~180ms auto-shift threshold.
+            script: "↓' 🕐30 ↑' 🕐50"
+        )
+        let output = outputKeys(events)
+        // Simulator reports apostrophe as kanata's internal `apos` name.
+        // Either that or the raw `'` is acceptable; both mean the tap path
+        // is working.
+        let emittedApostrophe = output.contains("'") || output.contains("apos")
+        XCTAssertTrue(emittedApostrophe,
+                      "Short tap on apostrophe should still emit apostrophe; got: \(output)")
+        XCTAssertFalse(output.contains("lsft"),
+                       "Short tap should NOT engage shift; got: \(output)")
+    }
+
     /// Vim Navigation's headline: hold Space → nav layer; inside the layer,
     /// h/j/k/l emit arrow keys. Without the Space-hold activation the letter
     /// should come through as-is. This checks both paths in one script.
