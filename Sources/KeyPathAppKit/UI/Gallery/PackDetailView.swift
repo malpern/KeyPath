@@ -30,12 +30,25 @@ struct PackDetailView: View {
     @State private var quickSettingValues: [String: Int] = [:]
     @State private var lastUndoSnapshot: UndoSnapshot?
 
+    /// Live tap/hold selection mirrored from the embedded picker. Drives
+    /// the blue "Tap: X · Hold: Y" status line so it updates the moment
+    /// the user clicks a preset, without waiting for Phase 3's write-
+    /// through to the installed CustomRule.
+    @State private var pickerTapSelection: String?
+    @State private var pickerHoldSelection: String?
+    @State private var singleKeySelection: String?
+
+    /// Local state for the embedded Home Row Mods editor. Mirrors the
+    /// config shape Rules uses so we can drop `HomeRowModsCollectionView`
+    /// in unchanged. Edits here are local for now — wiring them through
+    /// to a persisted collection config is follow-up work.
+    @State private var homeRowModsConfig: HomeRowModsConfig = .init()
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
-                    affectedKeyboardPreview
                     descriptionBlock
                     if !pack.quickSettings.isEmpty {
                         quickSettingsBlock
@@ -45,8 +58,6 @@ struct PackDetailView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 20)
             }
-            Divider()
-            footer
         }
         .frame(width: 560, height: 640)
         .task {
@@ -59,44 +70,105 @@ struct PackDetailView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 16) {
-            heroIcon
-            VStack(alignment: .leading, spacing: 4) {
-                Text(pack.category.uppercased())
-                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                    .tracking(0.5)
+        VStack(alignment: .leading, spacing: 12) {
+            // Top controls: a breadcrumb-style "Gallery" back link on the
+            // left (opens the full Gallery window) and a close ✕ on the
+            // right. The back link matters when Pack Detail is opened from
+            // somewhere other than the Gallery (e.g. the Suggested banner
+            // in the overlay inspector) — it gives users a way to jump to
+            // the full list instead of just dismissing the sheet.
+            HStack {
+                Button(action: { openGalleryWindow() }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 10, weight: .semibold))
+                        Text("Gallery")
+                            .font(.system(size: 12, weight: .medium))
+                    }
                     .foregroundStyle(.secondary)
-                HStack(spacing: 8) {
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+                .accessibilityLabel("Open Gallery")
+                Spacer()
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24, height: 24)
+                        .background(Circle().fill(.quaternary))
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+                .keyboardShortcut(.cancelAction)
+                .accessibilityLabel("Close")
+            }
+
+            HStack(alignment: .center, spacing: 16) {
+                heroIcon
+                VStack(alignment: .leading, spacing: 4) {
                     Text(pack.name)
                         .font(.system(size: 20, weight: .semibold))
-                    if isInstalled {
-                        installedBadge
-                    }
+                    Text(pack.tagline)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    currentConfigRow
                 }
-                Text(pack.tagline)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("\(pack.author) · v\(pack.version)")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-                    .padding(.top, 2)
+                Spacer()
+                // On/off toggle — aligned with the title block, vertically
+                // centered with the hero icon.
+                Toggle(
+                    "",
+                    isOn: Binding(
+                        get: { isInstalled },
+                        set: { handleToggle(to: $0) }
+                    )
+                )
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .scaleEffect(0.91, anchor: .trailing)
+                .disabled(isWorking)
+                .accessibilityLabel(isInstalled ? "Turn off pack" : "Turn on pack")
             }
-            Spacer()
-            Button(action: { dismiss() }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 24, height: 24)
-                    .background(Circle().fill(.quaternary))
-            }
-            .buttonStyle(.plain)
-            .keyboardShortcut(.cancelAction)
-            .accessibilityLabel("Close")
         }
         .padding(.horizontal, 24)
-        .padding(.top, 20)
+        .padding(.top, 32)
         .padding(.bottom, 14)
+    }
+
+    /// Blue inline summary of what this pack does right now — mirrors the
+    /// "Tap: X · Hold: Y" treatment used in the Rules list so users see the
+    /// effective behavior without reading binding details.
+    ///
+    /// Reads from the associated `RuleCollection`'s mapping behavior when
+    /// one exists (so Caps Lock Remap shows its real Hyper/Hyper default);
+    /// falls back to the pack's own binding template otherwise.
+    @ViewBuilder
+    private var currentConfigRow: some View {
+        if let summary = currentConfigSummary {
+            HStack(spacing: 6) {
+                Image(systemName: "hand.point.up.left.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Color.accentColor)
+                Text(summary)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Color.accentColor)
+            }
+            .padding(.top, 2)
+        }
+    }
+
+    private var currentConfigSummary: String? {
+        PackSummaryProvider.summary(
+            for: .init(
+                pack: pack,
+                collection: liveAssociatedCollection,
+                tapOverride: pickerTapSelection,
+                holdOverride: pickerHoldSelection,
+                singleKeyOverride: singleKeySelection
+            )
+        )
     }
 
     /// Larger version of the pack card's hero icon, for Pack Detail's header.
@@ -142,70 +214,89 @@ struct PackDetailView: View {
         }
     }
 
-    private var installedBadge: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-            Text("On")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.green)
-        }
+    private func handleToggle(to newValue: Bool) {
+        guard newValue != isInstalled else { return }
+        Task { newValue ? await install() : await uninstall() }
     }
 
-    // MARK: - Affected-keys preview
+    /// Dismiss this sheet and bring the Gallery window forward. Works
+    /// whether Pack Detail was opened from the Gallery itself (no-op
+    /// beyond dismiss) or from another surface like the Suggested banner.
+    private func openGalleryWindow() {
+        dismiss()
+        GalleryWindowController.shared.showWindow(kanataManager: kanataManager)
+    }
 
-    /// Visual approximation of Direction C's "affected keys glow" on the
-    /// real keyboard. Since we don't have a main-window keyboard in M1,
-    /// this lives inside the sheet and animates the keys from default →
-    /// pending → installed as the user interacts.
-    private var affectedKeyboardPreview: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.accentColor.opacity(0.05))
-            HStack(spacing: 8) {
-                ForEach(Array(pack.affectedKeys.prefix(8).enumerated()), id: \.offset) { _, key in
-                    KeycapChipView(
-                        label: displayLabel(for: key),
-                        state: previewKeyState
-                    )
+    /// Apply a picker-driven edit to the installed rule / collection. If
+    /// the pack isn't installed yet, install it first (which for
+    /// collection-backed packs toggles the collection, for rule-based
+    /// packs creates tagged CustomRules). Install's reload is suppressed
+    /// so the follow-up tap/hold update fires exactly one reload.
+    private func applyPickerEdit(tap: String?, hold: String?) async {
+        if !isInstalled {
+            await install(skipFinalReload: true)
+        }
+        if let collectionID = pack.associatedCollectionID {
+            // Collection-backed: edits go through the same API Rules uses,
+            // modifying the collection's TapHoldPickerConfig selections.
+            if let tap {
+                await kanataManager.updateCollectionTapOutput(collectionID, tapOutput: tap)
+            }
+            if let hold {
+                await kanataManager.updateCollectionHoldOutput(collectionID, holdOutput: hold)
+            }
+        } else {
+            // Rule-based: the pack owns its own CustomRule tagged with
+            // packSource; rewrite that rule's dual-role behavior.
+            guard let input = pack.bindings.first?.input else { return }
+            let manager = kanataManager.underlyingManager.ruleCollectionsManager
+            let ok = await PackInstaller.shared.updateTapHold(
+                packID: pack.id,
+                input: input,
+                tap: tap,
+                hold: hold,
+                manager: manager
+            )
+            if !ok {
+                await MainActor.run {
+                    withAnimation {
+                        errorMessage = "Couldn't save the change. Another rule may be conflicting on \(input.uppercased())."
+                    }
                 }
-                if pack.affectedKeys.count > 8 {
-                    Text("+\(pack.affectedKeys.count - 8)")
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.secondary)
+                Task {
+                    try? await Task.sleep(nanoseconds: 4_000_000_000)
+                    await MainActor.run {
+                        withAnimation(.easeOut(duration: 0.3)) { errorMessage = nil }
+                    }
                 }
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
         }
-        .frame(height: 74)
-        .frame(maxWidth: .infinity)
-        .padding(.top, 6)
     }
 
-    private var previewKeyState: KeycapChipView.KeyState {
-        if justInstalled { return .installed }
-        if isInstalled { return .installed }
-        if justUninstalled { return .pending }
-        // Pre-install resting state: show what will happen via pending tint.
-        return .pending
+    /// Apply a single-key-picker edit. Collection-backed only — the
+    /// collection's `selectedOutput` is persisted via the same VM API the
+    /// Rules tab uses.
+    private func applySingleKeyEdit(output: String) async {
+        singleKeySelection = output
+        guard let collectionID = pack.associatedCollectionID else { return }
+        if !isInstalled {
+            await install(skipFinalReload: true)
+        }
+        await kanataManager.updateCollectionOutput(collectionID, output: output)
     }
 
     // MARK: - Description
 
+    /// Single scannable paragraph that answers WHY (the problem this solves)
+    /// and WHAT (how this pack solves it). Replaces the prior two-block
+    /// short + long description — packs should front-load the pitch, not
+    /// split it into a lede and a follow-up.
     private var descriptionBlock: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(pack.shortDescription)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text(pack.longDescription)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .lineSpacing(2)
-        }
+        Text(pack.shortDescription)
+            .font(.system(size: 13))
+            .foregroundStyle(.primary)
+            .fixedSize(horizontal: false, vertical: true)
+            .lineSpacing(2)
     }
 
     // MARK: - Quick settings
@@ -245,64 +336,183 @@ struct PackDetailView: View {
 
     // MARK: - Binding list
 
+    @ViewBuilder
     private var bindingsBlock: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Divider()
-            Text("What this will change")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-            ForEach(Array(pack.bindings.enumerated()), id: \.offset) { _, template in
-                bindingRow(template)
+        if isHomeRowModsPack, let collectionID = pack.associatedCollectionID {
+            // Home Row Mods uses a different configuration shape than the
+            // tap-hold picker — interactive keyboard + layered mods —
+            // so we embed the same view the Rules tab uses. All layer-
+            // aware callbacks delegate into the same `kanataManager`
+            // methods Rules uses so hold-to-layer bindings work here too.
+            VStack(alignment: .leading, spacing: 0) {
+                Divider()
+                HomeRowModsCollectionView(
+                    config: $homeRowModsConfig,
+                    availableLayers: availableHomeRowLayers(),
+                    onConfigChanged: { newConfig in
+                        Task { await applyHomeRowEdit(newConfig, collectionID: collectionID) }
+                    },
+                    onEnsureLayersExist: { layerNames in
+                        for name in layerNames {
+                            await kanataManager.underlyingManager.rulesManager.createLayer(name)
+                        }
+                    },
+                    onEnableLayerCollections: { collectionIds in
+                        await kanataManager.batchEnableCollections(collectionIds)
+                    }
+                )
+                .opacity(isInstalled ? 1.0 : 0.55)
+                .animation(.easeInOut(duration: 0.2), value: isInstalled)
+            }
+        } else if let singleKeyCollection = associatedSingleKeyCollection {
+            // Single-key remap with preset pills (Escape Remap, Delete
+            // Enhancement, Backup Caps Lock). Reuses Rules' view directly.
+            VStack(alignment: .leading, spacing: 0) {
+                Divider()
+                SingleKeyPickerContent(
+                    collection: singleKeyCollection,
+                    onSelectOutput: { output in
+                        Task { await applySingleKeyEdit(output: output) }
+                    }
+                )
+                .opacity(isInstalled ? 1.0 : 0.55)
+                .animation(.easeInOut(duration: 0.2), value: isInstalled)
+            }
+        } else if let pickerConfig = associatedPickerConfig {
+            // Phase 2: for packs that map onto an existing RuleCollection's
+            // tap-hold picker (e.g. Caps Lock Remap), embed the same picker
+            // component the Rules tab uses.
+            //
+            // When the pack is OFF the picker reads as disabled (dimmed)
+            // but clicks are still live: picking any preset installs the
+            // pack, the user's click registers in the picker's internal
+            // selection state, and the dim lifts. Phase 3 will persist the
+            // selected preset through to the installed CustomRule.
+            VStack(alignment: .leading, spacing: 0) {
+                Divider()
+                TapHoldPickerContent(
+                    config: pickerConfig,
+                    isEditable: true,
+                    onSelectTapOutput: { output in
+                        pickerTapSelection = output
+                        Task { await applyPickerEdit(tap: output, hold: nil) }
+                    },
+                    onSelectHoldOutput: { output in
+                        pickerHoldSelection = output
+                        Task { await applyPickerEdit(tap: nil, hold: output) }
+                    }
+                )
+                // Picker seeds its selection state at init. Re-id whenever
+                // the live selection flips (e.g. on appear, after refresh
+                // from the live rule) so SwiftUI re-creates it with the
+                // fresh seed. User clicks update our local state, which
+                // bumps the id, which re-seeds — harmless because the new
+                // seed matches what the user just clicked.
+                .id("\(pickerTapSelection ?? "")-\(pickerHoldSelection ?? "")")
+                .opacity(isInstalled ? 1.0 : 0.55)
+                .animation(.easeInOut(duration: 0.2), value: isInstalled)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                Divider()
+                Text("What this will change")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                ForEach(Array(pack.bindings.enumerated()), id: \.offset) { _, template in
+                    bindingRow(template)
+                }
             }
         }
     }
 
+    /// Live `RuleCollection` this pack is associated with. Used to hand
+    /// to Rules' view components (they take the whole collection so they
+    /// can render the user's latest selections, not catalog defaults).
+    private var liveAssociatedCollection: RuleCollection? {
+        guard let collectionID = pack.associatedCollectionID else { return nil }
+        let live = kanataManager.underlyingManager
+            .ruleCollectionsManager.ruleCollections
+            .first { $0.id == collectionID }
+        if let live { return live }
+        return RuleCollectionCatalog().defaultCollections()
+            .first { $0.id == collectionID }
+    }
+
+    /// Collection with a `.singleKeyPicker` configuration — drives the
+    /// SingleKeyPickerContent dispatch in Pack Detail.
+    private var associatedSingleKeyCollection: RuleCollection? {
+        guard let collection = liveAssociatedCollection,
+              case .singleKeyPicker = collection.configuration
+        else { return nil }
+        return collection
+    }
+
+    /// True if this pack's bindings line up with the Home Row Mods
+    /// collection's input set — in which case we render that collection's
+    /// interactive keyboard + modifier controls instead of the generic
+    /// tap-hold picker.
+    private var isHomeRowModsPack: Bool {
+        let homeRowKeys: Set<String> = ["a", "s", "d", "f", "j", "k", "l", "scln", ";"]
+        let inputs = Set(pack.bindings.map { $0.input.lowercased() })
+        // Consider it a home-row pack if at least 4 of its bindings are on
+        // the home row — covers light and full variants without listing
+        // every combination.
+        return inputs.intersection(homeRowKeys).count >= 4
+    }
+
+    /// Match the pack to an existing `RuleCollection` that carries a
+    /// tap-hold picker config. Today this is keyed on the pack's first
+    /// binding input matching the collection's picker `inputKey`. When we
+    /// add a proper `associatedCollectionID` to Pack, switch to that.
+    ///
+    /// If the installed rule (or a refreshed live selection) has a value,
+    /// we stamp it into the config's `selectedTapOutput`/`selectedHoldOutput`
+    /// so the embedded picker opens highlighted on the real current state.
+    private var associatedPickerConfig: TapHoldPickerConfig? {
+        guard let firstInput = pack.bindings.first?.input.lowercased() else { return nil }
+        let base = RuleCollectionCatalog().defaultCollections().lazy
+            .compactMap { $0.configuration.tapHoldPickerConfig }
+            .first(where: { $0.inputKey.lowercased() == firstInput })
+        guard var config = base else { return nil }
+        if let liveTap = pickerTapSelection {
+            config.selectedTapOutput = liveTap
+        }
+        if let liveHold = pickerHoldSelection {
+            config.selectedHoldOutput = liveHold
+        }
+        return config
+    }
+
+    /// Renders a pack binding in the same visual vocabulary as Rules:
+    /// input keycap → output keycap, with a behavior summary ("Hold: ⌘")
+    /// inline when the binding has a hold component. Reuses `KeyCapChip`
+    /// and `RuleBehaviorSummaryView` so this stays consistent with the
+    /// Rules tab as that evolves.
     private func bindingRow(_ template: PackBindingTemplate) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            KeycapChipView(label: displayLabel(for: template.input), state: previewKeyState)
-                .frame(width: 34)
-            VStack(alignment: .leading, spacing: 2) {
-                if let title = template.title {
-                    Text(title).font(.system(size: 12, weight: .medium))
-                }
-                if let hold = template.holdOutput, !hold.isEmpty {
-                    Text("Tap: \(template.output)  ·  Hold: \(hold)")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("Output: \(template.output)")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-                if let notes = template.notes {
-                    Text(notes)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary.opacity(0.85))
-                        .padding(.top, 2)
-                }
-            }
-        }
-    }
+        HStack(alignment: .center, spacing: 10) {
+            KeyCapChip(text: RuleBehaviorSummaryView.formatKeyForBehavior(template.input))
+            Image(systemName: "arrow.right")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            KeyCapChip(text: RuleBehaviorSummaryView.formatKeyForBehavior(template.output))
 
-    // MARK: - Footer
-
-    private var footer: some View {
-        HStack {
-            Button("Close") { dismiss() }
-                .keyboardShortcut(.cancelAction)
-            Spacer()
-            if isInstalled {
-                Button("Turn Off", role: .destructive) { Task { await uninstall() } }
-                    .disabled(isWorking)
-            } else {
-                Button("Turn On") { Task { await install() } }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isWorking)
+            if let hold = template.holdOutput, !hold.isEmpty {
+                Text("·")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                RuleBehaviorSummaryView(
+                    behavior: .dualRole(
+                        DualRoleBehavior(
+                            tapAction: template.output,
+                            holdAction: hold
+                        )
+                    )
+                )
             }
+
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 14)
+        .padding(.vertical, 2)
     }
 
     // MARK: - Toast overlay
@@ -398,15 +608,119 @@ struct PackDetailView: View {
     private func refreshInstallState() async {
         let installed = await PackInstaller.shared.isInstalled(packID: pack.id)
         let saved = await PackInstaller.shared.quickSettings(for: pack.id)
+        // Pick up whatever tap/hold the installed rule currently has — the
+        // user might have edited it from the Rules tab since the last time
+        // this sheet opened. Reading it here keeps the embedded picker and
+        // the "Tap: X · Hold: Y" summary in sync with the live rule.
+        let liveSelection = await liveTapHoldFromInstalledRule()
+        let liveSingleKey = await liveSingleKeySelection()
+        let liveHomeRow = await liveHomeRowModsConfig()
         await MainActor.run {
             isInstalled = installed
             if installed, !saved.isEmpty {
                 quickSettingValues = saved
             }
+            if let liveSelection {
+                pickerTapSelection = liveSelection.tap
+                pickerHoldSelection = liveSelection.hold
+            }
+            if let liveSingleKey {
+                singleKeySelection = liveSingleKey
+            }
+            if let liveHomeRow {
+                homeRowModsConfig = liveHomeRow
+            }
         }
     }
 
-    private func install() async {
+    private func liveSingleKeySelection() async -> String? {
+        guard let collectionID = pack.associatedCollectionID else { return nil }
+        let collections = await kanataManager.underlyingManager
+            .ruleCollectionsManager.ruleCollections
+        if let match = collections.first(where: { $0.id == collectionID }),
+           let cfg = match.configuration.singleKeyPickerConfig
+        {
+            return cfg.selectedOutput
+        }
+        return nil
+    }
+
+    /// Apply a Home Row Mods edit — analogous to the tap-hold `updateTapHold`
+    /// path: if the pack isn't installed yet, install it first (which
+    /// toggles the collection on), then persist the new config. Install's
+    /// reload is suppressed so the config save is the only reload.
+    private func applyHomeRowEdit(_ newConfig: HomeRowModsConfig, collectionID: UUID) async {
+        homeRowModsConfig = newConfig
+        if !isInstalled {
+            await install(skipFinalReload: true)
+        }
+        // VM method returns Void (it's the manager layer underneath that
+        // returns Bool-for-newly-enabled). Mirrors Rules' call site. If we
+        // want surfaced error toasts here later, call the manager directly.
+        await kanataManager.updateHomeRowModsConfig(
+            collectionId: collectionID,
+            config: newConfig
+        )
+    }
+
+    /// Supplies the same layer list Rules uses when rendering the Home Row
+    /// Mods editor, so hold-to-layer bindings resolve correctly inside
+    /// Pack Detail.
+    private func availableHomeRowLayers() -> [String] {
+        let names = Set(
+            kanataManager.ruleCollections
+                .map(\.targetLayer.kanataName)
+                .filter { $0.lowercased() != "base" }
+        )
+        return Array(names).sorted()
+    }
+
+    /// Read the current persisted Home Row Mods config so the embedded
+    /// editor opens matching live state (not catalog defaults).
+    private func liveHomeRowModsConfig() async -> HomeRowModsConfig? {
+        guard isHomeRowModsPack, let collectionID = pack.associatedCollectionID else {
+            return nil
+        }
+        let collections = await kanataManager.underlyingManager
+            .ruleCollectionsManager.ruleCollections
+        if let match = collections.first(where: { $0.id == collectionID }),
+           case let .homeRowMods(config) = match.configuration
+        {
+            return config
+        }
+        return nil
+    }
+
+    private func liveTapHoldFromInstalledRule() async -> (tap: String?, hold: String?)? {
+        // Collection-backed pack: read live selection from the associated
+        // collection's TapHoldPickerConfig (this is what Rules persists to).
+        if let collectionID = pack.associatedCollectionID {
+            let collections = await kanataManager.underlyingManager
+                .ruleCollectionsManager.ruleCollections
+            if let match = collections.first(where: { $0.id == collectionID }),
+               let cfg = match.configuration.tapHoldPickerConfig
+            {
+                return (tap: cfg.selectedTapOutput, hold: cfg.selectedHoldOutput)
+            }
+            return nil
+        }
+
+        // Rule-based pack: read from the tagged CustomRule.
+        guard let input = pack.bindings.first?.input.lowercased() else { return nil }
+        let rules = await kanataManager.underlyingManager
+            .ruleCollectionsManager.snapshotCurrentRules()
+        guard let rule = rules.first(where: {
+            $0.packSource == pack.id && $0.input.lowercased() == input
+        }) else {
+            return nil
+        }
+        if case let .dualRole(dr) = rule.behavior {
+            return (tap: dr.tapAction, hold: dr.holdAction)
+        }
+        return (tap: rule.output, hold: nil)
+    }
+
+    private func install(skipFinalReload: Bool = false) async {
         isWorking = true
         errorMessage = nil
         do {
@@ -414,7 +728,8 @@ struct PackDetailView: View {
             _ = try await PackInstaller.shared.install(
                 pack,
                 quickSettingValues: quickSettingValues,
-                manager: manager
+                manager: manager,
+                skipFinalReload: skipFinalReload
             )
             lastUndoSnapshot = .init(quickSettingValues: quickSettingValues)
             await refreshInstallState()

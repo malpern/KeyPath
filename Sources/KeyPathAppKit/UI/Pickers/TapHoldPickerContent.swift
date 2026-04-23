@@ -6,7 +6,15 @@ import SwiftUI
 #endif
 
 struct TapHoldPickerContent: View {
-    let collection: RuleCollection
+    /// Preset options + initial selection. Nil renders an empty shell.
+    /// Decoupled from `RuleCollection` so Gallery's Pack Detail (and any
+    /// future caller) can construct a config directly without fabricating
+    /// a collection wrapper.
+    let config: TapHoldPickerConfig?
+    /// When true, selection callbacks still fire but the picker's own
+    /// `@State` still tracks the selection — mounts outside Rules that want
+    /// a live editor wired to external persistence can opt in as they land.
+    let isEditable: Bool
     let onSelectTapOutput: (String) -> Void
     let onSelectHoldOutput: (String) -> Void
 
@@ -17,19 +25,20 @@ struct TapHoldPickerContent: View {
     @State private var customTapInput = ""
     @State private var customHoldInput = ""
 
-    private var config: TapHoldPickerConfig? {
-        collection.configuration.tapHoldPickerConfig
-    }
-
-    init(collection: RuleCollection, onSelectTapOutput: @escaping (String) -> Void, onSelectHoldOutput: @escaping (String) -> Void) {
-        self.collection = collection
+    init(
+        config: TapHoldPickerConfig?,
+        isEditable: Bool = true,
+        onSelectTapOutput: @escaping (String) -> Void = { _ in },
+        onSelectHoldOutput: @escaping (String) -> Void = { _ in }
+    ) {
+        self.config = config
+        self.isEditable = isEditable
         self.onSelectTapOutput = onSelectTapOutput
         self.onSelectHoldOutput = onSelectHoldOutput
-        let cfg = collection.configuration.tapHoldPickerConfig
-        let tapOptions = cfg?.tapOptions ?? []
-        let holdOptions = cfg?.holdOptions ?? []
-        _selectedTap = State(initialValue: cfg?.selectedTapOutput ?? tapOptions.first?.output ?? "hyper")
-        _selectedHold = State(initialValue: cfg?.selectedHoldOutput ?? holdOptions.first?.output ?? "hyper")
+        let tapOptions = config?.tapOptions ?? []
+        let holdOptions = config?.holdOptions ?? []
+        _selectedTap = State(initialValue: config?.selectedTapOutput ?? tapOptions.first?.output ?? "hyper")
+        _selectedHold = State(initialValue: config?.selectedHoldOutput ?? holdOptions.first?.output ?? "hyper")
     }
 
     private var tapOptions: [SingleKeyPreset] {
@@ -107,6 +116,7 @@ struct TapHoldPickerContent: View {
                             isFirst: false,
                             isLast: false
                         ) {
+                            guard isEditable else { return }
                             selectedTap = preset.output
                             onSelectTapOutput(preset.output)
                         }
@@ -177,6 +187,7 @@ struct TapHoldPickerContent: View {
                             isFirst: false,
                             isLast: false
                         ) {
+                            guard isEditable else { return }
                             selectedHold = preset.output
                             onSelectHoldOutput(preset.output)
                         }
