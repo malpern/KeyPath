@@ -73,7 +73,8 @@ class MainAppStateController {
     @ObservationIgnored private var serviceHealthTask: Task<Void, Never>?
     @ObservationIgnored private var periodicRefreshTask: Task<Void, Never>?
     @ObservationIgnored private let definitiveStartupGracePeriod: TimeInterval = 3.0
-    @ObservationIgnored private let transientStartupGracePeriod: TimeInterval = 12.0
+    @ObservationIgnored private let transientStartupGracePeriod: TimeInterval =
+        RuntimeStartupTiming.gatePollingWindow
     @ObservationIgnored private let startupCheckInterval: TimeInterval = 0.5
 
     #if DEBUG
@@ -754,6 +755,14 @@ class MainAppStateController {
             }
         #endif
         return await InstallerEngine().checkKanataServiceHealth()
+    }
+
+    /// Whether the runtime is inside the UI grace period that suppresses
+    /// alarming "not running" states during startup. Exposed so surfaces
+    /// like the overlay health indicator can downgrade a transient failure
+    /// to a "checking" state instead of showing "1 Issue".
+    func isInRuntimeStartupWindow() async -> Bool {
+        await kanataManager?.isInTransientRuntimeStartupWindow() ?? false
     }
 
     private func isInKanataTransientStartupWindow() async -> Bool {

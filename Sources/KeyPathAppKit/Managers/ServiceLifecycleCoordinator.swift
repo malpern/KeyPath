@@ -31,6 +31,17 @@ final class ServiceLifecycleCoordinator {
 
     /// Mutable flag shared with RuntimeCoordinator to track in-progress start attempts.
     var isStartingKanata = false
+    private var lastStartAttemptAt: Date?
+    private let windowEvaluator = TransientStartupWindowEvaluator(
+        gracePeriod: RuntimeStartupTiming.uiGracePeriod,
+        createdAt: Date()
+    )
+
+    /// Short-lived cache of the SMAppService "pending" check so the 250ms
+    /// overlay polling loop doesn't hammer SMAppService.status (synchronous
+    /// IPC, can block 10-30s under concurrent load — see CLAUDE.md).
+    private var smAppServicePendingCache: (value: Bool, timestamp: Date)?
+    private static let smAppServicePendingCacheTTL: TimeInterval = 5.0
 
     // MARK: - Callbacks (set by RuntimeCoordinator after init)
 
@@ -83,6 +94,10 @@ final class ServiceLifecycleCoordinator {
     func startKanata(reason: String = "Manual start", precomputedDecision: KanataRuntimePathDecision? = nil) async -> Bool {
         AppLogger.shared.log("🚀 [Service] Starting Kanata (\(reason))")
         onWarning?(nil)
+        isStartingKanata = true
+        defer {
+            isStartingKanata = false
+        }
 
         // CRITICAL: Check VHID daemon health before starting Kanata
         if let checker = isKarabinerDaemonRunning, await !checker() {
@@ -133,6 +148,7 @@ final class ServiceLifecycleCoordinator {
         }
 
         do {
+            lastStartAttemptAt = Date()
             let pid = try await KanataSplitRuntimeHostService.shared.startPersistentPassthruHost(includeCapture: true)
             AppLogger.shared.log("✅ [Service] Started split-runtime host (PID \(pid))")
             await AppContextService.shared.start()
@@ -209,6 +225,33 @@ final class ServiceLifecycleCoordinator {
             onStateChanged?()
             return false
         }
+    }
+
+    func isInTransientRuntimeStartupWindow() async -> Bool {
+        // SMAppService state is fetched lazily — it's synchronous IPC and only
+        // matters once the other (cheap) signals have all said "out of window".
+        if windowEvaluator.isInWindow(
+            now: Date(),
+            isStarting: isStartingKanata,
+            lastStartAttemptAt: lastStartAttemptAt,
+            isSMAppServicePending: false
+        ) {
+            return true
+        }
+        return await isSMAppServicePendingCached()
+    }
+
+    private func isSMAppServicePendingCached() async -> Bool {
+        let now = Date()
+        if let cached = smAppServicePendingCache,
+           now.timeIntervalSince(cached.timestamp) < Self.smAppServicePendingCacheTTL
+        {
+            return cached.value
+        }
+        let managementState = await KanataDaemonManager.shared.refreshManagementStateInternal()
+        let isPending = managementState == .smappservicePending
+        smAppServicePendingCache = (isPending, now)
+        return isPending
     }
 
     // MARK: - Runtime Status

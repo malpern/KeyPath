@@ -190,7 +190,7 @@ public struct WizardKanataServicePage: View {
         case .failed:
             "KeyPath Runtime, powered by Kanata Engine, failed to start. Click Fix to retry."
         case .starting:
-            "KeyPath runtime is starting up."
+            "Starting KeyPath runtime…"
         case .stopping:
             "KeyPath runtime is shutting down."
         case .unknown:
@@ -272,6 +272,7 @@ public struct WizardKanataServicePage: View {
             return
         }
         let runtimeStatus = await kanataManager.currentRuntimeStatus()
+        let isInTransientStartupWindow = await kanataManager.isInTransientRuntimeStartupWindow()
 
         let processStatus = ServiceStatusEvaluator.evaluate(
             kanataIsRunning: runtimeStatus.isRunning,
@@ -283,7 +284,11 @@ public struct WizardKanataServicePage: View {
 
         await MainActor.run {
             withAnimation(.easeInOut(duration: 0.3)) {
-                applyStatusUpdate(runtimeStatus: runtimeStatus, processStatus: processStatus)
+                applyStatusUpdate(
+                    runtimeStatus: runtimeStatus,
+                    processStatus: processStatus,
+                    isInTransientStartupWindow: isInTransientStartupWindow
+                )
             }
         }
     }
@@ -291,7 +296,8 @@ public struct WizardKanataServicePage: View {
     @MainActor
     private func applyStatusUpdate(
         runtimeStatus: WizardRuntimeStatus,
-        processStatus: ServiceProcessStatus
+        processStatus: ServiceProcessStatus,
+        isInTransientStartupWindow: Bool
     ) {
         var derivedStatus: ServiceStatus
 
@@ -299,7 +305,7 @@ public struct WizardKanataServicePage: View {
         case .running:
             derivedStatus = .running
         case .stopped:
-            derivedStatus = .stopped
+            derivedStatus = isInTransientStartupWindow ? .starting : .stopped
         case let .failed(reason):
             // Try to get more detailed config error from stderr log
             let stderrPath = "/var/log/com.keypath.kanata.stderr.log"

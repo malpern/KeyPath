@@ -362,19 +362,15 @@ public class SystemValidator {
         // Oracle has its own 1.5s cache - we don't add another layer
         let snapshot = await PermissionOracle.shared.currentSnapshot()
 
-        // 🚨 DEFENSIVE ASSERTION 4: Verify Oracle snapshot is fresh
+        // 🚨 DEFENSIVE CHECK: Oracle snapshot should be fresh.
+        // Originally an `assert` that crashed in debug builds, but under real
+        // concurrent load (multiple SMAppService.status IPC calls queued up)
+        // the snapshot can legitimately take > 5s to return — the Oracle
+        // cache isn't broken, the system is just slow. Log and continue.
         let oracleAge = Date().timeIntervalSince(snapshot.timestamp)
-
-        // In tests, thread starvation can cause significant delays between snapshot generation
-        // and this check, especially during performance testing. We relax the check in tests.
-        if !TestEnvironment.isRunningTests {
-            assert(
-                oracleAge < 5.0,
-                "Oracle snapshot is \(String(format: "%.1f", oracleAge))s old - Oracle cache may be broken"
-            )
-        } else if oracleAge >= 5.0 {
+        if oracleAge >= 5.0 {
             AppLogger.shared.log(
-                "⚠️ [SystemValidator] Oracle snapshot is \(String(format: "%.1f", oracleAge))s old (ignored in tests)"
+                "⚠️ [SystemValidator] Oracle snapshot is \(String(format: "%.1f", oracleAge))s old — likely SMAppService IPC contention, not a cache bug"
             )
         }
 

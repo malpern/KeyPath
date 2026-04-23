@@ -42,20 +42,31 @@ final class OverlayHealthIndicatorObserver {
         Task { @MainActor [weak self] in
             var lastState: MainAppStateController.ValidationState?
             var lastIssueCount: Int?
+            var lastInStartupWindow: Bool?
             while let self, !Task.isCancelled {
                 let state = controller.validationState
                 let issues = controller.issues
-                if state != lastState || issues.count != lastIssueCount {
+                let inStartupWindow = await controller.isInRuntimeStartupWindow()
+                if state != lastState
+                    || issues.count != lastIssueCount
+                    || inStartupWindow != lastInStartupWindow
+                {
                     lastState = state
                     lastIssueCount = issues.count
-                    handle(state: state, issues: issues)
+                    lastInStartupWindow = inStartupWindow
+                    handle(state: state, issues: issues, inStartupWindow: inStartupWindow)
                 }
                 try? await Task.sleep(for: .milliseconds(250))
             }
         }
 
-        // Handle initial values
-        handle(state: controller.validationState, issues: controller.issues)
+        // Handle initial values — assume we're still in the startup window on
+        // the first evaluation; the polling loop above will correct within 250ms.
+        handle(
+            state: controller.validationState,
+            issues: controller.issues,
+            inStartupWindow: true
+        )
     }
 
     /// Force a refresh of the health state from current MainAppStateController values.
@@ -87,10 +98,16 @@ final class OverlayHealthIndicatorObserver {
         let state = MainAppStateController.shared.validationState
         let issues = MainAppStateController.shared.issues
         AppLogger.shared.log("🔔 [HealthObserver] refresh() called - forcing state re-evaluation")
-        handle(state: state, issues: issues)
+        // refresh() is synchronous by contract; the polling loop re-evaluates
+        // the startup window 250ms later with accurate data.
+        handle(state: state, issues: issues, inStartupWindow: false)
     }
 
-    private func handle(state: MainAppStateController.ValidationState?, issues: [WizardIssue]) {
+    private func handle(
+        state: MainAppStateController.ValidationState?,
+        issues: [WizardIssue],
+        inStartupWindow: Bool
+    ) {
         AppLogger.shared.log("🔔 [HealthObserver] handle() called - state=\(String(describing: state)), issues=\(issues.count), currentState=\(currentState)")
 
         dismissTask?.cancel()
@@ -133,6 +150,12 @@ final class OverlayHealthIndicatorObserver {
             if blockingIssues.isEmpty {
                 setState(.healthy)
                 scheduleDismiss()
+            } else if inStartupWindow {
+                // During the runtime startup window, a "failed" validation
+                // almost always just means kanata hasn't finished warming up
+                // yet. Render as "checking" so users don't see a false "1 Issue"
+                // badge immediately after every rebuild/restart.
+                setState(.checking)
             } else {
                 setState(.unhealthy(issueCount: blockingIssues.count))
             }

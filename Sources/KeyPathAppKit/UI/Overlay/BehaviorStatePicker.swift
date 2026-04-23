@@ -72,9 +72,9 @@ struct BehaviorStatePicker: View {
     var isShiftDefault: Bool = false
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 0) {
             ForEach(BehaviorSlot.allCases) { slot in
-                BehaviorStateCell(
+                BehaviorSegment(
                     slot: slot,
                     isSelected: selectedState == slot,
                     isConfigured: isSlotConfigured(slot),
@@ -85,8 +85,21 @@ struct BehaviorStatePicker: View {
                         }
                     }
                 )
+                if slot != BehaviorSlot.allCases.last {
+                    Divider()
+                        .frame(height: 14)
+                        .opacity(0.5)
+                }
             }
         }
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(Color.primary.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+        )
     }
 
     /// Determine if a slot should show the "in use" dot
@@ -102,7 +115,52 @@ struct BehaviorStatePicker: View {
     }
 }
 
-/// Individual behavior state cell with press feedback
+/// Compact segment used inside the segmented BehaviorStatePicker.
+/// Icon + label on a single row; fills background when selected.
+private struct BehaviorSegment: View {
+    let slot: BehaviorSlot
+    let isSelected: Bool
+    let isConfigured: Bool
+    var isDefault: Bool = false
+    let onSelect: () -> Void
+
+    @State private var isPressed = false
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 4) {
+                // Configured indicator — small dot that shows whether this
+                // slot carries a mapping. Kept tiny so it doesn't dominate.
+                Circle()
+                    .fill(
+                        isConfigured
+                        ? Color.accentColor.opacity(isDefault ? 0.35 : 1.0)
+                        : Color.clear
+                    )
+                    .frame(width: 4, height: 4)
+
+                Text(slot.shortLabel)
+                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.14) : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(BehaviorCellButtonStyle(isPressed: $isPressed))
+        .accessibilityIdentifier("behavior-picker-\(slot.rawValue)")
+        .accessibilityLabel("\(slot.label)\(isConfigured ? ", configured" : "")")
+    }
+}
+
+/// Individual behavior state cell with press feedback (legacy, retained for
+/// previews / alt call sites). Prefer BehaviorSegment in the main picker.
 private struct BehaviorStateCell: View {
     let slot: BehaviorSlot
     let isSelected: Bool

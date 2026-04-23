@@ -56,6 +56,7 @@ public protocol RuntimeCoordinating: AnyObject, Sendable {
     func updateStatus() async
 
     func currentRuntimeStatus() async -> WizardRuntimeStatus
+    func isInTransientRuntimeStartupWindow() async -> Bool
 
     // MARK: - Settings
 

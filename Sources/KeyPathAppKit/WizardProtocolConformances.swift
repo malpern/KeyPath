@@ -49,6 +49,10 @@ extension RuntimeCoordinator: RuntimeCoordinating {
         }
     }
 
+    public func isInTransientRuntimeStartupWindow() async -> Bool {
+        await serviceLifecycleCoordinator.isInTransientRuntimeStartupWindow()
+    }
+
     /// Explicit protocol-satisfying overload for startKanata.
     /// The full method in RuntimeCoordinator+ServiceManagement has extra default params
     /// (precomputedDecision), so a single-label overload is needed to satisfy the protocol.
