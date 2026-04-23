@@ -93,6 +93,27 @@ final class PackRuntimeBehaviorTests: XCTestCase {
                        "Holding space + w should put us in the 'window' layer for window-snapping actions")
     }
 
+    /// Mission Control maps 3-modifier chords (lctl + lmet + lalt + direction
+    /// or letter) to plain key combos macOS already interprets — e.g. the
+    /// `lctl + lmet + lalt + up` chord emits `C-up`, which is macOS's own
+    /// Mission Control shortcut. No AX or push-msg indirection, so the
+    /// simulator observes the actual output.
+    func testMissionControlChordEmitsCtrlUp() throws {
+        let events = try simulate(
+            collectionIDs: [RuleCollectionIdentifier.missionControl],
+            // Press all 3 modifiers together with up inside the chord
+            // window, release in reverse. Timings stay under defchordsv2's
+            // chord window.
+            script: "↓lctl 🕐5 ↓lmet 🕐5 ↓lalt 🕐5 ↓up 🕐50 ↑up 🕐20 ↑lalt 🕐5 ↑lmet 🕐5 ↑lctl 🕐50"
+        )
+        let output = outputKeys(events)
+        // The chord resolves to `C-up` which emits lctl+up. If the chord
+        // hadn't fired, we'd still see lctl but not a clean `up` output
+        // (up would still be suppressed by defsrc's chord input claim).
+        XCTAssertTrue(output.contains("up"),
+                      "Mission Control chord should emit up (as part of C-up); got: \(output)")
+    }
+
     /// Vim Navigation's headline: hold Space → nav layer; inside the layer,
     /// h/j/k/l emit arrow keys. Without the Space-hold activation the letter
     /// should come through as-is. This checks both paths in one script.

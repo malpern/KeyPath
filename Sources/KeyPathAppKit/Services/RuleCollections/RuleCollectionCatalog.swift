@@ -323,7 +323,7 @@ struct RuleCollectionCatalog {
 
     private var missionControl: RuleCollection {
         RuleCollection(
-            id: UUID(uuidString: "C3A5E2F1-8D4B-4C9A-A1E7-5F3D9B2C8A6E")!,
+            id: RuleCollectionIdentifier.missionControl,
             name: "Mission Control",
             summary: "Quick access to Mission Control, App Exposé, and Desktop switching.",
             category: .navigation,

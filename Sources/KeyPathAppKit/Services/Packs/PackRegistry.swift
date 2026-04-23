@@ -15,7 +15,8 @@ public enum PackRegistry {
         deleteEnhancement,
         backupCapsLock,
         vimNavigation,
-        windowSnapping
+        windowSnapping,
+        missionControl
     ]
 
     /// Look up a pack by id. Returns nil if unknown.
@@ -242,5 +243,28 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.windowSnapping
+    )
+
+    // MARK: - Pack 8: Mission Control
+
+    /// Collection-backed pack over `missionControl`. Three-modifier chords
+    /// (lctl + lmet + lalt + {up,down,left,right,d,n}) fire the system's
+    /// Mission Control, Exposé, Desktop, and Notification Center actions —
+    /// without fighting the physical F3 or binding a new shortcut from
+    /// scratch. Renders via the generic collection-mappings fallback in
+    /// Pack Detail.
+    public static let missionControl = Pack(
+        id: "com.keypath.pack.mission-control",
+        version: "1.0.0",
+        name: "Mission Control",
+        tagline: "Shortcuts for Exposé, Desktop, Notification Center",
+        shortDescription:
+            "Triple-chord shortcuts (Ctrl + Cmd + Option + a direction) for Mission Control, App Exposé, Desktop switching, Show Desktop, and Notification Center. Avoids the F3 muscle memory, no reach.",
+        longDescription: "",
+        category: "Productivity",
+        iconSymbol: "rectangle.3.group",
+        quickSettings: [],
+        bindings: [],
+        associatedCollectionID: RuleCollectionIdentifier.missionControl
     )
 }
