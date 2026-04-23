@@ -44,30 +44,11 @@ final class RuleCollectionKanataValidationTests: XCTestCase {
         let catalog = RuleCollectionCatalog().defaultCollections()
         XCTAssertFalse(catalog.isEmpty, "catalog should not be empty")
 
-        // `homeRowLayerToggles` intentionally references layers (num/sym/nav/
-        // fun) that are defined by *other* collections. In isolation the
-        // generated config references undeclared layers and kanata rightly
-        // refuses it. It's covered by `testHomeRowLayerTogglesWithAllLayers`
-        // below as a combo instead.
-        let soloExclusions: Set<UUID> = [RuleCollectionIdentifier.homeRowLayerToggles]
-
-        for collection in catalog where !soloExclusions.contains(collection.id) {
+        for collection in catalog {
             let enabled = collection.withIsEnabled(true)
             let config = KanataConfiguration.generateFromCollections([enabled])
             try assertKanataAccepts(config, kanata: kanata, label: collection.name)
         }
-    }
-
-    /// Home Row Layer Toggles needs num/sym/nav/fun layers declared to be
-    /// valid. Enable those alongside it to cover the intended usage.
-    func testHomeRowLayerTogglesWithAllLayers() throws {
-        try validateCombo(named: "HomeRowLayerToggles + all target layers", ids: [
-            RuleCollectionIdentifier.homeRowLayerToggles,
-            RuleCollectionIdentifier.numpadLayer,
-            RuleCollectionIdentifier.symbolLayer,
-            RuleCollectionIdentifier.funLayer,
-            RuleCollectionIdentifier.vimNavigation
-        ])
     }
 
     // MARK: - Risky combinations

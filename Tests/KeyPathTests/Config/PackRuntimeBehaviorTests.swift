@@ -89,26 +89,6 @@ final class PackRuntimeBehaviorTests: XCTestCase {
                       "j inside nav layer should emit 'down'; got: \(output)")
     }
 
-    /// Home Row Layer Toggles: tap behavior always emits the letter. The
-    /// hold path references layers (num/sym/nav/fun) declared by other
-    /// collections, so we enable those alongside to match the intended
-    /// real-world configuration.
-    func testHomeRowLayerTogglesShortTapEmitsLetter() throws {
-        let events = try simulate(
-            collectionIDs: [
-                RuleCollectionIdentifier.homeRowLayerToggles,
-                RuleCollectionIdentifier.numpadLayer,
-                RuleCollectionIdentifier.symbolLayer,
-                RuleCollectionIdentifier.funLayer,
-                RuleCollectionIdentifier.vimNavigation
-            ],
-            script: "↓d 🕐20 ↑d 🕐50"
-        )
-        let output = outputKeys(events)
-        XCTAssertTrue(output.contains("d"),
-                      "Short tap on 'd' should emit 'd'; got: \(output)")
-    }
-
     // MARK: - Harness
 
     private struct SimEvent: Decodable {
