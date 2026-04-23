@@ -39,7 +39,7 @@ struct GalleryView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Gallery")
                     .font(.system(size: 22, weight: .semibold))
-                Text("Ready-made packs of mappings. One click to install; one click to undo.")
+                Text("Ready-made packs of mappings. One click on; one click off.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
@@ -62,21 +62,22 @@ struct GalleryView: View {
 
     private var content: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Start here")
-                    .font(.system(size: 15, weight: .semibold))
-                    .padding(.top, 18)
+                    .font(.system(size: 16, weight: .semibold))
+                    .padding(.top, 20)
                     .padding(.horizontal, 24)
 
-                Text("Three packs to get started. Each one is undoable if you don't like it.")
+                Text("Three packs, three reasons to start. Flip any on; flip it back off the same way.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 24)
+                    .padding(.bottom, 6)
 
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 240, maximum: 280), spacing: 16, alignment: .top)],
+                    columns: [GridItem(.adaptive(minimum: 260, maximum: 300), spacing: 18, alignment: .top)],
                     alignment: .leading,
-                    spacing: 16
+                    spacing: 18
                 ) {
                     ForEach(PackRegistry.starterKit) { pack in
                         PackCardView(
@@ -87,6 +88,7 @@ struct GalleryView: View {
                     }
                 }
                 .padding(.horizontal, 24)
+                .padding(.vertical, 14)
                 .padding(.bottom, 24)
             }
         }

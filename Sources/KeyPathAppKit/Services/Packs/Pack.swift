@@ -32,6 +32,16 @@ public struct Pack: Identifiable, Equatable, Sendable {
     public let longDescription: String
     /// Author attribution. "KeyPath Team" for all M1 Starter Kit packs.
     public let author: String
+    /// Short category label shown as a chip on the pack card. Used to give
+    /// each pack a distinct visual identity ("Remap", "Home row", "Hyper").
+    public let category: String
+    /// Primary SF Symbol name displayed as the pack's hero icon on the card
+    /// and in Pack Detail. Each pack should pick a distinctive symbol so
+    /// cards don't look identical at a glance.
+    public let iconSymbol: String
+    /// Optional secondary symbol composed with the primary (e.g. "arrow.right"
+    /// for a "this → that" transform). When nil, the primary stands alone.
+    public let iconSecondarySymbol: String?
     /// Quick settings the user can adjust before or after install. Surfaced
     /// inline on Pack Detail. M1 supports at most one quick setting per pack;
     /// complex config is deferred to Customize UI in M2+.
@@ -49,6 +59,9 @@ public struct Pack: Identifiable, Equatable, Sendable {
         shortDescription: String,
         longDescription: String,
         author: String = "KeyPath Team",
+        category: String,
+        iconSymbol: String,
+        iconSecondarySymbol: String? = nil,
         quickSettings: [PackQuickSetting] = [],
         bindings: [PackBindingTemplate]
     ) {
@@ -59,6 +72,9 @@ public struct Pack: Identifiable, Equatable, Sendable {
         self.shortDescription = shortDescription
         self.longDescription = longDescription
         self.author = author
+        self.category = category
+        self.iconSymbol = iconSymbol
+        self.iconSecondarySymbol = iconSecondarySymbol
         self.quickSettings = quickSettings
         self.bindings = bindings
     }

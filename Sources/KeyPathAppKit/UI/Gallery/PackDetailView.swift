@@ -59,8 +59,13 @@ struct PackDetailView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(alignment: .top) {
+        HStack(alignment: .top, spacing: 16) {
+            heroIcon
             VStack(alignment: .leading, spacing: 4) {
+                Text(pack.category.uppercased())
+                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .tracking(0.5)
+                    .foregroundStyle(.secondary)
                 HStack(spacing: 8) {
                     Text(pack.name)
                         .font(.system(size: 20, weight: .semibold))
@@ -68,13 +73,14 @@ struct PackDetailView: View {
                         installedBadge
                     }
                 }
-                HStack(spacing: 6) {
-                    Text(pack.author)
-                    Text("·")
-                    Text("v\(pack.version)")
-                }
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                Text(pack.tagline)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(pack.author) · v\(pack.version)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 2)
             }
             Spacer()
             Button(action: { dismiss() }) {
@@ -89,15 +95,58 @@ struct PackDetailView: View {
             .accessibilityLabel("Close")
         }
         .padding(.horizontal, 24)
-        .padding(.top, 18)
+        .padding(.top, 20)
         .padding(.bottom, 14)
+    }
+
+    /// Larger version of the pack card's hero icon, for Pack Detail's header.
+    private var heroIcon: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.accentColor.opacity(0.16),
+                            Color.accentColor.opacity(0.06)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(Color.accentColor.opacity(0.22), lineWidth: 0.5)
+                )
+                .frame(width: 72, height: 72)
+
+            if let secondary = pack.iconSecondarySymbol {
+                HStack(spacing: 3) {
+                    Image(systemName: pack.iconSymbol)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(.tint)
+                        .symbolRenderingMode(.hierarchical)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Image(systemName: secondary)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(.tint)
+                        .symbolRenderingMode(.hierarchical)
+                }
+            } else {
+                Image(systemName: pack.iconSymbol)
+                    .font(.system(size: 30, weight: .semibold))
+                    .foregroundStyle(.tint)
+                    .symbolRenderingMode(.hierarchical)
+            }
+        }
     }
 
     private var installedBadge: some View {
         HStack(spacing: 4) {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(.green)
-            Text("Installed")
+            Text("On")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.green)
         }
@@ -145,7 +194,7 @@ struct PackDetailView: View {
     // MARK: - Description
 
     private var descriptionBlock: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             Text(pack.shortDescription)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.primary)
@@ -155,7 +204,7 @@ struct PackDetailView: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 4)
+                .lineSpacing(2)
         }
     }
 
@@ -243,10 +292,10 @@ struct PackDetailView: View {
                 .keyboardShortcut(.cancelAction)
             Spacer()
             if isInstalled {
-                Button("Uninstall", role: .destructive) { Task { await uninstall() } }
+                Button("Turn Off", role: .destructive) { Task { await uninstall() } }
                     .disabled(isWorking)
             } else {
-                Button("Install") { Task { await install() } }
+                Button("Turn On") { Task { await install() } }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .disabled(isWorking)
@@ -282,7 +331,7 @@ struct PackDetailView: View {
             toastView(
                 icon: "checkmark.circle.fill",
                 iconColor: .green,
-                message: "\(pack.name) uninstalled.",
+                message: "\(pack.name) turned off.",
                 action: ("Undo", { Task { await undoUninstall() } })
             )
             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -292,8 +341,8 @@ struct PackDetailView: View {
 
     private var installedToastMessage: String {
         pack.bindings.count == 1
-            ? "\(pack.name) installed."
-            : "\(pack.name) installed · \(pack.bindings.count) bindings added."
+            ? "\(pack.name) turned on."
+            : "\(pack.name) turned on · \(pack.bindings.count) bindings added."
     }
 
     private func toastView(
