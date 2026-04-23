@@ -104,6 +104,10 @@ For each pack ported:
 - [ ] Add to `PackRegistryTests.testExpectedPacksShip`.
 - [ ] Capture a screenshot for the pack card's hero icon decision (SF Symbols first; no custom art).
 
+## Known generator gaps surfaced by packs
+
+- **Nested-layer activators from unmapped source keys** — When a collection declares `momentaryActivator(sourceLayer: .navigation, input: X)` and X isn't already mapped within the nav layer by some other collection, the generator writes `XX` (no-op) into the nav layer's slot for X rather than the expected `@layer_<target>_<X>` alias. Visible on Numpad (`;` activator from nav) but the alias itself is correctly defined — it just isn't referenced in the source layer's deflayer. Window Snapping didn't hit this because `w` is mapped within nav through some other path. Covered by `--check` (config parses) but breaks runtime activation.
+
 ## Risks / known sharp edges
 
 - **Collection conflicts.** Enabling two collections that both bind the same physical key today produces undefined behavior. The validation harness will catch outright parse errors, but semantic conflicts (same key, two different tap outputs) will silently pick one. Consider a `packConflicts(pack:)` helper before enabling Window Snapping alongside HRM (both may want letter keys).
