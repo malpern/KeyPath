@@ -42,6 +42,9 @@ final class ServiceLifecycleCoordinator {
     /// IPC, can block 10-30s under concurrent load — see CLAUDE.md).
     private var smAppServicePendingCache: (value: Bool, timestamp: Date)?
     private static let smAppServicePendingCacheTTL: TimeInterval = 5.0
+    /// In-flight SMAppService refresh, kept so back-to-back cache misses
+    /// don't fan out into parallel IPC calls.
+    private var smAppServiceRefreshTask: Task<Bool, Never>?
 
     // MARK: - Callbacks (set by RuntimeCoordinator after init)
 
@@ -248,9 +251,33 @@ final class ServiceLifecycleCoordinator {
         {
             return cached.value
         }
+        // On cache miss, if we've ever had a value, return it stale and
+        // refresh in the background so the 250ms overlay poll never blocks
+        // on a potentially slow SMAppService.status IPC round-trip. Dedupe
+        // concurrent refreshes via `smAppServiceRefreshTask`.
+        if let cached = smAppServicePendingCache {
+            scheduleSMAppServiceRefresh()
+            return cached.value
+        }
+        // First ever call — no stale value to return. Do the IPC synchronously
+        // once so the first answer is correct; subsequent calls are cached.
+        return await performSMAppServiceRefresh()
+    }
+
+    private func scheduleSMAppServiceRefresh() {
+        if smAppServiceRefreshTask != nil { return }
+        smAppServiceRefreshTask = Task { [weak self] in
+            guard let self else { return false }
+            let value = await self.performSMAppServiceRefresh()
+            self.smAppServiceRefreshTask = nil
+            return value
+        }
+    }
+
+    private func performSMAppServiceRefresh() async -> Bool {
         let managementState = await KanataDaemonManager.shared.refreshManagementStateInternal()
         let isPending = managementState == .smappservicePending
-        smAppServicePendingCache = (isPending, now)
+        smAppServicePendingCache = (isPending, Date())
         return isPending
     }
 

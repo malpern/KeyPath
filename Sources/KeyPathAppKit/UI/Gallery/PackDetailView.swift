@@ -24,6 +24,7 @@ struct PackDetailView: View {
 
     @State private var isInstalled = false
     @State private var isWorking = false
+    @State private var toggleTask: Task<Void, Never>?
     @State private var justInstalled = false
     @State private var justUninstalled = false
     @State private var errorMessage: String?
@@ -90,6 +91,7 @@ struct PackDetailView: View {
                 .buttonStyle(.plain)
                 .focusable(false)
                 .accessibilityLabel("Open Gallery")
+                .accessibilityIdentifier("pack-detail-open-gallery")
                 Spacer()
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
@@ -102,6 +104,7 @@ struct PackDetailView: View {
                 .focusable(false)
                 .keyboardShortcut(.cancelAction)
                 .accessibilityLabel("Close")
+                .accessibilityIdentifier("pack-detail-close")
             }
 
             HStack(alignment: .center, spacing: 16) {
@@ -130,6 +133,7 @@ struct PackDetailView: View {
                 .scaleEffect(0.91, anchor: .trailing)
                 .disabled(isWorking)
                 .accessibilityLabel(isInstalled ? "Turn off pack" : "Turn on pack")
+                .accessibilityIdentifier("pack-detail-toggle")
             }
         }
         .padding(.horizontal, 24)
@@ -216,7 +220,13 @@ struct PackDetailView: View {
 
     private func handleToggle(to newValue: Bool) {
         guard newValue != isInstalled else { return }
-        Task { newValue ? await install() : await uninstall() }
+        // Cancel any in-flight install/uninstall so two quick taps (install →
+        // uninstall → install) don't interleave writes into the rules table.
+        // `.disabled(isWorking)` guards the tap-through case, but SwiftUI
+        // Toggles can re-fire before the disabled state propagates on a
+        // rapid double-flick.
+        toggleTask?.cancel()
+        toggleTask = Task { newValue ? await install() : await uninstall() }
     }
 
     /// Dismiss this sheet and bring the Gallery window forward. Works
@@ -571,6 +581,7 @@ struct PackDetailView: View {
                 Button(action.label, action: action.handler)
                     .buttonStyle(.link)
                     .foregroundStyle(.blue)
+                    .accessibilityIdentifier("pack-detail-banner-action")
             }
         }
         .padding(.horizontal, 14)
