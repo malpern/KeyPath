@@ -366,6 +366,7 @@ public enum RuleCollectionIdentifier {
     public static let kindaVim = UUID(uuidString: "F1A2B3C4-5D6E-7F8A-9B0C-1D2E3F4A5B6C")!
     public static let neovimTerminal = UUID(uuidString: "A2B3C4D5-6E7F-8A9B-0C1D-2E3F4A5B6C7D")!
     public static let autoShiftSymbols = UUID(uuidString: "D1E2F3A4-B5C6-7D8E-9F0A-1B2C3D4E5F6A")!
+    public static let missionControl = UUID(uuidString: "C3A5E2F1-8D4B-4C9A-A1E7-5F3D9B2C8A6E")!
 }
 
 public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {
