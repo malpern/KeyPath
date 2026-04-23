@@ -62,6 +62,7 @@ struct PackCardView: View {
                             pressing: { isPressed = $0 }, perform: {})
         .accessibilityLabel("\(pack.name). \(pack.category). \(pack.tagline)")
         .accessibilityHint(isInstalled ? "On. Double tap to open." : "Double tap to open pack detail.")
+        .accessibilityIdentifier("pack-card-\(pack.id)")
     }
 
     // MARK: - Anatomy
@@ -88,6 +89,7 @@ struct PackCardView: View {
         .controlSize(.small)
         .disabled(isToggleBusy || onToggle == nil)
         .accessibilityLabel(isInstalled ? "Turn off \(pack.name)" : "Turn on \(pack.name)")
+        .accessibilityIdentifier("pack-toggle-\(pack.id)")
     }
 
     private var categoryChip: some View {

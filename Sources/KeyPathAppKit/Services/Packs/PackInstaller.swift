@@ -314,12 +314,22 @@ public final class PackInstaller {
         var resolved: [String: Int] = [:]
         for setting in pack.quickSettings {
             if let override = overrides[setting.id] {
-                resolved[setting.id] = override
+                // Clamp to the pack-defined slider bounds so a malformed
+                // override (negative, out-of-range, serialized garbage) can't
+                // produce a kanata config with nonsense timing values.
+                resolved[setting.id] = clamp(override, to: setting.kind)
             } else if let defaultVal = setting.defaultSliderValue {
                 resolved[setting.id] = defaultVal
             }
         }
         return resolved
+    }
+
+    private func clamp(_ value: Int, to kind: PackQuickSetting.Kind) -> Int {
+        switch kind {
+        case let .slider(_, minValue, maxValue, _, _):
+            return min(max(value, minValue), maxValue)
+        }
     }
 
     /// Remove any rules already committed for this pack id. Best-effort —

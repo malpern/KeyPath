@@ -24,6 +24,7 @@ struct PackDetailView: View {
 
     @State private var isInstalled = false
     @State private var isWorking = false
+    @State private var toggleTask: Task<Void, Never>?
     @State private var justInstalled = false
     @State private var justUninstalled = false
     @State private var errorMessage: String?
@@ -90,6 +91,7 @@ struct PackDetailView: View {
                 .buttonStyle(.plain)
                 .focusable(false)
                 .accessibilityLabel("Open Gallery")
+                .accessibilityIdentifier("pack-detail-open-gallery")
                 Spacer()
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
@@ -102,6 +104,7 @@ struct PackDetailView: View {
                 .focusable(false)
                 .keyboardShortcut(.cancelAction)
                 .accessibilityLabel("Close")
+                .accessibilityIdentifier("pack-detail-close")
             }
 
             HStack(alignment: .center, spacing: 16) {
@@ -130,6 +133,7 @@ struct PackDetailView: View {
                 .scaleEffect(0.91, anchor: .trailing)
                 .disabled(isWorking)
                 .accessibilityLabel(isInstalled ? "Turn off pack" : "Turn on pack")
+                .accessibilityIdentifier("pack-detail-toggle")
             }
         }
         .padding(.horizontal, 24)
@@ -216,7 +220,13 @@ struct PackDetailView: View {
 
     private func handleToggle(to newValue: Bool) {
         guard newValue != isInstalled else { return }
-        Task { newValue ? await install() : await uninstall() }
+        // Cancel any in-flight install/uninstall so two quick taps (install →
+        // uninstall → install) don't interleave writes into the rules table.
+        // `.disabled(isWorking)` guards the tap-through case, but SwiftUI
+        // Toggles can re-fire before the disabled state propagates on a
+        // rapid double-flick.
+        toggleTask?.cancel()
+        toggleTask = Task { newValue ? await install() : await uninstall() }
     }
 
     /// Dismiss this sheet and bring the Gallery window forward. Works
@@ -412,6 +422,12 @@ struct PackDetailView: View {
                 .opacity(isInstalled ? 1.0 : 0.55)
                 .animation(.easeInOut(duration: 0.2), value: isInstalled)
             }
+        } else if pack.bindings.isEmpty, let collection = liveAssociatedCollection,
+                  !collection.mappings.isEmpty {
+            // Collection-backed pack with no explicit bindings — e.g. Vim
+            // Navigation. Render the collection's mapping table so there's
+            // a single source of truth if the collection changes upstream.
+            collectionMappingsBlock(collection)
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 Divider()
@@ -515,6 +531,46 @@ struct PackDetailView: View {
         .padding(.vertical, 2)
     }
 
+    /// Read-only mapping table for collection-backed packs whose behavior is
+    /// a fixed table rather than a user-tuned picker (e.g. Vim Navigation).
+    /// Sourced directly from the collection so there's no risk of drift.
+    @ViewBuilder
+    private func collectionMappingsBlock(_ collection: RuleCollection) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            if let hint = collection.activationHint, !hint.isEmpty {
+                Text(hint)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 2)
+            }
+            Text("What this will change")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+            // Compact two-column layout — keycap on the left, description on
+            // the right. Keeps Pack Detail scannable even when the collection
+            // has ~15-20 mappings.
+            LazyVGrid(
+                columns: [
+                    GridItem(.fixed(72), alignment: .leading),
+                    GridItem(.flexible(), alignment: .leading)
+                ],
+                alignment: .leading,
+                spacing: 4
+            ) {
+                ForEach(collection.mappings) { mapping in
+                    KeyCapChip(text: RuleBehaviorSummaryView.formatKeyForBehavior(mapping.input))
+                    Text(mapping.description ?? mapping.output)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                }
+            }
+            .opacity(isInstalled ? 1.0 : 0.6)
+            .animation(.easeInOut(duration: 0.2), value: isInstalled)
+        }
+    }
+
     // MARK: - Toast overlay
 
     @ViewBuilder
@@ -571,6 +627,7 @@ struct PackDetailView: View {
                 Button(action.label, action: action.handler)
                     .buttonStyle(.link)
                     .foregroundStyle(.blue)
+                    .accessibilityIdentifier("pack-detail-banner-action")
             }
         }
         .padding(.horizontal, 14)

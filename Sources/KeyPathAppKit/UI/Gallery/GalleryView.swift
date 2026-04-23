@@ -56,6 +56,7 @@ struct GalleryView: View {
             .buttonStyle(.plain)
             .keyboardShortcut(.cancelAction)
             .accessibilityLabel("Close Gallery")
+            .accessibilityIdentifier("gallery-close")
         }
         .padding(.horizontal, 24)
         .padding(.top, 20)
