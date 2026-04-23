@@ -879,21 +879,12 @@ struct SystemHealthIndicatorView: View {
         Group {
             switch state {
             case .checking:
-                // Spinner while health is being calculated
-                HStack(spacing: 4) {
-                    ProgressView()
-                        .scaleEffect(0.5)
-                        .frame(width: 12, height: 12)
-                    Text("Checking...")
-                        .font(.caption2.weight(.medium))
-                }
-                .foregroundStyle(headerIconColor)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(
-                    RoundedRectangle(cornerRadius: indicatorCornerRadius)
-                        .fill(Color.white.opacity(isDark ? 0.1 : 0.15))
-                )
+                // Hidden on the keyboard overlay — the drawer still shows a
+                // "checking" state for health gating. The floating indicator
+                // above the keyboard only surfaces results (Ready / N Issues),
+                // never the in-progress spinner, to cut visual noise during
+                // routine startup.
+                EmptyView()
 
             case .healthy:
                 // Green checkmark - briefly visible before fading
