@@ -45,6 +45,12 @@ struct PackDetailView: View {
     /// to a persisted collection config is follow-up work.
     @State private var homeRowModsConfig: HomeRowModsConfig = .init()
 
+    /// Local state for the embedded Auto Shift Symbols editor.
+    @State private var autoShiftConfig: AutoShiftSymbolsConfig = .init()
+
+    /// Currently-selected layer-preset id (for the Symbol/Fun packs).
+    @State private var selectedLayerPresetId: String?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
@@ -422,12 +428,83 @@ struct PackDetailView: View {
                 .opacity(isInstalled ? 1.0 : 0.55)
                 .animation(.easeInOut(duration: 0.2), value: isInstalled)
             }
+        } else if let autoShiftCollection = associatedAutoShiftCollection {
+            // Auto Shift Symbols: enabled-keys toggles + timing slider + fast-
+            // typing protection. Same view the Rules tab uses.
+            VStack(alignment: .leading, spacing: 0) {
+                Divider()
+                AutoShiftCollectionView(
+                    config: autoShiftConfig,
+                    onConfigChanged: { newConfig in
+                        Task { await applyAutoShiftEdit(newConfig, collectionID: autoShiftCollection.id) }
+                    }
+                )
+                .id(autoShiftCollection.id) // re-mount when live config changes
+                .opacity(isInstalled ? 1.0 : 0.55)
+                .animation(.easeInOut(duration: 0.2), value: isInstalled)
+            }
+        } else if let layerPresetCollection = associatedLayerPresetCollection {
+            // Layer preset picker — Symbol/Fun layers. Users choose a preset
+            // (e.g. Mirrored, Alphabetical) that redefines the layer's
+            // mappings. Reuses the Rules-tab picker directly.
+            VStack(alignment: .leading, spacing: 0) {
+                Divider()
+                LayerPresetPickerContent(
+                    collection: layerPresetCollection,
+                    onSelectPreset: { presetId in
+                        selectedLayerPresetId = presetId
+                        Task { await applyLayerPresetEdit(presetId: presetId, collectionID: layerPresetCollection.id) }
+                    }
+                )
+                .id(selectedLayerPresetId ?? "")
+                .opacity(isInstalled ? 1.0 : 0.55)
+                .animation(.easeInOut(duration: 0.2), value: isInstalled)
+            }
+        } else if let collection = liveAssociatedCollection,
+                  collection.id == RuleCollectionIdentifier.windowSnapping {
+            // Window Snapping has a custom visual editor in Rules — convention
+            // picker + monitor canvas + floating action cards. Pack Detail
+            // embeds the same view so the experience is identical.
+            VStack(alignment: .leading, spacing: 0) {
+                Divider()
+                if let hint = collection.activationHint, !hint.isEmpty {
+                    Text(hint)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 8)
+                }
+                WindowSnappingView(
+                    mappings: collection.mappings,
+                    convention: collection.windowKeyConvention ?? .standard,
+                    onConventionChange: { convention in
+                        Task { await applyWindowConventionEdit(convention, collectionID: collection.id) }
+                    }
+                )
+                .opacity(isInstalled ? 1.0 : 0.55)
+                .animation(.easeInOut(duration: 0.2), value: isInstalled)
+            }
         } else if pack.bindings.isEmpty, let collection = liveAssociatedCollection,
                   !collection.mappings.isEmpty {
-            // Collection-backed pack with no explicit bindings — e.g. Vim
-            // Navigation. Render the collection's mapping table so there's
-            // a single source of truth if the collection changes upstream.
-            collectionMappingsBlock(collection)
+            // Collection-backed pack with no explicit bindings and a plain
+            // `.table` config (Vim Navigation, Mission Control, Numpad).
+            // Uses the same MappingTableContent view Rules uses so the
+            // table styling matches exactly.
+            VStack(alignment: .leading, spacing: 8) {
+                Divider()
+                if let hint = collection.activationHint, !hint.isEmpty {
+                    Text(hint)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                MappingTableContent(
+                    mappings: collection.mappings.map {
+                        ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput,
+                         $0.description, $0.sectionBreak, isInstalled, $0.id, nil)
+                    }
+                )
+                .opacity(isInstalled ? 1.0 : 0.6)
+                .animation(.easeInOut(duration: 0.2), value: isInstalled)
+            }
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 Divider()
@@ -459,6 +536,24 @@ struct PackDetailView: View {
     private var associatedSingleKeyCollection: RuleCollection? {
         guard let collection = liveAssociatedCollection,
               case .singleKeyPicker = collection.configuration
+        else { return nil }
+        return collection
+    }
+
+    /// Collection backing an Auto Shift-style pack (enabled-keys toggles +
+    /// timing slider). Matches the `.autoShiftSymbols` configuration case.
+    private var associatedAutoShiftCollection: RuleCollection? {
+        guard let collection = liveAssociatedCollection,
+              case .autoShiftSymbols = collection.configuration
+        else { return nil }
+        return collection
+    }
+
+    /// Collection backing a layer-preset pack (Symbol, Fun). Matches the
+    /// `.layerPresetPicker` configuration case.
+    private var associatedLayerPresetCollection: RuleCollection? {
+        guard let collection = liveAssociatedCollection,
+              case .layerPresetPicker = collection.configuration
         else { return nil }
         return collection
     }
@@ -529,46 +624,6 @@ struct PackDetailView: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 2)
-    }
-
-    /// Read-only mapping table for collection-backed packs whose behavior is
-    /// a fixed table rather than a user-tuned picker (e.g. Vim Navigation).
-    /// Sourced directly from the collection so there's no risk of drift.
-    @ViewBuilder
-    private func collectionMappingsBlock(_ collection: RuleCollection) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Divider()
-            if let hint = collection.activationHint, !hint.isEmpty {
-                Text(hint)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, 2)
-            }
-            Text("What this will change")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-            // Compact two-column layout — keycap on the left, description on
-            // the right. Keeps Pack Detail scannable even when the collection
-            // has ~15-20 mappings.
-            LazyVGrid(
-                columns: [
-                    GridItem(.fixed(72), alignment: .leading),
-                    GridItem(.flexible(), alignment: .leading)
-                ],
-                alignment: .leading,
-                spacing: 4
-            ) {
-                ForEach(collection.mappings) { mapping in
-                    KeyCapChip(text: RuleBehaviorSummaryView.formatKeyForBehavior(mapping.input))
-                    Text(mapping.description ?? mapping.output)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                }
-            }
-            .opacity(isInstalled ? 1.0 : 0.6)
-            .animation(.easeInOut(duration: 0.2), value: isInstalled)
-        }
     }
 
     // MARK: - Toast overlay
@@ -687,7 +742,27 @@ struct PackDetailView: View {
             if let liveHomeRow {
                 homeRowModsConfig = liveHomeRow
             }
+            if let liveAutoShift = liveAutoShiftConfig() {
+                autoShiftConfig = liveAutoShift
+            }
+            if let livePreset = liveLayerPresetId() {
+                selectedLayerPresetId = livePreset
+            }
         }
+    }
+
+    private func liveAutoShiftConfig() -> AutoShiftSymbolsConfig? {
+        guard let collection = associatedAutoShiftCollection,
+              case let .autoShiftSymbols(cfg) = collection.configuration
+        else { return nil }
+        return cfg
+    }
+
+    private func liveLayerPresetId() -> String? {
+        guard let collection = associatedLayerPresetCollection,
+              case let .layerPresetPicker(cfg) = collection.configuration
+        else { return nil }
+        return cfg.selectedPresetId
     }
 
     private func liveSingleKeySelection() async -> String? {
@@ -718,6 +793,38 @@ struct PackDetailView: View {
             collectionId: collectionID,
             config: newConfig
         )
+    }
+
+    /// Mirror of `applyHomeRowEdit` for Auto Shift Symbols.
+    private func applyAutoShiftEdit(_ newConfig: AutoShiftSymbolsConfig, collectionID: UUID) async {
+        autoShiftConfig = newConfig
+        if !isInstalled {
+            await install(skipFinalReload: true)
+        }
+        await kanataManager.updateAutoShiftSymbolsConfig(
+            collectionId: collectionID,
+            config: newConfig
+        )
+    }
+
+    /// Mirror of `applyHomeRowEdit` for Window Snapping's convention picker
+    /// (Standard L/R/U/I/J/K vs Vim H/L/Y/U/B/N).
+    private func applyWindowConventionEdit(_ convention: WindowKeyConvention, collectionID: UUID) async {
+        if !isInstalled {
+            await install(skipFinalReload: true)
+        }
+        await kanataManager.updateWindowKeyConvention(collectionID, convention: convention)
+    }
+
+    /// Mirror of `applyHomeRowEdit` for layer-preset packs (Symbol, Fun).
+    /// Installs the pack on first touch, then switches the collection's
+    /// selected preset so the generated kanata config rebinds the layer.
+    private func applyLayerPresetEdit(presetId: String, collectionID: UUID) async {
+        selectedLayerPresetId = presetId
+        if !isInstalled {
+            await install(skipFinalReload: true)
+        }
+        await kanataManager.updateCollectionLayerPreset(collectionID, presetId: presetId)
     }
 
     /// Supplies the same layer list Rules uses when rendering the Home Row
