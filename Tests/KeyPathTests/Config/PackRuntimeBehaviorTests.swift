@@ -152,6 +152,24 @@ final class PackRuntimeBehaviorTests: XCTestCase {
                       "j inside numpad layer should emit kp4; got: \(output)")
     }
 
+    /// Symbol Layer is nested under nav (Leader → `s`). Inside the sym
+    /// layer, the default Mirrored preset maps the top row to shifted
+    /// variants — `1` emits `S-1` (= `!`), which the simulator renders as
+    /// lsft + 1. Assert on `lsft` in the output (a key that would NOT
+    /// fire if the layer transition hadn't happened).
+    func testSymbolLayerNestedActivation() throws {
+        let result = try simulateFull(
+            collectionIDs: [
+                RuleCollectionIdentifier.symbolLayer,
+                RuleCollectionIdentifier.vimNavigation
+            ],
+            // Space held (→ nav), hold `s` (→ sym).
+            script: "↓spc 🕐300 ↓s 🕐300"
+        )
+        XCTAssertEqual(result.finalLayer, "sym",
+                       "Holding space + s should put us in the 'sym' layer; got: \(result.finalLayer ?? "nil")")
+    }
+
     /// Vim Navigation's headline: hold Space → nav layer; inside the layer,
     /// h/j/k/l emit arrow keys. Without the Space-hold activation the letter
     /// should come through as-is. This checks both paths in one script.

@@ -23,6 +23,7 @@ final class PackRegistryTests: XCTestCase {
         XCTAssertTrue(ids.contains("com.keypath.pack.mission-control"))
         XCTAssertTrue(ids.contains("com.keypath.pack.auto-shift-symbols"))
         XCTAssertTrue(ids.contains("com.keypath.pack.numpad-layer"))
+        XCTAssertTrue(ids.contains("com.keypath.pack.symbol-layer"))
     }
 
     func testCollectionBackedPacksPointAtRealCollections() {

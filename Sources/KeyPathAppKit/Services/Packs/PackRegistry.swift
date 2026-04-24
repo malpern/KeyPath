@@ -18,7 +18,8 @@ public enum PackRegistry {
         windowSnapping,
         missionControl,
         autoShiftSymbols,
-        numpadLayer
+        numpadLayer,
+        symbolLayer
     ]
 
     /// Look up a pack by id. Returns nil if unknown.
@@ -325,5 +326,42 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.numpadLayer
+    )
+
+    // MARK: - Pack 11: Symbol Layer
+
+    /// Collection-backed pack over `symbolLayer`. Two-step activation: hold
+    /// Space for nav, hold `s` to enter the sym layer. Inside the layer,
+    /// the selected preset (default: Mirrored) rebinds keys to common
+    /// programming symbols — the shifted number row in the same positions,
+    /// plus brackets/operators clustered on the home row.
+    ///
+    /// Pack `bindings` are illustrative samples from the default Mirrored
+    /// preset; the actual kanata config is generated from the collection's
+    /// `LayerPresetPickerConfig.selectedPresetId` at install time. A
+    /// dedicated layer-preset picker in Pack Detail is follow-up work.
+    public static let symbolLayer = Pack(
+        id: "com.keypath.pack.symbol-layer",
+        version: "1.0.0",
+        name: "Symbol",
+        tagline: "Programming symbols under your home row",
+        shortDescription:
+            "Hold Space, hold `s`, then hit the number row for shifted symbols in the same positions (1→!, 2→@, 3→#…), home row for brackets/operators ([, ], {, }, -, =, +…). Picks up whichever preset is selected in Rules.",
+        longDescription: "",
+        category: "Layers",
+        iconSymbol: "textformat.abc.dottedunderline",
+        quickSettings: [],
+        bindings: [
+            PackBindingTemplate(input: "1", output: "S-1", title: "1 → !"),
+            PackBindingTemplate(input: "2", output: "S-2", title: "2 → @"),
+            PackBindingTemplate(input: "3", output: "S-3", title: "3 → #"),
+            PackBindingTemplate(input: "d", output: "min", title: "d → -"),
+            PackBindingTemplate(input: "f", output: "eql", title: "f → ="),
+            PackBindingTemplate(input: "h", output: "[", title: "h → ["),
+            PackBindingTemplate(input: "j", output: "]", title: "j → ]"),
+            PackBindingTemplate(input: "k", output: "S-[", title: "k → {"),
+            PackBindingTemplate(input: "l", output: "S-]", title: "l → }")
+        ],
+        associatedCollectionID: RuleCollectionIdentifier.symbolLayer
     )
 }
