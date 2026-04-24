@@ -109,6 +109,19 @@ class LayerIndicatorManager {
     func showLayer(_ layerName: String) {
         AppLogger.shared.log("🪟 [LayerIndicator] showLayer called with: '\(layerName)' (previous: '\(previousLayer)')")
 
+        // Respect the per-app suppression list — if the user is in Figma
+        // (etc), skip the indicator AND the directional sounds. We still
+        // update `previousLayer` so the next legitimate change doesn't
+        // double-fire.
+        if let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+           PreferencesService.shared.overlaySuppressedBundleIDs.contains(frontBundle)
+        {
+            AppLogger.shared.debug("🪟 [LayerIndicator] Suppressed for app \(frontBundle)")
+            previousLayer = layerName
+            window?.orderOut(nil)
+            return
+        }
+
         let isBase = layerName.lowercased() == "base"
         let wasBase = previousLayer.lowercased() == "base"
 

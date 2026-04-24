@@ -9,10 +9,24 @@ class SoundManager {
 
     private init() {}
 
+    /// Gate that silences every sound when:
+    /// * We're running inside XCTest (pre-existing behavior), OR
+    /// * The frontmost app's bundle identifier is on the user's
+    ///   `overlaySuppressedBundleIDs` list (Settings → Experimental).
+    private func shouldSuppress() -> Bool {
+        if shouldSuppress() { return true }
+        if let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+           PreferencesService.shared.overlaySuppressedBundleIDs.contains(front)
+        {
+            return true
+        }
+        return false
+    }
+
     /// Play tink sound when saving configuration
     func playTinkSound() {
-        if TestEnvironment.isRunningTests {
-            AppLogger.shared.log("🧪 [Sound] Suppressed tink sound in test environment")
+        if shouldSuppress() {
+            AppLogger.shared.log("🔇 [Sound] Suppressed tink sound")
             return
         }
         NSSound(named: "Tink")?.play()
@@ -21,8 +35,8 @@ class SoundManager {
 
     /// Play glass sound when configuration reload is complete
     func playGlassSound() {
-        if TestEnvironment.isRunningTests {
-            AppLogger.shared.log("🧪 [Sound] Suppressed glass sound in test environment")
+        if shouldSuppress() {
+            AppLogger.shared.log("🔇 [Sound] Suppressed glass sound")
             return
         }
         NSSound(named: "Glass")?.play()
@@ -31,8 +45,8 @@ class SoundManager {
 
     /// Play system beep for errors
     func playErrorSound() {
-        if TestEnvironment.isRunningTests {
-            AppLogger.shared.log("🧪 [Sound] Suppressed error beep in test environment")
+        if shouldSuppress() {
+            AppLogger.shared.log("🔇 [Sound] Suppressed error beep")
             return
         }
         NSSound.beep()
@@ -41,8 +55,8 @@ class SoundManager {
 
     /// Play warning sound for conflicts (non-blocking warnings)
     func playWarningSound() {
-        if TestEnvironment.isRunningTests {
-            AppLogger.shared.log("🧪 [Sound] Suppressed warning sound in test environment")
+        if shouldSuppress() {
+            AppLogger.shared.log("🔇 [Sound] Suppressed warning sound")
             return
         }
         // "Basso" is a low, cautionary sound - appropriate for warnings
@@ -52,8 +66,8 @@ class SoundManager {
 
     /// Play submarine sound for successful operations (alternative to glass)
     func playSubmarineSound() {
-        if TestEnvironment.isRunningTests {
-            AppLogger.shared.log("🧪 [Sound] Suppressed submarine sound in test environment")
+        if shouldSuppress() {
+            AppLogger.shared.log("🔇 [Sound] Suppressed submarine sound")
             return
         }
         NSSound(named: "Submarine")?.play()
@@ -64,8 +78,8 @@ class SoundManager {
 
     /// Play subtle sound when entering a non-base layer (higher pitch)
     func playLayerUpSound() {
-        if TestEnvironment.isRunningTests {
-            AppLogger.shared.log("🧪 [Sound] Suppressed layer-up sound in test environment")
+        if shouldSuppress() {
+            AppLogger.shared.log("🔇 [Sound] Suppressed layer-up sound")
             return
         }
         // "Tink" is a light, higher-pitched tap - good for going "up"
@@ -75,8 +89,8 @@ class SoundManager {
 
     /// Play subtle sound when returning to base layer (lower pitch)
     func playLayerDownSound() {
-        if TestEnvironment.isRunningTests {
-            AppLogger.shared.log("🧪 [Sound] Suppressed layer-down sound in test environment")
+        if shouldSuppress() {
+            AppLogger.shared.log("🔇 [Sound] Suppressed layer-down sound")
             return
         }
         // "Pop" has a lower, softer quality - good for settling "down"
@@ -88,8 +102,8 @@ class SoundManager {
 
     /// Play subtle sound when overlay appears
     func playOverlayShowSound() {
-        if TestEnvironment.isRunningTests {
-            AppLogger.shared.log("🧪 [Sound] Suppressed overlay-show sound in test environment")
+        if shouldSuppress() {
+            AppLogger.shared.log("🔇 [Sound] Suppressed overlay-show sound")
             return
         }
         // "Bottle" is a soft cork/bubble sound - gentle for appearing
@@ -99,8 +113,8 @@ class SoundManager {
 
     /// Play subtle sound when overlay hides
     func playOverlayHideSound() {
-        if TestEnvironment.isRunningTests {
-            AppLogger.shared.log("🧪 [Sound] Suppressed overlay-hide sound in test environment")
+        if shouldSuppress() {
+            AppLogger.shared.log("🔇 [Sound] Suppressed overlay-hide sound")
             return
         }
         // "Funk" is a subtle descending tone - good for dismissing
