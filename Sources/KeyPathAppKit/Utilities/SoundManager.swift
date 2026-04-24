@@ -14,7 +14,7 @@ class SoundManager {
     /// * The frontmost app's bundle identifier is on the user's
     ///   `overlaySuppressedBundleIDs` list (Settings → Experimental).
     private func shouldSuppress() -> Bool {
-        if shouldSuppress() { return true }
+        if TestEnvironment.isRunningTests { return true }
         if let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
            PreferencesService.shared.overlaySuppressedBundleIDs.contains(front)
         {
