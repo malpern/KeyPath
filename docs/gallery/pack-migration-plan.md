@@ -104,6 +104,10 @@ For each pack ported:
 - [ ] Add to `PackRegistryTests.testExpectedPacksShip`.
 - [ ] Capture a screenshot for the pack card's hero icon decision (SF Symbols first; no custom art).
 
+## Known generator gaps surfaced by packs
+
+- ~~**Nested-layer activators from unmapped source keys**~~ — **Fixed** in the Numpad pack PR. Root cause was `navigationUnmappedKeys` skipping activator keys by their pre-conversion name but callers passed post-conversion kanata names, so keys like `;` fell through, got rendered as `XX` blockers, and overwrote the activator entry in dedupe. Fix adds a second skip pass against the converted name.
+
 ## Risks / known sharp edges
 
 - **Collection conflicts.** Enabling two collections that both bind the same physical key today produces undefined behavior. The validation harness will catch outright parse errors, but semantic conflicts (same key, two different tap outputs) will silently pick one. Consider a `packConflicts(pack:)` helper before enabling Window Snapping alongside HRM (both may want letter keys).
