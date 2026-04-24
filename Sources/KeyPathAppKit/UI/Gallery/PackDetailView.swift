@@ -51,6 +51,10 @@ struct PackDetailView: View {
     /// Currently-selected layer-preset id (for the Symbol/Fun packs).
     @State private var selectedLayerPresetId: String?
 
+    /// Help sheet presentation (Home Row Mods only — mirrors the Rules tab's
+    /// `?` button that opens the HRM markdown help).
+    @State private var showingHomeRowModsHelp = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
@@ -72,6 +76,9 @@ struct PackDetailView: View {
             loadDefaultQuickSettings()
         }
         .overlay(toastOverlay, alignment: .bottom)
+        .sheet(isPresented: $showingHomeRowModsHelp) {
+            MarkdownHelpSheet(resource: "home-row-mods", title: "Home Row Mods")
+        }
     }
 
     // MARK: - Header
@@ -116,8 +123,28 @@ struct PackDetailView: View {
             HStack(alignment: .center, spacing: 16) {
                 heroIcon
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(pack.name)
-                        .font(.system(size: 20, weight: .semibold))
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(pack.name)
+                            .font(.system(size: 20, weight: .semibold))
+                        // Help button — mirrors the `?` on the Rules tab's
+                        // Home Row Mods row. Only present for packs that
+                        // have curated help markdown.
+                        if helpResourceName != nil {
+                            Button {
+                                if helpResourceName != nil {
+                                    showingHomeRowModsHelp = true
+                                }
+                            } label: {
+                                Image(systemName: "questionmark.circle")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .focusable(false)
+                            .accessibilityLabel("\(pack.name) help")
+                            .accessibilityIdentifier("pack-detail-help")
+                        }
+                    }
                     Text(pack.tagline)
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
@@ -352,6 +379,24 @@ struct PackDetailView: View {
 
     // MARK: - Binding list
 
+    /// Wraps embedded editors in `InsetBackPlane` with the same padding the
+    /// Rules tab uses, so Pack Detail editors visually match their Rules
+    /// counterparts (subtle inner-shadow container, consistent insets).
+    @ViewBuilder
+    private func embeddedEditor<Content: View>(
+        horizontalPadding: CGFloat = 16,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        InsetBackPlane {
+            content()
+                .padding(.top, 8)
+                .padding(.bottom, 12)
+                .padding(.horizontal, horizontalPadding)
+        }
+        .opacity(isInstalled ? 1.0 : 0.55)
+        .animation(.easeInOut(duration: 0.2), value: isInstalled)
+    }
+
     @ViewBuilder
     private var bindingsBlock: some View {
         if isHomeRowModsPack, let collectionID = pack.associatedCollectionID {
@@ -360,8 +405,7 @@ struct PackDetailView: View {
             // so we embed the same view the Rules tab uses. All layer-
             // aware callbacks delegate into the same `kanataManager`
             // methods Rules uses so hold-to-layer bindings work here too.
-            VStack(alignment: .leading, spacing: 0) {
-                Divider()
+            embeddedEditor {
                 HomeRowModsCollectionView(
                     config: $homeRowModsConfig,
                     availableLayers: availableHomeRowLayers(),
@@ -377,22 +421,17 @@ struct PackDetailView: View {
                         await kanataManager.batchEnableCollections(collectionIds)
                     }
                 )
-                .opacity(isInstalled ? 1.0 : 0.55)
-                .animation(.easeInOut(duration: 0.2), value: isInstalled)
             }
         } else if let singleKeyCollection = associatedSingleKeyCollection {
             // Single-key remap with preset pills (Escape Remap, Delete
             // Enhancement, Backup Caps Lock). Reuses Rules' view directly.
-            VStack(alignment: .leading, spacing: 0) {
-                Divider()
+            embeddedEditor {
                 SingleKeyPickerContent(
                     collection: singleKeyCollection,
                     onSelectOutput: { output in
                         Task { await applySingleKeyEdit(output: output) }
                     }
                 )
-                .opacity(isInstalled ? 1.0 : 0.55)
-                .animation(.easeInOut(duration: 0.2), value: isInstalled)
             }
         } else if let pickerConfig = associatedPickerConfig {
             // Phase 2: for packs that map onto an existing RuleCollection's
@@ -404,8 +443,7 @@ struct PackDetailView: View {
             // pack, the user's click registers in the picker's internal
             // selection state, and the dim lifts. Phase 3 will persist the
             // selected preset through to the installed CustomRule.
-            VStack(alignment: .leading, spacing: 0) {
-                Divider()
+            embeddedEditor {
                 TapHoldPickerContent(
                     config: pickerConfig,
                     isEditable: true,
@@ -421,34 +459,26 @@ struct PackDetailView: View {
                 // Picker seeds its selection state at init. Re-id whenever
                 // the live selection flips (e.g. on appear, after refresh
                 // from the live rule) so SwiftUI re-creates it with the
-                // fresh seed. User clicks update our local state, which
-                // bumps the id, which re-seeds — harmless because the new
-                // seed matches what the user just clicked.
+                // fresh seed.
                 .id("\(pickerTapSelection ?? "")-\(pickerHoldSelection ?? "")")
-                .opacity(isInstalled ? 1.0 : 0.55)
-                .animation(.easeInOut(duration: 0.2), value: isInstalled)
             }
         } else if let autoShiftCollection = associatedAutoShiftCollection {
             // Auto Shift Symbols: enabled-keys toggles + timing slider + fast-
             // typing protection. Same view the Rules tab uses.
-            VStack(alignment: .leading, spacing: 0) {
-                Divider()
+            embeddedEditor {
                 AutoShiftCollectionView(
                     config: autoShiftConfig,
                     onConfigChanged: { newConfig in
                         Task { await applyAutoShiftEdit(newConfig, collectionID: autoShiftCollection.id) }
                     }
                 )
-                .id(autoShiftCollection.id) // re-mount when live config changes
-                .opacity(isInstalled ? 1.0 : 0.55)
-                .animation(.easeInOut(duration: 0.2), value: isInstalled)
+                .id(autoShiftCollection.id)
             }
         } else if let layerPresetCollection = associatedLayerPresetCollection {
             // Layer preset picker — Symbol/Fun layers. Users choose a preset
             // (e.g. Mirrored, Alphabetical) that redefines the layer's
             // mappings. Reuses the Rules-tab picker directly.
-            VStack(alignment: .leading, spacing: 0) {
-                Divider()
+            embeddedEditor {
                 LayerPresetPickerContent(
                     collection: layerPresetCollection,
                     onSelectPreset: { presetId in
@@ -457,22 +487,14 @@ struct PackDetailView: View {
                     }
                 )
                 .id(selectedLayerPresetId ?? "")
-                .opacity(isInstalled ? 1.0 : 0.55)
-                .animation(.easeInOut(duration: 0.2), value: isInstalled)
             }
         } else if let collection = liveAssociatedCollection,
                   collection.id == RuleCollectionIdentifier.windowSnapping {
             // Window Snapping has a custom visual editor in Rules — convention
             // picker + monitor canvas + floating action cards. Pack Detail
             // embeds the same view so the experience is identical.
-            VStack(alignment: .leading, spacing: 0) {
-                Divider()
-                if let hint = collection.activationHint, !hint.isEmpty {
-                    Text(hint)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 8)
-                }
+            // Rules uses horizontal padding of 12 for this particular editor.
+            embeddedEditor(horizontalPadding: 12) {
                 WindowSnappingView(
                     mappings: collection.mappings,
                     convention: collection.windowKeyConvention ?? .standard,
@@ -480,8 +502,6 @@ struct PackDetailView: View {
                         Task { await applyWindowConventionEdit(convention, collectionID: collection.id) }
                     }
                 )
-                .opacity(isInstalled ? 1.0 : 0.55)
-                .animation(.easeInOut(duration: 0.2), value: isInstalled)
             }
         } else if pack.bindings.isEmpty, let collection = liveAssociatedCollection,
                   !collection.mappings.isEmpty {
@@ -489,21 +509,20 @@ struct PackDetailView: View {
             // `.table` config (Vim Navigation, Mission Control, Numpad).
             // Uses the same MappingTableContent view Rules uses so the
             // table styling matches exactly.
-            VStack(alignment: .leading, spacing: 8) {
-                Divider()
-                if let hint = collection.activationHint, !hint.isEmpty {
-                    Text(hint)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-                MappingTableContent(
-                    mappings: collection.mappings.map {
-                        ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput,
-                         $0.description, $0.sectionBreak, isInstalled, $0.id, nil)
+            embeddedEditor {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let hint = collection.activationHint, !hint.isEmpty {
+                        Text(hint)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
                     }
-                )
-                .opacity(isInstalled ? 1.0 : 0.6)
-                .animation(.easeInOut(duration: 0.2), value: isInstalled)
+                    MappingTableContent(
+                        mappings: collection.mappings.map {
+                            ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput,
+                             $0.description, $0.sectionBreak, isInstalled, $0.id, nil)
+                        }
+                    )
+                }
             }
         } else {
             VStack(alignment: .leading, spacing: 8) {
@@ -515,6 +534,16 @@ struct PackDetailView: View {
                     bindingRow(template)
                 }
             }
+        }
+    }
+
+    /// Help markdown resource name for packs that have curated help content.
+    /// Returns nil for packs without — matches the Rules tab, where only
+    /// Home Row Mods surfaces a `?` button today.
+    private var helpResourceName: String? {
+        switch pack.associatedCollectionID {
+        case RuleCollectionIdentifier.homeRowMods: "home-row-mods"
+        default: nil
         }
     }
 
