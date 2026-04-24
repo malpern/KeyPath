@@ -80,6 +80,20 @@ final class RuleCollectionKanataValidationTests: XCTestCase {
         ])
     }
 
+    /// Enable every catalog collection at once and run kanata --check on
+    /// the resulting config. This catches emergent conflicts between
+    /// collections (activator collisions, defcfg option clashes, chord/
+    /// tap-hold interactions, etc.) that per-collection tests miss.
+    func testEveryCatalogCollectionEnabledAtOnce() throws {
+        guard let kanata = kanataURL else {
+            throw XCTSkip("kanata binary not available (set KEYPATH_KANATA_PATH or build External/kanata)")
+        }
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let allEnabled = catalog.map { $0.withIsEnabled(true) }
+        let config = KanataConfiguration.generateFromCollections(allEnabled)
+        try assertKanataAccepts(config, kanata: kanata, label: "every collection enabled")
+    }
+
     // MARK: - Helpers
 
     private func validateCombo(named label: String, ids: [UUID]) throws {
