@@ -333,29 +333,27 @@ struct RuleCollectionCatalog {
             // and consistent with the rest of the Gallery (Vim Nav, Numpad,
             // Window Snapping all share the Leader → key pattern).
             //
-            // Keys chosen to avoid colliding with Vim Navigation's nav-layer
-            // bindings (h/j/k/l, y/p, g, u, d, n, o, a, r, /, 4, 0, x, .).
+            // Keys chosen to avoid colliding with BOTH Vim Navigation AND
+            // KindaVim nav-layer bindings (both pack types share Space →
+            // nav; a user can have either enabled). Safe unclaimed keys:
+            // `q t c v m , .` — picked for mnemonic fit where possible.
             mappings: [
                 KeyMapping(input: "m", output: "C-up", description: "Mission Control"),
-                KeyMapping(input: "e", output: "C-down", description: "App Exposé"),
-                KeyMapping(input: "[", output: "C-left", description: "Previous Desktop"),
-                KeyMapping(input: "]", output: "C-right", description: "Next Desktop"),
-                KeyMapping(input: "b", output: "f11", description: "Show Desktop"),
-                KeyMapping(input: "c", output: "C-S-n", description: "Notification Center")
+                KeyMapping(input: "q", output: "C-down", description: "App Exposé"),
+                KeyMapping(input: "t", output: "f11", description: "Show Desktop"),
+                KeyMapping(input: "c", output: "C-S-n", description: "Notification Center"),
+                KeyMapping(input: ",", output: "C-left", description: "Previous Desktop"),
+                KeyMapping(input: ".", output: "C-right", description: "Next Desktop")
             ],
             isEnabled: false,
             isSystemDefault: false,
             icon: "rectangle.3.group",
             tags: ["mission control", "spaces", "desktop"],
+            // Additive nav-layer pack — piggybacks on whichever nav
+            // provider the user has enabled (Vim Navigation, KindaVim, or
+            // Neovim Terminal). Doesn't declare its own Space activator
+            // because that would collide with the nav provider's.
             targetLayer: .navigation,
-            // Piggybacks on the nav layer — the user needs a collection that
-            // activates nav (Vim Navigation or Leader Key). Providing our
-            // own Space activator keeps the pack standalone-usable; the
-            // generator's dedupe coalesces duplicate activators.
-            momentaryActivator: MomentaryActivator(
-                input: "space",
-                targetLayer: .navigation
-            ),
             activationHint: "Leader → single key",
             configuration: .table
         )
@@ -981,7 +979,12 @@ struct RuleCollectionCatalog {
             icon: "f.cursive",
             tags: ["function", "f-keys", "media", "brightness"],
             targetLayer: .custom("fun"),
-            activationHint: "Hold home row key for function layer",
+            momentaryActivator: MomentaryActivator(
+                input: "f",
+                targetLayer: .custom("fun"),
+                sourceLayer: .navigation // Two-step: Leader → f → fun layer
+            ),
+            activationHint: "Leader → f → function keys",
             configuration: .table
         )
     }

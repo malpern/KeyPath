@@ -100,7 +100,12 @@ final class PackRuntimeBehaviorTests: XCTestCase {
     /// harder to press than the F3 it claimed to improve on.
     func testMissionControlLeaderMEmitsCtrlUp() throws {
         let events = try simulate(
-            collectionIDs: [RuleCollectionIdentifier.missionControl],
+            collectionIDs: [
+                RuleCollectionIdentifier.missionControl,
+                // MC is an additive nav-layer pack — it needs a nav
+                // provider (Vim Nav) on to supply the Space activator.
+                RuleCollectionIdentifier.vimNavigation
+            ],
             // Hold Space (→ nav layer), tap `m`, release.
             script: "↓spc 🕐300 ↓m 🕐30 ↑m 🕐30 ↑spc 🕐30"
         )
@@ -163,6 +168,22 @@ final class PackRuntimeBehaviorTests: XCTestCase {
         )
         XCTAssertEqual(result.finalLayer, "sym",
                        "Holding space + s should put us in the 'sym' layer; got: \(result.finalLayer ?? "nil")")
+    }
+
+    /// Fun Layer is nested under nav (Leader → `f`). Once in fun, the
+    /// right-hand numpad grid emits F-keys — `u` should emit `f7`.
+    func testFunLayerUEmitsF7() throws {
+        let events = try simulate(
+            collectionIDs: [
+                RuleCollectionIdentifier.funLayer,
+                RuleCollectionIdentifier.vimNavigation
+            ],
+            // Space held (→ nav), hold `f` (→ fun), tap `u`.
+            script: "↓spc 🕐300 ↓f 🕐100 ↓u 🕐30 ↑u 🕐30 ↑f 🕐20 ↑spc 🕐20"
+        )
+        let output = outputKeys(events)
+        XCTAssertTrue(output.contains("f7"),
+                      "u inside fun layer should emit f7; got: \(output)")
     }
 
     /// Vim Navigation's headline: hold Space → nav layer; inside the layer,

@@ -19,7 +19,8 @@ public enum PackRegistry {
         missionControl,
         autoShiftSymbols,
         numpadLayer,
-        symbolLayer
+        symbolLayer,
+        funLayer
     ]
 
     /// Look up a pack by id. Returns nil if unknown.
@@ -260,7 +261,7 @@ public enum PackRegistry {
         name: "Mission Control",
         tagline: "Leader + single key for Exposé, Desktops, Notifications",
         shortDescription:
-            "Hold Space, then: M = Mission Control, E = App Exposé, B = Show Desktop, C = Notification Center, [ / ] for previous / next Desktop. One-hand shortcuts, no reach for F3.",
+            "Hold Space, then: M = Mission Control, Q = App Exposé, T = Show Desktop, C = Notification Center, , / . for previous / next Desktop. Requires a Leader pack on (Vim Navigation, KindaVim, or Neovim Terminal) for Space to activate the nav layer.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "rectangle.3.group",
@@ -361,5 +362,29 @@ public enum PackRegistry {
             PackBindingTemplate(input: "l", output: "S-]", title: "l → }")
         ],
         associatedCollectionID: RuleCollectionIdentifier.symbolLayer
+    )
+
+    // MARK: - Pack 12: Function / Media Layer
+
+    /// Collection-backed pack over `funLayer`. Two-step activation:
+    /// hold Space for nav, hold `f` to enter the fun layer. Right hand
+    /// becomes a 3x4 F-key numpad (u/i/o = F7/F8/F9, j/k/l = F4/F5/F6,
+    /// m/,/. = F1/F2/F3, n = F10, / = F11, ; = F12). Left hand becomes
+    /// media/system controls (f = Play/Pause, d = Prev, s = Next, a =
+    /// Mute, g = Vol Up, r = Vol Down, v = Brightness Up, c = Brightness
+    /// Down).
+    public static let funLayer = Pack(
+        id: "com.keypath.pack.fun-layer",
+        version: "1.0.0",
+        name: "Function",
+        tagline: "Right hand becomes F-keys, left hand is media/brightness",
+        shortDescription:
+            "Hold Space, press `f`, then: right hand (u/i/o + j/k/l + m/,/.) is an F-key grid; left hand is media — play/pause, prev/next, mute, volume, brightness. Everything reachable from home position.",
+        longDescription: "",
+        category: "Layers",
+        iconSymbol: "f.cursive",
+        quickSettings: [],
+        bindings: [],
+        associatedCollectionID: RuleCollectionIdentifier.funLayer
     )
 }

@@ -48,8 +48,9 @@ The collection's Rules-tab editor exists but isn't generalized for Pack Detail y
 
 | Collection | Config type | New editor needed |
 |------------|-------------|-------------------|
-| Numpad / Symbol / Fun layers | layerPresetPicker | Layer preset picker with key-map preview |
 | Launcher (Quick Launcher) | launcherGrid | Per-key app/target grid |
+
+> **Shipped:** Numpad (nested layer via `;`), Symbol (nested layer via `s`), and Fun (nested layer via `f`) all use `.table` / `.layerPresetPicker` configs and piggyback on `MappingTableContent` or `LayerPresetPickerContent` — no new embedded editor needed.
 
 > **Removed:** Home Row Layer Toggles was on this list initially but is
 > legacy — it's been unified into Home Row Mods (via `holdMode: .layers`).
