@@ -110,20 +110,55 @@ final class ConfigReloadCoordinator {
             AppLogger.shared.debug(
                 "📡 [Reload] TCP reload failed: \(tcpResult.errorMessage ?? "Unknown error")"
             )
-            NotificationCenter.default.post(
-                name: .configReloadFailed,
-                object: nil,
-                userInfo: [
-                    "message": tcpResult.errorMessage ?? "TCP reload failed",
-                    "response": tcpResult.response ?? "",
-                ]
-            )
+            let errorMessage = tcpResult.errorMessage ?? "TCP reload failed"
+            // Cooldown blocks are a deliberate throttle, not a real failure.
+            // Schedule a deferred retry so the write we just persisted
+            // actually reaches kanata, and suppress the user-facing toast/
+            // error sound — the next reload attempt will fire when cooldown
+            // expires. Real failures (validation, network, etc.) still
+            // notify as before.
+            if isCooldownBlockMessage(errorMessage) {
+                scheduleDeferredReloadAfterCooldown()
+            } else {
+                NotificationCenter.default.post(
+                    name: .configReloadFailed,
+                    object: nil,
+                    userInfo: [
+                        "message": errorMessage,
+                        "response": tcpResult.response ?? "",
+                    ]
+                )
+            }
             return ReloadResult(
                 success: false,
                 response: tcpResult.response,
-                errorMessage: tcpResult.errorMessage ?? "TCP reload failed",
+                errorMessage: errorMessage,
                 protocol: .tcp
             )
+        }
+    }
+
+    /// True if the error came from the 3s reload-cooldown throttle rather
+    /// than a real failure.
+    private func isCooldownBlockMessage(_ message: String) -> Bool {
+        message.contains("Reload blocked") && message.contains("cooldown")
+    }
+
+    /// When a reload is blocked by the cooldown, we still want it to actually
+    /// happen so the config file we just wrote reaches kanata. Schedule a
+    /// deferred retry once the cooldown expires; de-duped via a single
+    /// outstanding task so rapid edits coalesce into one final reload.
+    private var deferredReloadTask: Task<Void, Never>?
+
+    private func scheduleDeferredReloadAfterCooldown() {
+        deferredReloadTask?.cancel()
+        deferredReloadTask = Task { [weak self] in
+            // 3s cooldown + a little slop so the safety check passes.
+            try? await Task.sleep(nanoseconds: 3_200_000_000)
+            guard let self, !Task.isCancelled else { return }
+            AppLogger.shared.log("🔁 [Reload] Firing deferred reload after cooldown expiry")
+            await self.triggerReload()
+            self.deferredReloadTask = nil
         }
     }
 
