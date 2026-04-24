@@ -365,6 +365,15 @@ final class ContextHUDController {
     // MARK: - Show / Dismiss
 
     private func showForLayer(_ layerName: String) {
+        // Respect the user's per-app suppression list — if the frontmost
+        // app is listed (e.g. Figma), skip showing the HUD entirely. Also
+        // dismiss if it's already up, for apps the user just activated.
+        if let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+           PreferencesService.shared.overlaySuppressedBundleIDs.contains(frontBundle)
+        {
+            dismiss()
+            return
+        }
         // Cancel any pending dismiss
         dismissTask?.cancel()
         dismissTask = nil
@@ -724,7 +733,11 @@ final class ContextHUDController {
     private func positionWindow() {
         guard let window, let screen = NSScreen.main else { return }
 
-        // Size to fit content
+        let screenFrame = screen.visibleFrame
+
+        // Size to fit content. Cap at the available screen width (with a
+        // margin) so multi-group HUDs with many entries still fit on-screen
+        // without clipping, instead of hitting a hardcoded 1100pt ceiling.
         if let hostingView {
             // Force SwiftUI layout pass so fittingSize reflects current content,
             // not stale layout from a previous show/update cycle.
@@ -732,13 +745,16 @@ final class ContextHUDController {
             hostingView.layoutSubtreeIfNeeded()
 
             let fittingSize = hostingView.fittingSize
-            let width = min(max(fittingSize.width, 240), 1100)
-            let height = min(max(fittingSize.height, 100), 600)
+            let horizontalMargin: CGFloat = 64
+            let verticalMargin: CGFloat = 80
+            let maxWidth = max(600, screenFrame.width - horizontalMargin)
+            let maxHeight = max(400, screenFrame.height - verticalMargin)
+            let width = min(max(fittingSize.width, 240), maxWidth)
+            let height = min(max(fittingSize.height, 100), maxHeight)
             window.setContentSize(NSSize(width: width, height: height))
         }
 
         // Position at center of screen
-        let screenFrame = screen.visibleFrame
         let windowFrame = window.frame
         let x = screenFrame.midX - (windowFrame.width / 2)
         let y = screenFrame.midY - (windowFrame.height / 2)

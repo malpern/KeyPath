@@ -865,6 +865,37 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
     }
 
+    // MARK: - App-Scoped Suppression
+
+    /// Per-app suppression state. Independent of the Settings/Wizard guard
+    /// above so they don't clobber each other — a user could open Settings
+    /// while Figma is frontmost and both reasons should compose.
+    private var wasVisibleBeforeAppSuppression: Bool = false
+    private var isAppSuppressed: Bool = false
+
+    /// Hide the overlay because the frontmost app is on the user's
+    /// suppression list (e.g. Figma, where hold-Space conflicts). Stashes
+    /// pre-hide visibility so `restoreFromAppSuppression` can put it back.
+    func suppressForApp() {
+        guard !isAppSuppressed else { return }
+        isAppSuppressed = true
+        wasVisibleBeforeAppSuppression = isVisible
+        if isVisible {
+            isVisible = false
+        }
+    }
+
+    /// Restore the overlay when leaving a suppressed app.
+    func restoreFromAppSuppression() {
+        guard isAppSuppressed else { return }
+        let shouldRestore = wasVisibleBeforeAppSuppression
+        isAppSuppressed = false
+        wasVisibleBeforeAppSuppression = false
+        if shouldRestore, !isVisible {
+            isVisible = true
+        }
+    }
+
     // MARK: - Window Management
 
     private func showWindow() {

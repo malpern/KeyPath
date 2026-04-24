@@ -48,6 +48,10 @@ extension Notification.Name {
     static let configReloadFailed = Notification.Name("KeyPath.Config.ReloadFailed")
     static let configReloadRecovered = Notification.Name("KeyPath.Config.ReloadRecovered")
 
+    /// Overlay app-scoped suppression list changed — observers should
+    /// re-evaluate whether to hide/show the overlay for the current app.
+    static let overlaySuppressedBundleIDsChanged = Notification.Name("KeyPath.Overlay.SuppressedBundleIDsChanged")
+
     /// Mapper drawer
     /// Posted when a key is clicked and should be selected in the mapper drawer
     /// userInfo: keyCode (UInt16), inputKey (String), outputKey (String), optional shiftedOutputKey (String), layer (String)

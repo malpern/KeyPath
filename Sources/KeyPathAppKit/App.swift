@@ -447,6 +447,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         _ = ContextHUDController.shared
 
+        // Watch frontmost-app changes and auto-hide the overlay for apps
+        // the user has listed in Settings → Experimental (default: Figma).
+        OverlayAppSuppressor.shared.start()
+
         // Sequential startup: regenerate config, auto-launch, validate, auto-wizard
         Task { @MainActor in
             do {
