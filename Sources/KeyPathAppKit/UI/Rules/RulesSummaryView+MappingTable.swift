@@ -199,6 +199,23 @@ struct MappingTableContent: View {
             return macName
         }
 
+        // Space-separated chord input (kanata's defchordsv2 form) —
+        // e.g. "Lctl Lmet Lalt Up" → "⌃⌘⌥↑". Each token is formatted via
+        // the macModifiers map or arrow symbols; we join with no separator
+        // so the visual mirrors the Action column.
+        if key.contains(" ") {
+            let tokens = key.split(separator: " ")
+            let formatted = tokens.map { token -> String in
+                let t = String(token)
+                if let macName = macModifiers[t] {
+                    // Take just the leading symbol (e.g. "⌘" from "⌘ Cmd").
+                    return macName.components(separatedBy: " ").first ?? macName
+                }
+                return formatModifierPrefixNotation(t, macModifiers: macModifiers)
+            }
+            return formatted.joined()
+        }
+
         // Handle modifier prefix notation (e.g., "C-M-A-up" -> "⌃⌘⌥↑")
         return formatModifierPrefixNotation(key, macModifiers: macModifiers)
     }

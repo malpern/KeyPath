@@ -135,9 +135,31 @@ extension KanataConfiguration {
             guard !hasLayerBasePush else { return output }
             if activatorKeysBySourceLayer[layer]?.contains(sourceKey) == true { return output }
             // Use release-layer to explicitly release the layer-while-held, then output, then notify UI.
-            // Modifier chords (M-v, M-S-z) work natively inside multi actions thanks to the
-            // keyberon multi_depth fix — no expansion needed.
-            return "(multi (release-layer \(layer.kanataName)) \(output) (push-msg \"layer:base\"))"
+            // `(release-layer ...)` inside a `multi` silently swallows subsequent
+            // modifier-prefixed tokens (e.g. C-up, M-left) in kanata's runtime,
+            // so we expand them to their explicit multi form first
+            // (`(multi lctl up)`). Plain key outputs and already-S-expression
+            // outputs pass through unchanged.
+            let expandedOutput = expandOutputForMultiWrapping(output)
+            return "(multi (release-layer \(layer.kanataName)) \(expandedOutput) (push-msg \"layer:base\"))"
+        }
+
+        /// When a modifier-prefixed output like `C-up` or `M-S-z` needs to be
+        /// placed inside a `(multi ...)` action that also contains
+        /// `(release-layer ...)`, kanata drops the key emission on its floor.
+        /// Expand to the explicit `(multi mod1 mod2 key)` form in that case.
+        /// Leaves non-prefix outputs (`down`, `f11`, `(push-msg ...)`) alone.
+        func expandOutputForMultiWrapping(_ output: String) -> String {
+            let trimmed = output.trimmingCharacters(in: .whitespaces)
+            // Already an S-expression — pass through.
+            if trimmed.hasPrefix("("), trimmed.hasSuffix(")") { return trimmed }
+            // No modifier prefix — plain key.
+            let modifierPrefixes = ["C-", "M-", "A-", "S-", "RA-", "RM-", "RC-", "RS-", "AG-"]
+            guard modifierPrefixes.contains(where: { trimmed.uppercased().hasPrefix($0) }) else {
+                return trimmed
+            }
+            // Expand to explicit `(multi lctl up)` form.
+            return Self.convertSingleKeyToForkFormat(trimmed)
         }
 
         // Precompute mapped keys for non-base layers to avoid blocking keys mapped by other collections.
@@ -700,9 +722,12 @@ extension KanataConfiguration {
         var remainingKey = key
         var modifiers: [String] = []
 
-        // Extract all modifier prefixes (only match first one, case-insensitive)
-        let lowercasedKey = remainingKey.lowercased()
-        if let (prefix, modKey) = modifierMap.first(where: { lowercasedKey.hasPrefix($0.key.lowercased()) }) {
+        // Extract modifier prefixes (e.g. "C-", "M-", "C-S-"). Note: these
+        // are *prefixes* (the notation markers), not the lowered-case key
+        // names. A previous implementation mistakenly matched against the
+        // key-name values and therefore never expanded anything.
+        let uppercasedKey = remainingKey.uppercased()
+        if let (prefix, modKey) = modifierMap.first(where: { uppercasedKey.hasPrefix($0.prefix) }) {
             modifiers.append(contentsOf: modKey.split(separator: " ").map(String.init))
             remainingKey = String(remainingKey.dropFirst(prefix.count))
         }

@@ -96,7 +96,7 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
         assertContains(config, "(multi (release-layer window) @act_window_h (push-msg \"layer:base\"))")
     }
 
-    func testModifierChordsPreservedInsideMultiWrapper() throws {
+    func testModifierChordsExpandedInsideMultiWrapper() throws {
         let navCollection = try makeCollection(
             id: XCTUnwrap(UUID(uuidString: "11111111-1111-1111-1111-111111111111")),
             name: "Navigation",
@@ -115,18 +115,19 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
             navActivationMode: .tapToToggle
         )
 
-        // Modifier chords should pass through intact — not expanded to "lmet v" / "lctl lsft z"
-        assertContains(config, "(multi (release-layer nav) M-v (push-msg \"layer:base\"))")
-        assertContains(config, "(multi (release-layer nav) C-S-z (push-msg \"layer:base\"))")
+        // Modifier chords must expand inside the release-layer multi wrapper.
+        // Kanata drops modifier-prefixed tokens after release-layer, so the
+        // generator emits explicit nested multi forms instead.
+        assertContains(config, "(multi (release-layer nav) (multi lmet v) (push-msg \"layer:base\"))")
+        assertContains(config, "(multi (release-layer nav) (multi lctl lsft z) (push-msg \"layer:base\"))")
 
-        // Verify the expanded forms are NOT present
         XCTAssertFalse(
-            config.contains("lmet v"),
-            "M-v should not be expanded to 'lmet v' inside multi\n\nActual output:\n\(config)"
+            config.contains("(multi (release-layer nav) M-v (push-msg \"layer:base\"))"),
+            "M-v should be expanded inside multi\n\nActual output:\n\(config)"
         )
         XCTAssertFalse(
-            config.contains("lctl lsft z"),
-            "C-S-z should not be expanded to 'lctl lsft z' inside multi\n\nActual output:\n\(config)"
+            config.contains("(multi (release-layer nav) C-S-z (push-msg \"layer:base\"))"),
+            "C-S-z should be expanded inside multi\n\nActual output:\n\(config)"
         )
     }
 

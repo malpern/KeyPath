@@ -17,6 +17,7 @@ struct ExperimentalSettingsSection: View {
         ? UserDefaults.standard.bool(forKey: LayoutPreferences.qmkSearchEnabledKey)
         : LayoutPreferences.qmkSearchEnabledDefault
     @State private var accessibilityTestMode = PreferencesService.shared.accessibilityTestMode
+    @State private var suppressedBundleIDs: [String] = Array(PreferencesService.shared.overlaySuppressedBundleIDs).sorted()
 
     var body: some View {
         ScrollView {
@@ -57,6 +58,69 @@ struct ExperimentalSettingsSection: View {
                 ForEach(PluginManager.shared.availablePlugins) { entry in
                     SettingsCard {
                         PluginCatalogCard(entry: entry)
+                    }
+                }
+
+                // Per-app overlay suppression
+                SettingsCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        SectionHeader(
+                            icon: "eye.slash",
+                            title: "Hide Overlay in Specific Apps",
+                            color: .indigo
+                        )
+                        Text("The live keyboard overlay and hint panel auto-hide while these apps are frontmost. They restore when you switch away.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        VStack(spacing: 6) {
+                            ForEach(suppressedBundleIDs, id: \.self) { bundleID in
+                                HStack {
+                                    Image(systemName: appIcon(for: bundleID))
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 16)
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(appDisplayName(for: bundleID))
+                                            .font(.system(size: 12, weight: .medium))
+                                        Text(bundleID)
+                                            .font(.system(size: 10, design: .monospaced))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Button {
+                                        removeBundleID(bundleID)
+                                    } label: {
+                                        Image(systemName: "minus.circle.fill")
+                                            .foregroundStyle(.red.opacity(0.7))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("Remove \(appDisplayName(for: bundleID))")
+                                    .accessibilityIdentifier("overlay-suppressed-remove-\(bundleID)")
+                                }
+                                .padding(.vertical, 4)
+                                .padding(.horizontal, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.secondary.opacity(0.08))
+                                )
+                            }
+                            if suppressedBundleIDs.isEmpty {
+                                Text("No apps configured.")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                    .padding(.vertical, 8)
+                            }
+                        }
+
+                        Button {
+                            addAppViaPicker()
+                        } label: {
+                            Label("Add App…", systemImage: "plus")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("overlay-suppressed-add-app")
                     }
                 }
 
@@ -274,6 +338,54 @@ struct ExperimentalSettingsSection: View {
             .accessibilityLabel("Learning tips mode")
         }
         .padding(.vertical, 4)
+    }
+
+    // MARK: - Per-app suppression helpers
+
+    private func addAppViaPicker() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose an app"
+        panel.prompt = "Choose"
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let bundle = Bundle(url: url),
+              let bundleID = bundle.bundleIdentifier
+        else { return }
+        var updated = Set(suppressedBundleIDs)
+        updated.insert(bundleID)
+        applySuppressedChange(updated)
+    }
+
+    private func removeBundleID(_ id: String) {
+        var updated = Set(suppressedBundleIDs)
+        updated.remove(id)
+        applySuppressedChange(updated)
+    }
+
+    private func applySuppressedChange(_ updated: Set<String>) {
+        suppressedBundleIDs = Array(updated).sorted()
+        services.preferences.overlaySuppressedBundleIDs = updated
+    }
+
+    /// Best-effort nice display name for a bundle id (reads
+    /// `CFBundleDisplayName` / `CFBundleName` from the installed app).
+    /// Falls back to the last path component of the bundle id.
+    private func appDisplayName(for bundleID: String) -> String {
+        if let path = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)?.path,
+           let bundle = Bundle(path: path),
+           let name = (bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
+           ?? (bundle.object(forInfoDictionaryKey: "CFBundleName") as? String)
+        {
+            return name
+        }
+        return bundleID.components(separatedBy: ".").last ?? bundleID
+    }
+
+    private func appIcon(for _: String) -> String {
+        "app"
     }
 }
 

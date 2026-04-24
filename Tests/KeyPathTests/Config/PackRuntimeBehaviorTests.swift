@@ -93,25 +93,20 @@ final class PackRuntimeBehaviorTests: XCTestCase {
                        "Holding space + w should put us in the 'window' layer for window-snapping actions")
     }
 
-    /// Mission Control maps 3-modifier chords (lctl + lmet + lalt + direction
-    /// or letter) to plain key combos macOS already interprets — e.g. the
-    /// `lctl + lmet + lalt + up` chord emits `C-up`, which is macOS's own
-    /// Mission Control shortcut. No AX or push-msg indirection, so the
-    /// simulator observes the actual output.
-    func testMissionControlChordEmitsCtrlUp() throws {
+    /// Mission Control: Leader (Space) + single key. Holding Space for the
+    /// nav layer, then tapping `m` should emit `C-up` (macOS's Mission
+    /// Control shortcut → we see `up` in the simulator output as part of
+    /// lctl+up). Replaced the earlier 3-modifier-chord design which was
+    /// harder to press than the F3 it claimed to improve on.
+    func testMissionControlLeaderMEmitsCtrlUp() throws {
         let events = try simulate(
             collectionIDs: [RuleCollectionIdentifier.missionControl],
-            // Press all 3 modifiers together with up inside the chord
-            // window, release in reverse. Timings stay under defchordsv2's
-            // chord window.
-            script: "↓lctl 🕐5 ↓lmet 🕐5 ↓lalt 🕐5 ↓up 🕐50 ↑up 🕐20 ↑lalt 🕐5 ↑lmet 🕐5 ↑lctl 🕐50"
+            // Hold Space (→ nav layer), tap `m`, release.
+            script: "↓spc 🕐300 ↓m 🕐30 ↑m 🕐30 ↑spc 🕐30"
         )
         let output = outputKeys(events)
-        // The chord resolves to `C-up` which emits lctl+up. If the chord
-        // hadn't fired, we'd still see lctl but not a clean `up` output
-        // (up would still be suppressed by defsrc's chord input claim).
         XCTAssertTrue(output.contains("up"),
-                      "Mission Control chord should emit up (as part of C-up); got: \(output)")
+                      "Leader + m should emit C-up (lctl+up) for Mission Control; got: \(output)")
     }
 
     /// Auto Shift Symbols makes symbol keys dual-role: quick tap emits the

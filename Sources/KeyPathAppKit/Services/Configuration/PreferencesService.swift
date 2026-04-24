@@ -253,6 +253,27 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    // MARK: - App-Scoped Suppression
+
+    /// Bundle identifiers of apps where the live keyboard overlay AND the
+    /// context HUD hint panel should auto-hide while that app is frontmost.
+    /// Restored when focus moves to any other app.
+    ///
+    /// Ships with Figma by default — its hold-to-pan keyboard interactions
+    /// conflict with the overlay's hold-Space activation.
+    var overlaySuppressedBundleIDs: Set<String> {
+        didSet {
+            UserDefaults.standard.set(
+                Array(overlaySuppressedBundleIDs).sorted(),
+                forKey: Keys.overlaySuppressedBundleIDs
+            )
+            NotificationCenter.default.post(
+                name: .overlaySuppressedBundleIDsChanged,
+                object: nil
+            )
+        }
+    }
+
     // MARK: - Context HUD Configuration
 
     /// Display mode for the Context HUD (overlay only, HUD only, or both)
@@ -359,6 +380,7 @@ final class PreferencesService: @unchecked Sendable {
         static let neovimReferenceTopicsVersion = "KeyPath.Neovim.ReferenceTopicsVersion"
         static let keyLabelStyle = "KeyPath.Display.KeyLabelStyle"
         static let overlayHiddenHintShowCount = "KeyPath.Education.OverlayHiddenHintShowCount"
+        static let overlaySuppressedBundleIDs = "KeyPath.Overlay.SuppressedBundleIDs"
     }
 
     // MARK: - Defaults
@@ -384,6 +406,13 @@ final class PreferencesService: @unchecked Sendable {
         static let kindaVimLeaderHUDMode = KindaVimLeaderHUDMode.contextualCoach
         static let neovimReferenceTopics = NeovimTerminalCategory.defaultRawValues
         static let neovimReferenceTopicsVersion = 2
+        // Figma uses hold-Space for pan/navigate; the overlay's hold-Space
+        // leader interferes. Ship disabled there by default — user can
+        // add more apps in Settings → Experimental.
+        static let overlaySuppressedBundleIDs: Set<String> = [
+            "com.figma.Desktop",
+            "com.figma.agent"
+        ]
     }
 
     // MARK: - Initialization
@@ -438,6 +467,14 @@ final class PreferencesService: @unchecked Sendable {
         // Education hints
         overlayHiddenHintShowCount =
             UserDefaults.standard.object(forKey: Keys.overlayHiddenHintShowCount) as? Int ?? 0
+
+        // App-scoped overlay suppression list. UserDefaults stores an Array;
+        // decode to Set, fall back to the Figma-seeded default if unset.
+        if let stored = UserDefaults.standard.stringArray(forKey: Keys.overlaySuppressedBundleIDs) {
+            overlaySuppressedBundleIDs = Set(stored)
+        } else {
+            overlaySuppressedBundleIDs = Defaults.overlaySuppressedBundleIDs
+        }
 
         // Context HUD preferences
         let hudModeString = UserDefaults.standard.string(forKey: Keys.contextHUDDisplayMode)
