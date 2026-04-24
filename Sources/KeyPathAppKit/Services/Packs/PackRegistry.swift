@@ -250,19 +250,17 @@ public enum PackRegistry {
 
     // MARK: - Pack 8: Mission Control
 
-    /// Collection-backed pack over `missionControl`. Three-modifier chords
-    /// (lctl + lmet + lalt + {up,down,left,right,d,n}) fire the system's
-    /// Mission Control, Exposé, Desktop, and Notification Center actions —
-    /// without fighting the physical F3 or binding a new shortcut from
-    /// scratch. Renders via the generic collection-mappings fallback in
-    /// Pack Detail.
+    /// Collection-backed pack over `missionControl`. Leader (Space) held,
+    /// then a single letter fires the system's Mission Control, Exposé,
+    /// Desktop, and Notification Center actions. One-hand, no reach —
+    /// consistent with the rest of the Gallery's Leader-based packs.
     public static let missionControl = Pack(
         id: "com.keypath.pack.mission-control",
         version: "1.0.0",
         name: "Mission Control",
-        tagline: "Shortcuts for Exposé, Desktop, Notification Center",
+        tagline: "Leader + single key for Exposé, Desktops, Notifications",
         shortDescription:
-            "Triple-chord shortcuts (Ctrl + Cmd + Option + a direction) for Mission Control, App Exposé, Desktop switching, Show Desktop, and Notification Center. Avoids the F3 muscle memory, no reach.",
+            "Hold Space, then: M = Mission Control, E = App Exposé, B = Show Desktop, C = Notification Center, [ / ] for previous / next Desktop. One-hand shortcuts, no reach for F3.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "rectangle.3.group",

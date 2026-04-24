@@ -325,24 +325,38 @@ struct RuleCollectionCatalog {
         RuleCollection(
             id: RuleCollectionIdentifier.missionControl,
             name: "Mission Control",
-            summary: "Quick access to Mission Control, App Exposé, and Desktop switching.",
+            summary: "Leader → single key: Mission Control, Exposé, Desktops, Notification Center.",
             category: .navigation,
-            // Inputs are expressed as kanata chords (space-separated physical
-            // keys). The generator emits these into defchordsv2; a modifier-
-            // prefix form like "C-M-A-up" would end up in defsrc, which only
-            // accepts single physical keys and fails validation.
+            // Maps onto uncommon keys inside the navigation layer so users
+            // can hit Mission Control actions as Leader (Space) + single
+            // letter — much cheaper than the previous 3-modifier chord form
+            // and consistent with the rest of the Gallery (Vim Nav, Numpad,
+            // Window Snapping all share the Leader → key pattern).
+            //
+            // Keys chosen to avoid colliding with Vim Navigation's nav-layer
+            // bindings (h/j/k/l, y/p, g, u, d, n, o, a, r, /, 4, 0, x, .).
             mappings: [
-                KeyMapping(input: "lctl lmet lalt up", output: "C-up", description: "Mission Control"),
-                KeyMapping(input: "lctl lmet lalt down", output: "C-down", description: "App Exposé"),
-                KeyMapping(input: "lctl lmet lalt left", output: "C-left", description: "Previous Desktop"),
-                KeyMapping(input: "lctl lmet lalt right", output: "C-right", description: "Next Desktop"),
-                KeyMapping(input: "lctl lmet lalt d", output: "f11", description: "Show Desktop"),
-                KeyMapping(input: "lctl lmet lalt n", output: "C-S-n", description: "Notification Center")
+                KeyMapping(input: "m", output: "C-up", description: "Mission Control"),
+                KeyMapping(input: "e", output: "C-down", description: "App Exposé"),
+                KeyMapping(input: "[", output: "C-left", description: "Previous Desktop"),
+                KeyMapping(input: "]", output: "C-right", description: "Next Desktop"),
+                KeyMapping(input: "b", output: "f11", description: "Show Desktop"),
+                KeyMapping(input: "c", output: "C-S-n", description: "Notification Center")
             ],
             isEnabled: false,
             isSystemDefault: false,
             icon: "rectangle.3.group",
             tags: ["mission control", "spaces", "desktop"],
+            targetLayer: .navigation,
+            // Piggybacks on the nav layer — the user needs a collection that
+            // activates nav (Vim Navigation or Leader Key). Providing our
+            // own Space activator keeps the pack standalone-usable; the
+            // generator's dedupe coalesces duplicate activators.
+            momentaryActivator: MomentaryActivator(
+                input: "space",
+                targetLayer: .navigation
+            ),
+            activationHint: "Leader → single key",
             configuration: .table
         )
     }
