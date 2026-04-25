@@ -107,5 +107,8 @@ final class KindaVimStrategyMonitor {
         AppLogger.shared.log(
             "👀 [KindaVimStrategy] strategy → \(resolved.rawValue) (bundle=\(currentBundleID ?? "nil"))"
         )
+        // Telemetry: sample on every app-switch transition. Off by
+        // default; the store gates writes on the user's opt-in flag.
+        KindaVimTelemetryStore.shared.recordStrategySample(resolved.rawValue)
     }
 }

@@ -9,8 +9,10 @@ struct KindaVimStatusBlock: View {
     @State private var adapter = KindaVimStateAdapter.shared
     @State private var strategyMonitor = KindaVimStrategyMonitor.shared
     @AppStorage("kindaVim.showAdvancedHints") private var showAdvancedHints: Bool = false
+    @AppStorage("kindaVim.telemetryEnabled") private var telemetryEnabled: Bool = false
     @State private var appInstalled: Bool = FileManager.default
         .fileExists(atPath: "/Applications/kindaVim.app")
+    @State private var showClearTelemetryConfirmation: Bool = false
 
     private static let websiteURL = URL(string: "https://kindavim.app")!
 
@@ -46,6 +48,9 @@ struct KindaVimStatusBlock: View {
             .accessibilityIdentifier("kindavim-status-show-advanced")
 
             Divider()
+            telemetrySection
+
+            Divider()
             Text(
                 "This pack adds no remappings. KindaVim itself handles every keypress; KeyPath just shows you the current mode in the overlay."
             )
@@ -64,6 +69,53 @@ struct KindaVimStatusBlock: View {
         .onAppear {
             appInstalled = FileManager.default
                 .fileExists(atPath: "/Applications/kindaVim.app")
+        }
+        .alert("Clear KindaVim usage data?", isPresented: $showClearTelemetryConfirmation) {
+            Button("Clear", role: .destructive) {
+                KindaVimTelemetryStore.shared.clearAll()
+            }
+            .accessibilityIdentifier("kindavim-status-clear-telemetry-confirm")
+            Button("Cancel", role: .cancel) {}
+                .accessibilityIdentifier("kindavim-status-clear-telemetry-cancel")
+        } message: {
+            Text(
+                "This permanently deletes all locally-recorded command counts, " +
+                "mode dwell time, and other usage statistics. KeyPath has no " +
+                "copies of this data — it stays on your Mac and is never sent " +
+                "anywhere."
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var telemetrySection: some View {
+        Toggle(isOn: $telemetryEnabled) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Record local KindaVim usage stats")
+                    .font(.system(size: 12, weight: .medium))
+                Text(
+                    "Used by KeyPath to show you which vim commands you use " +
+                    "most. This data stays on your Mac and is never sent " +
+                    "anywhere."
+                )
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .toggleStyle(.switch)
+        .controlSize(.small)
+        .accessibilityIdentifier("kindavim-status-telemetry-toggle")
+
+        if telemetryEnabled {
+            Button(role: .destructive) {
+                showClearTelemetryConfirmation = true
+            } label: {
+                Text("Clear all KindaVim usage data")
+                    .font(.system(size: 11))
+            }
+            .buttonStyle(.borderless)
+            .accessibilityIdentifier("kindavim-status-clear-telemetry")
         }
     }
 

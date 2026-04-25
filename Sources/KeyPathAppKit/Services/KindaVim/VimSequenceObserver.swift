@@ -41,6 +41,9 @@ final class VimSequenceObserver {
     @ObservationIgnored
     private var lastObservedMode: KindaVimStateAdapter.Mode = .unknown
 
+    @ObservationIgnored
+    private var modeEnteredAt: Date?
+
     /// Production callers use the no-arg init which reads from the
     /// shared `KindaVimStateAdapter`. Tests inject a `modeProvider`
     /// closure so they can drive mode transitions deterministically
@@ -111,9 +114,38 @@ final class VimSequenceObserver {
     func syncWithMode() {
         let currentMode = modeProvider()
         guard currentMode != lastObservedMode else { return }
+
+        let previousMode = lastObservedMode
+        recordModeExitTelemetry(from: previousMode, to: currentMode)
+
         currentOperator = nil
         countBuffer = ""
         lastObservedMode = currentMode
+        modeEnteredAt = Date()
+    }
+
+    private func recordModeExitTelemetry(
+        from previous: KindaVimStateAdapter.Mode,
+        to next: KindaVimStateAdapter.Mode
+    ) {
+        // Mode dwell: how long did we stay in `previous`?
+        if let enteredAt = modeEnteredAt {
+            let duration = Date().timeIntervalSince(enteredAt)
+            KindaVimTelemetryStore.shared.recordModeDwell(
+                previous.rawValue,
+                duration: duration
+            )
+        }
+
+        // Operator-pending exit classification: did the user complete a
+        // sequence (flip back to normal/visual after picking a motion)
+        // or cancel it (flip to insert / back to the same mode)?
+        if previous == .operatorPending {
+            let completed = (next == .normal || next == .visual)
+            KindaVimTelemetryStore.shared.recordOperatorPendingExit(
+                completed: completed
+            )
+        }
     }
 
     private func observeAdapterMode() {
@@ -149,7 +181,12 @@ final class VimSequenceObserver {
             // No bookkeeping — user is typing or kindaVim isn't reporting.
             currentOperator = nil
             countBuffer = ""
+            return  // skip telemetry recording
         }
+
+        // Telemetry: record the keypress. Off by default; the store gates
+        // writes on the user's opt-in flag and is otherwise a no-op.
+        KindaVimTelemetryStore.shared.recordCommand(character)
     }
 
     private func applyNormalOrVisual(character: String) {
