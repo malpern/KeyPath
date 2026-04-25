@@ -102,9 +102,16 @@ assert_contains "$(cat "$APP_HELP_CSS")" "\\.help-img\\[alt\\^=\"Screenshot\"\\]
 assert_contains "$(cat "$APP_HELP_CSS")" "max-width:[[:space:]]*100%;" \
   "app help images must keep max-width: 100%"
 assert_contains "$(cat "$APP_HELP_CSS")" "\\.help-header-img" \
-  "app help CSS must include dedicated header image crop rules"
-assert_contains "$(cat "$APP_HELP_CSS")" "object-fit:[[:space:]]*cover;" \
-  "app header images must use object-fit: cover"
+  "app help CSS must include dedicated header image rules"
+# The app intentionally renders header watercolor banners at their
+# natural aspect ratio (`height: auto`) — see the comment on
+# `.help-header-img` and commit 5ccac8fc which removed the previous
+# `object-fit: cover` cropping. The website's `.article-header-img`
+# (checked above) still uses object-fit: cover by design — that's
+# intentional asymmetry between the two surfaces. Guard against
+# accidental re-introduction of cropping in the app CSS.
+assert_not_contains "$(cat "$APP_HELP_CSS")" "object-fit:[[:space:]]*cover" \
+  "app header images must not use object-fit: cover (would crop watercolor banners)"
 
 echo "Checking screenshot insertion parity..."
 src_count="$(rg -n '^<!-- screenshot:' "$REPO_ROOT"/Sources/KeyPathAppKit/Resources/*.md | wc -l | tr -d ' ')"
