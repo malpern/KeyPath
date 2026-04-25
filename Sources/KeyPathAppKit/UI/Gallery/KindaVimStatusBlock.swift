@@ -61,14 +61,15 @@ struct KindaVimStatusBlock: View {
 
     private var modeDisplay: String {
         let mode = adapter.state.mode
-        if mode == .unknown || adapter.state.isStale { return "—" }
+        // We deliberately ignore `isStale` here — kindaVim only writes the
+        // environment file on mode transitions, so staleness is the steady
+        // state, not a "lost signal" condition.
+        if mode == .unknown { return "—" }
         return mode.displayName
     }
 
     private var modeTint: Color {
-        let mode = adapter.state.mode
-        if adapter.state.isStale { return .secondary }
-        switch mode {
+        switch adapter.state.mode {
         case .normal: return .green
         case .insert: return .blue
         case .visual: return .orange

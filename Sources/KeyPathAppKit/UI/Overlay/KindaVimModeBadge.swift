@@ -30,10 +30,13 @@ struct KindaVimModeBadge: View {
         }
     }
 
-    /// Don't surface a badge for `.unknown` (kindaVim hasn't published a
-    /// signal yet) or stale states — they would just confuse the user.
+    /// Don't surface a badge for `.unknown` — kindaVim hasn't published a
+    /// signal yet. We deliberately do NOT gate on `isStale`: kindaVim writes
+    /// the environment file only on mode transitions, so a user sitting in
+    /// Normal mode for >5s would otherwise lose the badge despite the mode
+    /// still being valid.
     private var shouldRender: Bool {
-        adapter.state.mode != .unknown && !adapter.state.isStale
+        adapter.state.mode != .unknown
     }
 
     private func tint(for mode: KindaVimStateAdapter.Mode) -> Color {
