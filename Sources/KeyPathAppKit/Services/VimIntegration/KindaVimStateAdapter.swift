@@ -19,6 +19,7 @@ final class KindaVimStateAdapter {
         case insert
         case normal
         case visual
+        case operatorPending
         case unknown
 
         var displayName: String {
@@ -26,6 +27,7 @@ final class KindaVimStateAdapter {
             case .insert: "Insert"
             case .normal: "Normal"
             case .visual: "Visual"
+            case .operatorPending: "Op"
             case .unknown: "Unknown"
             }
         }
@@ -339,6 +341,8 @@ final class KindaVimStateAdapter {
             return .normal
         case "visual", "visual_mode", "visual_line", "visual_block":
             return .visual
+        case "operator_pending", "operatorpending":
+            return .operatorPending
         default:
             return .unknown
         }

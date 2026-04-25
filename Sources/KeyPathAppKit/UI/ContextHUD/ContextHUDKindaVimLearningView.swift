@@ -177,6 +177,7 @@ struct ContextHUDKindaVimLearningView: View {
         case .insert: Color.green
         case .normal: Color.blue
         case .visual: Color.purple
+        case .operatorPending: Color.orange
         case .unknown: Color.gray
         }
     }
@@ -197,6 +198,11 @@ struct ContextHUDKindaVimLearningView: View {
             [
                 "Extend selections with the same motion keys.",
                 "Press Esc to return to Normal movement.",
+            ]
+        case .operatorPending:
+            [
+                "An operator is pending — pick a motion or text object next.",
+                "Press the same operator twice (dd, yy, cc) to act on the line.",
             ]
         case .unknown:
             [
@@ -230,6 +236,13 @@ struct ContextHUDKindaVimLearningView: View {
                 .init(keys: "gg  G", meaning: "document bounds"),
                 .init(keys: "Ctrl-w h/j/k/l", meaning: "window focus navigation"),
                 .init(keys: "Esc", meaning: "return to Normal mode"),
+            ]
+        case .operatorPending:
+            [
+                .init(keys: "h j k l", meaning: "motion targets"),
+                .init(keys: "w b e", meaning: "word motion targets"),
+                .init(keys: "0  $", meaning: "line ends"),
+                .init(keys: "(same op)", meaning: "× 2 = whole line"),
             ]
         case .unknown:
             commands(for: .normal)
