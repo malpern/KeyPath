@@ -539,6 +539,8 @@ struct PackDetailView: View {
                     )
                 }
             }
+        } else if pack.id == PackRegistry.kindaVim.id {
+            embeddedEditor { KindaVimStatusBlock() }
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 Divider()

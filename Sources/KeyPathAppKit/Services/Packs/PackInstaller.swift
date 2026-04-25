@@ -19,13 +19,26 @@ public final class PackInstaller {
     public enum InstallError: LocalizedError {
         case noRuleCollectionsManager
         case saveFailed(String)
+        /// One or more other packs the user has installed are mutually
+        /// exclusive with this one. Carries the conflicting pack names so
+        /// the UI can name them in the alert.
+        case mutuallyExclusive(conflicts: [String])
+        /// A required external app/dependency isn't installed. Carries
+        /// the dependency display name and a website URL the UI can
+        /// surface as a "Get it →" CTA.
+        case dependencyMissing(name: String, websiteURL: URL)
 
         public var errorDescription: String? {
             switch self {
             case .noRuleCollectionsManager:
-                "RuleCollectionsManager is not available. The app may not be fully initialised."
+                return "RuleCollectionsManager is not available. The app may not be fully initialised."
             case let .saveFailed(reason):
-                "Could not save pack rules: \(reason)"
+                return "Could not save pack rules: \(reason)"
+            case let .mutuallyExclusive(conflicts):
+                let names = conflicts.joined(separator: ", ")
+                return "Conflicts with \(names). Turn that pack off first to enable this one."
+            case let .dependencyMissing(name, _):
+                return "\(name) isn't installed."
             }
         }
     }
@@ -52,8 +65,28 @@ public final class PackInstaller {
             "📦 [PackInstaller] Installing pack '\(pack.name)' (id=\(pack.id), v\(pack.version))"
         )
 
+        try await enforcePreInstallGates(for: pack, manager: manager)
+
         // Resolve effective quick-setting values (user-provided ∪ defaults).
         let resolvedSettings = resolveQuickSettings(pack: pack, overrides: quickSettingValues)
+
+        // Visual-only packs (e.g. KindaVim Mode Display) don't touch the
+        // kanata config at all — install just persists the tracker record
+        // so other parts of the app (overlay, mode monitor) can react to
+        // "this pack is active". No collection toggle, no reload.
+        if pack.visualOnly {
+            let record = InstalledPackRecord(
+                packID: pack.id,
+                version: pack.version,
+                installedAt: Date(),
+                quickSettingValues: resolvedSettings
+            )
+            try await InstalledPackTracker.shared.upsert(record)
+            AppLogger.shared.log(
+                "✅ [PackInstaller] Installed visual-only pack '\(pack.name)' (no kanata side effects)"
+            )
+            return record
+        }
 
         // Collection-backed packs (e.g. Home Row Mods) don't generate custom
         // rules — they just toggle the built-in RuleCollection on.
@@ -120,6 +153,16 @@ public final class PackInstaller {
         manager: RuleCollectionsManager
     ) async throws {
         AppLogger.shared.log("📦 [PackInstaller] Uninstalling pack '\(packID)'")
+
+        // Visual-only packs just clear the tracker record; no kanata
+        // changes to revert.
+        if let pack = PackRegistry.pack(id: packID), pack.visualOnly {
+            try await InstalledPackTracker.shared.remove(packID: packID)
+            AppLogger.shared.log(
+                "✅ [PackInstaller] Uninstalled visual-only pack '\(packID)'"
+            )
+            return
+        }
 
         // Collection-backed packs uninstall by disabling the associated
         // built-in collection; they don't have their own CustomRules to
@@ -302,6 +345,53 @@ public final class PackInstaller {
                 deviceOverrides: nil,
                 packSource: pack.id
             )
+        }
+    }
+
+    // MARK: - Pre-install gates
+
+    /// Pack-specific install gates. Right now only the KindaVim Mode
+    /// Display pack has any: it conflicts with Vim Navigation (both want
+    /// to own the h/j/k/l story) and requires kindaVim.app to be present.
+    private func enforcePreInstallGates(
+        for pack: Pack,
+        manager: RuleCollectionsManager
+    ) async throws {
+        if pack.id == PackRegistry.kindaVim.id {
+            // Mutex: refuse if any conflicting pack is installed.
+            var conflictNames: [String] = []
+            if await InstalledPackTracker.shared.isInstalled(packID: "com.keypath.pack.vim-navigation"),
+               let conflict = PackRegistry.pack(id: "com.keypath.pack.vim-navigation")
+            {
+                conflictNames.append(conflict.name)
+            }
+            // Also block on the legacy KindaVim rule collection (retired
+            // in this release but preserved on disk for upgraders until the
+            // migration runs). If it's still enabled, kindaVim.app would be
+            // fighting our old h/j/k/l remaps — refuse and surface it as
+            // a conflict the user can resolve from Rules.
+            if manager.ruleCollections.contains(where: {
+                $0.id == RuleCollectionIdentifier.kindaVim && $0.isEnabled
+            }) {
+                conflictNames.append("Legacy KindaVim rules")
+            }
+            if !conflictNames.isEmpty {
+                throw InstallError.mutuallyExclusive(conflicts: conflictNames)
+            }
+
+            // Dependency: kindaVim.app must be installed.
+            if !FileManager.default.fileExists(atPath: "/Applications/kindaVim.app") {
+                throw InstallError.dependencyMissing(
+                    name: "KindaVim",
+                    websiteURL: URL(string: "https://kindavim.app")!
+                )
+            }
+        }
+
+        if pack.id == "com.keypath.pack.vim-navigation",
+           await InstalledPackTracker.shared.isInstalled(packID: PackRegistry.kindaVim.id)
+        {
+            throw InstallError.mutuallyExclusive(conflicts: [PackRegistry.kindaVim.name])
         }
     }
 

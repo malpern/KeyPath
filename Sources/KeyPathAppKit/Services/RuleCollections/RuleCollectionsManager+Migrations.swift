@@ -14,6 +14,7 @@ extension RuleCollectionsManager {
         static let vimDescriptionsToVimTerms = "RuleCollections.Migration.VimDescriptionsToVimTerms"
         static let capsLockRemapForLauncher = "RuleCollections.Migration.CapsLockRemapForLauncher"
         static let capsLockRemapForLauncherV2 = "RuleCollections.Migration.CapsLockRemapForLauncherV2"
+        static let retireKindaVimCollection = "RuleCollections.Migration.RetireKindaVimCollection"
     }
 
     /// Run one-time migrations for collection state changes
@@ -73,6 +74,27 @@ extension RuleCollectionsManager {
         if !UserDefaults.standard.bool(forKey: MigrationKey.capsLockRemapForLauncherV2) {
             migrateCapsLockRemapForLauncher()
             UserDefaults.standard.set(true, forKey: MigrationKey.capsLockRemapForLauncherV2)
+        }
+
+        // Migration: KindaVim used to ship as a rule collection (h/j/k/l
+        // remappings). It's now a visual-only pack — kindaVim.app handles
+        // every keypress. Disable any leftover legacy collection so an
+        // upgrader's old remaps don't fight with the real kindaVim.app.
+        if !UserDefaults.standard.bool(forKey: MigrationKey.retireKindaVimCollection) {
+            disableLegacyKindaVimCollection()
+            UserDefaults.standard.set(true, forKey: MigrationKey.retireKindaVimCollection)
+        }
+    }
+
+    private func disableLegacyKindaVimCollection() {
+        guard let index = ruleCollections.firstIndex(where: {
+            $0.id == RuleCollectionIdentifier.kindaVim
+        }) else { return }
+        if ruleCollections[index].isEnabled {
+            ruleCollections[index].isEnabled = false
+            AppLogger.shared.log(
+                "♻️ [RuleCollections] Migration: Disabled retired KindaVim rule collection"
+            )
         }
     }
 

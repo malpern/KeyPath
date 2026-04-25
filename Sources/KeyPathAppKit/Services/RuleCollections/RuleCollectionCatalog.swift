@@ -51,7 +51,12 @@ struct RuleCollectionCatalog {
             macOSFunctionKeys,
             leaderKeyConfig,
             navigationArrows,
-            kindaVimNavigation,
+            // KindaVim used to ship as a rule collection (raw kanata
+            // remappings for h/j/k/l etc). The KindaVim pack now handles
+            // discovery as a visual-only companion to the kindaVim.app —
+            // no kanata bindings of our own. The collection definition
+            // stays below as `kindaVimNavigation` for reference but is no
+            // longer surfaced.
             neovimTerminal,
             missionControl,
             windowSnapping,

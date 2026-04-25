@@ -27,6 +27,19 @@ final class PackRegistryTests: XCTestCase {
         XCTAssertTrue(ids.contains("com.keypath.pack.fun-layer"))
         XCTAssertTrue(ids.contains("com.keypath.pack.quick-launcher"))
         XCTAssertTrue(ids.contains("com.keypath.pack.leader-key"))
+        XCTAssertTrue(ids.contains("com.keypath.pack.kindavim"))
+    }
+
+    func testKindaVimPackIsVisualOnlyAndUnbacked() {
+        guard let pack = PackRegistry.pack(id: "com.keypath.pack.kindavim") else {
+            return XCTFail("KindaVim pack missing from registry")
+        }
+        XCTAssertTrue(pack.visualOnly, "KindaVim pack must be visual-only")
+        XCTAssertNil(
+            pack.associatedCollectionID,
+            "KindaVim pack should not point at a rule collection"
+        )
+        XCTAssertTrue(pack.bindings.isEmpty, "KindaVim pack must define no bindings")
     }
 
     func testCollectionBackedPacksPointAtRealCollections() {
