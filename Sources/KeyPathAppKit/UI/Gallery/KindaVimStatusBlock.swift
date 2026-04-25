@@ -71,6 +71,7 @@ struct KindaVimStatusBlock: View {
                 .accessibilityIdentifier("kindavim-status-get-kindavim")
             }
         }
+        .animation(.easeInOut(duration: 0.35), value: telemetryEnabled)
         .onAppear {
             appInstalled = FileManager.default
                 .fileExists(atPath: "/Applications/kindaVim.app")

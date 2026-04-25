@@ -24,6 +24,7 @@ struct KindaVimInsightsView: View {
             insightCards
             secondaryStats
         }
+        .transition(.opacity.combined(with: .move(edge: .top)))
         .onAppear { refresh(force: true) }
         .onDisappear {
             refreshTimer?.invalidate()
@@ -52,49 +53,136 @@ struct KindaVimInsightsView: View {
     private var arrowReliabilityChart: some View {
         let series = chartSeries
         VStack(alignment: .leading, spacing: 6) {
-            sectionHeader("Arrow-key reliance · last 30 days")
-            if series.count < 2 {
-                Text("Use vim for a few days and a chart will appear here.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 12)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(Color.secondary.opacity(0.06))
-                    )
-            } else {
-                Chart {
-                    ForEach(series) { point in
-                        LineMark(
-                            x: .value("Day", point.date),
-                            y: .value("Arrow %", point.percent)
-                        )
-                        .interpolationMethod(.monotone)
-                        .foregroundStyle(Color.accentColor)
-                    }
-                }
-                .chartYScale(domain: 0...100)
-                .chartYAxis {
-                    AxisMarks(values: [0, 25, 50, 75, 100]) { value in
-                        AxisGridLine()
-                        AxisValueLabel {
-                            if let percent = value.as(Int.self) {
-                                Text("\(percent)%")
-                                    .font(.system(size: 9))
-                            }
-                        }
-                    }
-                }
-                .frame(height: 90)
-                Text(chartSubtitle(series: series))
+            VStack(alignment: .leading, spacing: 2) {
+                sectionHeader("Arrow-key reliance · last 30 days")
+                Text("Lower is better — less reaching for the arrow keys.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+            }
+            if series.count < 2 {
+                emptyChartCard
+            } else {
+                chart(for: series)
+                    .frame(height: 110)
+                Text(chartSubtitle(series: series))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.primary)
             }
         }
     }
 
-    private struct ChartPoint: Identifiable {
+    private var emptyChartCard: some View {
+        Text("Use vim for a few days and a chart will appear here.")
+            .font(.system(size: 12))
+            .foregroundStyle(.secondary)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.secondary.opacity(0.06))
+            )
+    }
+
+    @ChartContentBuilder
+    private func chartMarks(_ series: [ChartPoint]) -> some ChartContent {
+        // Area gradient under the line — Apple Health / Stocks pattern.
+        ForEach(series) { point in
+            AreaMark(
+                x: .value("Day", point.date),
+                y: .value("Arrow %", point.percent)
+            )
+            .interpolationMethod(.catmullRom)
+            .foregroundStyle(
+                LinearGradient(
+                    colors: [
+                        Color.green.opacity(0.35),
+                        Color.green.opacity(0.05),
+                        Color.clear,
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+        }
+
+        // Thin, semantically-green line on top of the gradient. Green
+        // because the *trend* (going down) is good — users will read
+        // "green = good" before parsing the inverted axis.
+        ForEach(series) { point in
+            LineMark(
+                x: .value("Day", point.date),
+                y: .value("Arrow %", point.percent)
+            )
+            .interpolationMethod(.catmullRom)
+            .foregroundStyle(Color.green.gradient)
+            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+        }
+
+        // Emphasize the most recent point + the lowest-ever point so
+        // the user's eye lands on "where I am now" and "best so far."
+        if let recent = series.last {
+            PointMark(
+                x: .value("Day", recent.date),
+                y: .value("Arrow %", recent.percent)
+            )
+            .foregroundStyle(Color.green)
+            .symbolSize(60)
+        }
+        if let best = series.min(by: { $0.percent < $1.percent }),
+           best.id != series.last?.id
+        {
+            PointMark(
+                x: .value("Day", best.date),
+                y: .value("Arrow %", best.percent)
+            )
+            .foregroundStyle(Color.green.opacity(0.55))
+            .symbolSize(35)
+        }
+    }
+
+    private func chart(for series: [ChartPoint]) -> some View {
+        Chart {
+            chartMarks(series)
+        }
+        .chartYScale(domain: 0...100)
+        .chartYAxis {
+            // Just 0 and 100 — anything else clutters this size.
+            AxisMarks(position: .leading, values: [0, 100]) { value in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2]))
+                    .foregroundStyle(Color.secondary.opacity(0.3))
+                AxisValueLabel {
+                    if let percent = value.as(Int.self) {
+                        Text("\(percent)%")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .chartXAxis {
+            // Weekly grid, no labels — dates clutter at this scale.
+            AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2]))
+                    .foregroundStyle(Color.secondary.opacity(0.2))
+            }
+        }
+        .animation(.easeInOut(duration: 0.6), value: series)
+        .accessibilityLabel("Arrow-key reliance over the last 30 days")
+        .accessibilityValue(accessibilityChartSummary(series: series))
+    }
+
+    private func accessibilityChartSummary(series: [ChartPoint]) -> String {
+        guard let last = series.last else { return "No data yet." }
+        let now = Int(last.percent)
+        guard let first = series.first, series.count >= 2 else {
+            return "Currently \(now) percent."
+        }
+        let then = Int(first.percent)
+        let direction = now < then ? "down" : (now > then ? "up" : "flat")
+        return "Currently \(now) percent, \(direction) from \(then) percent at the start of the window."
+    }
+
+    private struct ChartPoint: Identifiable, Equatable {
         let date: Date
         let percent: Double
         var id: Date { date }
@@ -116,17 +204,17 @@ struct KindaVimInsightsView: View {
     private func chartSubtitle(series: [ChartPoint]) -> String {
         guard let last = series.last else { return "" }
         let now = Int(last.percent)
-        if let first = series.first, series.count >= 7 {
-            let then = Int(first.percent)
-            let delta = then - now
-            if delta > 5 {
-                return "Now: \(now)% · down from \(then)% over the chart window."
-            } else if delta < -5 {
-                return "Now: \(now)% · up from \(then)% over the chart window."
-            }
-            return "Now: \(now)% · holding steady around \(then)%."
+        guard let first = series.first, series.count >= 7 else {
+            return "Now: \(now)%."
         }
-        return "Now: \(now)%."
+        let then = Int(first.percent)
+        let delta = then - now
+        if delta > 5 {
+            return "Now: \(now)% — down \(delta) points from \(then)%. ↓"
+        } else if delta < -5 {
+            return "Now: \(now)% — up \(-delta) points from \(then)%."
+        }
+        return "Now: \(now)% — holding steady around \(then)%."
     }
 
     // MARK: - Usage bars
@@ -205,27 +293,47 @@ struct KindaVimInsightsView: View {
                 .font(.system(size: 13, weight: .heavy, design: .monospaced))
                 .frame(width: 26, alignment: .leading)
             GeometryReader { geo in
-                let width = geo.size.width
-                    * CGFloat(entry.count)
-                    / CGFloat(max(maxCount, 1))
+                let fraction = CGFloat(entry.count) / CGFloat(max(maxCount, 1))
+                let width = geo.size.width * fraction
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
                         .fill(Color.secondary.opacity(0.1))
                         .frame(height: 6)
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.7))
+                        .fill(
+                            LinearGradient(
+                                colors: barGradient(for: entry.tier),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
                         .frame(width: width, height: 6)
                 }
             }
             .frame(height: 6)
+            .animation(.spring(response: 0.55, dampingFraction: 0.8), value: entry.count)
             Text("\(entry.count)")
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .frame(width: 44, alignment: .trailing)
+                .contentTransition(.numericText())
+                .animation(.easeOut(duration: 0.4), value: entry.count)
             Text(entry.tier.rawValue)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(tierColor(entry.tier))
                 .frame(width: 80, alignment: .leading)
+        }
+    }
+
+    /// Gradient sweep that visually maps to mastery tier — Untried fades
+    /// to a flat secondary, Learning warms toward orange, Comfortable
+    /// to blue, Fluent to green. Same semantic palette as `tierColor`.
+    private func barGradient(for tier: MasteryTier) -> [Color] {
+        switch tier {
+        case .untried: return [Color.secondary.opacity(0.3), Color.secondary.opacity(0.15)]
+        case .learning: return [Color.orange.opacity(0.85), Color.orange.opacity(0.45)]
+        case .comfortable: return [Color.blue.opacity(0.85), Color.blue.opacity(0.45)]
+        case .fluent: return [Color.green.opacity(0.85), Color.green.opacity(0.45)]
         }
     }
 
