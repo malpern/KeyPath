@@ -65,7 +65,7 @@ REGISTRY=(
     "alternative-layouts|features|guides|Alternative Layouts|Alternative Layouts|Colemak, Dvorak, Workman, and more — KeyPath supports 8 keymaps with a live overlay"
     "keyboard-layouts|features|guides|Works With Your Keyboard|Works With Your Keyboard|12 physical keyboard layouts from MacBook to Kinesis Advantage 360"
     "neovim-terminal|features|guides|Neovim in the Terminal|Neovim in the Terminal|Bring Neovim navigation muscle memory to every macOS app with a Leader-layer HUD reference"
-    "kindavim|features|guides|Full Vim Modes on macOS|Full Vim Modes|Use KindaVim for real Vim modes system-wide, with KeyPath leader-key shortcuts for Insert mode"
+    "kindavim|features|guides|KindaVim|KindaVim|Use KindaVim for real Vim modes system-wide; KeyPath layers a live mode badge, hjkl hint overlay, and mastery insights on top"
 
     # Reference
     "action-uri-reference|reference|guides|Action URI Reference|Action URI Reference|Technical deep-link reference for integrating KeyPath with Raycast, Alfred, and scripts"
