@@ -8165,6 +8165,27 @@ a.button:active {
     margin: 0;
 }
 
+/* Per-page override for the KindaVim banner. The kindavim header is
+ * the only image in our set with a true 16:9 source (1536×864), so
+ * the generic `height: clamp(220px, 30vw, 420px)` rule above
+ * vertically crops it on viewports under 1280px (where 30vw drops
+ * below 420px and the banner box becomes shorter than the 16:9 image
+ * needs). Combined with `object-position: center 72%` — which biases
+ * the crop upward — that crop removes the cursive "KindaVim" title
+ * at the top of the source.
+ *
+ * Pin the box to the source's exact aspect ratio so it never crops
+ * at any viewport. The other 14 headers are wider than 16:9 (most
+ * are ~1.79 or ~2.36) and continue to use the height clamp so they
+ * render at a comfortable bounded height instead of becoming
+ * letterbox-thin at narrow widths. */
+.parchment-theme main .content-wrapper > section .article-header-image .article-header-img[src*="header-kindavim"],
+.parchment-theme .content .article-header-image .article-header-img[src*="header-kindavim"] {
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-position: center;
+}
+
 /* --- HR as watercolor divider --- */
 .parchment-theme main .content-wrapper > section hr,
 .parchment-theme .content hr {
