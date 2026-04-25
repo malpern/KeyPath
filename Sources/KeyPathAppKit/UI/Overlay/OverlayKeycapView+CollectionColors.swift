@@ -9,8 +9,6 @@ extension OverlayKeycapView {
         static let defaultLayer = Color(red: 0.85, green: 0.45, blue: 0.15)
         /// Vim navigation collection keys
         static let vim = Color(red: 0.85, green: 0.45, blue: 0.15)
-        /// KindaVim collection keys
-        static let kindaVim = Color(red: 0.2, green: 0.7, blue: 0.4)
         /// Window snapping collection keys
         static let windowSnapping = Color.purple
         /// Symbol layer collection keys (future)
@@ -35,8 +33,6 @@ extension OverlayKeycapView {
         switch id {
         case RuleCollectionIdentifier.vimNavigation:
             return LayerColors.vim
-        case RuleCollectionIdentifier.kindaVim:
-            return LayerColors.kindaVim
         case RuleCollectionIdentifier.windowSnapping:
             return LayerColors.windowSnapping
         case RuleCollectionIdentifier.symbolLayer:

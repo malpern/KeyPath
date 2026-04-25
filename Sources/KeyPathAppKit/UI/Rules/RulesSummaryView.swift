@@ -237,7 +237,6 @@ struct RulesTabView: View {
         let isSpecializedTable = style == .table && (
             collection.id == RuleCollectionIdentifier.numpadLayer ||
                 collection.id == RuleCollectionIdentifier.vimNavigation ||
-                collection.id == RuleCollectionIdentifier.kindaVim ||
                 collection.id == RuleCollectionIdentifier.windowSnapping ||
                 collection.id == RuleCollectionIdentifier.macFunctionKeys
         )

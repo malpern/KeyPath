@@ -6,7 +6,7 @@ import SwiftUI
 
 @MainActor
 struct KindaVimStatusBlock: View {
-    @State private var monitor = KindaVimModeMonitor.shared
+    @State private var adapter = KindaVimStateAdapter.shared
     @State private var appInstalled: Bool = FileManager.default
         .fileExists(atPath: "/Applications/kindaVim.app")
 
@@ -21,7 +21,7 @@ struct KindaVimStatusBlock: View {
             )
             row(
                 label: "Current mode",
-                value: monitor.mode?.displayLabel ?? "—",
+                value: modeDisplay,
                 tint: modeTint
             )
             Divider()
@@ -59,13 +59,22 @@ struct KindaVimStatusBlock: View {
         }
     }
 
+    private var modeDisplay: String {
+        let mode = adapter.state.mode
+        // We deliberately ignore `isStale` here — kindaVim only writes the
+        // environment file on mode transitions, so staleness is the steady
+        // state, not a "lost signal" condition.
+        if mode == .unknown { return "—" }
+        return mode.displayName
+    }
+
     private var modeTint: Color {
-        guard let mode = monitor.mode else { return .secondary }
-        switch mode {
+        switch adapter.state.mode {
         case .normal: return .green
         case .insert: return .blue
         case .visual: return .orange
         case .operatorPending: return .purple
+        case .unknown: return .secondary
         }
     }
 }

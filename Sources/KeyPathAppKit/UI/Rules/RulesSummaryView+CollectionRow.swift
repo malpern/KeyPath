@@ -111,24 +111,7 @@ struct ExpandableCollectionRow: View {
         return normalized == "neovimterminal"
     }
 
-    private var isKindaVimCollection: Bool {
-        if collection?.id == RuleCollectionIdentifier.kindaVim {
-            return true
-        }
-        if collectionId.caseInsensitiveCompare(RuleCollectionIdentifier.kindaVim.uuidString) == .orderedSame {
-            return true
-        }
-        if icon.lowercased().contains("kindavim") {
-            return true
-        }
-        if (description ?? "").lowercased().contains("kindavim") {
-            return true
-        }
-        let normalized = name.replacingOccurrences(of: " ", with: "").lowercased()
-        return normalized == "kindavim"
-    }
-
-    private var fallbackKeyMappings: [KeyMapping] {
+private var fallbackKeyMappings: [KeyMapping] {
         mappings.map { mapping in
             KeyMapping(
                 id: mapping.id,
@@ -323,11 +306,6 @@ struct ExpandableCollectionRow: View {
             InsetBackPlane {
                 if isNeovimTerminalCollection {
                     NeovimTerminalCollectionView(mappings: collection?.mappings ?? fallbackKeyMappings)
-                        .padding(.top, 8)
-                        .padding(.bottom, 12)
-                        .padding(.horizontal, 12)
-                } else if isKindaVimCollection {
-                    KindaVimCollectionView(mappings: collection?.mappings ?? fallbackKeyMappings)
                         .padding(.top, 8)
                         .padding(.bottom, 12)
                         .padding(.horizontal, 12)

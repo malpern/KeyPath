@@ -16,6 +16,11 @@ final class ContextHUDController {
     private let kindaVimStateAdapter = KindaVimStateAdapter.shared
     private var hasStartedKindaVimStateMonitoring = false
 
+    /// Cached "is the KindaVim Mode Display pack installed?" flag. Refreshed
+    /// on .installedPacksChanged so the layer-change hot path doesn't have
+    /// to await the tracker actor.
+    private var kindaVimPackInstalled = false
+
     private var dismissTask: Task<Void, Never>?
     private var layerMapTask: Task<Void, Never>?
     private var previousLayer: String = "base"
@@ -41,6 +46,7 @@ final class ContextHUDController {
 
     private init() {
         setupNotificationObservers()
+        Task { @MainActor in await self.refreshKindaVimPackInstalled() }
         AppLogger.shared.log("🎯 [ContextHUD] Controller initialized")
     }
 
@@ -55,6 +61,17 @@ final class ContextHUDController {
     // MARK: - Notification Observers
 
     private func setupNotificationObservers() {
+        NotificationCenter.default.addObserver(
+            forName: .installedPacksChanged,
+            object: nil,
+            queue: NotificationObserverManager.mainOperationQueue
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                await self.refreshKindaVimPackInstalled()
+            }
+        }
+
         NotificationCenter.default.addObserver(
             forName: .kanataLayerChanged,
             object: nil,
@@ -463,10 +480,14 @@ final class ContextHUDController {
                 )
 
                 let kindaVimHUDMode = PreferencesService.shared.kindaVimLeaderHUDMode
-                let hasKindaVimEntries = effectiveKeyMap.values.contains { $0.collectionId == RuleCollectionIdentifier.kindaVim }
+                // Pre-#323 gate was "kindaVim rule-collection has entries in this layer's keymap".
+                // The collection was retired; KindaVim now ships as a visual-only pack and the
+                // hint set is a static reference table (`VimBindings`). Gate on pack install
+                // instead, keep the same nav-layer trigger since that's where the leader-hold
+                // HUD fires.
                 let shouldUseKindaVimLearningStyle = kindaVimHUDMode != .off &&
                     normalizedLayerName == "nav" &&
-                    hasKindaVimEntries
+                    kindaVimPackInstalled
 
                 let hasNeovimEntries = effectiveKeyMap.values.contains { $0.collectionId == RuleCollectionIdentifier.neovimTerminal }
                 let shouldUseNeovimStyle = normalizedLayerName == "nav" &&
@@ -522,6 +543,12 @@ final class ContextHUDController {
                 AppLogger.shared.error("🎯 [ContextHUD] Failed to build layer mapping: \(error)")
             }
         }
+    }
+
+    private func refreshKindaVimPackInstalled() async {
+        let installed = await InstalledPackTracker.shared
+            .isInstalled(packID: PackRegistry.kindaVim.id)
+        await MainActor.run { self.kindaVimPackInstalled = installed }
     }
 
     /// Resolve hold labels for tap-hold keys via simulator

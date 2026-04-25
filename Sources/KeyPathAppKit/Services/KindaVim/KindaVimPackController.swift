@@ -1,7 +1,7 @@
-// Bridges the KindaVim pack's install/uninstall state to the
-// `KindaVimModeMonitor`. Started once at app launch; observes
-// `installedPacksChanged` and starts/stops the monitor as the user
-// toggles the pack from Gallery (or Pack Detail).
+// Bridges the KindaVim pack's install/uninstall state to
+// `KindaVimStateAdapter`. Started once at app launch; observes
+// `installedPacksChanged` and refcount-starts/stops the adapter as the
+// user toggles the pack from Gallery (or Pack Detail).
 
 import Foundation
 import KeyPathCore
@@ -30,15 +30,24 @@ final class KindaVimPackController {
     func stop() {
         observer.map(NotificationCenter.default.removeObserver)
         observer = nil
-        KindaVimModeMonitor.shared.stop()
+        if isMonitoring {
+            KindaVimStateAdapter.shared.stopMonitoring()
+            isMonitoring = false
+        }
     }
+
+    /// Tracks whether we currently hold a refcount on the adapter so we
+    /// can balance start/stop calls without double-decrementing.
+    private var isMonitoring = false
 
     private func refresh() async {
         let installed = await InstalledPackTracker.shared.isInstalled(packID: PackRegistry.kindaVim.id)
-        if installed {
-            KindaVimModeMonitor.shared.start()
-        } else {
-            KindaVimModeMonitor.shared.stop()
+        if installed, !isMonitoring {
+            KindaVimStateAdapter.shared.startMonitoring()
+            isMonitoring = true
+        } else if !installed, isMonitoring {
+            KindaVimStateAdapter.shared.stopMonitoring()
+            isMonitoring = false
         }
     }
 }

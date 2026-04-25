@@ -178,25 +178,12 @@ final class ContextHUDViewModel {
             }
         }
 
-        // Split KindaVim entries into semantic sub-groups (Movement, Word Motion, Editing, Search, Clipboard)
-        if let kindaVimGroup = groupMap[RuleCollectionIdentifier.kindaVim] {
-            groupMap.removeValue(forKey: RuleCollectionIdentifier.kindaVim)
-            var subGroupEntries: [String: (order: Int, entries: [HUDKeyEntry])] = [:]
-            for entry in kindaVimGroup.entries {
-                let vimLabel = keyMap[entry.keyCode]?.vimLabel
-                let sub = vimLabel.flatMap { Self.kindaVimSubcategories[$0] }
-                    ?? (name: "Other", order: 99)
-                subGroupEntries[sub.name, default: (order: sub.order, entries: [])].entries.append(entry)
-            }
-            for (name, group) in subGroupEntries {
-                vimSubGroups.append(HUDKeyGroup(
-                    name: name, color: kindaVimGroup.color,
-                    entries: group.entries, sortOrder: group.order
-                ))
-            }
-        }
+        // KindaVim used to ship as a rule collection whose entries were split
+        // into sub-groups here. The collection is retired (KindaVim is now a
+        // visual-only pack); the .kindaVimLearning style is its own view and
+        // doesn't read `groups[]`. Nothing to do for KindaVim in this pass.
 
-        // Split Neovim Terminal entries into semantic sub-groups
+// Split Neovim Terminal entries into semantic sub-groups
         if let neovimGroup = groupMap[RuleCollectionIdentifier.neovimTerminal] {
             groupMap.removeValue(forKey: RuleCollectionIdentifier.neovimTerminal)
             var subGroupEntries: [String: (order: Int, entries: [HUDKeyEntry])] = [:]
@@ -279,27 +266,7 @@ final class ContextHUDViewModel {
         "find": ("Search", 2), "next": ("Search", 2),
     ]
 
-    /// KindaVim subcategory mapping: vimLabel → (subcategory name, sort order)
-    /// Same pattern as vimSubcategories but with Word Motion as a separate group
-    static let kindaVimSubcategories: [String: (name: String, order: Int)] = [
-        // Movement
-        "←": ("Movement", 0), "↓": ("Movement", 0),
-        "↑": ("Movement", 0), "→": ("Movement", 0),
-        "0": ("Movement", 0), "$": ("Movement", 0),
-        "gg": ("Movement", 0),
-        // Word Motion
-        "w": ("Word Motion", 1), "b": ("Word Motion", 1), "e": ("Word Motion", 1),
-        // Editing
-        "a": ("Editing", 2), "del": ("Editing", 2),
-        "d": ("Editing", 2), "undo": ("Editing", 2),
-        "redo": ("Editing", 2), "o": ("Editing", 2),
-        // Search
-        "find": ("Search", 3), "next": ("Search", 3),
-        // Clipboard
-        "yank": ("Clipboard", 4), "put": ("Clipboard", 4),
-    ]
-
-    /// Neovim Terminal subcategory mapping: vimLabel → (subcategory name, sort order)
+/// Neovim Terminal subcategory mapping: vimLabel → (subcategory name, sort order)
     static let neovimSubcategories: [String: (name: String, order: Int)] = [
         // Movement
         "←": ("Movement", 0), "↓": ("Movement", 0),

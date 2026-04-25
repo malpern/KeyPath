@@ -6,16 +6,17 @@ import SwiftUI
 
 @MainActor
 struct KindaVimModeBadge: View {
-    @State private var monitor = KindaVimModeMonitor.shared
+    @State private var adapter = KindaVimStateAdapter.shared
     let isPackInstalled: Bool
 
     var body: some View {
-        if isPackInstalled, let mode = monitor.mode {
+        if isPackInstalled, shouldRender {
+            let mode = adapter.state.mode
             HStack(spacing: 4) {
                 Text("VIM")
                     .font(.system(size: 9, weight: .heavy))
                     .foregroundStyle(.secondary)
-                Text(mode.displayLabel.uppercased())
+                Text(mode.displayName.uppercased())
                     .font(.system(size: 9, weight: .heavy))
                     .foregroundStyle(tint(for: mode))
             }
@@ -25,16 +26,26 @@ struct KindaVimModeBadge: View {
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
                     .fill(tint(for: mode).opacity(0.15))
             )
-            .accessibilityLabel("KindaVim mode: \(mode.displayLabel)")
+            .accessibilityLabel("KindaVim mode: \(mode.displayName)")
         }
     }
 
-    private func tint(for mode: KindaVimModeMonitor.Mode) -> Color {
+    /// Don't surface a badge for `.unknown` — kindaVim hasn't published a
+    /// signal yet. We deliberately do NOT gate on `isStale`: kindaVim writes
+    /// the environment file only on mode transitions, so a user sitting in
+    /// Normal mode for >5s would otherwise lose the badge despite the mode
+    /// still being valid.
+    private var shouldRender: Bool {
+        adapter.state.mode != .unknown
+    }
+
+    private func tint(for mode: KindaVimStateAdapter.Mode) -> Color {
         switch mode {
         case .normal: .green
         case .insert: .blue
         case .visual: .orange
         case .operatorPending: .purple
+        case .unknown: .secondary
         }
     }
 }
