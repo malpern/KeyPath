@@ -7,6 +7,9 @@ struct ContextHUDKindaVimLearningView: View {
     let state: KindaVimStateAdapter.StateSnapshot?
     let modeSetting: KindaVimLeaderHUDMode
 
+    @State private var strategyMonitor = KindaVimStrategyMonitor.shared
+    @AppStorage("kindaVim.showAdvancedHints") private var showAdvancedHints: Bool = false
+
     private struct CommandItem: Identifiable {
         let id = UUID()
         let keys: String
@@ -102,31 +105,104 @@ struct ContextHUDKindaVimLearningView: View {
         )
     }
 
+    @ViewBuilder
     private var quickReferenceSection: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text("Motions + Window Nav")
-                .font(.footnote.monospaced().weight(.semibold))
-                .foregroundStyle(.white.opacity(0.75))
-                .tracking(1.2)
+        // Insert mode and Ignored strategy fall back to the small escape-
+        // hatch hint list; everything else reads the static VimBindings
+        // table filtered for the current strategy and advanced toggle.
+        if mode == .insert {
+            insertModeHints
+        } else if strategyMonitor.currentStrategy == .ignored {
+            ignoredStrategyHint
+        } else {
+            vimBindingsSections
+        }
+    }
 
-            ForEach(commands(for: mode)) { command in
-                HStack(spacing: 10) {
-                    Text(command.keys)
-                        .font(.system(.footnote, design: .monospaced).weight(.bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(
-                            RoundedRectangle(cornerRadius: 5)
-                                .fill(.white.opacity(0.12))
-                        )
-                    Text(command.meaning)
-                        .font(.footnote)
-                        .lineSpacing(1.5)
-                        .foregroundStyle(.white.opacity(0.85))
-                }
+    private var insertModeHints: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            sectionHeader("Insert mode")
+            ForEach(insertModeCommands) { command in
+                commandRow(keys: command.keys, meaning: command.meaning, loud: false)
             }
         }
+    }
+
+    private var ignoredStrategyHint: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            sectionHeader("KindaVim is off here")
+            Text("This app is in KindaVim's ignore list. Mode signals don't apply.")
+                .font(.footnote)
+                .lineSpacing(1.5)
+                .foregroundStyle(.white.opacity(0.7))
+        }
+    }
+
+    private var vimBindingsSections: some View {
+        let bindingGroups = VimBindings.grouped(
+            strategy: strategyMonitor.currentStrategy,
+            mode: mode,
+            showAdvanced: showAdvancedHints
+        )
+        return VStack(alignment: .leading, spacing: 11) {
+            ForEach(Array(bindingGroups.enumerated()), id: \.offset) { _, group in
+                bindingGroupSection(group)
+            }
+            if mode == .operatorPending {
+                Text("Press the same operator twice (dd · yy · cc) to act on the whole line.")
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.75))
+                    .lineSpacing(1.5)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func bindingGroupSection(_ group: VimHintGroup) -> some View {
+        let isMovement = group.group == .movement
+        VStack(alignment: .leading, spacing: 6) {
+            sectionHeader(group.displayName)
+            ForEach(group.entries) { entry in
+                commandRow(
+                    keys: entry.displayLabel,
+                    meaning: entry.actionLabel,
+                    loud: isMovement && entry.tier == .core
+                )
+            }
+        }
+    }
+
+    private func sectionHeader(_ text: String) -> some View {
+        Text(text)
+            .font(.footnote.monospaced().weight(.semibold))
+            .foregroundStyle(.white.opacity(0.75))
+            .tracking(1.2)
+    }
+
+    private func commandRow(keys: String, meaning: String, loud: Bool) -> some View {
+        HStack(spacing: 10) {
+            Text(keys)
+                .font(.system(loud ? .body : .footnote, design: .monospaced).weight(.bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, loud ? 9 : 7)
+                .padding(.vertical, loud ? 4 : 3)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(loud ? Color.accentColor.opacity(0.5) : .white.opacity(0.12))
+                )
+            Text(meaning)
+                .font(loud ? .footnote.weight(.semibold) : .footnote)
+                .lineSpacing(1.5)
+                .foregroundStyle(.white.opacity(loud ? 1.0 : 0.85))
+        }
+    }
+
+    private var insertModeCommands: [CommandItem] {
+        [
+            .init(keys: "Esc", meaning: "enter Normal mode"),
+            .init(keys: "Ctrl-[", meaning: "alternate Esc"),
+            .init(keys: "Leader hold", meaning: "open KeyPath motion keylist"),
+        ]
     }
 
     private var leaderShortcutsSection: some View {
@@ -211,41 +287,7 @@ struct ContextHUDKindaVimLearningView: View {
         }
     }
 
-    private func commands(for mode: KindaVimStateAdapter.Mode) -> [CommandItem] {
-        switch mode {
-        case .insert:
-            [
-                .init(keys: "Esc", meaning: "enter Normal mode"),
-                .init(keys: "Ctrl-[", meaning: "alternate Esc"),
-                .init(keys: "Leader hold", meaning: "open KeyPath motion keylist"),
-            ]
-        case .normal:
-            [
-                .init(keys: "h j k l", meaning: "left/down/up/right"),
-                .init(keys: "w b e", meaning: "word motions"),
-                .init(keys: "0  $", meaning: "line start/end"),
-                .init(keys: "gg  G", meaning: "document top/bottom"),
-                .init(keys: "Ctrl-w h/j/k/l", meaning: "move between windows"),
-                .init(keys: "v / V", meaning: "enter Visual mode"),
-            ]
-        case .visual:
-            [
-                .init(keys: "h j k l", meaning: "expand selection"),
-                .init(keys: "w b e", meaning: "word-wise selection"),
-                .init(keys: "0  $", meaning: "line bounds"),
-                .init(keys: "gg  G", meaning: "document bounds"),
-                .init(keys: "Ctrl-w h/j/k/l", meaning: "window focus navigation"),
-                .init(keys: "Esc", meaning: "return to Normal mode"),
-            ]
-        case .operatorPending:
-            [
-                .init(keys: "h j k l", meaning: "motion targets"),
-                .init(keys: "w b e", meaning: "word motion targets"),
-                .init(keys: "0  $", meaning: "line ends"),
-                .init(keys: "(same op)", meaning: "× 2 = whole line"),
-            ]
-        case .unknown:
-            commands(for: .normal)
-        }
-    }
+    // The hardcoded `commands(for:)` switch was replaced with
+    // `VimBindings.grouped(strategy:mode:showAdvanced:)` so the cheat
+    // sheet narrows to what the active strategy actually supports.
 }
