@@ -8248,3 +8248,7 @@ a.button:active {
         background: rgba(74, 55, 40, 0.3);
     }
 }
+
+/* cache-bust 2026-04-25: force a fresh build SHA so browsers cached
+ * on the previous {{ css_version }} URL pick up the kindavim banner
+ * aspect-ratio fix. The trailing comment is the entire payload. */
