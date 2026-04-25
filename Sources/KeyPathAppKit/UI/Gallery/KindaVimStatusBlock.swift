@@ -50,6 +50,11 @@ struct KindaVimStatusBlock: View {
             Divider()
             telemetrySection
 
+            if telemetryEnabled {
+                Divider()
+                KindaVimInsightsView()
+            }
+
             Divider()
             Text(
                 "This pack adds no remappings. KindaVim itself handles every keypress; KeyPath just shows you the current mode in the overlay."
@@ -66,6 +71,7 @@ struct KindaVimStatusBlock: View {
                 .accessibilityIdentifier("kindavim-status-get-kindavim")
             }
         }
+        .animation(.easeInOut(duration: 0.35), value: telemetryEnabled)
         .onAppear {
             appInstalled = FileManager.default
                 .fileExists(atPath: "/Applications/kindaVim.app")

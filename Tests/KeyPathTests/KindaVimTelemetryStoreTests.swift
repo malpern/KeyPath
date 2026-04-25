@@ -134,6 +134,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
             let storeA = makeStore()
             storeA.recordCommand("h")
             storeA.recordModeDwell("normal", duration: 12)
+            storeA.flushNow()  // force the debounced write before storeA goes away
         }
 
         // New store instance reading the same file should see the data.
@@ -151,6 +152,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
         defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
         let store = makeStore()
         store.recordCommand("h")
+        store.flushNow()  // force the debounced write
         XCTAssertTrue(FileManager.default.fileExists(atPath: tempFileURL.path))
 
         store.clearAll()
@@ -160,6 +162,114 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
         let snapshot = store.loadSnapshot()
         XCTAssertTrue(snapshot.commandFrequency.isEmpty,
                       "After clear, snapshot should be empty (and cache cleared)")
+    }
+
+    // MARK: - Non-vim navigation + daily snapshots
+
+    @MainActor func testNonVimNavigationCounterIncrements() {
+        defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
+        let store = makeStore()
+        store.recordNonVimNavigation("left")
+        store.recordNonVimNavigation("LEFT")  // case-insensitive
+        store.recordNonVimNavigation("right")
+        let snap = store.loadSnapshot()
+        XCTAssertEqual(snap.nonVimNavigationFrequency["left"], 2)
+        XCTAssertEqual(snap.nonVimNavigationFrequency["right"], 1)
+    }
+
+    @MainActor func testHjklRecordingPopulatesDailyHjklCount() {
+        defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
+        let store = makeStore()
+        store.recordCommand("h")
+        store.recordCommand("h")
+        store.recordCommand("j")
+        store.recordCommand("w")  // not hjkl, doesn't count toward daily hjkl
+        let snap = store.loadSnapshot()
+        XCTAssertEqual(snap.dailySnapshots.count, 1)
+        XCTAssertEqual(snap.dailySnapshots.last?.hjklCount, 3)
+    }
+
+    @MainActor func testArrowsAccumulateInDailySnapshot() {
+        defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
+        let store = makeStore()
+        store.recordNonVimNavigation("left")
+        store.recordNonVimNavigation("up")
+        store.recordNonVimNavigation("up")
+        let snap = store.loadSnapshot()
+        XCTAssertEqual(snap.dailySnapshots.last?.nonVimNavigationCount, 3)
+    }
+
+    @MainActor func testVocabularySizeUpdatesAfterTenPresses() {
+        defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
+        let store = makeStore()
+        // 9 presses of `h` — not yet fluent
+        for _ in 0..<9 { store.recordCommand("h") }
+        XCTAssertEqual(store.loadSnapshot().dailySnapshots.last?.vocabularySize, 0)
+
+        // 10th press crosses the threshold
+        store.recordCommand("h")
+        XCTAssertEqual(store.loadSnapshot().dailySnapshots.last?.vocabularySize, 1)
+    }
+
+    @MainActor func testDailySnapshotMergesSameDayWrites() {
+        defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
+        let store = makeStore()
+        store.recordCommand("h")
+        store.recordNonVimNavigation("left")
+        store.recordModeDwell("normal", duration: 5)
+        // All recorded same day — should be one daily entry, not three
+        XCTAssertEqual(store.loadSnapshot().dailySnapshots.count, 1)
+    }
+
+    // MARK: - Schema migration (forward-compat with old files)
+
+    @MainActor func testDecodesOldFileWithoutNewFields() throws {
+        // Simulate a file written by the original PR #328 store: no
+        // nonVimNavigationFrequency, no dailySnapshots.
+        let legacyJSON = """
+        {
+          "commandFrequency": { "h": 5 },
+          "modeDwellSeconds": { "normal": 12 },
+          "strategySamples": {},
+          "operatorPendingCompleted": 0,
+          "operatorPendingCancelled": 0
+        }
+        """
+        try legacyJSON.write(to: tempFileURL, atomically: true, encoding: .utf8)
+
+        defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
+        let store = makeStore()
+        let snap = store.loadSnapshot()
+        XCTAssertEqual(snap.commandFrequency["h"], 5)
+        XCTAssertEqual(snap.nonVimNavigationFrequency, [:])
+        XCTAssertEqual(snap.dailySnapshots, [])
+    }
+
+    // MARK: - Debounced flush
+
+    @MainActor func testRecordingWithoutFlushDoesNotWriteImmediately() {
+        defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
+        let store = KindaVimTelemetryStore(
+            fileURL: tempFileURL,
+            userDefaults: defaults,
+            flushInterval: 60  // long enough that the debounce won't fire
+        )
+        store.recordCommand("h")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: tempFileURL.path),
+                       "Disk write should be debounced")
+    }
+
+    @MainActor func testFlushNowForcesWriteSynchronously() {
+        defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
+        let store = KindaVimTelemetryStore(
+            fileURL: tempFileURL,
+            userDefaults: defaults,
+            flushInterval: 60
+        )
+        store.recordCommand("h")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: tempFileURL.path))
+        store.flushNow()
+        XCTAssertTrue(FileManager.default.fileExists(atPath: tempFileURL.path))
     }
 
     // MARK: - Missing file is harmless

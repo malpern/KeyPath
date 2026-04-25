@@ -23,6 +23,33 @@
 import Foundation
 import KeyPathCore
 
+/// One day's aggregate sample. Used by the insights chart to draw a
+/// line over the past 30 days; never used to reconstruct individual
+/// keystrokes.
+///
+/// Stored as ISO date strings (YYYY-MM-DD) rather than `Date` so the
+/// JSON file remains human-readable and timezone-stable.
+struct KindaVimDailySnapshot: Codable, Equatable, Sendable {
+    /// ISO date for the local-day this sample covers ("2026-04-25").
+    var date: String
+
+    /// Count of arrow / Page / Home / End presses recorded today.
+    var nonVimNavigationCount: Int = 0
+
+    /// Count of `h`/`j`/`k`/`l` presses recorded today.
+    var hjklCount: Int = 0
+
+    /// Vocabulary size at end-of-day: how many commands had crossed
+    /// the fluency threshold (≥10 lifetime presses) by today.
+    var vocabularySize: Int = 0
+
+    /// Seconds spent in `.normal` mode today.
+    var normalDwellSeconds: TimeInterval = 0
+
+    /// Seconds spent in `.insert` mode today.
+    var insertDwellSeconds: TimeInterval = 0
+}
+
 /// Aggregate usage counters. Pure values — safe to send across actor
 /// boundaries, safe to serialise.
 struct KindaVimTelemetrySnapshot: Codable, Equatable, Sendable {
@@ -31,6 +58,12 @@ struct KindaVimTelemetrySnapshot: Codable, Equatable, Sendable {
     /// form ("h", "j", "0", "slash", etc.) — same vocabulary as
     /// `OverlayKeyboardView.keyCodeToKanataName`.
     var commandFrequency: [String: Int] = [:]
+
+    /// Counter for non-vim navigation keys: arrows, Home, End,
+    /// Page Up/Down. Recorded regardless of mode (whereas
+    /// `commandFrequency` is gated to normal/visual). Powers the
+    /// arrow-reliance headline metric.
+    var nonVimNavigationFrequency: [String: Int] = [:]
 
     /// Cumulative seconds spent in each mode. Insert is included so
     /// "what fraction of time am I actually using vim modes?" is a
@@ -50,6 +83,10 @@ struct KindaVimTelemetrySnapshot: Codable, Equatable, Sendable {
     var operatorPendingCompleted: Int = 0
     var operatorPendingCancelled: Int = 0
 
+    /// One entry per local-day with activity. Capped at the most
+    /// recent 90 days during writes so the file size stays bounded.
+    var dailySnapshots: [KindaVimDailySnapshot] = []
+
     /// First time we wrote any data to the file. Used in PR #6's
     /// "since you started using vim" framing — never a timestamp on an
     /// individual event.
@@ -58,6 +95,28 @@ struct KindaVimTelemetrySnapshot: Codable, Equatable, Sendable {
     /// Last write timestamp. Lets PR #6 surface "last active" without
     /// retaining individual events.
     var lastUpdatedAt: Date?
+
+    // MARK: - Schema migration
+
+    /// Custom decoder so files written by earlier versions (which
+    /// didn't have `nonVimNavigationFrequency` or `dailySnapshots`)
+    /// decode cleanly with empty defaults. New fields appended here
+    /// should default-initialise the same way to preserve forward-
+    /// compat for users on stale builds.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        commandFrequency = try container.decodeIfPresent([String: Int].self, forKey: .commandFrequency) ?? [:]
+        nonVimNavigationFrequency = try container.decodeIfPresent([String: Int].self, forKey: .nonVimNavigationFrequency) ?? [:]
+        modeDwellSeconds = try container.decodeIfPresent([String: TimeInterval].self, forKey: .modeDwellSeconds) ?? [:]
+        strategySamples = try container.decodeIfPresent([String: Int].self, forKey: .strategySamples) ?? [:]
+        operatorPendingCompleted = try container.decodeIfPresent(Int.self, forKey: .operatorPendingCompleted) ?? 0
+        operatorPendingCancelled = try container.decodeIfPresent(Int.self, forKey: .operatorPendingCancelled) ?? 0
+        dailySnapshots = try container.decodeIfPresent([KindaVimDailySnapshot].self, forKey: .dailySnapshots) ?? []
+        firstRecordedAt = try container.decodeIfPresent(Date.self, forKey: .firstRecordedAt)
+        lastUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .lastUpdatedAt)
+    }
+
+    init() {}
 }
 
 @MainActor
@@ -81,12 +140,34 @@ final class KindaVimTelemetryStore {
     private let userDefaults: UserDefaults
     private var cached: KindaVimTelemetrySnapshot?
 
+    /// Debounced disk-flush. Mutations bump `pendingWrite = true`; the
+    /// active flush task waits `flushInterval` seconds, then writes the
+    /// cached snapshot to disk. This keeps a heavy typist (~100
+    /// keypresses/minute) from generating ~5 MB/minute of disk traffic
+    /// while preserving JSON's audit-friendliness.
+    ///
+    /// Worst-case data loss on a crash is bounded to `flushInterval`
+    /// seconds of counter increments — fine for aggregate telemetry.
+    private let flushInterval: TimeInterval
+    private var pendingWrite: Bool = false
+    private var flushTask: Task<Void, Never>?
+
     init(
         fileURL: URL = KindaVimTelemetryStore.defaultFileURL,
-        userDefaults: UserDefaults = .standard
+        userDefaults: UserDefaults = .standard,
+        flushInterval: TimeInterval = 5
     ) {
         self.fileURL = fileURL
         self.userDefaults = userDefaults
+        self.flushInterval = flushInterval
+    }
+
+    deinit {
+        flushTask?.cancel()
+        // No final flush from deinit — the @MainActor restriction makes
+        // it impractical, and the `flushNow()` API + app-deactivation
+        // hook (TODO in a follow-up) covers correctness for the cases
+        // that matter (Pack Detail viewing, app quit).
     }
 
     // MARK: - Opt-in gate
@@ -100,8 +181,36 @@ final class KindaVimTelemetryStore {
 
     func recordCommand(_ key: String) {
         guard isEnabled, !key.isEmpty else { return }
+        let lower = key.lowercased()
         mutate { snapshot in
-            snapshot.commandFrequency[key.lowercased(), default: 0] += 1
+            snapshot.commandFrequency[lower, default: 0] += 1
+            // Daily-bucket: hjkl drive the headline metric's denominator.
+            if Self.hjklKeys.contains(lower) {
+                Self.upsertToday(in: &snapshot.dailySnapshots) { day in
+                    day.hjklCount += 1
+                }
+            }
+            // Daily-bucket: vocabulary size = unique commands ≥ fluency
+            // threshold. Recompute on every cumulative bump (cheap; the
+            // frequency dict is bounded by kindaVim's small command set).
+            let vocab = Self.vocabularySize(in: snapshot.commandFrequency)
+            Self.upsertToday(in: &snapshot.dailySnapshots) { day in
+                day.vocabularySize = vocab
+            }
+        }
+    }
+
+    /// Record a non-vim navigation key (arrow, Page Up/Down, Home, End).
+    /// Recorded regardless of mode — these indicate the user is
+    /// reaching outside vim's grammar even though they have the pack on.
+    func recordNonVimNavigation(_ key: String) {
+        guard isEnabled, !key.isEmpty else { return }
+        let lower = key.lowercased()
+        mutate { snapshot in
+            snapshot.nonVimNavigationFrequency[lower, default: 0] += 1
+            Self.upsertToday(in: &snapshot.dailySnapshots) { day in
+                day.nonVimNavigationCount += 1
+            }
         }
     }
 
@@ -109,6 +218,21 @@ final class KindaVimTelemetryStore {
         guard isEnabled, duration > 0 else { return }
         mutate { snapshot in
             snapshot.modeDwellSeconds[mode, default: 0] += duration
+            // Daily-bucket: only normal + insert are headline-relevant;
+            // visual / op-pending fold into the lifetime counters but
+            // don't get their own daily series.
+            switch mode {
+            case "normal":
+                Self.upsertToday(in: &snapshot.dailySnapshots) { day in
+                    day.normalDwellSeconds += duration
+                }
+            case "insert":
+                Self.upsertToday(in: &snapshot.dailySnapshots) { day in
+                    day.insertDwellSeconds += duration
+                }
+            default:
+                break
+            }
         }
     }
 
@@ -144,9 +268,24 @@ final class KindaVimTelemetryStore {
     /// Wipe the file and the in-memory cache. Intentional: the user
     /// asked us to forget their data, so we forget it.
     func clearAll() {
+        flushTask?.cancel()
+        flushTask = nil
+        pendingWrite = false
         cached = nil
         try? FileManager.default.removeItem(at: fileURL)
         AppLogger.shared.log("🧹 [KindaVimTelemetry] Cleared all usage data")
+    }
+
+    /// Force any pending writes to disk synchronously. Callers (Pack
+    /// Detail open, app deactivation) use this to make sure the user
+    /// sees fresh data the moment they look at it. Tests use it to
+    /// assert post-write file contents without waiting on the timer.
+    func flushNow() {
+        flushTask?.cancel()
+        flushTask = nil
+        guard pendingWrite, let snapshot = cached else { return }
+        pendingWrite = false
+        writeToDisk(snapshot)
     }
 
     // MARK: - Internals
@@ -159,8 +298,65 @@ final class KindaVimTelemetryStore {
         }
         snapshot.lastUpdatedAt = now
         body(&snapshot)
+        // Bound the daily-snapshots history. The chart only ever needs
+        // the most recent 30 days; retaining 90 leaves headroom for
+        // retroactive recomputation if we add new derived series later.
+        let cap = 90
+        if snapshot.dailySnapshots.count > cap {
+            snapshot.dailySnapshots.removeFirst(snapshot.dailySnapshots.count - cap)
+        }
         cached = snapshot
-        writeToDisk(snapshot)
+        pendingWrite = true
+        scheduleDebouncedFlush()
+    }
+
+    private func scheduleDebouncedFlush() {
+        guard flushTask == nil else { return }  // already armed
+        let delay = flushInterval
+        flushTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard let self, !Task.isCancelled else { return }
+            self.flushNow()
+        }
+    }
+
+    // MARK: - Daily-bucket helpers
+
+    private static let hjklKeys: Set<String> = ["h", "j", "k", "l"]
+
+    /// Fluency threshold — a command counts toward "vocabulary size"
+    /// once the user has pressed it at least this many times. Mirrors
+    /// the `Fluent` mastery tier in the insights UI.
+    static let fluencyThreshold = 10
+
+    private static func vocabularySize(in frequencies: [String: Int]) -> Int {
+        frequencies.values.filter { $0 >= fluencyThreshold }.count
+    }
+
+    /// Find or append today's daily snapshot and apply the mutation.
+    /// Date format is `YYYY-MM-DD` in the user's local timezone — same
+    /// boundary as the user's notion of "today."
+    private static func upsertToday(
+        in snapshots: inout [KindaVimDailySnapshot],
+        body: (inout KindaVimDailySnapshot) -> Void
+    ) {
+        let today = Self.localDateString(for: Date())
+        if var last = snapshots.last, last.date == today {
+            body(&last)
+            snapshots[snapshots.count - 1] = last
+        } else {
+            var fresh = KindaVimDailySnapshot(date: today)
+            body(&fresh)
+            snapshots.append(fresh)
+        }
+    }
+
+    static func localDateString(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        return formatter.string(from: date)
     }
 
     private func readFromDisk() -> KindaVimTelemetrySnapshot? {

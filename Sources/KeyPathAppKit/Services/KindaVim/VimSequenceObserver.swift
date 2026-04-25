@@ -102,8 +102,34 @@ final class VimSequenceObserver {
     }
 
     private func handleKeyDown(_ event: NSEvent) {
+        // Non-vim navigation: arrows + Page / Home / End. Recorded
+        // regardless of mode — these are the keys the headline arrow-
+        // reliance metric counts against `hjkl`.
+        if let navName = Self.nonVimNavigationName(for: event.keyCode) {
+            KindaVimTelemetryStore.shared.recordNonVimNavigation(navName)
+        }
+
         guard let chars = event.charactersIgnoringModifiers, !chars.isEmpty else { return }
         ingestCore(character: chars)
+    }
+
+    /// macOS virtual keycodes for the keys that count as non-vim
+    /// navigation. Arrow keys (123–126) drive the headline metric;
+    /// Page Up / Page Down / Home / End (115–119) are bundled with
+    /// them since they're functionally the same "I reached past vim"
+    /// signal.
+    private static func nonVimNavigationName(for keyCode: UInt16) -> String? {
+        switch keyCode {
+        case 123: return "left"
+        case 124: return "right"
+        case 125: return "down"
+        case 126: return "up"
+        case 116: return "pageup"
+        case 121: return "pagedown"
+        case 115: return "home"
+        case 119: return "end"
+        default: return nil
+        }
     }
 
     /// Re-read the current mode and apply the hard-reset if it changed.
