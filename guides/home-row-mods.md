@@ -125,12 +125,11 @@ When enabled, a quick tap-and-release always produces the letter, even if anothe
 
 ## How KeyPath makes home row mods reliable
 
-### Split-hand detection
+KeyPath uses two powerful features to make home row mods virtually misfire-free:
 
-KeyPath tracks which keyboard half each key belongs to. This is the key to reliable home row mods:
+### Opposite-hand activation
 
-- **Same-hand key press** during the tap-hold window → immediately produces the letter (fast typing)
-- **Opposite-hand key press** → allows the modifier to activate (intentional shortcut)
+Hold actions (modifiers or layers) only activate when you press a key with the **other hand**. Same-hand typing always produces letters — no accidental modifiers during fast rolls.
 
 ```
   Left Hand                     Right Hand
@@ -146,7 +145,37 @@ KeyPath tracks which keyboard half each key belongs to. This is the key to relia
   Cross hand  → hold (modifier)   Example: F then J → ⌘J
 ```
 
-This is based on Kanata's `tap-hold-release-keys` and the approach recommended by Kanata's creator.
+This uses Kanata's native `tap-hold-opposite-hand` with a global hand definition (`defhands`), replacing the older per-key workaround.
+
+### Stop accidental modifiers during fast typing
+
+When you're typing quickly, the last thing you want is for "fd" to become Ctrl+D. Fast typing protection solves this: keys pressed shortly after your last keystroke produce the letter immediately — no hold detection, no waiting state.
+
+<!--
+TODO: regenerate-screenshots.sh hasn't produced hrm-fast-typing.png yet,
+so the directive below is commented out. The publish-to-web script
+silently drops references whose PNG is missing, which knocks the
+screenshot-count parity check out of alignment and fails the publish
+workflow. Re-enable this directive once the PNG is committed under
+`Sources/KeyPathAppKit/Resources/hrm-fast-typing.png`.
+
+screenshot: id="hrm-fast-typing" method="snapshot" view="HomeRowTimingSection" state="prior-idle:visible"
+-->
+Screenshot — Fast typing protection in rule settings:
+```
+  ┌─────────────────────────────────────────────────────┐
+  │  [x] Fast typing protection                        │
+  │                                                     │
+  │  Strict ──────────●──────────── Forgiving           │
+  │                    ↑                                │
+  │                  150 ms                             │
+  │                                                     │
+  │  Keys pressed within 150ms of your last keystroke   │
+  │  skip hold detection entirely.                      │
+  └─────────────────────────────────────────────────────┘
+```
+
+This is enabled by default at 150ms. Adjust the slider to match your typing speed — faster typists may want a lower value (strict), while slower typists can use a higher value (forgiving).
 
 ### Per-finger timing
 
@@ -178,7 +207,7 @@ See [Sunaku's bilateral combinations approach](https://sunaku.github.io/home-row
 
 QMK firmware libraries (created by [Pascal Getreuer](https://getreuer.info/posts/keyboards/home-row-mods/)) that make the tap/hold decision based on which hand pressed the next key. **Chordal Hold** was merged into QMK core in February 2025, making opposite-hand detection a built-in feature for QMK keyboards.
 
-KeyPath's split-hand detection provides equivalent functionality for standard Mac keyboards via Kanata.
+KeyPath's opposite-hand activation provides equivalent functionality for standard Mac keyboards via Kanata.
 
 ### Eager mods
 

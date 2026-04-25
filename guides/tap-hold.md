@@ -108,12 +108,12 @@ Screenshot — Rule editor with hold behavior options:
 
 ## Hold Behavior Options
 
-| Option | Description | Kanata Variant |
-|--------|-------------|----------------|
-| Basic | Hold activates after timeout | `tap-hold` |
-| Trigger early | Hold activates when another key is pressed | `tap-hold-press` |
-| Quick tap | Fast taps always register as tap | `tap-hold-release` |
-| Custom keys | Only specific keys trigger early tap | `tap-hold-release-keys` |
+| Option | Description |
+|--------|-------------|
+| Basic | Hold activates after timeout |
+| Trigger early | Hold activates when another key is pressed |
+| Quick tap | Fast taps always register as tap |
+| Custom keys | Only specific keys trigger early tap |
 
 ---
 

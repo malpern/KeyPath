@@ -140,7 +140,7 @@ The problem: they're all in the corners. Every shortcut forces your fingers off 
 
 Hold F + press C = ⌘C (Copy). Hold A + press Tab = ⇧Tab. Your hands never move.
 
-The challenge is avoiding misfires during fast typing. KeyPath uses split-hand detection (same-hand = letter, cross-hand = modifier) and per-finger timing to make it reliable. Read the full [Shortcuts Without Reaching guide]({{ '/guides/home-row-mods/' | relative_url }}) for details.
+The challenge is avoiding misfires during fast typing. KeyPath uses opposite-hand activation (same-hand = letter, cross-hand = modifier), fast typing protection, and per-finger timing to make it reliable. Read the full [Shortcuts Without Reaching guide]({{ '/guides/home-row-mods/' | relative_url }}) for details.
 
 ---
 

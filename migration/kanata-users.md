@@ -236,7 +236,7 @@ ln -s ~/.config/kanata/my-config.kbd ~/.config/keypath/keypath.kbd
 
 ## Next Steps
 
-- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — KeyPath's split-hand detection and per-finger timing make HRM more reliable
+- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — KeyPath's opposite-hand activation, fast typing protection, and per-finger timing make HRM more reliable
 - **[What You Can Build]({{ '/guides/use-cases/' | relative_url }})** — Concrete examples: Hyper key launcher, window tiling, Vim everywhere
 - **[Launching Apps]({{ '/guides/action-uri/' | relative_url }})** — Launch apps, open URLs, and tile windows from your Kanata config
 - **[Window Management]({{ '/guides/window-management/' | relative_url }})** — App-specific keymaps that switch automatically

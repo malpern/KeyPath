@@ -238,9 +238,9 @@ If something went wrong (file missing or corrupted), click **Fix** and the wizar
 
 ---
 
-## Step 6: Start Keyboard Service
+## Step 6: Start KeyPath Runtime
 
-The final step. The wizard starts the kanata service that runs in the background. Once it's running, your key remappings are active system-wide.
+The final step. The wizard starts the KeyPath Runtime, powered by the Kanata engine in the background. Once it is running, your key remappings are active system-wide.
 
 The wizard shows a live status indicator:
 

@@ -8,6 +8,8 @@ permalink: /migration/karabiner-users/
 ---
 
 
+# Switching From Karabiner-Elements
+
 If you're using [Karabiner-Elements](https://karabiner-elements.pqrs.org/) and curious about KeyPath, this page maps the concepts you know to how KeyPath works — and helps you decide if switching makes sense.
 
 ---
@@ -20,7 +22,7 @@ Karabiner-Elements is an excellent tool that pioneered keyboard remapping on mac
 |---|---|---|
 | **Config format** | JSON (verbose, complex) | Kanata S-expressions (concise) |
 | **Tap-hold** | `to_if_alone` + timeout | 4 tap-hold variants, per-key tuning |
-| **Home row mods** | Possible via complex JSON, global timeout, no misfire prevention | Built-in with split-hand detection, per-finger timing, anti-misfire |
+| **Home row mods** | Possible via complex JSON, global timeout, no misfire prevention | Built-in with opposite-hand activation, fast typing protection, per-finger timing |
 | **Per-finger timing** | Global timeout only | Individual finger sensitivity |
 | **Layers** | Separate rule sets | First-class `deflayer` with layer-switch |
 | **App-specific** | Per-app rules via JSON | Automatic layer switching via TCP |
@@ -177,7 +179,7 @@ See [Your First Mapping](https://keypath-app.com/getting-started/first-mapping) 
 
 ### 5. Fine-tune
 
-KeyPath's per-finger timing and split-hand detection may mean you need less tweaking than your Karabiner setup required. Start with defaults and adjust from there.
+KeyPath's per-finger timing, opposite-hand activation, and fast typing protection may mean you need less tweaking than your Karabiner setup required. Start with defaults and adjust from there.
 
 ---
 
@@ -189,7 +191,7 @@ KeyPath's per-finger timing and split-hand detection may mean you need less twea
 | Caps Lock → Escape/Control | Pre-built rule with tap-hold |
 | Caps Lock → Hyper | Pre-built "Caps Lock Remap" → Hyper mode |
 | Home row mods | Pre-built "Home Row Mods" rule |
-| Vi-style arrows (HJKL) | Custom rule or [Vim Navigation]({{ '/guides/use-cases/' | relative_url }}#vim-navigation-everywhere) |
+| Vi-style arrows (HJKL) | Custom rule or [What You Can Build]({{ '/guides/use-cases/' | relative_url }}) |
 | App-specific shortcuts | Custom Rules tab |
 | Launch apps from keyboard | [app launching]({{ '/guides/action-uri/' | relative_url }}) |
 | Window snapping | [Window Management]({{ '/guides/window-management/' | relative_url }}) |

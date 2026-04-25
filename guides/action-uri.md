@@ -209,7 +209,7 @@ Enable these in the **Rules** tab to get started immediately, then customize fro
 
 1. **Use mnemonic keys** — S for Safari, T for Terminal, M for Messages. You'll build muscle memory fast.
 2. **Put URLs on the number row** — 1 for GitHub, 2 for Google, 3 for your dashboard. Letters for apps, numbers for sites.
-3. **Test before committing** — Click the **Test** button next to any binding to verify it works.
+3. **Test before committing** — Try the binding after saving to verify it works.
 4. **Check the overlay** — When you hold Caps Lock, bound keys show their app icons on the overlay. Unbound keys stay normal.
 
 ---
@@ -219,7 +219,7 @@ Enable these in the **Rules** tab to get started immediately, then customize fro
 ### App not launching
 
 1. Make sure KeyPath is running (green status indicator in the menu bar)
-2. Verify the binding in the Launchers panel — click **Test** to check
+2. Verify the binding in the Launchers panel by trying the shortcut
 3. If the app name doesn't resolve, try the full path (e.g., `/Applications/Safari.app`)
 4. Check **File → View Logs** for error messages
 
