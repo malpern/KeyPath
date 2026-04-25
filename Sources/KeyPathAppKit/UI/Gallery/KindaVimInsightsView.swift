@@ -388,6 +388,12 @@ struct KindaVimInsightsView: View {
     // MARK: - Secondary stats
 
     private var secondaryStats: some View {
+        // Vocabulary here = "commands the user has used at least the
+        // engine's threshold (10) times." The threshold is intentionally
+        // looser than the per-row "Fluent" tier (100+) — we want a
+        // metric that grows visibly for new users, not one that takes
+        // months to budge. To avoid collision with the row-level tier
+        // label, we surface it as "in rotation" rather than "fluent."
         let vocab = snapshot.commandFrequency.values
             .filter { $0 >= VimInsightsEngine.fluencyThreshold }
             .count
@@ -397,7 +403,7 @@ struct KindaVimInsightsView: View {
         let normalPct = total > 0 ? Int(normalSec * 100 / total) : 0
 
         return HStack(spacing: 16) {
-            statChip(label: "Vocabulary", value: "\(vocab) fluent")
+            statChip(label: "In rotation", value: "\(vocab) commands")
             statChip(label: "Normal mode", value: total > 0 ? "\(normalPct)%" : "—")
             Spacer()
         }
