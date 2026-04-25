@@ -1,16 +1,16 @@
 ---
 layout: default
-title: "Full Vim Modes on macOS"
-description: "Use KindaVim for real Vim modes system-wide, with KeyPath leader-key shortcuts for Insert mode"
+title: "KindaVim"
+description: "Use KindaVim for real Vim modes system-wide; KeyPath layers a live mode badge, hjkl hint overlay, and mastery insights on top"
 theme: parchment
 header_image: header-kindavim.png
 permalink: /guides/kindavim/
 ---
 
 
-# Full Vim Modes Across macOS
+# KindaVim
 
-Most vim emulators stop at hjkl arrows. KindaVim — a separate macOS app by [godbout ↗](https://github.com/godbout) — gives you the *real* thing: Normal mode, Visual mode, operators, motions, and text objects across every text field on your Mac. KeyPath complements it with a live overlay, mode badge, and progress insights. The two apps coordinate; neither replaces the other.
+Most vim emulators stop at hjkl arrows. [KindaVim ↗](https://kindavim.app) — a separate macOS app by [godbout ↗](https://github.com/godbout) — gives you the *real* thing: Normal mode, Visual mode, operators, motions, and text objects across every text field on your Mac. KeyPath complements it with a live overlay, mode badge, and progress insights. The two apps coordinate; neither replaces the other.
 
 New to keyboard customization? Read [Keyboard Concepts]({{ '/guides/concepts/' | relative_url }}) first for background on layers and dual-role keys.
 

@@ -43,7 +43,7 @@ theme: parchment
 <li><a href="{{ '/guides/alternative-layouts/' | relative_url }}">Alternative Layouts</a></li>
 <li><a href="{{ '/guides/keyboard-layouts/' | relative_url }}">Works With Your Keyboard</a></li>
 <li><a href="{{ '/guides/neovim-terminal/' | relative_url }}">Neovim in the Terminal</a></li>
-<li><a href="{{ '/guides/kindavim/' | relative_url }}">Full Vim Modes</a></li>
+<li><a href="{{ '/guides/kindavim/' | relative_url }}">KindaVim</a></li>
 </ul>
 </div>
 
