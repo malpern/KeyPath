@@ -518,73 +518,11 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertNil(updated.first(where: { $0.id == second.id })?.momentaryActivator)
     }
 
-    @MainActor
-    func testToggleCollectionConflictKeepNew_EnablesKindaVimAndDisablesVimShortcuts() async throws {
-        let (manager, _) = try await createTestManager()
-        defer { TestEnvironment.forceTestMode = false }
+    // KindaVim ⇄ Vim Navigation conflict-resolution tests were removed when
+    // the KindaVim rule collection was retired from the catalog; KindaVim now
+    // ships as a visual-only pack and the mutex is enforced by PackInstaller.
 
-        manager.onConflictResolution = { _ in .keepNew }
-
-        let catalogCollections = RuleCollectionCatalog().defaultCollections()
-        await manager.replaceCollections(catalogCollections)
-
-        XCTAssertTrue(
-            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.vimNavigation && $0.isEnabled },
-            "Vim shortcuts should start enabled from catalog defaults"
-        )
-        XCTAssertTrue(
-            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.kindaVim && !$0.isEnabled },
-            "KindaVim should start disabled from catalog defaults"
-        )
-
-        await manager.toggleCollection(id: RuleCollectionIdentifier.kindaVim, isEnabled: true)
-
-        XCTAssertTrue(
-            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.kindaVim && $0.isEnabled },
-            "KindaVim should be enabled after choosing keepNew"
-        )
-        XCTAssertTrue(
-            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.vimNavigation && !$0.isEnabled },
-            "Vim shortcuts should be disabled after choosing keepNew"
-        )
-    }
-
-    @MainActor
-    func testToggleCollectionConflictKeepNew_EnablesVimShortcutsAndDisablesKindaVim() async throws {
-        let (manager, _) = try await createTestManager()
-        defer { TestEnvironment.forceTestMode = false }
-
-        manager.onConflictResolution = { _ in .keepNew }
-
-        let catalogCollections = RuleCollectionCatalog().defaultCollections()
-        await manager.replaceCollections(catalogCollections)
-
-        // First switch to KindaVim.
-        await manager.toggleCollection(id: RuleCollectionIdentifier.kindaVim, isEnabled: true)
-
-        XCTAssertTrue(
-            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.kindaVim && $0.isEnabled },
-            "KindaVim should be enabled after switching from Vim shortcuts"
-        )
-        XCTAssertTrue(
-            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.vimNavigation && !$0.isEnabled },
-            "Vim shortcuts should be disabled after switching to KindaVim"
-        )
-
-        // Then switch back to Vim shortcuts.
-        await manager.toggleCollection(id: RuleCollectionIdentifier.vimNavigation, isEnabled: true)
-
-        XCTAssertTrue(
-            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.vimNavigation && $0.isEnabled },
-            "Vim shortcuts should be enabled after choosing keepNew"
-        )
-        XCTAssertTrue(
-            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.kindaVim && !$0.isEnabled },
-            "KindaVim should be disabled after choosing keepNew for Vim shortcuts"
-        )
-    }
-
-    @MainActor
+@MainActor
     func testNeovimReferenceCoexistsWithVimNavigationWithoutConflictDialog() async throws {
         let (manager, _) = try await createTestManager()
         defer { TestEnvironment.forceTestMode = false }
