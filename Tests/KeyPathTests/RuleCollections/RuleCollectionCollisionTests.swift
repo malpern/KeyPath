@@ -21,13 +21,12 @@ final class RuleCollectionCollisionTests: XCTestCase {
     // MARK: - Activator uniqueness
 
     func testNoTwoCollectionsShareAnActivator() {
-        // Intentionally-overlapping activators. The nav-providing packs
-        // (Vim Navigation, KindaVim, Neovim Terminal) all use Space as
-        // Leader — a user is meant to pick one, so the shared activator
-        // is by design rather than a bug.
+        // Intentionally-overlapping activators. The nav-providing collections
+        // (Vim Navigation, Neovim Terminal) both use Space as Leader — a
+        // user is meant to pick one, so the shared activator is by design
+        // rather than a bug.
         let navProviderIDs: Set<UUID> = [
             RuleCollectionIdentifier.vimNavigation,
-            RuleCollectionIdentifier.kindaVim,
             RuleCollectionIdentifier.neovimTerminal
         ]
 

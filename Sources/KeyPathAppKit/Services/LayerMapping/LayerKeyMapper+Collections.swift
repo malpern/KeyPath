@@ -63,8 +63,9 @@ extension LayerKeyMapper {
         "o": "o",
     ]
 
-    /// KindaVim overlay labels — superset of vim labels with word motions
-    private static let kindaVimOverlayLabels: [String: String] = [
+    /// Neovim Terminal overlay labels — vim vocabulary with word motions.
+    /// (Used to be shared with the retired KindaVim rule collection.)
+    private static let neovimOverlayLabels: [String: String] = [
         "h": "←",
         "j": "↓",
         "k": "↑",
@@ -87,9 +88,6 @@ extension LayerKeyMapper {
         "e": "e",
     ]
 
-    /// Neovim Terminal uses the same overlay label vocabulary as KindaVim.
-    private static let neovimOverlayLabels = kindaVimOverlayLabels
-
     /// Build mapping from key names to short vim overlay labels for VIM collections
     /// - Parameters:
     ///   - layerName: The layer to build mapping for
@@ -111,14 +109,6 @@ extension LayerKeyMapper {
                 for mapping in collection.mappings {
                     let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
                     if let vimLabel = Self.vimOverlayLabels[mapping.input.lowercased()] {
-                        map[kanataKey] = vimLabel
-                    }
-                }
-            } else if collection.id == RuleCollectionIdentifier.kindaVim {
-                AppLogger.shared.info("🗺️ [VimLabel] Found KindaVim collection for layer '\(layerName)', \(collection.mappings.count) mappings")
-                for mapping in collection.mappings {
-                    let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
-                    if let vimLabel = Self.kindaVimOverlayLabels[mapping.input.lowercased()] {
                         map[kanataKey] = vimLabel
                     }
                 }
