@@ -8179,20 +8179,7 @@ a.button:active {
  * are ~1.79 or ~2.36) and continue to use the height clamp so they
  * render at a comfortable bounded height instead of becoming
  * letterbox-thin at narrow widths. */
-/* `!important` is required because the layout (`_layouts/default.html`)
- * sets `height: clamp(...)` and `object-position: center 72%` *inline*
- * on the img element as a defence-in-depth measure against generic
- * `.content img` rules elsewhere in the cascade. Inline styles beat
- * external CSS unless `!important` overrides — so without these
- * `!important` markers, aspect-ratio gets ignored (because explicit
- * height wins over aspect-ratio), and the original `center 72%`
- * crop bias survives unchanged. */
-.parchment-theme main .content-wrapper > section .article-header-image .article-header-img[src*="header-kindavim"],
-.parchment-theme .content .article-header-image .article-header-img[src*="header-kindavim"] {
-    height: auto !important;
-    aspect-ratio: 16 / 9 !important;
-    object-position: center !important;
-}
+
 
 /* --- HR as watercolor divider --- */
 .parchment-theme main .content-wrapper > section hr,
