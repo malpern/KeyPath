@@ -59,6 +59,13 @@ public struct Pack: Identifiable, Equatable, Sendable {
     /// a rule collection (Home Row Mods, future layers, etc).
     public let associatedCollectionID: UUID?
 
+    /// True for "visual-only" packs — install/uninstall just toggles the
+    /// installed-pack tracker record, with no kanata config side effects.
+    /// Used for packs whose value is metadata + companion-app integration
+    /// rather than remapping (e.g. KindaVim, where the kindaVim.app itself
+    /// handles all key behavior and our pack only drives mode visualization).
+    public let visualOnly: Bool
+
     public init(
         id: String,
         version: String,
@@ -72,7 +79,8 @@ public struct Pack: Identifiable, Equatable, Sendable {
         iconSecondarySymbol: String? = nil,
         quickSettings: [PackQuickSetting] = [],
         bindings: [PackBindingTemplate],
-        associatedCollectionID: UUID? = nil
+        associatedCollectionID: UUID? = nil,
+        visualOnly: Bool = false
     ) {
         self.id = id
         self.version = version
@@ -87,6 +95,7 @@ public struct Pack: Identifiable, Equatable, Sendable {
         self.quickSettings = quickSettings
         self.bindings = bindings
         self.associatedCollectionID = associatedCollectionID
+        self.visualOnly = visualOnly
     }
 
     /// The physical keys this pack affects. Drives Pack Detail's keyboard

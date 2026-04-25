@@ -142,6 +142,10 @@ struct OverlayDragHeader: View {
     /// When the health indicator dismissed — used to suppress "No TCP" briefly at startup
     @State private var healthDismissedAt: Date?
 
+    /// Tracks whether the KindaVim Mode Display pack is installed, so the
+    /// header can render its mode badge without polling on every redraw.
+    @State private var kindaVimPackInstalled: Bool = false
+
     init(
         isDark: Bool,
         fadeAmount: CGFloat,
@@ -234,6 +238,10 @@ struct OverlayDragHeader: View {
             // Controls aligned to the right side of the header
             // Order: Status indicators (left) → Drawer → Close (far right)
             HStack(spacing: 6) {
+                // 0. KindaVim mode badge (renders nothing unless the pack is
+                // installed and kindaVim is publishing a mode).
+                KindaVimModeBadge(isPackInstalled: kindaVimPackInstalled)
+
                 // 1. Status slot (leftmost of the right-aligned group):
                 // - Shows health indicator when not dismissed (including the "Ready" pill)
                 // - Otherwise shows Japanese input + layer pill
@@ -291,9 +299,13 @@ struct OverlayDragHeader: View {
         )
         .onAppear {
             refreshAvailableLayers()
+            Task { await refreshKindaVimPackInstalled() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .ruleCollectionsChanged)) { _ in
             refreshAvailableLayers()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .installedPacksChanged)) { _ in
+            Task { await refreshKindaVimPackInstalled() }
         }
         .onChange(of: isInspectorOpen) { _, _ in
             // Dismiss tooltips when drawer opens/closes so they don't get stuck
@@ -308,6 +320,12 @@ struct OverlayDragHeader: View {
     }
 
     /// Refresh available layers from rule collections
+    private func refreshKindaVimPackInstalled() async {
+        let installed = await InstalledPackTracker.shared
+            .isInstalled(packID: PackRegistry.kindaVim.id)
+        await MainActor.run { kindaVimPackInstalled = installed }
+    }
+
     private func refreshAvailableLayers() {
         Task {
             let collections = await services.ruleCollectionStore.loadCollections()

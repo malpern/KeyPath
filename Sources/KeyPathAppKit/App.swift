@@ -451,6 +451,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // the user has listed in Settings → Experimental (default: Figma).
         OverlayAppSuppressor.shared.start()
 
+        // Mirror KindaVim pack state into the KindaVim mode monitor —
+        // start watching kindaVim's environment.json when the pack is on,
+        // stop when it's off.
+        KindaVimPackController.shared.start()
+
         // Sequential startup: regenerate config, auto-launch, validate, auto-wizard
         Task { @MainActor in
             do {

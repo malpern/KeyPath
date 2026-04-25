@@ -77,6 +77,7 @@ public actor InstalledPackTracker {
         await ensureLoaded()
         records[record.packID] = record
         try persist()
+        await postChangeNotification()
     }
 
     /// Remove an installed-pack record. Persists.
@@ -84,6 +85,16 @@ public actor InstalledPackTracker {
         await ensureLoaded()
         records.removeValue(forKey: packID)
         try persist()
+        await postChangeNotification()
+    }
+
+    /// Post a foreground notification so observers (e.g. KindaVim mode
+    /// monitor) can react to install/uninstall in real time. Hops to the
+    /// main actor to keep the post on the main runloop.
+    private func postChangeNotification() async {
+        await MainActor.run {
+            NotificationCenter.default.post(name: .installedPacksChanged, object: nil)
+        }
     }
 
     // MARK: - Persistence

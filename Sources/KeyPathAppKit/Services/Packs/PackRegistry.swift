@@ -22,7 +22,8 @@ public enum PackRegistry {
         symbolLayer,
         funLayer,
         launcher,
-        leaderKey
+        leaderKey,
+        kindaVim
     ]
 
     /// Look up a pack by id. Returns nil if unknown.
@@ -442,5 +443,38 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.leaderKey
+    )
+
+    // MARK: - Pack 15: KindaVim (visual-only companion)
+
+    /// Visual-only companion pack for the third-party
+    /// [KindaVim](https://kindavim.app) app. KindaVim handles all the Vim
+    /// modal behavior itself — our pack adds *no kanata bindings*. What
+    /// installing it does:
+    ///
+    /// 1. Subscribes to KindaVim's mode signal (the JSON file at
+    ///    `~/Library/Application Support/kindaVim/environment.json`,
+    ///    fallback to `kindaVimDidEnter*Mode` distributed notifications).
+    /// 2. Lets the live keyboard overlay and Context HUD react to mode
+    ///    changes — show vim keys when KindaVim is in Normal mode,
+    ///    return to base typing when in Insert.
+    ///
+    /// Mutually exclusive with Vim Navigation (and Neovim Terminal once
+    /// that ships) — they target the same workflow with different
+    /// implementations.
+    public static let kindaVim = Pack(
+        id: "com.keypath.pack.kindavim",
+        version: "1.0.0",
+        name: "KindaVim Mode Display",
+        tagline: "Show KindaVim mode in the overlay (no remapping)",
+        shortDescription:
+            "If you use KindaVim for full Vim modes, this pack tells the KeyPath overlay and hint panel about your current mode. When KindaVim is in Normal mode, the overlay surfaces the Vim keys you can press; in Insert mode, it gets out of the way. Adds no kanata remappings of its own — KindaVim itself handles every keypress. Requires KindaVim.app to be installed.",
+        longDescription: "",
+        category: "Navigation",
+        iconSymbol: "keyboard.macwindow",
+        quickSettings: [],
+        bindings: [],
+        associatedCollectionID: nil,
+        visualOnly: true
     )
 }

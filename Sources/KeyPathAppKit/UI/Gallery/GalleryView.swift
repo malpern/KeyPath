@@ -17,6 +17,14 @@ struct GalleryView: View {
     @State private var installedIDs: Set<String> = []
     @State private var packForDetail: Pack?
     @State private var busyPackIDs: Set<String> = []
+    @State private var installAlert: InstallAlert?
+
+    private struct InstallAlert: Identifiable {
+        let id = UUID()
+        let title: String
+        let message: String
+        let websiteURL: URL?
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,6 +39,23 @@ struct GalleryView: View {
         .sheet(item: $packForDetail, onDismiss: { Task { await refreshInstalledIDs() } }) { pack in
             PackDetailView(pack: pack)
                 .environment(kanataManager)
+        }
+        .alert(item: $installAlert) { alert in
+            if let url = alert.websiteURL {
+                return Alert(
+                    title: Text(alert.title),
+                    message: Text(alert.message),
+                    primaryButton: .default(Text("Get KindaVim →")) {
+                        NSWorkspace.shared.open(url)
+                    },
+                    secondaryButton: .cancel()
+                )
+            }
+            return Alert(
+                title: Text(alert.title),
+                message: Text(alert.message),
+                dismissButton: .default(Text("OK"))
+            )
         }
     }
 
@@ -165,7 +190,36 @@ struct GalleryView: View {
             AppLogger.shared.log(
                 "⚠️ [Gallery] Toggle failed for pack '\(pack.id)': \(error.localizedDescription)"
             )
+            await presentAlert(for: error, pack: pack)
             await refreshInstalledIDs()
         }
+    }
+
+    private func presentAlert(for error: Error, pack: Pack) async {
+        let alert: InstallAlert
+        if let installError = error as? PackInstaller.InstallError {
+            switch installError {
+            case let .dependencyMissing(name, url):
+                alert = InstallAlert(
+                    title: "\(name) isn't installed",
+                    message:
+                        "“\(pack.name)” needs the \(name) app to be installed first. " +
+                        "It's a separate macOS app that handles Vim modes; KeyPath just shows you which keys are active.",
+                    websiteURL: url
+                )
+            case let .mutuallyExclusive(conflicts):
+                let names = conflicts.joined(separator: ", ")
+                alert = InstallAlert(
+                    title: "Conflicts with \(names)",
+                    message: "Turn off \(names) first, then enable “\(pack.name)”.",
+                    websiteURL: nil
+                )
+            case .noRuleCollectionsManager, .saveFailed:
+                return
+            }
+        } else {
+            return
+        }
+        await MainActor.run { installAlert = alert }
     }
 }
