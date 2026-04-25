@@ -7,6 +7,8 @@ import SwiftUI
 @MainActor
 struct KindaVimStatusBlock: View {
     @State private var adapter = KindaVimStateAdapter.shared
+    @State private var strategyMonitor = KindaVimStrategyMonitor.shared
+    @AppStorage("kindaVim.showAdvancedHints") private var showAdvancedHints: Bool = false
     @State private var appInstalled: Bool = FileManager.default
         .fileExists(atPath: "/Applications/kindaVim.app")
 
@@ -24,6 +26,25 @@ struct KindaVimStatusBlock: View {
                 value: modeDisplay,
                 tint: modeTint
             )
+            row(
+                label: "Strategy (frontmost app)",
+                value: strategyMonitor.currentStrategy.displayName,
+                tint: strategyTint
+            )
+            Divider()
+            Toggle(isOn: $showAdvancedHints) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Show all keys (advanced)")
+                        .font(.system(size: 12, weight: .medium))
+                    Text("Adds page motions, search, and bracket-match hints.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .accessibilityIdentifier("kindavim-status-show-advanced")
+
             Divider()
             Text(
                 "This pack adds no remappings. KindaVim itself handles every keypress; KeyPath just shows you the current mode in the overlay."
@@ -75,6 +96,15 @@ struct KindaVimStatusBlock: View {
         case .visual: return .orange
         case .operatorPending: return .purple
         case .unknown: return .secondary
+        }
+    }
+
+    private var strategyTint: Color {
+        switch strategyMonitor.currentStrategy {
+        case .accessibility: return .green
+        case .hybrid: return .blue
+        case .keyboard: return .orange
+        case .ignored: return .secondary
         }
     }
 }
