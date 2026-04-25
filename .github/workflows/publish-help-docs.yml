@@ -8,7 +8,14 @@ on:
       - 'Sources/KeyPathAppKit/Resources/*.png'
       - 'Sources/KeyPathAppKit/Resources/*.css'
       - 'Scripts/publish-help-to-web.sh'
+      - 'Scripts/test-help-publish-regressions.sh'
+      - 'Scripts/check-help-parity.sh'
       - '.github/workflows/publish-help-docs.yml'
+  # Allow re-running on demand from the Actions tab. Useful when a
+  # fix to one of the publish/regression scripts didn't trigger via
+  # the path filter, or to force a re-publish after manual gh-pages
+  # edits.
+  workflow_dispatch:
 
 jobs:
   publish:
