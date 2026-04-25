@@ -86,6 +86,50 @@ final class VimHintLayerResolveTests: XCTestCase {
         XCTAssertNil(result, "Escape isn't a vim normal-mode binding")
     }
 
+    // MARK: - Symbol-key normalization
+
+    func testSlashKeyResolvesSearchHint() {
+        // keyCode 44 → kanata "slash". VimBindings stores `/` and `?`.
+        // Without normalization, the lookup would miss; with it, `/` resolves.
+        let slashKeyCode: UInt16 = 44
+        let hint = VimHintLayer.resolveHint(
+            for: slashKeyCode, strategy: .accessibility, mode: .normal, showAdvanced: true
+        )
+        XCTAssertEqual(hint?.displayLabel, "/")
+    }
+
+    func testFourKeyResolvesDollarSign() {
+        // keyCode 21 → kanata "4". VimBindings stores `$` (line end).
+        let fourKeyCode: UInt16 = 21
+        let hint = VimHintLayer.resolveHint(
+            for: fourKeyCode, strategy: .accessibility, mode: .normal, showAdvanced: false
+        )
+        XCTAssertEqual(hint?.displayLabel, "$")
+    }
+
+    func testCtrlPrefixedHintsAreNotResolvedFromKeyCode() {
+        // ctrl-d is a chord; we don't want it rendering on the `d` keycap
+        // and conflicting with the `d` operator hint.
+        let dKeyCode: UInt16 = 2
+        let hint = VimHintLayer.resolveHint(
+            for: dKeyCode, strategy: .accessibility, mode: .normal, showAdvanced: true
+        )
+        // The `d` operator should win; ctrl-d should be filtered out.
+        XCTAssertEqual(hint?.displayLabel, "d", "operator d should win over ctrl-d on keycode 2")
+    }
+
+    func testPhysicalKanataNameNormalization() {
+        // Sanity-check the helper directly so the contract is documented
+        // alongside the resolver tests.
+        XCTAssertEqual(VimHintLayer.physicalKanataName(for: "/"), "slash")
+        XCTAssertEqual(VimHintLayer.physicalKanataName(for: "?"), "slash")
+        XCTAssertEqual(VimHintLayer.physicalKanataName(for: "$"), "4")
+        XCTAssertEqual(VimHintLayer.physicalKanataName(for: "%"), "5")
+        XCTAssertEqual(VimHintLayer.physicalKanataName(for: "ctrl-d"), "")
+        XCTAssertEqual(VimHintLayer.physicalKanataName(for: "h"), "h")
+        XCTAssertEqual(VimHintLayer.physicalKanataName(for: "G"), "g")
+    }
+
     // MARK: - Op-pending narrows the set
 
     func testOperatorPendingResolvesMotionsAndOperators() {

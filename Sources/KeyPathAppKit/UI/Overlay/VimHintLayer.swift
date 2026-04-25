@@ -79,7 +79,29 @@ struct VimHintLayer: View {
             mode: mode,
             showAdvanced: showAdvanced
         )
-        return candidates.first { $0.key.lowercased() == kanataName }
+        return candidates.first { hint in
+            physicalKanataName(for: hint.key) == kanataName
+        }
+    }
+
+    /// Translate a `VimHint.key` (which uses vim notation: `/`, `$`,
+    /// `ctrl-d`, etc.) into the underlying physical kanata key name
+    /// returned by `keyCodeToKanataName`. Returns an empty string for
+    /// chord-only hints (e.g. `ctrl-d`) so they don't render on the
+    /// `d` keycap and conflict with the `d` operator hint — chords
+    /// belong in the HUD list, not the per-key overlay.
+    nonisolated static func physicalKanataName(for vimKey: String) -> String {
+        let lower = vimKey.lowercased()
+        if lower.hasPrefix("ctrl-") {
+            // Chord — suppress on the overlay; HUD list still surfaces it.
+            return ""
+        }
+        switch lower {
+        case "/", "?": return "slash"
+        case "$": return "4"
+        case "%": return "5"
+        default: return lower
+        }
     }
 
     private func hint(for key: PhysicalKey) -> VimHint? {
