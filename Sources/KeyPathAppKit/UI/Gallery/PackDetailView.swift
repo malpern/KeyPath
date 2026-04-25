@@ -51,6 +51,9 @@ struct PackDetailView: View {
     /// Currently-selected layer-preset id (for the Symbol/Fun packs).
     @State private var selectedLayerPresetId: String?
 
+    /// Local state for the embedded Quick Launcher editor.
+    @State private var launcherConfig: LauncherGridConfig = .defaultConfig
+
     /// Help sheet presentation (Home Row Mods only — mirrors the Rules tab's
     /// `?` button that opens the HRM markdown help).
     @State private var showingHomeRowModsHelp = false
@@ -488,6 +491,18 @@ struct PackDetailView: View {
                 )
                 .id(selectedLayerPresetId ?? "")
             }
+        } else if let launcherCollection = associatedLauncherCollection {
+            // Quick Launcher — keyboard visualization + drawer of mappings,
+            // activation-mode picker. Same view Rules tab uses; edits flow
+            // through the same `updateLauncherConfig` VM hook.
+            embeddedEditor(horizontalPadding: 12) {
+                LauncherCollectionView(
+                    config: $launcherConfig,
+                    onConfigChanged: { newConfig in
+                        Task { await applyLauncherEdit(newConfig, collectionID: launcherCollection.id) }
+                    }
+                )
+            }
         } else if let collection = liveAssociatedCollection,
                   collection.id == RuleCollectionIdentifier.windowSnapping {
             // Window Snapping has a custom visual editor in Rules — convention
@@ -583,6 +598,15 @@ struct PackDetailView: View {
     private var associatedLayerPresetCollection: RuleCollection? {
         guard let collection = liveAssociatedCollection,
               case .layerPresetPicker = collection.configuration
+        else { return nil }
+        return collection
+    }
+
+    /// Collection backing a launcher pack (Quick Launcher). Matches the
+    /// `.launcherGrid` configuration case.
+    private var associatedLauncherCollection: RuleCollection? {
+        guard let collection = liveAssociatedCollection,
+              case .launcherGrid = collection.configuration
         else { return nil }
         return collection
     }
@@ -777,6 +801,9 @@ struct PackDetailView: View {
             if let livePreset = liveLayerPresetId() {
                 selectedLayerPresetId = livePreset
             }
+            if let liveLauncher = liveLauncherConfig() {
+                launcherConfig = liveLauncher
+            }
         }
     }
 
@@ -792,6 +819,13 @@ struct PackDetailView: View {
               case let .layerPresetPicker(cfg) = collection.configuration
         else { return nil }
         return cfg.selectedPresetId
+    }
+
+    private func liveLauncherConfig() -> LauncherGridConfig? {
+        guard let collection = associatedLauncherCollection,
+              case let .launcherGrid(cfg) = collection.configuration
+        else { return nil }
+        return cfg
     }
 
     private func liveSingleKeySelection() async -> String? {
@@ -854,6 +888,16 @@ struct PackDetailView: View {
             await install(skipFinalReload: true)
         }
         await kanataManager.updateCollectionLayerPreset(collectionID, presetId: presetId)
+    }
+
+    /// Mirror of `applyHomeRowEdit` for the Quick Launcher pack. Persists
+    /// activation-mode + key mappings via the same VM hook Rules uses.
+    private func applyLauncherEdit(_ newConfig: LauncherGridConfig, collectionID: UUID) async {
+        launcherConfig = newConfig
+        if !isInstalled {
+            await install(skipFinalReload: true)
+        }
+        await kanataManager.updateLauncherConfig(collectionID, config: newConfig)
     }
 
     /// Supplies the same layer list Rules uses when rendering the Home Row

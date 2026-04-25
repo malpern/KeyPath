@@ -20,7 +20,8 @@ public enum PackRegistry {
         autoShiftSymbols,
         numpadLayer,
         symbolLayer,
-        funLayer
+        funLayer,
+        launcher
     ]
 
     /// Look up a pack by id. Returns nil if unknown.
@@ -386,5 +387,31 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.funLayer
+    )
+
+    // MARK: - Pack 13: Quick Launcher
+
+    /// Collection-backed pack over `launcher`. Hold the Hyper key to enter
+    /// the launcher layer, then press a single key to launch an app or
+    /// open a URL. Pack Detail embeds the same `LauncherCollectionView`
+    /// the Rules tab uses so you can pick keys, drop apps, and switch
+    /// between Hold-Hyper and Leader→L activation right from the pack.
+    ///
+    /// Unlike the nav-layer packs (Numpad, Symbol, Fun, Mission Control,
+    /// etc.), Launcher activates directly from the base layer via Hyper —
+    /// so it works standalone without a Leader pack on.
+    public static let launcher = Pack(
+        id: "com.keypath.pack.quick-launcher",
+        version: "1.0.0",
+        name: "Quick Launcher",
+        tagline: "Hold Hyper, press a key to launch an app or website",
+        shortDescription:
+            "Map any key to launch an app (Slack, Cursor, Figma) or open a URL (gmail.com, calendar.google.com). Tap Hyper + the key. Add and edit mappings inline — drag an app onto a key, or pick from your browser history.",
+        longDescription: "",
+        category: "Productivity",
+        iconSymbol: "arrow.up.forward.app",
+        quickSettings: [],
+        bindings: [],
+        associatedCollectionID: RuleCollectionIdentifier.launcher
     )
 }
