@@ -158,12 +158,11 @@ screenshots:
     state: "per-finger:visible"
     description: "Per-finger sensitivity sliders (pinky +40ms, ring +25ms, etc.)"
 
-  - id: hrm-fast-typing
-    file: home-row-mods.md
-    method: snapshot
-    view: HomeRowTimingSection
-    state: "prior-idle:visible"
-    description: "Fast typing protection toggle and threshold slider (require-prior-idle)"
+  # TODO: hrm-fast-typing entry removed temporarily so the validator
+  # stays balanced with the commented-out directive in
+  # home-row-mods.md. Re-add an entry pointing at HomeRowTimingSection
+  # with the prior-idle state once regenerate-screenshots.sh produces
+  # the PNG (see TODO comment in the source markdown).
 
   # ---------------------------------------------------------------------------
   # window-management.md (1 screenshot)

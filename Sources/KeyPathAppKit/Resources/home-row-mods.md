@@ -141,7 +141,16 @@ This uses Kanata's native `tap-hold-opposite-hand` with a global hand definition
 
 When you're typing quickly, the last thing you want is for "fd" to become Ctrl+D. Fast typing protection solves this: keys pressed shortly after your last keystroke produce the letter immediately — no hold detection, no waiting state.
 
-<!-- screenshot: id="hrm-fast-typing" method="snapshot" view="HomeRowTimingSection" state="prior-idle:visible" -->
+<!--
+TODO: regenerate-screenshots.sh hasn't produced hrm-fast-typing.png yet,
+so the directive below is commented out. The publish-to-web script
+silently drops references whose PNG is missing, which knocks the
+screenshot-count parity check out of alignment and fails the publish
+workflow. Re-enable this directive once the PNG is committed under
+`Sources/KeyPathAppKit/Resources/hrm-fast-typing.png`.
+
+screenshot: id="hrm-fast-typing" method="snapshot" view="HomeRowTimingSection" state="prior-idle:visible"
+-->
 Screenshot — Fast typing protection in rule settings:
 ```
   ┌─────────────────────────────────────────────────────┐
