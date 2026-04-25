@@ -38,6 +38,13 @@ jobs:
       - name: Install zsh
         run: sudo apt-get install -y zsh
 
+      - name: Install Python dependencies
+        # `Scripts/test-help-publish-regressions.sh` uses numpy + Pillow
+        # for pixel-level analysis of header banners (side-whitespace
+        # detection). The runner image doesn't bundle them, so install
+        # via pip rather than apt — keeps the install scoped and fast.
+        run: pip3 install --quiet numpy pillow
+
       - name: Verify App Help Registry Parity
         run: |
           chmod +x Scripts/check-help-parity.sh
