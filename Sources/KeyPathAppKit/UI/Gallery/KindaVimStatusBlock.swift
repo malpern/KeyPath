@@ -50,6 +50,11 @@ struct KindaVimStatusBlock: View {
             Divider()
             telemetrySection
 
+            if telemetryEnabled {
+                Divider()
+                KindaVimInsightsView()
+            }
+
             Divider()
             Text(
                 "This pack adds no remappings. KindaVim itself handles every keypress; KeyPath just shows you the current mode in the overlay."
