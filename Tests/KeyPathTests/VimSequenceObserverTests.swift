@@ -82,6 +82,34 @@ final class VimSequenceObserverTests: XCTestCase {
         XCTAssertEqual(observer.countBuffer, "")
     }
 
+    func testSyncWithModeClearsStateWithoutAnyKeystroke() {
+        // The actual op-pending sequence completes inside kindaVim
+        // (e.g. `d3w` → motion done → adapter flips back to normal)
+        // without any new key event arriving at our observer. Stale
+        // state would cause the badge/HUD to show outdated count or
+        // operator until the next keystroke. `syncWithMode()` is the
+        // hard-reset path we wire up via withObservationTracking in
+        // production — tests drive it explicitly.
+        let observer = makeObserver()
+        mode = .normal
+        observer.ingest(character: "5")
+        observer.ingest(character: "d")
+        XCTAssertEqual(observer.countBuffer, "5")
+        XCTAssertEqual(observer.currentOperator, "d")
+
+        // Sequence completes: kindaVim flips back to normal. No new key.
+        mode = .normal  // (still normal — but pretend we transitioned through op-pending)
+        observer.syncWithMode()
+        // Mode didn't actually change, so state should remain.
+        XCTAssertEqual(observer.currentOperator, "d")
+
+        // Now actually flip to a different mode without typing.
+        mode = .insert
+        observer.syncWithMode()
+        XCTAssertNil(observer.currentOperator)
+        XCTAssertEqual(observer.countBuffer, "")
+    }
+
     func testInsertModeIgnoresTrackedKeys() {
         let observer = makeObserver()
         mode = .insert

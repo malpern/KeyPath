@@ -65,10 +65,13 @@ final class VimSequenceObserver {
             }
         }
 
-        // Mirror the mode signal as a dependency: `KindaVimStateAdapter`
-        // is `@Observable`, but we also need a side-effect on every flip
-        // (hard-reset). Polling on each keystroke is simpler than wiring
-        // up a Combine subscription, so we just check before each event.
+        // Subscribe to adapter mode flips so we hard-reset *immediately*
+        // when kindaVim flips back to normal/insert at the end of a
+        // sequence (e.g. `d3w` completes → motion done → mode flips
+        // without the user pressing another tracked key). Without this,
+        // `currentOperator` and `countBuffer` would stay stale until the
+        // next keystroke. Re-arms itself inside `onChange`.
+        observeAdapterMode()
     }
 
     func stopMonitoring() {
@@ -100,14 +103,41 @@ final class VimSequenceObserver {
         ingestCore(character: chars)
     }
 
+    /// Re-read the current mode and apply the hard-reset if it changed.
+    /// Production callers don't usually need to invoke this directly — the
+    /// adapter observation in `startMonitoring` covers the empty-keystream
+    /// case, and `ingestCore` calls it before every keystroke. Public so
+    /// tests can drive transitions deterministically.
+    func syncWithMode() {
+        let currentMode = modeProvider()
+        guard currentMode != lastObservedMode else { return }
+        currentOperator = nil
+        countBuffer = ""
+        lastObservedMode = currentMode
+    }
+
+    private func observeAdapterMode() {
+        withObservationTracking {
+            // Touch `state.mode` so the tracker registers it as a
+            // dependency. We don't read the actual value through this
+            // path — `syncWithMode()` does that consistently via
+            // `modeProvider`, which tests can swap out.
+            _ = KindaVimStateAdapter.shared.state.mode
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self, self.monitoringCount > 0 else { return }
+                self.syncWithMode()
+                // Re-arm: `withObservationTracking` only fires once per
+                // setup. Schedule a fresh subscription for the next flip.
+                self.observeAdapterMode()
+            }
+        }
+    }
+
     private func ingestCore(character: String) {
         // Hard-reset on every adapter mode transition — see file header.
-        let currentMode = modeProvider()
-        if currentMode != lastObservedMode {
-            currentOperator = nil
-            countBuffer = ""
-            lastObservedMode = currentMode
-        }
+        syncWithMode()
+        let currentMode = lastObservedMode
 
         // Only track sub-state while in a vim-y mode.
         switch currentMode {
