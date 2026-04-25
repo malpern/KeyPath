@@ -21,7 +21,8 @@ public enum PackRegistry {
         numpadLayer,
         symbolLayer,
         funLayer,
-        launcher
+        launcher,
+        leaderKey
     ]
 
     /// Look up a pack by id. Returns nil if unknown.
@@ -413,5 +414,33 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.launcher
+    )
+
+    // MARK: - Pack 14: Leader Key
+
+    /// Collection-backed pack over `leaderKey`. Picks which physical key
+    /// activates the navigation layer (the "Leader") for every other
+    /// nav-based pack you have on — Vim Navigation, Window Snapping,
+    /// Mission Control, Numpad, Symbol, Function, Delete Enhancement.
+    /// Default is Space; alternatives are Caps Lock, Tab, or Backtick.
+    ///
+    /// This pack doesn't add new mappings of its own — it changes a global
+    /// preference that the config generator reads when it emits the nav
+    /// activator. Touching it from Pack Detail routes through
+    /// `updateCollectionOutput` which special-cases the Leader Key
+    /// collection and writes through to `LeaderKeyPreference`.
+    public static let leaderKey = Pack(
+        id: "com.keypath.pack.leader-key",
+        version: "1.0.0",
+        name: "Leader Key",
+        tagline: "Pick which key activates the navigation layer",
+        shortDescription:
+            "Default is Space — but if your thumb's already busy, swap to Caps Lock (the most common alternative), Tab, or Backtick. The change applies everywhere: Vim Nav, Mission Control, Numpad, Symbol, Function, Window Snapping, and Delete Enhancement all use whatever you pick.",
+        longDescription: "",
+        category: "Productivity",
+        iconSymbol: "hand.point.up.left",
+        quickSettings: [],
+        bindings: [],
+        associatedCollectionID: RuleCollectionIdentifier.leaderKey
     )
 }
