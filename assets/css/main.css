@@ -3590,12 +3590,21 @@ li {
     .content-wrapper {
         grid-template-columns: 1fr;
     }
-    
-    .sidebar {
-        position: static;
-        max-height: none;
-    }
-    
+
+    /* The previous override here set `.sidebar { position: static; max-height: none; }`,
+     * which dropped the (long) docs nav back into flow ABOVE the article on
+     * tablet-width viewports (769–1024px). At this width `.content-wrapper`
+     * is `display: block`, so the static-positioned sidebar pushed the
+     * article header banner down by ~1000px — what users saw as a huge
+     * empty parchment area between the nav bar and the article banner.
+     *
+     * The base `.sidebar` rule (position: fixed, off-canvas with
+     * `transform: translateX(-110%)`, revealed by `body.sidebar-open`)
+     * already provides correct behaviour at every width via the existing
+     * `.sidebar-toggle` button + `.sidebar-backdrop`. No override needed
+     * here. Leaving this comment so a future reader doesn't reintroduce
+     * the bug. */
+
     .hero {
         grid-template-columns: 1fr;
         text-align: center;
