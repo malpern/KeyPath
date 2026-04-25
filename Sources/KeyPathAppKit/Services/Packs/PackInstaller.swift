@@ -65,7 +65,7 @@ public final class PackInstaller {
             "📦 [PackInstaller] Installing pack '\(pack.name)' (id=\(pack.id), v\(pack.version))"
         )
 
-        try await enforcePreInstallGates(for: pack)
+        try await enforcePreInstallGates(for: pack, manager: manager)
 
         // Resolve effective quick-setting values (user-provided ∪ defaults).
         let resolvedSettings = resolveQuickSettings(pack: pack, overrides: quickSettingValues)
@@ -353,17 +353,27 @@ public final class PackInstaller {
     /// Pack-specific install gates. Right now only the KindaVim Mode
     /// Display pack has any: it conflicts with Vim Navigation (both want
     /// to own the h/j/k/l story) and requires kindaVim.app to be present.
-    private func enforcePreInstallGates(for pack: Pack) async throws {
+    private func enforcePreInstallGates(
+        for pack: Pack,
+        manager: RuleCollectionsManager
+    ) async throws {
         if pack.id == PackRegistry.kindaVim.id {
             // Mutex: refuse if any conflicting pack is installed.
-            let conflictIDs = ["com.keypath.pack.vim-navigation"]
             var conflictNames: [String] = []
-            for id in conflictIDs {
-                if await InstalledPackTracker.shared.isInstalled(packID: id),
-                   let conflict = PackRegistry.pack(id: id)
-                {
-                    conflictNames.append(conflict.name)
-                }
+            if await InstalledPackTracker.shared.isInstalled(packID: "com.keypath.pack.vim-navigation"),
+               let conflict = PackRegistry.pack(id: "com.keypath.pack.vim-navigation")
+            {
+                conflictNames.append(conflict.name)
+            }
+            // Also block on the legacy KindaVim rule collection (retired
+            // in this release but preserved on disk for upgraders until the
+            // migration runs). If it's still enabled, kindaVim.app would be
+            // fighting our old h/j/k/l remaps — refuse and surface it as
+            // a conflict the user can resolve from Rules.
+            if manager.ruleCollections.contains(where: {
+                $0.id == RuleCollectionIdentifier.kindaVim && $0.isEnabled
+            }) {
+                conflictNames.append("Legacy KindaVim rules")
             }
             if !conflictNames.isEmpty {
                 throw InstallError.mutuallyExclusive(conflicts: conflictNames)

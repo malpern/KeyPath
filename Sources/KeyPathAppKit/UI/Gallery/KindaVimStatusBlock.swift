@@ -37,6 +37,7 @@ struct KindaVimStatusBlock: View {
                     NSWorkspace.shared.open(Self.websiteURL)
                 }
                 .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("kindavim-status-get-kindavim")
             }
         }
         .onAppear {

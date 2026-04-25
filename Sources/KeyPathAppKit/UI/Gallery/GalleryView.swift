@@ -40,23 +40,28 @@ struct GalleryView: View {
             PackDetailView(pack: pack)
                 .environment(kanataManager)
         }
-        .alert(item: $installAlert) { alert in
-            if let url = alert.websiteURL {
-                return Alert(
-                    title: Text(alert.title),
-                    message: Text(alert.message),
-                    primaryButton: .default(Text("Get KindaVim →")) {
+        .alert(
+            installAlert?.title ?? "",
+            isPresented: Binding(
+                get: { installAlert != nil },
+                set: { if !$0 { installAlert = nil } }
+            ),
+            presenting: installAlert,
+            actions: { alert in
+                if let url = alert.websiteURL {
+                    Button("Get KindaVim →") {
                         NSWorkspace.shared.open(url)
-                    },
-                    secondaryButton: .cancel()
-                )
-            }
-            return Alert(
-                title: Text(alert.title),
-                message: Text(alert.message),
-                dismissButton: .default(Text("OK"))
-            )
-        }
+                    }
+                    .accessibilityIdentifier("gallery-install-alert-get-kindavim")
+                    Button("Cancel", role: .cancel) {}
+                        .accessibilityIdentifier("gallery-install-alert-cancel")
+                } else {
+                    Button("OK", role: .cancel) {}
+                        .accessibilityIdentifier("gallery-install-alert-ok")
+                }
+            },
+            message: { alert in Text(alert.message) }
+        )
     }
 
     // MARK: - Sections
