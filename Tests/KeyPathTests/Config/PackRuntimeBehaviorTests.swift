@@ -47,6 +47,26 @@ final class PackRuntimeBehaviorTests: XCTestCase {
                       "Both shifts together should produce caps; got: \(output)")
     }
 
+    /// Delete Enhancement maps backspace inside the nav layer to the
+    /// selected alternate-delete action (default: forward delete). Regular
+    /// backspace is untouched at base — only Leader+bspc fires the
+    /// enhancement. Here we assert the default preset works: hold Space,
+    /// press bspc → `del` (Forward Delete) emitted.
+    func testDeleteEnhancementLeaderBspcEmitsForwardDelete() throws {
+        let events = try simulate(
+            collectionIDs: [
+                RuleCollectionIdentifier.deleteRemap,
+                // Delete Enhancement lives in the nav layer — needs a nav
+                // provider (Vim Navigation) for Space to get us there.
+                RuleCollectionIdentifier.vimNavigation
+            ],
+            script: "↓spc 🕐300 ↓bspc 🕐30 ↑bspc 🕐30 ↑spc 🕐30"
+        )
+        let output = outputKeys(events)
+        XCTAssertTrue(output.contains("del"),
+                      "Leader + bspc should emit 'del' (Forward Delete); got: \(output)")
+    }
+
     /// Escape Remap's default remaps the Escape key itself (default preset:
     /// esc → caps). Tapping esc should produce a caps press, not an esc.
     func testEscapeRemapTapEmitsCaps() throws {

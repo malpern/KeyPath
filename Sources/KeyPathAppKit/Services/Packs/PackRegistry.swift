@@ -99,7 +99,7 @@ public enum PackRegistry {
         shortDescription:
             "Put your modifier keys under your strongest fingers. Tap A/S/D/F and J/K/L/; for the letter; hold for Shift / Control / Option / Command so shortcuts happen without leaving the home row.",
         longDescription: "",
-        category: "Gallery",
+        category: "Ergonomics",
         iconSymbol: "keyboard",
         iconSecondarySymbol: nil,
         quickSettings: [
@@ -168,7 +168,7 @@ public enum PackRegistry {
         name: "Delete Enhancement",
         tagline: "Leader + Delete for enhanced delete actions",
         shortDescription:
-            "Regular Delete stays as-is. Hold the Leader key and press Delete to get a different action: forward delete, delete word, or delete to line start. Pick which below.",
+            "Regular Delete stays as-is. Hold the Leader key and press Delete to get a different action: forward delete, delete word, or delete to line start. Pick which below. Requires a Leader pack on (Vim Navigation, KindaVim, or Neovim Terminal) for Space to activate the nav layer.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "delete.left",
@@ -240,9 +240,9 @@ public enum PackRegistry {
         name: "Window Snapping",
         tagline: "Snap, move, and tile windows with Leader → w",
         shortDescription:
-            "Hold Space, press W, then: L/R for left/right halves, M to maximize, U/I/J/K for corners, [ ] for displays, , . for Spaces, Z to undo. Requires Accessibility access (macOS will prompt on first use).",
+            "Hold Space, press W, then: L/R for left/right halves, M to maximize, U/I/J/K for corners, [ ] for displays, , . for Spaces, Z to undo. Requires a Leader pack (Vim Navigation, KindaVim, or Neovim Terminal) for Space to activate the nav layer, and Accessibility access (macOS will prompt on first use).",
         longDescription: "",
-        category: "Productivity",
+        category: "Navigation",
         iconSymbol: "rectangle.split.2x2",
         quickSettings: [],
         bindings: [],
@@ -263,7 +263,7 @@ public enum PackRegistry {
         shortDescription:
             "Hold Space, then: M = Mission Control, Q = App Exposé, T = Show Desktop, C = Notification Center, , / . for previous / next Desktop. Requires a Leader pack on (Vim Navigation, KindaVim, or Neovim Terminal) for Space to activate the nav layer.",
         longDescription: "",
-        category: "Productivity",
+        category: "Navigation",
         iconSymbol: "rectangle.3.group",
         quickSettings: [],
         bindings: [],
@@ -289,7 +289,7 @@ public enum PackRegistry {
         shortDescription:
             "Tap `-` for `-`, hold for `_`. Tap `'` for `'`, hold for `\"`. Tap `/` for `/`, hold for `?`. Works for all the usual shifted-symbol pairs — no more awkward Shift stretches.",
         longDescription: "",
-        category: "Productivity",
+        category: "Ergonomics",
         iconSymbol: "arrow.up.square",
         quickSettings: [],
         bindings: [
@@ -318,7 +318,7 @@ public enum PackRegistry {
         name: "Numpad",
         tagline: "Turn your right hand into a numpad",
         shortDescription:
-            "Hold Space, press `;`, then use u/i/o + j/k/l + m/,/. as a numpad. Left-hand keys become operators (+ − × ÷ ⏎). Release Space to go back to normal typing.",
+            "Hold Space, press `;`, then use u/i/o + j/k/l + m/,/. as a numpad. Left-hand keys become operators (+ − × ÷ ⏎). Release Space to go back to normal typing. Requires a Leader pack on (Vim Navigation, KindaVim, or Neovim Terminal) for Space to activate the nav layer.",
         longDescription: "",
         category: "Layers",
         iconSymbol: "number.square",
@@ -345,7 +345,7 @@ public enum PackRegistry {
         name: "Symbol",
         tagline: "Programming symbols under your home row",
         shortDescription:
-            "Hold Space, hold `s`, then hit the number row for shifted symbols in the same positions (1→!, 2→@, 3→#…), home row for brackets/operators ([, ], {, }, -, =, +…). Picks up whichever preset is selected in Rules.",
+            "Hold Space, hold `s`, then hit the number row for shifted symbols in the same positions (1→!, 2→@, 3→#…), home row for brackets/operators ([, ], {, }, -, =, +…). Picks up whichever preset is selected in Rules. Requires a Leader pack on (Vim Navigation, KindaVim, or Neovim Terminal) for Space to activate the nav layer.",
         longDescription: "",
         category: "Layers",
         iconSymbol: "textformat.abc.dottedunderline",
@@ -379,7 +379,7 @@ public enum PackRegistry {
         name: "Function",
         tagline: "Right hand becomes F-keys, left hand is media/brightness",
         shortDescription:
-            "Hold Space, press `f`, then: right hand (u/i/o + j/k/l + m/,/.) is an F-key grid; left hand is media — play/pause, prev/next, mute, volume, brightness. Everything reachable from home position.",
+            "Hold Space, press `f`, then: right hand (u/i/o + j/k/l + m/,/.) is an F-key grid; left hand is media — play/pause, prev/next, mute, volume, brightness. Everything reachable from home position. Requires a Leader pack on (Vim Navigation, KindaVim, or Neovim Terminal) for Space to activate the nav layer.",
         longDescription: "",
         category: "Layers",
         iconSymbol: "f.cursive",
