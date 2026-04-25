@@ -45,6 +45,12 @@ struct OverlayKeyboardView: View {
     /// Key code being hovered in rules/launcher tabs (for secondary highlight)
     var hoveredRuleKeyCode: UInt16?
 
+    /// Whether the KindaVim hint layer should render on top of the keycap
+    /// grid. Driven by the parent (LiveKeyboardOverlayView) from the pack
+    /// install state; the layer itself decides per-key visibility from
+    /// the live mode + strategy signals.
+    var vimHintsActive: Bool = false
+
     // MARK: - Launcher Mode
 
     /// Whether launcher mode is active (shows app icons on mapped keys)
@@ -230,6 +236,27 @@ struct OverlayKeyboardView: View {
                 // Layer 1: Keycap backgrounds (stable positions)
                 ForEach(keys, id: \.id) { key in
                     keyView(key: key, scale: scale)
+                }
+
+                // Layer 3: KindaVim hints (renders only while pack is
+                // installed, frontmost app isn't ignored, and adapter
+                // mode is normal / op-pending / visual). Sits on top of
+                // the keycaps but below the floating-label animation.
+                if vimHintsActive {
+                    VimHintLayer(
+                        layout: layout,
+                        scale: scale,
+                        keyFrame: { key in
+                            CGRect(
+                                x: keyPositionX(for: key, scale: scale)
+                                    - keyWidth(for: key, scale: scale) / 2,
+                                y: keyPositionY(for: key, scale: scale)
+                                    - keyHeight(for: key, scale: scale) / 2,
+                                width: keyWidth(for: key, scale: scale),
+                                height: keyHeight(for: key, scale: scale)
+                            )
+                        }
+                    )
                 }
 
                 // Layer 2: Floating labels (animate between keycap positions)

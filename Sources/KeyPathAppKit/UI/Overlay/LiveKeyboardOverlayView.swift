@@ -37,6 +37,10 @@ struct LiveKeyboardOverlayView: View {
 
     @State private var escKeyLeftInset: CGFloat = 0
     @State private var keyboardWidth: CGFloat = 0
+    /// Cached "is the KindaVim Mode Display pack installed?" flag.
+    /// Refreshed on `.installedPacksChanged` so the keyboard render path
+    /// doesn't have to await the tracker actor.
+    @State private var kindaVimPackInstalled = false
     @State private var inspectorSectionRaw: String = InspectorSection.mapper.rawValue
     @AppStorage("inspectorSettingsSection") private var settingsSectionRaw: String = InspectorSection.keyboard.rawValue
     var inspectorSection: InspectorSection {
@@ -219,6 +223,15 @@ struct LiveKeyboardOverlayView: View {
         NotificationCenter.default.post(name: .openSettingsSystemStatus, object: nil)
     }
 
+    /// Refresh the cached "kindaVim pack installed" flag from the
+    /// tracker. Called on appear and on `.installedPacksChanged`. The
+    /// flag drives the overlay vim-hint layer's render gate.
+    private func refreshKindaVimPackInstalled() async {
+        let installed = await InstalledPackTracker.shared
+            .isInstalled(packID: PackRegistry.kindaVim.id)
+        await MainActor.run { kindaVimPackInstalled = installed }
+    }
+
     private func copyValidationErrorsToClipboard() {
         let text = validationFailureErrors.joined(separator: "\n")
         NSPasteboard.general.clearContents()
@@ -310,6 +323,7 @@ struct LiveKeyboardOverlayView: View {
                     viewModel.setLayout(activeLayout)
                 }
                 loadCustomRulesState()
+                Task { await refreshKindaVimPackInstalled() }
             },
             onDisappearAction: {
                 inputSourceDetector.stopMonitoring()
@@ -391,6 +405,9 @@ struct LiveKeyboardOverlayView: View {
                 }
             }
         ))
+        .onReceive(NotificationCenter.default.publisher(for: .installedPacksChanged)) { _ in
+            Task { await refreshKindaVimPackInstalled() }
+        }
         .background(
             glassBackground(
                 cornerRadius: cornerRadius,
@@ -718,6 +735,7 @@ struct LiveKeyboardOverlayView: View {
                     onKeyClick: onKeyClick,
                     selectedKeyCode: viewModel.selectedKeyCode,
                     hoveredRuleKeyCode: viewModel.hoveredRuleKeyCode,
+                    vimHintsActive: kindaVimPackInstalled,
                     isLauncherMode: viewModel.isLauncherModeActive || (uiState.isInspectorOpen && inspectorSection == .launchers),
                     launcherMappings: viewModel.launcherMappings,
                     isInspectorVisible: inspectorVisible
