@@ -1,0 +1,66 @@
+# Jekyll-only metadata for the in-app help docs.
+#
+# Read by `Scripts/sync-docs-to-pages.py`, which translates each
+# `Sources/KeyPathAppKit/Resources/*.md` into a Jekyll-formatted page
+# on the `gh-pages` branch.
+#
+# Only fields that aren't derivable from the markdown itself live
+# here. Title comes from the H1; header_image is auto-detected from
+# the first `![](header-*.png)` line in the body. Description is
+# the one piece that doesn't appear in the body, so it's maintained
+# here.
+#
+# Pages without an entry still sync, falling back to a first-sentence
+# description extracted from the body. Add an explicit description
+# whenever the auto-extracted one isn't what you want.
+
+action-uri:
+  description: "Launch apps, URLs, and folders from your keyboard with a single keystroke"
+
+action-uri-reference:
+  description: "Technical deep-link reference for integrating KeyPath with Raycast, Alfred, and scripts"
+
+alternative-layouts:
+  description: "Colemak, Dvorak, Workman, and more — KeyPath supports 8 keymaps with a live overlay"
+
+concepts:
+  description: "Layers, tap-hold, modifiers, and more — explained for people who've never gone beyond System Settings"
+
+home-row-mods:
+  description: "Turn your home row keys into modifiers — the most popular advanced keyboard technique"
+
+installation:
+  # The gh-pages site keeps a curated, Jekyll-specific copy of the
+  # installation page at `getting-started/installation.md` (different
+  # path, different framing for first-time visitors). Don't auto-sync.
+  skip_jekyll: true
+
+kanata-users:
+  # Lives at `migration/kanata-users.md` on gh-pages with editorial
+  # tweaks for the migration audience. Leave alone.
+  skip_jekyll: true
+
+karabiner-users:
+  # Same — `migration/karabiner-users.md` is hand-maintained.
+  skip_jekyll: true
+
+keyboard-layouts:
+  description: "12 physical keyboard layouts from MacBook to Kinesis Advantage 360"
+
+kindavim:
+  description: "Use KindaVim for real Vim modes system-wide; KeyPath layers a live mode badge, hjkl hint overlay, and mastery insights on top"
+
+neovim-terminal:
+  description: "Bring Neovim navigation muscle memory to every macOS app with a Leader-layer HUD reference"
+
+privacy:
+  description: "Exactly what KeyPath accesses on your Mac, why, and what it does with your data"
+
+tap-hold:
+  description: "Advanced key behaviors with tap-hold and tap-dance support"
+
+use-cases:
+  description: "Concrete examples of what KeyPath can do — from simple remaps to full keyboard workflows"
+
+window-management:
+  description: "App-specific keymaps and window management with KeyPath"
