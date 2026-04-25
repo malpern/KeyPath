@@ -126,9 +126,13 @@ PYTHON_INSTALLED=(
 # ---------------------------------------------------------------------------
 
 contains() {
-  local needle="$1"
-  local -n haystack="$2"
-  for item in "${haystack[@]}"; do
+  # contains <needle> <items…>
+  # Pass the array expanded with `"${arr[@]}"` rather than by name —
+  # `local -n` (bash 4.3+) is unavailable on default macOS bash 3.2,
+  # so we keep this explicit-args version compatible with both.
+  local needle="$1" item
+  shift
+  for item in "$@"; do
     [[ "$item" == "$needle" ]] && return 0
   done
   return 1
@@ -163,25 +167,41 @@ find_tool_uses() {
 }
 
 # Find Python imports inside `python3 - <<'PY' ... PY` heredocs.
+# Handles all four shapes:
+#   import foo
+#   import foo.bar
+#   import foo, bar, baz       ← multiple on one line, was missed pre-fix
+#   import foo as f
+#   from foo import bar
+#   from foo.bar import baz
 extract_python_imports() {
   local file="$1"
   awk '
+    function emit(line, mod) {
+      sub(/^[[:space:]]+/, "", mod)
+      sub(/[[:space:]]+as[[:space:]]+.*$/, "", mod)  # strip "as alias"
+      sub(/\..*$/, "", mod)                          # top-level package only
+      sub(/[[:space:]]+$/, "", mod)
+      if (mod != "") print FILENAME ":" line ":" mod
+    }
+
     /<<[[:space:]]*'\''?PY'\''?/ { in_heredoc=1; next }
     /^PY[[:space:]]*$/ { in_heredoc=0; next }
     in_heredoc {
-      if ($0 ~ /^[[:space:]]*import[[:space:]]+[A-Za-z_][A-Za-z0-9_]*/) {
-        match($0, /import[[:space:]]+[A-Za-z_][A-Za-z0-9_]*/)
-        mod = substr($0, RSTART+7, RLENGTH-7)
-        sub(/^[[:space:]]+/, "", mod)
-        sub(/\..*$/, "", mod)
-        print FILENAME ":" NR ":" mod
+      # `from foo import …` — single top-level package, easy.
+      if (match($0, /^[[:space:]]*from[[:space:]]+[A-Za-z_][A-Za-z0-9_.]*/)) {
+        spec = substr($0, RSTART, RLENGTH)
+        sub(/^[[:space:]]*from[[:space:]]+/, "", spec)
+        emit(NR, spec)
+        next
       }
-      if ($0 ~ /^[[:space:]]*from[[:space:]]+[A-Za-z_][A-Za-z0-9_]*/) {
-        match($0, /from[[:space:]]+[A-Za-z_][A-Za-z0-9_]*/)
-        mod = substr($0, RSTART+5, RLENGTH-5)
-        sub(/^[[:space:]]+/, "", mod)
-        sub(/\..*$/, "", mod)
-        print FILENAME ":" NR ":" mod
+      # `import foo[, bar[, baz]]` — split on commas to catch every
+      # module on the line.
+      if (match($0, /^[[:space:]]*import[[:space:]]+[A-Za-z_][A-Za-z0-9_., ]*/)) {
+        spec = substr($0, RSTART, RLENGTH)
+        sub(/^[[:space:]]*import[[:space:]]+/, "", spec)
+        n = split(spec, mods, /[[:space:]]*,[[:space:]]*/)
+        for (i = 1; i <= n; i++) emit(NR, mods[i])
       }
     }
   ' "$file"
@@ -189,8 +209,8 @@ extract_python_imports() {
 
 classify_python() {
   local mod="$1"
-  if contains "$mod" PYTHON_STDLIB; then echo baseline; return; fi
-  if contains "$mod" PYTHON_INSTALLED; then echo installed; return; fi
+  if contains "$mod" "${PYTHON_STDLIB[@]}"; then echo baseline; return; fi
+  if contains "$mod" "${PYTHON_INSTALLED[@]}"; then echo installed; return; fi
   echo missing
 }
 
@@ -198,14 +218,21 @@ classify_python() {
 # Main
 # ---------------------------------------------------------------------------
 
-declare -A SEEN
+# Dedupe across multiple line matches. Stored as a simple
+# space-delimited string of `<key>` tokens rather than a true
+# associative array — `declare -A` requires bash 4+, which macOS
+# ships pre-installed users do not have. Keys are formatted to
+# avoid spaces so substring matching stays unambiguous.
+SEEN_KEYS=""
 findings=0
 
 report() {
   local kind="$1" file="$2" line="$3" name="$4" status="$5"
-  local key="${kind}:${file}:${name}"
-  if [[ -n "${SEEN[$key]:-}" ]]; then return; fi
-  SEEN[$key]=1
+  local key="${kind}|${file}|${name}"
+  case " $SEEN_KEYS " in
+    *" $key "*) return ;;
+  esac
+  SEEN_KEYS="$SEEN_KEYS $key"
   case "$status" in
     missing)
       echo "  ${file}:${line}: ${kind} '${name}' is NOT on the runner baseline."
