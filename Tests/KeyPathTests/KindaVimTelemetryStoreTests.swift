@@ -9,21 +9,23 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
     private var tempFileURL: URL!
     private var defaults: UserDefaults!
 
-    override func setUp() async throws {
-        try await super.setUp()
+    private var suiteName: String!
+
+    override func setUp() {
+        super.setUp()
         tempFileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("kindavim-telemetry-\(UUID().uuidString).json")
 
         // Per-test UserDefaults suite so the opt-in flag doesn't leak
         // between tests (and never touches the user's real prefs).
-        let suiteName = "KindaVimTelemetryStoreTests-\(UUID().uuidString)"
+        suiteName = "KindaVimTelemetryStoreTests-\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)
     }
 
-    override func tearDown() async throws {
+    override func tearDown() {
         try? FileManager.default.removeItem(at: tempFileURL)
-        defaults.removePersistentDomain(forName: defaults.dictionaryRepresentation().keys.first ?? "")
-        try await super.tearDown()
+        defaults?.removePersistentDomain(forName: suiteName)
+        super.tearDown()
     }
 
     private func makeStore() -> KindaVimTelemetryStore {
