@@ -4,7 +4,12 @@ import XCTest
 /// Tests for the local-only telemetry store. Uses a temp file URL and
 /// an isolated UserDefaults suite per test so we never touch real
 /// Application Support or the production opt-in flag.
-@MainActor
+///
+/// Note: not class-level `@MainActor`. XCTestCase's `setUp`/`tearDown`
+/// are nonisolated, and CI's strict concurrency rejects mutations of
+/// MainActor-isolated stored properties from those overrides. Test
+/// methods call into the MainActor-isolated `KindaVimTelemetryStore`
+/// via short `MainActor.assumeIsolated` blocks.
 final class KindaVimTelemetryStoreTests: XCTestCase {
     private var tempFileURL: URL!
     private var defaults: UserDefaults!
@@ -28,13 +33,14 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
         super.tearDown()
     }
 
+    @MainActor
     private func makeStore() -> KindaVimTelemetryStore {
         KindaVimTelemetryStore(fileURL: tempFileURL, userDefaults: defaults)
     }
 
     // MARK: - Opt-in gate
 
-    func testRecordingIsNoOpWhenOptOut() {
+    @MainActor func testRecordingIsNoOpWhenOptOut() {
         let store = makeStore()
         XCTAssertFalse(store.isEnabled, "Should default to off")
 
@@ -54,7 +60,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
 
     // MARK: - Recording (opted in)
 
-    func testCommandFrequencyAccumulates() {
+    @MainActor func testCommandFrequencyAccumulates() {
         defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
         let store = makeStore()
 
@@ -69,7 +75,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
         XCTAssertEqual(snapshot.commandFrequency["k"], 1)
     }
 
-    func testModeDwellAccumulates() {
+    @MainActor func testModeDwellAccumulates() {
         defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
         let store = makeStore()
 
@@ -82,7 +88,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
         XCTAssertEqual(snapshot.modeDwellSeconds["insert"], 100)
     }
 
-    func testZeroOrNegativeDurationIsIgnored() {
+    @MainActor func testZeroOrNegativeDurationIsIgnored() {
         defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
         let store = makeStore()
 
@@ -93,7 +99,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
         XCTAssertNil(snapshot.modeDwellSeconds["normal"])
     }
 
-    func testStrategySampleCounts() {
+    @MainActor func testStrategySampleCounts() {
         defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
         let store = makeStore()
 
@@ -106,7 +112,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
         XCTAssertEqual(snapshot.strategySamples["keyboard"], 1)
     }
 
-    func testOperatorPendingExitClassification() {
+    @MainActor func testOperatorPendingExitClassification() {
         defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
         let store = makeStore()
 
@@ -121,7 +127,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
 
     // MARK: - Persistence + roundtrip
 
-    func testRoundtripThroughDisk() {
+    @MainActor func testRoundtripThroughDisk() {
         defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
 
         do {
@@ -141,7 +147,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
 
     // MARK: - Clear
 
-    func testClearAllWipesFileAndCache() {
+    @MainActor func testClearAllWipesFileAndCache() {
         defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
         let store = makeStore()
         store.recordCommand("h")
@@ -158,7 +164,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
 
     // MARK: - Missing file is harmless
 
-    func testLoadSnapshotWithNoFileReturnsEmpty() {
+    @MainActor func testLoadSnapshotWithNoFileReturnsEmpty() {
         let store = makeStore()
         XCTAssertFalse(FileManager.default.fileExists(atPath: tempFileURL.path))
         let snapshot = store.loadSnapshot()
