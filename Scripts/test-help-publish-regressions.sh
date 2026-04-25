@@ -114,8 +114,11 @@ assert_not_contains "$(cat "$APP_HELP_CSS")" "object-fit:[[:space:]]*cover" \
   "app header images must not use object-fit: cover (would crop watercolor banners)"
 
 echo "Checking screenshot insertion parity..."
-src_count="$(rg -n '^<!-- screenshot:' "$REPO_ROOT"/Sources/KeyPathAppKit/Resources/*.md | wc -l | tr -d ' ')"
-web_count="$(rg -n -F "![Screenshot]({{ '/images/help/" \
+# Use plain grep (always available on macOS + ubuntu-latest runners)
+# rather than ripgrep, which the runner image doesn't include and
+# `apt install ripgrep` adds ~10s of unnecessary cold-cache time.
+src_count="$(grep -h '^<!-- screenshot:' "$REPO_ROOT"/Sources/KeyPathAppKit/Resources/*.md | wc -l | tr -d ' ')"
+web_count="$(grep -hF "![Screenshot]({{ '/images/help/" \
   "$GHPAGES"/getting-started/*.md \
   "$GHPAGES"/guides/*.md \
   "$GHPAGES"/migration/*.md | wc -l | tr -d ' ')"
