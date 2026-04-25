@@ -26,6 +26,14 @@ SRC="$REPO_ROOT/Sources/KeyPathAppKit/Resources"
 GHPAGES="$REPO_ROOT/.worktrees/gh-pages"
 IMG_DEST="$GHPAGES/images/help"
 
+# Accumulated orphan-screenshot reports. The transformation step
+# adds an entry here every time a `<!-- screenshot: id="X" -->`
+# directive references a PNG that doesn't exist in `$SRC`. We
+# collect all of them across the run so the final report names
+# every missing PNG at once instead of dripping them out one publish
+# at a time.
+MISSING_SCREENSHOT_PNGS=()
+
 # Screenshot IDs in markdown are stable IDs; PNG filenames occasionally differ.
 typeset -A SCREENSHOT_ALIASES
 SCREENSHOT_ALIASES=(
@@ -240,7 +248,13 @@ transform_file() {
             if [[ -f "$SRC/$file" ]]; then
                 converted_content+=$'\n'"![Screenshot]({{ '/images/help/${file}' | relative_url }})"$'\n'
             else
-                echo "  WARNING: screenshot id '${sid}' has no matching PNG (expected: ${file})"
+                # Record the orphan and keep going so we can report
+                # *every* missing PNG in one batch at the end of the
+                # run rather than dripping them out across multiple
+                # publish attempts. The reference is still skipped
+                # in the output (otherwise the rendered site would
+                # show a broken image link).
+                MISSING_SCREENSHOT_PNGS+=("${resource}.md → screenshot id='${sid}' (expected: ${file})")
             fi
         else
             converted_content+="${line}"$'\n'
@@ -471,6 +485,30 @@ done
 
 copy_images
 copy_theme_css
+
+# Surface any screenshot directives whose PNGs are missing. We
+# deliberately collect all offenders during transformation rather
+# than failing at the first one — that way one publish attempt
+# names every gap at once. Loud, structured failure beats the old
+# silent-drop behaviour, which trickled missing references into
+# the count-parity check downstream as cryptic "src=N web=N-1"
+# errors.
+if [[ ${#MISSING_SCREENSHOT_PNGS[@]} -gt 0 ]]; then
+    echo ""
+    echo "ERROR: ${#MISSING_SCREENSHOT_PNGS[@]} screenshot directive(s) reference missing PNG(s)."
+    echo "Each entry below is an in-app markdown directive whose corresponding"
+    echo "PNG was not found in $SRC."
+    for entry in "${MISSING_SCREENSHOT_PNGS[@]}"; do
+        echo "  - $entry"
+    done
+    echo ""
+    echo "To fix:"
+    echo "  - Run \`Scripts/regenerate-screenshots.sh\` to produce the missing PNGs, OR"
+    echo "  - Comment out the corresponding \`<!-- screenshot: -->\` directive in source"
+    echo "    until the PNG can be generated (and update docs/screenshot-manifest.yaml"
+    echo "    to keep tag/manifest counts in sync)."
+    exit 1
+fi
 
 echo ""
 echo "--- Generating navigation ---"
