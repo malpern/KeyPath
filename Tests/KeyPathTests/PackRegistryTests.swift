@@ -25,6 +25,7 @@ final class PackRegistryTests: XCTestCase {
         XCTAssertTrue(ids.contains("com.keypath.pack.numpad-layer"))
         XCTAssertTrue(ids.contains("com.keypath.pack.symbol-layer"))
         XCTAssertTrue(ids.contains("com.keypath.pack.fun-layer"))
+        XCTAssertTrue(ids.contains("com.keypath.pack.quick-launcher"))
     }
 
     func testCollectionBackedPacksPointAtRealCollections() {
