@@ -107,13 +107,15 @@ struct ContextHUDKindaVimLearningView: View {
 
     @ViewBuilder
     private var quickReferenceSection: some View {
-        // Insert mode and Ignored strategy fall back to the small escape-
-        // hatch hint list; everything else reads the static VimBindings
-        // table filtered for the current strategy and advanced toggle.
-        if mode == .insert {
-            insertModeHints
-        } else if strategyMonitor.currentStrategy == .ignored {
+        // Strategy.ignored wins over mode: switching from an insert-mode
+        // app into an ignore-listed app and opening the HUD before the
+        // mode signal updates would otherwise show insert-mode guidance
+        // even though kindaVim isn't running there. Show the off-here
+        // hint first, then fall back to mode-driven branches.
+        if strategyMonitor.currentStrategy == .ignored {
             ignoredStrategyHint
+        } else if mode == .insert {
+            insertModeHints
         } else {
             vimBindingsSections
         }
