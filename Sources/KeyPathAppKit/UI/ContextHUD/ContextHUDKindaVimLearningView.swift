@@ -8,6 +8,7 @@ struct ContextHUDKindaVimLearningView: View {
     let modeSetting: KindaVimLeaderHUDMode
 
     @State private var strategyMonitor = KindaVimStrategyMonitor.shared
+    @State private var sequenceObserver = VimSequenceObserver.shared
     @AppStorage("kindaVim.showAdvancedHints") private var showAdvancedHints: Bool = false
 
     private struct CommandItem: Identifiable {
@@ -151,11 +152,27 @@ struct ContextHUDKindaVimLearningView: View {
                 bindingGroupSection(group)
             }
             if mode == .operatorPending {
-                Text("Press the same operator twice (dd · yy · cc) to act on the whole line.")
-                    .font(.footnote)
-                    .foregroundStyle(.white.opacity(0.75))
-                    .lineSpacing(1.5)
+                operatorPendingCallout
             }
+        }
+    }
+
+    @ViewBuilder
+    private var operatorPendingCallout: some View {
+        // Observer-aware: if we know which operator triggered op-pending,
+        // name it specifically. Otherwise fall back to the generic hint.
+        if let op = sequenceObserver.currentOperator?.lowercased(),
+           ["d", "c", "y"].contains(op)
+        {
+            Text("Press \(op) again for the whole line.")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(Color.accentColor)
+                .lineSpacing(1.5)
+        } else {
+            Text("Press the same operator twice (dd · yy · cc) to act on the whole line.")
+                .font(.footnote)
+                .foregroundStyle(.white.opacity(0.75))
+                .lineSpacing(1.5)
         }
     }
 

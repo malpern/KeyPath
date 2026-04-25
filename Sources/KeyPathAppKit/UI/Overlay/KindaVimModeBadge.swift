@@ -7,6 +7,7 @@ import SwiftUI
 @MainActor
 struct KindaVimModeBadge: View {
     @State private var adapter = KindaVimStateAdapter.shared
+    @State private var sequenceObserver = VimSequenceObserver.shared
     let isPackInstalled: Bool
 
     var body: some View {
@@ -19,6 +20,17 @@ struct KindaVimModeBadge: View {
                 Text(mode.displayName.uppercased())
                     .font(.system(size: 9, weight: .heavy))
                     .foregroundStyle(tint(for: mode))
+                if !sequenceObserver.countBuffer.isEmpty {
+                    Text("\(sequenceObserver.countBuffer)×")
+                        .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(Color.accentColor.opacity(0.85))
+                        )
+                }
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
@@ -26,8 +38,15 @@ struct KindaVimModeBadge: View {
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
                     .fill(tint(for: mode).opacity(0.15))
             )
-            .accessibilityLabel("KindaVim mode: \(mode.displayName)")
+            .accessibilityLabel(accessibilityDescription(for: mode))
         }
+    }
+
+    private func accessibilityDescription(for mode: KindaVimStateAdapter.Mode) -> String {
+        if sequenceObserver.countBuffer.isEmpty {
+            return "KindaVim mode: \(mode.displayName)"
+        }
+        return "KindaVim mode: \(mode.displayName), count \(sequenceObserver.countBuffer)"
     }
 
     /// Don't surface a badge for `.unknown` — kindaVim hasn't published a
