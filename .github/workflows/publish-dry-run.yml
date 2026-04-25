@@ -1,0 +1,104 @@
+# Pre-merge dry-run for the gh-pages publish pipeline.
+#
+# Triggered on every PR that touches a docs file or a script in
+# the publish pipeline. Runs the same scripts the post-merge
+# `publish-help-docs.yml` workflow runs, but stops short of
+# committing or pushing to `gh-pages`. Lets us catch:
+#   - orphan screenshot directives whose PNGs are missing
+#   - manifest / tag count mismatches
+#   - CSS regression assertions that would fail
+#   - missing runner dependencies (handled in advance by
+#     `Scripts/check-publish-deps.sh` but verified end-to-end here)
+#
+# Goal: stop the "merge then fix forward" cycle that bit us four
+# times unblocking the publish pipeline. By the time something
+# lands on `master` the publish should be guaranteed to pass.
+
+name: Publish Dry-Run (PR)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'Sources/KeyPathAppKit/Resources/*.md'
+      - 'Sources/KeyPathAppKit/Resources/*.png'
+      - 'Sources/KeyPathAppKit/Resources/*.css'
+      - 'Scripts/publish-help-to-web.sh'
+      - 'Scripts/test-help-publish-regressions.sh'
+      - 'Scripts/check-help-parity.sh'
+      - 'Scripts/validate-screenshot-manifest.sh'
+      - 'Scripts/check-publish-deps.sh'
+      - 'docs/screenshot-manifest.yaml'
+      - '.github/workflows/publish-help-docs.yml'
+      - '.github/workflows/publish-dry-run.yml'
+
+# One run per PR — supersede on rapid pushes so we don't queue up
+# stale checks.
+concurrency:
+  group: publish-dry-run-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch gh-pages branch
+        run: git fetch origin gh-pages
+
+      - name: Add gh-pages worktree
+        run: git worktree add .worktrees/gh-pages gh-pages
+
+      - name: Install zsh
+        run: sudo apt-get install -y zsh
+
+      - name: Install Python dependencies
+        # Mirror what the real publish workflow installs — keeps the
+        # dry-run a faithful preview.
+        run: pip3 install --quiet numpy pillow
+
+      - name: Static dependency precheck
+        # Catches missing runner tools / Python imports BEFORE we
+        # spend cycles on the full pipeline. <1s. `--strict` exits
+        # non-zero on any finding.
+        run: |
+          chmod +x Scripts/check-publish-deps.sh
+          Scripts/check-publish-deps.sh --strict
+
+      - name: Verify App Help Registry Parity
+        run: |
+          chmod +x Scripts/check-help-parity.sh
+          Scripts/check-help-parity.sh
+
+      - name: Run publish script (no commit, no push)
+        run: |
+          chmod +x Scripts/publish-help-to-web.sh
+          zsh Scripts/publish-help-to-web.sh
+
+      - name: Run Publish Regression Checks
+        run: |
+          chmod +x Scripts/test-help-publish-regressions.sh
+          Scripts/test-help-publish-regressions.sh
+
+      - name: Verify Published Help Set Matches App Set
+        run: |
+          app_ids=$(find Sources/KeyPathAppKit/Resources -maxdepth 1 -type f -name '*.md' | sed 's#^.*/##; s#\.md$##' | sort)
+          web_ids=$(find .worktrees/gh-pages/getting-started .worktrees/gh-pages/guides .worktrees/gh-pages/migration -maxdepth 1 -type f -name '*.md' | sed 's#^.*/##; s#\.md$##' | sort | grep -v -E '^(first-mapping|activity-insights)$')
+          diff -u <(echo "$app_ids") <(echo "$web_ids")
+
+      - name: Summarise diff that would be pushed
+        # Show what *would* land on `gh-pages` if this PR merged.
+        # No commit, no push. The next-step instructions printed by
+        # the publish script make the actual flow obvious.
+        run: |
+          cd .worktrees/gh-pages
+          echo "Files that would change on gh-pages:"
+          git status --short || true
+          echo ""
+          echo "Diff summary:"
+          git diff --stat || true
