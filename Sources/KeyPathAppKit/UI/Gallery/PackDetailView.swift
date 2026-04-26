@@ -1093,69 +1093,6 @@ struct PackDetailView: View {
     }
 }
 
-// MARK: - Keycap chip
-
-/// Small keycap visual used in Pack Detail to represent affected keys.
-/// Mirrors the chip style in PackCardView but renders larger.
-struct KeycapChipView: View {
-    enum KeyState {
-        /// Default state — what the key does today, no pending change.
-        case inert
-        /// Pending state — this key will change if the user installs.
-        case pending
-        /// Installed state — the pack is active and this key is taking effect.
-        case installed
-    }
-
-    let label: String
-    let state: KeyState
-
-    var body: some View {
-        Text(label)
-            .font(.system(size: 13, weight: .semibold, design: .monospaced))
-            .foregroundStyle(foreground)
-            .frame(minWidth: 36, minHeight: 36)
-            .padding(.horizontal, 8)
-            .background(background)
-            .overlay(border)
-            .animation(.easeInOut(duration: 0.24), value: state)
-    }
-
-    private var foreground: Color {
-        switch state {
-        case .inert: .primary.opacity(0.7)
-        case .pending: .accentColor.opacity(0.85)
-        case .installed: .accentColor
-        }
-    }
-
-    private var background: some View {
-        RoundedRectangle(cornerRadius: 6, style: .continuous)
-            .fill(fillColor)
-    }
-
-    private var fillColor: Color {
-        switch state {
-        case .inert: Color(nsColor: .controlBackgroundColor)
-        case .pending: Color.accentColor.opacity(0.08)
-        case .installed: Color.accentColor.opacity(0.14)
-        }
-    }
-
-    private var border: some View {
-        RoundedRectangle(cornerRadius: 6, style: .continuous)
-            .strokeBorder(borderColor, lineWidth: state == .inert ? 0.5 : 1)
-    }
-
-    private var borderColor: Color {
-        switch state {
-        case .inert: Color(nsColor: .separatorColor)
-        case .pending: Color.accentColor.opacity(0.5)
-        case .installed: Color.accentColor.opacity(0.7)
-        }
-    }
-}
-
 // MARK: - Undo snapshot
 
 private struct UndoSnapshot {
