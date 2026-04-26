@@ -38,6 +38,7 @@ struct KindaVimModeBadge: View {
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
                     .fill(tint(for: mode).opacity(0.15))
             )
+            .accessibilityIdentifier("kindavim-mode-badge")
             .accessibilityLabel(accessibilityDescription(for: mode))
         }
     }
