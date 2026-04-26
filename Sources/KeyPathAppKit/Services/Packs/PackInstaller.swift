@@ -20,9 +20,9 @@ public final class PackInstaller {
         case noRuleCollectionsManager
         case saveFailed(String)
         /// One or more other packs the user has installed are mutually
-        /// exclusive with this one. Carries the conflicting pack names so
-        /// the UI can name them in the alert.
-        case mutuallyExclusive(conflicts: [String])
+        /// exclusive with this one. Carries conflicting pack IDs and names
+        /// so the UI can auto-resolve or display them in a dialog.
+        case mutuallyExclusive(conflicts: [(id: String, name: String)])
         /// A required external app/dependency isn't installed. Carries
         /// the dependency display name and a website URL the UI can
         /// surface as a "Get it →" CTA.
@@ -35,7 +35,7 @@ public final class PackInstaller {
             case let .saveFailed(reason):
                 return "Could not save pack rules: \(reason)"
             case let .mutuallyExclusive(conflicts):
-                let names = conflicts.joined(separator: ", ")
+                let names = conflicts.map(\.name).joined(separator: ", ")
                 return "Conflicts with \(names). Turn that pack off first to enable this one."
             case let .dependencyMissing(name, _):
                 return "\(name) isn't installed."
@@ -359,11 +359,11 @@ public final class PackInstaller {
     ) async throws {
         if pack.id == PackRegistry.kindaVim.id {
             // Mutex: refuse if any conflicting pack is installed.
-            var conflictNames: [String] = []
+            var conflicts: [(id: String, name: String)] = []
             if await InstalledPackTracker.shared.isInstalled(packID: "com.keypath.pack.vim-navigation"),
                let conflict = PackRegistry.pack(id: "com.keypath.pack.vim-navigation")
             {
-                conflictNames.append(conflict.name)
+                conflicts.append((id: conflict.id, name: conflict.name))
             }
             // Also block on the legacy KindaVim rule collection (retired
             // in this release but preserved on disk for upgraders until the
@@ -373,10 +373,10 @@ public final class PackInstaller {
             if manager.ruleCollections.contains(where: {
                 $0.id == RuleCollectionIdentifier.kindaVim && $0.isEnabled
             }) {
-                conflictNames.append("Legacy KindaVim rules")
+                conflicts.append((id: RuleCollectionIdentifier.kindaVim.uuidString, name: "Legacy KindaVim rules"))
             }
-            if !conflictNames.isEmpty {
-                throw InstallError.mutuallyExclusive(conflicts: conflictNames)
+            if !conflicts.isEmpty {
+                throw InstallError.mutuallyExclusive(conflicts: conflicts)
             }
 
             // Dependency: kindaVim.app must be installed.
@@ -391,7 +391,7 @@ public final class PackInstaller {
         if pack.id == "com.keypath.pack.vim-navigation",
            await InstalledPackTracker.shared.isInstalled(packID: PackRegistry.kindaVim.id)
         {
-            throw InstallError.mutuallyExclusive(conflicts: [PackRegistry.kindaVim.name])
+            throw InstallError.mutuallyExclusive(conflicts: [(id: PackRegistry.kindaVim.id, name: PackRegistry.kindaVim.name)])
         }
     }
 

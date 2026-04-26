@@ -28,6 +28,7 @@ struct PackDetailView: View {
     @State private var justInstalled = false
     @State private var justUninstalled = false
     @State private var errorMessage: String?
+    @State private var packConflict: PackConflictState?
     @State private var quickSettingValues: [String: Int] = [:]
     @State private var lastUndoSnapshot: UndoSnapshot?
 
@@ -81,6 +82,18 @@ struct PackDetailView: View {
         .overlay(toastOverlay, alignment: .bottom)
         .sheet(isPresented: $showingHomeRowModsHelp) {
             MarkdownHelpSheet(resource: "home-row-mods", title: "Home Row Mods")
+        }
+        .sheet(item: $packConflict) { conflict in
+            PackConflictResolutionDialog(
+                state: conflict,
+                onChoice: { choice in
+                    packConflict = nil
+                    if choice == .switchToNew {
+                        Task { await resolveConflictAndInstall(conflict) }
+                    }
+                },
+                onCancel: { packConflict = nil }
+            )
         }
     }
 
@@ -981,16 +994,41 @@ struct PackDetailView: View {
                     withAnimation(.easeOut(duration: 0.3)) { justInstalled = false }
                 }
             }
-        } catch {
-            withAnimation { errorMessage = error.localizedDescription }
-            Task {
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
-                await MainActor.run {
-                    withAnimation(.easeOut(duration: 0.3)) { errorMessage = nil }
-                }
+        } catch let error as PackInstaller.InstallError {
+            if case let .mutuallyExclusive(conflicts) = error {
+                packConflict = PackConflictState(
+                    packToInstall: pack,
+                    conflictingPacks: conflicts
+                )
+            } else {
+                showTemporaryError(error.localizedDescription)
             }
+        } catch {
+            showTemporaryError(error.localizedDescription)
         }
         isWorking = false
+    }
+
+    private func showTemporaryError(_ message: String) {
+        withAnimation { errorMessage = message }
+        Task {
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            await MainActor.run {
+                withAnimation(.easeOut(duration: 0.3)) { errorMessage = nil }
+            }
+        }
+    }
+
+    private func resolveConflictAndInstall(_ conflict: PackConflictState) async {
+        let manager = kanataManager.underlyingManager.ruleCollectionsManager
+        do {
+            for conflicting in conflict.conflictingPacks {
+                try await PackInstaller.shared.uninstall(packID: conflicting.id, manager: manager)
+            }
+            await install()
+        } catch {
+            showTemporaryError(error.localizedDescription)
+        }
     }
 
     private func uninstall() async {

@@ -18,6 +18,7 @@ struct GalleryView: View {
     @State private var packForDetail: Pack?
     @State private var busyPackIDs: Set<String> = []
     @State private var installAlert: InstallAlert?
+    @State private var packConflict: PackConflictState?
 
     private struct InstallAlert: Identifiable {
         let id = UUID()
@@ -62,6 +63,18 @@ struct GalleryView: View {
             },
             message: { alert in Text(alert.message) }
         )
+        .sheet(item: $packConflict) { conflict in
+            PackConflictResolutionDialog(
+                state: conflict,
+                onChoice: { choice in
+                    packConflict = nil
+                    if choice == .switchToNew {
+                        Task { await resolveConflictAndInstall(conflict) }
+                    }
+                },
+                onCancel: { packConflict = nil }
+            )
+        }
     }
 
     // MARK: - Sections
@@ -200,6 +213,21 @@ struct GalleryView: View {
         }
     }
 
+    private func resolveConflictAndInstall(_ conflict: PackConflictState) async {
+        let manager = kanataManager.underlyingManager.ruleCollectionsManager
+        do {
+            for conflicting in conflict.conflictingPacks {
+                try await PackInstaller.shared.uninstall(packID: conflicting.id, manager: manager)
+            }
+            _ = try await PackInstaller.shared.install(conflict.packToInstall, manager: manager)
+        } catch {
+            AppLogger.shared.log(
+                "⚠️ [Gallery] Conflict resolution failed: \(error.localizedDescription)"
+            )
+        }
+        await refreshInstalledIDs()
+    }
+
     private func presentAlert(for error: Error, pack: Pack) async {
         let alert: InstallAlert
         if let installError = error as? PackInstaller.InstallError {
@@ -213,12 +241,13 @@ struct GalleryView: View {
                     websiteURL: url
                 )
             case let .mutuallyExclusive(conflicts):
-                let names = conflicts.joined(separator: ", ")
-                alert = InstallAlert(
-                    title: "Conflicts with \(names)",
-                    message: "Turn off \(names) first, then enable “\(pack.name)”.",
-                    websiteURL: nil
-                )
+                await MainActor.run {
+                    packConflict = PackConflictState(
+                        packToInstall: pack,
+                        conflictingPacks: conflicts
+                    )
+                }
+                return
             case .noRuleCollectionsManager, .saveFailed:
                 return
             }
