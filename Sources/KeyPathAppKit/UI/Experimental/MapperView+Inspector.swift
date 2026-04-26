@@ -152,6 +152,7 @@ struct MapperInspectorPanel: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("pack-suggestion-row-\(pack.id)")
     }
 
     /// Compact hero icon — same vocabulary as the pack card / Pack Detail

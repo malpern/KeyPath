@@ -106,13 +106,19 @@ def find_interactive_elements(file_path: Path) -> List[Tuple[int, str, str]]:
                     continue  # Custom picker component
                 
                 # Found an interactive element - check if it has accessibilityIdentifier
-                # Look ahead up to 50 lines for the modifier (increased from 30 to catch identifiers added later in modifier chains)
-                end_idx = min(line_idx + 50, len(lines))
+                # Look ahead up to 80 lines for the modifier — some views have long
+                # modifier chains (tags, hover effects, etc.) before the identifier.
+                end_idx = min(line_idx + 80, len(lines))
                 
                 if not has_accessibility_identifier(lines, line_idx - 1, end_idx):
                     # Check if this is inside a comment or string literal
                     stripped = line.strip()
                     if stripped.startswith("//") or stripped.startswith("/*"):
+                        continue
+
+                    # Skip function definitions that happen to contain
+                    # element names (e.g. handleToggle, addAppViaPicker)
+                    if re.search(r"\b(func|case\s+let)\b", stripped):
                         continue
                     
                     # Skip if it's a toolbar item (system component)
