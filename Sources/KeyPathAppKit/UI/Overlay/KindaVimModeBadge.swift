@@ -17,7 +17,7 @@ struct KindaVimModeBadge: View {
                 Text("VIM")
                     .font(.system(size: 9, weight: .heavy))
                     .foregroundStyle(.secondary)
-                Text(mode.displayName.uppercased())
+                Text(modeLabel(for: mode))
                     .font(.system(size: 9, weight: .heavy))
                     .foregroundStyle(tint(for: mode))
                 if !sequenceObserver.countBuffer.isEmpty {
@@ -43,10 +43,11 @@ struct KindaVimModeBadge: View {
     }
 
     private func accessibilityDescription(for mode: KindaVimStateAdapter.Mode) -> String {
-        if sequenceObserver.countBuffer.isEmpty {
-            return "KindaVim mode: \(mode.displayName)"
+        var desc = "KindaVim mode: \(modeLabel(for: mode))"
+        if !sequenceObserver.countBuffer.isEmpty {
+            desc += ", count \(sequenceObserver.countBuffer)"
         }
-        return "KindaVim mode: \(mode.displayName), count \(sequenceObserver.countBuffer)"
+        return desc
     }
 
     /// Don't surface a badge for `.unknown` — kindaVim hasn't published a
@@ -54,6 +55,16 @@ struct KindaVimModeBadge: View {
     /// the environment file only on mode transitions, so a user sitting in
     /// Normal mode for >5s would otherwise lose the badge despite the mode
     /// still being valid.
+    private func modeLabel(for mode: KindaVimStateAdapter.Mode) -> String {
+        if mode == .operatorPending, let op = sequenceObserver.currentOperator {
+            if sequenceObserver.completedLineOp != nil {
+                return "\(op.uppercased())\(op.uppercased())"
+            }
+            return "\(op.uppercased())…"
+        }
+        return mode.displayName.uppercased()
+    }
+
     private var shouldRender: Bool {
         adapter.state.mode != .unknown
     }

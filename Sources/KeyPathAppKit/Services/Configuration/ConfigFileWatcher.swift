@@ -146,9 +146,10 @@ class ConfigFileWatcher: @unchecked Sendable {
             // Hop to main thread via GCD first, then create Task.
             // This avoids Swift 6's dispatch_assert_queue_fail crash that occurs when
             // Task { @MainActor in } is created on a non-main dispatch queue.
+            nonisolated(unsafe) let capturedFlags = flags
             DispatchQueue.main.async { [weak self] in
                 Task { [weak self] in
-                    await self?.handleFileEvent(flags: flags)
+                    await self?.handleFileEvent(flags: capturedFlags)
                 }
             }
         }

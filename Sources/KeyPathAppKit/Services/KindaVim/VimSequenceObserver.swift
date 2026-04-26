@@ -29,6 +29,10 @@ final class VimSequenceObserver {
     /// Stored as the raw digit string so the UI can render `5×` directly.
     private(set) var countBuffer: String = ""
 
+    /// Set when the user completes a doubled operator (`dd`, `yy`, `cc`).
+    /// Cleared on the next mode transition via hard-reset.
+    private(set) var completedLineOp: String?
+
     @ObservationIgnored
     private let modeProvider: @MainActor () -> KindaVimStateAdapter.Mode
 
@@ -90,6 +94,7 @@ final class VimSequenceObserver {
 
         currentOperator = nil
         countBuffer = ""
+        completedLineOp = nil
         lastObservedMode = .unknown
     }
 
@@ -144,8 +149,18 @@ final class VimSequenceObserver {
         let previousMode = lastObservedMode
         recordModeExitTelemetry(from: previousMode, to: currentMode)
 
-        currentOperator = nil
-        countBuffer = ""
+        // Preserve currentOperator and countBuffer across
+        // normal/visual → operatorPending: the operator was just set by
+        // applyNormalOrVisual and is the reason kindaVim flipped to
+        // op-pending. Clearing it here would make doubled-operator
+        // detection (dd/yy/cc) impossible.
+        let enteringOpPending = currentMode == .operatorPending
+            && (previousMode == .normal || previousMode == .visual)
+        if !enteringOpPending {
+            currentOperator = nil
+            countBuffer = ""
+        }
+        completedLineOp = nil
         lastObservedMode = currentMode
         modeEnteredAt = Date()
     }
@@ -238,12 +253,13 @@ final class VimSequenceObserver {
     }
 
     private func applyOperatorPending(character: String) {
-        // Inside op-pending the user picks a motion or text-object; once
-        // they do, kindaVim flips back to normal/visual and our hard-reset
-        // path clears state. We don't try to model individual motions;
-        // currentOperator is the only useful sub-state here.
+        // Doubled operator → line-op: `dd`, `yy`, `cc`.
+        if let op = currentOperator, character.lowercased() == op.lowercased() {
+            completedLineOp = op
+            return
+        }
+
         if Self.isDigit(character) {
-            // Some operators allow counts before the motion: `d3w`.
             countBuffer.append(character)
         }
     }

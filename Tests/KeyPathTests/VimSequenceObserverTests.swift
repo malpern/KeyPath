@@ -144,6 +144,54 @@ final class VimSequenceObserverTests: XCTestCase {
         XCTAssertEqual(observer.countBuffer, "3")
     }
 
+    // MARK: - Line-op detection (dd, yy, cc)
+
+    func testDoubledOperatorSetsCompletedLineOp() {
+        let observer = makeObserver()
+        mode = .normal
+        observer.ingest(character: "d")
+        XCTAssertEqual(observer.currentOperator, "d")
+
+        mode = .operatorPending
+        observer.ingest(character: "d")
+        XCTAssertEqual(observer.completedLineOp, "d")
+    }
+
+    func testCompletedLineOpClearsOnModeTransition() {
+        let observer = makeObserver()
+        mode = .normal
+        observer.ingest(character: "y")
+        mode = .operatorPending
+        observer.ingest(character: "y")
+        XCTAssertEqual(observer.completedLineOp, "y")
+
+        mode = .normal
+        observer.syncWithMode()
+        XCTAssertNil(observer.completedLineOp)
+    }
+
+    func testMismatchedOperatorDoesNotTriggerLineOp() {
+        let observer = makeObserver()
+        mode = .normal
+        observer.ingest(character: "d")
+        mode = .operatorPending
+        observer.ingest(character: "y")
+        XCTAssertNil(observer.completedLineOp)
+    }
+
+    func testLineOpWithCountPrefix() {
+        let observer = makeObserver()
+        mode = .normal
+        observer.ingest(character: "3")
+        observer.ingest(character: "d")
+        XCTAssertEqual(observer.countBuffer, "3")
+
+        mode = .operatorPending
+        observer.ingest(character: "d")
+        XCTAssertEqual(observer.completedLineOp, "d")
+        XCTAssertEqual(observer.countBuffer, "3")
+    }
+
     // MARK: - Visual mode tracks like normal
 
     func testVisualModeTracksOperatorsAndCounts() {
