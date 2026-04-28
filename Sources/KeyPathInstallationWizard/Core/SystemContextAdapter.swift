@@ -60,6 +60,16 @@ public struct SystemContextAdapter {
             return .missingPermissions(missing: [.kanataInputMonitoring])
         }
 
+        // 3b. Runtime permission rejection — TCC says "granted" but macOS actually
+        // rejected the binary (stale grant after rebuild/move/upgrade). Override the
+        // Oracle's false positive and route to the permissions page.
+        if context.services.kanataPermissionRejected {
+            AppLogger.shared.log(
+                "📊 [SystemContextAdapter] Decision: MISSING PERMISSIONS (runtime Accessibility rejection despite TCC grant)"
+            )
+            return .missingPermissions(missing: [.kanataAccessibility])
+        }
+
         // 4. Check if Kanata is running - components exist and permissions granted
         if context.services.kanataRunning {
             AppLogger.shared.log("📊 [SystemContextAdapter] Decision: ACTIVE (kanata running)")
@@ -358,19 +368,35 @@ public struct SystemContextAdapter {
         if !context.services.kanataRunning, context.components.vhidServicesHealthy,
            context.services.kanataInputCaptureReady
         {
-            // Only show if VHID is healthy but Kanata isn't running
-            // (if VHID is unhealthy, that's the primary issue to fix first)
-            issues.append(
-                WizardIssue(
-                    identifier: .component(.keyPathRuntime),
-                    severity: .error,
-                    category: .daemon,
-                    title: "KeyPath Runtime Not Running",
-                    description: "KeyPath keyboard remapping runtime is not running",
-                    autoFixAction: nil,
-                    userAction: "Start KeyPath Runtime from the wizard or app status controls"
+            if context.services.kanataPermissionRejected {
+                // Runtime rejected by macOS despite TCC saying "granted" (stale after rebuild).
+                // Emit a permission issue so the wizard routes to the permissions page.
+                issues.append(
+                    WizardIssue(
+                        identifier: .permission(.kanataAccessibility),
+                        severity: .error,
+                        category: .permissions,
+                        title: "Kanata Engine Accessibility Permission",
+                        description: "macOS rejected Kanata Engine after a rebuild. Remove and re-add the Kanata Engine entry in System Settings > Privacy & Security > Accessibility.",
+                        autoFixAction: nil,
+                        userAction: "Re-grant Accessibility permission for Kanata Engine in System Settings"
+                    )
                 )
-            )
+            } else {
+                // Only show if VHID is healthy but Kanata isn't running
+                // (if VHID is unhealthy, that's the primary issue to fix first)
+                issues.append(
+                    WizardIssue(
+                        identifier: .component(.keyPathRuntime),
+                        severity: .error,
+                        category: .daemon,
+                        title: "KeyPath Runtime Not Running",
+                        description: "KeyPath keyboard remapping runtime is not running",
+                        autoFixAction: nil,
+                        userAction: "Start KeyPath Runtime from the wizard or app status controls"
+                    )
+                )
+            }
         }
 
         // Helper issues

@@ -523,10 +523,19 @@ public class SystemValidator {
         let kanataHealth = await ServiceHealthChecker.shared.checkKanataServiceHealth(
             tcpPort: PreferencesService.shared.tcpServerPort
         )
-        let kanataBinaryAlive = await Task.detached {
-            KanataSplitRuntimeHostService.isKanataBinaryAlive()
-        }.value
-        let kanataRunning = kanataHealth.isRunning && kanataBinaryAlive
+        let kanataBinaryAlive: Bool
+        let kanataRunning: Bool
+        if ServiceLifecycleCoordinator.useSplitRuntimeHost {
+            kanataBinaryAlive = await Task.detached {
+                KanataSplitRuntimeHostService.isKanataBinaryAlive()
+            }.value
+            kanataRunning = kanataHealth.isRunning && kanataBinaryAlive
+        } else {
+            // Mode A: launchctl + TCP probe is sufficient; pgrep -x kanata
+            // can miss the process when kanata-launcher hasn't exec'd yet.
+            kanataBinaryAlive = true
+            kanataRunning = kanataHealth.isRunning
+        }
         let kanataInputCapture = await ServiceHealthChecker.shared.checkKanataInputCaptureStatus()
         let kanataDuration = Date().timeIntervalSince(kanataStart)
         AppLogger.shared.log(
@@ -554,9 +563,14 @@ public class SystemValidator {
             "🔍 [SystemValidator] checkHealth() - VHID daemon health reused from karabinerDaemonRunning: \(vhidHealthy)"
         )
 
+        // When kanata isn't running, check daemon stderr for permission rejection.
+        // TCC can report "granted" from a stale entry after a rebuild, but macOS
+        // actually rejects the binary at runtime. Detect this from the crash output.
+        let permissionRejected = !kanataRunning && Self.checkDaemonStderrForPermissionFailure()
+
         let totalDuration = Date().timeIntervalSince(startTime)
         AppLogger.shared.log(
-            "🔍 [SystemValidator] checkHealth() EXIT - Health: kanata=\(kanataRunning), daemon=\(karabinerDaemonRunning) (launchctl), vhid=\(vhidHealthy) (total: \(String(format: "%.3f", totalDuration))s)"
+            "🔍 [SystemValidator] checkHealth() EXIT - Health: kanata=\(kanataRunning), daemon=\(karabinerDaemonRunning) (launchctl), vhid=\(vhidHealthy), permRejected=\(permissionRejected) (total: \(String(format: "%.3f", totalDuration))s)"
         )
 
         return HealthStatus(
@@ -564,8 +578,27 @@ public class SystemValidator {
             karabinerDaemonRunning: karabinerDaemonRunning,
             vhidHealthy: vhidHealthy,
             kanataInputCaptureReady: kanataInputCapture.isReady,
-            kanataInputCaptureIssue: kanataInputCapture.issue
+            kanataInputCaptureIssue: kanataInputCapture.issue,
+            kanataPermissionRejected: permissionRejected
         )
+    }
+
+    private static let kanataStderrPath = "/var/log/com.keypath.kanata.stderr.log"
+
+    /// Read the tail of the kanata daemon stderr log and check for the
+    /// macOS Accessibility permission rejection message.
+    private static func checkDaemonStderrForPermissionFailure() -> Bool {
+        guard let data = try? Data(
+            contentsOf: URL(fileURLWithPath: kanataStderrPath),
+            options: .mappedIfSafe
+        ) else { return false }
+
+        // Only check the last 2KB to avoid reading a huge log
+        let tailSize = min(data.count, 2048)
+        let tail = data.suffix(tailSize)
+        guard let text = String(data: tail, encoding: .utf8) else { return false }
+
+        return text.contains("kanata needs macOS Accessibility permission")
     }
 
     // MARK: - Debug Support

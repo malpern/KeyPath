@@ -123,7 +123,15 @@ public struct SystemSnapshot: Sendable {
 
         // Health issues
         if !health.isHealthy {
-            if !health.kanataRunning {
+            if !health.kanataRunning, health.kanataPermissionRejected {
+                issues.append(
+                    .permissionMissing(
+                        app: "Kanata",
+                        permission: "Accessibility",
+                        action: "Re-grant Accessibility permission after rebuild — remove and re-add Kanata Engine in System Settings"
+                    )
+                )
+            } else if !health.kanataRunning {
                 issues.append(.serviceNotRunning(name: "Kanata Service", autoFix: true))
             }
             if !health.karabinerDaemonRunning {
@@ -248,6 +256,10 @@ public struct HealthStatus: Sendable {
     public let kanataInputCaptureIssue: String?
     public let activeRuntimePathTitle: String?
     public let activeRuntimePathDetail: String?
+    /// True when the daemon stderr log shows kanata was rejected by macOS
+    /// at runtime despite the TCC database reporting permissions as granted
+    /// (stale grant after a rebuild/move/upgrade).
+    public let kanataPermissionRejected: Bool
 
     public init(
         kanataRunning: Bool,
@@ -256,7 +268,8 @@ public struct HealthStatus: Sendable {
         kanataInputCaptureReady: Bool = true,
         kanataInputCaptureIssue: String? = nil,
         activeRuntimePathTitle: String? = nil,
-        activeRuntimePathDetail: String? = nil
+        activeRuntimePathDetail: String? = nil,
+        kanataPermissionRejected: Bool = false
     ) {
         self.kanataRunning = kanataRunning
         self.karabinerDaemonRunning = karabinerDaemonRunning
@@ -265,6 +278,7 @@ public struct HealthStatus: Sendable {
         self.kanataInputCaptureIssue = kanataInputCaptureIssue
         self.activeRuntimePathTitle = activeRuntimePathTitle
         self.activeRuntimePathDetail = activeRuntimePathDetail
+        self.kanataPermissionRejected = kanataPermissionRejected
     }
 
     /// Overall health (includes Kanata runtime)

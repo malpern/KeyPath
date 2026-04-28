@@ -24,6 +24,13 @@ final class ServiceLifecycleCoordinator {
         }
     }
 
+    // MARK: - Feature Flag
+
+    /// When `false`, KeyPath uses Mode A (subprocess exec via LaunchDaemon) instead of
+    /// Mode B (in-process passthru host + Output Bridge). Mode B is disabled due to
+    /// SIGPIPE crashes, stale socket accumulation, and unrecoverable wizard failures.
+    static let useSplitRuntimeHost = false
+
     // MARK: - Dependencies
 
     private let recoveryDaemonService: RecoveryDaemonService
@@ -77,6 +84,10 @@ final class ServiceLifecycleCoordinator {
     }
 
     func shouldUseSplitRuntimeHost() async -> Bool {
+        guard Self.useSplitRuntimeHost else {
+            AppLogger.shared.info("🧪 [Service] Split runtime host disabled by feature flag, using legacy daemon path")
+            return false
+        }
         let decision = await currentSplitRuntimeDecision()
         switch decision {
         case let .useSplitRuntime(reason):
@@ -108,6 +119,10 @@ final class ServiceLifecycleCoordinator {
             onError?("Cannot start: Karabiner VirtualHID daemon is not running. Please complete the setup wizard.")
             onStateChanged?()
             return false
+        }
+
+        guard Self.useSplitRuntimeHost else {
+            return await startKanataViaLaunchDaemon(reason: reason)
         }
 
         let decision: KanataRuntimePathDecision = if let precomputedDecision {
@@ -172,6 +187,87 @@ final class ServiceLifecycleCoordinator {
         }
     }
 
+    /// Mode A startup: register the LaunchDaemon via SMAppService so the OS launches
+    /// kanata-launcher, which exec's into the bundled kanata binary.
+    private func startKanataViaLaunchDaemon(reason: String) async -> Bool {
+        // Clean up any stale Mode B artifacts
+        cleanStalePassthruArtifacts()
+
+        // If the split runtime host is somehow still running, stop it first
+        if KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning {
+            AppLogger.shared.log("🧹 [Service] Stopping leftover split-runtime host before LaunchDaemon start")
+            KanataSplitRuntimeHostService.shared.stopPersistentPassthruHost()
+        }
+
+        // Kill any orphaned kanata-launcher / kanata processes that may hold the TCP port.
+        // This can happen when reverting from Mode B or after a crash leaves stale processes.
+        await killOrphanedKanataProcesses()
+
+        do {
+            lastStartAttemptAt = Date()
+            try await KanataDaemonManager.shared.register()
+            AppLogger.shared.log("✅ [Service] Kanata LaunchDaemon registered (\(reason))")
+            await AppContextService.shared.start()
+            onError?(nil)
+            onWarning?(nil)
+            onStateChanged?()
+            return true
+        } catch {
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            AppLogger.shared.error("❌ [Service] LaunchDaemon registration failed: \(message)")
+            onError?("Failed to start Kanata: \(message)")
+            onStateChanged?()
+            return false
+        }
+    }
+
+    /// Kill orphaned kanata-launcher and kanata processes that aren't managed by
+    /// the current LaunchDaemon, so the new daemon can bind the TCP port.
+    private func killOrphanedKanataProcesses() async {
+        let processNames = ["kanata-launcher", "kanata"]
+        for name in processNames {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+            task.arguments = ["-x", name]
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = Pipe()
+            do {
+                try task.run()
+                task.waitUntilExit()
+                guard task.terminationStatus == 0 else { continue }
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let pids = String(data: data, encoding: .utf8)?
+                    .split(separator: "\n")
+                    .compactMap { Int32(String($0).trimmingCharacters(in: .whitespaces)) } ?? []
+                for pid in pids {
+                    AppLogger.shared.log("🧹 [Service] Killing orphaned \(name) (PID \(pid)) before LaunchDaemon start")
+                    kill(pid, SIGTERM)
+                }
+                if !pids.isEmpty {
+                    try? await Task.sleep(for: .milliseconds(500))
+                    for pid in pids where kill(pid, 0) == 0 {
+                        kill(pid, SIGKILL)
+                    }
+                }
+            } catch {
+                // pgrep not finding matches is fine
+            }
+        }
+    }
+
+    /// Remove stale Mode B socket and environment files from /var/tmp.
+    private func cleanStalePassthruArtifacts() {
+        let fm = Foundation.FileManager.default
+        let tmpDir = "/var/tmp"
+        guard let contents = try? fm.contentsOfDirectory(atPath: tmpDir) else { return }
+        for name in contents where name.hasPrefix("keypath-host-passthru-") {
+            let path = "\(tmpDir)/\(name)"
+            try? fm.removeItem(atPath: path)
+            AppLogger.shared.log("🧹 [Service] Cleaned stale passthru artifact: \(path)")
+        }
+    }
+
     @discardableResult
     func stopKanata(reason: String = "Manual stop") async -> Bool {
         AppLogger.shared.log("🛑 [Service] Stopping Kanata (\(reason))")
@@ -205,6 +301,12 @@ final class ServiceLifecycleCoordinator {
 
     @discardableResult
     func restartKanata(reason: String = "Manual restart") async -> Bool {
+        guard Self.useSplitRuntimeHost else {
+            let stopped = await stopKanata(reason: "\(reason) (stop for restart)")
+            guard stopped else { return false }
+            return await startKanata(reason: "\(reason) (restart)")
+        }
+
         let splitDecision = await currentSplitRuntimeDecision()
         if KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning {
             let stopped = await stopKanata(reason: "\(reason) (stop split runtime)")
@@ -286,6 +388,21 @@ final class ServiceLifecycleCoordinator {
     func currentRuntimeStatus() async -> RuntimeStatus {
         if isStartingKanata {
             return .starting
+        }
+
+        guard Self.useSplitRuntimeHost else {
+            // Mode A: check the LaunchDaemon via RecoveryDaemonService
+            let daemonStatus = await recoveryDaemonService.refreshStatus()
+            switch daemonStatus {
+            case let .running(pid):
+                return .running(pid: pid)
+            case .stopped:
+                return .stopped
+            case let .failed(reason):
+                return .failed(reason: reason)
+            case .unknown:
+                return .unknown
+            }
         }
 
         if KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning {

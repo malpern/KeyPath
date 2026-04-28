@@ -14,6 +14,7 @@ extension RuntimeCoordinator {
     // MARK: - Process Synchronization and Initialization
 
     func startSplitRuntimeCompanionMonitor() {
+        guard ServiceLifecycleCoordinator.useSplitRuntimeHost else { return }
         splitRuntimeCompanionMonitorTask?.cancel()
         splitRuntimeCompanionMonitorTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -26,6 +27,7 @@ extension RuntimeCoordinator {
     }
 
     func checkSplitRuntimeCompanionHealth() async {
+        guard ServiceLifecycleCoordinator.useSplitRuntimeHost else { return }
         guard KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning else {
             return
         }
@@ -111,39 +113,39 @@ extension RuntimeCoordinator {
 
         // Try to start Kanata automatically on launch if environment allows
         let context = await engine.inspectSystem()
-        let splitRuntimeDecision = await currentSplitRuntimeDecision()
-        let splitRuntimePreferred = switch splitRuntimeDecision {
-        case .useSplitRuntime:
-            true
-        case .useLegacySystemBinary, .blocked:
-            false
-        }
 
-        // Check if Kanata is already running. If split runtime is the preferred healthy path but
-        // the active runtime is still the legacy daemon, use normal startup to cut over instead
-        // of treating the legacy path as "good enough".
         if context.services.kanataRunning {
-            let activeRuntimeTitle = context.services.activeRuntimePathTitle?
-                .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
-            if activeRuntimeTitle == SplitRuntimeIdentity.hostTitle {
-                AppLogger.shared.info("✅ [Init] Split runtime host is already running - skipping initialization")
-                return
-            }
+            if ServiceLifecycleCoordinator.useSplitRuntimeHost {
+                let splitRuntimeDecision = await currentSplitRuntimeDecision()
+                let splitRuntimePreferred = switch splitRuntimeDecision {
+                case .useSplitRuntime:
+                    true
+                case .useLegacySystemBinary, .blocked:
+                    false
+                }
 
-            if splitRuntimePreferred {
-                AppLogger.shared.log(
-                    "🔀 [Init] Kanata is already running via \(activeRuntimeTitle ?? "an unknown runtime path"); cutting over to split runtime host"
-                )
-                let started = await startKanata(reason: "Initialization split runtime cutover")
-                if started {
-                    AppLogger.shared.log("✅ [Init] Initialization cutover to split runtime host completed")
+                let activeRuntimeTitle = context.services.activeRuntimePathTitle?
+                    .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                if activeRuntimeTitle == SplitRuntimeIdentity.hostTitle {
+                    AppLogger.shared.info("✅ [Init] Split runtime host is already running - skipping initialization")
                     return
                 }
 
-                AppLogger.shared.warn(
-                    "⚠️ [Init] Initialization cutover to split runtime host failed; leaving existing runtime in place"
-                )
-                return
+                if splitRuntimePreferred {
+                    AppLogger.shared.log(
+                        "🔀 [Init] Kanata is already running via \(activeRuntimeTitle ?? "an unknown runtime path"); cutting over to split runtime host"
+                    )
+                    let started = await startKanata(reason: "Initialization split runtime cutover")
+                    if started {
+                        AppLogger.shared.log("✅ [Init] Initialization cutover to split runtime host completed")
+                        return
+                    }
+
+                    AppLogger.shared.warn(
+                        "⚠️ [Init] Initialization cutover to split runtime host failed; leaving existing runtime in place"
+                    )
+                    return
+                }
             }
 
             AppLogger.shared.info("✅ [Init] Kanata is already running - skipping initialization")
@@ -183,6 +185,7 @@ extension RuntimeCoordinator {
         expected: Bool,
         stderrLogPath: String?
     ) async {
+        guard ServiceLifecycleCoordinator.useSplitRuntimeHost else { return }
         guard pid > 0
         else {
             return

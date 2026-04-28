@@ -113,7 +113,8 @@ public final class InstallerEngine {
             kanataInputCaptureReady: snapshot.health.kanataInputCaptureReady,
             kanataInputCaptureIssue: snapshot.health.kanataInputCaptureIssue,
             activeRuntimePathTitle: activeRuntimePathStatus?.title,
-            activeRuntimePathDetail: activeRuntimePathStatus?.detail
+            activeRuntimePathDetail: activeRuntimePathStatus?.detail,
+            kanataPermissionRejected: snapshot.health.kanataPermissionRejected
         )
 
         // Convert SystemSnapshot to SystemContext

@@ -9,9 +9,9 @@
         <string>/Applications/KeyPath.app/Contents/Library/HelperTools/KeyPathOutputBridge</string>
     </array>
     <key>RunAtLoad</key>
-    <true/>
+    <false/>
     <key>KeepAlive</key>
-    <true/>
+    <false/>
     <key>StandardOutPath</key>
     <string>/var/log/com.keypath.output-bridge.stdout.log</string>
     <key>StandardErrorPath</key>
