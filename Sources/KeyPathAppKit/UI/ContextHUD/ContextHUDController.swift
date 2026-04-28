@@ -44,9 +44,17 @@ final class ContextHUDController {
     /// Background precompute task (cancelled on config change)
     private var precomputeTask: Task<Void, Never>?
 
+    // MARK: - Backtick cheat-sheet trigger
+
+    private var backtickMonitor: Any?
+    private var cheatSheetDismissKeyMonitor: Any?
+    private var cheatSheetDismissClickMonitor: Any?
+    private var cheatSheetVisible = false
+
     private init() {
         setupNotificationObservers()
         Task { @MainActor in await self.refreshKindaVimPackInstalled() }
+        startBacktickMonitor()
         AppLogger.shared.log("🎯 [ContextHUD] Controller initialized")
     }
 
@@ -479,15 +487,9 @@ final class ContextHUDController {
                     collections: scopedEnabledCollections
                 )
 
-                let kindaVimHUDMode = PreferencesService.shared.kindaVimLeaderHUDMode
-                // Pre-#323 gate was "kindaVim rule-collection has entries in this layer's keymap".
-                // The collection was retired; KindaVim now ships as a visual-only pack and the
-                // hint set is a static reference table (`VimBindings`). Gate on pack install
-                // instead, keep the same nav-layer trigger since that's where the leader-hold
-                // HUD fires.
-                let shouldUseKindaVimLearningStyle = kindaVimHUDMode != .off &&
-                    normalizedLayerName == "nav" &&
-                    kindaVimPackInstalled
+                // KindaVim cheat sheet is triggered by backtick in normal
+                // mode, not by leader-hold layer changes.
+                let shouldUseKindaVimLearningStyle = false
 
                 let hasNeovimEntries = effectiveKeyMap.values.contains { $0.collectionId == RuleCollectionIdentifier.neovimTerminal }
                 let shouldUseNeovimStyle = normalizedLayerName == "nav" &&
@@ -534,8 +536,8 @@ final class ContextHUDController {
                     style: style,
                     holdLabels: holdLabels,
                     launcherKeyMap: launcherKeyMap,
-                    kindaVimState: shouldUseKindaVimLearningStyle ? kindaVimStateAdapter.state : nil,
-                    kindaVimLeaderHUDMode: kindaVimHUDMode
+                    kindaVimState: nil,
+                    kindaVimLeaderHUDMode: .off
                 )
 
                 showWindow()
@@ -786,5 +788,74 @@ final class ContextHUDController {
         let x = screenFrame.midX - (windowFrame.width / 2)
         let y = screenFrame.midY - (windowFrame.height / 2)
         window.setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
+    // MARK: - Backtick cheat-sheet trigger
+
+    private func startBacktickMonitor() {
+        backtickMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            Task { @MainActor in
+                self?.handleBacktickCandidate(event)
+            }
+        }
+    }
+
+    private func handleBacktickCandidate(_ event: NSEvent) {
+        guard !cheatSheetVisible,
+              kindaVimPackInstalled,
+              event.charactersIgnoringModifiers == "`",
+              event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty,
+              KindaVimStateAdapter.shared.state.mode == .normal
+        else { return }
+
+        showKindaVimCheatSheet()
+    }
+
+    private func showKindaVimCheatSheet() {
+        cheatSheetVisible = true
+
+        if !hasStartedKindaVimStateMonitoring {
+            kindaVimStateAdapter.startMonitoring()
+            hasStartedKindaVimStateMonitoring = true
+        }
+
+        viewModel.update(
+            layerName: "nav",
+            keyMap: [:],
+            collections: [],
+            style: .kindaVimLearning,
+            holdLabels: [:],
+            launcherKeyMap: [:],
+            kindaVimState: kindaVimStateAdapter.state,
+            kindaVimLeaderHUDMode: .cheatSheetOnly
+        )
+
+        showWindow()
+        installCheatSheetDismissMonitors()
+    }
+
+    private func installCheatSheetDismissMonitors() {
+        cheatSheetDismissKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] _ in
+            Task { @MainActor in
+                self?.dismissCheatSheet()
+            }
+        }
+        cheatSheetDismissClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            Task { @MainActor in
+                self?.dismissCheatSheet()
+            }
+        }
+    }
+
+    private func dismissCheatSheet() {
+        guard cheatSheetVisible else { return }
+        cheatSheetVisible = false
+
+        if let m = cheatSheetDismissKeyMonitor { NSEvent.removeMonitor(m) }
+        if let m = cheatSheetDismissClickMonitor { NSEvent.removeMonitor(m) }
+        cheatSheetDismissKeyMonitor = nil
+        cheatSheetDismissClickMonitor = nil
+
+        dismiss()
     }
 }

@@ -106,7 +106,17 @@ class LayerIndicatorManager {
 
     private init() {}
 
+    static let disabledKey = "KeyPath.layerIndicatorDisabled"
+
     func showLayer(_ layerName: String) {
+        let defaults = UserDefaults.standard
+        if defaults.object(forKey: Self.disabledKey) == nil {
+            defaults.set(true, forKey: Self.disabledKey)
+        }
+        if defaults.bool(forKey: Self.disabledKey) {
+            previousLayer = layerName
+            return
+        }
         AppLogger.shared.log("🪟 [LayerIndicator] showLayer called with: '\(layerName)' (previous: '\(previousLayer)')")
 
         // Respect the per-app suppression list — if the user is in Figma

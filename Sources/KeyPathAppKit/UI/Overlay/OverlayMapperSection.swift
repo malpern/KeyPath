@@ -21,7 +21,8 @@ struct OverlayMapperSection: View {
     @State var viewModel = MapperViewModel()
     @State var isSystemActionPickerOpen = false
     @State var isAppConditionPickerOpen = false
-    @State var cachedRunningApps: [NSRunningApplication] = []
+    @State var showTapCountPicker = false
+    @State var showingAppPickerSheet = false
     @State var showingResetDialog = false
     @State var isSystemActionsExpanded = false
     @State var isLaunchAppsExpanded = false
@@ -90,8 +91,6 @@ struct OverlayMapperSection: View {
             viewModel.loadBehaviorFromExistingRule(kanataManager: kanataViewModel.underlyingManager)
             // Notify parent to highlight the A key
             onKeySelected?(viewModel.inputKeyCode)
-            // Pre-load running apps for instant popover display
-            preloadRunningApps()
             // Initialize configured behavior slots
             updateConfiguredBehaviorSlots()
         }
@@ -183,7 +182,6 @@ struct OverlayMapperSection: View {
         ) { _ in
             // Open the app condition picker when requested (e.g., from "New Rule" button in App Rules tab)
             guard !shouldShowHealthGate else { return }
-            refreshRunningApps()
             // Small delay to allow tab switch animation to complete
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                 isAppConditionPickerOpen = true
@@ -251,7 +249,29 @@ struct OverlayMapperSection: View {
             }
         }
 
-        let withOutputChange = withShiftAutoSave.onChange(of: viewModel.outputLabel) { _, _ in
+        let withDoubleTapAutoSave = withShiftAutoSave.onChange(of: viewModel.isRecordingDoubleTap) { wasRecording, isRecording in
+            guard wasRecording, !isRecording else { return }
+            guard !shouldShowHealthGate else { return }
+            guard !viewModel.doubleTapAction.isEmpty else { return }
+            guard let manager = kanataViewModel?.underlyingManager else { return }
+            Task {
+                await viewModel.save(kanataManager: manager)
+                updateConfiguredBehaviorSlots()
+            }
+        }
+
+        let withHoldAutoSave = withDoubleTapAutoSave.onChange(of: viewModel.isRecordingHold) { wasRecording, isRecording in
+            guard wasRecording, !isRecording else { return }
+            guard !shouldShowHealthGate else { return }
+            guard !viewModel.holdAction.isEmpty else { return }
+            guard let manager = kanataViewModel?.underlyingManager else { return }
+            Task {
+                await viewModel.save(kanataManager: manager)
+                updateConfiguredBehaviorSlots()
+            }
+        }
+
+        let withOutputChange = withHoldAutoSave.onChange(of: viewModel.outputLabel) { _, _ in
             updateConfiguredBehaviorSlots()
         }
 
@@ -346,11 +366,23 @@ struct OverlayMapperSection: View {
             }
         }
 
-        return withResetDialog.sheet(isPresented: $viewModel.showingURLDialog) {
+        let withURLSheet = withResetDialog.sheet(isPresented: $viewModel.showingURLDialog) {
             URLInputDialog(
                 urlText: $viewModel.urlInputText,
                 onSubmit: { viewModel.submitURL() },
                 onCancel: { viewModel.showingURLDialog = false }
+            )
+        }
+
+        return withURLSheet.sheet(isPresented: $showingAppPickerSheet) {
+            let vm = viewModel
+            AppConditionPickerSheet(
+                onSelect: { condition in
+                    vm.selectedAppCondition = condition
+                },
+                onBrowse: {
+                    pickAppForCondition()
+                }
             )
         }
     }
@@ -415,6 +447,8 @@ struct OverlayMapperSection: View {
 
     private var mapperMainContent: some View {
         VStack(spacing: 0) {
+            Spacer(minLength: 8)
+
             // Custom keycap layout with labels on top
             GeometryReader { proxy in
                 let availableWidth = max(1, proxy.size.width)
@@ -424,10 +458,10 @@ struct OverlayMapperSection: View {
                 let baseWidth = keycapWidth * 2 + spacing * 2 + arrowWidth
                 let scale = min(1, availableWidth / baseWidth)
 
-                HStack(alignment: .top, spacing: spacing) {
-                    // Input column: Keycap -> Dropdown -> App indicators
-                    VStack(spacing: 4) {
-                        // Keycap with input modifier label above
+                VStack(spacing: 8) {
+                    // Keycap row — vertically centered, fixed height
+                    HStack(alignment: .center, spacing: spacing) {
+                        // Input keycap
                         ZStack(alignment: .top) {
                             MapperInputKeycap(
                                 label: viewModel.inputLabel,
@@ -440,7 +474,6 @@ struct OverlayMapperSection: View {
                             .scaleEffect(inputKeycapBounce ? 1.05 : 1.0)
                             .scaleEffect(inputKeycapScale)
 
-                            // Input modifier label (Shift, multi-tap) floats above input keycap
                             if let inputModifierLabel {
                                 Text(inputModifierLabel)
                                     .font(.caption.weight(.medium))
@@ -450,50 +483,17 @@ struct OverlayMapperSection: View {
                                     .scaleEffect(showBehaviorLabel ? 1 : 0.8)
                             }
                         }
-                        Group {
-                            appConditionDropdown
-                            appMappingIndicators
-                        }
-                        .saturation(Double(1 - fadeAmount))
-                        .opacity(Double(1 - fadeAmount * 0.5))
-                    }
-                    .frame(width: keycapWidth)
+                        .frame(width: keycapWidth)
 
-                    // Arrow centered vertically with keycaps (100pt tall)
-                    ZStack {
-                        // Arrow centered with keycap height
+                        // Arrow
                         Image(systemName: "arrow.right")
                             .font(.title3)
                             .foregroundColor(.secondary)
                             .modifier(TextGlowModifier(fadeAmount: fadeAmount))
-                            .frame(height: 100) // Match keycap height
+                            .frame(width: arrowWidth)
 
-                        // Reset button positioned at bottom of arrow column
-                        if hasAnyModifiedMapping {
-                            VStack {
-                                Spacer()
-                                Button {
-                                    showingResetDialog = true
-                                } label: {
-                                    Image(systemName: "arrow.counterclockwise")
-                                        .font(.body.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                }
-                                .buttonStyle(.plain)
-                                .help("Clear mapping options")
-                                .accessibilityIdentifier("overlay-mapper-reset")
-                            }
-                            .frame(height: 100)
-                            .opacity(Double(1 - fadeAmount * 0.5))
-                        }
-                    }
-                    .frame(width: arrowWidth)
-
-                    // Output column: Keycap -> Output type dropdown
-                    VStack(spacing: 4) {
-                        // Keycap with label overlay above
+                        // Output keycap
                         ZStack(alignment: .top) {
-                            // Use different keycap for tap vs other behavior slots
                             if selectedBehaviorSlot == .tap, selectedTapCount == 1 {
                                 MapperKeycapView(
                                     label: activeTapOutputLabel,
@@ -505,7 +505,6 @@ struct OverlayMapperSection: View {
                                     onTap: { toggleRecordingForCurrentSlot() }
                                 )
                             } else {
-                                // Hold/Shift/Combo/Multi-tap use BehaviorSlotKeycap
                                 let slotName = selectedTapCount > 1
                                     ? "\(selectedTapCount)× Tap"
                                     : selectedBehaviorSlot.label
@@ -518,29 +517,40 @@ struct OverlayMapperSection: View {
                                     onClear: { clearCurrentSlot() }
                                 )
                             }
-
-                            // (trigger labels are shown above the input keycap)
                         }
-                        // Output type dropdown shown for all slots
-                        Group {
-                            outputTypeDropdown
-
-                            // Hold variant button - shown when Hold tab is selected and configured
-                            if selectedBehaviorSlot == .hold, !viewModel.holdAction.isEmpty {
-                                holdVariantButton
-                            }
-                        }
-                        .saturation(Double(1 - fadeAmount))
-                        .opacity(Double(1 - fadeAmount * 0.5))
+                        .frame(width: keycapWidth)
                     }
-                    .frame(width: keycapWidth)
+
+                    // Controls row — centered under keycaps
+                    HStack(spacing: spacing) {
+                        appConditionDropdown
+                            .frame(width: keycapWidth, alignment: .center)
+
+                        Color.clear
+                            .frame(width: arrowWidth, height: 1)
+
+                        outputTypeDropdown
+                            .frame(width: keycapWidth, alignment: .center)
+                    }
+                    .saturation(Double(1 - fadeAmount))
+                    .opacity(Double(1 - fadeAmount * 0.5))
                 }
                 .border(showDebugBorders ? Color.blue : Color.clear, width: 1)
-                .frame(width: baseWidth, height: proxy.size.height, alignment: .leading)
-                .scaleEffect(scale, anchor: .leading)
-                .frame(width: availableWidth, height: proxy.size.height, alignment: .leading)
+                .frame(width: baseWidth, height: proxy.size.height, alignment: .center)
+                .scaleEffect(scale, anchor: .center)
+                .frame(width: availableWidth, height: proxy.size.height, alignment: .center)
             }
-            .frame(height: 122)
+            .frame(height: 160)
+
+            appMappingIndicators
+                .saturation(Double(1 - fadeAmount))
+                .opacity(Double(1 - fadeAmount * 0.5))
+
+            if selectedBehaviorSlot == .hold, !viewModel.holdAction.isEmpty {
+                holdVariantButton
+                    .saturation(Double(1 - fadeAmount))
+                    .opacity(Double(1 - fadeAmount * 0.5))
+            }
 
             if viewModel.showAdvanced {
                 AdvancedBehaviorContent(viewModel: viewModel)
@@ -549,39 +559,24 @@ struct OverlayMapperSection: View {
                     .opacity(Double(1 - fadeAmount * 0.5))
             }
 
-            packSuggestionsBanner
-
             Spacer(minLength: 0)
 
-            // Behavior state picker - flat controls with click feedback
-            // Use ZStack to overlay status message without affecting layout
-            ZStack(alignment: .top) {
-                BehaviorStatePicker(
-                    selectedState: $selectedBehaviorSlot,
-                    configuredStates: configuredBehaviorSlots,
-                    tapIsNonIdentity: tapHasNonIdentityMapping,
-                    isShiftDefault: viewModel.isShiftedOutputDefault
-                )
-                .padding(.top, 8)
-
-                // Status message overlaid above the picker (doesn't push content down)
-                if let status = viewModel.statusMessage {
-                    Text(status)
-                        .font(.caption)
-                        .foregroundStyle(viewModel.statusIsError ? .red : (status.contains("✓") ? .green : .secondary))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(.ultraThinMaterial)
-                        )
-                        .offset(y: -8)
-                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                        .animation(.easeOut(duration: 0.2), value: status)
-                }
+            if let status = viewModel.statusMessage {
+                Text(status)
+                    .font(.caption)
+                    .foregroundStyle(viewModel.statusIsError ? .red : (status.contains("✓") ? .green : .secondary))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(.ultraThinMaterial)
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                    .animation(.easeOut(duration: 0.2), value: status)
             }
-            .saturation(Double(1 - fadeAmount))
-            .opacity(Double(1 - fadeAmount * 0.5))
+
+            packSuggestionsBanner
+                .padding(.bottom, 12)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .sheet(item: $packForDetail) { pack in
@@ -605,41 +600,32 @@ struct OverlayMapperSection: View {
     @ViewBuilder
     private var packSuggestionsBanner: some View {
         if !packSuggestions.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Suggested")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
                 ForEach(packSuggestions) { pack in
                     Button { packForDetail = pack } label: {
                         HStack(spacing: 8) {
-                            Image(systemName: "square.grid.2x2")
+                            Image(systemName: "lightbulb.min")
                                 .font(.system(size: 11))
-                                .foregroundStyle(.tint)
-                                .symbolRenderingMode(.hierarchical)
-                                .frame(width: 20)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(pack.name)
-                                    .font(.caption2)
-                                    .foregroundStyle(.primary)
-                                Text(pack.shortDescription)
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                            }
+                                .foregroundStyle(.white)
+                            Text(pack.name)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.primary)
                             Spacer(minLength: 0)
                             Image(systemName: "chevron.right")
-                                .font(.caption2)
+                                .font(.system(size: 9, weight: .semibold))
                                 .foregroundStyle(.tertiary)
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 6)
                         .background(
-                            RoundedRectangle(cornerRadius: 6)
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
                                 .fill(Color.accentColor.opacity(0.08))
                         )
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .help(pack.tagline)
+                    .accessibilityIdentifier("overlay-pack-suggestion-\(pack.id)")
                 }
             }
             .padding(.top, 2)
@@ -652,64 +638,51 @@ struct OverlayMapperSection: View {
         MultiTapSlideOverView(viewModel: viewModel, sourceKey: viewModel.inputLabel)
     }
 
-    /// App condition dropdown - subtle when not set, shows app icon when set
+    /// App condition dropdown - plain text with hover chevron
     private var appConditionDropdown: some View {
-        let hasCondition = viewModel.selectedAppCondition != nil || viewModel.selectedDeviceCondition != nil
-        let isNonDefault = hasCondition || selectedTapCount > 1
         let displayText = inputConditionDisplayText
 
-        return Button {
-            // Start loading apps immediately BEFORE opening popover
-            refreshRunningApps()
-            isAppConditionPickerOpen = true
-        } label: {
-            HStack(spacing: 4) {
-                if let app = viewModel.selectedAppCondition {
-                    Image(nsImage: app.icon)
-                        .resizable()
-                        .frame(width: 12, height: 12)
-                }
-                if let device = viewModel.selectedDeviceCondition {
-                    Image(systemName: device.sfSymbolName)
-                        .font(.caption2)
-                }
-                Text(displayText)
-                    .lineLimit(1)
-                Image(systemName: "chevron.down")
-                    .font(.caption2)
-            }
-            .font(.caption2)
-            .foregroundStyle(isNonDefault ? .primary : .secondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(isNonDefault ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.04))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(isNonDefault ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.2), lineWidth: 0.5)
-            )
-        }
-        .buttonStyle(.plain)
+        return HoverDropdownButton(
+            text: displayText,
+            icon: appConditionIcon,
+            action: { isAppConditionPickerOpen = true }
+        )
         .accessibilityIdentifier("overlay-mapper-app-condition")
         .popover(isPresented: $isAppConditionPickerOpen, arrowEdge: .bottom) {
             appConditionPopover
         }
+        .confirmationDialog("How many taps?", isPresented: $showTapCountPicker) {
+            Button("Single Tap") { selectedTapCount = 1 }
+            Button("Double Tap") { selectedTapCount = 2 }
+            Button("Triple Tap") { selectedTapCount = 3 }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private var appConditionIcon: (name: String, image: NSImage?)? {
+        if let app = viewModel.selectedAppCondition {
+            return (name: "", image: app.icon)
+        }
+        if let device = viewModel.selectedDeviceCondition {
+            return (name: device.sfSymbolName, image: nil)
+        }
+        return nil
     }
 
     /// Display text for the input condition dropdown
     private var inputConditionDisplayText: String {
-        let tapLabel: String? = switch selectedTapCount {
-        case 2: "2× Tap"
-        case 3: "3× Tap"
-        default: nil
+        let behaviorLabel: String = switch selectedBehaviorSlot {
+        case .tap: selectedTapCount > 1 ? "\(selectedTapCount)× Tap" : "Tap"
+        case .hold: "Hold"
+        case .shift: "Shift"
+        case .combo: "Combo"
         }
+        let tapLabel: String? = nil as String?
         let appLabel = viewModel.selectedAppCondition?.displayName
         let deviceLabel = viewModel.selectedDeviceCondition?.displayName
 
-        let parts = [tapLabel, appLabel, deviceLabel].compactMap { $0 }
-        return parts.isEmpty ? "Everywhere" : parts.joined(separator: " · ")
+        let parts = [behaviorLabel, tapLabel, appLabel, deviceLabel].compactMap { $0 }
+        return parts.joined(separator: " · ")
     }
 
     /// Physical keyboard devices currently connected (excludes VirtualHID and trackpad-only devices)
@@ -719,50 +692,21 @@ struct OverlayMapperSection: View {
         }
     }
 
-    /// Pre-load running apps and connected devices when view appears for instant popover display
-    private func preloadRunningApps() {
-        cachedRunningApps = fetchRunningAppsSynchronously()
-        // Prime device cache so keyboard section appears in popover
-        if DeviceSelectionCache.shared.getConnectedDevices().isEmpty {
-            _ = DeviceEnumerationService.enumerateConnectedDevices()
-        }
-    }
-
-    /// Refresh the cached running apps list - synchronous since NSWorkspace is fast
-    private func refreshRunningApps() {
-        cachedRunningApps = fetchRunningAppsSynchronously()
-    }
-
-    /// Fetch running apps synchronously (NSWorkspace.runningApplications is a fast cached call)
-    private func fetchRunningAppsSynchronously() -> [NSRunningApplication] {
-        NSWorkspace.shared.runningApplications
-            .filter { app in
-                app.activationPolicy == .regular &&
-                    app.bundleIdentifier != Bundle.main.bundleIdentifier &&
-                    app.localizedName != nil
-            }
-            .sorted { ($0.localizedName ?? "") < ($1.localizedName ?? "") }
-    }
-
     /// Popover content for app condition picker
     private var appConditionPopover: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // Tap count section (only in tap behavior slot)
-                if selectedBehaviorSlot == .tap {
-                    tapCountHeader
-                    tapCountOption(count: 1, label: "Single Tap")
-                    tapCountOption(count: 2, label: "Double Tap")
-                    tapCountOption(count: 3, label: "Triple Tap")
-                    PopoverListDivider()
+                // Behavior section
+                behaviorSectionHeader
+                ForEach(BehaviorSlot.allCases) { slot in
+                    behaviorSlotOption(for: slot)
                 }
-
-                // App section
                 PopoverListDivider()
+
+                // App section — two options only; running apps loaded lazily in picker sheet
                 appSectionHeader
                 everywhereOption
-                runningAppsList
-                chooseAppOption
+                onlyInOption
 
                 // Keyboard section — only shown when multiple physical devices are connected
                 if physicalDevices.count > 1 {

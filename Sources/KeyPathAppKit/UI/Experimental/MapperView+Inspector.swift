@@ -80,37 +80,10 @@ struct MapperInspectorPanel: View {
 
     @ViewBuilder
     private var packSuggestionsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.tint)
-                Text("Popular for this key")
-                    .font(.subheadline.weight(.semibold))
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(packSuggestions) { pack in
+                packSuggestionRow(pack)
             }
-            Text("Pre-made packs that already map \(inputDisplayLabel). One click installs all of it.")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            VStack(spacing: 6) {
-                ForEach(packSuggestions) { pack in
-                    packSuggestionRow(pack)
-                }
-            }
-
-            Button {
-                GalleryWindowController.shared.showWindow(kanataManager: kanataManagerForGallery())
-            } label: {
-                HStack(spacing: 4) {
-                    Text("Browse Gallery")
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 9, weight: .semibold))
-                }
-                .font(.system(size: 11, weight: .medium))
-            }
-            .buttonStyle(.link)
-            .padding(.top, 2)
         }
         .sheet(item: $packForDetail) { pack in
             PackDetailView(pack: pack)
@@ -122,36 +95,20 @@ struct MapperInspectorPanel: View {
     /// hero icon, name, and tagline, plus an install state indicator.
     private func packSuggestionRow(_ pack: Pack) -> some View {
         Button(action: { packForDetail = pack }) {
-            HStack(spacing: 10) {
-                packRowIcon(pack)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(pack.name)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.primary)
-                    Text(pack.tagline)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 4)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.tertiary)
+            HStack(spacing: 6) {
+                Image(systemName: "lightbulb.min")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.white)
+                Text(pack.name)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.primary)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(Color(nsColor: .separatorColor).opacity(0.6), lineWidth: 0.5)
-            )
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .help(pack.tagline)
         .accessibilityIdentifier("pack-suggestion-row-\(pack.id)")
     }
 
@@ -204,120 +161,102 @@ struct MapperInspectorPanel: View {
 
     // MARK: - App Condition Section
 
-    @State private var showingAppConditionMenu = false
+    @State private var showingAppPickerSheet = false
 
     private var appConditionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Only When App Active")
+            Text("Active App")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
 
-            // Current selection or "Any App" button
-            if let condition = viewModel.selectedAppCondition {
-                // Show selected app with clear button
-                HStack(spacing: 10) {
-                    Image(nsImage: condition.icon)
-                        .resizable()
-                        .frame(width: 24, height: 24)
-                        .clipShape(RoundedRectangle(cornerRadius: 5))
-
-                    Text(condition.displayName)
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-
-                    Spacer()
-
-                    Button {
-                        viewModel.clearAppCondition()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Clear app condition")
-                    .accessibilityIdentifier("mapper-clear-app-condition")
-                    .accessibilityLabel("Clear app condition")
-                }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.accentColor.opacity(0.15))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
-                )
-            } else {
-                // Show "Any App" picker button
-                Menu {
-                    // Any App option (default)
-                    Button {
-                        viewModel.clearAppCondition()
-                    } label: {
-                        Label("Any App", systemImage: "app.dashed")
-                    }
-
-                    Divider()
-
-                    // Running apps
-                    let runningApps = viewModel.getRunningApps()
-                    if !runningApps.isEmpty {
-                        ForEach(runningApps) { app in
-                            Button {
-                                viewModel.selectedAppCondition = app
-                            } label: {
-                                Label {
-                                    Text(app.displayName)
-                                } icon: {
-                                    Image(nsImage: app.icon)
-                                }
-                            }
-                        }
-
-                        Divider()
-                    }
-
-                    // Browse for any app
-                    Button {
-                        viewModel.pickAppCondition()
-                    } label: {
-                        Label("Browse...", systemImage: "folder")
-                    }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "app.dashed")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 24, height: 24)
-
-                        Text("Any App")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-
-                        Spacer()
-
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.secondary.opacity(0.1))
-                    )
-                }
-                .menuStyle(.borderlessButton)
-                .accessibilityIdentifier("mapper-app-condition-picker")
-                .accessibilityLabel("Select app condition")
+            InspectorButton(
+                icon: "app.dashed",
+                title: "Any App",
+                isSelected: viewModel.selectedAppCondition == nil
+            ) {
+                viewModel.clearAppCondition()
             }
+            .accessibilityIdentifier("mapper-app-condition-any")
+
+            onlyInRow
 
             Text("Rule only applies when this app is frontmost")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+        }
+        .sheet(isPresented: $showingAppPickerSheet) {
+            AppConditionPickerSheet(
+                onSelect: { condition in
+                    viewModel.selectedAppCondition = condition
+                },
+                onBrowse: {
+                    viewModel.pickAppCondition()
+                }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var onlyInRow: some View {
+        if let condition = viewModel.selectedAppCondition {
+            // Selected state: custom row with app icon + name + clear button
+            HStack(spacing: 12) {
+                Image(nsImage: condition.icon)
+                    .resizable()
+                    .frame(width: 24, height: 24)
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Only in...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(condition.displayName)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Image(systemName: "checkmark")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.accentColor)
+
+                Button {
+                    viewModel.clearAppCondition()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Clear app condition")
+                .accessibilityIdentifier("mapper-clear-app-condition")
+                .accessibilityLabel("Clear app condition")
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.accentColor.opacity(0.15))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+            )
+            .onTapGesture {
+                showingAppPickerSheet = true
+            }
+            .accessibilityIdentifier("mapper-app-condition-only-in-selected")
+        } else {
+            InspectorButton(
+                icon: "app.badge",
+                title: "Only in...",
+                isSelected: false
+            ) {
+                showingAppPickerSheet = true
+            }
+            .accessibilityIdentifier("mapper-app-condition-only-in")
         }
     }
 

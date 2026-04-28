@@ -225,9 +225,9 @@ final class VimSequenceObserver {
             return  // skip telemetry recording
         }
 
-        // Telemetry: record the keypress. Off by default; the store gates
-        // writes on the user's opt-in flag and is otherwise a no-op.
-        KindaVimTelemetryStore.shared.recordCommand(character)
+        if !character.isEmpty, !Self.isApplePrivateUse(character) {
+            KindaVimTelemetryStore.shared.recordCommand(character)
+        }
     }
 
     private func applyNormalOrVisual(character: String) {
@@ -274,5 +274,10 @@ final class VimSequenceObserver {
 
     private static func isOperator(_ s: String) -> Bool {
         operatorChars.contains(s.lowercased())
+    }
+
+    private static func isApplePrivateUse(_ s: String) -> Bool {
+        guard s.count == 1, let scalar = s.unicodeScalars.first else { return false }
+        return scalar.value >= 0xF700 && scalar.value <= 0xF8FF
     }
 }

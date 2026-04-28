@@ -21,6 +21,7 @@ struct VimHintLayer: View {
     @State private var adapter = KindaVimStateAdapter.shared
     @State private var strategyMonitor = KindaVimStrategyMonitor.shared
     @AppStorage("kindaVim.showAdvancedHints") private var showAdvancedHints: Bool = false
+    @AppStorage("kindaVim.showHintsInTerminals") private var showHintsInTerminals: Bool = false
 
     var body: some View {
         if shouldRender {
@@ -55,7 +56,9 @@ struct VimHintLayer: View {
     /// frontmost app isn't in kindaVim's ignore list. Insert mode and
     /// `.unknown` mode hide the layer entirely.
     private var shouldRender: Bool {
-        guard strategyMonitor.currentStrategy != .ignored else { return false }
+        if strategyMonitor.currentStrategy == .ignored,
+           !(showHintsInTerminals && Self.isTerminalApp(strategyMonitor.currentBundleID))
+        { return false }
         switch adapter.state.mode {
         case .normal, .operatorPending, .visual: return true
         case .insert, .unknown: return false
@@ -128,6 +131,83 @@ struct VimHintLayer: View {
         ]
         return !motionGroups.contains(hint.group)
     }
+
+    nonisolated(unsafe) private static let terminalBundleIDs: Set<String> = [
+        "net.kovidgoyal.kitty",
+        "com.mitchellh.ghostty",
+        "com.apple.Terminal",
+        "com.googlecode.iterm2",
+        "io.alacritty",
+        "dev.warp.Warp-Stable",
+        "co.zeit.hyper",
+        "com.github.wez.wezterm",
+    ]
+
+    nonisolated static func isTerminalApp(_ bundleID: String?) -> Bool {
+        guard let bundleID else { return false }
+        return terminalBundleIDs.contains(bundleID)
+    }
+}
+
+// MARK: - Group colors (ViEmu-inspired pastels)
+
+private func groupColor(for group: VimHint.Group) -> Color {
+    switch group {
+    case .movement: Color(red: 0.4, green: 0.75, blue: 0.45)   // sage green
+    case .wordMotion: Color(red: 0.35, green: 0.65, blue: 0.85) // sky blue
+    case .lineMotion: Color(red: 0.65, green: 0.5, blue: 0.82)  // soft purple
+    case .enterInsert: Color(red: 0.9, green: 0.55, blue: 0.4)  // coral
+    case .edit: Color(red: 0.9, green: 0.7, blue: 0.3)          // warm gold
+    case .operators: Color(red: 0.85, green: 0.4, blue: 0.4)    // muted red
+    case .findChar: Color(red: 0.4, green: 0.72, blue: 0.7)     // teal
+    case .doc: Color(red: 0.65, green: 0.5, blue: 0.82)         // soft purple (same as line)
+    case .page: Color(red: 0.55, green: 0.6, blue: 0.75)        // slate blue
+    case .match: Color(red: 0.7, green: 0.6, blue: 0.5)         // warm gray
+    case .search: Color(red: 0.75, green: 0.6, blue: 0.35)      // amber
+    }
+}
+
+private func shortActionLabel(for hint: VimHint) -> String {
+    switch hint.actionLabel {
+    case "left": return "left"
+    case "down": return "down"
+    case "up": return "up"
+    case "right": return "right"
+    case "word forward": return "word →"
+    case "word back": return "← word"
+    case "end of word": return "end"
+    case "line start": return "start"
+    case "line end": return "end"
+    case "insert before cursor": return "insert"
+    case "append after cursor": return "append"
+    case "open line below": return "open ↓"
+    case "insert at line start": return "Insert"
+    case "append at line end": return "Append"
+    case "open line above": return "open ↑"
+    case "delete char": return "del chr"
+    case "replace char": return "replace"
+    case "undo": return "undo"
+    case "redo": return "redo"
+    case "delete (motion / dd line)": return "delete"
+    case "change (motion / cc line)": return "change"
+    case "yank (motion / yy line)": return "yank"
+    case "find char forward": return "find →"
+    case "find char backward": return "← find"
+    case "to char forward": return "to →"
+    case "to char backward": return "← to"
+    case "doc top": return "top"
+    case "doc bottom": return "bottom"
+    case "half page down": return "½ pg ↓"
+    case "half page up": return "½ pg ↑"
+    case "page down": return "pg ↓"
+    case "page up": return "pg ↑"
+    case "match bracket": return "match"
+    case "search forward": return "search"
+    case "search backward": return "search"
+    case "next match": return "next"
+    case "previous match": return "prev"
+    default: return String(hint.actionLabel.prefix(6))
+    }
 }
 
 // MARK: - Per-key label
@@ -140,47 +220,67 @@ private struct VimHintLabel: View {
 
     var body: some View {
         if isLoud {
-            // hjkl: large arrow glyph centered, normal label ghosts under it.
-            Text(hint.displayLabel)
-                .font(.system(size: max(14, 26 * scale), weight: .heavy))
-                .foregroundStyle(Color.accentColor.opacity(opacity))
-                .shadow(color: .black.opacity(0.4), radius: 1, x: 0, y: 0.5)
+            ZStack {
+                // Fully opaque base to cover the keycap letter
+                RoundedRectangle(cornerRadius: max(4, 6 * scale), style: .continuous)
+                    .fill(.black)
+                // Group-colored tint on top
+                RoundedRectangle(cornerRadius: max(4, 6 * scale), style: .continuous)
+                    .fill(color.opacity(isDimmed ? 0.04 : fillOpacity))
+                RoundedRectangle(cornerRadius: max(4, 6 * scale), style: .continuous)
+                    .strokeBorder(color.opacity(isDimmed ? 0.06 : borderOpacity), lineWidth: max(1, 1.5 * scale))
+                Text(hint.displayLabel)
+                    .font(.system(size: max(10, 18 * scale), weight: .heavy))
+                    .foregroundStyle(color.opacity(isDimmed ? 0.15 : labelOpacity))
+            }
         } else {
-            // Other hints: small chip pinned top-right.
-            VStack(alignment: .trailing) {
-                HStack {
-                    Spacer()
-                    Text(hint.displayLabel)
-                        .font(.system(size: max(7, 9 * scale), weight: .heavy, design: .monospaced))
-                        .foregroundStyle(.white.opacity(opacity))
-                        .padding(.horizontal, 3)
-                        .padding(.vertical, 1)
-                        .background(
-                            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                .fill(chipFill)
-                        )
-                        .padding(2)
-                }
-                Spacer()
+            ZStack(alignment: .top) {
+                fill
+                Text(shortActionLabel(for: hint))
+                    .font(.system(size: max(5, 6 * scale), weight: .heavy))
+                    .foregroundStyle(color.opacity(isDimmed ? 0.15 : labelOpacity))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .padding(.top, max(2, 3 * scale))
+                    .padding(.horizontal, max(1, 2 * scale))
             }
         }
     }
 
-    private var opacity: Double {
-        if isDimmed { return 0.18 }
+    private var fill: some View {
+        RoundedRectangle(cornerRadius: max(4, 6 * scale), style: .continuous)
+            .fill(color.opacity(isDimmed ? 0.03 : fillOpacity))
+            .overlay(
+                RoundedRectangle(cornerRadius: max(4, 6 * scale), style: .continuous)
+                    .strokeBorder(color.opacity(isDimmed ? 0.06 : borderOpacity), lineWidth: max(1, 1.5 * scale))
+            )
+    }
+
+    private var color: Color {
+        groupColor(for: hint.group)
+    }
+
+    private var fillOpacity: Double {
         switch hint.tier {
-        case .core: return 1.0
-        case .secondary: return 0.7
-        case .advanced: return 0.5
+        case .core: return 0.2
+        case .secondary: return 0.1
+        case .advanced: return 0.05
         }
     }
 
-    private var chipFill: Color {
-        if isDimmed { return Color.black.opacity(0.25) }
+    private var borderOpacity: Double {
         switch hint.tier {
-        case .core: return Color.accentColor.opacity(0.55)
-        case .secondary: return Color.accentColor.opacity(0.35)
-        case .advanced: return Color.black.opacity(0.4)
+        case .core: return 0.6
+        case .secondary: return 0.35
+        case .advanced: return 0.2
+        }
+    }
+
+    private var labelOpacity: Double {
+        switch hint.tier {
+        case .core: return 1.0
+        case .secondary: return 0.8
+        case .advanced: return 0.55
         }
     }
 }

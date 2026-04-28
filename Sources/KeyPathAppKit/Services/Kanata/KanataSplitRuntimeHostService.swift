@@ -137,6 +137,39 @@ public final class KanataSplitRuntimeHostService {
         return activeHostProcess?.isRunning == true
     }
 
+    /// Test seam: override the binary-alive check in unit tests.
+    /// Set to `true` or `false` to simulate kanata alive/dead.
+    /// `nil` means use the real pgrep check.
+    #if DEBUG
+        nonisolated(unsafe) static var testBinaryAliveOverride: Bool?
+    #endif
+
+    /// Whether the actual kanata binary (not just the launcher wrapper) is
+    /// running. The launcher can survive after kanata panics inside it, so
+    /// this is the authoritative check for whether remapping is active.
+    /// Synchronous pgrep — call from a detached task if on a cooperative thread.
+    public nonisolated static func isKanataBinaryAlive() -> Bool {
+        #if DEBUG
+            if TestEnvironment.isRunningTests,
+               let override = Self.testBinaryAliveOverride
+            {
+                return override
+            }
+        #endif
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        task.arguments = ["-x", "kanata"]
+        task.standardOutput = Pipe()
+        task.standardError = Pipe()
+        do {
+            try task.run()
+            task.waitUntilExit()
+            return task.terminationStatus == 0
+        } catch {
+            return false
+        }
+    }
+
     // Int instead of pid_t for Sendable compatibility across module boundary
     public var activePersistentHostPID: Int? {
         #if DEBUG

@@ -16,9 +16,8 @@ import SwiftUI
 struct PackCardView: View {
     let pack: Pack
     let isInstalled: Bool
+    var isSelected: Bool = false
     let onSelect: () -> Void
-    /// Invoked when the inline toggle is flipped. Mirrors Pack Detail's
-    /// switch so users can turn a pack on/off without opening the sheet.
     var onToggle: ((Bool) -> Void)? = nil
     var isToggleBusy: Bool = false
 
@@ -202,7 +201,12 @@ struct PackCardView: View {
 
     @ViewBuilder
     private var cardBorder: some View {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .strokeBorder(Color(nsColor: .separatorColor).opacity(0.8), lineWidth: 0.5)
+        if isSelected {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color.accentColor.opacity(0.8), lineWidth: 2)
+        } else {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color(nsColor: .separatorColor).opacity(0.8), lineWidth: 0.5)
+        }
     }
 }

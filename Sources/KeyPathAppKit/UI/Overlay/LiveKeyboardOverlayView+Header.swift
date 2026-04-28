@@ -2,6 +2,45 @@ import AppKit
 import KeyPathCore
 import SwiftUI
 
+// MARK: - Native Drag View
+
+/// Sits in the empty left portion of the header and initiates a native AppKit
+/// window drag on mouseDown. Overrides acceptsFirstMouse so the very first
+/// click from any app (without needing to activate KeyPath first) starts drag.
+private final class NativeDragNSView: NSView {
+    var onDragChange: ((Bool) -> Void)?
+
+    override var acceptsFirstResponder: Bool { false }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: .openHand)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        NSCursor.closedHand.push()
+        onDragChange?(true)
+        window?.performDrag(with: event)
+        onDragChange?(false)
+        NSCursor.pop()
+    }
+}
+
+private struct NativeDragView: NSViewRepresentable {
+    let onDragChange: (Bool) -> Void
+
+    func makeNSView(context: Context) -> NativeDragNSView {
+        let view = NativeDragNSView()
+        view.onDragChange = onDragChange
+        return view
+    }
+
+    func updateNSView(_ nsView: NativeDragNSView, context: Context) {
+        nsView.onDragChange = onDragChange
+    }
+}
+
 // MARK: - Overlay Drag Header + Inspector
 
 /// Subtle dimpled texture to indicate the draggable header area.
@@ -117,8 +156,6 @@ struct OverlayDragHeader: View {
     /// Callback when a layer is deleted
     var onDeleteLayer: ((String) -> Void)?
 
-    @State private var initialFrame: NSRect = .zero
-    @State private var initialMouseLocation: NSPoint = .zero
     @State private var isLayerPickerOpen = false
     @State private var availableLayers: [String] = ["base", "nav"]
     /// Whether the layer pill is expanded (showing name) or collapsed (icon only)
@@ -232,8 +269,11 @@ struct OverlayDragHeader: View {
         let indicatorCornerRadius: CGFloat = 4
 
         HStack(spacing: 0) {
-            // Flexible spacer pushes controls to the trailing edge
-            Spacer()
+            // Native drag zone — fills all empty left space.
+            // acceptsFirstMouse=true means drag starts on the very first click
+            // from any app without needing to activate KeyPath first.
+            NativeDragView { isDragging = $0 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Controls aligned to the right side of the header
             // Order: Status indicators (left) → Drawer → Close (far right)
@@ -276,27 +316,6 @@ struct OverlayDragHeader: View {
         .clipped()
         .background(DragHandleTexture(isDark: isDark))
         .contentShape(Rectangle())
-        // Use simultaneousGesture so child buttons can still receive taps
-        // Increased minimumDistance to 5 to distinguish taps from drags
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 5, coordinateSpace: .global)
-                .onChanged { _ in
-                    if !isDragging {
-                        if let window = findOverlayWindow() {
-                            initialFrame = window.frame
-                            initialMouseLocation = NSEvent.mouseLocation
-                        }
-                        isDragging = true
-                    }
-                    let currentMouse = NSEvent.mouseLocation
-                    let deltaX = currentMouse.x - initialMouseLocation.x
-                    let deltaY = currentMouse.y - initialMouseLocation.y
-                    moveWindow(deltaX: deltaX, deltaY: deltaY)
-                }
-                .onEnded { _ in
-                    isDragging = false
-                }
-        )
         .onAppear {
             refreshAvailableLayers()
             Task { await refreshKindaVimPackInstalled() }
@@ -862,14 +881,6 @@ struct OverlayDragHeader: View {
         .help("Not receiving events from Kanata")
         .accessibilityIdentifier("overlay-kanata-disconnected-indicator")
         .accessibilityLabel("Not connected to Kanata TCP server")
-    }
-
-    private func moveWindow(deltaX: CGFloat, deltaY: CGFloat) {
-        guard let window = findOverlayWindow() else { return }
-        var newOrigin = initialFrame.origin
-        newOrigin.x += deltaX
-        newOrigin.y += deltaY
-        window.setFrameOrigin(newOrigin)
     }
 
     private func findOverlayWindow() -> NSWindow? {

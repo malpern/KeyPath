@@ -16,6 +16,7 @@ import SwiftUI
 struct KindaVimInsightsView: View {
     @State private var snapshot = KindaVimTelemetrySnapshot()
     @State private var refreshTimer: Timer?
+    @State private var showAllCommands = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -221,17 +222,31 @@ struct KindaVimInsightsView: View {
 
     @ViewBuilder
     private var usageBars: some View {
-        let entries = topCommands
+        let all = topCommands
+        let visible = showAllCommands ? all : Array(all.prefix(8))
         VStack(alignment: .leading, spacing: 6) {
             sectionHeader("What you're using")
-            if entries.isEmpty {
+            if all.isEmpty {
                 Text("No commands recorded yet.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             } else {
-                let maxCount = entries.first?.count ?? 1
-                ForEach(entries, id: \.key) { entry in
+                let maxCount = all.first?.count ?? 1
+                ForEach(visible, id: \.key) { entry in
                     usageRow(entry: entry, maxCount: maxCount)
+                }
+                if all.count > 8 {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            showAllCommands.toggle()
+                        }
+                    } label: {
+                        Text(showAllCommands ? "Show less" : "Show more (\(all.count - 8) more)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("kindavim-insights-show-more")
                 }
             }
         }
@@ -262,6 +277,7 @@ struct KindaVimInsightsView: View {
 
     private var topCommands: [UsageEntry] {
         snapshot.commandFrequency
+            .filter { !$0.key.isEmpty }
             .map { (key, count) in
                 UsageEntry(
                     key: key,
@@ -271,19 +287,39 @@ struct KindaVimInsightsView: View {
                 )
             }
             .sorted { $0.count > $1.count }
-            .prefix(12)
-            .map { $0 }
     }
 
-    /// Translate the kanata physical-key name we record into the
-    /// human-readable label we want to show ("slash" → "/").
     private static func displayLabel(for key: String) -> String {
         switch key {
+        case "\u{1B}": return "Esc"
+        case "\t": return "Tab"
+        case "\r", "\n": return "Ret"
+        case " ": return "Spc"
+        case "": return "?"
         case "slash": return "/"
-        case "0": return "0"
-        case "1", "2", "3", "4", "5", "6", "7", "8", "9":
+        case "\u{F700}": return "↑"
+        case "\u{F701}": return "↓"
+        case "\u{F702}": return "←"
+        case "\u{F703}": return "→"
+        case "\u{F704}"..."\u{F70F}": return "F\(key.unicodeScalars.first!.value - 0xF704 + 1)"
+        case "\u{F72C}": return "PgUp"
+        case "\u{F72D}": return "PgDn"
+        case "\u{F729}": return "Home"
+        case "\u{F72B}": return "End"
+        case "\u{F728}": return "Del"
+        default:
+            if key.count == 1, let scalar = key.unicodeScalars.first {
+                if scalar.value < 0x20 {
+                    if let mapped = UnicodeScalar(scalar.value + 0x40) {
+                        return "⌃\(Character(mapped))"
+                    }
+                    return "⌃?"
+                }
+                if scalar.value >= 0xF700, scalar.value <= 0xF8FF {
+                    return "?"
+                }
+            }
             return key
-        default: return key
         }
     }
 
@@ -291,7 +327,7 @@ struct KindaVimInsightsView: View {
         HStack(spacing: 10) {
             Text(entry.displayLabel)
                 .font(.system(size: 13, weight: .heavy, design: .monospaced))
-                .frame(width: 26, alignment: .leading)
+                .frame(width: 36, alignment: .leading)
             GeometryReader { geo in
                 let fraction = CGFloat(entry.count) / CGFloat(max(maxCount, 1))
                 let width = geo.size.width * fraction

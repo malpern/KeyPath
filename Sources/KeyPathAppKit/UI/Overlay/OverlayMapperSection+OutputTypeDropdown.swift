@@ -6,31 +6,11 @@ extension OverlayMapperSection {
     var outputTypeDropdown: some View {
         let currentType = outputTypeDisplayInfo
 
-        return Button {
-            isSystemActionPickerOpen = true
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: currentType.icon)
-                    .font(.caption2)
-                Text(currentType.label)
-                    .lineLimit(1)
-                Image(systemName: "chevron.down")
-                    .font(.caption2)
-            }
-            .font(.caption2)
-            .foregroundStyle(currentType.isDefault ? .secondary : .primary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(currentType.isDefault ? Color.primary.opacity(0.04) : Color.accentColor.opacity(0.15))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(currentType.isDefault ? Color.primary.opacity(0.2) : Color.accentColor.opacity(0.3), lineWidth: 0.5)
-            )
-        }
-        .buttonStyle(.plain)
+        return HoverDropdownButton(
+            text: currentType.label,
+            sfSymbol: currentType.icon,
+            action: { isSystemActionPickerOpen = true }
+        )
         .accessibilityIdentifier("overlay-mapper-output-type")
         .accessibilityLabel("Select output action type")
         .popover(isPresented: $isSystemActionPickerOpen, arrowEdge: .bottom) {

@@ -66,6 +66,15 @@ final class KindaVimStrategyMonitor {
                 self?.handleFrontmostAppChanged(bundleID: app.bundleIdentifier)
             }
         }
+
+        // Also poll shortly after launch — at startup, KeyPath itself is
+        // frontmost and the real user app hasn't re-activated yet.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            guard let self, self.monitoringCount > 0 else { return }
+            let current = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+            self.handleFrontmostAppChanged(bundleID: current)
+        }
     }
 
     func stopMonitoring() {
@@ -102,11 +111,11 @@ final class KindaVimStrategyMonitor {
 
     private func recomputeStrategy() {
         let resolved = resolver.strategy(for: currentBundleID, lists: lists)
+        AppLogger.shared.log(
+            "👀 [KindaVimStrategy] recompute: bundle=\(currentBundleID ?? "nil") → \(resolved.rawValue) (was \(currentStrategy.rawValue), ignored=\(lists.ignored))"
+        )
         guard resolved != currentStrategy else { return }
         currentStrategy = resolved
-        AppLogger.shared.log(
-            "👀 [KindaVimStrategy] strategy → \(resolved.rawValue) (bundle=\(currentBundleID ?? "nil"))"
-        )
         // Telemetry: sample on every app-switch transition. Off by
         // default; the store gates writes on the user's opt-in flag.
         KindaVimTelemetryStore.shared.recordStrategySample(resolved.rawValue)

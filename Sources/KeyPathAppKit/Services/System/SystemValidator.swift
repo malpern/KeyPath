@@ -514,18 +514,23 @@ public class SystemValidator {
         AppLogger.shared.log("🔍 [SystemValidator] checkHealth() ENTRY - Starting system health check")
         let startTime = Date()
 
-        // Check service status via ServiceHealthChecker (extracted from LaunchDaemonInstaller)
+        // Check service health via process detection + TCP probe.
+        // kanata-launcher can survive (and even hold the TCP socket) after
+        // kanata itself has panicked, so we also verify the kanata binary
+        // is running via pgrep.
         AppLogger.shared.log("🔍 [SystemValidator] checkHealth() - About to check Kanata service health...")
         let kanataStart = Date()
-        let launchdKanataRunning = await ServiceHealthChecker.shared.isServiceHealthy(serviceID: "com.keypath.kanata")
-        // Also check split runtime host — it launches kanata-launcher as a direct child Process(),
-        // not via launchd, so ServiceHealthChecker won't see it.
-        let splitRuntimeRunning = KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning
-        let kanataRunning = launchdKanataRunning || splitRuntimeRunning
+        let kanataHealth = await ServiceHealthChecker.shared.checkKanataServiceHealth(
+            tcpPort: PreferencesService.shared.tcpServerPort
+        )
+        let kanataBinaryAlive = await Task.detached {
+            KanataSplitRuntimeHostService.isKanataBinaryAlive()
+        }.value
+        let kanataRunning = kanataHealth.isRunning && kanataBinaryAlive
         let kanataInputCapture = await ServiceHealthChecker.shared.checkKanataInputCaptureStatus()
         let kanataDuration = Date().timeIntervalSince(kanataStart)
         AppLogger.shared.log(
-            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: \(kanataRunning) (launchd=\(launchdKanataRunning), splitRuntime=\(splitRuntimeRunning)), inputCaptureReady=\(kanataInputCapture.isReady) (took \(String(format: "%.3f", kanataDuration))s)"
+            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: hostRunning=\(kanataHealth.isRunning), binaryAlive=\(kanataBinaryAlive), tcpResponding=\(kanataHealth.isResponding), healthy=\(kanataRunning), inputCaptureReady=\(kanataInputCapture.isReady) (took \(String(format: "%.3f", kanataDuration))s)"
         )
 
         // Use launchctl-based check instead of unreliable pgrep

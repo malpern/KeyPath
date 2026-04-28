@@ -25,6 +25,7 @@ struct GeneralSettingsTabView: View {
             VStack(alignment: .leading, spacing: 24) {
                 // Shortcut List
                 ContextHUDSettingsSection()
+                LayerIndicatorToggle()
 
                 // Key Label Style
                 VStack(alignment: .leading, spacing: 8) {
@@ -221,6 +222,29 @@ struct GeneralSettingsTabView: View {
             AppLogger.shared.log("❌ [Settings] Failed to open log file: \(error.localizedDescription)")
             settingsToastManager.showError("Failed to open log file")
         }
+    }
+}
+
+// MARK: - Layer Indicator Toggle
+
+struct LayerIndicatorToggle: View {
+    @AppStorage("KeyPath.layerIndicatorDisabled") private var disabled: Bool = true
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Layer change notification")
+                    .font(.system(size: 13, weight: .medium))
+                Text("Shows a banner and plays a sound when switching layers.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Toggle("", isOn: Binding(get: { !disabled }, set: { disabled = !$0 }))
+                .labelsHidden()
+                .toggleStyle(.switch)
+        }
+        .accessibilityIdentifier("settings-layer-indicator-toggle")
     }
 }
 

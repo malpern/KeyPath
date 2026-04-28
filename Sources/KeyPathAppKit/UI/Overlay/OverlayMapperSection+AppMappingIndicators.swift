@@ -79,6 +79,76 @@ extension OverlayMapperSection {
         }
     }
 
+    var behaviorSectionHeader: some View {
+        HStack {
+            Text("Behavior")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+    }
+
+    func behaviorSlotOption(for slot: BehaviorSlot) -> some View {
+        let isSelected = selectedBehaviorSlot == slot
+        let isConfigured = configuredBehaviorSlots.contains(slot)
+
+        return Button {
+            selectedBehaviorSlot = slot
+            if slot == .tap {
+                isAppConditionPickerOpen = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    showTapCountPicker = true
+                }
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: behaviorSlotIcon(slot))
+                    .font(.title3)
+                    .frame(width: 28)
+                    .foregroundStyle(.secondary)
+                Text(tapSlotLabel(for: slot))
+                    .font(.body)
+                Spacer()
+                if isConfigured, !isSelected {
+                    Circle()
+                        .fill(Color.accentColor)
+                        .frame(width: 5, height: 5)
+                }
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.body)
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("behavior-picker-\(slot.rawValue)")
+    }
+
+    private func tapSlotLabel(for slot: BehaviorSlot) -> String {
+        guard slot == .tap else { return slot.label }
+        return switch selectedTapCount {
+        case 2: "Tap (2×)"
+        case 3: "Tap (3×)"
+        default: "Tap"
+        }
+    }
+
+    private func behaviorSlotIcon(_ slot: BehaviorSlot) -> String {
+        switch slot {
+        case .tap: "hand.tap"
+        case .hold: "hand.point.down"
+        case .shift: "shift"
+        case .combo: "rectangle.on.rectangle.angled"
+        }
+    }
+
     var tapCountHeader: some View {
         HStack {
             Text("Trigger")
@@ -167,54 +237,30 @@ extension OverlayMapperSection {
         .padding(.vertical, 6)
     }
 
-    var onlyInHeader: some View {
-        HStack {
-            Text("Only in...")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-    }
-
-    @ViewBuilder
-    var runningAppsList: some View {
-        if cachedRunningApps.isEmpty {
-            HStack {
-                Spacer()
-                Text("No apps running")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
+    var onlyInOption: some View {
+        let isSelected = viewModel.selectedAppCondition != nil
+        return Button {
+            isAppConditionPickerOpen = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                showingAppPickerSheet = true
             }
-            .padding(.vertical, 12)
-        } else {
-            ForEach(cachedRunningApps, id: \.processIdentifier) { app in
-                runningAppButton(for: app)
-            }
-        }
-    }
-
-    func runningAppButton(for app: NSRunningApplication) -> some View {
-        Button {
-            selectRunningApp(app)
         } label: {
             HStack(spacing: 10) {
-                if let icon = app.icon {
-                    Image(nsImage: icon)
+                if let app = viewModel.selectedAppCondition {
+                    Image(nsImage: app.icon)
                         .resizable()
                         .frame(width: 24, height: 24)
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
                 } else {
                     Image(systemName: "app")
                         .font(.title3)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 28)
                 }
-                Text(app.localizedName ?? "Unknown")
+                Text(viewModel.selectedAppCondition.map { "Only in \($0.displayName)" } ?? "Only in...")
                     .font(.body)
                     .lineLimit(1)
                 Spacer()
-                if viewModel.selectedAppCondition?.bundleIdentifier == app.bundleIdentifier {
+                if isSelected {
                     Image(systemName: "checkmark")
                         .font(.body)
                         .foregroundStyle(Color.accentColor)
@@ -222,49 +268,13 @@ extension OverlayMapperSection {
             }
             .foregroundStyle(.primary)
             .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.vertical, isSelected ? 8 : 10)
             .contentShape(Rectangle())
         }
         .buttonStyle(LayerPickerItemButtonStyle())
         .focusable(false)
-        .accessibilityIdentifier("overlay-mapper-running-app-\(app.bundleIdentifier ?? "pid-\(app.processIdentifier)")")
-        .accessibilityLabel(app.localizedName ?? "Unknown app")
-    }
-
-    func selectRunningApp(_ app: NSRunningApplication) {
-        if let bundleId = app.bundleIdentifier,
-           let name = app.localizedName
-        {
-            let icon = app.icon ?? NSWorkspace.shared.icon(forFile: app.bundleURL?.path ?? "")
-            viewModel.selectedAppCondition = AppConditionInfo(
-                bundleIdentifier: bundleId,
-                displayName: name,
-                icon: icon
-            )
-        }
-        isAppConditionPickerOpen = false
-    }
-
-    var chooseAppOption: some View {
-        Button {
-            isAppConditionPickerOpen = false
-            pickAppForCondition()
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "folder")
-                    .font(.title3)
-                    .frame(width: 28)
-                Text("Choose App...")
-                    .font(.body)
-                Spacer()
-            }
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(LayerPickerItemButtonStyle())
-        .focusable(false)
+        .accessibilityIdentifier("overlay-mapper-only-in-app")
+        .accessibilityLabel(viewModel.selectedAppCondition.map { "Only in \($0.displayName)" } ?? "Only in...")
     }
 
     /// Clear all behavior slots for the current key (tap, hold, combo)
@@ -328,11 +338,15 @@ extension OverlayMapperSection {
         panel.allowsMultipleSelection = false
         panel.message = "Choose an app for this rule to apply only when it's active"
 
-        if panel.runModal() == .OK, let url = panel.url {
+        let vm = viewModel
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
             let displayName = url.deletingPathExtension().lastPathComponent
             let icon = NSWorkspace.shared.icon(forFile: url.path)
             let bundleId = Bundle(url: url)?.bundleIdentifier ?? url.lastPathComponent
-            viewModel.selectedAppCondition = AppConditionInfo(bundleIdentifier: bundleId, displayName: displayName, icon: icon)
+            DispatchQueue.main.async {
+                vm.selectedAppCondition = AppConditionInfo(bundleIdentifier: bundleId, displayName: displayName, icon: icon)
+            }
         }
     }
 

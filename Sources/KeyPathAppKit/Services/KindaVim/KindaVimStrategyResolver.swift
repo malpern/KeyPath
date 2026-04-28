@@ -74,7 +74,16 @@ struct KindaVimStrategyResolver: Sendable {
     }
 
     private static func stringSet(in plist: [String: Any], forKey key: String) -> Set<String> {
-        guard let array = plist[key] as? [Any] else { return [] }
-        return Set(array.compactMap { $0 as? String })
+        if let array = plist[key] as? [Any] {
+            return Set(array.compactMap { $0 as? String })
+        }
+        // kindaVim stores these as JSON-encoded strings, not plist arrays
+        if let jsonString = plist[key] as? String,
+           let data = jsonString.data(using: .utf8),
+           let parsed = try? JSONSerialization.jsonObject(with: data) as? [String]
+        {
+            return Set(parsed)
+        }
+        return []
     }
 }

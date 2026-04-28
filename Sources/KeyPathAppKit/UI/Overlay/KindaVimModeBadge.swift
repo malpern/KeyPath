@@ -8,6 +8,8 @@ import SwiftUI
 struct KindaVimModeBadge: View {
     @State private var adapter = KindaVimStateAdapter.shared
     @State private var sequenceObserver = VimSequenceObserver.shared
+    @State private var strategyMonitor = KindaVimStrategyMonitor.shared
+    @AppStorage("kindaVim.showHintsInTerminals") private var showHintsInTerminals: Bool = false
     let isPackInstalled: Bool
 
     var body: some View {
@@ -67,7 +69,10 @@ struct KindaVimModeBadge: View {
     }
 
     private var shouldRender: Bool {
-        adapter.state.mode != .unknown
+        if strategyMonitor.currentStrategy == .ignored,
+           !(showHintsInTerminals && VimHintLayer.isTerminalApp(strategyMonitor.currentBundleID))
+        { return false }
+        return adapter.state.mode != .unknown
     }
 
     private func tint(for mode: KindaVimStateAdapter.Mode) -> Color {

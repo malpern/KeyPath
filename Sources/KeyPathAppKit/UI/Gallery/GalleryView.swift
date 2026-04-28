@@ -19,6 +19,15 @@ struct GalleryView: View {
     @State private var busyPackIDs: Set<String> = []
     @State private var installAlert: InstallAlert?
     @State private var packConflict: PackConflictState?
+    @State private var selectedPackID: String?
+    @FocusState private var isGalleryFocused: Bool
+
+    private var allPacks: [Pack] { PackRegistry.starterKit }
+
+    private var selectedPack: Pack? {
+        guard let id = selectedPackID else { return nil }
+        return allPacks.first { $0.id == id }
+    }
 
     private struct InstallAlert: Identifiable {
         let id = UUID()
@@ -34,8 +43,34 @@ struct GalleryView: View {
             content
         }
         .frame(minWidth: 560, idealWidth: 780, minHeight: 420, idealHeight: 520)
+        .focusable()
+        .focusEffectDisabled()
+        .focused($isGalleryFocused)
         .task {
             await refreshInstalledIDs()
+            if selectedPackID == nil {
+                selectedPackID = allPacks.first?.id
+            }
+        }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isGalleryFocused = true
+            }
+        }
+        .onKeyPress(keys: [.upArrow, .leftArrow]) { _ in moveSelection(-1); return .handled }
+        .onKeyPress(keys: [.downArrow, .rightArrow]) { _ in moveSelection(1); return .handled }
+        .onKeyPress(characters: CharacterSet(charactersIn: "kh")) { _ in moveSelection(-1); return .handled }
+        .onKeyPress(characters: CharacterSet(charactersIn: "jl")) { _ in moveSelection(1); return .handled }
+        .onKeyPress(.space) {
+            if let pack = selectedPack { packForDetail = pack }
+            return .handled
+        }
+        .onKeyPress(.return) {
+            if let pack = selectedPack {
+                let newValue = !installedIDs.contains(pack.id)
+                Task { await togglePack(pack, to: newValue) }
+            }
+            return .handled
         }
         .sheet(item: $packForDetail, onDismiss: { Task { await refreshInstalledIDs() } }) { pack in
             PackDetailView(pack: pack)
@@ -154,17 +189,40 @@ struct GalleryView: View {
                     PackCardView(
                         pack: pack,
                         isInstalled: installedIDs.contains(pack.id),
-                        onSelect: { packForDetail = pack },
+                        isSelected: selectedPackID == pack.id,
+                        onSelect: {
+                            selectedPackID = pack.id
+                            packForDetail = pack
+                        },
                         onToggle: { newValue in
                             Task { await togglePack(pack, to: newValue) }
                         },
                         isToggleBusy: busyPackIDs.contains(pack.id)
                     )
+                    .onTapGesture {
+                        selectedPackID = pack.id
+                        isGalleryFocused = true
+                    }
                 }
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 14)
         }
+    }
+
+    // MARK: - Keyboard navigation
+
+    private func moveSelection(_ delta: Int) {
+        let packs = allPacks
+        guard !packs.isEmpty else { return }
+        guard let currentID = selectedPackID,
+              let idx = packs.firstIndex(where: { $0.id == currentID })
+        else {
+            selectedPackID = packs.first?.id
+            return
+        }
+        let newIdx = min(max(idx + delta, 0), packs.count - 1)
+        selectedPackID = packs[newIdx].id
     }
 
     // MARK: - State

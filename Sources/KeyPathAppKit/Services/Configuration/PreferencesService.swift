@@ -403,7 +403,7 @@ final class PreferencesService: @unchecked Sendable {
         static let contextHUDTimeout: TimeInterval = 3.0
         static let contextHUDHoldDelayPreset = ContextHUDHoldDelayPreset.long
         static let contextHUDHoldDelayCustomMs = 200
-        static let kindaVimLeaderHUDMode = KindaVimLeaderHUDMode.contextualCoach
+        static let kindaVimLeaderHUDMode = KindaVimLeaderHUDMode.off
         static let neovimReferenceTopics = NeovimTerminalCategory.defaultRawValues
         static let neovimReferenceTopicsVersion = 2
         // Figma uses hold-Space for pan/navigate; the overlay's hold-Space

@@ -289,7 +289,15 @@ final class ServiceLifecycleCoordinator {
         }
 
         if KanataSplitRuntimeHostService.shared.isPersistentPassthruHostRunning {
-            return .running(pid: Int(KanataSplitRuntimeHostService.shared.activePersistentHostPID ?? 0))
+            let binaryAlive = await Task.detached {
+                KanataSplitRuntimeHostService.isKanataBinaryAlive()
+            }.value
+            if binaryAlive {
+                return .running(pid: Int(KanataSplitRuntimeHostService.shared.activePersistentHostPID ?? 0))
+            } else {
+                AppLogger.shared.warn("⚠️ [Service] Launcher alive but kanata binary dead — reporting stopped")
+                return .stopped
+            }
         }
 
         // Secondary check: the legacy recovery daemon may still be active during

@@ -125,13 +125,14 @@ final class OverlayHealthIndicatorObserver {
 
         switch state {
         case nil, .checking:
-            // Debounce the "checking" state to prevent brief flashes when validation is quick
-            // Only show "checking" if we're not already in a good state or if it persists
-            if currentState == .dismissed || currentState == .healthy {
-                // Already in good state - debounce before showing "checking"
+            if currentState == .dismissed {
+                // Routine re-check from a healthy state — don't flash the
+                // checking indicator. If the result comes back unhealthy,
+                // the .failed branch will show the issue directly.
+                return
+            } else if currentState == .healthy {
                 scheduleCheckingState()
             } else {
-                // Already showing checking or unhealthy - update immediately
                 setState(.checking)
             }
         case .success:

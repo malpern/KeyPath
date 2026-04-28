@@ -1,7 +1,3 @@
-// Custom Pack Detail block for the KindaVim Mode Display pack. Shows
-// whether the kindaVim.app companion is installed, the current mode if
-// available, and a link to the project's homepage when it isn't.
-
 import SwiftUI
 
 @MainActor
@@ -9,15 +5,19 @@ struct KindaVimStatusBlock: View {
     @State private var adapter = KindaVimStateAdapter.shared
     @State private var strategyMonitor = KindaVimStrategyMonitor.shared
     @AppStorage("kindaVim.showAdvancedHints") private var showAdvancedHints: Bool = false
+    @AppStorage("kindaVim.showHintsInTerminals") private var showHintsInTerminals: Bool = false
     @AppStorage("kindaVim.telemetryEnabled") private var telemetryEnabled: Bool = false
+
     @State private var appInstalled: Bool = FileManager.default
         .fileExists(atPath: "/Applications/kindaVim.app")
     @State private var showClearTelemetryConfirmation: Bool = false
+    @State private var showTerminalInfo: Bool = false
 
     private static let websiteURL = URL(string: "https://kindavim.app")!
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // 1. Status
             row(
                 label: "KindaVim app",
                 value: appInstalled ? "Installed" : "Not installed",
@@ -33,26 +33,63 @@ struct KindaVimStatusBlock: View {
                 value: strategyMonitor.currentStrategy.displayName,
                 tint: strategyTint
             )
-            Divider()
-            Toggle(isOn: $showAdvancedHints) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Show all keys (advanced)")
-                        .font(.system(size: 12, weight: .medium))
-                    Text("Adds page motions, search, and bracket-match hints.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .toggleStyle(.switch)
-            .controlSize(.small)
-            .accessibilityIdentifier("kindavim-status-show-advanced")
 
+            if !appInstalled {
+                Button("Get KindaVim →") {
+                    NSWorkspace.shared.open(Self.websiteURL)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("kindavim-status-get-kindavim")
+            }
+
+            // 2. Stats
             Divider()
             telemetrySection
 
             if telemetryEnabled {
-                Divider()
                 KindaVimInsightsView()
+            }
+
+            // 3. Config
+            Divider()
+            rightAlignedToggle(
+                "Show all keys (advanced)",
+                subtitle: "Adds page motions, search, and bracket-match hints.",
+                isOn: $showAdvancedHints,
+                id: "kindavim-status-show-advanced"
+            )
+
+            rightAlignedToggle(
+                "Show vim hints in terminal apps",
+                subtitle: "Shows keycap hints and mode badge in Kitty, Ghostty, Terminal, iTerm, and other terminals — even when they're in KindaVim's ignore list.",
+                isOn: $showHintsInTerminals,
+                id: "kindavim-status-show-hints-terminals"
+            )
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { showTerminalInfo.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .rotationEffect(.degrees(showTerminalInfo ? 90 : 0))
+                    Text("Setting up vim mode in Terminal")
+                        .font(.system(size: 11, weight: .medium))
+                    Spacer()
+                }
+                .foregroundStyle(.secondary)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("kindavim-status-terminal-info")
+
+            if showTerminalInfo {
+                Text("Terminal apps are usually in KindaVim's ignore list. To practice vim motions there, add `bindkey -v` to your ~/.zshrc to enable zsh's built-in vi mode, then turn on \"Show vim hints in terminal apps\" above.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 15)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             Divider()
@@ -62,14 +99,6 @@ struct KindaVimStatusBlock: View {
             .font(.system(size: 12))
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
-
-            if !appInstalled {
-                Button("Get KindaVim →") {
-                    NSWorkspace.shared.open(Self.websiteURL)
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("kindavim-status-get-kindavim")
-            }
         }
         .animation(.easeInOut(duration: 0.35), value: telemetryEnabled)
         .onAppear {
@@ -95,34 +124,48 @@ struct KindaVimStatusBlock: View {
 
     @ViewBuilder
     private var telemetrySection: some View {
-        Toggle(isOn: $telemetryEnabled) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Record local KindaVim usage stats")
-                    .font(.system(size: 12, weight: .medium))
-                Text(
-                    "Used by KeyPath to show you which vim commands you use " +
-                    "most. This data stays on your Mac and is never sent " +
-                    "anywhere."
-                )
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .toggleStyle(.switch)
-        .controlSize(.small)
-        .accessibilityIdentifier("kindavim-status-telemetry-toggle")
+        rightAlignedToggle(
+            "Record local KindaVim usage stats",
+            subtitle: "Used by KeyPath to show you which vim commands you use most. This data stays on your Mac and is never sent anywhere.",
+            isOn: $telemetryEnabled,
+            id: "kindavim-status-telemetry-toggle"
+        )
 
         if telemetryEnabled {
             Button(role: .destructive) {
                 showClearTelemetryConfirmation = true
             } label: {
-                Text("Clear all KindaVim usage data")
+                Label("Clear all usage data…", systemImage: "trash")
                     .font(.system(size: 11))
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
             .accessibilityIdentifier("kindavim-status-clear-telemetry")
         }
+    }
+
+    private func rightAlignedToggle(
+        _ title: String,
+        subtitle: String,
+        isOn: Binding<Bool>,
+        id: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            Toggle("", isOn: isOn)
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .labelsHidden()
+        }
+        .accessibilityIdentifier(id)
     }
 
     @ViewBuilder
@@ -140,9 +183,6 @@ struct KindaVimStatusBlock: View {
 
     private var modeDisplay: String {
         let mode = adapter.state.mode
-        // We deliberately ignore `isStale` here — kindaVim only writes the
-        // environment file on mode transitions, so staleness is the steady
-        // state, not a "lost signal" condition.
         if mode == .unknown { return "—" }
         return mode.displayName
     }

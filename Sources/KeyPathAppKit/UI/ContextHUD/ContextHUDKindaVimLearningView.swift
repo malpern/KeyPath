@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Mode-aware KindaVim teaching view for leader-hold Context HUD.
-/// This view is intentionally non-interactive (HUD window is click-through).
 struct ContextHUDKindaVimLearningView: View {
     let groups: [HUDKeyGroup]
     let state: KindaVimStateAdapter.StateSnapshot?
@@ -10,12 +8,7 @@ struct ContextHUDKindaVimLearningView: View {
     @State private var strategyMonitor = KindaVimStrategyMonitor.shared
     @State private var sequenceObserver = VimSequenceObserver.shared
     @AppStorage("kindaVim.showAdvancedHints") private var showAdvancedHints: Bool = false
-
-    private struct CommandItem: Identifiable {
-        let id = UUID()
-        let keys: String
-        let meaning: String
-    }
+    @AppStorage("kindaVim.showHintsInTerminals") private var showHintsInTerminals: Bool = false
 
     private var mode: KindaVimStateAdapter.Mode {
         guard let state, !state.isStale, state.mode != .unknown else {
@@ -24,196 +17,204 @@ struct ContextHUDKindaVimLearningView: View {
         return state.mode
     }
 
-    private var isLiveMode: Bool {
-        guard let state else { return false }
-        return !state.isStale && state.mode != .unknown
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            modeStrip
-            sourceLine
-
-            if modeSetting == .contextualCoach {
-                coachSection
+        VStack(alignment: .leading, spacing: 0) {
+            if strategyMonitor.currentStrategy == .ignored,
+               !(showHintsInTerminals && VimHintLayer.isTerminalApp(strategyMonitor.currentBundleID))
+            {
+                ignoredStrategyHint
+            } else if mode == .insert {
+                insertModeHints
+            } else {
+                commandGrid
             }
 
-            quickReferenceSection
-            leaderShortcutsSection
+            if hasLeaderShortcuts {
+                Divider()
+                    .background(Color.white.opacity(0.08))
+                    .padding(.vertical, 10)
+                leaderShortcutsFooter
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var modeStrip: some View {
-        HStack(spacing: 10) {
-            ForEach([KindaVimStateAdapter.Mode.insert, .normal, .visual], id: \.self) { current in
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(current == mode ? modeColor(current) : modeColor(current).opacity(0.35))
-                        .frame(width: 7, height: 7)
-                    Text(current.displayName)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(current == mode ? .white : .white.opacity(0.7))
+    // MARK: - Command grid (4 columns)
+
+    private var commandGrid: some View {
+        let allGroups = VimBindings.grouped(
+            strategy: strategyMonitor.currentStrategy,
+            mode: mode,
+            showAdvanced: showAdvancedHints
+        )
+        let columns = distributeColumns(allGroups, count: 4)
+
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 32) {
+                ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
+                    VStack(alignment: .leading, spacing: 24) {
+                        ForEach(Array(column.enumerated()), id: \.offset) { _, group in
+                            groupSection(group)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+            }
+
+            if mode == .operatorPending {
+                operatorPendingCallout
+                    .padding(.top, 14)
+            }
+        }
+    }
+
+    private func distributeColumns(_ groups: [VimHintGroup], count: Int) -> [[VimHintGroup]] {
+        guard !groups.isEmpty else { return [] }
+
+        var columns: [[VimHintGroup]] = Array(repeating: [], count: count)
+        var heights: [Int] = Array(repeating: 0, count: count)
+
+        for group in groups {
+            let weight = group.entries.count + 2
+            let minIdx = heights.enumerated().min(by: { $0.element < $1.element })!.offset
+            columns[minIdx].append(group)
+            heights[minIdx] += weight
+        }
+
+        return columns.filter { !$0.isEmpty }
+    }
+
+    // MARK: - Group section
+
+    private func groupSection(_ group: VimHintGroup) -> some View {
+        let isMovement = group.group == .movement
+
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(group.displayName)
+                .font(.system(size: 14, weight: .heavy))
+                .foregroundStyle(.white.opacity(0.5))
+
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(group.entries) { entry in
+                    entryRow(entry, loud: isMovement && entry.tier == .core)
+                }
+            }
+        }
+    }
+
+    private func entryRow(_ hint: VimHint, loud: Bool) -> some View {
+        HStack(spacing: 0) {
+            Text(hint.displayLabel)
+                .font(.system(size: loud ? 18 : 15, weight: .bold, design: .monospaced))
+                .foregroundStyle(.white)
+                .frame(width: loud ? 40 : 32, alignment: .center)
+                .padding(.vertical, loud ? 4 : 2)
                 .background(
-                    Capsule()
-                        .fill(current == mode ? modeColor(current).opacity(0.3) : .white.opacity(0.06))
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(entryChipFill(hint, loud: loud))
                 )
-                .overlay(
-                    Capsule()
-                        .stroke(current == mode ? modeColor(current).opacity(0.8) : .white.opacity(0.15), lineWidth: 1)
-                )
-            }
+
+            Text(hint.actionLabel)
+                .font(.system(size: loud ? 15 : 14))
+                .foregroundStyle(.white.opacity(loud ? 0.85 : 0.5))
+                .padding(.leading, 10)
         }
     }
 
-    private var sourceLine: some View {
-        HStack(spacing: 7) {
-            Image(systemName: isLiveMode ? "dot.radiowaves.left.and.right" : "exclamationmark.circle")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(isLiveMode ? Color.green : Color.orange)
-            Text(modeSourceDescription)
-                .font(.footnote)
-                .lineSpacing(1.5)
-                .foregroundStyle(.white.opacity(0.72))
+    private func entryChipFill(_ hint: VimHint, loud: Bool) -> Color {
+        if loud { return Color.accentColor.opacity(0.45) }
+        switch hint.tier {
+        case .core: return .white.opacity(0.12)
+        case .secondary: return .white.opacity(0.07)
+        case .advanced: return .white.opacity(0.04)
         }
     }
 
-    private var coachSection: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text("Now")
-                .font(.footnote.monospaced().weight(.semibold))
-                .foregroundStyle(modeColor(mode).opacity(0.9))
-                .tracking(1.2)
-
-            ForEach(coachLines(for: mode), id: \.self) { line in
-                Text(line)
-                    .font(.footnote)
-                    .lineSpacing(1.5)
-                    .foregroundStyle(.white.opacity(0.9))
-            }
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(modeColor(mode).opacity(0.15))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(modeColor(mode).opacity(0.35), lineWidth: 1)
-        )
-    }
+    // MARK: - Operator pending
 
     @ViewBuilder
-    private var quickReferenceSection: some View {
-        // Strategy.ignored wins over mode: switching from an insert-mode
-        // app into an ignore-listed app and opening the HUD before the
-        // mode signal updates would otherwise show insert-mode guidance
-        // even though kindaVim isn't running there. Show the off-here
-        // hint first, then fall back to mode-driven branches.
-        if strategyMonitor.currentStrategy == .ignored {
-            ignoredStrategyHint
-        } else if mode == .insert {
-            insertModeHints
+    private var operatorPendingCallout: some View {
+        if let op = sequenceObserver.currentOperator?.lowercased(),
+           ["d", "c", "y"].contains(op)
+        {
+            Text("Press \(op) again for the whole line.")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
         } else {
-            vimBindingsSections
+            Text("Press the same operator twice (dd · yy · cc) to act on the whole line.")
+                .font(.system(size: 14))
+                .foregroundStyle(.white.opacity(0.45))
         }
     }
 
+    // MARK: - Insert / Ignored
+
     private var insertModeHints: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            sectionHeader("Insert mode")
-            ForEach(insertModeCommands) { command in
-                commandRow(keys: command.keys, meaning: command.meaning, loud: false)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Insert Mode")
+                .font(.system(size: 14, weight: .heavy))
+                .foregroundStyle(.white.opacity(0.5))
+
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(insertModeCommands, id: \.keys) { cmd in
+                    HStack(spacing: 0) {
+                        Text(cmd.keys)
+                            .font(.system(size: 15, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(
+                                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                    .fill(.white.opacity(0.1))
+                            )
+                        Text(cmd.meaning)
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.5))
+                            .padding(.leading, 10)
+                    }
+                }
             }
         }
     }
 
     private var ignoredStrategyHint: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            sectionHeader("KindaVim is off here")
-            Text("This app is in KindaVim's ignore list. Mode signals don't apply.")
-                .font(.footnote)
-                .lineSpacing(1.5)
-                .foregroundStyle(.white.opacity(0.7))
-        }
-    }
-
-    private var vimBindingsSections: some View {
-        let bindingGroups = VimBindings.grouped(
-            strategy: strategyMonitor.currentStrategy,
-            mode: mode,
-            showAdvanced: showAdvancedHints
-        )
-        return VStack(alignment: .leading, spacing: 11) {
-            ForEach(Array(bindingGroups.enumerated()), id: \.offset) { _, group in
-                bindingGroupSection(group)
-            }
-            if mode == .operatorPending {
-                operatorPendingCallout
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var operatorPendingCallout: some View {
-        // Observer-aware: if we know which operator triggered op-pending,
-        // name it specifically. Otherwise fall back to the generic hint.
-        if let op = sequenceObserver.currentOperator?.lowercased(),
-           ["d", "c", "y"].contains(op)
-        {
-            Text("Press \(op) again for the whole line.")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(Color.accentColor)
-                .lineSpacing(1.5)
-        } else {
-            Text("Press the same operator twice (dd · yy · cc) to act on the whole line.")
-                .font(.footnote)
-                .foregroundStyle(.white.opacity(0.75))
-                .lineSpacing(1.5)
-        }
-    }
-
-    @ViewBuilder
-    private func bindingGroupSection(_ group: VimHintGroup) -> some View {
-        let isMovement = group.group == .movement
         VStack(alignment: .leading, spacing: 6) {
-            sectionHeader(group.displayName)
-            ForEach(group.entries) { entry in
-                commandRow(
-                    keys: entry.displayLabel,
-                    meaning: entry.actionLabel,
-                    loud: isMovement && entry.tier == .core
-                )
-            }
+            Text("KindaVim is off here")
+                .font(.system(size: 15, weight: .heavy))
+                .foregroundStyle(.white.opacity(0.5))
+            Text("This app is in KindaVim's ignore list.")
+                .font(.system(size: 14))
+                .foregroundStyle(.white.opacity(0.4))
         }
     }
 
-    private func sectionHeader(_ text: String) -> some View {
-        Text(text)
-            .font(.footnote.monospaced().weight(.semibold))
-            .foregroundStyle(.white.opacity(0.75))
-            .tracking(1.2)
+    // MARK: - Leader shortcuts footer
+
+    private var hasLeaderShortcuts: Bool {
+        !groups.flatMap(\.entries).isEmpty
     }
 
-    private func commandRow(keys: String, meaning: String, loud: Bool) -> some View {
-        HStack(spacing: 10) {
-            Text(keys)
-                .font(.system(loud ? .body : .footnote, design: .monospaced).weight(.bold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, loud ? 9 : 7)
-                .padding(.vertical, loud ? 4 : 3)
-                .background(
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(loud ? Color.accentColor.opacity(0.5) : .white.opacity(0.12))
-                )
-            Text(meaning)
-                .font(loud ? .footnote.weight(.semibold) : .footnote)
-                .lineSpacing(1.5)
-                .foregroundStyle(.white.opacity(loud ? 1.0 : 0.85))
+    private var leaderShortcutsFooter: some View {
+        let hintEntries = groups
+            .flatMap(\.entries)
+            .prefix(4)
+            .map { "\($0.keycap.lowercased()) → \($0.action)" }
+
+        return HStack(spacing: 6) {
+            Text("Leader")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white.opacity(0.3))
+            Text(hintEntries.joined(separator: "   "))
+                .font(.system(size: 13, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.3))
         }
+    }
+
+    // MARK: - Data
+
+    private struct CommandItem {
+        let keys: String
+        let meaning: String
     }
 
     private var insertModeCommands: [CommandItem] {
@@ -223,90 +224,4 @@ struct ContextHUDKindaVimLearningView: View {
             .init(keys: "Leader hold", meaning: "open KeyPath motion keylist"),
         ]
     }
-
-    private var leaderShortcutsSection: some View {
-        let hintEntries = groups
-            .flatMap(\.entries)
-            .prefix(4)
-            .map { "\($0.keycap.lowercased()) \u{2192} \($0.action)" }
-
-        return VStack(alignment: .leading, spacing: 5) {
-            Text("Leader Shortcuts")
-                .font(.footnote.monospaced().weight(.semibold))
-                .foregroundStyle(.white.opacity(0.72))
-                .tracking(1.2)
-
-            if hintEntries.isEmpty {
-                Text("Enable the KindaVim collection to add leader shortcuts.")
-                    .font(.footnote)
-                    .foregroundStyle(.white.opacity(0.65))
-            } else {
-                Text(hintEntries.joined(separator: "  ·  "))
-                    .font(.footnote)
-                    .lineSpacing(1.5)
-                    .foregroundStyle(.white.opacity(0.78))
-                    .lineLimit(2)
-            }
-        }
-    }
-
-    private var modeSourceDescription: String {
-        guard let state else {
-            return "Mode unavailable. Showing Normal defaults."
-        }
-        if state.isStale {
-            return "Mode signal is stale. Showing last-known commands."
-        }
-        switch state.source {
-        case .json:
-            return "Live mode from KindaVim environment.json."
-        case .karabiner:
-            return "Mode from Karabiner integration fallback."
-        case .fallback:
-            return "Mode unavailable. Showing Normal defaults."
-        }
-    }
-
-    private func modeColor(_ mode: KindaVimStateAdapter.Mode) -> Color {
-        switch mode {
-        case .insert: Color.green
-        case .normal: Color.blue
-        case .visual: Color.purple
-        case .operatorPending: Color.orange
-        case .unknown: Color.gray
-        }
-    }
-
-    private func coachLines(for mode: KindaVimStateAdapter.Mode) -> [String] {
-        switch mode {
-        case .insert:
-            [
-                "Type normally. Press Esc (or Ctrl-[) to enter Normal mode.",
-                "Use Leader hold for quick motion and navigation shortcuts.",
-            ]
-        case .normal:
-            [
-                "Focus on movement first: line, word, and document motions.",
-                "Use Ctrl-w h/j/k/l for basic split/window navigation.",
-            ]
-        case .visual:
-            [
-                "Extend selections with the same motion keys.",
-                "Press Esc to return to Normal movement.",
-            ]
-        case .operatorPending:
-            [
-                "An operator is pending — pick a motion or text object next.",
-                "Press the same operator twice (dd, yy, cc) to act on the line.",
-            ]
-        case .unknown:
-            [
-                "Mode signal unavailable. Start from Normal commands.",
-            ]
-        }
-    }
-
-    // The hardcoded `commands(for:)` switch was replaced with
-    // `VimBindings.grouped(strategy:mode:showAdvanced:)` so the cheat
-    // sheet narrows to what the active strategy actually supports.
 }
