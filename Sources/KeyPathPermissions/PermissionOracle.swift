@@ -497,34 +497,13 @@ public actor PermissionOracle {
     /// NOTE: This direct TCC access was previously removed as "bad practice" but is
     /// necessary here to resolve the chicken-and-egg problem between permission verification
     /// and service startup. This is a legitimate fallback when functional verification fails.
-    private func checkTCCForKanata(executablePath: String) async -> (ax: Status?, im: Status?) {
-        let bundleID = KeyPathConstants.Bundle.kanataEngineBundleID
-
-        // Try bundle-ID based query first (Kanata Engine.app wrapper)
-        AppLogger.shared.log("🔍 [Oracle] Trying TCC bundle-ID query for \(bundleID)")
-        let axBundle = await tccStatus(forBundleID: bundleID, service: .accessibility)
-        let imBundle = await tccStatus(forBundleID: bundleID, service: .inputMonitoring)
-
-        if axBundle != nil, imBundle != nil {
-            AppLogger.shared.log("🔍 [Oracle] Found TCC entries via bundle ID (\(bundleID))")
-            return (axBundle, imBundle)
-        }
-
-        // Fall back to path-based query for migration (raw binary TCC entries).
-        // During migration a user may have one permission under the bundle ID and the
-        // other still under the old raw-path entry.  Use path-based values as fallback
-        // for whichever permission the bundle-ID query did not resolve.
-        //
-        // NOTE: Even when both bundle-ID results are non-nil (early-return above),
-        // we reach this path when only ONE is non-nil. The path-based queries run
-        // unconditionally here; the `??` merge on the return line ensures bundle-ID
-        // results always take precedence and path results are only used when the
-        // corresponding bundle-ID result is nil.
-        AppLogger.shared.log("🔍 [Oracle] Partial/no bundle-ID TCC entries; falling back to path-based query for gaps")
-        let normalizedPath = normalizePathForTCC(executablePath)
-        let axPath = await tccStatus(forExecutable: normalizedPath, service: .accessibility)
-        let imPath = await tccStatus(forExecutable: normalizedPath, service: .inputMonitoring)
-        return (axBundle ?? axPath, imBundle ?? imPath)
+    private func checkTCCForKanata(executablePath _: String) async -> (ax: Status?, im: Status?) {
+        let launcherPath = normalizePathForTCC(WizardSystemPaths.bundledKanataLauncherPath)
+        AppLogger.shared.log("🔍 [Oracle] Checking TCC for kanata-launcher: \(launcherPath)")
+        let ax = await tccStatus(forExecutable: launcherPath, service: .accessibility)
+        let im = await tccStatus(forExecutable: launcherPath, service: .inputMonitoring)
+        AppLogger.shared.log("🔍 [Oracle] TCC result: AX=\(String(describing: ax)), IM=\(String(describing: im))")
+        return (ax, im)
     }
 
     /// Normalize paths for TCC queries - convert development builds to installed paths

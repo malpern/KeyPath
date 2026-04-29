@@ -94,6 +94,21 @@ final class ServiceLifecycleCoordinator {
             lastStartAttemptAt = Date()
             try await KanataDaemonManager.shared.register()
             AppLogger.shared.log("✅ [Service] Kanata LaunchDaemon registered (\(reason))")
+
+            // If the daemon registered but isn't running (e.g., it exited cleanly
+            // after max retries), kickstart it to force a restart.
+            try? await Task.sleep(for: .milliseconds(500))
+            if !(await kanataDaemonService.isDaemonRunning()) {
+                AppLogger.shared.log("🔄 [Service] Daemon registered but not running — kickstarting")
+                let kick = Process()
+                kick.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+                kick.arguments = ["kickstart", "system/com.keypath.kanata"]
+                kick.standardOutput = Pipe()
+                kick.standardError = Pipe()
+                try? kick.run()
+                kick.waitUntilExit()
+            }
+
             await AppContextService.shared.start()
             onError?(nil)
             onWarning?(nil)
