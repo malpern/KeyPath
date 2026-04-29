@@ -7,11 +7,9 @@ import Foundation
 /// then exit. In this mode, heavy initialization (bootstrap, event monitoring,
 /// notification registration, etc.) is skipped.
 enum OneShotProbeEnvironment {
-    static let hostPassthruDiagnosticEnvKey = "KEYPATH_ENABLE_HOST_PASSTHRU_DIAGNOSTIC"
     static let helperRepairEnvKey = "KEYPATH_RUN_HELPER_REPAIR"
 
     static func isActive(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
-        environment[hostPassthruDiagnosticEnvKey] == "1"
-            || environment[helperRepairEnvKey] == "1"
+        environment[helperRepairEnvKey] == "1"
     }
 }

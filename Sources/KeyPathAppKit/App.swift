@@ -118,7 +118,6 @@ func openPreferencesTab(_ notification: Notification.Name) {
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
-    static let hostPassthruCaptureEnvKey = "KEYPATH_ENABLE_HOST_PASSTHRU_CAPTURE"
     static func isOneShotProbeEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment)
         -> Bool
     {
