@@ -9,15 +9,6 @@ import KeyPathWizardCore
 /// and that permission rejection detection works end-to-end.
 @MainActor
 final class ModeARevertTests: XCTestCase {
-    // MARK: - Feature Flag
-
-    func testSplitRuntimeHostFlagIsDisabled() {
-        XCTAssertFalse(
-            ServiceLifecycleCoordinator.useSplitRuntimeHost,
-            "Mode B (split runtime) must be disabled — Mode A (LaunchDaemon) is the active runtime path"
-        )
-    }
-
     // MARK: - Permission Rejection Detection via SystemContextAdapter
 
     func testAdapterRoutesToPermissionsWhenPermissionRejected() {

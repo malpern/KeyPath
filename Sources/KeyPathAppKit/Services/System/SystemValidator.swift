@@ -523,23 +523,11 @@ public class SystemValidator {
         let kanataHealth = await ServiceHealthChecker.shared.checkKanataServiceHealth(
             tcpPort: PreferencesService.shared.tcpServerPort
         )
-        let kanataBinaryAlive: Bool
-        let kanataRunning: Bool
-        if ServiceLifecycleCoordinator.useSplitRuntimeHost {
-            kanataBinaryAlive = await Task.detached {
-                KanataSplitRuntimeHostService.isKanataBinaryAlive()
-            }.value
-            kanataRunning = kanataHealth.isRunning && kanataBinaryAlive
-        } else {
-            // Mode A: launchctl + TCP probe is sufficient; pgrep -x kanata
-            // can miss the process when kanata-launcher hasn't exec'd yet.
-            kanataBinaryAlive = true
-            kanataRunning = kanataHealth.isRunning
-        }
+        let kanataRunning = kanataHealth.isRunning
         let kanataInputCapture = await ServiceHealthChecker.shared.checkKanataInputCaptureStatus()
         let kanataDuration = Date().timeIntervalSince(kanataStart)
         AppLogger.shared.log(
-            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: hostRunning=\(kanataHealth.isRunning), binaryAlive=\(kanataBinaryAlive), tcpResponding=\(kanataHealth.isResponding), healthy=\(kanataRunning), inputCaptureReady=\(kanataInputCapture.isReady) (took \(String(format: "%.3f", kanataDuration))s)"
+            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: hostRunning=\(kanataHealth.isRunning), tcpResponding=\(kanataHealth.isResponding), healthy=\(kanataRunning), inputCaptureReady=\(kanataInputCapture.isReady) (took \(String(format: "%.3f", kanataDuration))s)"
         )
 
         // Use launchctl-based check instead of unreliable pgrep

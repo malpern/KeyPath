@@ -7,14 +7,6 @@ extension RuntimeCoordinator {
     /// `RuntimeCoordinator.RuntimeStatus`.
     typealias RuntimeStatus = ServiceLifecycleCoordinator.RuntimeStatus
 
-    func currentSplitRuntimeDecision() async -> KanataRuntimePathDecision {
-        await serviceLifecycleCoordinator.currentSplitRuntimeDecision()
-    }
-
-    func shouldUseSplitRuntimeHost() async -> Bool {
-        await serviceLifecycleCoordinator.shouldUseSplitRuntimeHost()
-    }
-
     /// Starts Kanata with VirtualHID connection validation
     func startKanataWithValidation() async {
         await serviceLifecycleCoordinator.startKanataWithValidation()
@@ -23,8 +15,8 @@ extension RuntimeCoordinator {
     // MARK: - Service Management Helpers
 
     @discardableResult
-    public func startKanata(reason: String = "Manual start", precomputedDecision: KanataRuntimePathDecision? = nil) async -> Bool {
-        await serviceLifecycleCoordinator.startKanata(reason: reason, precomputedDecision: precomputedDecision)
+    public func startKanata(reason: String = "Manual start") async -> Bool {
+        await serviceLifecycleCoordinator.startKanata(reason: reason)
     }
 
     @discardableResult

@@ -242,40 +242,50 @@ extension OverlayMapperSection {
         return false
     }
 
+    @ViewBuilder
     var healthGateContent: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(Color.orange)
-
-                Text(healthGateTitle)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
+        if healthIndicatorState == .checking {
+            VStack(spacing: 10) {
+                ProgressView()
+                    .controlSize(.regular)
+                Text("Starting…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-
-            Text(healthGateMessage)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Button(action: onHealthTap) {
-                Text(healthGateButtonTitle)
-                    .font(.caption.weight(.semibold))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.vertical, 40)
+        } else {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Color.orange)
+                    Text(healthGateTitle)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                }
+                Text(healthGateMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button(action: onHealthTap) {
+                    Text(healthGateButtonTitle)
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .accessibilityIdentifier("overlay-mapper-fix-issues")
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .accessibilityIdentifier("overlay-mapper-fix-issues")
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.orange.opacity(isDark ? 0.18 : 0.12))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color.orange.opacity(0.35), lineWidth: 1)
+            )
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.orange.opacity(isDark ? 0.18 : 0.12))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.orange.opacity(0.35), lineWidth: 1)
-        )
     }
 
     private var healthGateTitle: String {

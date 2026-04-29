@@ -189,8 +189,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     let configReloadCoordinator: ConfigReloadCoordinator
 
     var isInitializing = false
-    var isRecoveringSplitRuntimeCompanion = false
-    var splitRuntimeCompanionMonitorTask: Task<Void, Never>?
     let notificationObserverTokens = NotificationTokenStore()
     let isHeadlessMode: Bool
 
@@ -284,13 +282,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             diagnosticsService: diagnosticsService,
             healthMonitor: serviceHealthMonitor,
             processStatusProvider: { [recoveryDaemonService] in
-                if ServiceLifecycleCoordinator.useSplitRuntimeHost {
-                    if let splitHostPID = KanataSplitRuntimeHostService.shared.activePersistentHostPID {
-                        return ProcessHealthStatus(isRunning: true, pid: Int(splitHostPID))
-                    }
-                    return ProcessHealthStatus(isRunning: false, pid: nil)
-                }
-                // Mode A: check the LaunchDaemon via RecoveryDaemonService
                 let isRunning = await recoveryDaemonService.isRecoveryDaemonRunning()
                 return ProcessHealthStatus(isRunning: isRunning, pid: nil)
             }
@@ -457,7 +448,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                 ruleCollectionsManager.startEventMonitoring(port: PreferencesService.shared.tcpServerPort)
             }
             HrmObservabilityService.shared.startMonitoring(port: PreferencesService.shared.tcpServerPort)
-            startSplitRuntimeCompanionMonitor()
         } else {
             AppLogger.shared.log("🧪 [RuntimeCoordinator] One-shot probe mode - skipping bootstrap and event monitoring")
         }
@@ -502,35 +492,12 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                 }
             })
 
-            notificationObserverTokens.append(NotificationCenter.default.addObserver(
-                forName: .splitRuntimeHostExited,
-                object: nil,
-                queue: NotificationObserverManager.mainOperationQueue
-            ) { @Sendable [weak self] note in
-                guard let self else { return }
-                let pid = note.userInfo?[KanataSplitRuntimeHostExitInfo.pidUserInfoKey] as? pid_t ?? 0
-                let exitCode = note.userInfo?[KanataSplitRuntimeHostExitInfo.exitCodeUserInfoKey] as? Int32 ?? 0
-                let terminationReason =
-                    note.userInfo?[KanataSplitRuntimeHostExitInfo.terminationReasonUserInfoKey] as? String ?? "unknown"
-                let expected = note.userInfo?[KanataSplitRuntimeHostExitInfo.expectedUserInfoKey] as? Bool ?? false
-                let stderrLogPath = note.userInfo?[KanataSplitRuntimeHostExitInfo.stderrLogPathUserInfoKey] as? String
-                Task { @MainActor in
-                    await self.handleSplitRuntimeHostExit(
-                        pid: pid,
-                        exitCode: exitCode,
-                        terminationReason: terminationReason,
-                        expected: expected,
-                        stderrLogPath: stderrLogPath
-                    )
-                }
-            })
         }
 
         AppLogger.shared.log("🏗️ [RuntimeCoordinator] init() completed")
     }
 
     deinit {
-        splitRuntimeCompanionMonitorTask?.cancel()
         notificationObserverTokens.removeAll()
     }
 
