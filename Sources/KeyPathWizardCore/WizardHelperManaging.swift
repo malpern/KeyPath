@@ -10,7 +10,6 @@ public protocol WizardHelperManaging: AnyObject, Sendable {
     func testHelperFunctionality() async -> Bool
     func getHelperVersion() async -> String?
     func helperNeedsLoginItemsApproval() -> Bool
-    func getKanataOutputBridgeStatus() async throws -> KanataOutputBridgeStatus
 }
 
 // MARK: - WizardHelperConstants

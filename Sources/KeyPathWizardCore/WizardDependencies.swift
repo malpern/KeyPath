@@ -32,14 +32,8 @@ public enum WizardDependencies {
     /// SystemValidator instance
     public static var systemValidator: (any WizardSystemValidating)?
 
-    /// KanataSplitRuntimeHostService instance
-    public static var splitRuntimeHost: (any WizardSplitRuntimeHosting)?
-
     /// HelperMaintenance instance
     public static var helperMaintenance: (any WizardHelperMaintaining)?
-
-    /// KanataRuntimePathCoordinator instance
-    public static var runtimePathCoordinator: (any WizardRuntimePathCoordinating)?
 
     /// FullDiskAccessChecker instance
     nonisolated(unsafe) public static var fullDiskAccessChecker: (any WizardFullDiskAccessChecking)?
@@ -115,9 +109,7 @@ public enum WizardDependencies {
         helperManager = nil
         daemonManager = nil
         systemValidator = nil
-        splitRuntimeHost = nil
         helperMaintenance = nil
-        runtimePathCoordinator = nil
         fullDiskAccessChecker = nil
         permissionRequestService = nil
         privilegedOperations = nil

@@ -71,40 +71,13 @@ public final class InstallerEngine {
 
         // Get system compatibility info from SystemRequirements
         let systemInfo = systemRequirements.getSystemInfo()
-        let runtimePathDecision: KanataRuntimePathDecision? =
-            if TestEnvironment.isRunningTests {
-                nil
-            } else {
-                await WizardDependencies.runtimePathCoordinator?.evaluateCurrentPath()
-            }
-        let outputBridgeStatus: KanataOutputBridgeStatus? =
-            if TestEnvironment.isRunningTests {
-                nil
-            } else {
-                try? await WizardDependencies.helperManager?.getKanataOutputBridgeStatus()
-            }
-
         // Convert SystemInfo to EngineSystemInfo
         let engineSystemInfo = EngineSystemInfo(
             macOSVersion: systemInfo.macosVersion.versionString,
-            driverCompatible: systemInfo.compatibilityResult.isCompatible,
-            runtimePathDecision: runtimePathDecision,
-            outputBridgeStatus: outputBridgeStatus
+            driverCompatible: systemInfo.compatibilityResult.isCompatible
         )
 
-        let activeRuntimePathStatus: (title: String, detail: String)? = {
-            if let splitHost = WizardDependencies.splitRuntimeHost,
-               splitHost.isPersistentPassthruHostRunning
-            {
-                let pid = splitHost.activePersistentHostPID ?? 0
-                return (
-                    title: WizardSplitRuntimeIdentity.hostTitle,
-                    detail: "\(WizardSplitRuntimeIdentity.hostDetailPrefix) (PID \(pid)) with privileged output companion"
-                )
-            }
-
-            return nil
-        }()
+        let activeRuntimePathStatus: (title: String, detail: String)? = nil
 
         let services = HealthStatus(
             kanataRunning: snapshot.health.kanataRunning,

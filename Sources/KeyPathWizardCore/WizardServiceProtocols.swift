@@ -9,21 +9,6 @@ public protocol WizardSystemValidating: AnyObject, Sendable {
     func checkSystem() async -> SystemSnapshot
 }
 
-// MARK: - SplitRuntime Protocol
-
-@MainActor
-public protocol WizardSplitRuntimeHosting: AnyObject, Sendable {
-    var isPersistentPassthruHostRunning: Bool { get }
-    var activePersistentHostPID: Int? { get }
-}
-
-// MARK: - SplitRuntimeIdentity (extracted from KanataSplitRuntimeHostService)
-
-public enum WizardSplitRuntimeIdentity {
-    public static let hostTitle = "KeyPath Runtime (Split)"
-    public static let hostDetailPrefix = "PID"
-}
-
 // MARK: - HelperMaintenance Protocol
 
 @MainActor
@@ -41,13 +26,6 @@ public protocol WizardHelperMaintaining: AnyObject, Sendable {
 @MainActor
 public protocol WizardUninstalling: Sendable {
     func uninstall(deleteConfig: Bool) async -> Bool
-}
-
-// MARK: - RuntimePathCoordinator Protocol
-
-@MainActor
-public protocol WizardRuntimePathCoordinating: Sendable {
-    func evaluateCurrentPath() async -> KanataRuntimePathDecision?
 }
 
 // MARK: - FullDiskAccessChecker Protocol

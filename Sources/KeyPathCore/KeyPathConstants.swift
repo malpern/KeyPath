@@ -22,7 +22,6 @@ public enum KeyPathConstants {
         public static let bundleID = "com.keypath.KeyPath"
         public static let helperID = "com.keypath.KeyPath.Helper"
         public static let daemonID = "com.keypath.kanata"
-        public static let outputBridgeID = "com.keypath.output-bridge"
         public static let vhidDaemonID = "com.keypath.karabiner-vhiddaemon"
         public static let vhidManagerID = "com.keypath.karabiner-vhidmanager"
 
@@ -75,15 +74,7 @@ public enum KeyPathConstants {
         public static let launchDaemonsDir = "/Library/LaunchDaemons"
     }
 
-    public enum OutputBridge {
-        public static let runDirectory = "/Library/KeyPath/run"
-        public static let socketDirectory = "/Library/KeyPath/run/kpko"
-        public static let sessionDirectory = "/Library/KeyPath/run/kpko/sessions"
-        public static let stdoutLog = "/var/log/com.keypath.output-bridge.stdout.log"
-        public static let stderrLog = "/var/log/com.keypath.output-bridge.stderr.log"
-    }
-
-    public enum URLs {
+public enum URLs {
         public static let inputMonitoringPrivacy = "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
         public static let accessibilityPrivacy = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
     }

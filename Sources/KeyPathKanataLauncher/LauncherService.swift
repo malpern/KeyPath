@@ -12,12 +12,7 @@ enum LauncherConstants {
     static let preferencesPlistBasename = "com.keypath.KeyPath.plist"
     static let verboseLoggingPrefKey = "KeyPath.Diagnostics.VerboseKanataLogging"
     static let inProcessRuntimeEnvKey = "KEYPATH_EXPERIMENTAL_HOST_RUNTIME"
-    static let outputBridgeSocketEnvKey = "KEYPATH_EXPERIMENTAL_OUTPUT_BRIDGE_SOCKET"
-    static let outputBridgeSessionEnvKey = "KEYPATH_EXPERIMENTAL_OUTPUT_BRIDGE_SESSION"
-    static let outputBridgeModifierProbeEnvKey = "KEYPATH_EXPERIMENTAL_OUTPUT_BRIDGE_SMOKE_MODIFIERS"
-    static let outputBridgeEmitProbeEnvKey = "KEYPATH_EXPERIMENTAL_OUTPUT_BRIDGE_SMOKE_EMIT"
-    static let outputBridgeResetProbeEnvKey = "KEYPATH_EXPERIMENTAL_OUTPUT_BRIDGE_SMOKE_RESET"
-    static let passthruRuntimeEnvKey = "KEYPATH_EXPERIMENTAL_HOST_PASSTHRU_RUNTIME"
+static let passthruRuntimeEnvKey = "KEYPATH_EXPERIMENTAL_HOST_PASSTHRU_RUNTIME"
     static let passthruForwardEnvKey = "KEYPATH_EXPERIMENTAL_HOST_PASSTHRU_FORWARD"
     static let passthruOnlyEnvKey = "KEYPATH_EXPERIMENTAL_HOST_PASSTHRU_ONLY"
     static let passthruInjectEnvKey = "KEYPATH_EXPERIMENTAL_HOST_PASSTHRU_INJECT"
@@ -63,26 +58,14 @@ struct LauncherService {
         if shouldUseInProcessRuntime() {
             let tcpPort = extractTCPPort(from: launchRequest.inheritedArguments)
             logLine("Running in-process host runtime mode")
-            let outputBridgeSession = experimentalOutputBridgeSession()
             runExperimentalPassthruRuntimeProbe(
                 runtimeHost: runtimeHost,
                 configPath: configPath,
-                tcpPort: tcpPort,
-                outputBridgeSession: outputBridgeSession
+                tcpPort: tcpPort
             )
             if environmentFlag(LauncherConstants.passthruOnlyEnvKey) {
                 logLine("Experimental passthru-only host mode completed")
                 Foundation.exit(0)
-            }
-            if let outputBridgeSession {
-                do {
-                    try runExperimentalOutputBridgeSmoke(session: outputBridgeSession)
-                } catch {
-                    logLine("Experimental output bridge smoke test failed: \(error.localizedDescription)")
-                    Foundation.exit(1)
-                }
-            } else {
-                logLine("Experimental output bridge session not provided; skipping socket smoke test")
             }
             let result = KanataHostBridge.runRuntime(
                 runtimeHost: runtimeHost,
@@ -260,73 +243,12 @@ struct LauncherService {
         return port
     }
 
-    // MARK: - Output Bridge
-
-    func experimentalOutputBridgeSession() -> KanataOutputBridgeSession? {
-        let environment = ProcessInfo.processInfo.environment
-        guard
-            let socketPath = environment[LauncherConstants.outputBridgeSocketEnvKey]?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-            !socketPath.isEmpty,
-            let sessionID = environment[LauncherConstants.outputBridgeSessionEnvKey]?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-            !sessionID.isEmpty
-        else {
-            return nil
-        }
-
-        return KanataOutputBridgeSession(
-            sessionID: sessionID,
-            socketPath: socketPath,
-            socketDirectory: (socketPath as NSString).deletingLastPathComponent,
-            hostPID: getpid(),
-            hostUID: getuid(),
-            hostGID: getgid(),
-            detail: "environment-provided experimental bridge session"
-        )
-    }
-
-    func runExperimentalOutputBridgeSmoke(
-        session: KanataOutputBridgeSession
-    ) throws {
-        let handshake = try KanataOutputBridgeClient.performHandshake(session: session)
-        logLine("Experimental output bridge handshake: \(String(describing: handshake))")
-
-        let ping = try KanataOutputBridgeClient.ping(session: session)
-        logLine("Experimental output bridge ping: \(String(describing: ping))")
-
-        if environmentFlag(LauncherConstants.outputBridgeModifierProbeEnvKey) {
-            let modifiers = KanataOutputBridgeModifierState(leftShift: true)
-            let response = try KanataOutputBridgeClient.syncModifiers(modifiers, session: session)
-            logLine(
-                "Experimental output bridge modifier sync (\(String(describing: modifiers))): \(String(describing: response))"
-            )
-        }
-
-        if environmentFlag(LauncherConstants.outputBridgeEmitProbeEnvKey) {
-            let event = KanataOutputBridgeKeyEvent(
-                usagePage: 0x07,
-                usage: 0x68,
-                action: .keyDown,
-                sequence: 1
-            )
-            let response = try KanataOutputBridgeClient.emitKey(event, session: session)
-            logLine("Experimental output bridge emit (\(String(describing: event))): \(String(describing: response))")
-        }
-
-        if environmentFlag(LauncherConstants.outputBridgeResetProbeEnvKey) {
-            let response = try KanataOutputBridgeClient.reset(session: session)
-            logLine("Experimental output bridge reset: \(String(describing: response))")
-        }
-    }
-
     // MARK: - Passthru Runtime
 
     func runExperimentalPassthruRuntimeProbe(
         runtimeHost: KanataRuntimeHost,
         configPath: String,
-        tcpPort: UInt16,
-        outputBridgeSession: KanataOutputBridgeSession?
+        tcpPort: UInt16
     ) {
         guard environmentFlag(LauncherConstants.passthruRuntimeEnvKey) else {
             return
@@ -380,7 +302,6 @@ struct LauncherService {
         if shouldCapture {
             runExperimentalPassthruCaptureLoop(
                 handle: handle,
-                outputBridgeSession: outputBridgeSession,
                 shouldForward: shouldForward
             )
             return
@@ -392,7 +313,6 @@ struct LauncherService {
             while true {
                 _ = drainExperimentalPassthruOutput(
                     handle: handle,
-                    outputBridgeSession: outputBridgeSession,
                     shouldForward: shouldForward,
                     forwardedCount: &forwardedCount,
                     maxForwardCount: nil
@@ -436,33 +356,6 @@ struct LauncherService {
                     "Experimental passthru runtime drained output event: value=\(event.value) page=\(event.usagePage) code=\(event.usage)"
                 )
 
-                guard shouldForward else {
-                    forwardedCount += 1
-                    continue
-                }
-
-                guard let outputBridgeSession else {
-                    logLine("Experimental passthru forwarding requested but no output bridge session was provided")
-                    return
-                }
-
-                let bridgeEvent = KanataOutputBridgeKeyEvent(
-                    usagePage: event.usagePage,
-                    usage: event.usage,
-                    action: event.value == 0 ? .keyUp : .keyDown,
-                    sequence: UInt64(forwardedCount + 1)
-                )
-
-                do {
-                    let response = try KanataOutputBridgeClient.emitKey(bridgeEvent, session: outputBridgeSession)
-                    logLine(
-                        "Experimental passthru forwarded output event: \(String(describing: bridgeEvent)) -> \(String(describing: response))"
-                    )
-                } catch {
-                    logLine("Experimental passthru forwarding failed: \(error.localizedDescription)")
-                    return
-                }
-
                 forwardedCount += 1
                 sawEmptyPoll = false
             case let .failure(error):
@@ -476,7 +369,6 @@ struct LauncherService {
 
     func drainExperimentalPassthruOutput(
         handle: KanataHostBridgePassthruRuntimeHandle,
-        outputBridgeSession: KanataOutputBridgeSession?,
         shouldForward: Bool,
         forwardedCount: inout Int,
         maxForwardCount: Int?
@@ -492,33 +384,6 @@ struct LauncherService {
                     "Experimental passthru runtime drained output event: value=\(event.value) page=\(event.usagePage) code=\(event.usage)"
                 )
 
-                guard shouldForward else {
-                    forwardedCount += 1
-                    continue
-                }
-
-                guard let outputBridgeSession else {
-                    logLine("Experimental passthru forwarding requested but no output bridge session was provided")
-                    return true
-                }
-
-                let bridgeEvent = KanataOutputBridgeKeyEvent(
-                    usagePage: event.usagePage,
-                    usage: event.usage,
-                    action: event.value == 0 ? .keyUp : .keyDown,
-                    sequence: UInt64(forwardedCount + 1)
-                )
-
-                do {
-                    let response = try KanataOutputBridgeClient.emitKey(bridgeEvent, session: outputBridgeSession)
-                    logLine(
-                        "Experimental passthru forwarded output event: \(String(describing: bridgeEvent)) -> \(String(describing: response))"
-                    )
-                } catch {
-                    logLine("Experimental passthru forwarding failed: \(error.localizedDescription)")
-                    return true
-                }
-
                 forwardedCount += 1
             case let .failure(error):
                 logLine(error.logSummary)
@@ -533,7 +398,6 @@ struct LauncherService {
 
     func runExperimentalPassthruCaptureLoop(
         handle: KanataHostBridgePassthruRuntimeHandle,
-        outputBridgeSession: KanataOutputBridgeSession?,
         shouldForward: Bool
     ) {
         let shouldPersist = environmentFlag(LauncherConstants.passthruPersistEnvKey)
@@ -545,7 +409,6 @@ struct LauncherService {
         final class CaptureState {
             let handle: KanataHostBridgePassthruRuntimeHandle
             let service: LauncherService
-            let outputBridgeSession: KanataOutputBridgeSession?
             let shouldForward: Bool
             let shouldPersist: Bool
             var forwardedCount = 0
@@ -553,13 +416,11 @@ struct LauncherService {
             init(
                 handle: KanataHostBridgePassthruRuntimeHandle,
                 service: LauncherService,
-                outputBridgeSession: KanataOutputBridgeSession?,
                 shouldForward: Bool,
                 shouldPersist: Bool
             ) {
                 self.handle = handle
                 self.service = service
-                self.outputBridgeSession = outputBridgeSession
                 self.shouldForward = shouldForward
                 self.shouldPersist = shouldPersist
             }
@@ -567,7 +428,6 @@ struct LauncherService {
         let state = CaptureState(
             handle: handle,
             service: self,
-            outputBridgeSession: outputBridgeSession,
             shouldForward: shouldForward,
             shouldPersist: shouldPersist
         )
@@ -636,7 +496,6 @@ struct LauncherService {
                     )
                     _ = state.service.drainExperimentalPassthruOutput(
                         handle: state.handle,
-                        outputBridgeSession: state.outputBridgeSession,
                         shouldForward: state.shouldForward,
                         forwardedCount: &state.forwardedCount,
                         maxForwardCount: state.shouldPersist ? nil : LauncherConstants.passthruForwardLimit
@@ -669,7 +528,6 @@ struct LauncherService {
         while shouldPersist || (Date() < deadline && state.forwardedCount < LauncherConstants.passthruForwardLimit) {
             _ = drainExperimentalPassthruOutput(
                 handle: handle,
-                outputBridgeSession: outputBridgeSession,
                 shouldForward: shouldForward,
                 forwardedCount: &state.forwardedCount,
                 maxForwardCount: shouldPersist ? nil : LauncherConstants.passthruForwardLimit
@@ -679,7 +537,6 @@ struct LauncherService {
 
         _ = drainExperimentalPassthruOutput(
             handle: handle,
-            outputBridgeSession: outputBridgeSession,
             shouldForward: shouldForward,
             forwardedCount: &state.forwardedCount,
             maxForwardCount: shouldPersist ? nil : LauncherConstants.passthruForwardLimit

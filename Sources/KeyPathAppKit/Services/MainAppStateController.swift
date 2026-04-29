@@ -270,20 +270,8 @@ class MainAppStateController {
             return false
         }
 
-        // Plist is configured — also verify the kanata binary is actually running.
-        // The TCP probe alone is insufficient because kanata-launcher can hold the
-        // TCP socket open after kanata panics inside it.
-        let binaryAlive = await Task.detached {
-            KanataSplitRuntimeHostService.isKanataBinaryAlive()
-        }.value
-
-        if binaryAlive {
-            AppLogger.shared.info("✅ [MainAppStateController] TCP configuration verified: plist has --port AND kanata binary running")
-            return true
-        } else {
-            AppLogger.shared.warn("⚠️ [MainAppStateController] TCP configured but kanata binary not running")
-            return false
-        }
+        AppLogger.shared.info("✅ [MainAppStateController] TCP configuration verified: plist has --port")
+        return true
     }
 
     // MARK: - Service Health Monitoring

@@ -96,10 +96,6 @@ extension SystemValidator: WizardSystemValidating {
     }
 }
 
-// MARK: - KanataSplitRuntimeHostService + WizardSplitRuntimeHosting
-
-extension KanataSplitRuntimeHostService: WizardSplitRuntimeHosting {}
-
 // MARK: - HelperMaintenance + WizardHelperMaintaining
 
 extension HelperMaintenance: WizardHelperMaintaining {}
@@ -120,18 +116,6 @@ extension PrivilegedOperationsCoordinator: WizardPrivilegedOperating {}
 
 extension TCPProbe: WizardTCPProbing {}
 
-// MARK: - KanataRuntimePathCoordinator + WizardRuntimePathCoordinating
-
-/// Wrapper to provide an instance-based conformance for the static-only KanataRuntimePathCoordinator enum.
-@MainActor
-public final class KanataRuntimePathCoordinatorAdapter: WizardRuntimePathCoordinating {
-    public init() {}
-
-    public func evaluateCurrentPath() async -> KanataRuntimePathDecision? {
-        await KanataRuntimePathCoordinator.evaluateCurrentPath()
-    }
-}
-
 // MARK: - UninstallCoordinator + WizardUninstalling
 
 extension UninstallCoordinator: WizardUninstalling {}
@@ -146,9 +130,7 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
     WizardDependencies.helperManager = HelperManager.shared
     WizardDependencies.daemonManager = KanataDaemonManager.shared
     WizardDependencies.systemValidator = SystemValidator(processLifecycleManager: runtimeCoordinator.processLifecycleManager)
-    WizardDependencies.splitRuntimeHost = KanataSplitRuntimeHostService.shared
     WizardDependencies.helperMaintenance = HelperMaintenance.shared
-    WizardDependencies.runtimePathCoordinator = KanataRuntimePathCoordinatorAdapter()
     WizardDependencies.fullDiskAccessChecker = FullDiskAccessChecker.shared
     WizardDependencies.permissionRequestService = PermissionRequestService.shared
     WizardDependencies.privilegedOperations = PrivilegedOperationsCoordinator.shared

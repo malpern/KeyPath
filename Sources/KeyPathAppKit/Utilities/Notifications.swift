@@ -36,9 +36,6 @@ extension Notification.Name {
 
     /// Kanata service health
     static let kanataCrashLoopDetected = Notification.Name("KeyPath.Kanata.CrashLoopDetected")
-    static let splitRuntimeHostExited = Notification.Name("KeyPath.SplitRuntime.HostExited")
-    static let exerciseCoordinatorSplitRuntimeRecovery = Notification.Name("KeyPath.SplitRuntime.ExerciseCoordinatorRecovery")
-    static let exerciseCoordinatorSplitRuntimeRestartSoak = Notification.Name("KeyPath.SplitRuntime.ExerciseCoordinatorRestartSoak")
 
     /// Rule collections
     static let ruleCollectionsChanged = Notification.Name("KeyPath.RuleCollections.Changed")

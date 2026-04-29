@@ -42,10 +42,6 @@ let package = Package(
             targets: ["KeyPathHelper"]
         ),
         .executable(
-            name: "KeyPathOutputBridge",
-            targets: ["KeyPathOutputBridge"]
-        ),
-        .executable(
             name: "KeyPathKanataLauncher",
             targets: ["KeyPathKanataLauncher"]
         ),
@@ -186,19 +182,6 @@ let package = Package(
                 "Info.plist",
                 "com.keypath.helper.plist",
                 "KeyPathHelper.entitlements"
-            ],
-            swiftSettings: [
-                .swiftLanguageMode(.v6)
-            ]
-        ),
-        .executableTarget(
-            name: "KeyPathOutputBridge",
-            dependencies: ["KeyPathCore"],
-            path: "Sources/KeyPathOutputBridge",
-            exclude: [
-                "Info.plist",
-                "com.keypath.output-bridge.plist",
-                "KeyPathOutputBridge.entitlements"
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)

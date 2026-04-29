@@ -45,10 +45,6 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         // Phase 2: Verify we get real data, not stubs
         XCTAssertFalse(context.system.macOSVersion.isEmpty, "macOS version should be detected")
         XCTAssertNotNil(context.permissions.timestamp, "Permissions should have timestamp")
-        XCTAssertNil(
-            context.system.runtimePathDecision,
-            "Tests should not perform live runtime-path evaluation during inspectSystem()"
-        )
     }
 
     func testInspectSystemReturnsConsistentContext() async {

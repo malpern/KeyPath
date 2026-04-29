@@ -67,40 +67,6 @@ import Foundation
     ///   - reply: Completion handler with (success, errorMessage)
     func installBundledVHIDDriver(pkgPath: String, reply: @escaping (Bool, String?) -> Void)
 
-    /// Probe whether root-side pqrs VirtualHID output access is available for a future split runtime.
-    /// - Parameter reply: Completion handler with
-    ///   - payload: JSON-encoded `KanataOutputBridgeStatus`
-    ///   - errorMessage: failure details, if any
-    func getKanataOutputBridgeStatus(
-        reply: @escaping (String?, String?) -> Void
-    )
-
-    /// Prepare a privileged output-bridge session for a future split runtime.
-    /// - Parameters:
-    ///   - hostPID: PID of the bundled user-session runtime that will connect
-    ///   - reply: Completion handler with
-    ///   - payload: JSON-encoded `KanataOutputBridgeSession`
-    ///   - errorMessage: failure details, if any
-    func prepareKanataOutputBridgeSession(
-        hostPID: Int32,
-        reply: @escaping (String?, String?) -> Void
-    )
-
-    /// Activate a prepared privileged output-bridge session and ensure the dedicated companion binds its socket.
-    /// - Parameters:
-    ///   - sessionID: session identifier returned by prepare
-    ///   - reply: Completion handler with (success, errorMessage)
-    func activateKanataOutputBridgeSession(
-        sessionID: String,
-        reply: @escaping (Bool, String?) -> Void
-    )
-
-    /// Restart the dedicated output-bridge companion and ensure it is relaunched cleanly.
-    /// - Parameter reply: Completion handler with (success, errorMessage)
-    func restartKanataOutputBridgeCompanion(
-        reply: @escaping (Bool, String?) -> Void
-    )
-
     // MARK: - Process Management
 
     /// Terminate a specific process by PID

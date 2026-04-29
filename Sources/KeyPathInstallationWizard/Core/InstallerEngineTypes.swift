@@ -111,21 +111,13 @@ public struct EngineSystemInfo: Sendable, Equatable {
     public let macOSVersion: String
     /// Driver compatibility status
     public let driverCompatible: Bool
-    /// Current planned Kanata runtime path, if evaluated
-    public let runtimePathDecision: KanataRuntimePathDecision?
-    /// Privileged output companion status, if evaluated
-    public let outputBridgeStatus: KanataOutputBridgeStatus?
 
     public init(
         macOSVersion: String,
-        driverCompatible: Bool,
-        runtimePathDecision: KanataRuntimePathDecision? = nil,
-        outputBridgeStatus: KanataOutputBridgeStatus? = nil
+        driverCompatible: Bool
     ) {
         self.macOSVersion = macOSVersion
         self.driverCompatible = driverCompatible
-        self.runtimePathDecision = runtimePathDecision
-        self.outputBridgeStatus = outputBridgeStatus
     }
 }
 

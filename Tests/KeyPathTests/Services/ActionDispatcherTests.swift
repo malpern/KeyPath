@@ -450,67 +450,6 @@ struct ActionDispatcherSystemWindowTests {
         #expect(result == .success)
     }
 
-    @Test("Dispatches exercise output bridge companion restart action")
-    @MainActor
-    func dispatchesExerciseOutputBridgeCompanionRestartAction() throws {
-        let uri = try #require(
-            KeyPathActionURI(string: "keypath://system/exercise-output-bridge-companion-restart?capture=0")
-        )
-        let result = ActionDispatcher.shared.dispatch(uri)
-
-        #expect(result == .success)
-    }
-
-    @Test("Dispatches exercise output bridge companion restart soak action")
-    @MainActor
-    func dispatchesExerciseOutputBridgeCompanionRestartSoakAction() throws {
-        let uri = try #require(
-            KeyPathActionURI(
-                string: "keypath://system/exercise-output-bridge-companion-restart-soak?capture=0&seconds=6"
-            )
-        )
-        let result = ActionDispatcher.shared.dispatch(uri)
-
-        #expect(result == .success)
-    }
-
-    @Test("Dispatches coordinator split runtime recovery action")
-    @MainActor
-    func dispatchesCoordinatorSplitRuntimeRecoveryAction() throws {
-        let uri = try #require(
-            KeyPathActionURI(string: "keypath://system/exercise-coordinator-split-runtime-recovery")
-        )
-        let result = ActionDispatcher.shared.dispatch(uri)
-
-        #expect(result == .success)
-    }
-
-    @Test("Dispatches coordinator split runtime restart soak action")
-    @MainActor
-    func dispatchesCoordinatorSplitRuntimeRestartSoakAction() throws {
-        let uri = try #require(
-            KeyPathActionURI(string: "keypath://system/exercise-coordinator-split-runtime-restart-soak?seconds=6")
-        )
-        let result = ActionDispatcher.shared.dispatch(uri)
-
-        #expect(result == .success)
-    }
-
-    @Test("Recovers persistent split host after companion restart in test mode")
-    @MainActor
-    func recoversPersistentSplitHostAfterCompanionRestartInTestMode() async throws {
-        KanataSplitRuntimeHostService.testPersistentHostPID = 4242
-        defer {
-            KanataSplitRuntimeHostService.testPersistentHostPID = nil
-            KanataSplitRuntimeHostService.testStartPersistentError = nil
-        }
-
-        let recoveredPID = try await KanataSplitRuntimeHostService.shared
-            .restartPersistentPassthruHostAfterCompanionRestart()
-
-        #expect(recoveredPID == 4242)
-    }
-
     @Test("Dispatches repair helper action")
     @MainActor
     func dispatchesRepairHelperAction() throws {

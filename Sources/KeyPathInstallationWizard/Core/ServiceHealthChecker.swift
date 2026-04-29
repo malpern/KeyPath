@@ -64,12 +64,6 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         await MainActor.run { WizardDependencies.daemonManager }
     }
 
-    /// Access split runtime host via WizardDependencies (async to allow actor hop).
-    /// Returns nil when WizardDependencies is not configured.
-    private nonisolated func getSplitRuntimeHost() async -> (any WizardSplitRuntimeHosting)? {
-        await MainActor.run { WizardDependencies.splitRuntimeHost }
-    }
-
     /// Fallback management state used when daemon manager is unavailable.
     private static let fallbackManagementState: WizardServiceManagementState = .uninstalled
 
@@ -429,9 +423,7 @@ public final class ServiceHealthChecker: @unchecked Sendable {
 
         // 1) launchctl check for PID using SubprocessRunner
         let runningState = await evaluateKanataLaunchctlRunningState(managementState: managementState, launchctlTargets: targets)
-        // Also check split runtime host (direct child Process, not via launchd)
-        let splitRuntimeRunning = await getSplitRuntimeHost()?.isPersistentPassthruHostRunning ?? false
-        let isRunning = runningState.isRunning || splitRuntimeRunning
+        let isRunning = runningState.isRunning
 
         // 2) TCP probe (Hello/Status) - runs off MainActor via Task.detached for blocking socket ops
         let tcpOK = await Task.detached { [self] in
@@ -491,9 +483,6 @@ public final class ServiceHealthChecker: @unchecked Sendable {
 
         let targets = await getDaemonManager()?.preferredLaunchctlTargets(for: managementState) ?? []
         let runningState = await evaluateKanataLaunchctlRunningState(managementState: managementState, launchctlTargets: targets)
-        // Also check split runtime host — it launches kanata-launcher as a direct child Process(),
-        // not via launchd, so launchctl won't see it.
-        let splitRuntimeRunning = await getSplitRuntimeHost()?.isPersistentPassthruHostRunning ?? false
         let inputCaptureStatus = await checkKanataInputCaptureStatus()
         let tcpOK = await Task.detached { [self] in
             if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
@@ -506,7 +495,7 @@ public final class ServiceHealthChecker: @unchecked Sendable {
 
         return KanataServiceRuntimeSnapshot(
             managementState: managementState,
-            isRunning: runningState.isRunning || splitRuntimeRunning,
+            isRunning: runningState.isRunning,
             isResponding: tcpOK,
             inputCaptureReady: inputCaptureStatus.isReady,
             inputCaptureIssue: inputCaptureStatus.issue,

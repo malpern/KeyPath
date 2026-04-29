@@ -41,7 +41,7 @@ extension InstallerEngine {
             ServiceRecipe(
                 id: InstallerRecipeID.installRequiredRuntimeServices,
                 type: .installComponent,
-                serviceID: KeyPathConstants.Bundle.outputBridgeID
+                serviceID: nil
             )
 
         case .installCorrectVHIDDriver:

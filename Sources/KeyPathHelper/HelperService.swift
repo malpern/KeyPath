@@ -14,11 +14,7 @@ class HelperService: NSObject, HelperProtocol {
     /// Helper version (must match app version for compatibility)
     private static let version = "1.1.0"
     private static let vhidRootOnlyDirectory = "/Library/Application Support/org.pqrs/tmp/rootonly"
-    private static let kanataOutputBridgeBaseDirectory = KeyPathConstants.OutputBridge.runDirectory
-    private static let kanataOutputBridgeDirectory = KeyPathConstants.OutputBridge.socketDirectory
-    private static let kanataOutputBridgeSessionDirectory = KeyPathConstants.OutputBridge.sessionDirectory
-    private static let outputBridgeServiceID = KeyPathConstants.Bundle.outputBridgeID
-    private let logger = Logger(subsystem: "com.keypath.helper", category: "service")
+private let logger = Logger(subsystem: "com.keypath.helper", category: "service")
 
     // MARK: - Version Management
 
@@ -133,8 +129,6 @@ class HelperService: NSObject, HelperProtocol {
             name: "installRequiredRuntimeServices",
             operation: {
                 try Self.installOrRepairVHIDServices()
-                try Self.ensureOutputBridgeCompanionInstalled()
-                try Self.activateOutputBridgeCompanion()
             },
             reply: reply
         )
@@ -232,172 +226,6 @@ class HelperService: NSObject, HelperProtocol {
             reply: reply
         )
     }
-
-    func getKanataOutputBridgeStatus(
-        reply: @escaping (String?, String?) -> Void
-    ) {
-        NSLog("[KeyPathHelper] getKanataOutputBridgeStatus requested")
-        logger.info("getKanataOutputBridgeStatus requested")
-
-        do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: Self.vhidRootOnlyDirectory)
-            let ownerID = (attributes[.ownerAccountID] as? NSNumber)?.intValue ?? -1
-            let permissions = (attributes[.posixPermissions] as? NSNumber)?.intValue ?? 0
-            let isRootOwned = ownerID == 0
-            let isRootOnly = permissions & 0o077 == 0
-            let companionPlistPath = "/Library/LaunchDaemons/\(Self.outputBridgeServiceID).plist"
-            let companionInstalled = FileManager.default.fileExists(atPath: companionPlistPath)
-            let launchctl = Self.run("/bin/launchctl", ["print", "system/\(Self.outputBridgeServiceID)"])
-            let companionHealthy = launchctl.status == 0
-            let detail: String? = {
-                if companionHealthy {
-                    return "privileged output companion is installed and launchctl can inspect system/\(Self.outputBridgeServiceID)"
-                }
-                if companionInstalled {
-                    let trimmed = launchctl.out.trimmingCharacters(in: .whitespacesAndNewlines)
-                    return trimmed.isEmpty
-                        ? "privileged output companion plist is installed but launchctl could not inspect system/\(Self.outputBridgeServiceID)"
-                        : "privileged output companion is installed but unhealthy: \(trimmed)"
-                }
-                return "privileged output companion is not installed"
-            }()
-            let status = KanataOutputBridgeStatus(
-                available: companionHealthy,
-                companionRunning: companionHealthy,
-                requiresPrivilegedBridge: isRootOwned && isRootOnly,
-                socketDirectory: Self.kanataOutputBridgeDirectory,
-                detail: detail
-            )
-            let payload = try JSONEncoder().encode(status)
-            reply(String(decoding: payload, as: UTF8.self), nil)
-        } catch {
-            let status = KanataOutputBridgeStatus(
-                available: false,
-                companionRunning: false,
-                requiresPrivilegedBridge: false,
-                socketDirectory: Self.kanataOutputBridgeDirectory,
-                detail: "failed to inspect privileged output bridge requirements: \(error.localizedDescription)"
-            )
-            if let payload = try? JSONEncoder().encode(status) {
-                reply(String(decoding: payload, as: UTF8.self), nil)
-            } else {
-                reply(nil, error.localizedDescription)
-            }
-        }
-    }
-
-    func prepareKanataOutputBridgeSession(
-        hostPID: Int32,
-        reply: @escaping (String?, String?) -> Void
-    ) {
-        NSLog("[KeyPathHelper] prepareKanataOutputBridgeSession requested for pid=%d", hostPID)
-        logger.info("prepareKanataOutputBridgeSession requested for pid=\(hostPID)")
-
-        guard hostPID > 0 else {
-            reply(nil, "invalid host pid")
-            return
-        }
-
-        do {
-            try Self.ensureKanataOutputBridgeDirectory()
-            try Self.retireDeadOutputBridgeSessions()
-            try Self.retireOutputBridgeSessions(forHostPID: hostPID)
-            try Self.ensureOutputBridgeCompanionInstalled()
-            let sessionID = UUID().uuidString.lowercased()
-            let socketName = "k-\(sessionID.replacingOccurrences(of: "-", with: "").prefix(12)).sock"
-            let socketPath = (Self.kanataOutputBridgeDirectory as NSString)
-                .appendingPathComponent(socketName)
-
-            if FileManager.default.fileExists(atPath: socketPath) {
-                try FileManager.default.removeItem(atPath: socketPath)
-            }
-
-            let hostUID = try Self.userID(for: hostPID)
-            let hostGID = try Self.groupID(for: hostPID)
-
-            let session = KanataOutputBridgeSession(
-                sessionID: sessionID,
-                socketPath: socketPath,
-                socketDirectory: Self.kanataOutputBridgeDirectory,
-                hostPID: hostPID,
-                hostUID: hostUID,
-                hostGID: hostGID
-            )
-            try Self.writePreparedOutputBridgeSession(session)
-            NSLog(
-                "[KeyPathHelper] prepared output bridge session %@ socket=%@ hostPID=%d uid=%u gid=%u",
-                session.sessionID,
-                session.socketPath,
-                session.hostPID,
-                session.hostUID,
-                session.hostGID
-            )
-            logger.info(
-                "prepared output bridge session \(session.sessionID) socket=\(session.socketPath) hostPID=\(session.hostPID) uid=\(session.hostUID) gid=\(session.hostGID)"
-            )
-
-            let payload = try JSONEncoder().encode(session)
-            reply(String(decoding: payload, as: UTF8.self), nil)
-        } catch {
-            reply(nil, error.localizedDescription)
-        }
-    }
-
-    func activateKanataOutputBridgeSession(
-        sessionID: String,
-        reply: @escaping (Bool, String?) -> Void
-    ) {
-        NSLog("[KeyPathHelper] activateKanataOutputBridgeSession requested: %@", sessionID)
-        logger.info("activateKanataOutputBridgeSession requested: \(sessionID)")
-
-        do {
-            try Self.ensureOutputBridgeCompanionInstalled()
-            try Self.ensureKanataOutputBridgeDirectory()
-            let session = try Self.loadPreparedOutputBridgeSession(sessionID: sessionID)
-            do {
-                try Self.activatePreparedOutputBridgeSession(session)
-            } catch {
-                NSLog(
-                    "[KeyPathHelper] output bridge activation failed for %@, attempting recovery: %@",
-                    sessionID,
-                    error.localizedDescription
-                )
-                logger.error(
-                    "output bridge activation failed for \(sessionID), attempting recovery: \(error.localizedDescription)"
-                )
-                try Self.recoverOutputBridgeCompanion(for: session)
-            }
-            NSLog(
-                "[KeyPathHelper] activated output bridge session %@ socket=%@",
-                sessionID,
-                session.socketPath
-            )
-            logger.info("activated output bridge session \(sessionID) socket=\(session.socketPath)")
-            reply(true, nil)
-        } catch {
-            reply(false, error.localizedDescription)
-        }
-    }
-
-    func restartKanataOutputBridgeCompanion(
-        reply: @escaping (Bool, String?) -> Void
-    ) {
-        NSLog("[KeyPathHelper] restartKanataOutputBridgeCompanion requested")
-        logger.info("restartKanataOutputBridgeCompanion requested")
-        executePrivilegedOperation(
-            name: "restartKanataOutputBridgeCompanion",
-            operation: {
-                if Self.isServiceLoaded(Self.outputBridgeServiceID) {
-                    try Self.activateOutputBridgeCompanion()
-                } else {
-                    try Self.ensureOutputBridgeCompanionInstalled()
-                    try Self.activateOutputBridgeCompanion()
-                }
-            },
-            reply: reply
-        )
-    }
-
     func installBundledVHIDDriver(pkgPath: String, reply: @escaping (Bool, String?) -> Void) {
         NSLog("[KeyPathHelper] installBundledVHIDDriver requested: %@", pkgPath)
         executePrivilegedOperation(
@@ -469,239 +297,6 @@ class HelperService: NSObject, HelperProtocol {
         _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(vhidDaemonServiceID)"])
         _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(vhidManagerServiceID)"])
     }
-
-    private static func ensureKanataOutputBridgeDirectory() throws {
-        guard FileManager.default.fileExists(atPath: vhidRootOnlyDirectory) else {
-            throw HelperError.operationFailed("vhid root-only directory not found at \(vhidRootOnlyDirectory)")
-        }
-
-        if !FileManager.default.fileExists(atPath: kanataOutputBridgeBaseDirectory) {
-            try FileManager.default.createDirectory(
-                atPath: kanataOutputBridgeBaseDirectory,
-                withIntermediateDirectories: true
-            )
-        }
-
-        if !FileManager.default.fileExists(atPath: kanataOutputBridgeDirectory) {
-            try FileManager.default.createDirectory(
-                atPath: kanataOutputBridgeDirectory,
-                withIntermediateDirectories: false
-            )
-        }
-        if !FileManager.default.fileExists(atPath: kanataOutputBridgeSessionDirectory) {
-            try FileManager.default.createDirectory(
-                atPath: kanataOutputBridgeSessionDirectory,
-                withIntermediateDirectories: false
-            )
-        }
-
-        _ = run("/usr/sbin/chown", ["root:wheel", kanataOutputBridgeBaseDirectory])
-        _ = run("/bin/chmod", ["755", kanataOutputBridgeBaseDirectory])
-        _ = run("/usr/sbin/chown", ["root:wheel", kanataOutputBridgeDirectory])
-        _ = run("/bin/chmod", ["755", kanataOutputBridgeDirectory])
-        _ = run("/usr/sbin/chown", ["root:wheel", kanataOutputBridgeSessionDirectory])
-        _ = run("/bin/chmod", ["755", kanataOutputBridgeSessionDirectory])
-
-        let attributes = try FileManager.default.attributesOfItem(atPath: kanataOutputBridgeDirectory)
-        let ownerID = (attributes[.ownerAccountID] as? NSNumber)?.intValue ?? -1
-        let permissions = (attributes[.posixPermissions] as? NSNumber)?.intValue ?? 0
-        guard ownerID == 0, permissions == 0o755 else {
-            throw HelperError.operationFailed(
-                "output bridge directory is not host-connectable at \(kanataOutputBridgeDirectory)"
-            )
-        }
-    }
-
-    private static func retireOutputBridgeSessions(forHostPID hostPID: Int32) throws {
-        let matchingSessionIDs = try loadPreparedOutputBridgeSessions()
-            .filter { $0.hostPID == hostPID }
-            .map(\.sessionID)
-
-        for sessionID in matchingSessionIDs {
-            retireOutputBridgeSession(sessionID: sessionID)
-        }
-    }
-
-    private static func retireDeadOutputBridgeSessions() throws {
-        let deadSessionIDs = try loadPreparedOutputBridgeSessions()
-            .filter { !isProcessAlive($0.hostPID) }
-            .map(\.sessionID)
-
-        for sessionID in deadSessionIDs {
-            retireOutputBridgeSession(sessionID: sessionID)
-        }
-    }
-
-    private static func retireOutputBridgeSession(sessionID: String) {
-        let sessionPath = preparedOutputBridgeSessionPath(sessionID: sessionID)
-        if let data = try? Data(contentsOf: URL(fileURLWithPath: sessionPath)),
-           let session = try? JSONDecoder().decode(PreparedOutputBridgeSession.self, from: data),
-           FileManager.default.fileExists(atPath: session.socketPath)
-        {
-            try? FileManager.default.removeItem(atPath: session.socketPath)
-        }
-        try? FileManager.default.removeItem(atPath: sessionPath)
-    }
-
-    private static func isProcessAlive(_ pid: Int32) -> Bool {
-        guard pid > 0 else { return false }
-        if kill(pid, 0) == 0 {
-            return true
-        }
-        return errno == EPERM
-    }
-
-    private static func loadPreparedOutputBridgeSessions() throws -> [PreparedOutputBridgeSession] {
-        let directory = URL(fileURLWithPath: kanataOutputBridgeSessionDirectory, isDirectory: true)
-        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-        return files.compactMap { file in
-            guard file.pathExtension == "json",
-                  let data = try? Data(contentsOf: file),
-                  let session = try? JSONDecoder().decode(PreparedOutputBridgeSession.self, from: data)
-            else {
-                return nil
-            }
-            return session
-        }
-    }
-
-    private static func preparedOutputBridgeSessionPath(sessionID: String) -> String {
-        (kanataOutputBridgeSessionDirectory as NSString).appendingPathComponent("\(sessionID).json")
-    }
-
-    private static func writePreparedOutputBridgeSession(_ session: KanataOutputBridgeSession) throws {
-        let prepared = PreparedOutputBridgeSession(
-            sessionID: session.sessionID,
-            socketPath: session.socketPath,
-            hostPID: session.hostPID,
-            hostUID: session.hostUID,
-            hostGID: session.hostGID
-        )
-        let data = try JSONEncoder().encode(prepared)
-        try data.write(
-            to: URL(fileURLWithPath: preparedOutputBridgeSessionPath(sessionID: session.sessionID)),
-            options: Data.WritingOptions.atomic
-        )
-    }
-
-    private static func ensurePreparedOutputBridgeSessionExists(sessionID: String) throws {
-        _ = try loadPreparedOutputBridgeSession(sessionID: sessionID)
-    }
-
-    private static func loadPreparedOutputBridgeSession(sessionID: String) throws -> PreparedOutputBridgeSession {
-        let path = preparedOutputBridgeSessionPath(sessionID: sessionID)
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
-              let session = try? JSONDecoder().decode(PreparedOutputBridgeSession.self, from: data)
-        else {
-            throw HelperError.operationFailed("unknown output bridge session: \(sessionID)")
-        }
-        return session
-    }
-
-    private static func ensureOutputBridgeCompanionInstalled() throws {
-        let appBundle = appBundlePathFromHelper()
-        let bundledPlist = (appBundle as NSString).appendingPathComponent(
-            "Contents/Library/LaunchDaemons/\(outputBridgeServiceID).plist"
-        )
-        guard FileManager.default.fileExists(atPath: bundledPlist) else {
-            throw HelperError.operationFailed("bundled output bridge plist not found at \(bundledPlist)")
-        }
-        let destination = "/Library/LaunchDaemons/\(outputBridgeServiceID).plist"
-        _ = run("/bin/rm", ["-f", destination])
-        _ = run("/bin/cp", [bundledPlist, destination])
-        _ = run("/usr/sbin/chown", ["root:wheel", destination])
-        _ = run("/bin/chmod", ["644", destination])
-        _ = run("/bin/launchctl", ["bootout", "system/\(outputBridgeServiceID)"])
-        try bootstrapOutputBridgeCompanion(destination: destination)
-        _ = run("/bin/launchctl", ["enable", "system/\(outputBridgeServiceID)"])
-    }
-
-    private static func userID(for pid: Int32) throws -> UInt32 {
-        let result = run("/bin/ps", ["-o", "uid=", "-p", String(pid)])
-        guard result.status == 0,
-              let value = UInt32(result.out.trimmingCharacters(in: .whitespacesAndNewlines))
-        else {
-            throw HelperError.operationFailed("failed to resolve uid for pid \(pid): \(result.out)")
-        }
-        return value
-    }
-
-    private static func groupID(for pid: Int32) throws -> UInt32 {
-        let result = run("/bin/ps", ["-o", "gid=", "-p", String(pid)])
-        guard result.status == 0,
-              let value = UInt32(result.out.trimmingCharacters(in: .whitespacesAndNewlines))
-        else {
-            throw HelperError.operationFailed("failed to resolve gid for pid \(pid): \(result.out)")
-        }
-        return value
-    }
-
-    private static func bootstrapOutputBridgeCompanion(destination: String) throws {
-        var lastOutput = ""
-        for attempt in 0 ..< 5 {
-            if attempt > 0 {
-                usleep(useconds_t(200_000 * attempt))
-            }
-            let bootstrap = run("/bin/launchctl", ["bootstrap", "system", destination])
-            if bootstrap.status == 0 {
-                return
-            }
-            lastOutput = bootstrap.out.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !lastOutput.localizedCaseInsensitiveContains("Input/output error"),
-               !lastOutput.localizedCaseInsensitiveContains("i/o error")
-            {
-                break
-            }
-        }
-        throw HelperError.operationFailed("bootstrap output bridge failed: \(lastOutput)")
-    }
-
-    private static func activateOutputBridgeCompanion() throws {
-        let kickstart = run("/bin/launchctl", ["kickstart", "-k", "system/\(outputBridgeServiceID)"])
-        guard kickstart.status == 0 else {
-            throw HelperError.operationFailed("kickstart output bridge failed: \(kickstart.out)")
-        }
-    }
-
-    private static func activatePreparedOutputBridgeSession(_ session: PreparedOutputBridgeSession) throws {
-        if FileManager.default.fileExists(atPath: session.socketPath) {
-            try? FileManager.default.removeItem(atPath: session.socketPath)
-        }
-        try activateOutputBridgeCompanion()
-        try waitForPreparedOutputBridgeSocket(sessionID: session.sessionID, socketPath: session.socketPath)
-    }
-
-    private static func recoverOutputBridgeCompanion(for session: PreparedOutputBridgeSession) throws {
-        if isServiceLoaded(outputBridgeServiceID) {
-            do {
-                try activateOutputBridgeCompanion()
-                try waitForPreparedOutputBridgeSocket(sessionID: session.sessionID, socketPath: session.socketPath)
-                return
-            } catch {
-                NSLog(
-                    "[KeyPathHelper] output bridge service loaded but socket recovery failed; reinstalling daemon: %@",
-                    error.localizedDescription
-                )
-            }
-        }
-
-        _ = run("/bin/launchctl", ["bootout", "system/\(outputBridgeServiceID)"])
-        usleep(300_000)
-        try ensureOutputBridgeCompanionInstalled()
-        try activatePreparedOutputBridgeSession(session)
-    }
-
-    private static func waitForPreparedOutputBridgeSocket(sessionID: String, socketPath: String) throws {
-        let deadline = Date().addingTimeInterval(3)
-        while Date() < deadline {
-            if FileManager.default.fileExists(atPath: socketPath) {
-                return
-            }
-            usleep(100_000)
-        }
-        throw HelperError.operationFailed("output bridge companion did not bind socket for session \(sessionID)")
-    }
-
     // MARK: - Process Management
 
     func terminateProcess(_ pid: Int32, reply: @escaping (Bool, String?) -> Void) {
@@ -865,7 +460,7 @@ class HelperService: NSObject, HelperProtocol {
     }
 
     private static func stopAndUnloadDaemons() {
-        let daemons = [kanataServiceID, outputBridgeServiceID, vhidDaemonServiceID, vhidManagerServiceID]
+        let daemons = [kanataServiceID, vhidDaemonServiceID, vhidManagerServiceID]
         for daemon in daemons {
             // Try to stop gracefully first
             _ = run("/bin/launchctl", ["kill", "TERM", "system/\(daemon)"])
@@ -881,7 +476,6 @@ class HelperService: NSObject, HelperProtocol {
     private static func removeLaunchDaemonPlists() {
         let plists = [
             "/Library/LaunchDaemons/\(kanataServiceID).plist",
-            "/Library/LaunchDaemons/\(outputBridgeServiceID).plist",
             "/Library/LaunchDaemons/\(vhidDaemonServiceID).plist",
             "/Library/LaunchDaemons/\(vhidManagerServiceID).plist",
             "/Library/LaunchDaemons/com.keypath.logrotate.plist",
@@ -925,8 +519,8 @@ class HelperService: NSObject, HelperProtocol {
             "/var/log/keypath-logrotate.log",
             "/var/log/com.keypath.helper.stdout.log",
             "/var/log/com.keypath.helper.stderr.log",
-            KeyPathConstants.OutputBridge.stdoutLog,
-            KeyPathConstants.OutputBridge.stderrLog
+            "/var/log/com.keypath.output-bridge.stdout.log",
+            "/var/log/com.keypath.output-bridge.stderr.log"
         ]
         for log in logs {
             if FileManager.default.fileExists(atPath: log) {
@@ -1060,14 +654,6 @@ class HelperService: NSObject, HelperProtocol {
             reply(false, error.localizedDescription)
         }
     }
-}
-
-private struct PreparedOutputBridgeSession: Codable, Sendable {
-    let sessionID: String
-    let socketPath: String
-    let hostPID: Int32
-    let hostUID: UInt32
-    let hostGID: UInt32
 }
 
 // MARK: - Error Types

@@ -85,74 +85,13 @@ protocol DiagnosticsServiceProtocol: Sendable {
 // SAFETY: @unchecked Sendable — all stored state (processLifecycleManager) is itself
 // Sendable (@MainActor final class). Methods are stateless diagnostic queries.
 final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable {
-    private static let outputBridgeSmokeDiagnosticsEnvKey = "KEYPATH_ENABLE_OUTPUT_BRIDGE_SMOKE_DIAGNOSTIC"
-    private static let outputBridgeSmokeModifierEnvKey = "KEYPATH_ENABLE_OUTPUT_BRIDGE_SMOKE_MODIFIERS"
-    private static let outputBridgeSmokeEmitEnvKey = "KEYPATH_ENABLE_OUTPUT_BRIDGE_SMOKE_EMIT"
-    private static let hostPassthruDiagnosticsEnvKey = "KEYPATH_ENABLE_HOST_PASSTHRU_DIAGNOSTIC"
-    private static let hostPassthruCaptureEnvKey = "KEYPATH_ENABLE_HOST_PASSTHRU_CAPTURE"
-    private static let hostPassthruDiagnosticsTimeout: TimeInterval = 8
-
     /// Dependencies
     private let processLifecycleManager: ProcessLifecycleManager
-    private let outputBridgeSmokeRunner: @Sendable () async throws -> KanataOutputBridgeSmokeReport
-    private let outputBridgeSmokeDiagnosticsEnabled: @Sendable () -> Bool
-    private let hostPassthruRunner: @Sendable () async throws -> KanataSplitRuntimeHostLaunchReport
-    private let hostPassthruDiagnosticsEnabled: @Sendable () -> Bool
-
-    typealias HostPassthruDiagnosticReport = KanataSplitRuntimeHostLaunchReport
-
-    static func makeDefaultHostPassthruRunner(includeCapture: Bool) -> @Sendable () async throws -> KanataSplitRuntimeHostLaunchReport {
-        {
-            let service = await MainActor.run { KanataSplitRuntimeHostService.shared }
-            return try await service.launchPassthruHost(
-                includeCapture: includeCapture,
-                timeout: hostPassthruDiagnosticsTimeout,
-                pollMilliseconds: 1000
-            )
-        }
-    }
 
     init(
-        processLifecycleManager: ProcessLifecycleManager,
-        outputBridgeSmokeRunner: @escaping @Sendable () async throws -> KanataOutputBridgeSmokeReport = {
-            let modifierRaw = ProcessInfo.processInfo.environment[outputBridgeSmokeModifierEnvKey]?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-            let includeModifierSync = modifierRaw == "1" || modifierRaw == "true" || modifierRaw == "yes"
-            let raw = ProcessInfo.processInfo.environment[outputBridgeSmokeEmitEnvKey]?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-            let includeEmit = raw == "1" || raw == "true" || raw == "yes"
-            return try await KanataOutputBridgeSmokeService.run(
-                syncModifierProbe: includeModifierSync ? KanataOutputBridgeSmokeService.defaultModifierProbeState : nil,
-                emitProbeEvent: includeEmit ? KanataOutputBridgeSmokeService.defaultEmitProbeEvent : nil
-            )
-        },
-        outputBridgeSmokeDiagnosticsEnabled: @escaping @Sendable () -> Bool = {
-            let raw = ProcessInfo.processInfo.environment[outputBridgeSmokeDiagnosticsEnvKey]?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-            return raw == "1" || raw == "true" || raw == "yes"
-        },
-        hostPassthruRunner: @escaping @Sendable () async throws -> KanataSplitRuntimeHostLaunchReport = {
-            let hostCaptureRaw = ProcessInfo.processInfo.environment[hostPassthruCaptureEnvKey]?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-            let includeCapture = hostCaptureRaw == "1" || hostCaptureRaw == "true" || hostCaptureRaw == "yes"
-            return try await makeDefaultHostPassthruRunner(includeCapture: includeCapture)()
-        },
-        hostPassthruDiagnosticsEnabled: @escaping @Sendable () -> Bool = {
-            let raw = ProcessInfo.processInfo.environment[hostPassthruDiagnosticsEnvKey]?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-            return raw == "1" || raw == "true" || raw == "yes"
-        }
+        processLifecycleManager: ProcessLifecycleManager
     ) {
         self.processLifecycleManager = processLifecycleManager
-        self.outputBridgeSmokeRunner = outputBridgeSmokeRunner
-        self.outputBridgeSmokeDiagnosticsEnabled = outputBridgeSmokeDiagnosticsEnabled
-        self.hostPassthruRunner = hostPassthruRunner
-        self.hostPassthruDiagnosticsEnabled = hostPassthruDiagnosticsEnabled
     }
 
     nonisolated func virtualHIDDaemonStatus() async -> VirtualHIDDaemonStatus {
@@ -184,19 +123,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
             events.append(.virtualHIDConnectionFailed)
         }
         return events
-    }
-
-    func runHostPassthruDiagnostic() async -> KanataDiagnostic {
-        await makeExperimentalHostPassthruDiagnostic()
-    }
-
-    func runHostPassthruDiagnostic(includeCapture: Bool) async -> KanataDiagnostic {
-        do {
-            let report = try await Self.makeDefaultHostPassthruRunner(includeCapture: includeCapture)()
-            return Self.makeHostPassthruDiagnostic(for: report)
-        } catch {
-            return Self.makeHostPassthruFailureDiagnostic(error: error)
-        }
     }
 
     func getSystemDiagnostics(engineClient _: EngineClient?) async -> [KanataDiagnostic] {
@@ -467,15 +393,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         // Note: Some Kanata builds do not implement a Status command.
         // Keep TCP diagnostics driven by HelloOk + log analysis instead.
 
-        let runtimePathDecision = await KanataRuntimePathCoordinator.evaluateCurrentPath()
-        diagnostics.append(Self.makeRuntimePathDiagnostic(for: runtimePathDecision))
-        if outputBridgeSmokeDiagnosticsEnabled() {
-            await diagnostics.append(makeExperimentalOutputBridgeSmokeDiagnostic())
-        }
-        if hostPassthruDiagnosticsEnabled() {
-            await diagnostics.append(makeExperimentalHostPassthruDiagnostic())
-        }
-
         // TCP handshake summary (protocol/capabilities)
         if let hello = await fetchTcpHello() {
             let caps = hello.capabilities.joined(separator: ", ")
@@ -502,165 +419,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         diagnostics.append(contentsOf: logDiagnostics)
 
         return diagnostics
-    }
-
-    private func makeExperimentalOutputBridgeSmokeDiagnostic() async -> KanataDiagnostic {
-        do {
-            let report = try await outputBridgeSmokeRunner()
-            return Self.makeOutputBridgeSmokeDiagnostic(for: report)
-        } catch {
-            return Self.makeOutputBridgeSmokeFailureDiagnostic(error: error)
-        }
-    }
-
-    private func makeExperimentalHostPassthruDiagnostic() async -> KanataDiagnostic {
-        do {
-            let report = try await hostPassthruRunner()
-            return Self.makeHostPassthruDiagnostic(for: report)
-        } catch {
-            return Self.makeHostPassthruFailureDiagnostic(error: error)
-        }
-    }
-
-    static func makeRuntimePathDiagnostic(
-        for decision: KanataRuntimePathDecision,
-        timestamp: Date = Date()
-    ) -> KanataDiagnostic {
-        switch decision {
-        case let .useSplitRuntime(reason):
-            KanataDiagnostic(
-                timestamp: timestamp,
-                severity: .info,
-                category: .system,
-                title: "Runtime Path: Split Runtime Ready",
-                description: "Bundled host input runtime is ready and still requires a privileged output bridge.",
-                technicalDetails: reason,
-                suggestedAction: "",
-                canAutoFix: false
-            )
-        case let .useLegacySystemBinary(reason):
-            KanataDiagnostic(
-                timestamp: timestamp,
-                severity: .warning,
-                category: .system,
-                title: "Runtime Path: Legacy Fallback Active",
-                description: "KeyPath still depends on the legacy root-owned Kanata binary on this machine.",
-                technicalDetails: reason,
-                suggestedAction: "No immediate action required. This is a migration diagnostic for the macOS split-runtime rollout.",
-                canAutoFix: false
-            )
-        case let .blocked(reason):
-            KanataDiagnostic(
-                timestamp: timestamp,
-                severity: .error,
-                category: .system,
-                title: "Runtime Path: Split Runtime Blocked",
-                description: "Neither the bundled split runtime nor the legacy system binary is currently viable.",
-                technicalDetails: reason,
-                suggestedAction: "Repair the install or restore the legacy Kanata binary before switching runtime architectures.",
-                canAutoFix: false
-            )
-        }
-    }
-
-    static func makeOutputBridgeSmokeDiagnostic(
-        for report: KanataOutputBridgeSmokeReport,
-        timestamp: Date = Date()
-    ) -> KanataDiagnostic {
-        KanataDiagnostic(
-            timestamp: timestamp,
-            severity: .info,
-            category: .system,
-            title: "Experimental Output Bridge Smoke Passed",
-            description: "The app-owned split-runtime bridge completed helper session setup plus handshake/ping.",
-            technicalDetails: """
-            session=\(report.session.sessionID)
-            socket=\(report.session.socketPath)
-            handshake=\(report.handshake)
-            ping=\(report.ping)
-            sync_modifiers_state=\(String(describing: report.syncedModifiers))
-            sync_modifiers_response=\(String(describing: report.syncModifiers))
-            emit_event=\(String(describing: report.emittedKeyEvent))
-            emit_response=\(String(describing: report.emitKey))
-            reset=\(String(describing: report.reset))
-            """,
-            suggestedAction: "",
-            canAutoFix: false
-        )
-    }
-
-    static func makeOutputBridgeSmokeFailureDiagnostic(
-        error: Error,
-        timestamp: Date = Date()
-    ) -> KanataDiagnostic {
-        KanataDiagnostic(
-            timestamp: timestamp,
-            severity: .warning,
-            category: .system,
-            title: "Experimental Output Bridge Smoke Failed",
-            description: "The app-owned split-runtime bridge smoke path could not complete.",
-            technicalDetails: error.localizedDescription,
-            suggestedAction: "Use this diagnostic only while validating the split-runtime migration.",
-            canAutoFix: false
-        )
-    }
-
-    static func makeHostPassthruDiagnostic(
-        for report: HostPassthruDiagnosticReport,
-        timestamp: Date = Date()
-    ) -> KanataDiagnostic {
-        let succeeded = hostPassthruReportSucceeded(report)
-        return KanataDiagnostic(
-            timestamp: timestamp,
-            severity: succeeded ? .info : .warning,
-            category: .system,
-            title: succeeded
-                ? "Experimental Host Passthru Diagnostic Passed"
-                : "Experimental Host Passthru Diagnostic Failed",
-            description: succeeded
-                ? "The signed app launched the bundled passthru host path and it exited cleanly."
-                : "The signed app launched the bundled passthru host path but it did not exit cleanly.",
-            technicalDetails: """
-            launcher=\(report.launcherPath)
-            session=\(report.sessionID)
-            socket=\(report.socketPath)
-            exit_code=\(report.exitCode)
-            stderr=\(report.stderr)
-            """,
-            suggestedAction: "Use this diagnostic only while validating the split-runtime migration.",
-            canAutoFix: false
-        )
-    }
-
-    static func hostPassthruReportSucceeded(_ report: HostPassthruDiagnosticReport) -> Bool {
-        guard report.exitCode == 0 else {
-            return false
-        }
-
-        let stderr = report.stderr.lowercased()
-        let blockingMarkers = [
-            "experimental passthru forwarding failed",
-            "failed to connect to output bridge socket",
-            "host bridge passthru runtime failed",
-        ]
-
-        return blockingMarkers.contains(where: { stderr.contains($0) }) == false
-    }
-
-    static func makeHostPassthruFailureDiagnostic(
-        error: Error,
-        timestamp: Date = Date()
-    ) -> KanataDiagnostic {
-        KanataDiagnostic(
-            timestamp: timestamp,
-            severity: .warning,
-            category: .system,
-            title: "Experimental Host Passthru Diagnostic Failed",
-            description: "The signed app could not launch the bundled passthru host diagnostic path.",
-            technicalDetails: error.localizedDescription,
-            suggestedAction: "Use this diagnostic only while validating the split-runtime migration.",
-            canAutoFix: false
-        )
     }
 
     // MARK: - Process Conflict Checking
