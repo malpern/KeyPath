@@ -556,8 +556,7 @@ extension OverlayKeycapView {
             Text(text)
                 .font(.system(size: 12 * scale, weight: .semibold))
         } else if isSmallSize {
-            // Symbol only when tiny
-            Text(key.label)
+            Text(text)
                 .font(.system(size: 10 * scale, weight: .regular))
         } else {
             Text(text)

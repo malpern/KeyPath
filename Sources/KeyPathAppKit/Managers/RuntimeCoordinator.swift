@@ -283,11 +283,16 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         diagnosticsManager = DiagnosticsManager(
             diagnosticsService: diagnosticsService,
             healthMonitor: serviceHealthMonitor,
-            processStatusProvider: {
-                if let splitHostPID = KanataSplitRuntimeHostService.shared.activePersistentHostPID {
-                    return ProcessHealthStatus(isRunning: true, pid: Int(splitHostPID))
+            processStatusProvider: { [recoveryDaemonService] in
+                if ServiceLifecycleCoordinator.useSplitRuntimeHost {
+                    if let splitHostPID = KanataSplitRuntimeHostService.shared.activePersistentHostPID {
+                        return ProcessHealthStatus(isRunning: true, pid: Int(splitHostPID))
+                    }
+                    return ProcessHealthStatus(isRunning: false, pid: nil)
                 }
-                return ProcessHealthStatus(isRunning: false, pid: nil)
+                // Mode A: check the LaunchDaemon via RecoveryDaemonService
+                let isRunning = await recoveryDaemonService.isRecoveryDaemonRunning()
+                return ProcessHealthStatus(isRunning: isRunning, pid: nil)
             }
         )
 
