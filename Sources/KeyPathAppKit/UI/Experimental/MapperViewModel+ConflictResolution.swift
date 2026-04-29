@@ -836,23 +836,27 @@ extension MapperViewModel {
         // Delete the saved rule if we have one
         if let manager = kanataManager {
             if let ruleID = lastSavedRuleID {
+                AppLogger.shared.log("🧹 [MapperViewModel] revertToKeystroke: deleting by lastSavedRuleID=\(ruleID)")
                 Task {
                     await manager.removeCustomRule(withID: ruleID)
-                    // Post notification to update keyboard
                     NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
                     AppLogger.shared.log("🧹 [MapperViewModel] Reverted to keystroke, deleted rule \(ruleID)")
                 }
                 lastSavedRuleID = nil
             } else if let inputKanata = currentInputKanataString() {
-                // Try to delete by input key
+                AppLogger.shared.log("🧹 [MapperViewModel] revertToKeystroke: no lastSavedRuleID, probing by input='\(inputKanata)'")
                 let probeRule = manager.makeCustomRule(input: inputKanata, output: "xx")
+                AppLogger.shared.log("🧹 [MapperViewModel] revertToKeystroke: probeRule.id=\(probeRule.id)")
                 Task {
                     await manager.removeCustomRule(withID: probeRule.id)
-                    // Post notification to update keyboard
                     NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
                     AppLogger.shared.log("🧹 [MapperViewModel] Reverted to keystroke, deleted rule by input \(inputKanata)")
                 }
+            } else {
+                AppLogger.shared.log("⚠️ [MapperViewModel] revertToKeystroke: no lastSavedRuleID and currentInputKanataString() is nil")
             }
+        } else {
+            AppLogger.shared.log("⚠️ [MapperViewModel] revertToKeystroke: kanataManager is nil — cannot delete rule")
         }
 
         statusMessage = "✓ Reverted to keystroke"

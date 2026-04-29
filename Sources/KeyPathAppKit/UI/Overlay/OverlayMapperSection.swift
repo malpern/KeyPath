@@ -526,8 +526,22 @@ struct OverlayMapperSection: View {
                         appConditionDropdown
                             .frame(width: keycapWidth, alignment: .center)
 
-                        Color.clear
-                            .frame(width: arrowWidth, height: 1)
+                        if tapHasNonIdentityMapping || currentSlotIsConfigured {
+                            Button {
+                                showingResetDialog = true
+                            } label: {
+                                Image(systemName: "arrow.counterclockwise")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Clear mapping")
+                            .accessibilityIdentifier("overlay-mapper-reset-trigger")
+                            .frame(width: arrowWidth)
+                        } else {
+                            Color.clear
+                                .frame(width: arrowWidth, height: 1)
+                        }
 
                         outputTypeDropdown
                             .frame(width: keycapWidth, alignment: .center)

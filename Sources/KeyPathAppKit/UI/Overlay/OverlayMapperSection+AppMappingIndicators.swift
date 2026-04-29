@@ -372,6 +372,7 @@ extension OverlayMapperSection {
 
     /// Clear the action for the currently selected behavior slot
     func clearCurrentSlot() {
+        AppLogger.shared.log("🧹 [OverlayMapper] clearCurrentSlot: slot=\(selectedBehaviorSlot), tapCount=\(selectedTapCount), tapMode=\(selectedTapOutputMode), input=\(viewModel.inputLabel), hasManager=\(viewModel.kanataManager != nil)")
         switch selectedBehaviorSlot {
         case .tap:
             if selectedTapCount > 1 {
