@@ -141,7 +141,6 @@ echo "🔨 Building..."
 BUILD_LOG=$(mktemp -t keypath-build.XXXXXX)
 # NOTE: `swift build --show-bin-path` does not reliably trigger a rebuild.
 # Always build first, then query the bin dir.
-if ! swift build --product KeyPath --product KeyPathKanataLauncher --product KeyPathOutputBridge --product KeyPathInsights "${MODULE_CACHE_FLAGS[@]}" 2> "$BUILD_LOG"; then
     BUILD_END_MS=$(get_time_ms)
     DURATION=$((BUILD_END_MS - BUILD_START_MS))
     echo "❌ Build failed"
@@ -247,19 +246,8 @@ if [[ -f "$KANATA_LAUNCHER_BIN" ]]; then
     chmod 755 "$KANATA_LAUNCHER_DST"
 fi
 
-OUTPUT_BRIDGE_BIN="$BIN_DIR/KeyPathOutputBridge"
-OUTPUT_BRIDGE_DST="$APP_BUNDLE/Contents/Library/HelperTools/KeyPathOutputBridge"
-if [[ -f "$OUTPUT_BRIDGE_BIN" ]]; then
-    mkdir -p "$(dirname "$OUTPUT_BRIDGE_DST")"
-    cp "$OUTPUT_BRIDGE_BIN" "$OUTPUT_BRIDGE_DST"
-    chmod 755 "$OUTPUT_BRIDGE_DST"
 fi
 
-OUTPUT_BRIDGE_PLIST_SRC="$PROJECT_DIR/Sources/KeyPathOutputBridge/com.keypath.output-bridge.plist"
-OUTPUT_BRIDGE_PLIST_DST="$APP_BUNDLE/Contents/Library/LaunchDaemons/com.keypath.output-bridge.plist"
-if [[ -f "$OUTPUT_BRIDGE_PLIST_SRC" ]]; then
-    mkdir -p "$(dirname "$OUTPUT_BRIDGE_PLIST_DST")"
-    cp "$OUTPUT_BRIDGE_PLIST_SRC" "$OUTPUT_BRIDGE_PLIST_DST"
 fi
 
 # Rebuild the Rust host bridge so the installed app does not silently reuse a stale
@@ -323,8 +311,6 @@ if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
     if [[ -f "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher" ]]; then
         codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher" 2>/dev/null || true
     fi
-    if [[ -f "$APP_BUNDLE/Contents/Library/HelperTools/KeyPathOutputBridge" ]]; then
-        codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/HelperTools/KeyPathOutputBridge" 2>/dev/null || true
     fi
     if [[ -f "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" ]]; then
         codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" 2>/dev/null || true

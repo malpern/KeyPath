@@ -575,22 +575,24 @@ struct OverlayMapperSection: View {
 
             Spacer(minLength: 0)
 
-            if let status = viewModel.statusMessage {
-                Text(status)
-                    .font(.caption)
-                    .foregroundStyle(viewModel.statusIsError ? .red : (status.contains("✓") ? .green : .secondary))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(.ultraThinMaterial)
-                    )
-                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                    .animation(.easeOut(duration: 0.2), value: status)
-            }
-
             packSuggestionsBanner
                 .padding(.bottom, 12)
+                .overlay(alignment: .top) {
+                    if let status = viewModel.statusMessage {
+                        Text(status)
+                            .font(.caption)
+                            .foregroundStyle(viewModel.statusIsError ? .red : (status.contains("✓") ? .green : .secondary))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(.ultraThinMaterial)
+                            )
+                            .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                            .animation(.easeOut(duration: 0.2), value: status)
+                            .offset(y: -24)
+                    }
+                }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .sheet(item: $packForDetail) { pack in

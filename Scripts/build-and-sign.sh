@@ -164,7 +164,6 @@ echo "🏗️  Building KeyPath and plugins..."
 # Note: `swift build` accepts a single `--product`; passing it twice can skip the first one.
 swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
 swift build --configuration release --product KeyPathKanataLauncher -Xswiftc -no-whole-module-optimization
-swift build --configuration release --product KeyPathOutputBridge -Xswiftc -no-whole-module-optimization
 swift build --configuration release --product KeyPathInsights -Xswiftc -no-whole-module-optimization
 
 echo "📦 Creating app bundle..."
@@ -273,11 +272,9 @@ mkdir -p "$HELPER_TOOLS" "$LAUNCH_DAEMONS"
 
 # Copy helper binary into Contents/Library/HelperTools/
 ditto "$BUILD_DIR/KeyPathHelper" "$HELPER_TOOLS/KeyPathHelper"
-ditto "$BUILD_DIR/KeyPathOutputBridge" "$HELPER_TOOLS/KeyPathOutputBridge"
 
 # Copy daemon plist into bundle-local LaunchDaemons with final name
 ditto "Sources/KeyPathHelper/com.keypath.helper.plist" "$LAUNCH_DAEMONS/com.keypath.helper.plist"
-ditto "Sources/KeyPathOutputBridge/com.keypath.output-bridge.plist" "$LAUNCH_DAEMONS/com.keypath.output-bridge.plist"
 
 # Copy Kanata daemon plist for SMAppService
 ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath.kanata.plist"
@@ -286,9 +283,7 @@ ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath
 	    local missing=0
 	    for path in \
 	        "$HELPER_TOOLS/KeyPathHelper" \
-	        "$HELPER_TOOLS/KeyPathOutputBridge" \
 	        "$LAUNCH_DAEMONS/com.keypath.helper.plist" \
-	        "$LAUNCH_DAEMONS/com.keypath.output-bridge.plist" \
 	        "$LAUNCH_DAEMONS/com.keypath.kanata.plist" \
 	        "$FRAMEWORKS/Sparkle.framework" \
 	        "$INSIGHTS_BUNDLE/Contents/MacOS/libKeyPathInsights" \
@@ -314,9 +309,7 @@ verify_embedded_artifacts
 ./Scripts/verify-kanata-plist.sh "$APP_BUNDLE"
 
 echo "✅ Helper embedded: $HELPER_TOOLS/KeyPathHelper"
-echo "✅ Output bridge embedded: $HELPER_TOOLS/KeyPathOutputBridge"
 echo "✅ Helper plist embedded: $LAUNCH_DAEMONS/com.keypath.helper.plist"
-echo "✅ Output bridge plist embedded: $LAUNCH_DAEMONS/com.keypath.output-bridge.plist"
 echo "✅ Kanata daemon plist embedded: $LAUNCH_DAEMONS/com.keypath.kanata.plist"
 
 # Copy main app Info.plist
@@ -394,13 +387,6 @@ else
         --force --options=runtime \
         --identifier "com.keypath.helper" \
         --entitlements "$HELPER_ENTITLEMENTS" \
-        --sign "$SIGNING_IDENTITY"
-
-    OUTPUT_BRIDGE_ENTITLEMENTS="Sources/KeyPathOutputBridge/KeyPathOutputBridge.entitlements"
-    kp_sign "$HELPER_TOOLS/KeyPathOutputBridge" \
-        --force --options=runtime \
-        --identifier "com.keypath.output-bridge" \
-        --entitlements "$OUTPUT_BRIDGE_ENTITLEMENTS" \
         --sign "$SIGNING_IDENTITY"
 
     # Sign "Kanata Engine.app" bundle inside-out: sign the inner binary first, then the bundle.
