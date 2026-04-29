@@ -57,7 +57,7 @@ final class StubPrivilegedOperationsCoordinator: PrivilegedOperationsCoordinatin
         try record("killAllKanataProcesses")
     }
 
-    func stopRecoveryDaemonService() async throws {
+    func stopKanataDaemonService() async throws {
         try record("stopKanataService")
     }
 

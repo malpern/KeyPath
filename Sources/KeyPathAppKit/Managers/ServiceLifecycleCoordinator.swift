@@ -26,7 +26,7 @@ final class ServiceLifecycleCoordinator {
 
     // MARK: - Dependencies
 
-    private let recoveryDaemonService: RecoveryDaemonService
+    private let kanataDaemonService: KanataDaemonService
     private let recoveryCoordinator: RecoveryCoordinator
 
     /// Mutable flag shared with RuntimeCoordinator to track in-progress start attempts.
@@ -63,10 +63,10 @@ final class ServiceLifecycleCoordinator {
     // MARK: - Init
 
     init(
-        recoveryDaemonService: RecoveryDaemonService,
+        kanataDaemonService: KanataDaemonService,
         recoveryCoordinator: RecoveryCoordinator
     ) {
-        self.recoveryDaemonService = recoveryDaemonService
+        self.kanataDaemonService = kanataDaemonService
         self.recoveryCoordinator = recoveryCoordinator
     }
 
@@ -114,7 +114,7 @@ final class ServiceLifecycleCoordinator {
         await AppContextService.shared.stop()
 
         do {
-            _ = try await recoveryDaemonService.stopIfRunning()
+            _ = try await kanataDaemonService.stopIfRunning()
             onWarning?(nil)
             onStateChanged?()
             return true
@@ -184,7 +184,7 @@ final class ServiceLifecycleCoordinator {
             return .starting
         }
 
-        let daemonStatus = await recoveryDaemonService.refreshStatus()
+        let daemonStatus = await kanataDaemonService.refreshStatus()
         switch daemonStatus {
         case let .running(pid):
             return .running(pid: pid)

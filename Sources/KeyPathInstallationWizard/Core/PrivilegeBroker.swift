@@ -78,7 +78,7 @@ public struct PrivilegeBroker {
     }
 
     /// Stop Kanata LaunchDaemon and kill any remaining processes
-    public func stopRecoveryDaemonService() async throws {
+    public func stopKanataDaemonService() async throws {
         let c = try requireCoordinator()
         let serviceID = WizardDependencies.daemonManager?.kanataServiceID ?? "com.keypath.kanata"
         let cmd = "/bin/launchctl bootout system/\(serviceID) 2>/dev/null || true"

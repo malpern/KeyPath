@@ -165,7 +165,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     // Additional dependencies needed by extensions
     let installerEngine: InstallerEngine
     let privilegeBroker: PrivilegeBroker
-    let recoveryDaemonService: RecoveryDaemonService
+    let kanataDaemonService: KanataDaemonService
     nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     let reloadSafetyMonitor = ReloadSafetyMonitor() // internal for use by extensions
     let karabinerConflictService: KarabinerConflictManaging
@@ -227,8 +227,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             )
         }
 
-        // Phase 3: Use shared RecoveryDaemonService for dependencies
-        let recoveryDaemonService = RecoveryDaemonService.shared
+        // Phase 3: Use shared KanataDaemonService for dependencies
+        let kanataDaemonService = KanataDaemonService.shared
         let lifecycleManager = ProcessLifecycleManager()
         processLifecycleManager = lifecycleManager
 
@@ -246,7 +246,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         privilegeBroker = PrivilegeBroker()
         installerEngine = InstallerEngine()
         // Store for extensions
-        self.recoveryDaemonService = recoveryDaemonService
+        self.kanataDaemonService = kanataDaemonService
         self.diagnosticsService = diagnosticsService
         self.karabinerConflictService = karabinerConflictService
         self.configBackupManager = configBackupManager
@@ -281,8 +281,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         diagnosticsManager = DiagnosticsManager(
             diagnosticsService: diagnosticsService,
             healthMonitor: serviceHealthMonitor,
-            processStatusProvider: { [recoveryDaemonService] in
-                let isRunning = await recoveryDaemonService.isRecoveryDaemonRunning()
+            processStatusProvider: { [kanataDaemonService] in
+                let isRunning = await kanataDaemonService.isDaemonRunning()
                 return ProcessHealthStatus(isRunning: isRunning, pid: nil)
             }
         )
@@ -298,7 +298,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Initialize ServiceLifecycleCoordinator
         serviceLifecycleCoordinator = ServiceLifecycleCoordinator(
-            recoveryDaemonService: recoveryDaemonService,
+            kanataDaemonService: kanataDaemonService,
             recoveryCoordinator: recoveryCoordinator
         )
 
@@ -926,7 +926,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                 try? await Task.sleep(for: .seconds(2))
                 self?.saveStatus = .idle
             }
-        } else if await recoveryDaemonService.isRecoveryDaemonRunning() {
+        } else if await kanataDaemonService.isDaemonRunning() {
             AppLogger.shared.warn(
                 "⚠️ [Reset] Skipping TCP reload because only the recovery daemon is active. " +
                     "The split runtime host is not running."

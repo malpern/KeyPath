@@ -28,8 +28,8 @@ private class MockSMAppService: SMAppServiceProtocol, @unchecked Sendable {
 }
 
 @MainActor
-final class RecoveryDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
-    var service: RecoveryDaemonService!
+final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
+    var service: KanataDaemonService!
 
     /// Keep reference to original factory to restore it
     var originalFactory: ((String) -> SMAppServiceProtocol)!
@@ -38,28 +38,28 @@ final class RecoveryDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
         try await super.setUp()
 
         // 1. Mock SMAppService
-        originalFactory = RecoveryDaemonService.smServiceFactory
-        RecoveryDaemonService.smServiceFactory = { _ in
+        originalFactory = KanataDaemonService.smServiceFactory
+        KanataDaemonService.smServiceFactory = { _ in
             MockSMAppService(status: .notRegistered)
         }
 
         // 2. Create Service under test
-        service = RecoveryDaemonService()
+        service = KanataDaemonService()
     }
 
     override func tearDown() async throws {
-        RecoveryDaemonService.smServiceFactory = originalFactory
+        KanataDaemonService.smServiceFactory = originalFactory
         service = nil
         try await super.tearDown()
     }
 
     func testStopService_ShouldUnregister() async throws {
         // Given: Service is "running" (simulated by setting mock status)
-        RecoveryDaemonService.smServiceFactory = { _ in
+        KanataDaemonService.smServiceFactory = { _ in
             MockSMAppService(status: .enabled)
         }
         // Re-init to pick up new mock state
-        service = RecoveryDaemonService()
+        service = KanataDaemonService()
 
         // When: Stop is called
         try await service.stop()
@@ -85,13 +85,13 @@ final class RecoveryDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
     func testEvaluateStatus_WhenPIDAndTCPBothFail_ShouldReportFailed() async {
         // Given: SMAppService reports .enabled but no process is running
         // and no kanata TCP server is listening (default in test env)
-        RecoveryDaemonService.smServiceFactory = { _ in
+        KanataDaemonService.smServiceFactory = { _ in
             MockSMAppService(status: .enabled)
         }
-        service = RecoveryDaemonService()
+        service = KanataDaemonService()
 
         // When: Refresh enough times to exhaust the debounce threshold (3 samples)
-        var lastStatus: RecoveryDaemonService.ServiceState = .unknown
+        var lastStatus: KanataDaemonService.ServiceState = .unknown
         for _ in 0 ..< 4 {
             lastStatus = await service.refreshStatus()
         }

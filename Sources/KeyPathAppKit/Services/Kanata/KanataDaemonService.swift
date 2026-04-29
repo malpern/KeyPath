@@ -4,7 +4,7 @@ import KeyPathDaemonLifecycle
 import ServiceManagement
 
 /// Errors related to recovery-daemon operations.
-enum RecoveryDaemonServiceError: LocalizedError, Equatable {
+enum KanataDaemonServiceError: LocalizedError, Equatable {
     case stopFailed(reason: String)
 
     var errorDescription: String? {
@@ -15,15 +15,15 @@ enum RecoveryDaemonServiceError: LocalizedError, Equatable {
     }
 }
 
-/// Narrow utility for interacting with the internal recovery daemon.
+/// Manages the Kanata LaunchDaemon lifecycle via SMAppService.
 ///
-/// The split runtime host is the real runtime path. This type only remains to:
-/// - stop the internal recovery daemon when needed
-/// - refresh its launchd-backed status on demand
-/// - log recovery-daemon failures for diagnosis
+/// Responsibilities:
+/// - Stop/unregister the daemon
+/// - Poll launchd-backed status on demand
+/// - Log service failures for diagnosis
 @MainActor
-final class RecoveryDaemonService {
-    static let shared = RecoveryDaemonService()
+final class KanataDaemonService {
+    static let shared = KanataDaemonService()
 
     private enum Constants {
         static let daemonPlistName = "com.keypath.kanata.plist"
@@ -97,10 +97,10 @@ final class RecoveryDaemonService {
             try await service.unregister()
         } catch {
             if TestEnvironment.isRunningTests {
-                AppLogger.shared.log("🧪 [RecoveryDaemonService] Ignoring unregister error in tests: \(error)")
+                AppLogger.shared.log("🧪 [KanataDaemonService] Ignoring unregister error in tests: \(error)")
                 return
             }
-            throw RecoveryDaemonServiceError.stopFailed(reason: error.localizedDescription)
+            throw KanataDaemonServiceError.stopFailed(reason: error.localizedDescription)
         }
     }
 
@@ -136,7 +136,7 @@ final class RecoveryDaemonService {
 
     /// Stop the service
     func stop() async throws {
-        AppLogger.shared.log("🛑 [RecoveryDaemonService] Stop requested")
+        AppLogger.shared.log("🛑 [KanataDaemonService] Stop requested")
 
         try await unregisterDaemon()
 
@@ -148,25 +148,25 @@ final class RecoveryDaemonService {
 
         if case .running = refreshedStatus {
             if TestEnvironment.isRunningTests {
-                AppLogger.shared.log("🧪 [RecoveryDaemonService] Test environment stop fallback - marking service as stopped")
+                AppLogger.shared.log("🧪 [KanataDaemonService] Test environment stop fallback - marking service as stopped")
                 lastObservedState = .stopped
             } else {
                 // If still running, it might be a zombie or external process
-                AppLogger.shared.warn("⚠️ [RecoveryDaemonService] Service still running after stop request")
-                throw RecoveryDaemonServiceError.stopFailed(reason: "Process failed to terminate")
+                AppLogger.shared.warn("⚠️ [KanataDaemonService] Service still running after stop request")
+                throw KanataDaemonServiceError.stopFailed(reason: "Process failed to terminate")
             }
         }
 
         if lastObservedState != .stopped {
-            AppLogger.shared.log("ℹ️ [RecoveryDaemonService] Forcing state to stopped after successful stop")
+            AppLogger.shared.log("ℹ️ [KanataDaemonService] Forcing state to stopped after successful stop")
             lastObservedState = .stopped
         }
 
-        AppLogger.shared.info("✅ [RecoveryDaemonService] Stopped successfully")
+        AppLogger.shared.info("✅ [KanataDaemonService] Stopped successfully")
     }
 
     /// Returns whether the internal recovery daemon is currently active.
-    func isRecoveryDaemonRunning() async -> Bool {
+    func isDaemonRunning() async -> Bool {
         let status = await refreshStatus()
         return status.isRunning
     }
@@ -215,7 +215,7 @@ final class RecoveryDaemonService {
             enabledWithoutProcessSampleCount += 1
             if enabledWithoutProcessSampleCount < enabledWithoutProcessFailureThreshold {
                 AppLogger.shared.debug(
-                    "⏳ [RecoveryDaemonService] SMAppService is enabled but process sample is missing (\(enabledWithoutProcessSampleCount)/\(enabledWithoutProcessFailureThreshold)); holding prior state"
+                    "⏳ [KanataDaemonService] SMAppService is enabled but process sample is missing (\(enabledWithoutProcessSampleCount)/\(enabledWithoutProcessFailureThreshold)); holding prior state"
                 )
 
                 if case let .running(previousPID) = lastObservedState {
@@ -232,7 +232,7 @@ final class RecoveryDaemonService {
 
             if tcpAlive {
                 AppLogger.shared.log(
-                    "🩹 [RecoveryDaemonService] TCP probe saved false failure — kanata responding on port \(tcpPort) despite PID miss"
+                    "🩹 [KanataDaemonService] TCP probe saved false failure — kanata responding on port \(tcpPort) despite PID miss"
                 )
                 enabledWithoutProcessSampleCount = 0
                 return .running(pid: 0)
@@ -253,7 +253,7 @@ final class RecoveryDaemonService {
 
     private func publishStatus(_ newStatus: ServiceState) {
         guard lastObservedState != newStatus else { return }
-        AppLogger.shared.log("📊 [RecoveryDaemonService] State changed: \(lastObservedState.description) -> \(newStatus.description)")
+        AppLogger.shared.log("📊 [KanataDaemonService] State changed: \(lastObservedState.description) -> \(newStatus.description)")
         let oldState = lastObservedState
         lastObservedState = newStatus
 
@@ -264,7 +264,7 @@ final class RecoveryDaemonService {
                 logServiceFailure(from: oldState, reason: reason)
             } else {
                 AppLogger.shared.debug(
-                    "ℹ️ [RecoveryDaemonService] Skipping crash-log entry for non-running transition: \(oldState.description) -> failed(\(reason))"
+                    "ℹ️ [KanataDaemonService] Skipping crash-log entry for non-running transition: \(oldState.description) -> failed(\(reason))"
                 )
             }
         }
@@ -284,7 +284,7 @@ final class RecoveryDaemonService {
         do {
             try Foundation.FileManager().createDirectory(at: crashLogDir, withIntermediateDirectories: true)
         } catch {
-            AppLogger.shared.warn("⚠️ [RecoveryDaemonService] Failed to create crash log directory: \(error.localizedDescription)")
+            AppLogger.shared.warn("⚠️ [KanataDaemonService] Failed to create crash log directory: \(error.localizedDescription)")
         }
 
         // Format crash entry
@@ -312,7 +312,7 @@ final class RecoveryDaemonService {
                     try data.write(to: crashLogPath)
                 }
             } catch {
-                AppLogger.shared.warn("⚠️ [RecoveryDaemonService] Failed to write crash log: \(error.localizedDescription)")
+                AppLogger.shared.warn("⚠️ [KanataDaemonService] Failed to write crash log: \(error.localizedDescription)")
             }
         }
 
