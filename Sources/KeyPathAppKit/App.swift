@@ -175,6 +175,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "🏷️ [Build] Version: \(info.version) | Build: \(info.build) | Git: \(info.git) | Date: \(info.date)"
         )
 
+        // Start investigation event tap if duplicate key investigation is enabled
+        InvestigationEventTapService.shared.startIfNeeded()
+
         // Set smart default keyboard layout on first launch
         setSmartKeyboardLayoutDefault()
 

@@ -679,7 +679,7 @@ actor KanataEventListener {
                     sessionID: sessionID,
                     observedAt: Date()
                 )
-                AppLogger.shared.info("⌨️ [EventListener] KeyInput: \(key) \(action)")
+                AppLogger.shared.debug("⌨️ [EventListener] KeyInput: \(key) \(action)")
                 if let handler = keyInputHandler {
                     await handler(observed)
                 }

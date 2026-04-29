@@ -24,7 +24,6 @@ final class InvestigationEventTapService {
     }
 
     func startIfNeeded() {
-        guard DuplicateInvestigationSupport.isEnabled() else { return }
         guard !TestEnvironment.isRunningTests else { return }
         guard !isStarted else { return }
 
@@ -98,9 +97,8 @@ final class InvestigationEventTapService {
 
         Task.detached(priority: .utility) {
             let correlation = await DuplicateKeyInvestigationTracker.shared.recordSystemEvent(observed)
-            AppLogger.shared.debug(DuplicateInvestigationSupport.makeSystemKeyEventLog(correlation))
             if correlation.suggestsUnmatchedAutorepeat {
-                AppLogger.shared.debug(DuplicateInvestigationSupport.makeAutorepeatMismatchLog(correlation))
+                AppLogger.shared.info(DuplicateInvestigationSupport.makeAutorepeatMismatchLog(correlation))
             }
         }
     }

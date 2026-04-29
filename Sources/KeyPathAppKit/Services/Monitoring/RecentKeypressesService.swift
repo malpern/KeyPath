@@ -127,7 +127,7 @@ final class RecentKeypressesService {
                 now.timeIntervalSince(recent.timestamp) < deduplicationWindow
         }) {
             let millisDiff = Int(now.timeIntervalSince(duplicate.timestamp) * 1000)
-            AppLogger.shared.debug("🚫 [Keypresses] Skipping duplicate: \(key) \(action) within \(millisDiff)ms")
+            AppLogger.shared.info("🚫 [Keypresses] Skipping duplicate: \(key) \(action) within \(millisDiff)ms")
             return
         }
 
