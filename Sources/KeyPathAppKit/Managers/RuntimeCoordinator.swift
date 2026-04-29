@@ -926,11 +926,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                 try? await Task.sleep(for: .seconds(2))
                 self?.saveStatus = .idle
             }
-        } else if await kanataDaemonService.isDaemonRunning() {
-            AppLogger.shared.warn(
-                "⚠️ [Reset] Skipping TCP reload because only the recovery daemon is active. " +
-                    "The split runtime host is not running."
-            )
         }
     }
 
