@@ -26,7 +26,11 @@ KeyPath.app (SwiftUI) → InstallerEngine → LaunchDaemon/PrivilegedHelper
 | Class | Responsibility |
 |-------|---------------|
 | `InstallerEngine` | **The Façade** - all install/repair/uninstall + system inspection |
-| `KanataManager` | Runtime Coordinator - service orchestration (NOT ObservableObject) |
+| `RuntimeCoordinator` | Runtime Coordinator - service orchestration (NOT ObservableObject) |
+| `ServiceLifecycleCoordinator` | **Start/stop/restart Kanata** - the ONLY entry point for service lifecycle |
+| `KanataDaemonService` | **LaunchDaemon lifecycle** - register/unregister via SMAppService, status polling |
+| `ServiceHealthChecker` | **Health checks** - the ONLY way to check if kanata is running (launchctl + TCP) |
+| `ConfigReloadCoordinator` | **Config reload** - TCP-based reload after rule changes, safety checks |
 | `KanataViewModel` | UI Layer (MVVM) - @Published properties for SwiftUI |
 | `ConfigurationService` | Config file management |
 | `PermissionOracle` | **🔮 CRITICAL** - Single source of truth for permissions |
@@ -66,6 +70,13 @@ if context.permissions.inputMonitoring != .granted { ... }
 - ❌ Don't mark Kanata healthy from restart-window timing alone
 - ❌ Don't return installer action success before runtime readiness (`running + TCP responding`) is verified
 - ✅ Treat `SMAppService.status == .enabled` as registration state, not runtime liveness
+
+### Health Checks & Service Lifecycle
+- ❌ Don't roll your own `pgrep`/`launchctl` to check if kanata is running → Use `ServiceHealthChecker`
+- ❌ Don't call `KanataDaemonService.isDaemonRunning()` directly from UI/coordinator code → Use `ServiceHealthChecker.checkKanataServiceHealth()`
+- ❌ Don't start/stop/restart kanata from anywhere except `ServiceLifecycleCoordinator`
+- ❌ Don't send TCP reload commands directly → Use `ConfigReloadCoordinator.triggerConfigReload()`
+- ❌ Don't skip TCP reload after config file changes — this causes kanata to run stale config
 
 ### Test Seams
 - ❌ Never call real `pgrep` in tests → Tests will deadlock
