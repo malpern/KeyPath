@@ -181,53 +181,11 @@ final class OrphanDetector {
             }
         }
 
-        // Show result to user
-        await MainActor.run {
-            showCleanupResult(
-                userFilesCleaned: userFilesCleaned,
-                userFilesFailed: userFilesFailed,
-                deferredForNextUninstall: deferredForNextUninstall,
-                daemonsCleaned: daemonsCleaned,
-                daemonsError: daemonsError
-            )
-        }
-    }
-
-    private func showCleanupResult(
-        userFilesCleaned: Int,
-        userFilesFailed: [(name: String, reason: String)],
-        deferredForNextUninstall: Bool,
-        daemonsCleaned: Bool,
-        daemonsError: String?
-    ) {
         let hasRealFailures = !userFilesFailed.isEmpty || daemonsError != nil
-        let didAnything = userFilesCleaned > 0 || daemonsCleaned
-
-        // If everything succeeded (possibly with deferred items), show clean success
-        if !hasRealFailures {
+        if hasRealFailures {
+            AppLogger.shared.warn("🧹 [OrphanDetector] Cleanup partially complete: \(userFilesCleaned) files removed, \(userFilesFailed.count) failed, daemons: \(daemonsCleaned), daemonsError: \(daemonsError ?? "none")")
+        } else {
             AppLogger.shared.info("🧹 [OrphanDetector] Cleanup complete: \(userFilesCleaned) user files, daemons: \(daemonsCleaned), deferred: \(deferredForNextUninstall)")
-            if didAnything {
-                let resultAlert = NSAlert()
-                resultAlert.messageText = "Cleanup Complete"
-                var parts: [String] = []
-                if userFilesCleaned > 0 {
-                    parts.append("Removed \(userFilesCleaned) file(s)")
-                }
-                if daemonsCleaned {
-                    parts.append("Removed system keyboard services")
-                }
-                resultAlert.informativeText = parts.joined(separator: " and ") + " from a previous KeyPath installation."
-                resultAlert.alertStyle = .informational
-                resultAlert.runModal()
-            }
-            return
         }
-
-        // There were real failures — show simplified partial result
-        let resultAlert = NSAlert()
-        resultAlert.messageText = "Cleanup Partially Complete"
-        resultAlert.informativeText = "Some leftover files could not be removed. They will be cleaned up automatically on next uninstall."
-        resultAlert.alertStyle = .warning
-        resultAlert.runModal()
     }
 }
