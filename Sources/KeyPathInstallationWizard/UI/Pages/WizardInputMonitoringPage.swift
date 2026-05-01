@@ -187,8 +187,9 @@ public struct WizardInputMonitoringPage: View {
                                         Task {
                                             let snapshot = await PermissionOracle.shared.forceRefresh()
                                             if snapshot.kanata.inputMonitoring.isReady {
-                                                AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Fix clicked — permission already granted after re-check")
+                                                AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Fix clicked — permission already granted, navigating to summary")
                                                 await onRefresh()
+                                                onNavigateToPage?(.summary)
                                                 return
                                             }
                                             AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Fix clicked — opening System Settings and revealing kanata")
