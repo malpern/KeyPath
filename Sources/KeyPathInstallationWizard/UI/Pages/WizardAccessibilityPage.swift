@@ -211,6 +211,7 @@ public struct WizardAccessibilityPage: View {
                                             if snapshot.kanata.accessibility.isReady {
                                                 AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix clicked — permission already granted after re-check")
                                                 await onRefresh()
+                                                onNavigateToPage?(.summary)
                                                 return
                                             }
                                             AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix clicked — opening System Settings and revealing kanata")

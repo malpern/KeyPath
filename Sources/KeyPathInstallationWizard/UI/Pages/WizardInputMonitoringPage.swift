@@ -194,6 +194,7 @@ public struct WizardInputMonitoringPage: View {
                                             if snapshot.kanata.inputMonitoring.isReady {
                                                 AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Fix clicked — permission already granted after re-check")
                                                 await onRefresh()
+                                                onNavigateToPage?(.summary)
                                                 return
                                             }
                                             AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Fix clicked — opening System Settings and revealing kanata")
