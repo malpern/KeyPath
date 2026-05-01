@@ -561,12 +561,18 @@ public class SystemValidator {
             "🔍 [SystemValidator] checkHealth() EXIT - Health: kanata=\(kanataRunning), daemon=\(karabinerDaemonRunning) (launchctl), vhid=\(vhidHealthy), permRejected=\(permissionRejected) (total: \(String(format: "%.3f", totalDuration))s)"
         )
 
+        // When the daemon was rejected for Accessibility, the "cannot open keyboard"
+        // stderr line is a symptom of the AX issue, not a separate IM problem.
+        // Suppress the input capture issue to avoid double-counting under Input Monitoring.
+        let effectiveInputCaptureReady = permissionRejected ? true : kanataInputCapture.isReady
+        let effectiveInputCaptureIssue: String? = permissionRejected ? nil : kanataInputCapture.issue
+
         return HealthStatus(
             kanataRunning: kanataRunning,
             karabinerDaemonRunning: karabinerDaemonRunning,
             vhidHealthy: vhidHealthy,
-            kanataInputCaptureReady: kanataInputCapture.isReady,
-            kanataInputCaptureIssue: kanataInputCapture.issue,
+            kanataInputCaptureReady: effectiveInputCaptureReady,
+            kanataInputCaptureIssue: effectiveInputCaptureIssue,
             kanataPermissionRejected: permissionRejected
         )
     }
