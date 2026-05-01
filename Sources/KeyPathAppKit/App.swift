@@ -249,7 +249,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let path = (dir as NSString).appendingPathComponent(name)
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
-            process.arguments = ["nohidden", path]
+            process.arguments = ["-h", "nohidden", path]
             process.standardOutput = Pipe()
             process.standardError = Pipe()
             try? process.run()
