@@ -593,6 +593,7 @@ public class SystemValidator {
         guard let text = String(data: tail, encoding: .utf8) else { return false }
 
         return text.contains("kanata needs macOS Accessibility permission")
+            || text.contains("IOHIDDeviceOpen error") && text.contains("not permitted")
     }
 
     // MARK: - Debug Support
