@@ -37,7 +37,7 @@ enum WizardPermissionFinderHelper {
         for path in hiddenPaths {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
-            process.arguments = ["nohidden", path]
+            process.arguments = ["-h", "nohidden", path]
             process.standardOutput = Pipe()
             process.standardError = Pipe()
             try? process.run()
@@ -80,7 +80,7 @@ enum WizardPermissionFinderHelper {
             let path = (directory as NSString).appendingPathComponent(name)
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
-            process.arguments = ["hidden", path]
+            process.arguments = ["-h", "hidden", path]
             process.standardOutput = Pipe()
             process.standardError = Pipe()
             try? process.run()
