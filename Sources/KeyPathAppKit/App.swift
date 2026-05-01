@@ -137,6 +137,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminate called")
+        // Close wizard and all windows so nothing blocks the quit
+        WizardWindowController.shared.closeWindow()
+        for window in NSApp.windows {
+            window.close()
+        }
         return .terminateNow
     }
 
