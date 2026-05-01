@@ -120,22 +120,16 @@ public struct WizardActionSection: View {
             WizardButton("Close Setup", style: .primary, isDefaultAction: true) {
                 onDismiss()
             }
-        } else {
-            // Handle other cases based on systemState
-            switch systemState {
-            case .serviceNotRunning, .ready:
-                WizardButton("Start KeyPath Runtime", style: .primary, isDefaultAction: true) {
-                    onStartService()
-                }
-
-            case .conflictsDetected:
-                // No action button for conflicts - user needs to navigate to conflicts page
-                EmptyView()
-
-            default:
-                // No action button for incomplete setup - user needs to complete steps
-                EmptyView()
+        } else if isFullyConfigured, case .serviceNotRunning = systemState {
+            WizardButton("Start KeyPath Runtime", style: .primary, isDefaultAction: true) {
+                onStartService()
             }
+        } else if isFullyConfigured, case .ready = systemState {
+            WizardButton("Start KeyPath Runtime", style: .primary, isDefaultAction: true) {
+                onStartService()
+            }
+        } else {
+            EmptyView()
         }
     }
 }
