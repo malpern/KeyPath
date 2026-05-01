@@ -178,6 +178,8 @@ struct OverlayKeyboardView: View {
         "◀", "▶", "▲", "▼", "←", "→", "↑", "↓",
         // Number row (not in standard keymaps, render directly)
         "`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=",
+        // Function row (rendered by functionKeyWithMappingContent, not floating labels)
+        "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
         // Function row extras (Print Screen, Scroll Lock, Pause)
         "prt", "scr", "pse",
         // Navigation cluster keys (both cases for matching)

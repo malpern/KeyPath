@@ -616,9 +616,6 @@ extension OverlayKeycapView {
     /// Handles both default function key icons and remapped actions
     @ViewBuilder
     var functionKeyWithMappingContent: some View {
-        // Determine which icon to show:
-        // 1. System action icon (if mapped to system action like Spotlight)
-        // 2. Default function key icon (brightness, volume, etc.)
         let iconName: String? = if hasSystemAction, let sysIcon = systemActionIcon {
             sysIcon
         } else {
@@ -632,7 +629,6 @@ extension OverlayKeycapView {
                     .foregroundStyle(foregroundColor)
             }
             Spacer()
-            // Always show F-key label (F1, F2, etc.)
             Text(key.label)
                 .font(.system(size: 5.4 * scale, weight: .regular))
                 .foregroundStyle(foregroundColor.opacity(0.6))
