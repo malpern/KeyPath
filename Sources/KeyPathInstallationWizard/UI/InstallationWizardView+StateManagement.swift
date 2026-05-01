@@ -1,5 +1,6 @@
 import AppKit
 import KeyPathCore
+import KeyPathPermissions
 import KeyPathWizardCore
 import SwiftUI
 
@@ -141,6 +142,21 @@ extension InstallationWizardView {
             AppLogger.shared.log(
                 "🔍 [Wizard] Issue details: \(filteredIssues.map { "\($0.category)-\($0.title)" })"
             )
+
+            // Ensure permissions are verified before auto-advancing.
+            // Without this, .unknown permission states (Oracle hasn't finished TCC check)
+            // are treated as non-blocking, causing the wizard to skip permission pages.
+            let permSnapshot = await PermissionOracle.shared.forceRefresh()
+            let permissionsStillUnknown =
+                permSnapshot.kanata.accessibility == .unknown
+                || permSnapshot.kanata.inputMonitoring == .unknown
+            if permissionsStillUnknown {
+                AppLogger.shared.log("🔍 [Wizard] Permissions still unverified — staying on summary to avoid skipping permission pages")
+                Task { @MainActor in
+                    stateMachine.navigateToPage(.summary)
+                }
+                return
+            }
 
             // Auto-navigate to the first page that needs attention, skipping all green pages
             let recommended = await stateMachine.navigationEngine
