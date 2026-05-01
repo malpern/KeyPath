@@ -198,8 +198,10 @@ public struct WizardSummaryPage: View {
                     WizardActionSection(
                         systemState: systemState,
                         isFullyConfigured: isEverythingComplete,
+                        navSequence: navSequence,
                         onStartService: onStartService,
-                        onDismiss: onDismiss
+                        onDismiss: onDismiss,
+                        onNavigateToPage: onNavigateToPage
                     )
                     .padding(.bottom, WizardDesign.Spacing.elementGap) // Reduce bottom padding
                     .transition(.opacity)
