@@ -498,26 +498,12 @@ public actor PermissionOracle {
     /// necessary here to resolve the chicken-and-egg problem between permission verification
     /// and service startup. This is a legitimate fallback when functional verification fails.
     private func checkTCCForKanata(executablePath _: String) async -> (ax: Status?, im: Status?) {
-        // Check the canonical path first, then the permissions staging folder path.
-        // macOS stores TCC entries under whichever path the user dragged from,
-        // which may be the staging hard link rather than the app bundle original.
-        let paths = [
-            normalizePathForTCC(WizardSystemPaths.bundledKanataLauncherPath),
-            NSHomeDirectory() + "/Library/Application Support/KeyPath/Permissions/kanata-launcher",
-        ]
-
-        for path in paths {
-            AppLogger.shared.log("🔍 [Oracle] Checking TCC for kanata-launcher: \(path)")
-            let ax = await tccStatus(forExecutable: path, service: .accessibility)
-            let im = await tccStatus(forExecutable: path, service: .inputMonitoring)
-            if ax != nil || im != nil {
-                AppLogger.shared.log("🔍 [Oracle] TCC result: AX=\(String(describing: ax)), IM=\(String(describing: im))")
-                return (ax, im)
-            }
-        }
-
-        AppLogger.shared.log("🔍 [Oracle] TCC result: AX=nil, IM=nil (no entries found)")
-        return (nil, nil)
+        let launcherPath = normalizePathForTCC(WizardSystemPaths.bundledKanataLauncherPath)
+        AppLogger.shared.log("🔍 [Oracle] Checking TCC for kanata-launcher: \(launcherPath)")
+        let ax = await tccStatus(forExecutable: launcherPath, service: .accessibility)
+        let im = await tccStatus(forExecutable: launcherPath, service: .inputMonitoring)
+        AppLogger.shared.log("🔍 [Oracle] TCC result: AX=\(String(describing: ax)), IM=\(String(describing: im))")
+        return (ax, im)
     }
 
     /// Normalize paths for TCC queries - convert development builds to installed paths

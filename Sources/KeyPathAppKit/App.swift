@@ -175,6 +175,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "🏷️ [Build] Version: \(info.version) | Build: \(info.build) | Git: \(info.git) | Date: \(info.date)"
         )
 
+        // Restore any files hidden by the permission drag flow (crash recovery)
+        restoreHiddenPermissionFiles()
+
         // Start investigation event tap if duplicate key investigation is enabled
         InvestigationEventTapService.shared.startIfNeeded()
 
@@ -232,6 +235,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillResignActive(_: Notification) {
         AppLogger.shared.log("🔍 [AppDelegate] applicationWillResignActive called")
+    }
+
+    private func restoreHiddenPermissionFiles() {
+        let dir = Bundle.main.bundlePath + "/Contents/Library/KeyPath"
+        guard let contents = try? FileManager.default.contentsOfDirectory(atPath: dir) else { return }
+        for name in contents {
+            let path = (dir as NSString).appendingPathComponent(name)
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
+            process.arguments = ["nohidden", path]
+            process.standardOutput = Pipe()
+            process.standardError = Pipe()
+            try? process.run()
+            process.waitUntilExit()
+        }
     }
 
     func applicationWillTerminate(_: Notification) {

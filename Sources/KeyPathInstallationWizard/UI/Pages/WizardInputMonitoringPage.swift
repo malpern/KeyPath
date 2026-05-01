@@ -62,7 +62,7 @@ public struct WizardInputMonitoringPage: View {
         case .completed:
             " - Remapping engine processes keyboard events"
         case .warning, .unverified:
-            " - Permission not verified"
+            " - Not found — click Fix to re-check"
         case .failed, .notStarted, .inProgress:
             " - Remapping engine needs permission"
         }
@@ -189,12 +189,18 @@ public struct WizardInputMonitoringPage: View {
                                 Spacer()
                                 if kanataInputMonitoringStatus != .completed {
                                     Button("Fix") {
-                                        AppLogger.shared.log(
-                                            "🔧 [WizardInputMonitoringPage] Kanata Fix clicked - opening System Settings and revealing kanata"
-                                        )
-                                        openInputMonitoringPreferencesPanel()
-                                        revealKanataInFinder()
-                                        startPermissionPolling(for: .inputMonitoring)
+                                        Task {
+                                            let snapshot = await PermissionOracle.shared.forceRefresh()
+                                            if snapshot.kanata.inputMonitoring.isReady {
+                                                AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Fix clicked — permission already granted after re-check")
+                                                await onRefresh()
+                                                return
+                                            }
+                                            AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Fix clicked — opening System Settings and revealing kanata")
+                                            openInputMonitoringPreferencesPanel()
+                                            revealKanataInFinder()
+                                            startPermissionPolling(for: .inputMonitoring)
+                                        }
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                                     .scaleEffect(0.8)

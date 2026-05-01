@@ -38,7 +38,7 @@ public struct WizardAccessibilityPage: View {
         case .completed:
             " - Keyboard monitoring engine"
         case .warning, .unverified:
-            " - Permission not verified"
+            " - Not found — click Fix to re-check"
         case .failed, .notStarted, .inProgress:
             " - Keyboard monitoring engine"
         }
@@ -206,11 +206,17 @@ public struct WizardAccessibilityPage: View {
                                 Spacer()
                                 if kanataAccessibilityStatus != .completed {
                                     Button("Fix") {
-                                        AppLogger.shared.log(
-                                            "🔘 [WizardAccessibilityPage] Fix clicked for kanata - opening System Settings and revealing kanata"
-                                        )
-                                        openAccessibilitySettings()
-                                        revealKanataInFinder()
+                                        Task {
+                                            let snapshot = await PermissionOracle.shared.forceRefresh()
+                                            if snapshot.kanata.accessibility.isReady {
+                                                AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix clicked — permission already granted after re-check")
+                                                await onRefresh()
+                                                return
+                                            }
+                                            AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix clicked — opening System Settings and revealing kanata")
+                                            openAccessibilitySettings()
+                                            revealKanataInFinder()
+                                        }
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                                     .scaleEffect(0.8)

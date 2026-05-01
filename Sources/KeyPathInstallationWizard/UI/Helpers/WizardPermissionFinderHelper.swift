@@ -5,39 +5,48 @@ import KeyPathCore
 /// Used by both WizardAccessibilityPage and WizardInputMonitoringPage.
 @MainActor
 enum WizardPermissionFinderHelper {
-    private static let stagingDir: String = {
-        let path = NSHomeDirectory() + "/Library/Application Support/KeyPath/Permissions"
-        try? FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
-        return path
-    }()
+    private static var hiddenPaths: [String] = []
 
-    /// Reveals kanata-launcher in a clean Finder folder with the KeyPath icon.
-    /// Creates a hard link in a staging directory so users see only one file.
+    /// Reveals kanata-launcher in Finder with sibling files hidden.
+    /// Hides other files in the same directory so the user sees only kanata-launcher.
+    /// Call `restoreHiddenFiles()` when the wizard closes to unhide them.
     static func revealKanataLauncher() {
-        let sourcePath = WizardSystemPaths.bundledKanataLauncherPath
-        let linkPath = (stagingDir as NSString).appendingPathComponent("kanata-launcher")
+        let launcherPath = WizardSystemPaths.bundledKanataLauncherPath
+        let dir = (launcherPath as NSString).deletingLastPathComponent
 
-        let fm = FileManager.default
-        try? fm.removeItem(atPath: linkPath)
-        do {
-            try fm.linkItem(atPath: sourcePath, toPath: linkPath)
-        } catch {
-            AppLogger.shared.warn("⚠️ [PermissionFinder] Hard link failed, falling back: \(error.localizedDescription)")
-            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: sourcePath)])
-            return
-        }
+        // Hide sibling files so only kanata-launcher is visible
+        hideOtherFiles(in: dir, except: "kanata-launcher")
 
+        // Set KeyPath icon on the launcher so it's recognizable
         if let appIcon = NSApp.applicationIconImage {
-            NSWorkspace.shared.setIcon(appIcon, forFile: linkPath)
+            NSWorkspace.shared.setIcon(appIcon, forFile: launcherPath)
         }
 
-        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: linkPath)])
-        WizardWindowManager.shared.markFinderWindowOpened(forPath: linkPath)
-        AppLogger.shared.log("📂 [PermissionFinder] Revealed kanata-launcher in clean folder: \(linkPath)")
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: launcherPath)])
+        WizardWindowManager.shared.markFinderWindowOpened(forPath: launcherPath)
+        AppLogger.shared.log("📂 [PermissionFinder] Revealed kanata-launcher: \(launcherPath)")
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             positionSettingsAndFinderSideBySide()
         }
+    }
+
+    /// Restores all files hidden by `revealKanataLauncher()`.
+    /// Call on wizard close or app launch to clean up.
+    static func restoreHiddenFiles() {
+        for path in hiddenPaths {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
+            process.arguments = ["nohidden", path]
+            process.standardOutput = Pipe()
+            process.standardError = Pipe()
+            try? process.run()
+            process.waitUntilExit()
+        }
+        if !hiddenPaths.isEmpty {
+            AppLogger.shared.log("📂 [PermissionFinder] Restored \(hiddenPaths.count) hidden files")
+        }
+        hiddenPaths.removeAll()
     }
 
     /// Copies the kanata-launcher path to the clipboard.
@@ -61,7 +70,28 @@ enum WizardPermissionFinderHelper {
         NSWorkspace.shared.open(url)
     }
 
-    /// Position System Settings and Finder windows side-by-side for easy drag-and-drop.
+    // MARK: - Private
+
+    private static func hideOtherFiles(in directory: String, except keepName: String) {
+        restoreHiddenFiles()
+
+        guard let contents = try? FileManager.default.contentsOfDirectory(atPath: directory) else { return }
+        for name in contents where name != keepName && !name.hasPrefix(".") {
+            let path = (directory as NSString).appendingPathComponent(name)
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
+            process.arguments = ["hidden", path]
+            process.standardOutput = Pipe()
+            process.standardError = Pipe()
+            try? process.run()
+            process.waitUntilExit()
+            if process.terminationStatus == 0 {
+                hiddenPaths.append(path)
+            }
+        }
+        AppLogger.shared.log("📂 [PermissionFinder] Hidden \(hiddenPaths.count) sibling files in \(directory)")
+    }
+
     private static func positionSettingsAndFinderSideBySide() {
         guard let screen = NSScreen.main else { return }
         let screenFrame = screen.visibleFrame
