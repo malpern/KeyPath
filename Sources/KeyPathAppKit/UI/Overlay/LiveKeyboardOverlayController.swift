@@ -122,6 +122,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         setupKeyInputObserver()
         setupOpenOverlayWithMapperObserver()
         setupAccessibilityTestModeObserver()
+        setupWizardVisibilityObserver()
     }
 
     /// Check if build changed and clear stale caches
@@ -194,6 +195,36 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             return prefValue
         }
         return envVar || prefValue
+    }
+
+    private var overlayHiddenByWizard = false
+
+    private func setupWizardVisibilityObserver() {
+        Foundation.NotificationCenter.default.addObserver(
+            forName: .wizardOpened,
+            object: nil,
+            queue: NotificationObserverManager.mainOperationQueue
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, let window = self.window, window.isVisible else { return }
+                self.overlayHiddenByWizard = true
+                window.orderOut(nil)
+                AppLogger.shared.log("🪟 [OverlayController] Hidden overlay — wizard opened")
+            }
+        }
+
+        Foundation.NotificationCenter.default.addObserver(
+            forName: .wizardClosed,
+            object: nil,
+            queue: NotificationObserverManager.mainOperationQueue
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.overlayHiddenByWizard else { return }
+                self.overlayHiddenByWizard = false
+                self.window?.orderFront(nil)
+                AppLogger.shared.log("🪟 [OverlayController] Restored overlay — wizard closed")
+            }
+        }
     }
 
     private func setupAccessibilityTestModeObserver() {

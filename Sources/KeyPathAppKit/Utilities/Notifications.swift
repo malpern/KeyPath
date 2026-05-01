@@ -10,6 +10,7 @@ extension Notification.Name {
 
     // Wizard events
     static let showWizard = Notification.Name("ShowWizard")
+    static let wizardOpened = Notification.Name("KeyPath.Wizard.Opened")
     static let wizardClosed = Notification.Name("KeyPath.Wizard.Closed")
 
     // Settings navigation

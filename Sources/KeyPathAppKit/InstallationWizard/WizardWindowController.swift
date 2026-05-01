@@ -45,6 +45,7 @@ final class WizardWindowController {
 
         // Enable permission requests while wizard is open
         PermissionRequestService.shared.enterWizardContext()
+        NotificationCenter.default.post(name: .wizardOpened, object: nil)
 
         AppLogger.shared.log("🔮 [WizardWindow] Opening wizard window (initialPage: \(initialPage?.displayName ?? "nil"))")
 
