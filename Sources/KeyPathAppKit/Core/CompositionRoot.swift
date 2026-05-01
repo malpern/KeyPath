@@ -130,7 +130,7 @@ enum CompositionRoot {
             // Only seize-mode (reading key events) needs IM. Start unconditionally
             // so keyboard plug-in detection always works.
             let snapshot = await PermissionOracle.shared.currentSnapshot()
-            if !snapshot.keyPath.inputMonitoring.isBlocking {
+            if snapshot.keyPath.inputMonitoring == .granted {
                 // Start HID device monitoring for auto-detect keyboard on plug-in
                 HIDDeviceMonitor.shared.startMonitoring()
                 AppLogger.shared.info("🔌 [App] HID device monitor started")
