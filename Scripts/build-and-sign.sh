@@ -221,9 +221,6 @@ MACOS="${CONTENTS}/MacOS"
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $_MAIN_VER" "$KANATA_ENGINE_CONTENTS/Info.plist"
 	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $_MAIN_BUILD" "$KANATA_ENGINE_CONTENTS/Info.plist"
 
-	# Create backward-compat symlink so existing code paths still resolve
-	ln -sf "Kanata Engine.app/Contents/MacOS/kanata" "$CONTENTS/Library/KeyPath/kanata"
-
 	# Copy bundled kanata simulator binary
 	ditto "build/kanata-simulator" "$CONTENTS/Library/KeyPath/kanata-simulator"
 
