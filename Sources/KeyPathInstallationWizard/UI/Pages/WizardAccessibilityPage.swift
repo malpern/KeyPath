@@ -6,9 +6,6 @@ import SwiftUI
 
 /// Accessibility permission page - dedicated page for Accessibility permissions
 public struct WizardAccessibilityPage: View {
-    public let systemState: WizardSystemState
-    public let issues: [WizardIssue]
-    public let allIssues: [WizardIssue]
     public let onRefresh: () async -> Void
     public let onNavigateToPage: ((WizardPage) -> Void)?
     public let onDismiss: (() -> Void)?
@@ -16,7 +13,11 @@ public struct WizardAccessibilityPage: View {
     @State private var permissionPollingTask: Task<Void, Never>?
     @State private var showSuccessBurst = false
 
-    @Environment(WizardStateMachine.self) var stateMachine
+    @Environment(WizardStateMachine.self) private var stateMachine
+
+    private var systemState: WizardSystemState { stateMachine.wizardState }
+    private var issues: [WizardIssue] { stateMachine.wizardIssues.filter { $0.category == .permissions } }
+    private var allIssues: [WizardIssue] { stateMachine.wizardIssues }
 
     private func statusIcon(for status: InstallationStatus) -> (name: String, color: Color) {
         switch status {
@@ -48,17 +49,11 @@ public struct WizardAccessibilityPage: View {
     private let stateInterpreter = WizardStateInterpreter()
 
     public init(
-        systemState: WizardSystemState,
-        issues: [WizardIssue],
-        allIssues: [WizardIssue],
         onRefresh: @escaping () async -> Void,
         onNavigateToPage: ((WizardPage) -> Void)?,
         onDismiss: (() -> Void)?,
         kanataManager: any RuntimeCoordinating
     ) {
-        self.systemState = systemState
-        self.issues = issues
-        self.allIssues = allIssues
         self.onRefresh = onRefresh
         self.onNavigateToPage = onNavigateToPage
         self.onDismiss = onDismiss
@@ -211,7 +206,6 @@ public struct WizardAccessibilityPage: View {
                                             if snapshot.kanata.accessibility.isReady {
                                                 AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix clicked — permission already granted after re-check")
                                                 await onRefresh()
-                                                onNavigateToPage?(.summary)
                                                 return
                                             }
                                             AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix clicked — opening System Settings and revealing kanata")

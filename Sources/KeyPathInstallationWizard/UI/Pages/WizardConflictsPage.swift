@@ -4,29 +4,24 @@ import SwiftUI
 
 /// Conflicts detection and resolution page — follows the standard wizard page pattern.
 public struct WizardConflictsPage: View {
-    public let systemState: WizardSystemState
-    public let issues: [WizardIssue]
-    public let allIssues: [WizardIssue]
     public let isFixing: Bool
     public let onAutoFix: (AutoFixAction, Bool) async -> Bool
     public let onRefresh: () -> Void
     public let kanataManager: any RuntimeCoordinating
 
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
-    @Environment(WizardStateMachine.self) var stateMachine
+    @Environment(WizardStateMachine.self) private var stateMachine
+
+    private var systemState: WizardSystemState { stateMachine.wizardState }
+    private var issues: [WizardIssue] { stateMachine.wizardIssues.filter { $0.category == .conflicts } }
+    private var allIssues: [WizardIssue] { stateMachine.wizardIssues }
 
     public init(
-        systemState: WizardSystemState,
-        issues: [WizardIssue],
-        allIssues: [WizardIssue],
         isFixing: Bool,
         onAutoFix: @escaping (AutoFixAction, Bool) async -> Bool,
         onRefresh: @escaping () -> Void,
         kanataManager: any RuntimeCoordinating
     ) {
-        self.systemState = systemState
-        self.issues = issues
-        self.allIssues = allIssues
         self.isFixing = isFixing
         self.onAutoFix = onAutoFix
         self.onRefresh = onRefresh

@@ -5,8 +5,6 @@ import SwiftUI
 /// Wizard page for requesting Full Disk Access permission
 /// This is optional but helps with better diagnostics and automatic problem resolution
 public struct WizardFullDiskAccessPage: View {
-    public let systemState: WizardSystemState
-    public let issues: [WizardIssue]
     @Environment(\.dismiss) private var dismiss
     @State private var showingDetails = false
     @State private var hasCheckedPermission = false
@@ -19,12 +17,12 @@ public struct WizardFullDiskAccessPage: View {
     @State private var cachedFDAStatus: Bool = false
     private let cacheValidityDuration: TimeInterval = 10.0 // Cache for 10 seconds
 
-    @Environment(WizardStateMachine.self) var stateMachine
+    @Environment(WizardStateMachine.self) private var stateMachine
 
-    public init(systemState: WizardSystemState, issues: [WizardIssue]) {
-        self.systemState = systemState
-        self.issues = issues
-    }
+    private var systemState: WizardSystemState { stateMachine.wizardState }
+    private var issues: [WizardIssue] { stateMachine.wizardIssues }
+
+    public init() {}
 
     public var body: some View {
         VStack(spacing: 0) {

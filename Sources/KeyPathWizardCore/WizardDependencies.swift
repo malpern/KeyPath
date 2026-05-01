@@ -55,8 +55,8 @@ public enum WizardDependencies {
     @MainActor public static var makeKarabinerImportPage: ((@escaping () -> Void, @escaping () -> Void) -> AnyView)?
 
     /// Factory for the communication wizard page.
-    /// Signature: (systemState: WizardSystemState, issues: [WizardIssue], onAutoFix: (AutoFixAction, Bool) async -> Bool) -> AnyView
-    @MainActor public static var makeCommunicationPage: ((WizardSystemState, [WizardIssue], @escaping (AutoFixAction, Bool) async -> Bool) -> AnyView)?
+    /// Signature: (onAutoFix: (AutoFixAction, Bool) async -> Bool) -> AnyView
+    @MainActor public static var makeCommunicationPage: ((@escaping (AutoFixAction, Bool) async -> Bool) -> AnyView)?
 
     // MARK: - Type-Erased Closures
 

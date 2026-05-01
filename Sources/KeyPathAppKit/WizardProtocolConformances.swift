@@ -182,10 +182,8 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
             onSkip: onSkip
         ))
     }
-    WizardDependencies.makeCommunicationPage = { systemState, issues, onAutoFix in
+    WizardDependencies.makeCommunicationPage = { onAutoFix in
         AnyView(WizardCommunicationPage(
-            systemState: systemState,
-            issues: issues,
             onAutoFix: onAutoFix
         ))
     }

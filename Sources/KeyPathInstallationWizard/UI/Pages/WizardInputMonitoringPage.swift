@@ -6,9 +6,6 @@ import SwiftUI
 
 /// Input Monitoring permission page with hybrid permission request approach
 public struct WizardInputMonitoringPage: View {
-    public let systemState: WizardSystemState
-    public let issues: [WizardIssue]
-    public let allIssues: [WizardIssue]
     public let stateInterpreter: WizardStateInterpreter
     public let onRefresh: () async -> Void
     public let onNavigateToPage: ((WizardPage) -> Void)?
@@ -20,21 +17,19 @@ public struct WizardInputMonitoringPage: View {
     @State private var permissionPollingTask: Task<Void, Never>?
     @State private var showSuccessBurst = false
 
-    @Environment(WizardStateMachine.self) var stateMachine
+    @Environment(WizardStateMachine.self) private var stateMachine
+
+    private var systemState: WizardSystemState { stateMachine.wizardState }
+    private var issues: [WizardIssue] { stateMachine.wizardIssues.filter { $0.category == .permissions } }
+    private var allIssues: [WizardIssue] { stateMachine.wizardIssues }
 
     public init(
-        systemState: WizardSystemState,
-        issues: [WizardIssue],
-        allIssues: [WizardIssue],
         stateInterpreter: WizardStateInterpreter,
         onRefresh: @escaping () async -> Void,
         onNavigateToPage: ((WizardPage) -> Void)?,
         onDismiss: (() -> Void)?,
         kanataManager: any RuntimeCoordinating
     ) {
-        self.systemState = systemState
-        self.issues = issues
-        self.allIssues = allIssues
         self.stateInterpreter = stateInterpreter
         self.onRefresh = onRefresh
         self.onNavigateToPage = onNavigateToPage
@@ -194,7 +189,6 @@ public struct WizardInputMonitoringPage: View {
                                             if snapshot.kanata.inputMonitoring.isReady {
                                                 AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Fix clicked — permission already granted after re-check")
                                                 await onRefresh()
-                                                onNavigateToPage?(.summary)
                                                 return
                                             }
                                             AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Fix clicked — opening System Settings and revealing kanata")

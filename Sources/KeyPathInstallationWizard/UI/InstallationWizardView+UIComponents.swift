@@ -25,8 +25,6 @@ extension InstallationWizardView {
         switch stateMachine.currentPage {
         case .summary:
             WizardSummaryPage(
-                systemState: stateMachine.wizardState,
-                issues: stateMachine.wizardIssues,
                 stateInterpreter: stateInterpreter,
                 onStartService: startKeyPathRuntime,
                 onDismiss: { dismissAndRefreshMainScreen() },
@@ -38,16 +36,10 @@ extension InstallationWizardView {
                 navSequence: $navSequence
             )
         case .fullDiskAccess:
-            WizardFullDiskAccessPage(
-                systemState: stateMachine.wizardState,
-                issues: stateMachine.wizardIssues
-            )
+            WizardFullDiskAccessPage()
         case .conflicts:
             if let coordinator = kanataManager {
                 WizardConflictsPage(
-                    systemState: stateMachine.wizardState,
-                    issues: stateMachine.wizardIssues.filter { $0.category == .conflicts },
-                    allIssues: stateMachine.wizardIssues,
                     isFixing: fixInFlight,
                     onAutoFix: performAutoFix,
                     onRefresh: { refreshSystemState() },
@@ -59,9 +51,6 @@ extension InstallationWizardView {
         case .inputMonitoring:
             if let coordinator = kanataManager {
                 WizardInputMonitoringPage(
-                    systemState: stateMachine.wizardState,
-                    issues: stateMachine.wizardIssues.filter { $0.category == .permissions },
-                    allIssues: stateMachine.wizardIssues,
                     stateInterpreter: stateInterpreter,
                     onRefresh: { refreshSystemState() },
                     onNavigateToPage: { page in
@@ -78,9 +67,6 @@ extension InstallationWizardView {
         case .accessibility:
             if let coordinator = kanataManager {
                 WizardAccessibilityPage(
-                    systemState: stateMachine.wizardState,
-                    issues: stateMachine.wizardIssues.filter { $0.category == .permissions },
-                    allIssues: stateMachine.wizardIssues,
                     onRefresh: { refreshSystemState() },
                     onNavigateToPage: { page in
                         stateMachine.navigateToPage(page)
@@ -96,8 +82,6 @@ extension InstallationWizardView {
         case .karabinerComponents:
             if let coordinator = kanataManager {
                 WizardKarabinerComponentsPage(
-                    systemState: stateMachine.wizardState,
-                    issues: stateMachine.wizardIssues,
                     isFixing: fixInFlight,
                     blockingFixDescription: currentFixDescriptionForUI,
                     onAutoFix: performAutoFix,
@@ -159,8 +143,6 @@ extension InstallationWizardView {
         case .helper:
             if let coordinator = kanataManager {
                 WizardHelperPage(
-                    systemState: stateMachine.wizardState,
-                    issues: stateMachine.wizardIssues,
                     isFixing: fixInFlight,
                     blockingFixDescription: currentFixDescriptionForUI,
                     onAutoFix: performAutoFix,
@@ -173,8 +155,6 @@ extension InstallationWizardView {
         case .communication:
             if let factory = WizardDependencies.makeCommunicationPage {
                 factory(
-                    stateMachine.wizardState,
-                    stateMachine.wizardIssues,
                     performAutoFix
                 )
             } else {
@@ -182,8 +162,6 @@ extension InstallationWizardView {
             }
         case .service:
             WizardKanataServicePage(
-                systemState: stateMachine.wizardState,
-                issues: stateMachine.wizardIssues,
                 onRefresh: { refreshSystemState() }
             )
         }

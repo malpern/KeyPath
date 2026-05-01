@@ -7,8 +7,6 @@ import SwiftUI
 public struct WizardHelperPage: View {
     // MARK: - Properties (following wizard page pattern)
 
-    public let systemState: WizardSystemState
-    public let issues: [WizardIssue]
     public let isFixing: Bool
     public let blockingFixDescription: String?
     public let onAutoFix: (AutoFixAction, Bool) async -> Bool
@@ -25,19 +23,18 @@ public struct WizardHelperPage: View {
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @State private var hasLoggedDiagnostics = false
     @State private var approvalPollingTimer: Timer?
-    @Environment(WizardStateMachine.self) var stateMachine
+    @Environment(WizardStateMachine.self) private var stateMachine
+
+    private var systemState: WizardSystemState { stateMachine.wizardState }
+    private var issues: [WizardIssue] { stateMachine.wizardIssues }
 
     public init(
-        systemState: WizardSystemState,
-        issues: [WizardIssue],
         isFixing: Bool,
         blockingFixDescription: String?,
         onAutoFix: @escaping (AutoFixAction, Bool) async -> Bool,
         onRefresh: @escaping () -> Void,
         kanataManager: any RuntimeCoordinating
     ) {
-        self.systemState = systemState
-        self.issues = issues
         self.isFixing = isFixing
         self.blockingFixDescription = blockingFixDescription
         self.onAutoFix = onAutoFix

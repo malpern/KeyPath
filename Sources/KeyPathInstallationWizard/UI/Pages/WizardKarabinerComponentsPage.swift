@@ -11,8 +11,6 @@ private let stateRefreshTimeoutSeconds: TimeInterval = 2
 
 /// Karabiner driver and virtual HID components setup page
 public struct WizardKarabinerComponentsPage: View {
-    public let systemState: WizardSystemState
-    public let issues: [WizardIssue]
     public let isFixing: Bool
     public let blockingFixDescription: String?
     public let onAutoFix: (AutoFixAction, Bool) async -> Bool // (action, suppressToast)
@@ -26,19 +24,18 @@ public struct WizardKarabinerComponentsPage: View {
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @State private var lastKarabinerHealthy = false
     @State private var stepProgressCancellable: AnyCancellable?
-    @Environment(WizardStateMachine.self) var stateMachine
+    @Environment(WizardStateMachine.self) private var stateMachine
+
+    private var systemState: WizardSystemState { stateMachine.wizardState }
+    private var issues: [WizardIssue] { stateMachine.wizardIssues }
 
     public init(
-        systemState: WizardSystemState,
-        issues: [WizardIssue],
         isFixing: Bool,
         blockingFixDescription: String?,
         onAutoFix: @escaping (AutoFixAction, Bool) async -> Bool,
         onRefresh: @escaping () -> Void,
         kanataManager: any RuntimeCoordinating
     ) {
-        self.systemState = systemState
-        self.issues = issues
         self.isFixing = isFixing
         self.blockingFixDescription = blockingFixDescription
         self.onAutoFix = onAutoFix

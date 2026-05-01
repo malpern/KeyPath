@@ -5,8 +5,6 @@ import SwiftUI
 
 /// Simplified summary page using extracted components
 public struct WizardSummaryPage: View {
-    public let systemState: WizardSystemState
-    public let issues: [WizardIssue]
     public let stateInterpreter: WizardStateInterpreter
     public let onStartService: () -> Void
     public let onDismiss: () -> Void
@@ -14,6 +12,11 @@ public struct WizardSummaryPage: View {
     public let isValidating: Bool // Show validating activity state during summary refresh
     @Binding public var showAllItems: Bool // Lifted to parent to drive navigation sequence
     @Binding public var navSequence: [WizardPage] // Ordered pages for back/next navigation
+
+    @Environment(WizardStateMachine.self) private var stateMachine
+
+    private var systemState: WizardSystemState { stateMachine.wizardState }
+    private var issues: [WizardIssue] { stateMachine.wizardIssues }
 
     // MARK: - Header State
 
@@ -31,8 +34,6 @@ public struct WizardSummaryPage: View {
     @State private var shouldAutoNavigateSingleIssue = false
 
     public init(
-        systemState: WizardSystemState,
-        issues: [WizardIssue],
         stateInterpreter: WizardStateInterpreter,
         onStartService: @escaping () -> Void,
         onDismiss: @escaping () -> Void,
@@ -41,8 +42,6 @@ public struct WizardSummaryPage: View {
         showAllItems: Binding<Bool>,
         navSequence: Binding<[WizardPage]>
     ) {
-        self.systemState = systemState
-        self.issues = issues
         self.stateInterpreter = stateInterpreter
         self.onStartService = onStartService
         self.onDismiss = onDismiss

@@ -4,8 +4,6 @@ import SwiftUI
 
 public struct WizardKanataServicePage: View {
     @Environment(\.runtimeCoordinator) var kanataManager
-    public let systemState: WizardSystemState
-    public let issues: [WizardIssue]
     public let onRefresh: () -> Void
 
     @State private var isPerformingAction = false
@@ -15,11 +13,12 @@ public struct WizardKanataServicePage: View {
     @State private var refreshTask: Task<Void, Never>?
 
     /// Integration with RuntimeCoordinator for better error context
-    @Environment(WizardStateMachine.self) var stateMachine
+    @Environment(WizardStateMachine.self) private var stateMachine
 
-    public init(systemState: WizardSystemState, issues: [WizardIssue], onRefresh: @escaping () -> Void) {
-        self.systemState = systemState
-        self.issues = issues
+    private var systemState: WizardSystemState { stateMachine.wizardState }
+    private var issues: [WizardIssue] { stateMachine.wizardIssues }
+
+    public init(onRefresh: @escaping () -> Void) {
         self.onRefresh = onRefresh
     }
 
