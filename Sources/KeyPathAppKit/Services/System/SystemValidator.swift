@@ -554,7 +554,7 @@ public class SystemValidator {
         // When kanata isn't running, check daemon stderr for permission rejection.
         // TCC can report "granted" from a stale entry after a rebuild, but macOS
         // actually rejects the binary at runtime. Detect this from the crash output.
-        let permissionRejected = !kanataRunning && Self.checkDaemonStderrForPermissionFailure()
+        let permissionRejected = Self.checkDaemonStderrForPermissionFailure()
 
         let totalDuration = Date().timeIntervalSince(startTime)
         AppLogger.shared.log(
