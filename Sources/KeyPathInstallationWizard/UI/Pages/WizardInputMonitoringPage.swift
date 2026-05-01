@@ -106,7 +106,7 @@ public struct WizardInputMonitoringPage: View {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundColor(.green)
                                     HStack(spacing: 0) {
-                                        Text("Kanata Engine")
+                                        Text("kanata-launcher")
                                             .font(.headline)
                                             .fontWeight(.semibold)
                                         Text(" - Remapping engine processes keyboard events")
@@ -179,7 +179,7 @@ public struct WizardInputMonitoringPage: View {
                                 Image(systemName: icon.name)
                                     .foregroundColor(icon.color)
                                 HStack(spacing: 0) {
-                                    Text("Kanata Engine")
+                                    Text("kanata-launcher")
                                         .font(.headline)
                                         .fontWeight(.semibold)
                                     Text(kanataSubtitle(for: kanataInputMonitoringStatus))
@@ -426,93 +426,12 @@ private func openInputMonitoringPreferencesPanel() {
 
 @MainActor
 private func revealKanataInFinder() {
-    // Reveal the Kanata Engine.app bundle (not the raw binary) so users see
-    // a proper app icon in Finder and can drag it into System Settings.
-    let path = WizardSystemPaths.kanataEngineBundlePath
-    let dir = (path as NSString).deletingLastPathComponent
-    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
-    _ = NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: dir)
-    WizardWindowManager.shared.markFinderWindowOpened(forPath: path)
-    AppLogger.shared.log("📂 [WizardInputMonitoringPage] Revealed Kanata Engine.app in Finder: \(path)")
-
-    // Position windows side-by-side after a short delay
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-        positionSettingsAndFinderSideBySide()
-    }
+    WizardPermissionFinderHelper.revealKanataLauncher()
 }
 
-/// Position System Settings and Finder windows side-by-side for easy drag-and-drop
-private func positionSettingsAndFinderSideBySide() {
-    guard let screen = NSScreen.main else { return }
-    let screenFrame = screen.visibleFrame
-
-    // Calculate side-by-side positions (Settings on left, Finder on right)
-    let windowWidth = screenFrame.width / 2
-    let windowHeight = screenFrame.height * 0.8
-    let yPosition = screenFrame.minY + (screenFrame.height - windowHeight) / 2
-
-    let settingsFrame = NSRect(
-        x: screenFrame.minX,
-        y: yPosition,
-        width: windowWidth,
-        height: windowHeight
-    )
-    let finderFrame = NSRect(
-        x: screenFrame.minX + windowWidth,
-        y: yPosition,
-        width: windowWidth,
-        height: windowHeight
-    )
-
-    // Find and position System Settings window
-    if let settingsApp = NSRunningApplication.runningApplications(
-        withBundleIdentifier: "com.apple.systempreferences"
-    ).first {
-        let axApp = AXUIElementCreateApplication(settingsApp.processIdentifier)
-        var windowsRef: CFTypeRef?
-        if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-           let windows = windowsRef as? [AXUIElement], !windows.isEmpty
-        {
-            let axWindow = windows[0]
-            var position = CGPoint(x: settingsFrame.minX, y: screen.frame.maxY - settingsFrame.maxY)
-            var size = CGSize(width: settingsFrame.width, height: settingsFrame.height)
-            let positionValue = AXValueCreate(.cgPoint, &position)!
-            let sizeValue = AXValueCreate(.cgSize, &size)!
-            AXUIElementSetAttributeValue(axWindow, kAXPositionAttribute as CFString, positionValue)
-            AXUIElementSetAttributeValue(axWindow, kAXSizeAttribute as CFString, sizeValue)
-        }
-    }
-
-    // Find and position Finder window
-    if let finderApp = NSRunningApplication.runningApplications(
-        withBundleIdentifier: "com.apple.finder"
-    ).first {
-        let axApp = AXUIElementCreateApplication(finderApp.processIdentifier)
-        var windowsRef: CFTypeRef?
-        if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-           let windows = windowsRef as? [AXUIElement], !windows.isEmpty
-        {
-            let axWindow = windows[0]
-            var position = CGPoint(x: finderFrame.minX, y: screen.frame.maxY - finderFrame.maxY)
-            var size = CGSize(width: finderFrame.width, height: finderFrame.height)
-            let positionValue = AXValueCreate(.cgPoint, &position)!
-            let sizeValue = AXValueCreate(.cgSize, &size)!
-            AXUIElementSetAttributeValue(axWindow, kAXPositionAttribute as CFString, positionValue)
-            AXUIElementSetAttributeValue(axWindow, kAXSizeAttribute as CFString, sizeValue)
-        }
-    }
-
-    AppLogger.shared.log("📐 [WizardInputMonitoringPage] Positioned Settings and Finder side-by-side")
-}
-
-/// Copies the Kanata Engine.app bundle path (not the raw binary) to the
-/// clipboard so users can paste it into System Settings file dialogs.
+@MainActor
 private func copyKanataEngineAppPathToClipboard() {
-    let path = WizardSystemPaths.kanataEngineBundlePath
-    let pb = NSPasteboard.general
-    pb.clearContents()
-    pb.setString(path, forType: .string)
-    AppLogger.shared.log("📋 [WizardInputMonitoringPage] Copied Kanata Engine.app bundle path to clipboard: \(path)")
+    WizardPermissionFinderHelper.copyPathToClipboard()
 }
 
 // MARK: - Stale Entry Cleanup Instructions View
@@ -574,7 +493,7 @@ public struct StaleEntryCleanupInstructions: View {
                 )
                 CleanupStep(number: 4, text: "Remove any duplicate KeyPath entries")
                 CleanupStep(number: 5, text: "Add the current KeyPath using the '+' button")
-                CleanupStep(number: 6, text: "Also add 'Kanata Engine' if needed")
+                CleanupStep(number: 6, text: "Also add 'kanata-launcher' if needed")
             }
             .padding()
             .background(Color.blue.opacity(0.05))

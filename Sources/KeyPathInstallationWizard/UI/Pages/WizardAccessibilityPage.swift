@@ -444,88 +444,11 @@ public struct WizardAccessibilityPage: View {
     }
 
     private func revealKanataInFinder() {
-        let path = WizardSystemPaths.bundledKanataLauncherPath
-        let dir = (path as NSString).deletingLastPathComponent
-        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
-        WizardWindowManager.shared.markFinderWindowOpened(forPath: path)
-        AppLogger.shared.log("📂 [WizardAccessibilityPage] Revealed kanata-launcher in Finder: \(path)")
-        _ = NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: dir)
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            Self.positionSettingsAndFinderSideBySide()
-        }
+        WizardPermissionFinderHelper.revealKanataLauncher()
     }
 
     private func copyKanataEngineAppPathToClipboard() {
-        let path = WizardSystemPaths.bundledKanataLauncherPath
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(path, forType: .string)
-        AppLogger.shared.log("📋 [WizardAccessibilityPage] Copied kanata-launcher path to clipboard: \(path)")
-    }
-
-    /// Position System Settings and Finder windows side-by-side for easy drag-and-drop
-    private static func positionSettingsAndFinderSideBySide() {
-        guard let screen = NSScreen.main else { return }
-        let screenFrame = screen.visibleFrame
-
-        // Calculate side-by-side positions (Settings on left, Finder on right)
-        let windowWidth = screenFrame.width / 2
-        let windowHeight = screenFrame.height * 0.8
-        let yPosition = screenFrame.minY + (screenFrame.height - windowHeight) / 2
-
-        let settingsFrame = NSRect(
-            x: screenFrame.minX,
-            y: yPosition,
-            width: windowWidth,
-            height: windowHeight
-        )
-        let finderFrame = NSRect(
-            x: screenFrame.minX + windowWidth,
-            y: yPosition,
-            width: windowWidth,
-            height: windowHeight
-        )
-
-        // Find and position System Settings window
-        if let settingsApp = NSRunningApplication.runningApplications(
-            withBundleIdentifier: "com.apple.systempreferences"
-        ).first {
-            let axApp = AXUIElementCreateApplication(settingsApp.processIdentifier)
-            var windowsRef: CFTypeRef?
-            if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-               let windows = windowsRef as? [AXUIElement], !windows.isEmpty
-            {
-                let axWindow = windows[0]
-                var position = CGPoint(x: settingsFrame.minX, y: screen.frame.maxY - settingsFrame.maxY)
-                var size = CGSize(width: settingsFrame.width, height: settingsFrame.height)
-                let positionValue = AXValueCreate(.cgPoint, &position)!
-                let sizeValue = AXValueCreate(.cgSize, &size)!
-                AXUIElementSetAttributeValue(axWindow, kAXPositionAttribute as CFString, positionValue)
-                AXUIElementSetAttributeValue(axWindow, kAXSizeAttribute as CFString, sizeValue)
-            }
-        }
-
-        // Find and position Finder window
-        if let finderApp = NSRunningApplication.runningApplications(
-            withBundleIdentifier: "com.apple.finder"
-        ).first {
-            let axApp = AXUIElementCreateApplication(finderApp.processIdentifier)
-            var windowsRef: CFTypeRef?
-            if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-               let windows = windowsRef as? [AXUIElement], !windows.isEmpty
-            {
-                let axWindow = windows[0]
-                var position = CGPoint(x: finderFrame.minX, y: screen.frame.maxY - finderFrame.maxY)
-                var size = CGSize(width: finderFrame.width, height: finderFrame.height)
-                let positionValue = AXValueCreate(.cgPoint, &position)!
-                let sizeValue = AXValueCreate(.cgSize, &size)!
-                AXUIElementSetAttributeValue(axWindow, kAXPositionAttribute as CFString, positionValue)
-                AXUIElementSetAttributeValue(axWindow, kAXSizeAttribute as CFString, sizeValue)
-            }
-        }
-
-        AppLogger.shared.log("📐 [WizardAccessibilityPage] Positioned Settings and Finder side-by-side")
+        WizardPermissionFinderHelper.copyPathToClipboard()
     }
 }
 
