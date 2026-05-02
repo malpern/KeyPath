@@ -40,7 +40,7 @@ public struct WizardAccessibilityPage: View {
         case .completed:
             " - Keyboard monitoring engine"
         case .warning, .unverified:
-            " - Not found — click Fix to re-check"
+            " - Not yet added — add in System Settings"
         case .failed, .notStarted, .inProgress:
             " - Keyboard monitoring engine"
         }
@@ -201,7 +201,7 @@ public struct WizardAccessibilityPage: View {
                                 }
                                 Spacer()
                                 if kanataAccessibilityStatus != .completed {
-                                    Button("Fix") {
+                                    Button("Add in Settings") {
                                         Task {
                                             let snapshot = await PermissionOracle.shared.forceRefresh()
                                             if snapshot.kanata.accessibility.isReady {

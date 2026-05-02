@@ -527,19 +527,19 @@ public struct WizardKanataServicePage: View {
             nil
         case .unknown:
             (
-                label: "Fix",
+                label: "Start",
                 action: startService,
                 disabled: isPerformingAction
             )
         case .stopped:
             (
-                label: "Fix",
+                label: "Start",
                 action: startService,
                 disabled: isPerformingAction
             )
         case .failed:
             (
-                label: "Fix",
+                label: "Restart",
                 action: restartService,
                 disabled: isPerformingAction
             )

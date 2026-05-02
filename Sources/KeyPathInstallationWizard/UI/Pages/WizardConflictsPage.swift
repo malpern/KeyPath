@@ -60,7 +60,7 @@ public struct WizardConflictsPage: View {
                     InlineStatusView(status: actionStatus, message: actionStatus.message ?? " ")
                         .opacity(actionStatus.isActive ? 1 : 0)
 
-                    Button("Fix") {
+                    Button("Resolve") {
                         handleFix()
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isFixLoading))

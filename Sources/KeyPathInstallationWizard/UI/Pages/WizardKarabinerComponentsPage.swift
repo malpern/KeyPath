@@ -122,7 +122,7 @@ public struct WizardKarabinerComponentsPage: View {
                     InlineStatusView(status: actionStatus, message: actionStatus.message ?? " ")
                         .opacity(actionStatus.isActive ? 1 : 0)
 
-                    Button("Fix") {
+                    Button("Repair") {
                         handleFixButtonTapped()
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isCombinedFixLoading))

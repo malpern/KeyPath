@@ -58,7 +58,7 @@ public struct WizardInputMonitoringPage: View {
         case .completed:
             " - Remapping engine processes keyboard events"
         case .warning, .unverified:
-            " - Not found — click Fix to re-check"
+            " - Not yet added — add in System Settings"
         case .failed, .notStarted, .inProgress:
             " - Remapping engine needs permission"
         }
@@ -160,7 +160,7 @@ public struct WizardInputMonitoringPage: View {
                                 }
                                 Spacer()
                                 if keyPathInputMonitoringStatus != .completed {
-                                    Button("Fix") {
+                                    Button("Turn On") {
                                         openInputMonitoringSettings()
                                     }
                                     .accessibilityIdentifier("wizard_input_monitoring_fix_keypath")
@@ -184,7 +184,7 @@ public struct WizardInputMonitoringPage: View {
                                 }
                                 Spacer()
                                 if kanataInputMonitoringStatus != .completed {
-                                    Button("Fix") {
+                                    Button("Add in Settings") {
                                         Task {
                                             let snapshot = await PermissionOracle.shared.forceRefresh()
                                             if snapshot.kanata.inputMonitoring.isReady {
