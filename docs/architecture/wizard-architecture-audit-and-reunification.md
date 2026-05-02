@@ -168,40 +168,29 @@ The two stderr parsers read the **same file** with **different tail sizes** and 
 
 ## Migration Path
 
-### Phase 1: Single SystemValidator instance
+### Phase 1: Single SystemValidator instance ✅ DONE
 - MainAppStateController receives validator via DI instead of creating its own
 - Verify single-flight protection works across all callers
-- **Risk:** Low — same validator, same results, just shared
-- **Rollback:** Revert DI wiring — MainAppStateController creates its own instance again.
 
-### Phase 2: Eliminate hardcoded issues
+### Phase 2: Eliminate hardcoded issues ✅ DONE
 - Startup gate failure → produce a `SystemContext` with `kanataRunning=false`, let adapter classify
-- Validation timeout → produce a `SystemContext` with a timeout flag, let adapter produce a standardized timeout issue
-- Not-configured → early return with empty state, don't generate issues
-- **Risk:** Medium — startup gate timing may need adjustment. Hardcoded issues fire immediately on gate failure; adapter-produced issues only appear after full validation completes. This latency difference may cause a brief window where no issue is shown. Verify UX is acceptable during the transition.
-- **Rollback:** Revert to hardcoded issue construction in `performValidation()` — the adapter path is additive, so both can coexist temporarily.
+- Validation timeout → `SystemContext.timedOut` flag, adapter produces `.validationTimeout` issue
+- Not-configured → early return with empty state, no issues
 
-### Phase 3: Settings Status consumes MainAppStateController only
-- Delete `refreshStatus()` independent validation
-- Delete fallback path and duplicate TCP check
-- Settings reads from `MainAppStateController.lastValidatedSystemContext` only
-- **Risk:** Low — just removing code
-- **Rollback:** Restore `refreshStatus()` and fallback path.
+### Phase 3: Settings Status consumes MainAppStateController only ✅ DONE
+- Deleted `refreshStatus()` independent validation, fallback path, and duplicate TCP check
+- Settings reads from `MainAppStateController` published state only
 
-### Phase 4: Unified startup grace period
-- **Depends on Phase 3** — Settings must already consume MainAppStateController, otherwise it bypasses the unified grace period via its independent validation path
+### Phase 4: Unified startup grace period ✅ DONE
 - MainAppStateController applies grace period BEFORE publishing state
-- During grace window, published state is `.starting` not `.failed`
-- Delete overlay-specific suppression in `OverlayHealthIndicatorObserver`
-- **Risk:** Medium — grace period behavior change visible to users
-- **Rollback:** Restore per-surface suppression logic (`TransientStartupWindowEvaluator` in overlay). The unified grace can coexist with per-surface suppression during transition.
+- During grace window, published state is `.checking` not `.failed`
+- Deleted overlay-specific `inStartupWindow` suppression logic
 
-### Phase 5: Unified stderr parser
-- Create `KanataDaemonDiagnosis` and `diagnoseDaemonStderr()`
-- Replace `checkDaemonStderrForPermissionFailure()` and `checkKanataInputCaptureStatus()`
-- Remove suppression logic (`effectiveInputCaptureReady`)
-- **Risk:** Medium — stderr pattern matching is subtle
-- **Rollback:** Restore the two separate parsers and suppression logic. The old functions can be kept as dead code behind a feature check during validation.
+### Phase 5: Unified stderr parser ✅ DONE
+- Created `KanataDaemonDiagnosis` and `diagnoseDaemonStderr()`
+- Deleted `checkDaemonStderrForPermissionFailure()` and `checkKanataInputCaptureStatus()`
+- AX rejection automatically suppresses IM diagnosis (no manual suppression needed)
+- Also fixed: only scans errors from most recent kanata launch (stale log entries ignored)
 
 ### Phase 6: Delete wizard's independent refresh (DEFERRED)
 - **Status:** Deferred — requires cross-module wiring. The wizard (`KeyPathInstallationWizard`) cannot import `MainAppStateController` (`KeyPathAppKit`). Eliminating the wizard's monitor requires publishing state via a protocol, notification, or callback across the module boundary.

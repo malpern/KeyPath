@@ -56,94 +56,36 @@ MainAppStateController               → ServiceLifecycleCoordinator (direct)
 
 ---
 
-## Phase 1: Expose Sub-Coordinators as Public Properties
+## Phase 1: Expose Sub-Coordinators as Public Properties ✅ DONE
 
-**Risk: Low. No behavior change.**
-
-RuntimeCoordinator's sub-coordinators are currently `private`. Make the most-consumed ones `public` (or `internal`) so consumers can access them directly.
-
-```swift
-// Before
-class RuntimeCoordinator {
-    private let serviceLifecycleCoordinator: ServiceLifecycleCoordinator
-    private let ruleCollectionsCoordinator: RuleCollectionsCoordinator
-    // ...
-}
-
-// After
-class RuntimeCoordinator {
-    let serviceLifecycleCoordinator: ServiceLifecycleCoordinator
-    let ruleCollectionsCoordinator: RuleCollectionsCoordinator
-    // ...
-}
-```
-
-**Files touched:** RuntimeCoordinator.swift (change access modifiers)
-**Tests:** Existing tests pass unchanged.
+Sub-coordinators were already `internal` (no access modifier). No changes needed.
 
 ---
 
-## Phase 2: Narrow Consumer Dependencies
+## Phase 2: Narrow Consumer Dependencies — PARTIAL
 
-**Risk: Low-Medium. Mechanical refactor per consumer.**
+### 2a: MainAppStateController ✅ DONE
+Narrowed from `RuntimeCoordinator` to `ServiceLifecycleCoordinator` + `onSystemHealthy` closure.
 
-For each consumer, replace `RuntimeCoordinator` with the specific sub-coordinator it actually needs. Do this one consumer at a time.
-
-### 2a: MainAppStateController
-```swift
-// Before
-private weak var kanataManager: RuntimeCoordinator?
-
-// After  
-private weak var serviceLifecycle: ServiceLifecycleCoordinator?
-private weak var diagnosticsManager: DiagnosticsManaging?
-```
-
-### 2b: MapperViewModel
-```swift
-// Before
-var kanataManager: RuntimeCoordinator?
-
-// After
-var ruleCollections: RuleCollectionsCoordinator?
-```
-
-### 2c: RecordingCoordinator, SimpleModsService, KeyboardCapture
-Same pattern — replace RuntimeCoordinator with RuleCollectionsCoordinator.
-
-### 2d: WizardCommunicationPage
-Replace RuntimeCoordinator with ServiceLifecycleCoordinator.
-
-### 2e: KanataConfigGenerator
-Replace RuntimeCoordinator with RuleCollectionsCoordinator + ConfigurationService.
-
-**Each sub-phase is one PR.** Start with 2a (MainAppStateController) since it's the most impactful — it removes the illusion that MainAppStateController depends on the entire runtime.
+### 2b-2e: Remaining consumers — DEFERRED
+MapperViewModel, RecordingCoordinator, SimpleModsService, and KanataConfigGenerator use multiple RuntimeCoordinator domains (rules + lifecycle + config). Narrowing them would trade one dependency for 3-4 smaller ones — not simpler. These consumers legitimately need broad access.
 
 ---
 
-## Phase 3: Delete Pass-Through Methods
+## Phase 3: Delete Pass-Through Methods ✅ DONE
 
-**Risk: Low. Each deletion is a compile-time verification.**
+Deleted 6 dead pass-through methods and 2 empty extension files:
+- `startKanataWithValidation()`, `shouldShowWizardForPermissions()`, `isFirstTimeInstall()`
+- `getSystemDiagnostics()`, `areKarabinerBackgroundServicesEnabled()`, `disableKarabinerElementsPermanently()`
+- Deleted `RuntimeCoordinator+Engine.swift` and `RuntimeCoordinator+Output.swift` (imports only)
 
-After Phase 2, many RuntimeCoordinator extension methods become dead code. Delete them one domain at a time:
-
-1. **+ServiceManagement.swift** — consumers now call ServiceLifecycleCoordinator directly
-2. **+Engine.swift** — same
-3. **+Diagnostics.swift** — consumers now call DiagnosticsManager directly
-4. **+ConflictResolution.swift** — can be inlined into RuleCollectionsCoordinator
-5. **+Output.swift** — already empty
-
-After this, RuntimeCoordinator should be ~400-500 lines: init/wiring, shared UI state, and the callbacks that bridge sub-coordinators.
+12 → 10 files, 1713 → 1679 lines.
 
 ---
 
-## Phase 4: Extract Shared UI State (Optional)
+## Phase 4: Extract Shared UI State — SKIPPED
 
-**Risk: Medium. Changes the ViewModel's data source.**
-
-The remaining RuntimeCoordinator state (`keyMappings`, `currentLayerName`, `diagnostics`, `saveStatus`, `lastError`, `validationError`) is UI-facing and consumed by KanataViewModel. This could be extracted into a `RuntimeUIState` observable that KanataViewModel observes directly, leaving RuntimeCoordinator as a pure wiring/orchestration object.
-
-This is optional because KanataViewModel already wraps RuntimeCoordinator — the extra layer may not reduce complexity enough to justify the churn.
+Not worth the churn. KanataViewModel already wraps RuntimeCoordinator as its backing model. Adding another layer wouldn't reduce complexity.
 
 ---
 
@@ -156,15 +98,15 @@ After each phase, verify:
 4. Settings Status tab shows correct state
 5. Wizard opens and detects system state correctly
 
-## What This Achieves
+## What Was Achieved
 
-| Metric | Before | After (Phase 3) |
-|--------|--------|-----------------|
-| RuntimeCoordinator lines | 1,052 | ~400 |
-| Extension files | 11 | ~5 |
-| Consumers holding full RuntimeCoordinator | 9 | 1 (KanataViewModel) |
-| Methods on RuntimeCoordinator | ~60 | ~15 |
-| Time to understand "what does X depend on" | Read 1,052 lines | Read the constructor (5 lines) |
+| Metric | Before | After |
+|--------|--------|-------|
+| RuntimeCoordinator total lines | 1,713 | 1,679 |
+| Extension files | 12 | 10 |
+| MainAppStateController dependency | Full RuntimeCoordinator | ServiceLifecycleCoordinator + closure |
+| Dead pass-through methods | 6 | 0 |
+| Duplicate navigation paths | 2 (determineNextPage + getNextPage) | 1 (getNextPage only) |
 
 ## Not In Scope
 
