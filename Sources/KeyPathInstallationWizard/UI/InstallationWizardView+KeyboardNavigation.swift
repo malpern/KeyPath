@@ -36,7 +36,7 @@ extension InstallationWizardView {
         var candidateIdx = idx + 1
         while candidateIdx < sequence.count {
             let candidate = sequence[candidateIdx]
-            if stateMachine.navigationEngine.pageHasRelevantIssues(
+            if WizardRouter.pageHasRelevantIssues(
                 candidate,
                 issues: stateMachine.wizardIssues,
                 state: stateMachine.wizardState

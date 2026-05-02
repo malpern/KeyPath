@@ -144,7 +144,7 @@ public struct WizardFullDiskAccessPage: View {
 
     private func navigateToNextStep() {
         // Mark FDA page as shown so navigation engine moves to next step
-        stateMachine.navigationEngine.markFDAPageShown()
+        stateMachine.hasShownFDAPage = true
 
         Task {
             // Get the next page based on current state

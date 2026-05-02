@@ -11,7 +11,7 @@ extension InstallationWizardView {
         AppLogger.shared.log("🔍 [Wizard] Setting up wizard with new architecture")
 
         // Always reset navigation state for fresh run
-        stateMachine.navigationEngine.resetNavigationState()
+        stateMachine.resetNavigation()
 
         // Configure state providers
         guard let kanataManager else {
@@ -158,9 +158,15 @@ extension InstallationWizardView {
                 return
             }
 
-            // Auto-navigate to the first page that needs attention, skipping all green pages
-            let recommended = await stateMachine.navigationEngine
-                .firstPageNeedingAttention(for: result.state, issues: filteredIssues)
+            // Auto-navigate to the first page that needs attention
+            let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
+            let helperNeedsApproval = WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
+            let recommended = WizardRouter.route(
+                state: result.state,
+                issues: filteredIssues,
+                helperInstalled: helperInstalled,
+                helperNeedsApproval: helperNeedsApproval
+            )
             Task { @MainActor in
                 if WizardRouter.shouldNavigateToSummary(
                     currentPage: stateMachine.currentPage,

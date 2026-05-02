@@ -1,106 +1,54 @@
-@testable import KeyPathAppKit
 @testable import KeyPathInstallationWizard
-import KeyPathCore
-import KeyPathPermissions
 import KeyPathWizardCore
-import ServiceManagement
 @preconcurrency import XCTest
 
-/// Characterization tests to lock current wizard routing behavior so refactors can proceed safely.
+/// Determinism tests: same inputs always produce the same routing output.
 @MainActor
 final class WizardDeterminismTests: XCTestCase {
-    private var originalSMServiceFactory: ((String) -> SMAppServiceProtocol)!
-    private var originalRunnerFactory: (() -> SubprocessRunning)!
+    func testSameInputsProduceSamePageEveryTime() {
+        let issues = [WizardIssue(
+            identifier: .permission(.keyPathInputMonitoring),
+            severity: .error,
+            category: .permissions,
+            title: "IM denied",
+            description: "",
+            autoFixAction: nil,
+            userAction: nil
+        )]
+        let state: WizardSystemState = .missingPermissions(missing: [.keyPathInputMonitoring])
 
-    override func setUp() async throws {
-        try await super.setUp()
-        // Force helper to appear installed/enabled so routing decisions are deterministic.
-        originalSMServiceFactory = HelperManager.smServiceFactory
-        HelperManager.smServiceFactory = { _ in MockEnabledSMAppService() }
+        let first = WizardRouter.route(state: state, issues: issues, helperInstalled: true, helperNeedsApproval: false)
+        let second = WizardRouter.route(state: state, issues: issues, helperInstalled: true, helperNeedsApproval: false)
 
-        originalRunnerFactory = HelperManager.subprocessRunnerFactory
-        HelperManager.subprocessRunnerFactory = { SubprocessRunnerFake.shared }
-        await SubprocessRunnerFake.shared.reset()
-
-        // Wire WizardDependencies.helperManager so NavigationEngine uses the mocked smServiceFactory
-        WizardDependencies.helperManager = HelperManager.shared
+        XCTAssertEqual(first, second, "Routing should be deterministic for identical inputs")
     }
 
-    override func tearDown() async throws {
-        HelperManager.smServiceFactory = originalSMServiceFactory
-        originalSMServiceFactory = nil
-        HelperManager.subprocessRunnerFactory = originalRunnerFactory
-        originalRunnerFactory = nil
-        try await super.tearDown()
-    }
+    func testDifferentInputsLeadToDifferentPages() {
+        let conflictIssues = [WizardIssue(
+            identifier: .conflict(.karabinerGrabberRunning(pid: 123)),
+            severity: .error,
+            category: .conflicts,
+            title: "Conflict",
+            description: "",
+            autoFixAction: nil,
+            userAction: nil
+        )]
 
-    func testSameSnapshotProducesSamePageEveryTime() async {
-        // Given a snapshot with missing permissions but no conflicts or helper issues
-        let context = SystemContextBuilder(
-            permissionsStatus: .denied,
-            helperReady: true,
-            servicesHealthy: false,
-            componentsInstalled: true
-        ).build()
-
-        let result = SystemContextAdapter.adapt(context)
-        let engine = WizardNavigationEngine()
-        engine.markFDAPageShown()
-        engine.markKarabinerImportPageShown()
-
-        // When determining the page twice for the same inputs
-        let first = await engine.determineCurrentPage(for: result.state, issues: result.issues)
-        let second = await engine.determineCurrentPage(for: result.state, issues: result.issues)
-
-        // Then routing is deterministic
-        XCTAssertEqual(first, second, "Routing should be deterministic for identical snapshots")
-    }
-
-    func testDifferentSnapshotsLeadToDifferentPages() async {
-        // Given two distinct snapshots: one with conflicts, one clean and ready
-        let conflictContext = SystemContextBuilder(
-            permissionsStatus: .granted,
-            helperReady: true,
-            servicesHealthy: true,
-            componentsInstalled: true,
-            conflicts: [.karabinerGrabberRunning(pid: 123)]
-        ).build()
-
-        let readyContext = SystemContextBuilder(
-            permissionsStatus: .granted,
-            helperReady: true,
-            servicesHealthy: true,
-            componentsInstalled: true
-        ).build()
-
-        let conflictResult = SystemContextAdapter.adapt(conflictContext)
-        let readyResult = SystemContextAdapter.adapt(readyContext)
-
-        let engine = WizardNavigationEngine()
-        engine.markFDAPageShown()
-        engine.markKarabinerImportPageShown()
-
-        // When routing each snapshot
-        let conflictPage = await engine.determineCurrentPage(
-            for: conflictResult.state, issues: conflictResult.issues
+        let conflictPage = WizardRouter.route(
+            state: .conflictsDetected(conflicts: [.karabinerGrabberRunning(pid: 123)]),
+            issues: conflictIssues,
+            helperInstalled: true,
+            helperNeedsApproval: false
         )
-        let readyPage = await engine.determineCurrentPage(
-            for: readyResult.state, issues: readyResult.issues
+        let readyPage = WizardRouter.route(
+            state: .active,
+            issues: [],
+            helperInstalled: true,
+            helperNeedsApproval: false
         )
 
-        // Then pages differ as expected
         XCTAssertEqual(conflictPage, .conflicts)
+        XCTAssertEqual(readyPage, .summary)
         XCTAssertNotEqual(conflictPage, readyPage)
     }
-}
-
-// MARK: - Local test doubles
-
-private struct MockEnabledSMAppService: SMAppServiceProtocol {
-    var status: SMAppService.Status {
-        .enabled
-    }
-
-    func register() throws {}
-    func unregister() async throws {}
 }

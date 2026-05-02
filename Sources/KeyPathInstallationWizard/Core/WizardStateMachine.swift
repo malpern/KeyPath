@@ -37,12 +37,6 @@ public class WizardStateMachine {
     public var hasShownMigrationPage = false
     public var hasShownKarabinerImportPage = false
 
-    // MARK: - Navigation (kept for backward compat with pages)
-
-    /// Navigation engine — retained temporarily while pages still call getNextPage().
-    /// Will be removed when pages migrate to WizardRouter.nextPage().
-    @ObservationIgnored public let navigationEngine = WizardNavigationEngine()
-
     @ObservationIgnored private let navigationAnimation: Animation = .spring(response: 0.35, dampingFraction: 0.9)
 
     // MARK: - Init
@@ -93,7 +87,7 @@ public class WizardStateMachine {
         hasShownFDAPage = false
         hasShownMigrationPage = false
         hasShownKarabinerImportPage = false
-        navigationEngine.resetNavigationState()
+        // One-time page tracking is reset via the properties above
     }
 
     // MARK: - Legacy Compatibility
@@ -194,7 +188,7 @@ public class WizardStateMachine {
         case .kanataMigration: .summary
         case .stopExternalKanata: .kanataMigration
         case .karabinerImport:
-            navigationEngine.hasKarabinerImportBeenShown ? .karabinerImport : .stopExternalKanata
+            hasShownKarabinerImportPage ? .karabinerImport : .stopExternalKanata
         case .helper: .summary
         case .fullDiskAccess: .helper
         case .conflicts: .helper
