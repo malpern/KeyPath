@@ -29,6 +29,12 @@ public struct SystemContextAdapter {
     private static func adaptSystemState(_ context: SystemContext) -> WizardSystemState {
         AppLogger.shared.log("📊 [SystemContextAdapter] === ADAPTER STATE DETERMINATION ===")
 
+        // 0. Timeout — validation didn't complete, report service not running
+        if context.timedOut {
+            AppLogger.shared.log("📊 [SystemContextAdapter] Decision: SERVICE NOT RUNNING (validation timed out)")
+            return .serviceNotRunning
+        }
+
         // 1. If conflicts exist, that's highest priority
         if context.conflicts.hasConflicts {
             AppLogger.shared.log("📊 [SystemContextAdapter] Decision: CONFLICTS DETECTED")
@@ -137,6 +143,18 @@ public struct SystemContextAdapter {
     }
 
     private static func adaptIssues(_ context: SystemContext) -> [WizardIssue] {
+        if context.timedOut {
+            return [WizardIssue(
+                identifier: .validationTimeout,
+                severity: .warning,
+                category: .daemon,
+                title: "Status check timed out",
+                description: "System validation exceeded the 12s watchdog. This is usually transient — the next check should succeed.",
+                autoFixAction: nil,
+                userAction: "If this persists, try restarting KeyPath."
+            )]
+        }
+
         var issues: [WizardIssue] = []
 
         /// Permission issues

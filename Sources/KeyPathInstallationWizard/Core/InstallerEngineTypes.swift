@@ -61,6 +61,8 @@ public struct SystemContext: Sendable {
     public let system: EngineSystemInfo
     /// When this snapshot was taken
     public let timestamp: Date
+    /// True when validation exceeded the watchdog timeout
+    public let timedOut: Bool
 
     public init(
         permissions: PermissionOracle.Snapshot,
@@ -69,7 +71,8 @@ public struct SystemContext: Sendable {
         components: ComponentStatus,
         helper: HelperStatus,
         system: EngineSystemInfo,
-        timestamp: Date
+        timestamp: Date,
+        timedOut: Bool = false
     ) {
         self.permissions = permissions
         self.services = services
@@ -78,6 +81,7 @@ public struct SystemContext: Sendable {
         self.helper = helper
         self.system = system
         self.timestamp = timestamp
+        self.timedOut = timedOut
     }
 
     /// Empty/fallback context for test environments where WizardDependencies is not configured.
@@ -101,6 +105,31 @@ public struct SystemContext: Sendable {
             helper: .empty,
             system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: false),
             timestamp: Date()
+        )
+    }
+
+    /// Synthetic context for when validation exceeded the watchdog timeout.
+    public static var timedOut: SystemContext {
+        let unknownSet = PermissionOracle.PermissionSet(
+            accessibility: .unknown,
+            inputMonitoring: .unknown,
+            source: "validation-timeout",
+            confidence: .low,
+            timestamp: Date()
+        )
+        return SystemContext(
+            permissions: PermissionOracle.Snapshot(
+                keyPath: unknownSet,
+                kanata: unknownSet,
+                timestamp: Date()
+            ),
+            services: .empty,
+            conflicts: .empty,
+            components: .empty,
+            helper: .empty,
+            system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: false),
+            timestamp: Date(),
+            timedOut: true
         )
     }
 }

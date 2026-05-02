@@ -442,17 +442,8 @@ class MainAppStateController {
     private func performValidation() async {
         guard let validator else {
             AppLogger.shared.warn("⚠️ [MainAppStateController] Cannot validate - validator not configured")
-            validationState = .failed(blockingCount: 1, totalCount: 1)
-            issues = [WizardIssue(
-                identifier: .daemon,
-                severity: .critical,
-                category: .daemon,
-                title: "System check unavailable",
-                description: "KeyPath couldn't start its system validator. Try restarting the app.",
-                autoFixAction: nil,
-                userAction: "Quit and reopen KeyPath, then run the setup wizard."
-            )]
-            // Even failed validations should update "last checked" timestamps.
+            validationState = .checking
+            issues = []
             lastValidationDate = Date()
             lastValidationTime = Date()
             return
@@ -467,22 +458,8 @@ class MainAppStateController {
             )
         case .definitiveFailure:
             AppLogger.shared.warn(
-                "⚠️ [MainAppStateController] Kanata service not healthy after \(definitiveStartupGracePeriod)s outside restart window - showing error state"
+                "⚠️ [MainAppStateController] Kanata service not healthy after \(definitiveStartupGracePeriod)s outside restart window - proceeding with full validation"
             )
-            validationState = .failed(blockingCount: 1, totalCount: 1)
-            issues = [WizardIssue(
-                identifier: .component(.keyPathRuntime),
-                severity: .error,
-                category: .daemon,
-                title: "Kanata service not running",
-                description: "The Kanata service failed to start or is not healthy.",
-                autoFixAction: nil,
-                userAction: "Click System to open the setup wizard and diagnose the issue."
-            )]
-            // Even failed validations should update "last checked" timestamps.
-            lastValidationDate = Date()
-            lastValidationTime = Date()
-            return
         }
 
         validationState = .checking
@@ -510,23 +487,18 @@ class MainAppStateController {
                 return first
             }
         } catch {
-            validationState = .failed(blockingCount: 1, totalCount: 1)
-            // Use .validationTimeout — NOT .component(.keyPathRuntime) — so this doesn't
-            // trigger the "Kanata Service Stopped" alert dialog. The timeout may be caused
-            // by any validation step (e.g., slow Helper XPC), not necessarily Kanata.
-            issues = [WizardIssue(
-                identifier: .validationTimeout,
-                severity: .warning,
-                category: .daemon,
-                title: "Status check timed out",
-                description: "System validation exceeded the 12s watchdog. This is usually transient — the next check should succeed.",
-                autoFixAction: nil,
-                userAction: "If this persists, try restarting KeyPath."
-            )]
-            AppLogger.shared.error("⏱️ [MainAppStateController] Validation watchdog fired – marking status as timed out (not kanata-specific)")
-            // Even failed validations should update "last checked" timestamps.
+            AppLogger.shared.error("⏱️ [MainAppStateController] Validation watchdog fired – routing through adapter with timedOut context")
+            let timedOutContext = SystemContext.timedOut
+            let adapted = SystemContextAdapter.adapt(timedOutContext)
+            lastValidatedSystemContext = timedOutContext
+            issues = adapted.issues
             lastValidationDate = Date()
             lastValidationTime = Date()
+
+            let blockingCount = issues.filter { $0.severity == .critical || $0.severity == .error }.count
+            validationState = blockingCount > 0
+                ? .failed(blockingCount: blockingCount, totalCount: issues.count)
+                : .failed(blockingCount: 0, totalCount: issues.count)
             return
         }
 
