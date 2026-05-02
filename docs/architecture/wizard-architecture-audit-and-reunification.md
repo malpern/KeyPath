@@ -203,10 +203,12 @@ The two stderr parsers read the **same file** with **different tail sizes** and 
 - **Risk:** Medium — stderr pattern matching is subtle
 - **Rollback:** Restore the two separate parsers and suppression logic. The old functions can be kept as dead code behind a feature check during validation.
 
-### Phase 6: Delete wizard's independent refresh
+### Phase 6: Delete wizard's independent refresh (DEFERRED)
+- **Status:** Deferred — requires cross-module wiring. The wizard (`KeyPathInstallationWizard`) cannot import `MainAppStateController` (`KeyPathAppKit`). Eliminating the wizard's monitor requires publishing state via a protocol, notification, or callback across the module boundary.
+- **Mitigated by Phase 1:** The wizard's monitor now uses the shared `SystemValidator` instance, so its 60s poll benefits from single-flight dedup and produces consistent results.
 - Delete `monitorSystemState()` from WizardStateMachine
 - Wizard reads from `MainAppStateController` via environment or notification
-- **Risk:** Low — wizard already uses state machine which already refreshes
+- **Risk:** Medium — requires cross-module architecture change, not just code deletion
 - **Rollback:** Restore `monitorSystemState()` — it's independent and doesn't conflict with the centralized path.
 
 ### Phase 7: Eliminate SystemContext intermediate type (optional)
