@@ -1,6 +1,6 @@
 # MainActor Subprocess Migration Plan
 
-**Status:** Planned
+**Status:** In Progress (28 → 19 remaining)
 **Created:** 2026-05-02
 **Goal:** Move all `Process()` calls off `@MainActor` to prevent UI freezes.
 
@@ -11,8 +11,17 @@
 ## Current State
 
 **52 total `Process()` calls** across the codebase:
-- **28 in `@MainActor` files** (UI-blocking — must migrate)
+- **19 in `@MainActor` files** (UI-blocking — 9 migrated, 19 remaining)
 - **24 in non-`@MainActor` files** (safe — no migration needed)
+
+### Completed
+- ✅ VHIDDeviceManager (pgrep with timeout)
+- ✅ ServiceLifecycleCoordinator (launchctl kickstart, pgrep orphan kill)
+- ✅ HelperMaintenance (launchctl bootout)
+- ✅ SystemValidator (pgrep karabiner_grabber)
+- ✅ ProcessLifecycleManager (pgrep -fl kanata)
+- ✅ UninstallCoordinator (tccutil, defaults delete)
+- ✅ KanataViewModel (defaults write fnState)
 
 ## Migration Strategy
 
