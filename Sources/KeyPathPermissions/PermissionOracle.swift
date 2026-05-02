@@ -76,7 +76,9 @@ public actor PermissionOracle {
 
         /// System is ready when both apps have all required permissions
         public var isSystemReady: Bool {
-            keyPath.hasAllPermissions && kanata.hasAllPermissions
+            // KeyPath IM is always .unknown (no Apple API to query it).
+            // Only check KeyPath AX + kanata permissions for system readiness.
+            keyPath.accessibility.isReady && kanata.hasAllPermissions
         }
 
         /// Get the first blocking permission issue (user-facing error message)
