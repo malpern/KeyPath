@@ -201,21 +201,16 @@ public final class HelperMaintenance {
             await override()
             return
         }
-        let result = await Task.detached { () -> (Int32, String) in
-            let p = Process()
-            p.launchPath = "/bin/launchctl"
-            p.arguments = ["bootout", "system/com.keypath.helper"]
-            let err = Pipe()
-            p.standardError = err
-            p.standardOutput = Pipe()
-            do { try p.run() } catch {
-                return (-1, "launchctl bootout error: \(error.localizedDescription)")
-            }
-            p.waitUntilExit()
-            let e = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            return (p.terminationStatus, e)
-        }.value
-        let (status, stderr) = result
+        let status: Int32
+        let stderr: String
+        do {
+            let result = try await SubprocessRunner.shared.launchctl("bootout", ["system/com.keypath.helper"])
+            status = result.exitCode
+            stderr = result.stderr
+        } catch {
+            status = -1
+            stderr = "launchctl bootout error: \(error.localizedDescription)"
+        }
         if status == 0 {
             log("✅ launchctl bootout succeeded")
         } else if stderr.contains("Could not find service") || stderr.contains("Bad request") {

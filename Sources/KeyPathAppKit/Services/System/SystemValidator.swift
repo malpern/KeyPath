@@ -480,32 +480,12 @@ public class SystemValidator {
     /// Runs pgrep in a detached task to avoid blocking a cooperative thread
     /// inside the TaskGroup (see ADR-022: no concurrent pgrep).
     private func getKarabinerGrabberPID() async -> Int? {
-        await Task.detached(priority: .utility) {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-            task.arguments = ["-f", "karabiner_grabber"]
-
-            let pipe = Pipe()
-            task.standardOutput = pipe
-
-            do {
-                try task.run()
-                task.waitUntilExit()
-
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-                let pidString = output.trimmingCharacters(in: .whitespacesAndNewlines)
-
-                if let pid = Int(pidString) {
-                    AppLogger.shared.log("🔍 [SystemValidator] Found karabiner_grabber PID: \(pid)")
-                    return pid
-                }
-            } catch {
-                AppLogger.shared.log("❌ [SystemValidator] Error getting karabiner_grabber PID: \(error)")
-            }
-
-            return nil
-        }.value
+        let pids = await SubprocessRunner.shared.pgrep("karabiner_grabber")
+        if let pid = pids.first {
+            AppLogger.shared.log("🔍 [SystemValidator] Found karabiner_grabber PID: \(pid)")
+            return Int(pid)
+        }
+        return nil
     }
 
     // MARK: - Health Checking

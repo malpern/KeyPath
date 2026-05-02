@@ -205,7 +205,6 @@ public final class VHIDDeviceManager: @unchecked Sendable {
         return String(compact.prefix(160)) + "…"
     }
 
-    private struct TimeoutError: Error {}
 
     private func evaluateDaemonProcess() async -> DaemonHealthState {
         // During startup mode, use fast non-blocking check to avoid false negatives
@@ -252,86 +251,32 @@ public final class VHIDDeviceManager: @unchecked Sendable {
                 }
             #endif
 
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-            // Use exact match to avoid pgrep matching itself or other helpers
-            task.arguments = ["-x", Self.vhidDeviceRunningCheck]
+            let startTime = CFAbsoluteTimeGetCurrent()
+            let pids = await SubprocessRunner.shared.pgrep(Self.vhidDeviceRunningCheck)
+            let processCount = pids.count
+            let isRunning = processCount > 0
 
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = pipe
-
-            do {
-                let startTime = CFAbsoluteTimeGetCurrent()
-                try task.run()
-
-                // Race process execution against timeout
-                do {
-                    try await withThrowingTaskGroup(of: Void.self) { group in
-                        group.addTask {
-                            task.waitUntilExit()
-                        }
-                        group.addTask {
-                            let clock = ContinuousClock()
-                            try await clock.sleep(for: .seconds(3)) // 3s
-                            throw TimeoutError()
-                        }
-                        try await group.next()
-                        group.cancelAll()
-                    }
-                } catch is TimeoutError {
-                    task.terminate()
-                    // Fallback to a fast launchctl check so we don't flip the wizard red on a hung pgrep
-                    let launchctlRunning = await Self.fastLaunchctlCheck()
+            if isRunning, processCount > 1 {
+                let vhidManager = VHIDDeviceManager()
+                let launchctlHealthy = await vhidManager.checkLaunchctlHealth()
+                if launchctlHealthy == true {
                     AppLogger.shared.log(
-                        "⚠️ [VHIDManager] VHIDDevice process check timed out after 3s - fallback launchctl says running=\(launchctlRunning)"
+                        "⚠️ [VHIDManager] pgrep reported \(processCount) processes but launchctl is healthy - likely race condition"
                     )
-                    return launchctlRunning ? .healthy : .timeout
+                } else {
+                    let duration = CFAbsoluteTimeGetCurrent() - startTime
+                    AppLogger.shared.log(
+                        "🔍 [VHIDManager] VHIDDevice daemon health: UNHEALTHY (duplicates) (took \(String(format: "%.3f", duration))s)"
+                    )
+                    return .duplicateProcesses
                 }
-
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-                let pids = output
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                    .components(separatedBy: .newlines)
-                    .filter { !$0.isEmpty }
-                let processCount = pids.count
-                let isRunning = task.terminationStatus == 0 && processCount > 0
-
-                // Check for duplicate processes - but verify with launchctl first
-                // pgrep -f can race with concurrent pgrep calls (each sees the other as a match)
-                if isRunning, processCount > 1 {
-                    // Double-check with launchctl (authoritative source for system services)
-                    let vhidManager = VHIDDeviceManager()
-                    let launchctlHealthy = await vhidManager.checkLaunchctlHealth()
-                    if launchctlHealthy == true {
-                        AppLogger.shared.log(
-                            "⚠️ [VHIDManager] pgrep reported \(processCount) processes but launchctl is healthy - likely pgrep race condition, treating as healthy"
-                        )
-                        // Fall through to report healthy
-                    } else {
-                        // launchctl also unhealthy - genuine duplicate issue
-                        AppLogger.shared.log(
-                            "❌ [VHIDManager] UNHEALTHY: Multiple VHIDDevice daemon processes detected (\(processCount)) - should only be 1"
-                        )
-                        AppLogger.shared.log("❌ [VHIDManager] PIDs: \(pids.joined(separator: ", "))")
-                        let duration = CFAbsoluteTimeGetCurrent() - startTime
-                        AppLogger.shared.log(
-                            "🔍 [VHIDManager] VHIDDevice daemon health: UNHEALTHY (duplicates) (took \(String(format: "%.3f", duration))s)"
-                        )
-                        return .duplicateProcesses
-                    }
-                }
-
-                let duration = CFAbsoluteTimeGetCurrent() - startTime
-                AppLogger.shared.log(
-                    "🔍 [VHIDManager] VHIDDevice daemon health: \(isRunning ? "HEALTHY" : "NOT RUNNING") (took \(String(format: "%.3f", duration))s)"
-                )
-                return isRunning ? .healthy : .notRunning
-            } catch {
-                AppLogger.shared.log("❌ [VHIDManager] Error checking VHIDDevice processes: \(error)")
-                return .error
             }
+
+            let duration = CFAbsoluteTimeGetCurrent() - startTime
+            AppLogger.shared.log(
+                "🔍 [VHIDManager] VHIDDevice daemon health: \(isRunning ? "HEALTHY" : "NOT RUNNING") (took \(String(format: "%.3f", duration))s)"
+            )
+            return isRunning ? .healthy : .notRunning
         }.value
     }
 

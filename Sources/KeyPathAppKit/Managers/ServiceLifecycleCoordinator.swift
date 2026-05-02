@@ -100,13 +100,7 @@ final class ServiceLifecycleCoordinator {
             try? await Task.sleep(for: .milliseconds(500))
             if !(await kanataDaemonService.isDaemonRunning()) {
                 AppLogger.shared.log("🔄 [Service] Daemon registered but not running — kickstarting")
-                let kick = Process()
-                kick.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-                kick.arguments = ["kickstart", "system/com.keypath.kanata"]
-                kick.standardOutput = Pipe()
-                kick.standardError = Pipe()
-                try? kick.run()
-                kick.waitUntilExit()
+                _ = try? await SubprocessRunner.shared.launchctl("kickstart", ["system/com.keypath.kanata"])
             }
 
             await AppContextService.shared.start()
@@ -248,20 +242,8 @@ final class ServiceLifecycleCoordinator {
     private func killOrphanedKanataProcesses() async {
         let processNames = ["kanata-launcher", "kanata"]
         for name in processNames {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-            task.arguments = ["-x", name]
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = Pipe()
             do {
-                try task.run()
-                task.waitUntilExit()
-                guard task.terminationStatus == 0 else { continue }
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let pids = String(data: data, encoding: .utf8)?
-                    .split(separator: "\n")
-                    .compactMap { Int32(String($0).trimmingCharacters(in: .whitespaces)) } ?? []
+                let pids = await SubprocessRunner.shared.pgrep(name)
                 for pid in pids {
                     AppLogger.shared.log("🧹 [Service] Killing orphaned \(name) (PID \(pid)) before LaunchDaemon start")
                     kill(pid, SIGTERM)
