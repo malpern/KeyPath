@@ -133,13 +133,13 @@ The following extractions were deferred due to tight coupling with Configuration
 
 ---
 
-## Phase 4: View Decomposition (In Progress)
+## Phase 4: View Decomposition (✅ Complete)
 
-### Target Files
-1. `RulesSummaryView.swift` — ✅ Partially decomposed (1,062 → 740 lines; edit states, recommendations, search field, dynamic display helpers extracted)
-2. `OverlayKeycapView.swift` (1,985 lines)
-3. `InstallationWizardView.swift` (1,849 lines)
-4. `SettingsView.swift` (1,757 lines)
+### Results
+1. `RulesSummaryView.swift` — ✅ 1,062 → 740 lines (4 files extracted)
+2. `OverlayKeycapView.swift` — ✅ Largest file 769 → 197 lines (16 total files, none >329)
+3. `InstallationWizardView.swift` — ✅ 405 → 253 lines (11 files, none >285)
+4. `SettingsView.swift` — ✅ Already well-structured (523 lines, left as-is)
 
 ### Approach
 Extract logical sections into child views:
@@ -203,10 +203,12 @@ Use `TaskGroup` or `withTaskCancellationHandler` patterns.
 |-------|--------|------|--------------|
 | Phase 1 | ✅ Complete | Low | None |
 | Phase 2 | ✅ Complete | Medium | Phase 1 |
-| Phase 3 | ✅ Partial | Medium | None |
-| Phase 4 | 🔄 In Progress | Higher | Phases 1-2 |
+| Phase 3 | ✅ Complete | Medium | None |
+| Phase 4 | ✅ Complete | Higher | Phases 1-2 |
 | Phase 5 | 🔜 Pending | Medium | All above |
 | Phase 6 | 🔜 Pending | Low | None |
+| Wizard simplification | ✅ Complete | Medium | None |
+| Subprocess migration | 🔜 Planned | Low | None |
 
 ---
 
