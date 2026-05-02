@@ -1,5 +1,4 @@
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import KeyPathWizardCore
 import Observation
 import SwiftUI
@@ -10,395 +9,200 @@ public struct WizardSnapshotRecord {
     public let issues: [WizardIssue]
 }
 
-/// Simple wizard state machine using SystemValidator
+/// Observable state container for the installation wizard.
 ///
-/// Replaces: WizardStateManager + WizardNavigationEngine + WizardNavigationCoordinator + WizardStateInterpreter
-///
-/// Key design:
-/// - Single @Published state property
-/// - Explicit refresh (no automatic)
-/// - Simple navigation logic (no separate engine/coordinator)
-/// - Uses SystemValidator (stateless)
+/// Holds the current page, system state, and issues. Pages read these via @Environment.
+/// Navigation decisions are made by WizardRouter (pure function); this class just stores
+/// the results and provides animated page transitions.
 @MainActor
 @Observable
 public class WizardStateMachine {
-    // MARK: - Published State
+    // MARK: - State
 
-    /// Raw system snapshot from SystemValidator (internal use)
-    public var systemSnapshot: SystemSnapshot?
-
-    /// Current wizard system state (canonical source - pass to child views)
     public var wizardState: WizardSystemState = .initializing
-
-    /// Current wizard issues (canonical source - pass to child views)
     public var wizardIssues: [WizardIssue] = []
-
-    /// Current wizard page
     public var currentPage: WizardPage = .summary
-
-    /// Last visited page for direction detection
     public var lastVisitedPage: WizardPage?
-
-    /// Whether user has manually interacted (blocks auto-navigation)
     public var userInteractionMode = false
-
-    /// Optional external sequence to drive back/next order (e.g., filtered issues-only list).
-    /// When nil or empty, the default ordered pages are used.
+    public var isRefreshing = false
+    public var lastRefreshTime: Date?
+    public private(set) var stateVersion: Int = 0
+    public var lastWizardSnapshot: WizardSnapshotRecord?
+    public var systemSnapshot: SystemSnapshot?
     public var customSequence: [WizardPage]?
 
-    /// Whether we're currently refreshing state
-    public var isRefreshing = false
+    // MARK: - One-Time Page Tracking
 
-    /// Last refresh timestamp
-    public var lastRefreshTime: Date?
+    public var hasShownFDAPage = false
+    public var hasShownMigrationPage = false
+    public var hasShownKarabinerImportPage = false
 
-    /// Monotonically increasing version counter, bumped each time state detection completes.
-    /// Used by callers to detect when a refresh has finished.
-    public private(set) var stateVersion: Int = 0
+    // MARK: - Navigation (kept for backward compat with pages)
 
-    /// Cache for the last known wizard state (for backward compatibility with legacy flows)
-    public var lastWizardSnapshot: WizardSnapshotRecord?
+    /// Navigation engine — retained temporarily while pages still call getNextPage().
+    /// Will be removed when pages migrate to WizardRouter.nextPage().
+    @ObservationIgnored public let navigationEngine = WizardNavigationEngine()
 
-    // MARK: - Dependencies
-
-    @ObservationIgnored private var validator: (any WizardSystemValidating)?
-    @ObservationIgnored private weak var kanataManager: (any RuntimeCoordinating)?
-
-    /// Navigation engine for determining appropriate pages
-    @ObservationIgnored let navigationEngine = WizardNavigationEngine()
-
-    // MARK: - Navigation State
-
-    @ObservationIgnored private var lastPageChangeTime = Date()
-    @ObservationIgnored private let autoNavigationGracePeriod: TimeInterval = 10.0
     @ObservationIgnored private let navigationAnimation: Animation = .spring(response: 0.35, dampingFraction: 0.9)
 
-    // MARK: - Defensive State
+    // MARK: - Init
 
-    @ObservationIgnored private var refreshCount = 0
-    @ObservationIgnored private var lastRefreshStart: Date?
+    public init() {}
 
-    // MARK: - Initialization
+    // MARK: - State Updates
 
-    public init() {
-        AppLogger.shared.log("🎯 [WizardStateMachine] Initialized")
-    }
-
-    /// Configure with RuntimeCoordinating (called after init)
-    public func configure(kanataManager: any RuntimeCoordinating) {
-        self.kanataManager = kanataManager
-
-        // Use WizardDependencies.systemValidator
-        validator = WizardDependencies.systemValidator
-
-        AppLogger.shared.log("🎯 [WizardStateMachine] Configured with validator")
-    }
-
-    // MARK: - State Refresh
-
-    /// Refresh system state (explicit user action only)
-    public func refresh() async {
-        guard let validator else {
-            AppLogger.shared.warn("⚠️ [WizardStateMachine] Cannot refresh - not configured")
-            return
-        }
-
-        // Defensive: Detect rapid-fire refreshes
-        if let last = lastRefreshStart {
-            let interval = Date().timeIntervalSince(last)
-            if interval < 0.5 {
-                AppLogger.shared.log(
-                    """
-                    ⚠️ [WizardStateMachine] RAPID REFRESH: \(String(format: "%.3f", interval))s since last
-                    This might indicate automatic triggers - expected: manual user actions only
-                    """
-                )
-            }
-        }
-        lastRefreshStart = Date()
-
-        refreshCount += 1
-        let myID = refreshCount
-
-        AppLogger.shared.info("🔄 [WizardStateMachine] Refresh #\(myID) starting")
-
-        isRefreshing = true
-
-        // Get fresh state from validator
-        let snapshot = await validator.checkSystem()
-
-        isRefreshing = false
-        systemSnapshot = snapshot
-        lastRefreshTime = Date()
-
-        AppLogger.shared.info(
-            "🔄 [WizardStateMachine] Refresh #\(myID) complete - ready=\(snapshot.isReady), issues=\(snapshot.blockingIssues.count)"
-        )
-    }
-
-    /// Detect current state and return as SystemStateResult (legacy compatibility)
-    /// Prefer using refresh() + systemSnapshot for new code
-    public func detectCurrentState(progressCallback _: @escaping @Sendable (Double) -> Void = { _ in }) async
-        -> SystemStateResult
-    {
-        AppLogger.shared.log("🎯 [WizardStateMachine] Using InstallerEngine.inspectSystem()")
-        let context = await InstallerEngine().inspectSystem()
-        return SystemContextAdapter.adapt(context)
-    }
-
-    /// Bump the state version to signal that a refresh cycle has completed.
-    public func markRefreshComplete() {
-        stateVersion += 1
-    }
-
-    /// Update the wizard state and issues (single source of truth)
-    /// Call this after state detection completes with sanitized/filtered issues
+    /// Update wizard state and issues. Called by the view after SystemInspector.inspect().
     public func updateWizardState(_ state: WizardSystemState, issues: [WizardIssue]) {
         wizardState = state
         wizardIssues = issues
         lastWizardSnapshot = WizardSnapshotRecord(state: state, issues: issues)
-        markRefreshComplete()
-        AppLogger.shared.log("🎯 [StateMachine] State updated: \(state), issues: \(issues.count)")
+        stateVersion += 1
     }
 
     // MARK: - Navigation
 
-    /// Navigate to a specific page with animation (main navigation method)
+    /// Navigate to a specific page with animation.
     public func navigateToPage(_ page: WizardPage) {
-        AppLogger.shared.log("🧭 [StateMachine] navigateToPage(\(page)) called, current=\(currentPage)")
         withAnimation(navigationAnimation) {
             lastVisitedPage = currentPage
             currentPage = page
-            lastPageChangeTime = Date()
             userInteractionMode = true
         }
-        AppLogger.shared.log("🧭 [StateMachine] navigateToPage(\(page)) complete, now=\(currentPage)")
     }
 
-    /// Auto-navigate based on system state (if user hasn't interacted recently)
-    public func autoNavigateIfNeeded(for state: WizardSystemState, issues: [WizardIssue]) async {
-        // Don't auto-navigate if user has recently interacted
-        guard !isInUserInteractionMode() else { return }
-
-        let recommendedPage = await navigationEngine.determineCurrentPage(for: state, issues: issues)
-
-        // Only navigate if it's different from current page
-        guard recommendedPage != currentPage else { return }
-
-        withAnimation(navigationAnimation) {
-            lastVisitedPage = currentPage
-            currentPage = recommendedPage
-            lastPageChangeTime = Date()
-        }
-    }
-
-    /// Check if we can navigate to a specific page
-    public func canNavigate(to page: WizardPage, given state: WizardSystemState) -> Bool {
-        navigationEngine.canNavigate(from: currentPage, to: page, given: state)
-    }
-
-    /// Get the next logical page in the wizard flow
+    /// Get the next logical page (delegates to WizardRouter).
     public func getNextPage(for state: WizardSystemState, issues: [WizardIssue]) async -> WizardPage? {
-        await navigationEngine.nextPage(from: currentPage, given: state, issues: issues)
+        let next = WizardRouter.nextPage(after: currentPage, state: state, issues: issues)
+        return next != currentPage ? next : nil
     }
 
-    /// Reset navigation state (typically called when wizard starts)
-    public func resetNavigation() {
-        currentPage = .summary
-        userInteractionMode = false
-        lastPageChangeTime = Date()
-    }
-
-    /// Navigate to specific page (simplified, without animation tracking)
-    public func navigateTo(_ page: WizardPage) {
-        AppLogger.shared.log("🎯 [WizardStateMachine] Navigate to: \(page.rawValue)")
-        currentPage = page
-    }
-
-    /// Navigate to next appropriate page based on system state
+    /// Navigate to the next page (fire-and-forget).
     public func nextPage() {
         Task { @MainActor in
-            if let next = await getNextPage(for: wizardState, issues: wizardIssues) {
-                AppLogger.shared.log(
-                    "🎯 [WizardStateMachine] Navigate: \(currentPage.rawValue) → \(next.rawValue)"
-                )
-                currentPage = next
+            let next = WizardRouter.nextPage(after: currentPage, state: wizardState, issues: wizardIssues)
+            if next != currentPage {
+                navigateToPage(next)
             }
         }
     }
 
-    /// Navigate to previous page based on hardcoded flow
-    public func previousPage() {
-        let previous = determinePreviousPage(from: currentPage)
-        AppLogger.shared.log(
-            "🎯 [WizardStateMachine] Navigate: \(currentPage.rawValue) ← \(previous.rawValue)"
-        )
-        currentPage = previous
+    /// Reset navigation state for a fresh wizard run.
+    public func resetNavigation() {
+        currentPage = .summary
+        userInteractionMode = false
+        hasShownFDAPage = false
+        hasShownMigrationPage = false
+        hasShownKarabinerImportPage = false
+        navigationEngine.resetNavigationState()
     }
 
-    // MARK: - Private Navigation Helpers
+    // MARK: - Legacy Compatibility
 
-    private func determinePreviousPage(from current: WizardPage) -> WizardPage {
-        // Simple reverse navigation
-        switch current {
-        case .summary:
-            .summary // First page
-        case .kanataMigration:
-            .summary // Migration is early optional page
-        case .stopExternalKanata:
-            .kanataMigration // Stop external kanata comes after migration
-        case .karabinerImport:
-            .stopExternalKanata // Karabiner import comes after stop external kanata
-        case .helper:
-            // Only go back to karabiner import if that page was actually shown during this wizard flow
-            navigationEngine.hasKarabinerImportBeenShown ? .karabinerImport : .stopExternalKanata
-        case .fullDiskAccess:
-            .helper
-        case .conflicts:
-            .helper
-        case .inputMonitoring:
-            .conflicts
-        case .accessibility:
-            .inputMonitoring
-        case .karabinerComponents:
-            .accessibility
-        case .communication:
-            .karabinerComponents
-        case .service:
-            .karabinerComponents // Service comes after all components
+    /// Configure with RuntimeCoordinating — no-op in simplified architecture.
+    /// Kept for call-site compatibility during migration.
+    public func configure(kanataManager _: any RuntimeCoordinating) {}
+
+    /// Detect current state via InstallerEngine (used by existing refresh paths).
+    public func detectCurrentState(progressCallback _: @escaping @Sendable (Double) -> Void = { _ in }) async
+        -> SystemStateResult
+    {
+        let context = await InstallerEngine().inspectSystem()
+        return SystemContextAdapter.adapt(context)
+    }
+
+    /// Auto-navigate based on system state using WizardRouter.
+    public func autoNavigateIfNeeded(for state: WizardSystemState, issues: [WizardIssue]) async {
+        guard !userInteractionMode else { return }
+
+        let recommended = WizardRouter.route(
+            state: state,
+            issues: issues,
+            helperInstalled: await WizardDependencies.helperManager?.isHelperInstalled() ?? false,
+            helperNeedsApproval: WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
+        )
+
+        guard recommended != currentPage else { return }
+
+        withAnimation(navigationAnimation) {
+            lastVisitedPage = currentPage
+            currentPage = recommended
         }
     }
 
-    private func isInUserInteractionMode() -> Bool {
-        userInteractionMode
-            && Date().timeIntervalSince(lastPageChangeTime) < autoNavigationGracePeriod
+    // MARK: - Refresh (delegates to InstallerEngine + SystemInspector)
+
+    public func refresh() async {
+        isRefreshing = true
+        let context = await InstallerEngine().inspectSystem()
+        let (state, issues) = SystemInspector.inspect(context: context)
+        updateWizardState(state, issues: issues)
+        isRefreshing = false
+        lastRefreshTime = Date()
     }
 
-    // MARK: - Computed Properties
+    // MARK: - Backward Compat Properties
 
-    /// Whether system is ready
+    public var isNavigatingForward: Bool {
+        guard let last = lastVisitedPage else { return true }
+        let order = WizardPage.orderedPages
+        let lastIdx = order.firstIndex(of: last) ?? 0
+        let curIdx = order.firstIndex(of: currentPage) ?? 0
+        return curIdx >= lastIdx
+    }
+
+    public func isCurrentPage(_ page: WizardPage) -> Bool { currentPage == page }
+    public var canNavigateBack: Bool { currentPage != .summary }
+    public var canNavigateForward: Bool { true }
+
+    public var previousPageInSequence: WizardPage? {
+        let order = customSequence ?? WizardPage.orderedPages
+        guard let idx = order.firstIndex(of: currentPage), idx > 0 else { return nil }
+        return order[idx - 1]
+    }
+
+    public var nextPageInSequence: WizardPage? {
+        let order = customSequence ?? WizardPage.orderedPages
+        guard let idx = order.firstIndex(of: currentPage), idx < order.count - 1 else { return nil }
+        return order[idx + 1]
+    }
+
     public var isSystemReady: Bool {
         systemSnapshot?.isReady ?? false
     }
 
-    /// Blocking issues count
     public var blockingIssueCount: Int {
         systemSnapshot?.blockingIssues.count ?? 0
     }
 
-    /// All issues count
     public var totalIssueCount: Int {
         systemSnapshot?.allIssues.count ?? 0
     }
 
-    /// Whether we should show the service as running
     public var isServiceRunning: Bool {
         systemSnapshot?.health.kanataRunning ?? false
     }
 
-    // MARK: - Debug Support
-
-    /// Get refresh stats for debugging
-    public func getRefreshStats() -> (count: Int, lastStart: Date?) {
-        (refreshCount, lastRefreshStart)
-    }
-}
-
-// MARK: - Navigation State Helpers
-
-extension WizardStateMachine {
-    /// Returns true if navigating forward (to a later page in the flow)
-    public var isNavigatingForward: Bool {
-        guard let lastPage = lastVisitedPage else { return true }
-        let order = WizardPage.orderedPages
-        guard let currentIndex = order.firstIndex(of: currentPage),
-              let lastIndex = order.firstIndex(of: lastPage) else { return true }
-        return currentIndex > lastIndex
+    /// Previous page for back navigation (legacy — used by WizardStateMachine.previousPage)
+    public func previousPage() {
+        let previous = determinePreviousPage(from: currentPage)
+        navigateToPage(previous)
     }
 
-    /// Active sequence used for previous/next navigation
-    private var activeSequence: [WizardPage] {
-        if let custom = customSequence, !custom.isEmpty {
-            return custom
-        }
-        return WizardPage.orderedPages
-    }
-
-    /// Get navigation state for UI components (like page dots)
-    public var navigationState: WizardNavigationState {
-        WizardNavigationState(
-            currentPage: currentPage,
-            availablePages: WizardPage.allCases,
-            canNavigateNext: false, // This would need system state to determine
-            canNavigatePrevious: false, // This would need system state to determine
-            shouldAutoNavigate: !isInUserInteractionMode()
-        )
-    }
-
-    /// Check if a page is the currently active page
-    public func isCurrentPage(_ page: WizardPage) -> Bool {
-        currentPage == page
-    }
-
-    /// Get pages that have been visited or are available
-    public func getAvailablePages(for _: WizardSystemState) -> [WizardPage] {
-        // This could be enhanced to show which pages are accessible
-        // based on current system state
-        WizardPage.allCases
-    }
-
-    /// Check if we can navigate to the previous page
-    public var canNavigateBack: Bool {
-        guard let currentIndex = activeSequence.firstIndex(of: currentPage) else {
-            return false
-        }
-        return currentIndex > 0
-    }
-
-    /// Check if we can navigate to the next page
-    public var canNavigateForward: Bool {
-        guard let currentIndex = activeSequence.firstIndex(of: currentPage) else {
-            return false
-        }
-        return currentIndex < activeSequence.count - 1
-    }
-
-    /// Get the previous page in the ordered sequence
-    public var previousPageInSequence: WizardPage? {
-        guard let currentIndex = activeSequence.firstIndex(of: currentPage),
-              currentIndex > 0
-        else {
-            return nil
-        }
-        return activeSequence[currentIndex - 1]
-    }
-
-    /// Get the next page in the ordered sequence
-    public var nextPageInSequence: WizardPage? {
-        guard let currentIndex = activeSequence.firstIndex(of: currentPage),
-              currentIndex < activeSequence.count - 1
-        else {
-            return nil
-        }
-        return activeSequence[currentIndex + 1]
-    }
-}
-
-// MARK: - Animation Helpers
-
-extension WizardStateMachine {
-    /// Standard page transition animation
-    public static let pageTransition: Animation = .easeInOut(duration: 0.3)
-
-    /// Quick feedback animation for user interactions
-    public static let userFeedback: Animation = .easeInOut(duration: 0.2)
-
-    /// Perform navigation with custom animation
-    public func navigateToPage(_ page: WizardPage, animation: Animation) {
-        withAnimation(animation) {
-            currentPage = page
-            lastPageChangeTime = Date()
-            userInteractionMode = true
+    private func determinePreviousPage(from current: WizardPage) -> WizardPage {
+        switch current {
+        case .summary: .summary
+        case .kanataMigration: .summary
+        case .stopExternalKanata: .kanataMigration
+        case .karabinerImport:
+            navigationEngine.hasKarabinerImportBeenShown ? .karabinerImport : .stopExternalKanata
+        case .helper: .summary
+        case .fullDiskAccess: .helper
+        case .conflicts: .helper
+        case .inputMonitoring: .conflicts
+        case .accessibility: .inputMonitoring
+        case .karabinerComponents: .accessibility
+        case .communication: .karabinerComponents
+        case .service: .karabinerComponents
         }
     }
 }
