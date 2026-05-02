@@ -143,7 +143,7 @@ extension InstallationWizardView {
         let success: Bool
         do {
             success = try await runWithTimeout(seconds: timeoutSeconds) {
-                await autoFixer.performAutoFix(action)
+                await InstallerEngine().runSingleAction(action, using: PrivilegeBroker()).success
             }
         } catch {
             let stateSummary = await describeServiceState()

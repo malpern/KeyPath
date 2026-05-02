@@ -19,22 +19,6 @@ extension InstallationWizardView {
             return
         }
         stateMachine.configure(kanataManager: kanataManager)
-        autoFixer.configure(
-            kanataManager: kanataManager,
-            toastManager: toastManager,
-            statusReporter: { message in
-                showStatusBanner(message)
-                Task { await WizardTelemetry.shared.record(
-                    WizardEvent(
-                        timestamp: Date(),
-                        category: .statusBanner,
-                        name: "banner",
-                        result: nil,
-                        details: ["message": message]
-                    )
-                ) }
-            }
-        )
 
         // Determine initial page based on cached system snapshot (if available)
         // Skip summary on initial run - go directly to helper page to start the wizard flow

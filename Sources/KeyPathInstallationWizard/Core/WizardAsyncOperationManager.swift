@@ -257,80 +257,9 @@ public struct AsyncOperation<T> {
     }
 }
 
-// MARK: - Common Operations
-
 // MARK: - Operation Factory
 
 public enum WizardOperations {
-    /// Auto-fix operation with detailed progress tracking
-    public static func autoFix(
-        action: AutoFixAction,
-        autoFixer: WizardAutoFixer
-    ) -> AsyncOperation<Bool> {
-        AsyncOperation<Bool>(
-            id: "auto_fix_\(String(describing: action))",
-            name: "Auto Fix: \(action.displayName)"
-        ) { progressCallback in
-            // Start progress
-            progressCallback(0.1)
-
-            // Provide more granular progress based on action type
-            switch action {
-            case .terminateConflictingProcesses:
-                progressCallback(0.2)
-                let success = await autoFixer.performAutoFix(action)
-                progressCallback(0.8)
-
-                // Brief pause to show completion
-                let clock = ContinuousClock()
-                try await clock.sleep(for: .milliseconds(500)) // 0.5 seconds
-                progressCallback(1.0)
-                return success
-
-            case .installMissingComponents:
-                // Longer operations - more detailed progress
-                progressCallback(0.15)
-
-                // Simulate preparation phase
-                let clock = ContinuousClock()
-                try await clock.sleep(for: .milliseconds(200)) // 0.2 seconds
-                progressCallback(0.25)
-
-                let success = await autoFixer.performAutoFix(action)
-                progressCallback(0.85)
-
-                // Brief pause for verification
-                try await clock.sleep(for: .milliseconds(300)) // 0.3 seconds
-                progressCallback(1.0)
-                return success
-
-            case .activateVHIDDeviceManager:
-                // Driver activation can take time
-                progressCallback(0.2)
-                let success = await autoFixer.performAutoFix(action)
-                progressCallback(0.9)
-
-                // Allow time for driver activation to complete
-                let clock = ContinuousClock()
-                try await clock.sleep(for: .seconds(1)) // 1 second
-                progressCallback(1.0)
-                return success
-
-            default:
-                // Standard operations
-                progressCallback(0.25)
-                let success = await autoFixer.performAutoFix(action)
-                progressCallback(0.9)
-
-                // Brief completion pause
-                let clock = ContinuousClock()
-                try await clock.sleep(for: .milliseconds(300)) // 0.3 seconds
-                progressCallback(1.0)
-                return success
-            }
-        }
-    }
-
     /// Service start operation
     public static func startService(kanataManager: any RuntimeCoordinating) -> AsyncOperation<Bool> {
         AsyncOperation<Bool>(
