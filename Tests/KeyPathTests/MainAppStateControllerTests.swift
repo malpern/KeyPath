@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+@testable import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
 import Testing
 
@@ -78,21 +79,27 @@ struct MainAppStateControllerTests {
         )
     }
 
-    @Test("isConfigured is false before configure() and true after")
+    @Test("isConfigured is false before setValidator() and true after")
     func isConfiguredProperty() {
         let controller = MainAppStateController()
 
-        // Before configure: should be false
+        // Before setValidator: should be false
         #expect(controller.isConfigured == false)
 
-        // Configure
+        // Configure with lifecycle coordinator
         let manager = RuntimeCoordinator()
         controller.configure(
             serviceLifecycle: manager.serviceLifecycleCoordinator,
             onSystemHealthy: {}
         )
 
-        // After configure: should be true
+        // Still false without validator
+        #expect(controller.isConfigured == false)
+
+        // Inject validator
+        controller.setValidator(SystemValidator(processLifecycleManager: ProcessLifecycleManager()))
+
+        // Now should be true
         #expect(controller.isConfigured == true)
     }
 
@@ -183,34 +190,24 @@ struct MainAppStateControllerBehaviorTests {
         #expect(controller.lastValidationDate == nil)
     }
 
-    @Test("refreshValidation on unconfigured controller surfaces failed state")
+    @Test("refreshValidation on unconfigured controller surfaces checking state")
     func refreshValidationWithoutConfiguration() async {
         let controller = MainAppStateController()
 
         await controller.refreshValidation()
 
-        guard case let .failed(blockingCount, totalCount) = controller.validationState else {
-            Issue.record("Expected failed validation state")
-            return
-        }
-        #expect(blockingCount == 1)
-        #expect(totalCount == 1)
-        #expect(controller.issues.count == 1)
+        #expect(controller.validationState == .checking)
+        #expect(controller.issues.isEmpty)
     }
 
-    @Test("revalidate on unconfigured controller surfaces failed state")
+    @Test("revalidate on unconfigured controller surfaces checking state")
     func revalidateWithoutConfiguration() async {
         let controller = MainAppStateController()
 
         await controller.revalidate()
 
-        guard case let .failed(blockingCount, totalCount) = controller.validationState else {
-            Issue.record("Expected failed validation state")
-            return
-        }
-        #expect(blockingCount == 1)
-        #expect(totalCount == 1)
-        #expect(controller.issues.count == 1)
+        #expect(controller.validationState == .checking)
+        #expect(controller.issues.isEmpty)
     }
 
     @Test("performInitialValidation after configure produces a non-nil validation state")

@@ -9,7 +9,7 @@ import os.lock
 /// Handles health checking and status reporting for LaunchDaemon services.
 ///
 /// This service provides comprehensive health checking capabilities extracted from
-/// LaunchDaemonInstaller to support both LaunchDaemon and SMAppService paths.
+/// supporting both LaunchDaemon and SMAppService paths.
 ///
 /// ## Health Check Operations
 /// - `isServiceLoaded`: Check if a service is loaded in launchd

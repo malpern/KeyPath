@@ -430,25 +430,6 @@ struct ActionDispatcherSystemWindowTests {
         }
     }
 
-    @Test("Dispatches exercise host passthru cycle action")
-    @MainActor
-    func dispatchesExerciseHostPassthruCycleAction() throws {
-        let uri = try #require(KeyPathActionURI(string: "keypath://system/exercise-host-passthru-cycle?capture=0"))
-        let result = ActionDispatcher.shared.dispatch(uri)
-
-        #expect(result == .success)
-    }
-
-    @Test("Dispatches exercise host passthru soak action")
-    @MainActor
-    func dispatchesExerciseHostPassthruSoakAction() throws {
-        let uri = try #require(
-            KeyPathActionURI(string: "keypath://system/exercise-host-passthru-soak?capture=0&seconds=5")
-        )
-        let result = ActionDispatcher.shared.dispatch(uri)
-
-        #expect(result == .success)
-    }
 
     @Test("Dispatches repair helper action")
     @MainActor

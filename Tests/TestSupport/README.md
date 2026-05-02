@@ -11,7 +11,7 @@ This directory contains global test infrastructure that runs before any tests ex
 The `AdminPromptBypass` class uses XCTest's `class func setUp()` to configure the test environment before any tests run:
 
 1. **Installs FakeAdminCommandExecutor** - All admin commands succeed silently without prompts
-2. **Bypasses authorization scripts** - LaunchDaemonInstaller skips osascript execution
+2. **Bypasses authorization scripts** - Installer services skip osascript execution
 3. **Disables real admin operations** - TestEnvironment prevents actual /Library writes
 4. **Sets KEYPATH_TEST_MODE=1** - Ensures consistent test behavior
 
@@ -62,7 +62,7 @@ final class AuthorizationServicesSmokeTests: XCTestCase {
 final class MyFeatureTests: XCTestCase {
     func testSomething() {
         // Just write your test - no password prompts!
-        let installer = LaunchDaemonInstaller()
+        let engine = InstallerEngine()
         // ... test runs with fake admin executor
     }
 }

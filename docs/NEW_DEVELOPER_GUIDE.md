@@ -176,7 +176,6 @@ for the actual remapping engine, config, and binary.
 **Key files:**
 - `Core/WizardNavigationEngine.swift` - State-driven page navigation
 - `Core/WizardAutoFixer.swift` - Auto-remediation for 50+ edge cases
-- `Core/LaunchDaemonInstaller.swift` - Service installation
 - `UI/InstallationWizardView.swift` - Main wizard container
 - `README.md` - Complete wizard documentation
 
@@ -204,7 +203,7 @@ let healthy = await engine.isServiceHealthy(serviceID: "com.keypath.kanata")
 let health = await engine.checkKanataServiceHealth()
 ```
 
-**Why use it:** All callers should go through InstallerEngine rather than directly using `LaunchDaemonInstaller`. This ensures consistent privilege handling, logging, and error reporting.
+**Why use it:** All callers should go through InstallerEngine. This ensures consistent privilege handling, logging, and error reporting.
 
 ### 5. Services (Independent, Focused Components)
 

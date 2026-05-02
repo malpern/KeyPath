@@ -14,7 +14,7 @@ public protocol InstallerEnginePrivilegedRouting: AnyObject {
 /// Façade for installer operations.
 ///
 /// - Provides a stable, unified API for install/repair/uninstall flows.
-/// - Wraps existing installer logic (LaunchDaemonInstaller, WizardAutoFixer, etc.).
+/// - Wraps extracted services (ServiceBootstrapper, ServiceHealthChecker, etc.).
 /// - Backward-compatible with legacy wizard outputs (SystemContext/SystemContextAdapter).
 @MainActor
 public final class InstallerEngine {
@@ -553,7 +553,7 @@ public final class InstallerEngine {
     // MARK: - Public Health Check API
 
     /// Check if a specific service is healthy (running and responsive)
-    /// Delegates to ServiceHealthChecker (extracted from LaunchDaemonInstaller)
+    /// Delegates to ServiceHealthChecker
     public func isServiceHealthy(serviceID: String) async -> Bool {
         await ServiceHealthChecker.shared.isServiceHealthy(serviceID: serviceID)
     }

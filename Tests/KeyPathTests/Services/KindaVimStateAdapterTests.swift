@@ -20,7 +20,7 @@ final class KindaVimStateAdapterTests: XCTestCase {
         XCTAssertEqual(KindaVimStateAdapter.normalizedMode(from: "visual"), .visual)
         XCTAssertEqual(KindaVimStateAdapter.normalizedMode(from: "visual line"), .visual)
         XCTAssertEqual(KindaVimStateAdapter.normalizedMode(from: nil), .unknown)
-        XCTAssertEqual(KindaVimStateAdapter.normalizedMode(from: "operator_pending"), .unknown)
+        XCTAssertEqual(KindaVimStateAdapter.normalizedMode(from: "operator_pending"), .operatorPending)
     }
 
     func testValidJSONEmitsJSONStateWithHighConfidence() async throws {

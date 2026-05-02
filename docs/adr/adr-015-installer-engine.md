@@ -7,7 +7,7 @@
 
 Installation and repair logic was scattered across multiple components:
 - `WizardAutoFixer`
-- `LaunchDaemonInstaller` (direct calls)
+- `LaunchDaemonInstaller` (removed — all functionality extracted to `ServiceBootstrapper`, `ServiceHealthChecker`, and `InstallerEngine`)
 - `SystemStatusChecker`
 
 This made it hard to understand the full installation flow and led to inconsistent behavior.

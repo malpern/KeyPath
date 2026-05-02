@@ -6,7 +6,7 @@ import os.lock
 /// Handles loading, unloading, and restarting of LaunchDaemon services.
 ///
 /// This service provides a clean interface for managing macOS launchd services,
-/// extracted from LaunchDaemonInstaller to support both LaunchDaemon and SMAppService paths.
+/// supporting both LaunchDaemon and SMAppService paths.
 ///
 /// ## Service Lifecycle Operations
 /// - `loadService`: Load a service into launchd

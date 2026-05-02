@@ -23,7 +23,6 @@ Rationale: older CLI/tooling may still expose `tools.web_search`, which prints a
   - System Check: `InstallerEngine().inspectSystem()`
 - **Do NOT use**:
   - `KanataManager` for installation/repair (it's for runtime coordination only).
-  - `LaunchDaemonInstaller` directly (it's an internal implementation detail).
   - `WizardAutoFixer` directly (superseded by Engine).
 
 ### Permissions
