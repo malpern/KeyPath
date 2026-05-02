@@ -210,6 +210,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if !isHeadlessMode {
             setupMenuBarController()
             SplashView.PosterCache.warmIfNeeded()
+            NSApp.activate(ignoringOtherApps: true)
         }
 
         // Check for pending service bounce (skip on fresh install)
