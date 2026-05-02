@@ -191,7 +191,7 @@
   /* ── Pillars ── */
   .pillars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border-light); border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; margin: 36px 0; }
   .pillar { background: var(--bg); padding: 28px 18px; text-align: center; }
-  .pillar-icon { margin-bottom: 12px; font-size: 1.6rem; }
+  .pillar-icon { margin-bottom: 14px; display: flex; justify-content: center; }
   .pillar h4 { font-size: 0.88rem; font-weight: 600; margin-bottom: 4px; }
   .pillar p { font-size: 0.82rem; color: var(--text-tertiary); margin: 0; line-height: 1.45; }
 
@@ -230,22 +230,96 @@
 
   <div class="pillars">
     <div class="pillar">
-      <div class="pillar-icon">⌨️</div>
+      <div class="pillar-icon">
+        <!-- Isometric keyboard with arrow showing remap -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="12" ry="3" fill="#3d4852" opacity="0.06"/>
+          <rect x="8" y="22" width="44" height="28" rx="4" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <rect x="10" y="24" width="40" height="24" rx="2" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/>
+          <!-- Key grid -->
+          <rect x="13" y="27" width="6" height="5" rx="1" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <rect x="21" y="27" width="6" height="5" rx="1" fill="#d2d2d7" stroke="#3d4852" stroke-width="0.8"/>
+          <rect x="29" y="27" width="6" height="5" rx="1" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <rect x="37" y="27" width="6" height="5" rx="1" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <rect x="13" y="34" width="6" height="5" rx="1" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <rect x="21" y="34" width="6" height="5" rx="1" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <rect x="29" y="34" width="6" height="5" rx="1" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <rect x="37" y="34" width="6" height="5" rx="1" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <rect x="17" y="41" width="26" height="4" rx="1" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <!-- Remap arrow -->
+          <path d="M24 14 Q30 8 36 14" fill="none" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M34 11 L36 14 L33 15" fill="none" stroke="#3d4852" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
       <h4>Remap</h4>
       <p>Visual key remapping with tap-hold, layers, and macros</p>
     </div>
     <div class="pillar">
-      <div class="pillar-icon">🔧</div>
+      <div class="pillar-icon">
+        <!-- Isometric shield with checkmark (install/setup) -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="55" rx="10" ry="2.5" fill="#3d4852" opacity="0.06"/>
+          <path d="M30 6 L48 14 L48 32 C48 44 30 54 30 54 C30 54 12 44 12 32 L12 14 Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M30 6 L48 14 L48 32 C48 44 30 54 30 54" fill="#f5f5f7" stroke="none"/>
+          <path d="M30 10 L44 17 L44 31 C44 41 30 50 30 50 C30 50 16 41 16 31 L16 17 Z" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="0.8"/>
+          <!-- Checkmark -->
+          <path d="M22 30 L27 35 L38 24" stroke="#3d4852" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M22 30 L27 35 L38 24" stroke="white" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity="0.3"/>
+        </svg>
+      </div>
       <h4>Install</h4>
       <p>Guided wizard for permissions, helper, and daemon setup</p>
     </div>
     <div class="pillar">
-      <div class="pillar-icon">👁</div>
+      <div class="pillar-icon">
+        <!-- Isometric floating window with keyboard inside -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="12" ry="3" fill="#3d4852" opacity="0.06"/>
+          <!-- Window frame -->
+          <rect x="8" y="10" width="44" height="38" rx="4" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <rect x="8" y="10" width="44" height="8" rx="4" fill="#d2d2d7" stroke="#3d4852" stroke-width="1.8"/>
+          <rect x="8" y="16" width="44" height="2" fill="#d2d2d7"/>
+          <!-- Window dots -->
+          <circle cx="14" cy="14" r="1.5" fill="#3d4852" opacity="0.2"/>
+          <circle cx="19" cy="14" r="1.5" fill="#3d4852" opacity="0.2"/>
+          <circle cx="24" cy="14" r="1.5" fill="#3d4852" opacity="0.2"/>
+          <!-- Mini keyboard inside -->
+          <rect x="14" y="24" width="32" height="18" rx="2" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/>
+          <rect x="17" y="27" width="4" height="3" rx="0.5" fill="white" stroke="#d2d2d7" stroke-width="0.4"/>
+          <rect x="23" y="27" width="4" height="3" rx="0.5" fill="white" stroke="#d2d2d7" stroke-width="0.4"/>
+          <rect x="29" y="27" width="4" height="3" rx="0.5" fill="#d2d2d7" stroke="#3d4852" stroke-width="0.6"/>
+          <rect x="35" y="27" width="4" height="3" rx="0.5" fill="white" stroke="#d2d2d7" stroke-width="0.4"/>
+          <rect x="17" y="32" width="4" height="3" rx="0.5" fill="white" stroke="#d2d2d7" stroke-width="0.4"/>
+          <rect x="23" y="32" width="4" height="3" rx="0.5" fill="white" stroke="#d2d2d7" stroke-width="0.4"/>
+          <rect x="29" y="32" width="4" height="3" rx="0.5" fill="white" stroke="#d2d2d7" stroke-width="0.4"/>
+          <rect x="35" y="32" width="4" height="3" rx="0.5" fill="white" stroke="#d2d2d7" stroke-width="0.4"/>
+          <rect x="21" y="37" width="18" height="3" rx="0.5" fill="white" stroke="#d2d2d7" stroke-width="0.4"/>
+          <!-- Glow on pressed key -->
+          <circle cx="31" cy="28.5" r="4" fill="#3d4852" opacity="0.05"/>
+        </svg>
+      </div>
       <h4>Visualize</h4>
       <p>Live floating overlay showing real-time key state</p>
     </div>
     <div class="pillar">
-      <div class="pillar-icon">🚀</div>
+      <div class="pillar-icon">
+        <!-- Isometric rocket / launch -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="55" rx="8" ry="2" fill="#3d4852" opacity="0.06"/>
+          <!-- Rocket body -->
+          <path d="M30 6 C30 6 22 16 22 32 L22 42 L38 42 L38 32 C38 16 30 6 30 6Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M30 6 C30 6 26 16 26 32 L26 42" fill="none" stroke="white" stroke-width="0.8" opacity="0.3"/>
+          <!-- Window -->
+          <circle cx="30" cy="22" r="4" fill="#f5f5f7" stroke="#3d4852" stroke-width="1.2"/>
+          <circle cx="30" cy="22" r="2" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <ellipse cx="29" cy="21" rx="1" ry="0.7" fill="white" opacity="0.5"/>
+          <!-- Fins -->
+          <path d="M22 36 L16 44 L22 42 Z" fill="#d2d2d7" stroke="#3d4852" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M38 36 L44 44 L38 42 Z" fill="#d2d2d7" stroke="#3d4852" stroke-width="1.4" stroke-linejoin="round"/>
+          <!-- Exhaust -->
+          <path d="M26 42 L24 48 L28 46 L30 50 L32 46 L36 48 L34 42" fill="#e8e8ed" stroke="#3d4852" stroke-width="1" stroke-linejoin="round"/>
+        </svg>
+      </div>
       <h4>Launch</h4>
       <p>App launcher, URL opener, and script runner from any key</p>
     </div>
