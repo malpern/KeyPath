@@ -21,7 +21,6 @@ struct StatusSettingsTabView: View {
     @State var duplicateAppCopies: [String] = []
     @State private var settingsToastManager = WizardToastManager()
     @State var showingPermissionAlert = false
-    @State private var refreshRetryScheduled = false
     @State private var localServiceRunning: Bool? // Optimistic local state for instant toggle feedback
 
     private var isServiceRunning: Bool {
@@ -450,45 +449,24 @@ struct StatusSettingsTabView: View {
     // MARK: - Helpers
 
     private func refreshStatus() async {
-        // Use MainAppStateController's cached context — it has a properly-configured
-        // SystemValidator. RuntimeCoordinator's InstallerEngine was initialized before
-        // WizardDependencies.systemValidator was set, so it always returns empty context.
-        let context: SystemContext
-        if let cached = MainAppStateController.shared.lastValidatedSystemContext {
-            context = cached
-        } else {
-            context = await kanataManager.inspectSystemContext()
-        }
-        let snapshot = context.permissions
-        let adapted = await MainActor.run { SystemContextAdapter.adapt(context) }
-        let tcpOk = await checkTCPConfiguration()
+        let controller = MainAppStateController.shared
+
+        // Trigger a revalidation if stale, then read the published state.
+        await controller.revalidate()
+
+        let context = controller.lastValidatedSystemContext ?? .empty
         let duplicates = HelperMaintenance.shared.detectDuplicateAppCopies()
+        let tcpOk = controller.lastTCPConfigured ?? false
 
-        await MainActor.run {
-            permissionSnapshot = snapshot
-            systemContext = context
-            wizardSystemState = adapted.state
-            wizardIssues = adapted.issues
-            tcpConfigured = tcpOk
-            showSetupBanner = !(snapshot.isSystemReady && context.services.isHealthy)
-                || duplicates.count > 1
-                || (context.services.kanataRunning && !tcpOk)
-            duplicateAppCopies = duplicates
-        }
-
-        // If services look “starting” (daemons loaded/healthy but kanata not yet running), retry once shortly.
-        if !context.services.kanataRunning,
-           context.services.karabinerDaemonRunning,
-           refreshRetryScheduled == false
-        {
-            refreshRetryScheduled = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                Task {
-                    refreshRetryScheduled = false
-                    await refreshStatus()
-                }
-            }
-        }
+        permissionSnapshot = context.permissions
+        systemContext = context
+        wizardSystemState = controller.lastAdaptedState
+        wizardIssues = controller.issues
+        tcpConfigured = controller.lastTCPConfigured
+        showSetupBanner = !(context.permissions.isSystemReady && context.services.isHealthy)
+            || duplicates.count > 1
+            || (context.services.kanataRunning && !tcpOk)
+        duplicateAppCopies = duplicates
     }
 
     private func startViaInstallerEngine() async {
@@ -520,30 +498,6 @@ struct StatusSettingsTabView: View {
                 settingsToastManager.showError("Stop failed: \(reason)")
             }
         }
-    }
-
-    private func checkTCPConfiguration() async -> Bool {
-        // Keep this fast and predictable: only verify the active plist contains a --port argument.
-        let plistPath = KanataDaemonManager.getActivePlistPath()
-        guard Foundation.FileManager().fileExists(atPath: plistPath) else { return false }
-
-        let args: [String]
-        do {
-            let plistData = try Data(contentsOf: URL(fileURLWithPath: plistPath))
-            guard let plist = try PropertyListSerialization.propertyList(
-                from: plistData, options: [], format: nil
-            ) as? [String: Any],
-                let programArgs = plist["ProgramArguments"] as? [String]
-            else {
-                return false
-            }
-            args = programArgs
-        } catch {
-            AppLogger.shared.warn("⚠️ [SettingsView] Failed to read daemon plist: \(error.localizedDescription)")
-            return false
-        }
-
-        return args.contains("--port")
     }
 
     private var systemStatusRows: [SettingsSystemStatusRowModel] {

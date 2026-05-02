@@ -26,9 +26,12 @@ class MainAppStateController {
     var validationState: ValidationState? // nil = not yet validated, show nothing
     var issues: [WizardIssue] = []
     var lastValidationDate: Date?
-    /// Latest validated system context — consumed by Settings Status tab to avoid
-    /// running a redundant validation through an unconfigured InstallerEngine.
+    /// Latest validated system context — consumed by Settings Status tab and other UI surfaces.
     private(set) var lastValidatedSystemContext: SystemContext?
+    /// Adapted wizard state from the last validation — consumed by Settings Status tab.
+    private(set) var lastAdaptedState: WizardSystemState = .initializing
+    /// TCP configuration status from the last validation — consumed by Settings Status tab.
+    private(set) var lastTCPConfigured: Bool?
 
     // MARK: - Validation State (compatible with StartupValidator)
 
@@ -565,6 +568,7 @@ class MainAppStateController {
 
         // Update published state
         lastValidatedSystemContext = context
+        lastAdaptedState = adapted.state
         issues = adapted.issues
         lastValidationDate = Date()
         lastValidationTime = Date() // Track for cooldown optimization
@@ -595,6 +599,7 @@ class MainAppStateController {
             // Kanata is running - but check if there are blocking issues that prevent proper operation
             // Also verify TCP communication is properly configured (matches wizard logic)
             let tcpConfigured = await checkTCPConfiguration()
+            lastTCPConfigured = tcpConfigured
 
             if blockingIssues.isEmpty, tcpConfigured {
                 validationState = .success
