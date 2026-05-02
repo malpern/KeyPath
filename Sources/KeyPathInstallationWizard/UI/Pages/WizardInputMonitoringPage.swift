@@ -230,6 +230,30 @@ public struct WizardInputMonitoringPage: View {
         }
         .onAppear {
             checkForStaleEntries()
+            Task { await onRefresh() }
+
+            // Start passive polling to detect manual permission grants in System Settings
+            if permissionPollingTask == nil {
+                permissionPollingTask = Task { @MainActor [onRefresh] in
+                    var lastKeyPathGranted: Bool?
+                    var lastKanataGranted: Bool?
+                    while !Task.isCancelled {
+                        let snapshot = await PermissionOracle.shared.currentSnapshot()
+                        let kpGranted = snapshot.keyPath.inputMonitoring.isReady
+                        let kaGranted = snapshot.kanata.inputMonitoring.isReady
+                        if lastKeyPathGranted != kpGranted || lastKanataGranted != kaGranted {
+                            AppLogger.shared.log(
+                                "🔁 [WizardInputMonitoringPage] Passive IM change detected - KeyPath: \(kpGranted), Kanata: \(kaGranted). Refreshing UI."
+                            )
+                            lastKeyPathGranted = kpGranted
+                            lastKanataGranted = kaGranted
+                            await onRefresh()
+                        }
+                        if kpGranted, kaGranted { return }
+                        _ = await WizardSleep.ms(250)
+                    }
+                }
+            }
         }
         .onDisappear {
             permissionPollingTask?.cancel()
