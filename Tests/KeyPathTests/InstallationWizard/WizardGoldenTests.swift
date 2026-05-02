@@ -526,4 +526,71 @@ final class WizardGoldenTests: XCTestCase {
         )
         XCTAssertEqual(page, .conflicts, "Conflicts should take priority over permissions")
     }
+
+    // MARK: - WizardRouter: nextPage
+
+    func test_nextPage_fromConflicts_skipsGreenPages() {
+        let issues = [WizardIssue(
+            identifier: .component(.karabinerDriver),
+            severity: .error,
+            category: .installation,
+            title: "Driver missing",
+            description: "",
+            autoFixAction: nil,
+            userAction: nil
+        )]
+        let next = WizardRouter.nextPage(
+            after: .conflicts,
+            state: .missingComponents(missing: [.karabinerDriver]),
+            issues: issues
+        )
+        XCTAssertEqual(next, .karabinerComponents, "Should skip green pages and land on karabinerComponents")
+    }
+
+    func test_nextPage_allGreen_returnsSummary() {
+        let next = WizardRouter.nextPage(after: .helper, state: .active, issues: [])
+        XCTAssertEqual(next, .summary)
+    }
+
+    // MARK: - WizardRouter: pageHasRelevantIssues
+
+    func test_pageHasRelevantIssues_conflictsPage_withConflicts() {
+        let issues = [WizardIssue(
+            identifier: .conflict(.kanataProcessRunning(pid: 1, command: "kanata")),
+            severity: .error,
+            category: .conflicts,
+            title: "",
+            description: "",
+            autoFixAction: nil,
+            userAction: nil
+        )]
+        XCTAssertTrue(WizardRouter.pageHasRelevantIssues(.conflicts, issues: issues, state: .active))
+        XCTAssertFalse(WizardRouter.pageHasRelevantIssues(.inputMonitoring, issues: issues, state: .active))
+    }
+
+    func test_pageHasRelevantIssues_servicePage() {
+        XCTAssertTrue(WizardRouter.pageHasRelevantIssues(.service, issues: [], state: .serviceNotRunning))
+        XCTAssertTrue(WizardRouter.pageHasRelevantIssues(.service, issues: [], state: .daemonNotRunning))
+        XCTAssertFalse(WizardRouter.pageHasRelevantIssues(.service, issues: [], state: .active))
+    }
+
+    func test_pageHasRelevantIssues_summaryAlwaysTrue() {
+        XCTAssertTrue(WizardRouter.pageHasRelevantIssues(.summary, issues: [], state: .active))
+    }
+
+    // MARK: - WizardRouter: isBlockingPage
+
+    func test_isBlockingPage_conflicts() {
+        XCTAssertTrue(WizardRouter.isBlockingPage(.conflicts, helperInstalled: true, helperNeedsApproval: false))
+    }
+
+    func test_isBlockingPage_helperNotInstalled() {
+        XCTAssertTrue(WizardRouter.isBlockingPage(.helper, helperInstalled: false, helperNeedsApproval: false))
+        XCTAssertFalse(WizardRouter.isBlockingPage(.helper, helperInstalled: true, helperNeedsApproval: false))
+    }
+
+    func test_isBlockingPage_permissionsNotBlocking() {
+        XCTAssertFalse(WizardRouter.isBlockingPage(.inputMonitoring, helperInstalled: true, helperNeedsApproval: false))
+        XCTAssertFalse(WizardRouter.isBlockingPage(.accessibility, helperInstalled: true, helperNeedsApproval: false))
+    }
 }
