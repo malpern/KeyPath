@@ -162,7 +162,7 @@ extension InstallationWizardView {
             let recommended = await stateMachine.navigationEngine
                 .firstPageNeedingAttention(for: result.state, issues: filteredIssues)
             Task { @MainActor in
-                if shouldNavigateToSummary(
+                if WizardRouter.shouldNavigateToSummary(
                     currentPage: stateMachine.currentPage,
                     state: result.state,
                     issues: filteredIssues
@@ -254,7 +254,7 @@ extension InstallationWizardView {
                 // stateMachine.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
                 Task { @MainActor in
-                    if shouldNavigateToSummary(
+                    if WizardRouter.shouldNavigateToSummary(
                         currentPage: stateMachine.currentPage,
                         state: result.state,
                         issues: filteredIssues

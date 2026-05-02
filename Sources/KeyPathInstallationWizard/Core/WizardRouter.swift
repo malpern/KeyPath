@@ -147,6 +147,17 @@ public enum WizardRouter {
         }
     }
 
+    // MARK: - Summary Navigation
+
+    /// Whether the wizard should navigate to summary (system is healthy, no issues).
+    public static func shouldNavigateToSummary(
+        currentPage: WizardPage,
+        state: WizardSystemState,
+        issues: [WizardIssue]
+    ) -> Bool {
+        state == .active && issues.isEmpty && currentPage != .summary
+    }
+
     // MARK: - Private Helpers
 
     private static func hasBlockingPermissionIssue(

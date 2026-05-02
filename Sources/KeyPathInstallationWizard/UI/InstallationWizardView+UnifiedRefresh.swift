@@ -159,7 +159,7 @@ extension InstallationWizardView {
         // This prevents jarring navigation away from a page after a fix completes
         let shouldAutoNavigate = !stateMachine.userInteractionMode
 
-        if shouldNavigateToSummary(
+        if WizardRouter.shouldNavigateToSummary(
             currentPage: stateMachine.currentPage,
             state: result.state,
             issues: filteredIssues
