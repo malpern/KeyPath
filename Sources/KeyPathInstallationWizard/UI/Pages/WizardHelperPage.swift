@@ -529,13 +529,7 @@ public struct WizardHelperPage: View {
     }
 
     private func checkLoginItemsApprovalNeeded() -> Bool {
-        guard let factory = WizardDependencies.smServiceFactory,
-              let svc = factory(WizardHelperConstants.helperPlistName) as? SMAppService
-        else {
-            AppLogger.shared.log("⚠️ [WizardHelperPage] smServiceFactory not configured or wrong type")
-            return false
-        }
-        return svc.status == .requiresApproval
+        WizardDependencies.helperNeedsApproval?() ?? false
     }
 
     // MARK: - Approval Polling

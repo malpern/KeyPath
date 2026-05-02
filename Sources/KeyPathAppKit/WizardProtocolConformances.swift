@@ -146,6 +146,9 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
     WizardDependencies.smServiceFactory = { plistName in
         HelperManager.smServiceFactory(plistName)
     }
+    WizardDependencies.helperNeedsApproval = {
+        HelperManager.smServiceFactory(HelperManager.helperPlistName).status == .requiresApproval
+    }
     WizardDependencies.createUninstallCoordinator = {
         UninstallCoordinator()
     }

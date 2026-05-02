@@ -63,6 +63,9 @@ public enum WizardDependencies {
     /// SMAppService factory for helper plist (type-erased)
     nonisolated(unsafe) public static var smServiceFactory: ((String) -> Any)?
 
+    /// Check if the helper needs Login Items approval in System Settings
+    nonisolated(unsafe) public static var helperNeedsApproval: (() -> Bool)?
+
     /// UninstallCoordinator factory (type-erased, creates new instance each call)
     public static var createUninstallCoordinator: (() -> any WizardUninstalling)?
 
@@ -117,6 +120,7 @@ public enum WizardDependencies {
         makeKarabinerImportPage = nil
         makeCommunicationPage = nil
         smServiceFactory = nil
+        helperNeedsApproval = nil
         createUninstallCoordinator = nil
         executePrivilegedBatch = nil
         resourceBundle = nil
