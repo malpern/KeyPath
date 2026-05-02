@@ -188,6 +188,46 @@
     .hero { padding: 64px 0 48px; }
     section { padding: 48px 0; }
   }
+
+  /* ── Screenshot ── */
+  .screenshot-wrap {
+    margin: 36px 0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+  .screenshot-wrap img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .screenshot-caption {
+    padding: 12px 20px;
+    background: var(--surface);
+    font-size: 0.82rem;
+    color: var(--text-tertiary);
+    text-align: center;
+    border-top: 1px solid var(--border-light);
+  }
+
+  /* ── Prose blocks ── */
+  .prose {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin: 24px 0;
+    max-width: 620px;
+  }
+  .prose strong { color: var(--text); }
+  .prose code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    background: var(--surface);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--text);
+  }
 </style>
 </head>
 <body>
@@ -276,6 +316,23 @@
       <h4>Interact</h4>
       <p>Click keys to remap them, open the inspector drawer for settings</p>
     </div>
+  </div>
+
+  <div class="screenshot-wrap">
+    <img src="overlay-screenshot.png" alt="KeyPath overlay showing a MacBook keyboard layout with live key state">
+    <div class="screenshot-caption">The overlay floating above other windows, showing the MacBook US layout with the function row, Touch ID sensor, and status indicator.</div>
+  </div>
+
+  <div class="prose">
+    The overlay is the centerpiece of the KeyPath experience. It floats above every app as a borderless, non-focusable window &mdash; you can see your keyboard layout and active remappings without switching away from what you're doing. When you press a key, it lights up instantly. When Kanata switches to a different layer (say, a navigation layer triggered by holding Caps Lock), the overlay updates to show that layer's bindings.
+  </div>
+
+  <div class="prose">
+    <strong>The inspector drawer</strong> slides out from the right edge and contains tabs for the key mapper, custom rules, keymap selector, layout picker, launcher configuration, and device settings. Clicking a key on the overlay selects it in the mapper, so you can remap any key with two clicks: click the key, pick the output.
+  </div>
+
+  <div class="prose">
+    <strong>Launcher mode</strong> is a special interaction: when the user activates a "launcher" layer via a hold key, the overlay brings itself to front (even if the app is hidden), shows available launch targets on each key, and dismisses itself after the action fires. This lets you launch apps, open URLs, or run scripts from any context without reaching for the mouse.
   </div>
 </section>
 
@@ -379,7 +436,15 @@
 <section>
   <div class="section-label">Files</div>
   <h2>Seven Files, Seven Responsibilities</h2>
-  <div class="section-desc">The controller is split across one core class and six extensions, each in its own file.</div>
+  <div class="section-desc">The controller was originally a 1,360-line god object. We split it into one core class and six extensions, each in its own file, organized by responsibility.</div>
+
+  <div class="prose">
+    <strong>Why extensions instead of separate classes?</strong> The controller manages a single <code>NSWindow</code> with shared state: the window reference, the viewModel, the UIState, and a dozen flags for visibility, suppression, and animation. Separate classes would mean either passing all that state around or creating an artificial protocol layer. Extensions in separate files give us the readability win (each file is one concern) without the coupling cost (they share instance state naturally).
+  </div>
+
+  <div class="prose">
+    All stored properties live in the core file. Swift doesn't allow extensions in separate files to add stored properties, so the core file declares everything and the extensions just add methods. This is the main reason the core is 753 lines rather than 400 &mdash; about 100 lines are property declarations that logically belong to the extensions but physically must live in the class body.
+  </div>
 
   <div class="types-grid">
     <div class="type-card">
@@ -466,7 +531,11 @@
 <section>
   <div class="section-label">Data Flow</div>
   <h2>Every Event, Traced</h2>
-  <div class="section-desc">Six event types, each with a clear path through the system.</div>
+  <div class="section-desc">Six event types, each with a clear path through the system. No event requires more than two hops to reach its handler.</div>
+
+  <div class="prose">
+    The overlay communicates almost entirely through <code>NotificationCenter</code>. This is intentional: the controller doesn't hold references to the Kanata event listener, the workspace observer, or the wizard &mdash; it just listens for notifications. This decoupling means the overlay can be tested by posting notifications directly, and it means the overlay module has no compile-time dependency on the runtime service layer.
+  </div>
 
   <div class="flow-list">
     <div class="flow-item">
@@ -501,7 +570,7 @@
 <section>
   <div class="section-label">Principles</div>
   <h2>Design Rules</h2>
-  <div class="section-desc">Five invariants that keep the overlay reliable and non-intrusive.</div>
+  <div class="section-desc">Five invariants that keep the overlay reliable and non-intrusive. Each rule exists because we learned the hard way what happens without it.</div>
 
   <div class="rules">
     <div class="rule-item">
@@ -539,6 +608,18 @@
         <div class="rule-desc">Swift extensions in separate files can't add stored properties. Methods move to extensions; state stays in core.</div>
       </div>
     </div>
+  </div>
+
+  <div class="prose">
+    <strong>Rule 3 deserves extra attention.</strong> The overlay can be hidden for three independent reasons: the user toggled it off (<code>userExplicitlyHidden</code>), the wizard/settings opened automatically (<code>overlayHiddenByWizard</code>), or the frontmost app is on the suppression list (<code>isAppSuppressed</code>). Each reason tracks its own "was visible before" flag and restores independently. Without this separation, closing the wizard would unhide an overlay the user had intentionally dismissed &mdash; a subtle but maddening bug we hit early on.
+  </div>
+
+  <div class="prose">
+    <strong>The window itself is an <code>OverlayWindow</code></strong> subclass that overrides <code>canBecomeKey</code> to return false. This is essential: if the overlay ever became the key window, every keystroke would go to it instead of the user's active app. The window is set to <code>NSWindow.Level.floating</code> so it stays above other windows, and it's borderless with a custom SwiftUI-rendered chrome (drag handle, close button, drawer toggle).
+  </div>
+
+  <div class="prose">
+    In accessibility test mode (toggled via a preference or env var), the overlay switches to a titled window style so automation tools like Peekaboo can discover it via the accessibility hierarchy. Since <code>NSWindow.styleMask</code> can't be changed after init, toggling test mode destroys and recreates the entire window.
   </div>
 </section>
 
