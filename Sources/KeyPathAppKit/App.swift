@@ -246,15 +246,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func restoreHiddenPermissionFiles() {
         let dir = Bundle.main.bundlePath + "/Contents/Library/KeyPath"
         guard let contents = try? FileManager.default.contentsOfDirectory(atPath: dir) else { return }
-        for name in contents {
-            let path = (dir as NSString).appendingPathComponent(name)
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
-            process.arguments = ["-h", "nohidden", path]
-            process.standardOutput = Pipe()
-            process.standardError = Pipe()
-            try? process.run()
-            process.waitUntilExit()
+        Task.detached {
+            for name in contents {
+                let path = (dir as NSString).appendingPathComponent(name)
+                _ = try? await SubprocessRunner.shared.run("/usr/bin/chflags", args: ["-h", "nohidden", path])
+            }
         }
     }
 

@@ -211,16 +211,13 @@ struct GeneralSettingsTabView: View {
     // MARK: - Helpers
 
     private func openLogFile(_ filePath: String) {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        process.arguments = ["-t", filePath]
-
-        do {
-            try process.run()
-            AppLogger.shared.log("📝 [Settings] Opened log in default text editor: \(filePath)")
-        } catch {
-            AppLogger.shared.log("❌ [Settings] Failed to open log file: \(error.localizedDescription)")
-            settingsToastManager.showError("Failed to open log file")
+        Task {
+            do {
+                _ = try await SubprocessRunner.shared.run("/usr/bin/open", args: ["-t", filePath])
+                AppLogger.shared.log("📝 [Settings] Opened log in default text editor: \(filePath)")
+            } catch {
+                AppLogger.shared.log("❌ [Settings] Failed to open log file: \(error.localizedDescription)")
+            }
         }
     }
 }

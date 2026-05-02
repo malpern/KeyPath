@@ -141,10 +141,7 @@ enum SignatureHealthCheck {
             let response = alert.runModal()
             if response == .alertFirstButtonReturn {
                 // Restart the app
-                let task = Process()
-                task.launchPath = "/usr/bin/open"
-                task.arguments = ["/Applications/KeyPath.app"]
-                try? task.run()
+                NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications/KeyPath.app"))
                 NSApplication.shared.terminate(nil)
             }
         #else
@@ -170,10 +167,7 @@ enum SignatureHealthCheck {
 
             let response = alert.runModal()
             if response == .alertFirstButtonReturn {
-                let task = Process()
-                task.launchPath = "/usr/bin/open"
-                task.arguments = ["/Applications/KeyPath.app"]
-                try? task.run()
+                NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications/KeyPath.app"))
                 NSApplication.shared.terminate(nil)
             }
         #else

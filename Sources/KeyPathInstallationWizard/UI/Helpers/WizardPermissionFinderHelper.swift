@@ -34,19 +34,17 @@ enum WizardPermissionFinderHelper {
     /// Restores all files hidden by `revealKanataLauncher()`.
     /// Call on wizard close or app launch to clean up.
     static func restoreHiddenFiles() {
-        for path in hiddenPaths {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
-            process.arguments = ["-h", "nohidden", path]
-            process.standardOutput = Pipe()
-            process.standardError = Pipe()
-            try? process.run()
-            process.waitUntilExit()
-        }
-        if !hiddenPaths.isEmpty {
-            AppLogger.shared.log("📂 [PermissionFinder] Restored \(hiddenPaths.count) hidden files")
-        }
+        let paths = hiddenPaths
         hiddenPaths.removeAll()
+        guard !paths.isEmpty else { return }
+        Task.detached {
+            for path in paths {
+                _ = try? await SubprocessRunner.shared.run("/usr/bin/chflags", args: ["-h", "nohidden", path])
+            }
+            await MainActor.run {
+                AppLogger.shared.log("📂 [PermissionFinder] Restored \(paths.count) hidden files")
+            }
+        }
     }
 
     /// Copies the kanata-launcher path to the clipboard.
@@ -76,20 +74,24 @@ enum WizardPermissionFinderHelper {
         restoreHiddenFiles()
 
         guard let contents = try? FileManager.default.contentsOfDirectory(atPath: directory) else { return }
-        for name in contents where name != keepName && !name.hasPrefix(".") {
-            let path = (directory as NSString).appendingPathComponent(name)
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
-            process.arguments = ["-h", "hidden", path]
-            process.standardOutput = Pipe()
-            process.standardError = Pipe()
-            try? process.run()
-            process.waitUntilExit()
-            if process.terminationStatus == 0 {
-                hiddenPaths.append(path)
+        let pathsToHide = contents
+            .filter { $0 != keepName && !$0.hasPrefix(".") }
+            .map { (directory as NSString).appendingPathComponent($0) }
+
+        Task.detached {
+            var hidden: [String] = []
+            for path in pathsToHide {
+                if let result = try? await SubprocessRunner.shared.run("/usr/bin/chflags", args: ["-h", "hidden", path]),
+                   result.exitCode == 0
+                {
+                    hidden.append(path)
+                }
+            }
+            await MainActor.run {
+                hiddenPaths = hidden
+                AppLogger.shared.log("📂 [PermissionFinder] Hidden \(hidden.count) sibling files in \(directory)")
             }
         }
-        AppLogger.shared.log("📂 [PermissionFinder] Hidden \(hiddenPaths.count) sibling files in \(directory)")
     }
 
     private static func positionSettingsAndFinderSideBySide() {

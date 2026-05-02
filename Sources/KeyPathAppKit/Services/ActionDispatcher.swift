@@ -806,99 +806,49 @@ public final class ActionDispatcher {
 
     /// Execute a shell script or executable
     private func executeShellScript(at path: String) async throws {
-        let process = Process()
-
-        // Determine how to run based on extension
         let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
-
-        switch ext {
-        case "sh", "bash":
-            process.executableURL = URL(fileURLWithPath: "/bin/bash")
-            process.arguments = [path]
-        case "zsh":
-            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process.arguments = [path]
-        default:
-            // Try to execute directly (must be executable)
-            process.executableURL = URL(fileURLWithPath: path)
+        let (executable, args): (String, [String]) = switch ext {
+        case "sh", "bash": ("/bin/bash", [path])
+        case "zsh": ("/bin/zsh", [path])
+        default: (path, [])
         }
 
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
-
-        try process.run()
-        process.waitUntilExit()
-
-        if process.terminationStatus != 0 {
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorString = String(data: errorData, encoding: .utf8) ?? "Unknown error"
-            throw NSError(domain: "ShellScript", code: Int(process.terminationStatus), userInfo: [
-                NSLocalizedDescriptionKey: "Script exited with code \(process.terminationStatus): \(errorString)"
+        let result = try await SubprocessRunner.shared.run(executable, args: args, timeout: 60)
+        if result.exitCode != 0 {
+            throw NSError(domain: "ShellScript", code: Int(result.exitCode), userInfo: [
+                NSLocalizedDescriptionKey: "Script exited with code \(result.exitCode): \(result.stderr)"
             ])
         }
     }
 
     /// Execute an interpreted script (Python, Ruby, Perl, Lua)
     private func executeInterpretedScript(at path: String) async throws {
-        let process = Process()
         let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
+        let fm = Foundation.FileManager()
 
-        // Determine interpreter based on extension
-        switch ext {
+        let interpreter: String = switch ext {
         case "py":
-            // Try python3 first, fall back to python
-            if Foundation.FileManager().fileExists(atPath: "/usr/bin/python3") {
-                process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
-            } else if Foundation.FileManager().fileExists(atPath: "/usr/local/bin/python3") {
-                process.executableURL = URL(fileURLWithPath: "/usr/local/bin/python3")
-            } else {
-                process.executableURL = URL(fileURLWithPath: "/usr/bin/python")
-            }
-            process.arguments = [path]
-
-        case "rb":
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/ruby")
-            process.arguments = [path]
-
-        case "pl":
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/perl")
-            process.arguments = [path]
-
+            if fm.fileExists(atPath: "/usr/bin/python3") { "/usr/bin/python3" }
+            else if fm.fileExists(atPath: "/usr/local/bin/python3") { "/usr/local/bin/python3" }
+            else { "/usr/bin/python" }
+        case "rb": "/usr/bin/ruby"
+        case "pl": "/usr/bin/perl"
         case "lua":
-            // Lua is typically installed via Homebrew
-            if Foundation.FileManager().fileExists(atPath: "/usr/local/bin/lua") {
-                process.executableURL = URL(fileURLWithPath: "/usr/local/bin/lua")
-            } else if Foundation.FileManager().fileExists(atPath: "/opt/homebrew/bin/lua") {
-                process.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/lua")
-            } else {
-                throw NSError(domain: "InterpretedScript", code: 1, userInfo: [
-                    NSLocalizedDescriptionKey: "Lua interpreter not found"
-                ])
-            }
-            process.arguments = [path]
-
+            if fm.fileExists(atPath: "/usr/local/bin/lua") { "/usr/local/bin/lua" }
+            else if fm.fileExists(atPath: "/opt/homebrew/bin/lua") { "/opt/homebrew/bin/lua" }
+            else { throw NSError(domain: "InterpretedScript", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "Lua interpreter not found"
+            ]) }
         default:
-            assertionFailure("executeInterpretedScript called with unexpected extension: .\(ext)")
             throw NSError(domain: "InterpretedScript", code: 2, userInfo: [
                 NSLocalizedDescriptionKey: "Unknown script type: .\(ext)"
             ])
         }
 
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
-
-        try process.run()
-        process.waitUntilExit()
-
-        if process.terminationStatus != 0 {
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorString = String(data: errorData, encoding: .utf8) ?? "Unknown error"
-            throw NSError(domain: "InterpretedScript", code: Int(process.terminationStatus), userInfo: [
-                NSLocalizedDescriptionKey: "Script exited with code \(process.terminationStatus): \(errorString)"
+        let result = try await SubprocessRunner.shared.run(interpreter, args: [path], timeout: 60)
+        if result.exitCode != 0 {
+            throw NSError(domain: "InterpretedScript", code: Int(result.exitCode), userInfo: [
+                NSLocalizedDescriptionKey: "Script exited with code \(result.exitCode): \(result.stderr)"
             ])
         }
     }

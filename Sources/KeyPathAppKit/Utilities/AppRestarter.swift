@@ -21,26 +21,18 @@ enum AppRestarter {
         // Get the app's path
         let appPath = Bundle.main.bundlePath
 
-        // Create a launch task that will run after the app quits
-        let task = Process()
-        task.launchPath = "/usr/bin/open"
-        task.arguments = ["-n", appPath]
-
-        // Schedule the relaunch after a delay
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(delay))
-            do {
-                try task.run()
-                AppLogger.shared.log("✅ [AppRestarter] Relaunch scheduled")
-
-                // Now quit the current instance
-                NSApplication.shared.terminate(nil)
-            } catch {
-                AppLogger.shared.log("❌ [AppRestarter] Failed to schedule relaunch: \(error)")
-
-                // Fallback: Just quit and let user manually restart
-                NSApplication.shared.terminate(nil)
+            let config = NSWorkspace.OpenConfiguration()
+            config.createsNewApplicationInstance = true
+            NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: appPath), configuration: config) { _, error in
+                if let error {
+                    AppLogger.shared.log("❌ [AppRestarter] Failed to relaunch: \(error)")
+                } else {
+                    AppLogger.shared.log("✅ [AppRestarter] Relaunch scheduled")
+                }
             }
+            NSApplication.shared.terminate(nil)
         }
     }
 

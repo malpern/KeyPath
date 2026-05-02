@@ -186,14 +186,9 @@ public final class PluginManager {
             let unzipDir = Foundation.FileManager().temporaryDirectory.appendingPathComponent(UUID().uuidString)
             try Foundation.FileManager().createDirectory(at: unzipDir, withIntermediateDirectories: true)
 
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-            process.arguments = ["-xk", tempFileURL.path, unzipDir.path]
-            try process.run()
-            process.waitUntilExit()
-
-            guard process.terminationStatus == 0 else {
-                AppLogger.shared.error("🔌 [PluginManager] Unzip failed with status \(process.terminationStatus)")
+            let result = try await SubprocessRunner.shared.run("/usr/bin/ditto", args: ["-xk", tempFileURL.path, unzipDir.path])
+            guard result.exitCode == 0 else {
+                AppLogger.shared.error("🔌 [PluginManager] Unzip failed with status \(result.exitCode)")
                 return false
             }
 
