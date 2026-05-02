@@ -21,7 +21,6 @@ final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
         let overview = WizardSystemStatusOverview(
             systemState: .serviceNotRunning,
             issues: [warningIssue],
-            stateInterpreter: WizardStateInterpreter(),
             onNavigateToPage: nil,
             kanataIsRunning: false,
             showAllItems: true,

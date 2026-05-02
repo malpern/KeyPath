@@ -37,7 +37,6 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
         let overview = WizardSystemStatusOverview(
             systemState: .active,
             issues: [],
-            stateInterpreter: WizardStateInterpreter(),
             onNavigateToPage: nil,
             kanataIsRunning: true,
             showAllItems: true,
@@ -64,7 +63,6 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
         let overview = WizardSystemStatusOverview(
             systemState: .active,
             issues: [staleIssue],
-            stateInterpreter: WizardStateInterpreter(),
             onNavigateToPage: nil,
             kanataIsRunning: true,
             showAllItems: true,

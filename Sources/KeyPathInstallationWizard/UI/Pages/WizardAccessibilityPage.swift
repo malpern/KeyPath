@@ -46,9 +46,6 @@ public struct WizardAccessibilityPage: View {
         }
     }
 
-    /// State interpreter for consistent status computation
-    private let stateInterpreter = WizardStateInterpreter()
-
     public init(
         onRefresh: @escaping () async -> Void,
         onNavigateToPage: ((WizardPage) -> Void)?,

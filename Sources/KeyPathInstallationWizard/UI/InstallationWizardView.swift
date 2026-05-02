@@ -37,7 +37,6 @@ public struct InstallationWizardView: View {
 
     // New architecture components
     @State public var stateMachine = WizardStateMachine()
-    public let stateInterpreter = WizardStateInterpreter()
     @State public var asyncOperationManager = WizardAsyncOperationManager()
     @State public var toastManager = WizardToastManager()
 

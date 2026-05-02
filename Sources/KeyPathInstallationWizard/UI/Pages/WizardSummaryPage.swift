@@ -5,7 +5,6 @@ import SwiftUI
 
 /// Simplified summary page using extracted components
 public struct WizardSummaryPage: View {
-    public let stateInterpreter: WizardStateInterpreter
     public let onStartService: () -> Void
     public let onDismiss: () -> Void
     public let onNavigateToPage: ((WizardPage) -> Void)?
@@ -34,7 +33,6 @@ public struct WizardSummaryPage: View {
     @State private var shouldAutoNavigateSingleIssue = false
 
     public init(
-        stateInterpreter: WizardStateInterpreter,
         onStartService: @escaping () -> Void,
         onDismiss: @escaping () -> Void,
         onNavigateToPage: ((WizardPage) -> Void)?,
@@ -42,7 +40,6 @@ public struct WizardSummaryPage: View {
         showAllItems: Binding<Bool>,
         navSequence: Binding<[WizardPage]>
     ) {
-        self.stateInterpreter = stateInterpreter
         self.onStartService = onStartService
         self.onDismiss = onDismiss
         self.onNavigateToPage = onNavigateToPage
@@ -173,7 +170,6 @@ public struct WizardSummaryPage: View {
                         WizardSystemStatusOverview(
                             systemState: systemState,
                             issues: issues,
-                            stateInterpreter: stateInterpreter,
                             onNavigateToPage: onNavigateToPage,
                             kanataIsRunning: systemState == .active,
                             showAllItems: showAllItems,

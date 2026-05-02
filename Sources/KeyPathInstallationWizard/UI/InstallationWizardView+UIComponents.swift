@@ -25,7 +25,6 @@ extension InstallationWizardView {
         switch stateMachine.currentPage {
         case .summary:
             WizardSummaryPage(
-                stateInterpreter: stateInterpreter,
                 onStartService: startKeyPathRuntime,
                 onDismiss: { dismissAndRefreshMainScreen() },
                 onNavigateToPage: { page in
@@ -51,7 +50,6 @@ extension InstallationWizardView {
         case .inputMonitoring:
             if let coordinator = kanataManager {
                 WizardInputMonitoringPage(
-                    stateInterpreter: stateInterpreter,
                     onRefresh: { refreshSystemState() },
                     onNavigateToPage: { page in
                         stateMachine.navigateToPage(page)

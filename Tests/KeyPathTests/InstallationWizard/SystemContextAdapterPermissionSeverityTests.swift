@@ -5,8 +5,8 @@
 import KeyPathWizardCore
 @preconcurrency import XCTest
 
-/// End-to-end-ish tests that validate the path:
-/// SystemContext (InstallerEngine) -> SystemContextAdapter -> WizardIssue severities -> WizardStateInterpreter page status.
+/// End-to-end tests that validate the path:
+/// SystemContext -> SystemContextAdapter/SystemInspector -> WizardIssue severities.
 @MainActor
 final class SystemContextAdapterPermissionSeverityTests: XCTestCase {
     func testKanataUnknownPermissionBecomesWarningIssueAndWarningPageStatus() {
@@ -65,8 +65,12 @@ final class SystemContextAdapterPermissionSeverityTests: XCTestCase {
             "Unknown/not verified should not claim permission is denied"
         )
 
-        let interpreter = WizardStateInterpreter()
-        let pageStatus = interpreter.getPageStatus(for: .inputMonitoring, in: result.issues)
-        XCTAssertEqual(pageStatus, .warning, "Input Monitoring page should show warning when only 'unknown' kanata permission exists")
+        let page = WizardRouter.route(
+            state: result.state,
+            issues: result.issues,
+            helperInstalled: true,
+            helperNeedsApproval: false
+        )
+        XCTAssertNotEqual(page, .inputMonitoring, "Warning-only permission should NOT route to input monitoring page")
     }
 }

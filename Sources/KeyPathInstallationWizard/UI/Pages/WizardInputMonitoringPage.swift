@@ -6,7 +6,6 @@ import SwiftUI
 
 /// Input Monitoring permission page with hybrid permission request approach
 public struct WizardInputMonitoringPage: View {
-    public let stateInterpreter: WizardStateInterpreter
     public let onRefresh: () async -> Void
     public let onNavigateToPage: ((WizardPage) -> Void)?
     public let onDismiss: (() -> Void)?
@@ -25,13 +24,11 @@ public struct WizardInputMonitoringPage: View {
     private var allIssues: [WizardIssue] { stateMachine.wizardIssues }
 
     public init(
-        stateInterpreter: WizardStateInterpreter,
         onRefresh: @escaping () async -> Void,
         onNavigateToPage: ((WizardPage) -> Void)?,
         onDismiss: (() -> Void)?,
         kanataManager: any RuntimeCoordinating
     ) {
-        self.stateInterpreter = stateInterpreter
         self.onRefresh = onRefresh
         self.onNavigateToPage = onNavigateToPage
         self.onDismiss = onDismiss

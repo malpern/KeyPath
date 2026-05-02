@@ -8,7 +8,6 @@ import SwiftUI
 public struct WizardSystemStatusOverview: View {
     public let systemState: WizardSystemState
     public let issues: [WizardIssue]
-    public let stateInterpreter: WizardStateInterpreter
     public let onNavigateToPage: ((WizardPage) -> Void)?
     /// Authoritative signal for service status - ensures consistency with detail page
     public let kanataIsRunning: Bool
@@ -26,7 +25,6 @@ public struct WizardSystemStatusOverview: View {
     public init(
         systemState: WizardSystemState,
         issues: [WizardIssue],
-        stateInterpreter: WizardStateInterpreter,
         onNavigateToPage: ((WizardPage) -> Void)?,
         kanataIsRunning: Bool,
         showAllItems: Bool,
@@ -35,7 +33,6 @@ public struct WizardSystemStatusOverview: View {
     ) {
         self.systemState = systemState
         self.issues = issues
-        self.stateInterpreter = stateInterpreter
         self.onNavigateToPage = onNavigateToPage
         self.kanataIsRunning = kanataIsRunning
         self.showAllItems = showAllItems
