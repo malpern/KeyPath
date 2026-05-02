@@ -549,16 +549,10 @@ public struct WizardHelperPage: View {
     }
 
     private func checkApprovalStatus() async {
-        guard let factory = WizardDependencies.smServiceFactory,
-              let svc = factory(WizardHelperConstants.helperPlistName) as? SMAppService
-        else {
-            AppLogger.shared.log("⚠️ [WizardHelperPage] smServiceFactory not configured or wrong type")
-            return
-        }
-        let status = svc.status
+        let stillNeedsApproval = WizardDependencies.helperNeedsApproval?() ?? true
 
         // If no longer requires approval, check if helper is now healthy
-        if status != .requiresApproval {
+        if !stillNeedsApproval {
             let healthy = await WizardDependencies.helperManager?.testHelperFunctionality() ?? false
             if healthy {
                 // Success! Helper is approved and responding
@@ -570,7 +564,7 @@ public struct WizardHelperPage: View {
                 helperVersion = await WizardDependencies.helperManager?.getHelperVersion()
                 scheduleStatusClear()
                 onRefresh() // Trigger parent refresh to update issues
-            } else if status == .enabled {
+            } else {
                 // Approved but not responding yet - give it a moment
                 needsLoginItemsApproval = false
                 actionStatus = .inProgress(message: "Helper approved, connecting…")
