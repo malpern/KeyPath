@@ -1,6 +1,6 @@
 # MainActor Subprocess Migration Plan
 
-**Status:** In Progress (28 → 19 remaining)
+**Status:** ✅ Complete (28 → 2 remaining, both are nonisolated false positives)
 **Created:** 2026-05-02
 **Goal:** Move all `Process()` calls off `@MainActor` to prevent UI freezes.
 
