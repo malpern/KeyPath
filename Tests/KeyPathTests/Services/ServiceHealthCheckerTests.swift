@@ -193,7 +193,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
         XCTAssertTrue(decision.isHealthy)
     }
 
-    func testCheckKanataInputCaptureStatusReturnsNotReadyForBuiltInKeyboardPermissionError() async throws {
+    func testDiagnoseDaemonStderrReturnsInputCaptureFailureForBuiltInKeyboard() async throws {
         let stderrURL = tempLaunchDaemonsDir.appendingPathComponent("kanata-stderr.log")
         try """
         [2026-03-07T13:21:14Z] IOHIDDeviceOpen error: (iokit/common) not permitted Apple Internal Keyboard / Trackpad
@@ -201,9 +201,24 @@ final class ServiceHealthCheckerTests: XCTestCase {
         setenv("KEYPATH_KANATA_STDERR_PATH", stderrURL.path, 1)
         defer { unsetenv("KEYPATH_KANATA_STDERR_PATH") }
 
-        let status = await checker.checkKanataInputCaptureStatus()
-        XCTAssertFalse(status.isReady)
-        XCTAssertEqual(status.issue, "kanata-cannot-open-built-in-keyboard")
+        let diagnosis = await checker.diagnoseDaemonStderr()
+        XCTAssertFalse(diagnosis.permissionRejected)
+        XCTAssertFalse(diagnosis.inputCapture.isReady)
+        XCTAssertEqual(diagnosis.inputCapture.issue, "kanata-cannot-open-built-in-keyboard")
+    }
+
+    func testDiagnoseDaemonStderrDetectsAccessibilityRejection() async throws {
+        let stderrURL = tempLaunchDaemonsDir.appendingPathComponent("kanata-stderr.log")
+        try """
+        [2026-03-07T13:21:14Z] kanata needs macOS Accessibility permission
+        """.write(to: stderrURL, atomically: true, encoding: .utf8)
+        setenv("KEYPATH_KANATA_STDERR_PATH", stderrURL.path, 1)
+        defer { unsetenv("KEYPATH_KANATA_STDERR_PATH") }
+
+        let diagnosis = await checker.diagnoseDaemonStderr()
+        XCTAssertTrue(diagnosis.permissionRejected)
+        // Input capture should be suppressed when AX is the root cause
+        XCTAssertTrue(diagnosis.inputCapture.isReady)
     }
 
     func testKanataDecisionTreatsMissingInputCaptureAsUnhealthy() {

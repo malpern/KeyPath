@@ -524,10 +524,10 @@ public class SystemValidator {
             tcpPort: PreferencesService.shared.tcpServerPort
         )
         let kanataRunning = kanataHealth.isRunning
-        let kanataInputCapture = await ServiceHealthChecker.shared.checkKanataInputCaptureStatus()
+        let stderrDiagnosis = await ServiceHealthChecker.shared.diagnoseDaemonStderr()
         let kanataDuration = Date().timeIntervalSince(kanataStart)
         AppLogger.shared.log(
-            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: hostRunning=\(kanataHealth.isRunning), tcpResponding=\(kanataHealth.isResponding), healthy=\(kanataRunning), inputCaptureReady=\(kanataInputCapture.isReady) (took \(String(format: "%.3f", kanataDuration))s)"
+            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: hostRunning=\(kanataHealth.isRunning), tcpResponding=\(kanataHealth.isResponding), healthy=\(kanataRunning), inputCaptureReady=\(stderrDiagnosis.inputCapture.isReady), permRejected=\(stderrDiagnosis.permissionRejected) (took \(String(format: "%.3f", kanataDuration))s)"
         )
 
         // Use launchctl-based check instead of unreliable pgrep
@@ -551,49 +551,19 @@ public class SystemValidator {
             "🔍 [SystemValidator] checkHealth() - VHID daemon health reused from karabinerDaemonRunning: \(vhidHealthy)"
         )
 
-        // When kanata isn't running, check daemon stderr for permission rejection.
-        // TCC can report "granted" from a stale entry after a rebuild, but macOS
-        // actually rejects the binary at runtime. Detect this from the crash output.
-        let permissionRejected = Self.checkDaemonStderrForPermissionFailure()
-
         let totalDuration = Date().timeIntervalSince(startTime)
         AppLogger.shared.log(
-            "🔍 [SystemValidator] checkHealth() EXIT - Health: kanata=\(kanataRunning), daemon=\(karabinerDaemonRunning) (launchctl), vhid=\(vhidHealthy), permRejected=\(permissionRejected) (total: \(String(format: "%.3f", totalDuration))s)"
+            "🔍 [SystemValidator] checkHealth() EXIT - Health: kanata=\(kanataRunning), daemon=\(karabinerDaemonRunning) (launchctl), vhid=\(vhidHealthy), permRejected=\(stderrDiagnosis.permissionRejected) (total: \(String(format: "%.3f", totalDuration))s)"
         )
-
-        // When the daemon was rejected for Accessibility, the "cannot open keyboard"
-        // stderr line is a symptom of the AX issue, not a separate IM problem.
-        // Suppress the input capture issue to avoid double-counting under Input Monitoring.
-        let effectiveInputCaptureReady = permissionRejected ? true : kanataInputCapture.isReady
-        let effectiveInputCaptureIssue: String? = permissionRejected ? nil : kanataInputCapture.issue
 
         return HealthStatus(
             kanataRunning: kanataRunning,
             karabinerDaemonRunning: karabinerDaemonRunning,
             vhidHealthy: vhidHealthy,
-            kanataInputCaptureReady: effectiveInputCaptureReady,
-            kanataInputCaptureIssue: effectiveInputCaptureIssue,
-            kanataPermissionRejected: permissionRejected
+            kanataInputCaptureReady: stderrDiagnosis.inputCapture.isReady,
+            kanataInputCaptureIssue: stderrDiagnosis.inputCapture.issue,
+            kanataPermissionRejected: stderrDiagnosis.permissionRejected
         )
-    }
-
-    private static let kanataStderrPath = "/var/log/com.keypath.kanata.stderr.log"
-
-    /// Read the tail of the kanata daemon stderr log and check for the
-    /// macOS Accessibility permission rejection message.
-    private static func checkDaemonStderrForPermissionFailure() -> Bool {
-        guard let data = try? Data(
-            contentsOf: URL(fileURLWithPath: kanataStderrPath),
-            options: .mappedIfSafe
-        ) else { return false }
-
-        // Only check the last 2KB to avoid reading a huge log
-        let tailSize = min(data.count, 2048)
-        let tail = data.suffix(tailSize)
-        guard let text = String(data: tail, encoding: .utf8) else { return false }
-
-        return text.contains("kanata needs macOS Accessibility permission")
-            || text.contains("IOHIDDeviceOpen error") && text.contains("not permitted")
     }
 
     // MARK: - Debug Support

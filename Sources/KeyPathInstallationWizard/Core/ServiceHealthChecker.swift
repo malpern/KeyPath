@@ -85,6 +85,22 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         public static let ready = KanataInputCaptureStatus(isReady: true, issue: nil)
     }
 
+    /// Unified diagnosis from a single read of the kanata daemon stderr log.
+    /// Replaces the separate `checkDaemonStderrForPermissionFailure()` and
+    /// `checkKanataInputCaptureStatus()` parsers that read the same file
+    /// with different tail sizes and overlapping patterns.
+    public struct KanataDaemonDiagnosis: Sendable, Equatable {
+        /// True when stderr contains an Accessibility permission rejection
+        public let permissionRejected: Bool
+        /// Input capture status (keyboard open failure)
+        public let inputCapture: KanataInputCaptureStatus
+
+        public static let clear = KanataDaemonDiagnosis(
+            permissionRejected: false,
+            inputCapture: .ready
+        )
+    }
+
     public enum KanataHealthDecision: Equatable {
         case healthy
         case transient(reason: String)
@@ -483,7 +499,7 @@ public final class ServiceHealthChecker: @unchecked Sendable {
 
         let targets = await getDaemonManager()?.preferredLaunchctlTargets(for: managementState) ?? []
         let runningState = await evaluateKanataLaunchctlRunningState(managementState: managementState, launchctlTargets: targets)
-        let inputCaptureStatus = await checkKanataInputCaptureStatus()
+        let stderrDiagnosis = await diagnoseDaemonStderr()
         let tcpOK = await Task.detached { [self] in
             if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
                let overridePort = Int(portEnv)
@@ -497,8 +513,8 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             managementState: managementState,
             isRunning: runningState.isRunning,
             isResponding: tcpOK,
-            inputCaptureReady: inputCaptureStatus.isReady,
-            inputCaptureIssue: inputCaptureStatus.issue,
+            inputCaptureReady: stderrDiagnosis.inputCapture.isReady,
+            inputCaptureIssue: stderrDiagnosis.inputCapture.issue,
             launchctlExitCode: runningState.exitCode,
             staleEnabledRegistration: staleEnabledRegistration,
             recentlyRestarted: Self.wasRecentlyRestarted(
@@ -582,38 +598,65 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         return ServiceBootstrapper.wasRecentlyRestarted(serviceID, within: window)
     }
 
-    public nonisolated func checkKanataInputCaptureStatus() async -> KanataInputCaptureStatus {
+    /// Read the kanata daemon stderr log once and classify all known error patterns.
+    /// This replaces `checkDaemonStderrForPermissionFailure()` (SystemValidator) and
+    /// `checkKanataInputCaptureStatus()` (ServiceHealthChecker) which previously read
+    /// the same file with different tail sizes and overlapping patterns.
+    public nonisolated func diagnoseDaemonStderr() async -> KanataDaemonDiagnosis {
         #if DEBUG
             if let override = Self.inputCaptureStatusOverride {
-                return await override()
+                let capture = await override()
+                return KanataDaemonDiagnosis(permissionRejected: false, inputCapture: capture)
             }
         #endif
-        // There is no stable Apple API here for "the live runtime can capture the built-in
-        // keyboard right now," so we use Kanata's known stderr denial line as a runtime fallback
-        // signal and fail closed when macOS is actively denying capture.
 
         guard let logChunk = readRecentKanataStderrLog(), !logChunk.isEmpty else {
-            return .ready
+            return .clear
         }
 
-        for rawLine in logChunk.components(separatedBy: .newlines).reversed() {
-            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !line.isEmpty else { continue }
-            let lower = line.lowercased()
-            guard lower.contains("iohiddeviceopen error"),
-                  lower.contains("not permitted"),
-                  lower.contains("apple internal keyboard / trackpad")
-            else {
-                continue
+        var permissionRejected = false
+        var inputCaptureIssue: KanataInputCaptureStatus = .ready
+
+        // AX permission rejection: either the explicit message, or a generic IOHIDDeviceOpen
+        // denial that is NOT specific to "Apple Internal Keyboard / Trackpad" (which is an IM issue).
+        if logChunk.contains("kanata needs macOS Accessibility permission") {
+            permissionRejected = true
+        } else if logChunk.contains("IOHIDDeviceOpen error"), logChunk.contains("not permitted") {
+            // Check if ALL IOHIDDeviceOpen errors are the keyboard-specific variant.
+            // If any line has the error WITHOUT the keyboard specifier, it's an AX issue.
+            let lines = logChunk.components(separatedBy: .newlines)
+            for line in lines {
+                let lower = line.lowercased()
+                if lower.contains("iohiddeviceopen error"), lower.contains("not permitted"),
+                   !lower.contains("apple internal keyboard / trackpad")
+                {
+                    permissionRejected = true
+                    break
+                }
             }
-
-            return KanataInputCaptureStatus(
-                isReady: false,
-                issue: "kanata-cannot-open-built-in-keyboard"
-            )
         }
 
-        return .ready
+        // Check for input capture failure (built-in keyboard can't be opened)
+        // Only meaningful if NOT already explained by AX rejection
+        if !permissionRejected {
+            for rawLine in logChunk.components(separatedBy: .newlines).reversed() {
+                let lower = rawLine.lowercased()
+                guard lower.contains("iohiddeviceopen error"),
+                      lower.contains("not permitted"),
+                      lower.contains("apple internal keyboard / trackpad")
+                else { continue }
+                inputCaptureIssue = KanataInputCaptureStatus(
+                    isReady: false,
+                    issue: "kanata-cannot-open-built-in-keyboard"
+                )
+                break
+            }
+        }
+
+        return KanataDaemonDiagnosis(
+            permissionRejected: permissionRejected,
+            inputCapture: inputCaptureIssue
+        )
     }
 
     // MARK: - Configuration Checks
