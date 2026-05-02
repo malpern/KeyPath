@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KeyPath — Developer Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f5f5f7;
+    --surface-2: #ebebed;
+    --border: #d2d2d7;
+    --border-light: #e8e8ed;
+    --text: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --text-tertiary: #86868b;
+    --accent: #1d1d1f;
+    --blue: #0071e3;
+    --code-bg: #f5f5f7;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.58;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 740px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Hero ── */
+  .hero { padding: 96px 0 64px; text-align: center; }
+  .hero-eyebrow {
+    font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px;
+  }
+  .hero h1 {
+    font-size: clamp(2.4rem, 5.5vw, 3.2rem); font-weight: 700;
+    letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px;
+    color: var(--text);
+  }
+  .hero p {
+    font-size: 1.15rem; color: var(--text-secondary); max-width: 520px;
+    margin: 0 auto; line-height: 1.5;
+  }
+
+  /* ── Sections ── */
+  section { padding: 64px 0; }
+  .divider { height: 1px; background: var(--border-light); }
+  .section-label {
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px;
+  }
+  h2 {
+    font-size: clamp(1.6rem, 3.5vw, 2rem); font-weight: 700;
+    letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 10px;
+  }
+  .section-desc {
+    font-size: 1rem; color: var(--text-secondary); max-width: 520px;
+    margin-bottom: 36px; line-height: 1.55;
+  }
+  h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
+  p { color: var(--text-secondary); margin-bottom: 14px; }
+
+  /* ── Diagram ── */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    margin: 36px 0;
+    display: flex; justify-content: center;
+  }
+
+  /* ── Prose ── */
+  .prose {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin: 24px 0;
+    max-width: 620px;
+  }
+  .prose strong { color: var(--text); }
+  .prose code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    background: var(--surface);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--text);
+  }
+
+  /* ── Doc cards ── */
+  .doc-grid { display: flex; flex-direction: column; gap: 12px; margin: 32px 0; }
+  .doc-card {
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 24px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    display: block;
+  }
+  .doc-card:hover {
+    border-color: var(--border);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  }
+  .doc-card.placeholder {
+    opacity: 0.55;
+    cursor: default;
+  }
+  .doc-card.placeholder:hover {
+    border-color: var(--border-light);
+    box-shadow: none;
+  }
+  .doc-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .doc-icon {
+    width: 36px; height: 36px; border-radius: 8px; background: var(--surface);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .doc-name {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; font-size: 0.95rem;
+    font-weight: 600; color: var(--text);
+  }
+  .doc-badge {
+    font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    letter-spacing: 0.03em; text-transform: uppercase;
+    background: var(--surface); color: var(--text-tertiary); border: 1px solid var(--border-light);
+  }
+  .doc-badge.ready { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; }
+  .doc-badge.planned { background: #fff3e0; color: #e65100; border-color: #ffe0b2; }
+  .doc-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.55; }
+  .doc-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em;
+    background: var(--surface); padding: 1px 5px; border-radius: 4px; color: var(--text);
+  }
+
+  /* ── Quick ref table ── */
+  .ref-table {
+    margin: 32px 0;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .ref-row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 0.9rem;
+  }
+  .ref-row:last-child { border-bottom: none; }
+  .ref-row > div { padding: 12px 20px; }
+  .ref-key {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text);
+    background: var(--surface);
+  }
+  .ref-val { color: var(--text-secondary); }
+  .ref-val code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    color: var(--text);
+  }
+
+  /* ── Invariant ── */
+  .invariant {
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: var(--radius); padding: 20px 24px; margin: 32px 0;
+    display: flex; gap: 14px; align-items: start;
+  }
+  .invariant-icon {
+    width: 32px; height: 32px; border-radius: 8px; background: var(--bg);
+    border: 1px solid var(--border-light);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .invariant-text { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; }
+  .invariant-text strong { color: var(--text); }
+  .invariant-text code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text);
+  }
+
+  /* ── Pillars ── */
+  .pillars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border-light); border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; margin: 36px 0; }
+  .pillar { background: var(--bg); padding: 28px 18px; text-align: center; }
+  .pillar-icon { margin-bottom: 12px; font-size: 1.6rem; }
+  .pillar h4 { font-size: 0.88rem; font-weight: 600; margin-bottom: 4px; }
+  .pillar p { font-size: 0.82rem; color: var(--text-tertiary); margin: 0; line-height: 1.45; }
+
+  footer {
+    padding: 40px 0; text-align: center;
+    font-size: 0.78rem; color: var(--text-tertiary); border-top: 1px solid var(--border-light);
+  }
+
+  @media (max-width: 640px) {
+    .pillars { grid-template-columns: repeat(2, 1fr); }
+    .ref-row { grid-template-columns: 1fr; }
+    .ref-key { border-bottom: 1px solid var(--border-light); }
+    .hero { padding: 64px 0 48px; }
+    section { padding: 48px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">Developer Documentation</div>
+    <h1>KeyPath</h1>
+    <p>A macOS app for keyboard remapping, powered by Kanata. SwiftUI frontend, LaunchDaemon backend, live keyboard overlay.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="container">
+
+<section>
+  <div class="section-label">At a Glance</div>
+  <h2>What KeyPath Does</h2>
+  <div class="section-desc">KeyPath gives users a visual way to remap their keyboard without writing config files. Under the hood, it generates Kanata configuration and manages a LaunchDaemon that runs the Kanata engine.</div>
+
+  <div class="pillars">
+    <div class="pillar">
+      <div class="pillar-icon">⌨️</div>
+      <h4>Remap</h4>
+      <p>Visual key remapping with tap-hold, layers, and macros</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">🔧</div>
+      <h4>Install</h4>
+      <p>Guided wizard for permissions, helper, and daemon setup</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">👁</div>
+      <h4>Visualize</h4>
+      <p>Live floating overlay showing real-time key state</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">🚀</div>
+      <h4>Launch</h4>
+      <p>App launcher, URL opener, and script runner from any key</p>
+    </div>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 620 240" xmlns="http://www.w3.org/2000/svg" style="max-width:580px; width:100%;">
+      <defs>
+        <marker id="arr" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#86868b"/></marker>
+        <marker id="arr-b" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#0071e3"/></marker>
+      </defs>
+
+      <!-- KeyPath.app -->
+      <rect x="10" y="20" width="160" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="90" y="43" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">SWIFTUI APP</text>
+      <text x="90" y="59" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">KeyPath.app</text>
+
+      <!-- Arrow to InstallerEngine -->
+      <line x1="170" y1="48" x2="228" y2="48" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+
+      <!-- InstallerEngine -->
+      <rect x="232" y="20" width="160" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="312" y="43" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">FACADE</text>
+      <text x="312" y="59" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">InstallerEngine</text>
+
+      <!-- Arrow to LaunchDaemon -->
+      <line x1="392" y1="48" x2="448" y2="48" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+
+      <!-- LaunchDaemon -->
+      <rect x="452" y="20" width="160" height="56" rx="10" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="532" y="43" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">SYSTEM SERVICE</text>
+      <text x="532" y="59" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">LaunchDaemon</text>
+
+      <!-- Arrow down to Kanata -->
+      <line x1="532" y1="76" x2="532" y2="114" stroke="#86868b" stroke-width="1.2" marker-end="url(#arr)"/>
+
+      <!-- Kanata -->
+      <rect x="452" y="118" width="160" height="56" rx="10" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="532" y="141" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">ENGINE</text>
+      <text x="532" y="157" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">kanata</text>
+
+      <!-- Arrow from Kanata back to KeyPath (TCP) -->
+      <path d="M452 146 Q 400 146 400 100 Q 400 48 170 48" fill="none" stroke="#d2d2d7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+      <text x="380" y="118" font-family="-apple-system, sans-serif" font-size="8" fill="#a0a1a7">TCP events</text>
+
+      <!-- Arrow down from KeyPath to Overlay -->
+      <line x1="90" y1="76" x2="90" y2="114" stroke="#86868b" stroke-width="1.2" marker-end="url(#arr)"/>
+
+      <!-- Overlay -->
+      <rect x="10" y="118" width="160" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="90" y="141" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">FLOATING WINDOW</text>
+      <text x="90" y="157" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">Overlay</text>
+
+      <!-- Config file -->
+      <rect x="232" y="118" width="160" height="56" rx="10" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="312" y="141" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">USER CONFIG</text>
+      <text x="312" y="157" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#1d1d1f" font-weight="500">~/.config/keypath/keypath.kbd</text>
+
+      <!-- Arrow from InstallerEngine to Config -->
+      <line x1="312" y1="76" x2="312" y2="114" stroke="#86868b" stroke-width="1.2" marker-end="url(#arr)"/>
+
+      <!-- Footer -->
+      <text x="310" y="220" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8.5" fill="#a0a1a7">The app generates Kanata config, the daemon runs it, and TCP events flow back for visualization.</text>
+    </svg>
+  </div>
+
+  <div class="prose">
+    <strong>The core loop is simple:</strong> the user remaps keys in the SwiftUI UI, KeyPath generates a Kanata config file, the LaunchDaemon picks it up (via TCP reload), and key events flow back through the overlay for visualization. The installation wizard ensures all system components (privileged helper, daemon plist, permissions) are in place before any of this can work.
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Architecture Guides</div>
+  <h2>Deep Dives</h2>
+  <div class="section-desc">Each guide covers one major subsystem in detail: how it works, why it's designed that way, and what not to break.</div>
+
+  <div class="doc-grid">
+    <a href="wizard-architecture.html" class="doc-card">
+      <div class="doc-header">
+        <div class="doc-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12 L11 14 L15 10" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="doc-name">Installation Wizard</span>
+        <span class="doc-badge ready">Ready</span>
+      </div>
+      <div class="doc-desc">Three types, two pure functions, one loop. The wizard inspects the system, finds what's wrong, shows the page for the first unresolved issue, and offers a button to fix it. Covers <code>SystemInspector</code>, <code>WizardRouter</code>, and <code>InstallerEngine</code> integration.</div>
+    </a>
+
+    <a href="overlay-architecture.html" class="doc-card">
+      <div class="doc-header">
+        <div class="doc-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="13" rx="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><rect x="5" y="6.5" width="14" height="8.5" rx="0.5" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/><line x1="9" y1="20" x2="15" y2="20" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="20" stroke="#3d4852" stroke-width="1.5"/></svg>
+        </div>
+        <span class="doc-name">Live Keyboard Overlay</span>
+        <span class="doc-badge ready">Ready</span>
+      </div>
+      <div class="doc-desc">The floating keyboard visualization window. Seven focused extension files, two input streams (CGEvent tap + Kanata TCP), the three-guard visibility model, and the inspector drawer. Includes screenshot and data flow diagram.</div>
+    </a>
+
+    <div class="doc-card placeholder">
+      <div class="doc-header">
+        <div class="doc-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><circle cx="12" cy="12" r="3" fill="#f5f5f7" stroke="#3d4852" stroke-width="1.2"/><path d="M12 4 L13.5 7.5 L10.5 7.5 Z" fill="#3d4852"/><path d="M12 20 L10.5 16.5 L13.5 16.5 Z" fill="#3d4852"/><path d="M4 12 L7.5 10.5 L7.5 13.5 Z" fill="#3d4852"/><path d="M20 12 L16.5 13.5 L16.5 10.5 Z" fill="#3d4852"/></svg>
+        </div>
+        <span class="doc-name">Runtime & Service Lifecycle</span>
+        <span class="doc-badge planned">Planned</span>
+      </div>
+      <div class="doc-desc">How Kanata starts, stops, and recovers. The <code>RuntimeCoordinator</code>, <code>ServiceLifecycleCoordinator</code>, <code>ServiceHealthChecker</code>, and <code>KanataDaemonService</code>. Health polling, TCP readiness, crash recovery, and the "installer success requires verified runtime readiness" invariant.</div>
+    </div>
+
+    <div class="doc-card placeholder">
+      <div class="doc-header">
+        <div class="doc-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8.5" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><path d="M12 8 L12 14" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="16.5" r="0.8" fill="#3d4852"/></svg>
+        </div>
+        <span class="doc-name">PermissionOracle & System Detection</span>
+        <span class="doc-badge planned">Planned</span>
+      </div>
+      <div class="doc-desc">The permission detection system. Why Apple APIs are authoritative over TCC database, how <code>IOHIDCheckAccess</code> works, the fallback chain, and the critical invariant that makes the wizard's permission pages reliable.</div>
+    </div>
+
+    <div class="doc-card placeholder">
+      <div class="doc-header">
+        <div class="doc-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.4"/><path d="M7 8 L17 8" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round"/><path d="M7 12 L14 12" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round"/><path d="M7 16 L16 16" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+        <span class="doc-name">Rule Collections & Config Generation</span>
+        <span class="doc-badge planned">Planned</span>
+      </div>
+      <div class="doc-desc">How user remappings become Kanata config. The <code>RuleCollection</code> pattern, <code>ConfigurationService</code>, custom rules vs. keymap collections, the "never parse Kanata configs" principle, and TCP-based hot reload.</div>
+    </div>
+
+    <div class="doc-card placeholder">
+      <div class="doc-header">
+        <div class="doc-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 12 L12 5 L19 12 L12 19 Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.5" fill="#f5f5f7" stroke="#3d4852" stroke-width="1"/></svg>
+        </div>
+        <span class="doc-name">Privileged Helper & XPC</span>
+        <span class="doc-badge planned">Planned</span>
+      </div>
+      <div class="doc-desc">The privileged helper tool that installs the LaunchDaemon. <code>SMAppService</code> registration, XPC communication, code signing requirements, and the <code>HelperProtocol.swift</code> duplication invariant (ADR-018).</div>
+    </div>
+
+    <div class="doc-card placeholder">
+      <div class="doc-header">
+        <div class="doc-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="6" width="9" height="12" rx="1.5" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2"/><rect x="13" y="6" width="9" height="12" rx="1.5" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2"/><line x1="11" y1="10" x2="13" y2="10" stroke="#3d4852" stroke-width="0.8"/><line x1="11" y1="14" x2="13" y2="14" stroke="#3d4852" stroke-width="0.8"/></svg>
+        </div>
+        <span class="doc-name">Keyboard Layouts & Device Detection</span>
+        <span class="doc-badge planned">Planned</span>
+      </div>
+      <div class="doc-desc">Physical layout definitions, logical keymaps, per-device configuration via <code>defcfg</code> conditional switch, <code>HIDDeviceMonitor</code>, and the "geometry follows layout, labels follow keymap" rendering principle.</div>
+    </div>
+
+    <div class="doc-card placeholder">
+      <div class="doc-header">
+        <div class="doc-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20 L4 8 L8 4 L20 4 L20 16 L16 20 Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.4" stroke-linejoin="round"/><path d="M4 8 L16 8 L20 4" stroke="#3d4852" stroke-width="1" opacity="0.3"/><path d="M16 8 L16 20" stroke="#3d4852" stroke-width="1" opacity="0.3"/></svg>
+        </div>
+        <span class="doc-name">KindaVim & Vim Mode</span>
+        <span class="doc-badge planned">Planned</span>
+      </div>
+      <div class="doc-desc">The Vim-style navigation mode. Kanata layer definitions for motions and operators, the hint overlay for learning, the state adapter that bridges Kanata events to Vim concepts, and the keystream observer for feedback.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Quick Reference</div>
+  <h2>Getting Oriented</h2>
+  <div class="section-desc">The essentials for your first day in the codebase.</div>
+
+  <div class="ref-table">
+    <div class="ref-row">
+      <div class="ref-key">Build (dev)</div>
+      <div class="ref-val"><code>./Scripts/quick-deploy.sh</code> &mdash; incremental build, deploys to /Applications</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Build (release)</div>
+      <div class="ref-val"><code>./build.sh</code> &mdash; sign + notarize (<code>SKIP_NOTARIZE=1</code> for local)</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Tests</div>
+      <div class="ref-val"><code>swift test</code> &mdash; 413 tests, all must pass in under 5 seconds</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Lint</div>
+      <div class="ref-val"><code>swiftformat Sources/ Tests/ --swiftversion 5.9 && swiftlint --fix --quiet</code></div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">User config</div>
+      <div class="ref-val"><code>~/.config/keypath/keypath.kbd</code> &mdash; generated Kanata config</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Debug log</div>
+      <div class="ref-val"><code>~/Library/Logs/KeyPath/keypath-debug.log</code></div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Daemon plist</div>
+      <div class="ref-val"><code>com.keypath.kanata</code> &mdash; managed via <code>SMAppService</code></div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">ADRs</div>
+      <div class="ref-val"><a href="../adr/README.md" style="color: var(--blue); text-decoration: none;">docs/adr/</a> &mdash; 37 architecture decision records</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Bug investigations</div>
+      <div class="ref-val"><a href="../bugs/" style="color: var(--blue); text-decoration: none;">docs/bugs/</a> &mdash; root cause analyses with timestamps and evidence</div>
+    </div>
+  </div>
+
+  <div class="invariant">
+    <div class="invariant-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8 L12 14" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="16.5" r="0.8" fill="#3d4852"/></svg>
+    </div>
+    <div class="invariant-text"><strong>Before you change anything:</strong> read <a href="../../CLAUDE.md" style="color: var(--blue); text-decoration: none;">CLAUDE.md</a> at the project root. It has the critical anti-patterns, the manager class responsibilities, and the validation architecture. The ADRs explain <em>why</em> things are the way they are &mdash; if you're tempted to "simplify" something, check if there's an ADR explaining why it's complex.</div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Module Map</div>
+  <h2>Swift Packages</h2>
+  <div class="section-desc">The codebase is organized into focused Swift packages. Most of the action is in KeyPathAppKit.</div>
+
+  <div class="ref-table">
+    <div class="ref-row">
+      <div class="ref-key">KeyPathAppKit</div>
+      <div class="ref-val">The main app module. UI, controllers, services, managers. ~50K lines.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">KeyPathInstallationWizard</div>
+      <div class="ref-val">Installation/repair wizard. SystemInspector, WizardRouter, page views. ~18K lines.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">KeyPathWizardCore</div>
+      <div class="ref-val">Shared protocols and DI container for wizard dependencies.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">KeyPathCore</div>
+      <div class="ref-val">Subprocess runner, admin commands, core utilities. ~3K lines.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">KeyPathHelper</div>
+      <div class="ref-val">Privileged helper process. XPC service, daemon installation.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">KeyPathInsights</div>
+      <div class="ref-val">Activity logging, telemetry, usage analytics.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">KeyPathDaemonLifecycle</div>
+      <div class="ref-val">Service lifecycle coordination. Start/stop/restart sequencing.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">KeyPathLayoutTracer</div>
+      <div class="ref-val">Kanata config parsing for layout visualization (simulator mode).</div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<footer>KeyPath Developer Documentation &mdash; May 2026</footer>
+
+</body>
+</html>
