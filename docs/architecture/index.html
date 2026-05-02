@@ -347,71 +347,71 @@
       <div class="doc-desc">The floating keyboard visualization window. Seven focused extension files, two input streams (CGEvent tap + Kanata TCP), the three-guard visibility model, and the inspector drawer. Includes screenshot and data flow diagram.</div>
     </a>
 
-    <div class="doc-card placeholder">
+    <a href="runtime-architecture.html" class="doc-card">
       <div class="doc-header">
         <div class="doc-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><circle cx="12" cy="12" r="3" fill="#f5f5f7" stroke="#3d4852" stroke-width="1.2"/><path d="M12 4 L13.5 7.5 L10.5 7.5 Z" fill="#3d4852"/><path d="M12 20 L10.5 16.5 L13.5 16.5 Z" fill="#3d4852"/><path d="M4 12 L7.5 10.5 L7.5 13.5 Z" fill="#3d4852"/><path d="M20 12 L16.5 13.5 L16.5 10.5 Z" fill="#3d4852"/></svg>
         </div>
         <span class="doc-name">Runtime & Service Lifecycle</span>
-        <span class="doc-badge planned">Planned</span>
+        <span class="doc-badge ready">Ready</span>
       </div>
       <div class="doc-desc">How Kanata starts, stops, and recovers. The <code>RuntimeCoordinator</code>, <code>ServiceLifecycleCoordinator</code>, <code>ServiceHealthChecker</code>, and <code>KanataDaemonService</code>. Health polling, TCP readiness, crash recovery, and the "installer success requires verified runtime readiness" invariant.</div>
-    </div>
+    </a>
 
-    <div class="doc-card placeholder">
+    <a href="permissions-architecture.html" class="doc-card">
       <div class="doc-header">
         <div class="doc-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8.5" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><path d="M12 8 L12 14" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="16.5" r="0.8" fill="#3d4852"/></svg>
         </div>
         <span class="doc-name">PermissionOracle & System Detection</span>
-        <span class="doc-badge planned">Planned</span>
+        <span class="doc-badge ready">Ready</span>
       </div>
       <div class="doc-desc">The permission detection system. Why Apple APIs are authoritative over TCC database, how <code>IOHIDCheckAccess</code> works, the fallback chain, and the critical invariant that makes the wizard's permission pages reliable.</div>
-    </div>
+    </a>
 
-    <div class="doc-card placeholder">
+    <a href="rules-architecture.html" class="doc-card">
       <div class="doc-header">
         <div class="doc-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.4"/><path d="M7 8 L17 8" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round"/><path d="M7 12 L14 12" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round"/><path d="M7 16 L16 16" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round"/></svg>
         </div>
         <span class="doc-name">Rule Collections & Config Generation</span>
-        <span class="doc-badge planned">Planned</span>
+        <span class="doc-badge ready">Ready</span>
       </div>
       <div class="doc-desc">How user remappings become Kanata config. The <code>RuleCollection</code> pattern, <code>ConfigurationService</code>, custom rules vs. keymap collections, the "never parse Kanata configs" principle, and TCP-based hot reload.</div>
-    </div>
+    </a>
 
-    <div class="doc-card placeholder">
+    <a href="xpc-architecture.html" class="doc-card">
       <div class="doc-header">
         <div class="doc-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 12 L12 5 L19 12 L12 19 Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.5" fill="#f5f5f7" stroke="#3d4852" stroke-width="1"/></svg>
         </div>
         <span class="doc-name">Privileged Helper & XPC</span>
-        <span class="doc-badge planned">Planned</span>
+        <span class="doc-badge ready">Ready</span>
       </div>
       <div class="doc-desc">The privileged helper tool that installs the LaunchDaemon. <code>SMAppService</code> registration, XPC communication, code signing requirements, and the <code>HelperProtocol.swift</code> duplication invariant (ADR-018).</div>
-    </div>
+    </a>
 
-    <div class="doc-card placeholder">
+    <a href="layouts-architecture.html" class="doc-card">
       <div class="doc-header">
         <div class="doc-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="6" width="9" height="12" rx="1.5" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2"/><rect x="13" y="6" width="9" height="12" rx="1.5" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2"/><line x1="11" y1="10" x2="13" y2="10" stroke="#3d4852" stroke-width="0.8"/><line x1="11" y1="14" x2="13" y2="14" stroke="#3d4852" stroke-width="0.8"/></svg>
         </div>
         <span class="doc-name">Keyboard Layouts & Device Detection</span>
-        <span class="doc-badge planned">Planned</span>
+        <span class="doc-badge ready">Ready</span>
       </div>
       <div class="doc-desc">Physical layout definitions, logical keymaps, per-device configuration via <code>defcfg</code> conditional switch, <code>HIDDeviceMonitor</code>, and the "geometry follows layout, labels follow keymap" rendering principle.</div>
-    </div>
+    </a>
 
-    <div class="doc-card placeholder">
+    <a href="kindavim-architecture.html" class="doc-card">
       <div class="doc-header">
         <div class="doc-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20 L4 8 L8 4 L20 4 L20 16 L16 20 Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.4" stroke-linejoin="round"/><path d="M4 8 L16 8 L20 4" stroke="#3d4852" stroke-width="1" opacity="0.3"/><path d="M16 8 L16 20" stroke="#3d4852" stroke-width="1" opacity="0.3"/></svg>
         </div>
         <span class="doc-name">KindaVim & Vim Mode</span>
-        <span class="doc-badge planned">Planned</span>
+        <span class="doc-badge ready">Ready</span>
       </div>
       <div class="doc-desc">The Vim-style navigation mode. Kanata layer definitions for motions and operators, the hint overlay for learning, the state adapter that bridges Kanata events to Vim concepts, and the keystream observer for feedback.</div>
-    </div>
+    </a>
   </div>
 </section>
 

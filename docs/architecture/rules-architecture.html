@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rule Collections &amp; Config Generation — Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f5f5f7;
+    --surface-2: #ebebed;
+    --border: #d2d2d7;
+    --border-light: #e8e8ed;
+    --text: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --text-tertiary: #86868b;
+    --accent: #1d1d1f;
+    --blue: #0071e3;
+    --code-bg: #f5f5f7;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.58;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 740px; margin: 0 auto; padding: 0 24px; }
+
+  /* -- Hero -- */
+  .hero { padding: 96px 0 64px; text-align: center; }
+  .hero-eyebrow {
+    font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px;
+  }
+  .hero h1 {
+    font-size: clamp(2.4rem, 5.5vw, 3.2rem); font-weight: 700;
+    letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px;
+    color: var(--text);
+  }
+  .hero p {
+    font-size: 1.15rem; color: var(--text-secondary); max-width: 480px;
+    margin: 0 auto; line-height: 1.5;
+  }
+
+  /* -- Sections -- */
+  section { padding: 64px 0; }
+  .divider { height: 1px; background: var(--border-light); }
+  .section-label {
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px;
+  }
+  h2 {
+    font-size: clamp(1.6rem, 3.5vw, 2rem); font-weight: 700;
+    letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 10px;
+  }
+  .section-desc {
+    font-size: 1rem; color: var(--text-secondary); max-width: 520px;
+    margin-bottom: 36px; line-height: 1.55;
+  }
+  h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
+  p { color: var(--text-secondary); margin-bottom: 14px; }
+
+  /* -- Three pillars -- */
+  .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border-light); border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; margin: 36px 0; }
+  .pillar { background: var(--bg); padding: 32px 24px; text-align: center; }
+  .pillar-icon { margin-bottom: 14px; display: flex; justify-content: center; }
+  .pillar h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+  .pillar p { font-size: 0.85rem; color: var(--text-tertiary); margin: 0; line-height: 1.45; }
+
+  /* -- Diagram -- */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    margin: 36px 0;
+    display: flex; justify-content: center;
+  }
+
+  /* -- Type cards -- */
+  .types-grid { display: flex; flex-direction: column; gap: 12px; margin: 32px 0; }
+  .type-card {
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .type-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .type-icon {
+    width: 36px; height: 36px; border-radius: 8px; background: var(--surface);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .type-name {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; font-size: 0.95rem;
+    font-weight: 600; color: var(--text);
+  }
+  .type-badge {
+    font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    letter-spacing: 0.03em; text-transform: uppercase;
+    background: var(--surface); color: var(--text-tertiary); border: 1px solid var(--border-light);
+  }
+  .type-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.55; }
+  .type-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em;
+    background: var(--surface); padding: 1px 5px; border-radius: 4px; color: var(--text);
+  }
+
+  /* -- Code -- */
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border-light);
+    border-radius: 10px; padding: 18px 20px; overflow-x: auto;
+    font-size: 0.8rem; line-height: 1.75; margin: 14px 0 0;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; color: var(--text);
+  }
+  .kw { color: #a626a4; }
+  .fn { color: #4078f2; }
+  .tp { color: #986801; }
+  .cm { color: #a0a1a7; }
+  .pr { color: #e45649; }
+
+  /* -- Data flow -- */
+  .flow-list { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .flow-item {
+    display: grid; grid-template-columns: 140px 1fr; gap: 0;
+    font-size: 0.9rem; border-bottom: 1px solid var(--border-light);
+  }
+  .flow-item:last-child { border-bottom: none; }
+  .flow-item > div { padding: 14px 20px; }
+  .flow-event { font-weight: 600; color: var(--text); background: var(--surface); }
+  .flow-desc { color: var(--text-secondary); }
+  .flow-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em; color: var(--blue);
+  }
+
+  /* -- Rules -- */
+  .rules { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .rule-item {
+    padding: 18px 20px; display: flex; gap: 14px; align-items: start;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-num {
+    width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; background: var(--surface); color: var(--text-tertiary);
+  }
+  .rule-content { flex: 1; }
+  .rule-title { font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 2px; }
+  .rule-desc { font-size: 0.85rem; color: var(--text-tertiary); line-height: 1.5; }
+  .rule-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text-secondary);
+  }
+
+  /* -- Invariant -- */
+  .invariant {
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: var(--radius); padding: 20px 24px; margin: 32px 0;
+    display: flex; gap: 14px; align-items: start;
+  }
+  .invariant-icon {
+    width: 32px; height: 32px; border-radius: 8px; background: var(--bg);
+    border: 1px solid var(--border-light);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .invariant-text { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; }
+  .invariant-text strong { color: var(--text); }
+  .invariant-text code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text);
+  }
+
+  /* -- Nav -- */
+  .back-nav {
+    padding: 20px 0; font-size: 0.85rem;
+  }
+  .back-nav a {
+    color: var(--blue); text-decoration: none; font-weight: 500;
+  }
+  .back-nav a:hover { text-decoration: underline; }
+
+  /* -- Cross-links -- */
+  .cross-links {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 32px 0;
+  }
+  .cross-link {
+    border: 1px solid var(--border-light); border-radius: var(--radius);
+    padding: 20px; text-decoration: none; display: block;
+    transition: border-color 0.15s;
+  }
+  .cross-link:hover { border-color: var(--border); }
+  .cross-link-label {
+    font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 4px;
+  }
+  .cross-link-title { font-size: 0.95rem; font-weight: 600; color: var(--text); }
+
+  footer {
+    padding: 40px 0; text-align: center;
+    font-size: 0.78rem; color: var(--text-tertiary); border-top: 1px solid var(--border-light);
+  }
+
+  @media (max-width: 640px) {
+    .pillars { grid-template-columns: 1fr; }
+    .flow-item { grid-template-columns: 1fr; }
+    .flow-event { border-bottom: 1px solid var(--border-light); }
+    .cross-links { grid-template-columns: 1fr; }
+    .hero { padding: 64px 0 48px; }
+    section { padding: 48px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="back-nav"><a href="index.html">&larr; Back to Index</a></div>
+</div>
+
+<div class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">Architecture</div>
+    <h1>Rule Collections &amp; Config Generation</h1>
+    <p>How user remappings become a running Kanata config.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="container">
+
+<section>
+  <div class="section-label">Overview</div>
+  <h2>Collect. Generate. Reload.</h2>
+  <div class="section-desc">Every user interaction follows the same pipeline: gather rules, write the config file, and tell Kanata to reload via TCP.</div>
+
+  <div class="pillars">
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Stacked cards / collection icon -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="10" ry="2.5" fill="#3d4852" opacity="0.06"/>
+          <rect x="14" y="14" width="32" height="6" rx="2" fill="#d2d2d7" stroke="#3d4852" stroke-width="1.4"/>
+          <rect x="12" y="22" width="36" height="6" rx="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.4"/>
+          <rect x="10" y="30" width="40" height="6" rx="2" fill="#f5f5f7" stroke="#3d4852" stroke-width="1.4"/>
+          <rect x="10" y="38" width="40" height="10" rx="3" fill="white" stroke="#3d4852" stroke-width="1.8"/>
+          <line x1="16" y1="42" x2="28" y2="42" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round" opacity="0.3"/>
+          <line x1="16" y1="45" x2="22" y2="45" stroke="#3d4852" stroke-width="1" stroke-linecap="round" opacity="0.15"/>
+          <circle cx="42" cy="40" r="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1"/>
+          <path d="M41 40 L42 41 L44 39" stroke="#3d4852" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h4>Collect</h4>
+      <p>RuleCollectionsManager gathers enabled rules and custom rules.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- File generation icon -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="10" ry="2.5" fill="#3d4852" opacity="0.06"/>
+          <path d="M18 10 L36 10 L44 18 L44 48 L18 48 Z" fill="#f5f5f7" stroke="#3d4852" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M36 10 L36 18 L44 18" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.4" stroke-linejoin="round"/>
+          <line x1="24" y1="26" x2="38" y2="26" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round" opacity="0.25"/>
+          <line x1="24" y1="30" x2="36" y2="30" stroke="#3d4852" stroke-width="1" stroke-linecap="round" opacity="0.18"/>
+          <line x1="24" y1="34" x2="38" y2="34" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round" opacity="0.25"/>
+          <line x1="24" y1="38" x2="32" y2="38" stroke="#3d4852" stroke-width="1" stroke-linecap="round" opacity="0.18"/>
+          <text x="29" y="44" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="6" fill="#86868b">.kbd</text>
+        </svg>
+      </div>
+      <h4>Generate</h4>
+      <p>ConfigurationService writes the keypath.kbd file.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- TCP reload icon -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="10" ry="2.5" fill="#3d4852" opacity="0.06"/>
+          <circle cx="30" cy="28" r="14" fill="#f5f5f7" stroke="#3d4852" stroke-width="1.8"/>
+          <circle cx="30" cy="28" r="10" fill="white" stroke="#d2d2d7" stroke-width="1"/>
+          <path d="M24 28 A6 6 0 1 1 30 34" fill="none" stroke="#3d4852" stroke-width="2" stroke-linecap="round"/>
+          <path d="M30 34 L27 31 M30 34 L33 31" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="30" y1="16" x2="30" y2="20" stroke="#3d4852" stroke-width="1" stroke-linecap="round" opacity="0.3"/>
+          <line x1="40" y1="28" x2="36" y2="28" stroke="#3d4852" stroke-width="1" stroke-linecap="round" opacity="0.3"/>
+        </svg>
+      </div>
+      <h4>Reload</h4>
+      <p>ConfigReloadCoordinator sends TCP reload to Kanata.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Architecture</div>
+  <h2>The Complete Pipeline</h2>
+  <div class="section-desc">Rules flow one way: from the UI model through config generation to the running Kanata process. The config file is never read back.</div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg" style="max-width:560px; width:100%;">
+      <defs>
+        <marker id="arr" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#86868b"/></marker>
+        <marker id="arr-b" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#0071e3"/></marker>
+        <marker id="arr-d" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#d2d2d7"/></marker>
+      </defs>
+
+      <!-- User interaction -->
+      <rect x="10" y="20" width="120" height="44" rx="8" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1"/>
+      <text x="70" y="38" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600">USER ACTION</text>
+      <text x="70" y="52" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8" fill="#a0a1a7">toggle / edit / keymap</text>
+
+      <!-- Arrow to RuleCollectionsManager -->
+      <line x1="130" y1="42" x2="174" y2="42" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+
+      <!-- RuleCollectionsManager -->
+      <rect x="178" y="14" width="230" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="230" y="36" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">MANAGER</text>
+      <text x="230" y="52" font-family="JetBrains Mono, monospace" font-size="11.5" fill="#1d1d1f" font-weight="600">RuleCollectionsManager</text>
+
+      <!-- JSON stores (left side) -->
+      <rect x="438" y="14" width="148" height="56" rx="10" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="512" y="34" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="600" letter-spacing="0.04em">SOURCE OF TRUTH</text>
+      <text x="512" y="47" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#1d1d1f">RuleCollections.json</text>
+      <text x="512" y="59" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#1d1d1f">CustomRules.json</text>
+
+      <!-- Arrow from manager to JSON -->
+      <line x1="408" y1="42" x2="434" y2="42" stroke="#d2d2d7" stroke-width="1.2" marker-end="url(#arr-d)"/>
+
+      <!-- Arrow down to ConfigurationService -->
+      <line x1="293" y1="70" x2="293" y2="118" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <rect x="305" y="82" width="108" height="18" rx="4" fill="#f0f5ff" stroke="#cce0ff" stroke-width="0.8"/>
+      <text x="359" y="94" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#0071e3">[RuleCollection]</text>
+
+      <!-- ConfigurationService -->
+      <rect x="178" y="122" width="230" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="230" y="144" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">GENERATOR</text>
+      <text x="230" y="160" font-family="JetBrains Mono, monospace" font-size="11.5" fill="#1d1d1f" font-weight="600">ConfigurationService</text>
+
+      <!-- Arrow down to .kbd file -->
+      <line x1="293" y1="178" x2="293" y2="226" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <rect x="305" y="190" width="82" height="18" rx="4" fill="#f0f5ff" stroke="#cce0ff" stroke-width="0.8"/>
+      <text x="346" y="202" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#0071e3">keypath.kbd</text>
+
+      <!-- .kbd file box -->
+      <rect x="178" y="230" width="230" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="230" y="252" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">CONFIG FILE</text>
+      <text x="230" y="268" font-family="JetBrains Mono, monospace" font-size="11.5" fill="#1d1d1f" font-weight="600">~/.config/keypath/keypath.kbd</text>
+
+      <!-- Arrow down to reload -->
+      <line x1="293" y1="286" x2="293" y2="332" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <rect x="305" y="296" width="80" height="18" rx="4" fill="#f0f5ff" stroke="#cce0ff" stroke-width="0.8"/>
+      <text x="345" y="308" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#0071e3">TCP reload</text>
+
+      <!-- Kanata -->
+      <rect x="178" y="336" width="230" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="230" y="358" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">RUNTIME</text>
+      <text x="230" y="374" font-family="JetBrains Mono, monospace" font-size="11.5" fill="#1d1d1f" font-weight="600">Kanata (LaunchDaemon)</text>
+
+      <!-- Overlay reads from Kanata -->
+      <rect x="460" y="336" width="126" height="56" rx="10" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="523" y="358" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="600" letter-spacing="0.04em">OVERLAY</text>
+      <text x="523" y="374" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#1d1d1f" font-weight="500">KeycapOverlay</text>
+
+      <!-- Arrow from Kanata to Overlay -->
+      <line x1="408" y1="364" x2="456" y2="364" stroke="#d2d2d7" stroke-width="1.2" marker-end="url(#arr-d)"/>
+      <text x="432" y="356" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="7.5" fill="#a0a1a7">layer state</text>
+
+      <!-- ONE-WAY label -->
+      <text x="160" y="210" text-anchor="end" font-family="-apple-system, sans-serif" font-size="8" fill="#a0a1a7" transform="rotate(-90, 160, 210)">ONE-WAY FLOW</text>
+
+      <!-- Caption -->
+      <text x="293" y="396" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8.5" fill="#a0a1a7">Blue arrows show the data flow. Config is never read back.</text>
+    </svg>
+  </div>
+
+  <div class="invariant">
+    <div class="invariant-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8 L12 14" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="16.5" r="0.8" fill="#3d4852"/></svg>
+    </div>
+    <div class="invariant-text"><strong>Core invariant.</strong> The <code>.kbd</code> config file is the single artifact. Every rule, keymap, layer, and launcher binding is expressed as Kanata configuration. KeyPath never reads the config back &mdash; it regenerates from its own model every time.</div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Types</div>
+  <h2>Five Types, One Pipeline</h2>
+  <div class="section-desc">Each type owns one step. Together they turn a UI toggle into a running config.</div>
+
+  <div class="types-grid">
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="18" height="4" rx="1.5" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2"/><rect x="3" y="11" width="18" height="4" rx="1.5" fill="#d2d2d7" stroke="#3d4852" stroke-width="1.2"/><rect x="3" y="17" width="12" height="3" rx="1" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/></svg>
+        </div>
+        <span class="type-name">RuleCollection</span>
+        <span class="type-badge">Model</span>
+      </div>
+      <div class="type-desc">A group of related key mappings that can be toggled together. Each collection has a <code>configuration</code> (discriminated union) controlling its display style, a <code>targetLayer</code>, and an array of <code>KeyMapping</code> values. Uses a type-safe enum for style-specific data: <code>.list</code>, <code>.singleKeyPicker</code>, <code>.homeRowMods</code>, <code>.tapHoldPicker</code>, <code>.layerPresetPicker</code>.</div>
+      <pre><span class="kw">public struct</span> <span class="tp">RuleCollection</span>: <span class="tp">Identifiable</span>, <span class="tp">Codable</span> {
+    <span class="kw">let</span> <span class="pr">id</span>: <span class="tp">UUID</span>
+    <span class="kw">var</span> <span class="pr">name</span>: <span class="tp">String</span>
+    <span class="kw">var</span> <span class="pr">isEnabled</span>: <span class="tp">Bool</span>
+    <span class="kw">var</span> <span class="pr">mappings</span>: [<span class="tp">KeyMapping</span>]
+    <span class="kw">var</span> <span class="pr">targetLayer</span>: <span class="tp">RuleCollectionLayer</span>
+    <span class="kw">var</span> <span class="pr">configuration</span>: <span class="tp">RuleCollectionConfiguration</span>
+}</pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><circle cx="12" cy="12" r="3" fill="#f5f5f7" stroke="#3d4852" stroke-width="1.2"/><path d="M12 4 L13.5 7.5 L10.5 7.5 Z" fill="#3d4852"/><path d="M12 20 L10.5 16.5 L13.5 16.5 Z" fill="#3d4852"/><path d="M4 12 L7.5 10.5 L7.5 13.5 Z" fill="#3d4852"/><path d="M20 12 L16.5 13.5 L16.5 10.5 Z" fill="#3d4852"/></svg>
+        </div>
+        <span class="type-name">RuleCollectionsManager</span>
+        <span class="type-badge">Manager</span>
+      </div>
+      <div class="type-desc">The central coordinator for rule state. Holds the arrays of <code>[RuleCollection]</code> and <code>[CustomRule]</code>, manages the active keymap, detects conflicts between rules, and triggers config regeneration via its <code>onRulesChanged</code> callback. All config writes go through <code>regenerateConfigFromCollections()</code>.</div>
+      <pre><span class="kw">@MainActor final class</span> <span class="tp">RuleCollectionsManager</span> {
+    <span class="kw">var</span> <span class="pr">ruleCollections</span>: [<span class="tp">RuleCollection</span>]
+    <span class="kw">var</span> <span class="pr">customRules</span>: [<span class="tp">CustomRule</span>]
+    <span class="kw">var</span> <span class="pr">activeKeymapId</span>: <span class="tp">String</span>
+
+    <span class="cm">// Single write path for all config changes</span>
+    <span class="kw">var</span> <span class="pr">onRulesChanged</span>: (() <span class="kw">async</span> -> <span class="tp">Void</span>)?
+}</pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 4 L15 4 L19 8 L19 20 L5 20 Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5" stroke-linejoin="round"/><path d="M15 4 L15 8 L19 8" fill="#d2d2d7" stroke="#3d4852" stroke-width="1" stroke-linejoin="round"/><line x1="8" y1="12" x2="16" y2="12" stroke="#3d4852" stroke-width="1" stroke-linecap="round" opacity="0.3"/><line x1="8" y1="15" x2="14" y2="15" stroke="#3d4852" stroke-width="0.8" stroke-linecap="round" opacity="0.2"/></svg>
+        </div>
+        <span class="type-name">ConfigurationService</span>
+        <span class="type-badge">Infrastructure</span>
+      </div>
+      <div class="type-desc">Handles all config file I/O. Generates the <code>keypath.kbd</code> file from mappings, manages file watching for external edits, and provides the current <code>KanataConfiguration</code>. Preserves user-authored sections outside the <code>KP:BEGIN</code>/<code>KP:END</code> sentinel blocks.</div>
+      <pre><span class="kw">public final class</span> <span class="tp">ConfigurationService</span>: <span class="tp">FileConfigurationProviding</span> {
+    <span class="kw">let</span> <span class="pr">configurationPath</span>: <span class="tp">String</span>  <span class="cm">// ~/.config/keypath/keypath.kbd</span>
+
+    <span class="kw">func</span> <span class="fn">current</span>() <span class="kw">async</span> -> <span class="tp">KanataConfiguration</span>
+    <span class="kw">func</span> <span class="fn">reload</span>() <span class="kw">async throws</span> -> <span class="tp">KanataConfiguration</span>
+    <span class="kw">func</span> <span class="fn">saveConfiguration</span>(<span class="pr">_</span>: [<span class="tp">RuleCollection</span>], <span class="pr">_</span>: [<span class="tp">CustomRule</span>]) <span class="kw">async throws</span>
+}</pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><path d="M9 12 A3 3 0 1 1 12 15" fill="none" stroke="#3d4852" stroke-width="1.8" stroke-linecap="round"/><path d="M12 15 L10 13 M12 15 L14 13" stroke="#3d4852" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="type-name">ConfigReloadCoordinator</span>
+        <span class="type-badge">Coordinator</span>
+      </div>
+      <div class="type-desc">The only entry point for sending TCP reload commands to Kanata. Checks service health and permission gates before sending. Handles safety monitoring, rollback on failure, and diagnostics clearing on success.</div>
+      <pre><span class="kw">@MainActor final class</span> <span class="tp">ConfigReloadCoordinator</span> {
+    <span class="kw">func</span> <span class="fn">triggerConfigReload</span>() <span class="kw">async</span> -> <span class="tp">ReloadResult</span>
+    <span class="kw">var</span> <span class="pr">onReloadSuccess</span>: (() -> <span class="tp">Void</span>)?
+}</pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><path d="M8 12 L11 15 L16 9" stroke="#3d4852" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="type-name">CustomRule</span>
+        <span class="type-badge">Model</span>
+      </div>
+      <div class="type-desc">A single user-authored remapping: input key to output key. Supports advanced behaviors (tap-hold, tap-dance, macro), shifted outputs, per-device overrides, and target layer assignment. Managed alongside collections but stored in a separate <code>CustomRules.json</code>.</div>
+      <pre><span class="kw">public struct</span> <span class="tp">CustomRule</span>: <span class="tp">Identifiable</span>, <span class="tp">Sendable</span> {
+    <span class="kw">var</span> <span class="pr">input</span>: <span class="tp">String</span>
+    <span class="kw">var</span> <span class="pr">output</span>: <span class="tp">String</span>
+    <span class="kw">var</span> <span class="pr">behavior</span>: <span class="tp">MappingBehavior</span>?     <span class="cm">// tap-hold, macro, etc.</span>
+    <span class="kw">var</span> <span class="pr">targetLayer</span>: <span class="tp">RuleCollectionLayer</span>
+    <span class="kw">var</span> <span class="pr">deviceOverrides</span>: [<span class="tp">DeviceKeyOverride</span>]?
+}</pre>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Data Flow</div>
+  <h2>Every Change, Same Path</h2>
+  <div class="section-desc">No alternate write paths. No direct config edits from UI code.</div>
+
+  <div class="flow-list">
+    <div class="flow-item">
+      <div class="flow-event">User adds a remap</div>
+      <div class="flow-desc"><code>RuleCollectionsManager</code> updates the collection, fires <code>onRulesChanged</code></div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Keymap changes</div>
+      <div class="flow-desc"><code>activeKeymapId</code> updated, full regeneration triggered</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Config regenerated</div>
+      <div class="flow-desc"><code>ConfigurationService.saveConfiguration()</code> writes <code>keypath.kbd</code></div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">TCP reload sent</div>
+      <div class="flow-desc"><code>ConfigReloadCoordinator.triggerConfigReload()</code> tells Kanata to pick up the new config</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Kanata confirms</div>
+      <div class="flow-desc">Reload success clears stale diagnostics; failure triggers rollback</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Overlay updates</div>
+      <div class="flow-desc">Keycap overlay reads layer state from running Kanata via TCP, showing new mappings</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Principles</div>
+  <h2>Design Rules</h2>
+  <div class="section-desc">Four invariants that keep the config pipeline reliable.</div>
+
+  <div class="rules">
+    <div class="rule-item">
+      <div class="rule-num">1</div>
+      <div class="rule-content">
+        <div class="rule-title">Never parse Kanata configs</div>
+        <div class="rule-desc">Use TCP and the simulator for runtime state and key mapping queries. Kanata syntax is too complex to shadow-implement. See <a href="../adr/adr-023-no-config-parsing.md" style="color: var(--blue); text-decoration: none;">ADR-023</a>.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">2</div>
+      <div class="rule-content">
+        <div class="rule-title">Don't skip TCP reload after config changes</div>
+        <div class="rule-desc">Writing the <code>.kbd</code> file is not enough. Without a TCP reload, Kanata runs stale config. Every write must be followed by <code>triggerConfigReload()</code>.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">3</div>
+      <div class="rule-content">
+        <div class="rule-title">Don't send TCP reload directly</div>
+        <div class="rule-desc">Always go through <code>ConfigReloadCoordinator</code>. It checks service health, permission gates, and handles rollback. Raw TCP calls bypass safety.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">4</div>
+      <div class="rule-content">
+        <div class="rule-title">Config generation is one-way</div>
+        <div class="rule-desc">UI model &rarr; <code>.kbd</code> file &rarr; Kanata. Never reverse. JSON stores are the source of truth; the config file is a derived artifact regenerated on every change. See <a href="../adr/adr-025-config-management.md" style="color: var(--blue); text-decoration: none;">ADR-025</a>.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Related</div>
+  <h2>Cross-References</h2>
+
+  <div class="cross-links">
+    <a class="cross-link" href="overlay-architecture.html">
+      <div class="cross-link-label">Overlay</div>
+      <div class="cross-link-title">Keycap Overlay Architecture</div>
+    </a>
+    <a class="cross-link" href="runtime-architecture.html">
+      <div class="cross-link-label">Runtime</div>
+      <div class="cross-link-title">Runtime Coordination</div>
+    </a>
+  </div>
+</section>
+
+</div>
+
+<footer>KeyPath Rules Architecture &mdash; May 2026</footer>
+
+</body>
+</html>

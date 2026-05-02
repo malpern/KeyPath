@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KindaVim &amp; Vim Mode — Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f5f5f7;
+    --surface-2: #ebebed;
+    --border: #d2d2d7;
+    --border-light: #e8e8ed;
+    --text: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --text-tertiary: #86868b;
+    --accent: #1d1d1f;
+    --blue: #0071e3;
+    --code-bg: #f5f5f7;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.58;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 740px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Hero ── */
+  .hero { padding: 96px 0 64px; text-align: center; }
+  .hero-eyebrow {
+    font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px;
+  }
+  .hero h1 {
+    font-size: clamp(2.4rem, 5.5vw, 3.2rem); font-weight: 700;
+    letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px;
+    color: var(--text);
+  }
+  .hero p {
+    font-size: 1.15rem; color: var(--text-secondary); max-width: 480px;
+    margin: 0 auto; line-height: 1.5;
+  }
+
+  /* ── Sections ── */
+  section { padding: 64px 0; }
+  .divider { height: 1px; background: var(--border-light); }
+  .section-label {
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px;
+  }
+  h2 {
+    font-size: clamp(1.6rem, 3.5vw, 2rem); font-weight: 700;
+    letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 10px;
+  }
+  .section-desc {
+    font-size: 1rem; color: var(--text-secondary); max-width: 520px;
+    margin-bottom: 36px; line-height: 1.55;
+  }
+  h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
+  p { color: var(--text-secondary); margin-bottom: 14px; }
+
+  /* ── Three pillars ── */
+  .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border-light); border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; margin: 36px 0; }
+  .pillar { background: var(--bg); padding: 32px 24px; text-align: center; }
+  .pillar-icon { margin-bottom: 14px; display: flex; justify-content: center; }
+  .pillar h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+  .pillar p { font-size: 0.85rem; color: var(--text-tertiary); margin: 0; line-height: 1.45; }
+
+  /* ── Diagram ── */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    margin: 36px 0;
+    display: flex; justify-content: center;
+  }
+
+  /* ── Type cards ── */
+  .types-grid { display: flex; flex-direction: column; gap: 12px; margin: 32px 0; }
+  .type-card {
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .type-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .type-icon {
+    width: 36px; height: 36px; border-radius: 8px; background: var(--surface);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .type-name {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; font-size: 0.95rem;
+    font-weight: 600; color: var(--text);
+  }
+  .type-badge {
+    font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    letter-spacing: 0.03em; text-transform: uppercase;
+    background: var(--surface); color: var(--text-tertiary); border: 1px solid var(--border-light);
+  }
+  .type-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.55; }
+  .type-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em;
+    background: var(--surface); padding: 1px 5px; border-radius: 4px; color: var(--text);
+  }
+
+  /* ── Code ── */
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border-light);
+    border-radius: 10px; padding: 18px 20px; overflow-x: auto;
+    font-size: 0.8rem; line-height: 1.75; margin: 14px 0 0;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; color: var(--text);
+  }
+  .kw { color: #a626a4; }
+  .fn { color: #4078f2; }
+  .tp { color: #986801; }
+  .cm { color: #a0a1a7; }
+  .pr { color: #e45649; }
+
+  /* ── Data flow ── */
+  .flow-list { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .flow-item {
+    display: grid; grid-template-columns: 140px 1fr; gap: 0;
+    font-size: 0.9rem; border-bottom: 1px solid var(--border-light);
+  }
+  .flow-item:last-child { border-bottom: none; }
+  .flow-item > div { padding: 14px 20px; }
+  .flow-event { font-weight: 600; color: var(--text); background: var(--surface); }
+  .flow-desc { color: var(--text-secondary); }
+  .flow-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em; color: var(--blue);
+  }
+
+  /* ── Rules ── */
+  .rules { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .rule-item {
+    padding: 18px 20px; display: flex; gap: 14px; align-items: start;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-num {
+    width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; background: var(--surface); color: var(--text-tertiary);
+  }
+  .rule-content { flex: 1; }
+  .rule-title { font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 2px; }
+  .rule-desc { font-size: 0.85rem; color: var(--text-tertiary); line-height: 1.5; }
+  .rule-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text-secondary);
+  }
+
+  /* ── Invariant ── */
+  .invariant {
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: var(--radius); padding: 20px 24px; margin: 32px 0;
+    display: flex; gap: 14px; align-items: start;
+  }
+  .invariant-icon {
+    width: 32px; height: 32px; border-radius: 8px; background: var(--bg);
+    border: 1px solid var(--border-light);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .invariant-text { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; }
+  .invariant-text strong { color: var(--text); }
+  .invariant-text code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text);
+  }
+
+  /* ── Nav ── */
+  .back-nav {
+    padding: 20px 0; font-size: 0.85rem;
+  }
+  .back-nav a {
+    color: var(--blue); text-decoration: none; font-weight: 500;
+  }
+  .back-nav a:hover { text-decoration: underline; }
+
+  /* ── Cross-links ── */
+  .cross-links { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .cross-link {
+    display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+    border-bottom: 1px solid var(--border-light); text-decoration: none;
+    color: var(--text); font-size: 0.9rem; transition: background 0.15s;
+  }
+  .cross-link:last-child { border-bottom: none; }
+  .cross-link:hover { background: var(--surface); }
+  .cross-link-label { font-weight: 600; }
+  .cross-link-desc { color: var(--text-tertiary); font-size: 0.82rem; }
+  .cross-link-arrow { margin-left: auto; color: var(--text-tertiary); font-size: 0.85rem; }
+
+  footer {
+    padding: 40px 0; text-align: center;
+    font-size: 0.78rem; color: var(--text-tertiary); border-top: 1px solid var(--border-light);
+  }
+
+  @media (max-width: 640px) {
+    .pillars { grid-template-columns: 1fr; }
+    .flow-item { grid-template-columns: 1fr; }
+    .flow-event { border-bottom: 1px solid var(--border-light); }
+    .hero { padding: 64px 0 48px; }
+    section { padding: 48px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="back-nav"><a href="index.html">&larr; Back to Index</a></div>
+</div>
+
+<div class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">Architecture</div>
+    <h1>KindaVim &amp; Vim Mode</h1>
+    <p>Vim-style navigation across every macOS app, powered by Kanata layers.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="container">
+
+<section>
+  <div class="section-label">Overview</div>
+  <h2>Navigate. Hint. Learn.</h2>
+  <div class="section-desc">Vim motions as Kanata layers, a hint overlay that shows what each key does, and telemetry that tracks which motions the user discovers.</div>
+
+  <div class="pillars">
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Compass / navigation arrows -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="10" ry="2.5" fill="#3d4852" opacity="0.06"/>
+          <circle cx="30" cy="28" r="18" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <circle cx="30" cy="28" r="13" fill="#f5f5f7" stroke="#3d4852" stroke-width="1.2"/>
+          <circle cx="30" cy="28" r="2.5" fill="#3d4852"/>
+          <!-- Arrow up (k) -->
+          <path d="M30 14 L33 20 L27 20 Z" fill="#3d4852"/>
+          <!-- Arrow down (j) -->
+          <path d="M30 42 L27 36 L33 36 Z" fill="#3d4852"/>
+          <!-- Arrow left (h) -->
+          <path d="M16 28 L22 25 L22 31 Z" fill="#3d4852"/>
+          <!-- Arrow right (l) -->
+          <path d="M44 28 L38 31 L38 25 Z" fill="#3d4852"/>
+          <!-- hjkl letters -->
+          <text x="19" y="24" font-family="JetBrains Mono, monospace" font-size="5" fill="#3d4852" font-weight="600" opacity="0.5">h</text>
+          <text x="39" y="24" font-family="JetBrains Mono, monospace" font-size="5" fill="#3d4852" font-weight="600" opacity="0.5">l</text>
+          <text x="33" y="18" font-family="JetBrains Mono, monospace" font-size="5" fill="#3d4852" font-weight="600" opacity="0.5">k</text>
+          <text x="33" y="40" font-family="JetBrains Mono, monospace" font-size="5" fill="#3d4852" font-weight="600" opacity="0.5">j</text>
+        </svg>
+      </div>
+      <h4>Navigate</h4>
+      <p>hjkl motions, word jumps, and line ops across all apps.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Keycap with hint badge -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="10" ry="2.5" fill="#3d4852" opacity="0.06"/>
+          <rect x="12" y="14" width="36" height="32" rx="6" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <rect x="16" y="17" width="28" height="24" rx="3" fill="#f5f5f7" stroke="#3d4852" stroke-width="1.2"/>
+          <text x="30" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" fill="#3d4852" font-weight="600">w</text>
+          <!-- Hint chip -->
+          <rect x="36" y="12" width="16" height="10" rx="3" fill="#3d4852"/>
+          <text x="44" y="19.5" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="6" fill="white" font-weight="600">word</text>
+        </svg>
+      </div>
+      <h4>Hint</h4>
+      <p>Overlay shows available motions on each key.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Chart / learning curve -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="10" ry="2.5" fill="#3d4852" opacity="0.06"/>
+          <rect x="12" y="12" width="36" height="34" rx="4" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <!-- Grid lines -->
+          <line x1="16" y1="22" x2="44" y2="22" stroke="#d2d2d7" stroke-width="0.8"/>
+          <line x1="16" y1="30" x2="44" y2="30" stroke="#d2d2d7" stroke-width="0.8"/>
+          <line x1="16" y1="38" x2="44" y2="38" stroke="#d2d2d7" stroke-width="0.8"/>
+          <!-- Rising curve -->
+          <path d="M18 40 Q24 38 28 32 Q32 26 36 22 Q40 18 44 16" stroke="#3d4852" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <!-- Data points -->
+          <circle cx="18" cy="40" r="2" fill="#3d4852"/>
+          <circle cx="28" cy="32" r="2" fill="#3d4852"/>
+          <circle cx="36" cy="22" r="2" fill="#3d4852"/>
+          <circle cx="44" cy="16" r="2" fill="#3d4852"/>
+        </svg>
+      </div>
+      <h4>Learn</h4>
+      <p>Telemetry tracks which motions the user discovers.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Architecture</div>
+  <h2>The Complete Picture</h2>
+  <div class="section-desc">Kanata provides the vim layer. KeyPath observes mode transitions and renders the hint overlay. Telemetry records what the user tries.</div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 580 360" xmlns="http://www.w3.org/2000/svg" style="max-width:520px; width:100%;">
+      <defs>
+        <marker id="arr" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#86868b"/></marker>
+        <marker id="arr-b" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#0071e3"/></marker>
+        <marker id="arr-d" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#d2d2d7"/></marker>
+      </defs>
+
+      <!-- Kanata vim layer -->
+      <rect x="10" y="20" width="160" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="90" y="40" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">KANATA LAYER</text>
+      <text x="90" y="56" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">(deflayer vim ...)</text>
+
+      <!-- Arrow: Kanata -> key events -->
+      <line x1="170" y1="48" x2="210" y2="48" stroke="#86868b" stroke-width="1.2" marker-end="url(#arr)"/>
+      <text x="190" y="40" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="7.5" fill="#a0a1a7">key events</text>
+
+      <!-- push-msg label -->
+      <rect x="178" y="56" width="54" height="14" rx="3" fill="#f0f5ff" stroke="#cce0ff" stroke-width="0.8"/>
+      <text x="205" y="66" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7" fill="#0071e3">push-msg</text>
+
+      <!-- KindaVimStateAdapter -->
+      <rect x="215" y="20" width="200" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="315" y="40" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">OBSERVER</text>
+      <text x="315" y="56" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#1d1d1f" font-weight="600">KindaVimStateAdapter</text>
+
+      <!-- Arrow down to VimHintLayer -->
+      <line x1="280" y1="76" x2="280" y2="140" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <rect x="288" y="96" width="80" height="18" rx="4" fill="#f0f5ff" stroke="#cce0ff" stroke-width="0.8"/>
+      <text x="328" y="108" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#0071e3">mode snapshot</text>
+
+      <!-- Arrow down to Telemetry -->
+      <line x1="350" y1="76" x2="350" y2="140" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <rect x="358" y="96" width="70" height="18" rx="4" fill="#f0f5ff" stroke="#cce0ff" stroke-width="0.8"/>
+      <text x="393" y="108" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#0071e3">key events</text>
+
+      <!-- VimHintLayer -->
+      <rect x="195" y="145" width="180" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="285" y="165" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">SWIFTUI OVERLAY</text>
+      <text x="285" y="181" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#1d1d1f" font-weight="600">VimHintLayer</text>
+
+      <!-- TelemetryStore -->
+      <rect x="395" y="145" width="170" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="480" y="165" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">LOCAL STORAGE</text>
+      <text x="480" y="181" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#1d1d1f" font-weight="600">KindaVimTelemetryStore</text>
+
+      <!-- VimSequenceObserver -->
+      <rect x="10" y="145" width="170" height="56" rx="10" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="95" y="165" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">SUB-STATE</text>
+      <text x="95" y="181" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#1d1d1f" font-weight="500">VimSequenceObserver</text>
+
+      <!-- Arrow from adapter to sequence observer -->
+      <line x1="215" y1="60" x2="180" y2="60" stroke="#d2d2d7" stroke-width="1" stroke-dasharray="4 3"/>
+      <path d="M95 76 L95 140" fill="none" stroke="#d2d2d7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr-d)"/>
+      <text x="75" y="108" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="7.5" fill="#a0a1a7" transform="rotate(-90, 75, 108)">mode resets</text>
+
+      <!-- User interaction: Caps Lock -->
+      <rect x="10" y="250" width="555" height="44" rx="8" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1"/>
+      <text x="287" y="268" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">USER INPUT</text>
+      <text x="287" y="282" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="10" fill="#1d1d1f">Hold Caps Lock (enters vim layer) &rarr; hjkl / w / b / $ / ... &rarr; Release (returns to base layer)</text>
+
+      <!-- Arrow from user up to kanata -->
+      <line x1="90" y1="250" x2="90" y2="80" stroke="#d2d2d7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr-d)"/>
+
+      <!-- environment.json label -->
+      <rect x="430" y="20" width="135" height="56" rx="10" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="497" y="40" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="600" letter-spacing="0.04em">FILE WATCHER</text>
+      <text x="497" y="56" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#1d1d1f" font-weight="500">environment.json</text>
+
+      <!-- Arrow from env.json to adapter -->
+      <line x1="430" y1="48" x2="418" y2="48" stroke="#d2d2d7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr-d)"/>
+
+      <!-- Caption -->
+      <text x="287" y="320" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8.5" fill="#a0a1a7">Kanata owns the layers. KeyPath only observes and renders. Blue arrows show data flow; dashed arrows show secondary signals.</text>
+    </svg>
+  </div>
+
+  <div class="invariant">
+    <div class="invariant-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8 L12 14" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="16.5" r="0.8" fill="#3d4852"/></svg>
+    </div>
+    <div class="invariant-text"><strong>Core invariant.</strong> KindaVim adds no new input mechanism. Every vim motion is a standard macOS keyboard shortcut (<code>Cmd+Left</code>, <code>Option+Delete</code>, etc.) remapped through Kanata layers. The hint layer is pure UI &mdash; removing it changes nothing about functionality.</div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Types</div>
+  <h2>Four Components, Four Jobs</h2>
+  <div class="section-desc">Each component has a single responsibility. Together they deliver vim motions with visual feedback and learning telemetry.</div>
+
+  <div class="types-grid">
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><path d="M8 12 L11 15 L16 9" stroke="#3d4852" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="type-name">KindaVimStateAdapter</span>
+        <span class="type-badge">Observer</span>
+      </div>
+      <div class="type-desc">Bridges KindaVim runtime signals into KeyPath UI state. Watches <code>environment.json</code> for mode changes (<code>insert</code>, <code>normal</code>, <code>visual</code>, <code>operatorPending</code>). Emits a strict snapshot with <code>mode</code>, <code>source</code>, <code>confidence</code>, and <code>isStale</code>. De-noises duplicate unchanged states. Falls back to <code>unknown</code> when the file is missing.</div>
+      <pre><span class="kw">@MainActor</span> <span class="kw">@Observable</span>
+<span class="kw">final class</span> <span class="tp">KindaVimStateAdapter</span> {
+    <span class="kw">enum</span> <span class="tp">Mode</span>: <span class="tp">String</span> { <span class="kw">case</span> insert, normal, visual, operatorPending, unknown }
+    <span class="kw">enum</span> <span class="tp">Source</span>: <span class="tp">String</span> { <span class="kw">case</span> json, karabiner, fallback }
+
+    <span class="kw">private(set) var</span> <span class="pr">state</span>: <span class="tp">Snapshot</span>   <span class="cm">// mode + source + confidence + isStale</span>
+    <span class="kw">var</span> <span class="pr">isEnvironmentFilePresent</span>: <span class="tp">Bool</span>
+}</pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="13" rx="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><rect x="5" y="6.5" width="14" height="8.5" rx="0.5" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/><line x1="9" y1="20" x2="15" y2="20" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="20" stroke="#3d4852" stroke-width="1.5"/></svg>
+        </div>
+        <span class="type-name">VimHintLayer</span>
+        <span class="type-badge">SwiftUI View</span>
+      </div>
+      <div class="type-desc">Renders a hint label on every keycap that has a corresponding vim command. <code>hjkl</code> get large accent-coloured arrow glyphs; other motions render as a smaller chip. Advanced hints are gated behind the user's "Show all keys" toggle. Lives as a sibling layer in <code>OverlayKeyboardView</code>'s ZStack. Uses <code>PhysicalLayout</code> for key geometry.</div>
+      <pre><span class="kw">@MainActor</span>
+<span class="kw">struct</span> <span class="tp">VimHintLayer</span>: <span class="tp">View</span> {
+    <span class="kw">let</span> <span class="pr">layout</span>: <span class="tp">PhysicalLayout</span>
+    <span class="kw">let</span> <span class="pr">scale</span>: <span class="tp">CGFloat</span>
+    <span class="kw">let</span> <span class="pr">keyFrame</span>: (<span class="tp">PhysicalKey</span>) -> <span class="tp">CGRect</span>
+
+    <span class="cm">// Renders when adapter mode is normal/visual/operatorPending</span>
+    <span class="cm">// Suppressed in terminal apps unless explicitly enabled</span>
+}</pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 20 L3 8 L8 4 L13 8 L13 12 L18 8 L23 12 L23 20" stroke="#3d4852" stroke-width="1.5" stroke-linejoin="round" fill="#e8e8ed"/><line x1="3" y1="20" x2="23" y2="20" stroke="#3d4852" stroke-width="1.5"/></svg>
+        </div>
+        <span class="type-name">KindaVimTelemetryStore</span>
+        <span class="type-badge">Local Storage</span>
+      </div>
+      <div class="type-desc">Local-only, opt-in usage counters. Records aggregate frequencies (how many times <code>h</code> was pressed), never sequences or timestamps. Data stored at <code>~/Library/Application Support/KeyPath/kindavim-telemetry.json</code>. Off by default, user-deletable, never transmitted. Powers the insights chart that tracks vim adoption over 30 days.</div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="6" width="20" height="12" rx="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><rect x="4" y="8" width="4" height="4" rx="0.5" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/><rect x="10" y="8" width="4" height="4" rx="0.5" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/><rect x="16" y="8" width="4" height="4" rx="0.5" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/><rect x="6" y="13" width="12" height="3" rx="0.5" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/></svg>
+        </div>
+        <span class="type-name">Kanata vim layer</span>
+        <span class="type-badge">Config</span>
+      </div>
+      <div class="type-desc">The vim layer is a standard Kanata <code>(deflayer vim ...)</code> definition. Motions are macOS shortcuts remapped to vim keys: <code>h</code> sends <code>Left</code>, <code>w</code> sends <code>Option+Right</code>, <code>$</code> sends <code>Cmd+Right</code>. Mode transitions use <code>push-msg</code> to notify the state adapter. No special runtime support needed &mdash; the same mechanism that powers every other Kanata layer.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Data Flow</div>
+  <h2>One Keystroke, Full Loop</h2>
+  <div class="section-desc">From holding Caps Lock to telemetry recording, every step is observable and stateless.</div>
+
+  <div class="flow-list">
+    <div class="flow-item">
+      <div class="flow-event">Hold Caps Lock</div>
+      <div class="flow-desc">Kanata activates the <code>vim</code> layer via <code>tap-hold</code>. <code>push-msg</code> notifies mode transition.</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Adapter observes</div>
+      <div class="flow-desc"><code>KindaVimStateAdapter</code> reads <code>environment.json</code>, emits <code>mode: .normal</code> snapshot.</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Hints appear</div>
+      <div class="flow-desc"><code>VimHintLayer</code> renders motion labels on every keycap. <code>hjkl</code> get large arrows, others get small chips.</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Motion keys</div>
+      <div class="flow-desc">User presses <code>w</code> &rarr; Kanata sends <code>Option+Right</code> (word forward). Standard macOS shortcut.</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Release Caps Lock</div>
+      <div class="flow-desc">Kanata returns to base layer. Adapter emits <code>mode: .insert</code>. Hints disappear.</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Telemetry records</div>
+      <div class="flow-desc"><code>KindaVimTelemetryStore</code> increments the daily counter for each motion used. Aggregate only, no sequences.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Principles</div>
+  <h2>Design Rules</h2>
+  <div class="section-desc">Four constraints that keep vim mode simple and safe.</div>
+
+  <div class="rules">
+    <div class="rule-item">
+      <div class="rule-num">1</div>
+      <div class="rule-content">
+        <div class="rule-title">Vim mode is Kanata layers, not app-level key interception</div>
+        <div class="rule-desc">Every vim motion is defined in <code>(deflayer vim ...)</code>. KeyPath never intercepts keystrokes itself. The same Kanata engine that runs every other layer runs vim.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">2</div>
+      <div class="rule-content">
+        <div class="rule-title">VimHintLayer only shows in terminal apps when explicitly enabled</div>
+        <div class="rule-desc">Terminal apps have their own vim. The hint layer checks <code>showHintsInTerminals</code> and suppresses itself by default in terminals to avoid visual noise over real vim.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">3</div>
+      <div class="rule-content">
+        <div class="rule-title">The state adapter observes layers &mdash; it does not control them</div>
+        <div class="rule-desc"><code>KindaVimStateAdapter</code> is read-only. It watches <code>environment.json</code> and emits snapshots. It never sends commands to Kanata or modifies layer state.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">4</div>
+      <div class="rule-content">
+        <div class="rule-title">Motions are macOS keyboard shortcuts mapped to vim keys</div>
+        <div class="rule-desc"><code>h</code> = <code>Left</code>, <code>w</code> = <code>Option+Right</code>, <code>dd</code> = <code>Cmd+Shift+K</code>, <code>$</code> = <code>Cmd+Right</code>. No custom text engine. Every motion works anywhere macOS shortcuts work.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">See Also</div>
+  <h2>Related Architecture</h2>
+
+  <div class="cross-links">
+    <a class="cross-link" href="overlay-architecture.html">
+      <span class="cross-link-label">Overlay Architecture</span>
+      <span class="cross-link-desc">VimHintLayer renders inside the overlay keyboard view</span>
+      <span class="cross-link-arrow">&rarr;</span>
+    </a>
+    <a class="cross-link" href="layouts-architecture.html">
+      <span class="cross-link-label">Layouts Architecture</span>
+      <span class="cross-link-desc">Vim keys depend on the physical layout for correct positioning</span>
+      <span class="cross-link-arrow">&rarr;</span>
+    </a>
+    <a class="cross-link" href="rules-architecture.html">
+      <span class="cross-link-label">Rules Architecture</span>
+      <span class="cross-link-desc">Vim rules are RuleCollections like any other rule pack</span>
+      <span class="cross-link-arrow">&rarr;</span>
+    </a>
+    <a class="cross-link" href="index.html">
+      <span class="cross-link-label">Architecture Index</span>
+      <span class="cross-link-desc">All architecture documents</span>
+      <span class="cross-link-arrow">&rarr;</span>
+    </a>
+  </div>
+</section>
+
+</div>
+
+<footer>KeyPath KindaVim Architecture &mdash; May 2026</footer>
+
+</body>
+</html>
