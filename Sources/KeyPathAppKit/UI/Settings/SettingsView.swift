@@ -205,7 +205,10 @@ struct StatusSettingsTabView: View {
                         PermissionStatusRow(
                             title: "KeyPath Input Monitoring",
                             icon: "keyboard",
-                            status: permissionSnapshot?.keyPath.inputMonitoring,
+                            // No Apple API to query KeyPath IM — always .unknown.
+                            // Kanata's IM grant is what matters. Show green to avoid
+                            // a permanent unresolvable "?" in Settings.
+                            status: .granted,
                             isKanata: false,
                             hasFullDiskAccess: hasFullDiskAccess,
                             onTap: { wizardInitialPage = .inputMonitoring }
