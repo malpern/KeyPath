@@ -269,9 +269,6 @@ final class KanataDaemonService {
             }
         }
 
-        // Note: Previously re-evaluated status on running→running(different PID) transitions.
-        // Removed: the recursive publishStatus() call could cascade unboundedly when PIDs
-        // differ across evaluations, monopolizing the MainActor under load.
     }
 
     /// Log service state failures to persistent crash log for later analysis

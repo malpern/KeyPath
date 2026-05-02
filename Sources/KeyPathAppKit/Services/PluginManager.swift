@@ -45,7 +45,9 @@ public final class PluginManager {
     private var loadedBundlePaths: Set<String> = []
 
     private var userPluginsDirectory: URL {
-        let appSupport = Foundation.FileManager().urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        guard let appSupport = Foundation.FileManager().urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            fatalError("Application Support directory unavailable")
+        }
         return appSupport.appendingPathComponent("KeyPath/Plugins", isDirectory: true)
     }
 

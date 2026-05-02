@@ -35,9 +35,6 @@ class KanataViewModel {
     var activeRuntimePathTitle: String?
     var activeRuntimePathDetail: String?
 
-    // UI State Properties (Legacy state removed - use InstallerEngine/SystemContext)
-    // Removed: errorReason, showWizard, launchFailureStatus
-
     // Validation-specific UI state
     var showingValidationAlert = false
     var validationAlertTitle = ""

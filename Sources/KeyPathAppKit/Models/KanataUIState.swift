@@ -31,7 +31,6 @@ enum SaveStatus: Equatable, Sendable {
 /// Snapshot of RuntimeCoordinator state for UI updates
 struct KanataUIState: Sendable {
     // Core Status
-    // Removed: isRunning
     let lastError: String?
     let lastWarning: String?
     let keyMappings: [KeyMapping]
@@ -43,9 +42,6 @@ struct KanataUIState: Sendable {
     let lastConfigUpdate: Date
     let activeRuntimePathTitle: String?
     let activeRuntimePathDetail: String?
-
-    // UI State (Legacy status removed)
-    // Removed: errorReason, showWizard, launchFailureStatus
 
     // Validation & Save Status
     let validationError: ConfigValidationError?

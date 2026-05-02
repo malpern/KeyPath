@@ -47,10 +47,12 @@ public actor ActivityLogStorage {
         encryption = ActivityLogEncryption.shared
 
         // Use ~/Library/Application Support/KeyPath/ActivityLog/
-        let appSupport = FileManager.default.urls(
+        guard let appSupport = FileManager.default.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
-        ).first!
+        ).first else {
+            fatalError("Application Support directory unavailable")
+        }
         baseDirectory = appSupport
             .appendingPathComponent("KeyPath")
             .appendingPathComponent(Self.directoryName)

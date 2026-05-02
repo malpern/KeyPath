@@ -8,8 +8,6 @@ import KeyPathPermissions
 import KeyPathWizardCore
 import Network
 
-// KeyMapping is now in Models/KeyMapping.swift
-
 // Thin orchestrator for Kanata process management and configuration.
 //
 // # Architecture: Orchestrator + Focused Types
@@ -64,8 +62,6 @@ import Network
 //
 // All other methods are internal implementation details and may change.
 
-// SaveStatus is now in Models/KanataUIState.swift
-
 @MainActor
 public class RuntimeCoordinator: SaveCoordinatorDelegate {
     final class NotificationTokenStore: @unchecked Sendable {
@@ -96,7 +92,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     // ViewModel reads these via getCurrentUIState() snapshot method
 
     // Core status tracking
-    // Removed: isRunning
     public var lastError: String?
     var lastWarning: String?
     var keyMappings: [KeyMapping] = []
@@ -499,8 +494,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     // MARK: - Public Interface
 
-    // Removed: checkLaunchDaemonStatus, killProcess
-
     public func updateStatus() async {
         notifyStateChanged()
     }
@@ -777,8 +770,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     // MARK: - Configuration Management
 
-    // Logic moved to ConfigurationManager
-
     func clearValidationError() {
         validationError = nil
         notifyStateChanged()
@@ -994,16 +985,12 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     // MARK: - Enhanced Config Validation and Recovery
 
-    // Logic moved to ConfigurationManager
-
     /// Opens a file in Zed editor with fallback options
     func openFileInZed(_ filePath: String) async {
         await configurationManager.openInEditor(filePath)
     }
 
     // MARK: - Kanata Arguments Builder
-
-    // Logic moved to ConfigurationManager
 
     // MARK: - AI Configuration Repair
 

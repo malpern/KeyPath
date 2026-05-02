@@ -373,7 +373,7 @@ final class KanataErrorMonitor {
         }
 
         if !recentCritical.isEmpty {
-            healthStatus = .critical(reason: recentCritical.first!.message)
+            healthStatus = .critical(reason: recentCritical.first?.message ?? "Unknown critical error")
         } else if recentWarnings.count >= 5 {
             healthStatus = .degraded(reason: "Multiple warnings detected")
         } else {

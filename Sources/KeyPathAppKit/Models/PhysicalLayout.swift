@@ -190,8 +190,7 @@ struct PhysicalLayout: Identifiable {
     /// These are candidates for drawer key injection. Layer-taps (LT) resolve to their
     /// base key with a real keyCode, so they're naturally excluded.
     static func isLayerKeyLabel(_ label: String) -> Bool {
-        guard label.count >= 2, label.count <= 3 else { return false }
-        let first = label.first!
+        guard label.count >= 2, label.count <= 3, let first = label.first else { return false }
         guard "LTD".contains(first) else { return false }
         return label.dropFirst().allSatisfy(\.isNumber)
     }

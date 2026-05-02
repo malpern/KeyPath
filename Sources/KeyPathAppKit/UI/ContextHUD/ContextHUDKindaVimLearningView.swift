@@ -76,7 +76,7 @@ struct ContextHUDKindaVimLearningView: View {
 
         for group in groups {
             let weight = group.entries.count + 2
-            let minIdx = heights.enumerated().min(by: { $0.element < $1.element })!.offset
+            guard let minIdx = heights.enumerated().min(by: { $0.element < $1.element })?.offset else { continue }
             columns[minIdx].append(group)
             heights[minIdx] += weight
         }
