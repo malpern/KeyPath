@@ -7,11 +7,6 @@ extension RuntimeCoordinator {
     /// `RuntimeCoordinator.RuntimeStatus`.
     typealias RuntimeStatus = ServiceLifecycleCoordinator.RuntimeStatus
 
-    /// Starts Kanata with VirtualHID connection validation
-    func startKanataWithValidation() async {
-        await serviceLifecycleCoordinator.startKanataWithValidation()
-    }
-
     // MARK: - Service Management Helpers
 
     @discardableResult
@@ -33,15 +28,4 @@ extension RuntimeCoordinator {
         await serviceLifecycleCoordinator.currentRuntimeStatus()
     }
 
-    /// Check if permission issues should trigger the wizard
-    func shouldShowWizardForPermissions() async -> Bool {
-        await serviceLifecycleCoordinator.shouldShowWizardForPermissions()
-    }
-
-    // MARK: - UI-Focused Lifecycle Methods (from SimpleRuntimeCoordinator)
-
-    /// Check if this is a fresh install (no Kanata binary or config)
-    func isFirstTimeInstall() -> Bool {
-        installationCoordinator.isFirstTimeInstall(configPath: KeyPathConstants.Config.mainConfigPath)
-    }
 }

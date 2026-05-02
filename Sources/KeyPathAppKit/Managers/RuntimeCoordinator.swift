@@ -699,17 +699,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         await systemRequirementsChecker.isKarabinerDriverExtensionEnabled()
     }
 
-    func areKarabinerBackgroundServicesEnabled() async -> Bool {
-        await systemRequirementsChecker.areKarabinerBackgroundServicesEnabled()
-    }
-
     public func isKarabinerElementsRunning() async -> Bool {
         await systemRequirementsChecker.isKarabinerElementsRunning()
     }
 
-    func disableKarabinerElementsPermanently() async -> Bool {
-        await systemRequirementsChecker.disableKarabinerElementsPermanently()
-    }
 
     func killKarabinerGrabber() async -> Bool {
         await systemRequirementsChecker.killKarabinerGrabber()

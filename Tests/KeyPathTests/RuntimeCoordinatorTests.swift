@@ -53,11 +53,6 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
         XCTAssertNotNil(validation.errors)
     }
 
-    func testSystemDiagnostics() async {
-        let systemDiagnostics = await manager.getSystemDiagnostics()
-        XCTAssertNotNil(systemDiagnostics)
-    }
-
     func testKeyMappingStorage() {
         let testMapping = KeyMapping(input: "caps", output: "escape")
         manager.keyMappings.append(testMapping)

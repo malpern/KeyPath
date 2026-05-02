@@ -58,7 +58,4 @@ extension RuntimeCoordinator {
         return success
     }
 
-    func getSystemDiagnostics() async -> [KanataDiagnostic] {
-        await diagnosticsManager.getSystemDiagnostics(engineClient: engineClient)
-    }
 }
