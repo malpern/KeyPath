@@ -215,18 +215,16 @@ public class WizardStateMachine {
         currentPage = page
     }
 
-    /// Navigate to next appropriate page based on system state (used by determinism tests)
+    /// Navigate to next appropriate page based on system state
     public func nextPage() {
-        guard let snapshot = systemSnapshot else {
-            AppLogger.shared.warn("⚠️ [WizardStateMachine] Cannot navigate - no system state")
-            return
+        Task { @MainActor in
+            if let next = await getNextPage(for: wizardState, issues: wizardIssues) {
+                AppLogger.shared.log(
+                    "🎯 [WizardStateMachine] Navigate: \(currentPage.rawValue) → \(next.rawValue)"
+                )
+                currentPage = next
+            }
         }
-
-        let next = determineNextPage(from: currentPage, state: snapshot)
-        AppLogger.shared.log(
-            "🎯 [WizardStateMachine] Navigate: \(currentPage.rawValue) → \(next.rawValue)"
-        )
-        currentPage = next
     }
 
     /// Navigate to previous page based on hardcoded flow
@@ -239,31 +237,6 @@ public class WizardStateMachine {
     }
 
     // MARK: - Private Navigation Helpers
-
-    private func determineNextPage(from current: WizardPage, state: SystemSnapshot) -> WizardPage {
-        // Use the shared pure router to choose target page based on latest snapshot.
-        // Adapt SystemSnapshot to SystemContext so we can reuse existing adapter logic.
-        let placeholderSystem = EngineSystemInfo(macOSVersion: "unknown", driverCompatible: true)
-        let context = SystemContext(
-            permissions: state.permissions,
-            services: state.health,
-            conflicts: state.conflicts,
-            components: state.components,
-            helper: state.helper,
-            system: placeholderSystem,
-            timestamp: state.timestamp
-        )
-        let adapted = SystemContextAdapter.adapt(context)
-        let target = WizardRouter.route(
-            state: adapted.state,
-            issues: adapted.issues,
-            helperInstalled: state.helper.isInstalled,
-            helperNeedsApproval: WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
-        )
-
-        // If the router says stay, remain on the current page; otherwise move to target.
-        return target == current ? current : target
-    }
 
     private func determinePreviousPage(from current: WizardPage) -> WizardPage {
         // Simple reverse navigation
