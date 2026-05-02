@@ -537,9 +537,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let helperStatus = SMAppService.daemon(plistName: "com.keypath.helper.plist").status
         let daemonStatus = SMAppService.daemon(plistName: "com.keypath.kanata.plist").status
 
-        let isFresh = helperStatus == .notRegistered && daemonStatus == .notRegistered
+        // SMAppService status persists across uninstall/reinstall, so .notRegistered
+        // is only true on a truly virgin system. Also check if the daemon plist
+        // actually exists — if not, there's nothing to auto-launch.
+        let daemonPlistExists = Foundation.FileManager.default.fileExists(
+            atPath: KanataDaemonManager.getActivePlistPath()
+        )
+
+        let isFresh = (helperStatus == .notRegistered && daemonStatus == .notRegistered)
+            || !daemonPlistExists
+
         AppLogger.shared.log(
-            "🔍 [AppDelegate] Fresh install check: helper=\(helperStatus), daemon=\(daemonStatus), isFresh=\(isFresh)"
+            "🔍 [AppDelegate] Fresh install check: helper=\(helperStatus), daemon=\(daemonStatus), plistExists=\(daemonPlistExists), isFresh=\(isFresh)"
         )
         return isFresh
     }
