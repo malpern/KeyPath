@@ -610,8 +610,18 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             }
         #endif
 
-        guard let logChunk = readRecentKanataStderrLog(), !logChunk.isEmpty else {
+        guard let fullLog = readRecentKanataStderrLog(), !fullLog.isEmpty else {
             return .clear
+        }
+
+        // Only examine errors from the most recent kanata launch.
+        // The stderr log accumulates across restarts; stale errors from previous
+        // runs (before permissions were granted) cause false positives.
+        let logChunk: String
+        if let lastLaunchRange = fullLog.range(of: "[kanata-launcher] Launching Kanata", options: .backwards) {
+            logChunk = String(fullLog[lastLaunchRange.lowerBound...])
+        } else {
+            logChunk = fullLog
         }
 
         var permissionRejected = false
