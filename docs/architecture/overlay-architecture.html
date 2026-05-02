@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Keyboard Overlay — Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f5f5f7;
+    --surface-2: #ebebed;
+    --border: #d2d2d7;
+    --border-light: #e8e8ed;
+    --text: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --text-tertiary: #86868b;
+    --accent: #1d1d1f;
+    --blue: #0071e3;
+    --code-bg: #f5f5f7;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.58;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 740px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Hero ── */
+  .hero { padding: 96px 0 64px; text-align: center; }
+  .hero-eyebrow {
+    font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px;
+  }
+  .hero h1 {
+    font-size: clamp(2.4rem, 5.5vw, 3.2rem); font-weight: 700;
+    letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px;
+    color: var(--text);
+  }
+  .hero p {
+    font-size: 1.15rem; color: var(--text-secondary); max-width: 480px;
+    margin: 0 auto; line-height: 1.5;
+  }
+
+  /* ── Sections ── */
+  section { padding: 64px 0; }
+  .divider { height: 1px; background: var(--border-light); }
+  .section-label {
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px;
+  }
+  h2 {
+    font-size: clamp(1.6rem, 3.5vw, 2rem); font-weight: 700;
+    letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 10px;
+  }
+  .section-desc {
+    font-size: 1rem; color: var(--text-secondary); max-width: 520px;
+    margin-bottom: 36px; line-height: 1.55;
+  }
+  h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
+  p { color: var(--text-secondary); margin-bottom: 14px; }
+
+  /* ── Three pillars ── */
+  .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border-light); border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; margin: 36px 0; }
+  .pillar { background: var(--bg); padding: 32px 24px; text-align: center; }
+  .pillar-icon { margin-bottom: 14px; display: flex; justify-content: center; }
+  .pillar h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+  .pillar p { font-size: 0.85rem; color: var(--text-tertiary); margin: 0; line-height: 1.45; }
+
+  /* ── Diagram ── */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    margin: 36px 0;
+    display: flex; justify-content: center;
+  }
+
+  /* ── Type cards ── */
+  .types-grid { display: flex; flex-direction: column; gap: 12px; margin: 32px 0; }
+  .type-card {
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .type-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .type-icon {
+    width: 36px; height: 36px; border-radius: 8px; background: var(--surface);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .type-name {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; font-size: 0.95rem;
+    font-weight: 600; color: var(--text);
+  }
+  .type-badge {
+    font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    letter-spacing: 0.03em; text-transform: uppercase;
+    background: var(--surface); color: var(--text-tertiary); border: 1px solid var(--border-light);
+  }
+  .type-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.55; }
+  .type-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em;
+    background: var(--surface); padding: 1px 5px; border-radius: 4px; color: var(--text);
+  }
+
+  /* ── Code ── */
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border-light);
+    border-radius: 10px; padding: 18px 20px; overflow-x: auto;
+    font-size: 0.8rem; line-height: 1.75; margin: 14px 0 0;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; color: var(--text);
+  }
+  .kw { color: #a626a4; }
+  .fn { color: #4078f2; }
+  .tp { color: #986801; }
+  .cm { color: #a0a1a7; }
+  .pr { color: #e45649; }
+
+  /* ── Data flow ── */
+  .flow-list { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .flow-item {
+    display: grid; grid-template-columns: 140px 1fr; gap: 0;
+    font-size: 0.9rem; border-bottom: 1px solid var(--border-light);
+  }
+  .flow-item:last-child { border-bottom: none; }
+  .flow-item > div { padding: 14px 20px; }
+  .flow-event { font-weight: 600; color: var(--text); background: var(--surface); }
+  .flow-desc { color: var(--text-secondary); }
+  .flow-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em; color: var(--blue);
+  }
+
+  /* ── Rules ── */
+  .rules { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .rule-item {
+    padding: 18px 20px; display: flex; gap: 14px; align-items: start;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-num {
+    width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; background: var(--surface); color: var(--text-tertiary);
+  }
+  .rule-content { flex: 1; }
+  .rule-title { font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 2px; }
+  .rule-desc { font-size: 0.85rem; color: var(--text-tertiary); line-height: 1.5; }
+  .rule-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text-secondary);
+  }
+
+  /* ── Invariant ── */
+  .invariant {
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: var(--radius); padding: 20px 24px; margin: 32px 0;
+    display: flex; gap: 14px; align-items: start;
+  }
+  .invariant-icon {
+    width: 32px; height: 32px; border-radius: 8px; background: var(--bg);
+    border: 1px solid var(--border-light);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .invariant-text { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; }
+  .invariant-text strong { color: var(--text); }
+  .invariant-text code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text);
+  }
+
+  footer {
+    padding: 40px 0; text-align: center;
+    font-size: 0.78rem; color: var(--text-tertiary); border-top: 1px solid var(--border-light);
+  }
+
+  @media (max-width: 640px) {
+    .pillars { grid-template-columns: 1fr; }
+    .flow-item { grid-template-columns: 1fr; }
+    .flow-event { border-bottom: 1px solid var(--border-light); }
+    .hero { padding: 64px 0 48px; }
+    section { padding: 48px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">Architecture</div>
+    <h1>Live Keyboard Overlay</h1>
+    <p>A floating window that shows what your keyboard is doing right now.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="container">
+
+<section>
+  <div class="section-label">Overview</div>
+  <h2>Capture. Visualize. Interact.</h2>
+  <div class="section-desc">The overlay monitors keystrokes system-wide, renders them on a physical keyboard layout in real time, and lets you click keys to remap them.</div>
+
+  <div class="pillars">
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Isometric antenna / signal capture -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="10" ry="2.5" fill="#3d4852" opacity="0.06"/>
+          <!-- Base -->
+          <rect x="27" y="30" width="6" height="24" rx="2" fill="#d2d2d7" stroke="#3d4852" stroke-width="1.8"/>
+          <rect x="29" y="32" width="2" height="20" rx="0.5" fill="white" opacity="0.25"/>
+          <!-- Signal waves -->
+          <path d="M30 28 Q22 22 30 14" fill="none" stroke="#3d4852" stroke-width="1.4" stroke-linecap="round" opacity="0.2"/>
+          <path d="M30 28 Q18 18 30 6" fill="none" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round" opacity="0.12"/>
+          <path d="M30 28 Q38 22 30 14" fill="none" stroke="#3d4852" stroke-width="1.4" stroke-linecap="round" opacity="0.2"/>
+          <path d="M30 28 Q42 18 30 6" fill="none" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round" opacity="0.12"/>
+          <!-- Tip -->
+          <circle cx="30" cy="28" r="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/>
+          <circle cx="30" cy="28" r="1.2" fill="#3d4852" opacity="0.3"/>
+        </svg>
+      </div>
+      <h4>Capture</h4>
+      <p>CGEvent tap monitors all keystrokes system-wide</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Isometric keyboard / display -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="52" rx="14" ry="3" fill="#3d4852" opacity="0.06"/>
+          <!-- Keyboard body -->
+          <rect x="8" y="24" width="44" height="26" rx="4" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <rect x="10" y="26" width="40" height="22" rx="2" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/>
+          <!-- Key grid row 1 -->
+          <rect x="13" y="29" width="5" height="4" rx="0.8" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <rect x="20" y="29" width="5" height="4" rx="0.8" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <rect x="27" y="29" width="5" height="4" rx="0.8" fill="#d2d2d7" stroke="#3d4852" stroke-width="0.8"/>
+          <rect x="34" y="29" width="5" height="4" rx="0.8" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <rect x="41" y="29" width="5" height="4" rx="0.8" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <!-- Key grid row 2 -->
+          <rect x="13" y="35" width="5" height="4" rx="0.8" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <rect x="20" y="35" width="5" height="4" rx="0.8" fill="#d2d2d7" stroke="#3d4852" stroke-width="0.8"/>
+          <rect x="27" y="35" width="5" height="4" rx="0.8" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <rect x="34" y="35" width="5" height="4" rx="0.8" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <rect x="41" y="35" width="5" height="4" rx="0.8" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <!-- Spacebar -->
+          <rect x="17" y="41" width="26" height="4" rx="1" fill="white" stroke="#d2d2d7" stroke-width="0.6"/>
+          <!-- Glow on pressed key -->
+          <circle cx="29.5" cy="31" r="6" fill="#3d4852" opacity="0.04"/>
+        </svg>
+      </div>
+      <h4>Visualize</h4>
+      <p>SwiftUI renders key state on the selected physical layout</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Isometric cursor / click -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="32" cy="52" rx="8" ry="2" fill="#3d4852" opacity="0.06"/>
+          <!-- Cursor arrow -->
+          <path d="M18 10 L18 40 L26 34 L34 46 L38 44 L30 32 L40 30 Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M18 10 L18 40 L26 34" fill="none" stroke="white" stroke-width="0.8" opacity="0.4"/>
+          <!-- Click ripple -->
+          <circle cx="18" cy="10" r="5" fill="none" stroke="#3d4852" stroke-width="0.8" opacity="0.15"/>
+          <circle cx="18" cy="10" r="9" fill="none" stroke="#3d4852" stroke-width="0.6" opacity="0.08"/>
+        </svg>
+      </div>
+      <h4>Interact</h4>
+      <p>Click keys to remap them, open the inspector drawer for settings</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Architecture</div>
+  <h2>The Complete Picture</h2>
+  <div class="section-desc">Two input streams converge on the controller, which drives the SwiftUI overlay and its inspector panel.</div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 620 420" xmlns="http://www.w3.org/2000/svg" style="max-width:580px; width:100%;">
+      <defs>
+        <marker id="arr" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#86868b"/></marker>
+        <marker id="arr-b" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#0071e3"/></marker>
+        <marker id="arr-d" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#d2d2d7"/></marker>
+      </defs>
+
+      <!-- CGEvent Tap (input 1) -->
+      <rect x="10" y="20" width="130" height="44" rx="8" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1"/>
+      <text x="75" y="37" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#86868b">CGEvent Tap</text>
+      <text x="75" y="51" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8" fill="#a0a1a7">system-wide keystrokes</text>
+
+      <!-- Arrow from CGEvent to ViewModel -->
+      <line x1="140" y1="42" x2="195" y2="42" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+
+      <!-- ViewModel -->
+      <rect x="200" y="14" width="240" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="248" y="37" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">VIEWMODEL</text>
+      <text x="248" y="53" font-family="JetBrains Mono, monospace" font-size="11" fill="#1d1d1f" font-weight="600">KeyboardVisualizationViewModel</text>
+
+      <!-- Arrow from ViewModel down to OverlayView -->
+      <line x1="320" y1="70" x2="320" y2="118" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <rect x="332" y="82" width="68" height="18" rx="4" fill="#f0f5ff" stroke="#cce0ff" stroke-width="0.8"/>
+      <text x="366" y="94" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#0071e3">keyStates</text>
+
+      <!-- LiveKeyboardOverlayView -->
+      <rect x="200" y="122" width="240" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="248" y="145" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">SWIFTUI VIEW</text>
+      <text x="248" y="161" font-family="JetBrains Mono, monospace" font-size="11" fill="#1d1d1f" font-weight="600">LiveKeyboardOverlayView</text>
+
+      <!-- Kanata TCP (input 2) -->
+      <rect x="10" y="216" width="130" height="44" rx="8" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1"/>
+      <text x="75" y="233" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#86868b">Kanata TCP</text>
+      <text x="75" y="247" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8" fill="#a0a1a7">layer change events</text>
+
+      <!-- Arrow from Kanata to Controller -->
+      <line x1="140" y1="238" x2="195" y2="238" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <rect x="144" y="218" width="48" height="14" rx="3" fill="#f0f5ff" stroke="#cce0ff" stroke-width="0.8"/>
+      <text x="168" y="228" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7" fill="#0071e3">notify</text>
+
+      <!-- LiveKeyboardOverlayController -->
+      <rect x="200" y="210" width="240" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="248" y="233" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">CONTROLLER</text>
+      <text x="248" y="249" font-family="JetBrains Mono, monospace" font-size="11" fill="#1d1d1f" font-weight="600">LiveKeyboardOverlayController</text>
+
+      <!-- Arrow from Controller up to View (manages) -->
+      <path d="M440 210 Q460 178 440 150" fill="none" stroke="#d2d2d7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr-d)"/>
+      <text x="468" y="178" font-family="-apple-system, sans-serif" font-size="8" fill="#a0a1a7">manages</text>
+
+      <!-- Arrow from Controller down to Inspector -->
+      <line x1="320" y1="266" x2="320" y2="314" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <rect x="332" y="278" width="56" height="18" rx="4" fill="#f0f5ff" stroke="#cce0ff" stroke-width="0.8"/>
+      <text x="360" y="290" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#0071e3">toggle</text>
+
+      <!-- Inspector Panel -->
+      <rect x="200" y="318" width="240" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="248" y="341" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">INSPECTOR PANEL</text>
+      <text x="248" y="357" font-family="JetBrains Mono, monospace" font-size="11" fill="#1d1d1f" font-weight="600">OverlayInspectorPanel</text>
+
+      <!-- Inspector tabs -->
+      <rect x="460" y="318" width="150" height="56" rx="8" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1"/>
+      <text x="535" y="336" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="600" letter-spacing="0.04em">TABS</text>
+      <text x="535" y="350" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#1d1d1f">Mapper | Rules | Keymaps</text>
+      <text x="535" y="364" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#1d1d1f">Layouts | Devices</text>
+      <line x1="440" y1="346" x2="455" y2="346" stroke="#d2d2d7" stroke-width="1.2" marker-end="url(#arr-d)"/>
+
+      <!-- Extensions label cluster -->
+      <rect x="490" y="210" width="120" height="56" rx="8" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1"/>
+      <text x="550" y="228" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="600" letter-spacing="0.04em">EXTENSIONS</text>
+      <text x="550" y="240" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#1d1d1f">+LayerState</text>
+      <text x="550" y="250" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#1d1d1f">+LauncherSession</text>
+      <text x="550" y="260" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#1d1d1f">+KeyClickHandling</text>
+      <line x1="440" y1="238" x2="485" y2="238" stroke="#d2d2d7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr-d)"/>
+
+      <!-- Footer label -->
+      <text x="310" y="406" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8.5" fill="#a0a1a7">Blue arrows show data flow. Dashed arrows show ownership and composition.</text>
+    </svg>
+  </div>
+
+  <div class="invariant">
+    <div class="invariant-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8 L12 14" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="16.5" r="0.8" fill="#3d4852"/></svg>
+    </div>
+    <div class="invariant-text"><strong>Core invariant.</strong> The overlay is a passive observer. It never modifies Kanata config, never sends TCP commands (that's <code>ConfigReloadCoordinator</code>), and never starts or stops the Kanata service (that's <code>ServiceLifecycleCoordinator</code>). It only reads key events and layer state.</div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Files</div>
+  <h2>Seven Files, Seven Responsibilities</h2>
+  <div class="section-desc">The controller is split across one core class and six extensions, each in its own file.</div>
+
+  <div class="types-grid">
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><circle cx="12" cy="12" r="4" fill="#f5f5f7" stroke="#3d4852" stroke-width="1.2"/><line x1="12" y1="3" x2="12" y2="8" stroke="#3d4852" stroke-width="1.2"/><line x1="12" y1="16" x2="12" y2="21" stroke="#3d4852" stroke-width="1.2"/><line x1="3" y1="12" x2="8" y2="12" stroke="#3d4852" stroke-width="1.2"/><line x1="16" y1="12" x2="21" y2="12" stroke="#3d4852" stroke-width="1.2"/></svg>
+        </div>
+        <span class="type-name">LiveKeyboardOverlayController</span>
+        <span class="type-badge">Core</span>
+      </div>
+      <div class="type-desc">753 lines. Window lifecycle, visibility, frame persistence, <code>NSWindowDelegate</code>. Creates the <code>NSWindow</code>, manages show/hide animations, startup flow. The singleton entry point for the entire overlay system.</div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.4"/><path d="M4 10 L20 10" stroke="#3d4852" stroke-width="1"/><path d="M10 10 L10 20" stroke="#3d4852" stroke-width="1"/><circle cx="7" cy="7" r="1.5" fill="#3d4852" opacity="0.25"/></svg>
+        </div>
+        <span class="type-name">+LayerState</span>
+        <span class="type-badge">Extension</span>
+      </div>
+      <div class="type-desc">139 lines. Observes Kanata layer change notifications. Manages one-shot layer override state (for momentary layers that should stick briefly). Updates the viewModel's current layer name.</div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 18 L4 6 L12 2 L20 6 L20 18 L12 22 Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.4" stroke-linejoin="round"/><path d="M12 2 L12 22" stroke="#3d4852" stroke-width="0.8" opacity="0.3"/><path d="M4 6 L12 10 L20 6" stroke="#3d4852" stroke-width="0.8" opacity="0.3"/></svg>
+        </div>
+        <span class="type-name">+LauncherSession</span>
+        <span class="type-badge">Extension</span>
+      </div>
+      <div class="type-desc">89 lines. Handles the "launcher layer" activation flow: brings the overlay to front when the launcher key is pressed (even if the app is hidden), then restores previous visibility after the action completes.</div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 4 L18 4 L20 8 L18 12 L6 12 Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.4" stroke-linejoin="round"/><circle cx="12" cy="18" r="3" fill="#f5f5f7" stroke="#3d4852" stroke-width="1.2"/><line x1="12" y1="12" x2="12" y2="15" stroke="#3d4852" stroke-width="1.2"/></svg>
+        </div>
+        <span class="type-name">+KeyClickHandling</span>
+        <span class="type-badge">Extension</span>
+      </div>
+      <div class="type-desc">100 lines. Translates physical key clicks into mapper drawer selections. In launcher mode, dispatches launch actions directly. Posts notifications for the mapper drawer to update.</div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.4"/><line x1="3" y1="12" x2="21" y2="12" stroke="#3d4852" stroke-width="1" opacity="0.3"/><circle cx="7" cy="9" r="1.5" fill="#3d4852" opacity="0.2"/><circle cx="12" cy="9" r="1.5" fill="#3d4852" opacity="0.2"/></svg>
+        </div>
+        <span class="type-name">+AppSuppression</span>
+        <span class="type-badge">Extension</span>
+      </div>
+      <div class="type-desc">24 lines. Per-app overlay hiding. When a suppressed app (e.g., Figma) is frontmost, hides the overlay and restores it when leaving.</div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2"/><circle cx="17" cy="7" r="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2"/><circle cx="7" cy="17" r="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2"/><circle cx="17" cy="17" r="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2"/><line x1="10" y1="7" x2="14" y2="7" stroke="#3d4852" stroke-width="0.8"/><line x1="7" y1="10" x2="7" y2="14" stroke="#3d4852" stroke-width="0.8"/><line x1="17" y1="10" x2="17" y2="14" stroke="#3d4852" stroke-width="0.8"/><line x1="10" y1="17" x2="14" y2="17" stroke="#3d4852" stroke-width="0.8"/></svg>
+        </div>
+        <span class="type-name">+Observers</span>
+        <span class="type-badge">Extension</span>
+      </div>
+      <div class="type-desc">218 lines. All notification observers: mapper tab opening, wizard visibility, accessibility test mode, health indicator state. Also handles window recreation when test mode changes.</div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="10" height="16" rx="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.4"/><rect x="15" y="4" width="6" height="16" rx="1.5" fill="#d2d2d7" stroke="#3d4852" stroke-width="1.2"/><line x1="13" y1="10" x2="15" y2="10" stroke="#3d4852" stroke-width="0.8" opacity="0.4"/><line x1="13" y1="14" x2="15" y2="14" stroke="#3d4852" stroke-width="0.8" opacity="0.4"/></svg>
+        </div>
+        <span class="type-name">+Inspector</span>
+        <span class="type-badge">Extension</span>
+      </div>
+      <div class="type-desc">411 lines. Inspector panel open/close/animate/resize. Handles the drawer slide-in animation, content height observation, and keyboard aspect ratio changes.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Data Flow</div>
+  <h2>Every Event, Traced</h2>
+  <div class="section-desc">Six event types, each with a clear path through the system.</div>
+
+  <div class="flow-list">
+    <div class="flow-item">
+      <div class="flow-event">Key press</div>
+      <div class="flow-desc">CGEvent tap &rarr; <code>ViewModel.keyStates</code> &rarr; SwiftUI re-render</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Layer change</div>
+      <div class="flow-desc">Kanata TCP &rarr; Notification &rarr; <code>+LayerState</code> &rarr; <code>ViewModel.updateLayer()</code></div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Key click</div>
+      <div class="flow-desc">SwiftUI tap &rarr; <code>+KeyClickHandling</code> &rarr; Notification &rarr; Mapper drawer</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Inspector toggle</div>
+      <div class="flow-desc">Button/hotkey &rarr; <code>Core.toggleInspectorPanel()</code> &rarr; <code>+Inspector.openInspector()</code></div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Launcher layer</div>
+      <div class="flow-desc">Kanata push-msg &rarr; <code>+LauncherSession</code> &rarr; bring to front &rarr; dispatch action</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">App switch</div>
+      <div class="flow-desc"><code>NSWorkspace</code> notification &rarr; <code>OverlayAppSuppressor</code> &rarr; <code>+AppSuppression</code></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Principles</div>
+  <h2>Design Rules</h2>
+  <div class="section-desc">Five invariants that keep the overlay reliable and non-intrusive.</div>
+
+  <div class="rules">
+    <div class="rule-item">
+      <div class="rule-num">1</div>
+      <div class="rule-content">
+        <div class="rule-title">The overlay never becomes key window</div>
+        <div class="rule-desc"><code>OverlayWindow.canBecomeKey</code> returns false. It must never steal keyboard focus from the user's active app.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">2</div>
+      <div class="rule-content">
+        <div class="rule-title">Layer changes from Kanata are authoritative</div>
+        <div class="rule-desc">One-shot overrides (from push-msg) are temporary; when Kanata reports "base", always honor it.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">3</div>
+      <div class="rule-content">
+        <div class="rule-title">Visibility has three independent guards</div>
+        <div class="rule-desc"><code>userExplicitlyHidden</code> (toggle), <code>wizardHidden</code> (auto), <code>appSuppressed</code> (per-app). They compose without clobbering each other.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">4</div>
+      <div class="rule-content">
+        <div class="rule-title">Frame persistence survives inspector state</div>
+        <div class="rule-desc"><code>saveWindowFrame()</code> always stores the collapsed (non-inspector) frame, so hide/show cycles don't accumulate width.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">5</div>
+      <div class="rule-content">
+        <div class="rule-title">All stored properties live in the main class body</div>
+        <div class="rule-desc">Swift extensions in separate files can't add stored properties. Methods move to extensions; state stays in core.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<footer>KeyPath Overlay Architecture &mdash; May 2026</footer>
+
+</body>
+</html>
