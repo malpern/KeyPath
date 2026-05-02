@@ -245,9 +245,6 @@ public struct WizardAccessibilityPage: View {
             }
         }
         .onAppear {
-            // Refresh issues immediately so stale state from a previous visit is cleared
-            Task { await onRefresh() }
-
             // Start passive polling to reflect manual changes in System Settings
             if permissionPollingTask == nil {
                 permissionPollingTask = Task { @MainActor [onRefresh] in
