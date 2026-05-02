@@ -493,7 +493,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
-            if !result.shouldRestart {
+            let isFreshInstall = Self.checkIsFreshInstall()
+            if isFreshInstall {
+                AppLogger.shared.log(
+                    "🆕 [AppDelegate] Fresh install — skipping auto-launch, wizard will handle registration"
+                )
+            } else if !result.shouldRestart {
                 AppLogger.shared.log("🚀 [AppDelegate] Starting auto-launch sequence (simple)")
                 if let manager = self.kanataManager {
                     let started = await manager.startKanata(reason: "AppDelegate auto-launch")
