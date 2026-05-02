@@ -569,6 +569,7 @@ class MainAppStateController {
         // Update published state
         lastValidatedSystemContext = context
         lastAdaptedState = adapted.state
+        lastTCPConfigured = await checkTCPConfiguration()
         issues = adapted.issues
         lastValidationDate = Date()
         lastValidationTime = Date() // Track for cooldown optimization
@@ -597,9 +598,7 @@ class MainAppStateController {
         switch adapted.state {
         case .active:
             // Kanata is running - but check if there are blocking issues that prevent proper operation
-            // Also verify TCP communication is properly configured (matches wizard logic)
-            let tcpConfigured = await checkTCPConfiguration()
-            lastTCPConfigured = tcpConfigured
+            let tcpConfigured = lastTCPConfigured ?? false
 
             if blockingIssues.isEmpty, tcpConfigured {
                 validationState = .success
