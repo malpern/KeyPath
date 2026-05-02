@@ -54,7 +54,8 @@ class MainAppStateController {
     // MARK: - Dependencies
 
     @ObservationIgnored private var validator: SystemValidator?
-    @ObservationIgnored private weak var kanataManager: RuntimeCoordinator?
+    @ObservationIgnored private weak var serviceLifecycle: ServiceLifecycleCoordinator?
+    @ObservationIgnored private var onSystemHealthy: (() -> Void)?
     @ObservationIgnored private var hasRunInitialValidation = false
 
     /// Returns true if configure() has been called.
@@ -124,9 +125,13 @@ class MainAppStateController {
         validator = shared
     }
 
-    /// Configure with RuntimeCoordinator (called after init)
-    func configure(with kanataManager: RuntimeCoordinator) {
-        self.kanataManager = kanataManager
+    /// Configure with the specific sub-coordinators needed (not the full RuntimeCoordinator).
+    func configure(
+        serviceLifecycle: ServiceLifecycleCoordinator,
+        onSystemHealthy: @escaping () -> Void
+    ) {
+        self.serviceLifecycle = serviceLifecycle
+        self.onSystemHealthy = onSystemHealthy
 
         AppLogger.shared.log("🎯 [MainAppStateController] Configured (Phase 3)")
 
@@ -280,7 +285,7 @@ class MainAppStateController {
     /// Subscribe to runtime state changes to trigger revalidation when runtime health changes.
     /// This fixes the "System Not Ready" stale state bug where the overlay shows stale state.
     private func subscribeToServiceHealth() {
-        guard let kanataManager else { return }
+        guard let serviceLifecycle else { return }
 
         // Cancel any previous polling task to prevent duplicate loops
         serviceHealthTask?.cancel()
@@ -288,7 +293,7 @@ class MainAppStateController {
         // Poll runtime status for health transitions.
         serviceHealthTask = Task { @MainActor [weak self] in
             while let self, !Task.isCancelled {
-                let runtimeStatus = await kanataManager.currentRuntimeStatusInternal()
+                let runtimeStatus = await serviceLifecycle.currentRuntimeStatus()
                 let isHealthy = runtimeStatus.isRunning
                 let wasHealthy = lastKnownRuntimeHealthy
 
@@ -334,7 +339,7 @@ class MainAppStateController {
     /// Can be called multiple times - first time waits for service, subsequent times validate immediately
     /// Optimization: Skips validation if completed within cooldown period (30s) to avoid redundant work on rapid restarts
     func performInitialValidation() async {
-        guard kanataManager != nil else {
+        guard serviceLifecycle != nil else {
             AppLogger.shared.warn("⚠️ [MainAppStateController] Cannot validate - not configured")
             return
         }
@@ -603,7 +608,7 @@ class MainAppStateController {
             if blockingIssues.isEmpty, tcpConfigured {
                 validationState = .success
                 // Clear stale diagnostics when system is healthy
-                kanataManager?.clearDiagnostics()
+                onSystemHealthy?()
                 AppLogger.shared.info(
                     "✅ [MainAppStateController] Validation SUCCESS - adapter state is .active (kanata running), no blocking issues, TCP configured"
                 )
@@ -635,7 +640,7 @@ class MainAppStateController {
             // Everything ready but not running
             validationState = .success
             // Clear stale diagnostics when system is healthy
-            kanataManager?.clearDiagnostics()
+            onSystemHealthy?()
             AppLogger.shared.info(
                 "✅ [MainAppStateController] Validation SUCCESS - adapter state is .ready"
             )
@@ -645,7 +650,7 @@ class MainAppStateController {
             if blockingIssues.isEmpty {
                 validationState = .success
                 // Clear stale diagnostics when system is healthy
-                kanataManager?.clearDiagnostics()
+                onSystemHealthy?()
                 AppLogger.shared.info("✅ [MainAppStateController] Validation SUCCESS - no blocking issues")
             } else {
                 validationState = .failed(
@@ -744,7 +749,7 @@ class MainAppStateController {
     /// like the overlay health indicator can downgrade a transient failure
     /// to a "checking" state instead of showing "1 Issue".
     func isInRuntimeStartupWindow() async -> Bool {
-        await kanataManager?.isInTransientRuntimeStartupWindow() ?? false
+        await serviceLifecycle?.isInTransientRuntimeStartupWindow() ?? false
     }
 
     private func isInKanataTransientStartupWindow() async -> Bool {

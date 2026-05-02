@@ -232,7 +232,10 @@ final class HealthObserverInitializationOrderTests: XCTestCase {
 
         // Configure the controller (this must happen in App.init before showForStartup)
         let manager = RuntimeCoordinator()
-        controller.configure(with: manager)
+        controller.configure(
+            serviceLifecycle: manager.serviceLifecycleCoordinator,
+            onSystemHealthy: {}
+        )
 
         // AFTER configure(): isConfigured should be true
         // Now it's safe to call refresh()

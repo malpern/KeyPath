@@ -64,7 +64,10 @@ enum CompositionRoot {
 
         // Configure MainAppStateController (starts background monitoring, needs validator already set).
         if !isOneShotProbeMode {
-            MainAppStateController.shared.configure(with: manager)
+            MainAppStateController.shared.configure(
+                serviceLifecycle: manager.serviceLifecycleCoordinator,
+                onSystemHealthy: { manager.clearDiagnostics() }
+            )
         }
 
         // Ensure typing sounds manager is initialized so it can listen for key events

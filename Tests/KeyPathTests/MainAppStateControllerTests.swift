@@ -72,7 +72,10 @@ struct MainAppStateControllerTests {
         let manager = RuntimeCoordinator()
 
         // Should not crash
-        controller.configure(with: manager)
+        controller.configure(
+            serviceLifecycle: manager.serviceLifecycleCoordinator,
+            onSystemHealthy: {}
+        )
     }
 
     @Test("isConfigured is false before configure() and true after")
@@ -84,7 +87,10 @@ struct MainAppStateControllerTests {
 
         // Configure
         let manager = RuntimeCoordinator()
-        controller.configure(with: manager)
+        controller.configure(
+            serviceLifecycle: manager.serviceLifecycleCoordinator,
+            onSystemHealthy: {}
+        )
 
         // After configure: should be true
         #expect(controller.isConfigured == true)
@@ -210,7 +216,11 @@ struct MainAppStateControllerBehaviorTests {
     @Test("performInitialValidation after configure produces a non-nil validation state")
     func performInitialValidationAfterConfigure() async {
         let controller = MainAppStateController()
-        controller.configure(with: RuntimeCoordinator())
+        let manager = RuntimeCoordinator()
+        controller.configure(
+            serviceLifecycle: manager.serviceLifecycleCoordinator,
+            onSystemHealthy: {}
+        )
 
         await controller.performInitialValidation()
 
