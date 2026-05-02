@@ -23,7 +23,7 @@ Rationale: older CLI/tooling may still expose `tools.web_search`, which prints a
   - System Check: `InstallerEngine().inspectSystem()`
 - **Do NOT use**:
   - `KanataManager` for installation/repair (it's for runtime coordination only).
-  - `WizardAutoFixer` directly (superseded by Engine).
+  - `WizardAutoFixer` (deleted — call `InstallerEngine.runSingleAction()` directly).
 
 ### Permissions
 - **Always use `PermissionOracle.shared`** for permission checks.

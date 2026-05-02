@@ -25,6 +25,8 @@ KeyPath.app (SwiftUI) → InstallerEngine → LaunchDaemon/PrivilegedHelper
 ### Key Manager Classes
 | Class | Responsibility |
 |-------|---------------|
+| `SystemInspector` | **Pure function** - SystemContext → (WizardSystemState, [WizardIssue]) |
+| `WizardRouter` | **Pure function** - state + issues → WizardPage (sole routing logic) |
 | `InstallerEngine` | **The Façade** - all install/repair/uninstall + system inspection |
 | `RuntimeCoordinator` | Runtime Coordinator - service orchestration (NOT ObservableObject) |
 | `ServiceLifecycleCoordinator` | **Start/stop/restart Kanata** - the ONLY entry point for service lifecycle |

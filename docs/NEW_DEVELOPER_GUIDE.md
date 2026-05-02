@@ -174,8 +174,8 @@ for the actual remapping engine, config, and binary.
 - Driver version compatibility (v5 vs v6)
 
 **Key files:**
-- `Core/WizardNavigationEngine.swift` - State-driven page navigation
-- `Core/WizardAutoFixer.swift` - Auto-remediation for 50+ edge cases
+- `Core/SystemInspector.swift` - Pure function: SystemContext → issues
+- `Core/WizardRouter.swift` - Pure function: issues → page
 - `UI/InstallationWizardView.swift` - Main wizard container
 - `README.md` - Complete wizard documentation
 
@@ -355,8 +355,8 @@ tail -f /var/log/com.keypath.kanata.stderr.log
 ```
 
 **Wizard won't advance:**
-- Check `WizardNavigationEngine.determineCurrentPage()` logs
-- Verify issue detection in `IssueGenerator`
+- Check `SystemInspector.inspect()` output — what issues does it find?
+- Check `WizardRouter.route()` — what page does it return for those issues?
 - Trust PermissionOracle for permission state
 
 ### Running Tests
@@ -390,7 +390,7 @@ swift test --filter TestClassName.testMethodName
 
 **Requires careful consideration:**
 - PermissionOracle (critical architecture, check ADRs first)
-- WizardNavigationEngine (state-driven logic)
+- SystemInspector / WizardRouter (wizard routing logic)
 - RuntimeCoordinator core (coordinator pattern)
 
 **Don't touch without team discussion:**

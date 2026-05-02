@@ -38,6 +38,7 @@ public struct InstallationWizardView: View {
     // New architecture components
     @State public var stateMachine = WizardStateMachine()
     @State public var asyncOperationManager = WizardAsyncOperationManager()
+    public var isOperationRunning: Bool { asyncOperationManager.hasRunningOperations }
     @State public var toastManager = WizardToastManager()
 
     // UI state
@@ -124,7 +125,7 @@ public struct InstallationWizardView: View {
                         // Don't show overlay during validation - summary page has its own validating indicator
                         // Also suppress overlay when the page already shows an inline progress bar,
                         // to avoid two simultaneous indeterminate bars.
-                        if asyncOperationManager.hasRunningOperations, !isValidating, !hasInlineProgressIndicator {
+                        if isOperationRunning, !isValidating, !hasInlineProgressIndicator {
                             operationProgressOverlay()
                                 .allowsHitTesting(false) // Don't block X button interaction
                         }
@@ -180,7 +181,7 @@ public struct InstallationWizardView: View {
                 showStatusBanner(message)
             }
         }
-        .onChange(of: asyncOperationManager.hasRunningOperations) { _, newValue in
+        .onChange(of: isOperationRunning) { _, newValue in
             // When overlays disappear, reclaim focus for ESC key
             if !newValue {
                 hasKeyboardFocus = true
