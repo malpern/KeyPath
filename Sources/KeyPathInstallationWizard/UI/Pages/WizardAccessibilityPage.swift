@@ -245,6 +245,11 @@ public struct WizardAccessibilityPage: View {
                 CheckmarkBurstView(isShowing: $showSuccessBurst)
             }
         }
+        .task {
+            // Set initial snapshot immediately so the page renders correct state
+            // before the polling loop's first 500ms tick.
+            permissionSnapshot = await PermissionOracle.shared.currentSnapshot()
+        }
         .onAppear {
             // Start Oracle-direct polling — updates @State snapshot for instant UI,
             // only calls onRefresh() when both permissions are granted (to advance navigation).

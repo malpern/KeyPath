@@ -229,6 +229,9 @@ public struct WizardInputMonitoringPage: View {
                 CheckmarkBurstView(isShowing: $showSuccessBurst)
             }
         }
+        .task {
+            permissionSnapshot = await PermissionOracle.shared.currentSnapshot()
+        }
         .onAppear {
             checkForStaleEntries()
             // Start Oracle-direct polling — updates @State snapshot for instant UI,
