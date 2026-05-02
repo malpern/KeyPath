@@ -230,7 +230,7 @@ class KanataViewModel {
             if enabled {
                 // Automatically enable "Use F1, F2, etc. as standard function keys" in macOS
                 // This is required for Kanata to intercept F10/F11/F12 and remap to volume keys
-                let wasSet = setMacOSFunctionKeyMode(useStandardFKeys: true)
+                let wasSet = await setMacOSFunctionKeyMode(useStandardFKeys: true)
                 if wasSet {
                     showToast("Function Keys enabled — macOS setting updated automatically", type: .success, duration: 5.0)
                 } else {
@@ -262,7 +262,7 @@ class KanataViewModel {
     /// Set macOS "Use F1, F2, etc. keys as standard function keys" preference
     /// - Parameter useStandardFKeys: true to use standard F-keys, false for media keys
     /// - Returns: true if the setting was changed, false if it was already set or failed
-    private func setMacOSFunctionKeyMode(useStandardFKeys: Bool) -> Bool {
+    private func setMacOSFunctionKeyMode(useStandardFKeys: Bool) async -> Bool {
         let currentValue = CFPreferencesCopyValue(
             "com.apple.keyboard.fnState" as CFString,
             kCFPreferencesAnyApplication,
@@ -275,19 +275,16 @@ class KanataViewModel {
             return false
         }
 
-        // Use defaults command to set global preference
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
-        process.arguments = ["write", "-g", "com.apple.keyboard.fnState", "-bool", useStandardFKeys ? "true" : "false"]
-
         do {
-            try process.run()
-            process.waitUntilExit()
-            if process.terminationStatus == 0 {
+            let result = try await SubprocessRunner.shared.run(
+                "/usr/bin/defaults",
+                args: ["write", "-g", "com.apple.keyboard.fnState", "-bool", useStandardFKeys ? "true" : "false"]
+            )
+            if result.exitCode == 0 {
                 AppLogger.shared.log("🎹 [KanataViewModel] Set macOS fnState to \(useStandardFKeys)")
                 return true
             } else {
-                AppLogger.shared.warn("⚠️ [KanataViewModel] Failed to set macOS fnState, exit code: \(process.terminationStatus)")
+                AppLogger.shared.warn("⚠️ [KanataViewModel] Failed to set macOS fnState, exit code: \(result.exitCode)")
                 return false
             }
         } catch {

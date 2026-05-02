@@ -173,14 +173,9 @@ public final class UninstallCoordinator {
         ]
 
         for (service, target) in tccResets {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
-            process.arguments = ["reset", service, target]
-
             do {
-                try process.run()
-                process.waitUntilExit()
-                if process.terminationStatus == 0 {
+                let result = try await SubprocessRunner.shared.run("/usr/bin/tccutil", args: ["reset", service, target])
+                if result.exitCode == 0 {
                     logLines.append("  ✓ Reset \(service) for \(target)")
                 } else {
                     logLines.append("  ⚠️ Failed to reset \(service) for \(target)")
@@ -190,15 +185,9 @@ public final class UninstallCoordinator {
             }
         }
 
-        // Clear UserDefaults
-        let defaultsProcess = Process()
-        defaultsProcess.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
-        defaultsProcess.arguments = ["delete", bundleId]
-
         do {
-            try defaultsProcess.run()
-            defaultsProcess.waitUntilExit()
-            if defaultsProcess.terminationStatus == 0 {
+            let result = try await SubprocessRunner.shared.run("/usr/bin/defaults", args: ["delete", bundleId])
+            if result.exitCode == 0 {
                 logLines.append("  ✓ Cleared UserDefaults")
             } else {
                 logLines.append("  ⚠️ No UserDefaults to clear (or already cleared)")

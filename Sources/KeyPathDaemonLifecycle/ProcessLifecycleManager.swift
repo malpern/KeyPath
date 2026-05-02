@@ -248,40 +248,19 @@ public final class ProcessLifecycleManager {
 
         var processes: [ProcessInfo] = []
 
-        // Use pgrep to find processes
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-fl", "kanata"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
         do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if task.terminationStatus == 0 {
-                let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
-
+            let result = try await SubprocessRunner.shared.run("/usr/bin/pgrep", args: ["-fl", "kanata"])
+            if result.exitCode == 0 {
+                let lines = result.stdout.components(separatedBy: "\n").filter { !$0.isEmpty }
                 for line in lines {
                     let components = line.components(separatedBy: " ")
                     guard let pidString = components.first,
                           let pid = pid_t(pidString),
                           components.count > 1
-                    else {
-                        continue
-                    }
-
+                    else { continue }
                     let command = components.dropFirst().joined(separator: " ")
-
-                    // Only include actual kanata binaries
                     if isKanataBinary(command) {
-                        let processInfo = ProcessInfo(pid: pid, command: command)
-                        processes.append(processInfo)
+                        processes.append(ProcessInfo(pid: pid, command: command))
                         AppLogger.shared.log("🔍 [ProcessLifecycleManager] Found kanata process: PID=\(pid)")
                     }
                 }
