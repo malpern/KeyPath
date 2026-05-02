@@ -58,13 +58,14 @@ enum CompositionRoot {
             "🎯 [Phase 4] MVVM architecture initialized - ViewModel wrapping RuntimeCoordinator"
         )
 
-        // Configure MainAppStateController early so it's ready when overlay starts observing.
+        // Wire wizard dependencies first — this creates the shared SystemValidator
+        // and injects it into MainAppStateController via setValidator().
+        configureWizardDependencies(runtimeCoordinator: manager)
+
+        // Configure MainAppStateController (starts background monitoring, needs validator already set).
         if !isOneShotProbeMode {
             MainAppStateController.shared.configure(with: manager)
         }
-
-        // Wire wizard dependencies so wizard views can access the runtime coordinator.
-        configureWizardDependencies(runtimeCoordinator: manager)
 
         // Ensure typing sounds manager is initialized so it can listen for key events
         _ = TypingSoundsManager.shared

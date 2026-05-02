@@ -129,7 +129,15 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
     WizardDependencies.runtimeCoordinator = runtimeCoordinator
     WizardDependencies.helperManager = HelperManager.shared
     WizardDependencies.daemonManager = KanataDaemonManager.shared
-    WizardDependencies.systemValidator = SystemValidator(processLifecycleManager: runtimeCoordinator.processLifecycleManager)
+    let sharedValidator = SystemValidator(
+        processLifecycleManager: runtimeCoordinator.processLifecycleManager,
+        kanataManager: runtimeCoordinator
+    )
+    WizardDependencies.systemValidator = sharedValidator
+
+    // Share the same validator with MainAppStateController so there's only one instance app-wide.
+    // This ensures inProgressValidation dedup spans all callers.
+    MainAppStateController.shared.setValidator(sharedValidator)
     WizardDependencies.helperMaintenance = HelperMaintenance.shared
     WizardDependencies.fullDiskAccessChecker = FullDiskAccessChecker.shared
     WizardDependencies.permissionRequestService = PermissionRequestService.shared

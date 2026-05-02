@@ -116,18 +116,16 @@ class MainAppStateController {
     // Cleanup would be impossible anyway since deinit is nonisolated and can't access
     // MainActor-isolated properties like task handles.
 
+    /// Inject the shared SystemValidator instance (called from configureWizardDependencies).
+    func setValidator(_ shared: SystemValidator) {
+        validator = shared
+    }
+
     /// Configure with RuntimeCoordinator (called after init)
     func configure(with kanataManager: RuntimeCoordinator) {
         self.kanataManager = kanataManager
 
-        // Create validator
-        let processManager = ProcessLifecycleManager()
-        validator = SystemValidator(
-            processLifecycleManager: processManager,
-            kanataManager: kanataManager
-        )
-
-        AppLogger.shared.log("🎯 [MainAppStateController] Configured with SystemValidator (Phase 3)")
+        AppLogger.shared.log("🎯 [MainAppStateController] Configured (Phase 3)")
 
         // Check for orphaned installation (leftover files from manual deletion)
         OrphanDetector.shared.checkForOrphans()

@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-The wizard and system health infrastructure has six core problems caused by organic growth and incremental patching. What was once a single validation → issue → UI pipeline has fragmented into parallel paths that disagree on system state, use different issue identifiers, apply different grace periods, and parse the same log files with different patterns. The result: the wizard can show green while Settings shows red, permission pages show the wrong permission as broken, and the Fix button loops without effect.
+The wizard and system health infrastructure has seven core problems caused by organic growth and incremental patching. What was once a single validation → issue → UI pipeline has fragmented into parallel paths that disagree on system state, use different issue identifiers, apply different grace periods, and parse the same log files with different patterns. The result: the wizard can show green while Settings shows red, permission pages show the wrong permission as broken, and the Fix button loops without effect.
 
 This document catalogs every fragmentation point, then proposes a concrete reunification that collapses parallel paths back to shared single sources.
 
@@ -11,8 +11,8 @@ This document catalogs every fragmentation point, then proposes a concrete reuni
 ## Problem 1: Two SystemValidator Instances
 
 **Current state:**
-- `MainAppStateController.configure()` creates its own `SystemValidator` (MainAppStateController.swift:125)
-- The wizard uses `WizardDependencies.systemValidator` set at app startup (WizardProtocolConformances.swift:144)
+- `MainAppStateController.configure()` creates its own `SystemValidator` (search: `SystemValidator()` in `MainAppStateController.configure()`)
+- The wizard uses `WizardDependencies.systemValidator` set at app startup (search: `systemValidator` in `WizardProtocolConformances`)
 - These are **separate instances** — `SystemValidator`'s single-flight guard (`inProgressValidation`) only protects within one instance
 
 **Impact:** Concurrent validations when MainAppStateController's periodic refresh and the wizard's state detection both fire. Wasted work, potential for race conditions.
@@ -45,7 +45,7 @@ Each conversion reinterprets data:
 ## Problem 3: Settings Status Tab Has Independent Validation
 
 **Current state:**
-- Settings Status runs its own `refreshStatus()` (SettingsView.swift:452)
+- Settings Status runs its own `refreshStatus()` (search: `refreshStatus()` in `SettingsView`)
 - Tries `MainAppStateController.shared.lastValidatedSystemContext` first
 - Falls back to `kanataManager.inspectSystemContext()` — **known broken** (comment in code: "initialized before WizardDependencies.systemValidator was set, so it always returns empty context")
 - Has its own `checkTCPConfiguration()` duplicate
@@ -61,9 +61,9 @@ Each conversion reinterprets data:
 
 **Current state:** `MainAppStateController.performValidation()` generates issues in three places that bypass `SystemContextAdapter`:
 
-1. **Validator not configured** (line 448): Creates `.daemon` category issue
-2. **Startup gate failure** (line 475): Creates `.component(.keyPathRuntime)` issue with text "Kanata service not healthy"
-3. **Validation timeout** (line 519): Creates `.validationTimeout` issue
+1. **Validator not configured** (search: `"System validator not configured"` in `performValidation()`): Creates `.daemon` category issue
+2. **Startup gate failure** (search: `"Kanata service not healthy"` in `performValidation()`): Creates `.component(.keyPathRuntime)` issue
+3. **Validation timeout** (search: `.validationTimeout` in `performValidation()`): Creates `.validationTimeout` issue
 
 These use identifiers and categories that `SystemContextAdapter` never produces.
 
@@ -89,17 +89,18 @@ These use identifiers and categories that `SystemContextAdapter` never produces.
 
 ---
 
-## Problem 6: Three Stderr Parsers with Overlapping Scopes
+## Problem 6: Two Stderr Parsers with Overlapping Scopes
 
 **Current state:**
 
 | Parser | File | Reads | Pattern | Returns |
 |--------|------|-------|---------|---------|
-| `checkDaemonStderrForPermissionFailure()` | SystemValidator.swift:584 | Last 2KB | `"kanata needs macOS Accessibility permission"` OR `"IOHIDDeviceOpen error" + "not permitted"` | `Bool` → `kanataPermissionRejected` |
-| `checkKanataInputCaptureStatus()` | ServiceHealthChecker.swift:585 | Last 64KB | `"iohiddeviceopen error" + "not permitted" + "apple internal keyboard / trackpad"` | `KanataInputCaptureStatus` → `kanataInputCaptureReady` |
-| `PermissionOracle.checkTCCForKanata()` | PermissionOracle.swift:500 | TCC.db (not stderr) | SQLite query for kanata-launcher path | `(ax: Status?, im: Status?)` |
+| `checkDaemonStderrForPermissionFailure()` | SystemValidator | Last 2KB | `"kanata needs macOS Accessibility permission"` OR `"IOHIDDeviceOpen error" + "not permitted"` | `Bool` → `kanataPermissionRejected` |
+| `checkKanataInputCaptureStatus()` | ServiceHealthChecker | Last 64KB | `"iohiddeviceopen error" + "not permitted" + "apple internal keyboard / trackpad"` | `KanataInputCaptureStatus` → `kanataInputCaptureReady` |
 
-Parsers 1 and 2 read the **same file** with **different tail sizes** and **overlapping patterns**. A manual suppression in SystemValidator forces `inputCaptureReady = true` when `permissionRejected` is true to avoid double-counting.
+A third permission source — `PermissionOracle.checkTCCForKanata()` — queries the TCC database (not stderr) and is not part of this problem, but adds to the overall fragmentation: three different data sources for permission state.
+
+The two stderr parsers read the **same file** with **different tail sizes** and **overlapping patterns**. A manual suppression in SystemValidator forces `inputCaptureReady = true` when `permissionRejected` is true to avoid double-counting.
 
 **Impact:** Every new stderr pattern requires updating multiple parsers. The suppression logic is fragile — if either parser's pattern matching changes, the suppression breaks and the wrong permission shows as failed.
 
@@ -171,50 +172,61 @@ Parsers 1 and 2 read the **same file** with **different tail sizes** and **overl
 - MainAppStateController receives validator via DI instead of creating its own
 - Verify single-flight protection works across all callers
 - **Risk:** Low — same validator, same results, just shared
+- **Rollback:** Revert DI wiring — MainAppStateController creates its own instance again.
 
 ### Phase 2: Eliminate hardcoded issues
 - Startup gate failure → produce a `SystemContext` with `kanataRunning=false`, let adapter classify
 - Validation timeout → produce a `SystemContext` with a timeout flag, let adapter produce a standardized timeout issue
 - Not-configured → early return with empty state, don't generate issues
-- **Risk:** Medium — startup gate timing may need adjustment
+- **Risk:** Medium — startup gate timing may need adjustment. Hardcoded issues fire immediately on gate failure; adapter-produced issues only appear after full validation completes. This latency difference may cause a brief window where no issue is shown. Verify UX is acceptable during the transition.
+- **Rollback:** Revert to hardcoded issue construction in `performValidation()` — the adapter path is additive, so both can coexist temporarily.
 
 ### Phase 3: Settings Status consumes MainAppStateController only
 - Delete `refreshStatus()` independent validation
 - Delete fallback path and duplicate TCP check
 - Settings reads from `MainAppStateController.lastValidatedSystemContext` only
 - **Risk:** Low — just removing code
+- **Rollback:** Restore `refreshStatus()` and fallback path.
 
 ### Phase 4: Unified startup grace period
+- **Depends on Phase 3** — Settings must already consume MainAppStateController, otherwise it bypasses the unified grace period via its independent validation path
 - MainAppStateController applies grace period BEFORE publishing state
 - During grace window, published state is `.starting` not `.failed`
 - Delete overlay-specific suppression in `OverlayHealthIndicatorObserver`
 - **Risk:** Medium — grace period behavior change visible to users
+- **Rollback:** Restore per-surface suppression logic (`TransientStartupWindowEvaluator` in overlay). The unified grace can coexist with per-surface suppression during transition.
 
 ### Phase 5: Unified stderr parser
 - Create `KanataDaemonDiagnosis` and `diagnoseDaemonStderr()`
 - Replace `checkDaemonStderrForPermissionFailure()` and `checkKanataInputCaptureStatus()`
 - Remove suppression logic (`effectiveInputCaptureReady`)
 - **Risk:** Medium — stderr pattern matching is subtle
+- **Rollback:** Restore the two separate parsers and suppression logic. The old functions can be kept as dead code behind a feature check during validation.
 
 ### Phase 6: Delete wizard's independent refresh
 - Delete `monitorSystemState()` from WizardStateMachine
 - Wizard reads from `MainAppStateController` via environment or notification
 - **Risk:** Low — wizard already uses state machine which already refreshes
+- **Rollback:** Restore `monitorSystemState()` — it's independent and doesn't conflict with the centralized path.
 
 ### Phase 7: Eliminate SystemContext intermediate type (optional)
 - `SystemContextAdapter` operates on `SystemSnapshot` directly
 - `InstallerEngine.inspectSystem()` returns adapted result
 - **Risk:** High (wide API change) — defer to later if needed
+- **Rollback:** Keep `SystemContext` as a pass-through wrapper. This is a refactor, not a behavior change, so revert is mechanical.
 
 ---
 
 ## Tests to Add
 
-Each phase should include tests that verify the invariant it establishes:
+Each phase should include tests that verify the invariant it establishes. The test is the definition of done for that phase.
 
-1. **Single validator:** Test that MainAppStateController and wizard produce identical snapshots
-2. **No hardcoded issues:** Test that every issue in `MainAppStateController.issues` has an identifier that `WizardNavigationEngine` handles
-3. **Settings consistency:** Test that Settings Status shows the same state as MainAppStateController
-4. **Grace period uniformity:** Test that overlay, Settings, and wizard all show the same state at T=0, T=60, T=150 after launch
-5. **Stderr classification:** Test all known stderr patterns → correct diagnosis (AX vs IM vs startup failure)
-6. **No independent refresh:** Test that wizard state changes only when MainAppStateController publishes
+| Phase | Test | Done when |
+|-------|------|-----------|
+| 1 | Test that MainAppStateController and wizard produce identical snapshots from a single shared validator | No second `SystemValidator()` constructor call exists outside DI setup |
+| 2 | Test that every issue in `MainAppStateController.issues` has an identifier that `WizardNavigationEngine` handles | No issue construction outside `SystemContextAdapter` |
+| 3 | Test that Settings Status shows the same state as MainAppStateController | `refreshStatus()` and fallback path deleted |
+| 4 | Test that overlay, Settings, and wizard all show the same state at T=0, T=60, T=150 after launch | No per-surface grace/suppression logic remains |
+| 5 | Test all known stderr patterns → correct diagnosis (AX vs IM vs startup failure) | Single `diagnoseDaemonStderr()` function, old parsers deleted |
+| 6 | Test that wizard state changes only when MainAppStateController publishes | `monitorSystemState()` deleted |
+| 7 | (Optional) Test that `SystemContextAdapter` accepts `SystemSnapshot` directly | `SystemContext` type deleted or reduced to type alias |
