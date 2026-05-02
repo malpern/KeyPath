@@ -23,6 +23,12 @@ extension InstallationWizardView {
         let vhidRunning = await VHIDDeviceManager().detectRunning()
         return "VHID running=\(vhidRunning ? "yes" : "no"); services=\(state.description)"
     }
+    public func handlePageChange(from oldPage: WizardPage, to newPage: WizardPage) {
+        AppLogger.shared.log("🧭 [Wizard] View detected page change: \(oldPage) → \(newPage)")
+        if newPage == .summary, !isValidating {
+            refreshSystemState(showSpinner: true, previousPage: oldPage)
+        }
+    }
 }
 
 // MARK: - Extracted Components

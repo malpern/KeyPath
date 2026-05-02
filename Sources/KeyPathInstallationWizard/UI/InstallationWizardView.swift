@@ -193,10 +193,7 @@ public struct InstallationWizardView: View {
             stateMachine.customSequence = showAll ? nil : navSequence
         }
         .onChange(of: stateMachine.currentPage) { oldPage, newPage in
-            AppLogger.shared.log("🧭 [Wizard] View detected page change: \(oldPage) → \(newPage)")
-            if newPage == .summary, !isValidating {
-                refreshSystemState(showSpinner: true, previousPage: oldPage)
-            }
+            handlePageChange(from: oldPage, to: newPage)
         }
         .onChange(of: navSequence) { _, newSeq in
             if !showAllSummaryItems {
@@ -204,10 +201,7 @@ public struct InstallationWizardView: View {
             }
         }
         .onChange(of: showingCloseConfirmation) { _, newValue in
-            // Reclaim focus when close confirmation dialog closes
-            if !newValue {
-                hasKeyboardFocus = true
-            }
+            if !newValue { hasKeyboardFocus = true }
         }
         // Add keyboard navigation support for left/right arrow keys and ESC (macOS 14.0+)
         .modifier(

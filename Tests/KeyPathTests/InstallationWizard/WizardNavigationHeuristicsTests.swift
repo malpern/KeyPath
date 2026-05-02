@@ -5,7 +5,7 @@ import KeyPathWizardCore
 
 final class WizardNavigationHeuristicsTests: XCTestCase {
     func testNavigatesToSummaryWhenHealthyAndNotAlreadyThere() {
-        let result = shouldNavigateToSummary(
+        let result = WizardRouter.shouldNavigateToSummary(
             currentPage: .service,
             state: .active,
             issues: []
@@ -24,7 +24,7 @@ final class WizardNavigationHeuristicsTests: XCTestCase {
             userAction: nil
         )
 
-        let result = shouldNavigateToSummary(
+        let result = WizardRouter.shouldNavigateToSummary(
             currentPage: .service,
             state: .active,
             issues: [issue]
@@ -33,7 +33,7 @@ final class WizardNavigationHeuristicsTests: XCTestCase {
     }
 
     func testDoesNotNavigateWhenNotActive() {
-        let result = shouldNavigateToSummary(
+        let result = WizardRouter.shouldNavigateToSummary(
             currentPage: .service,
             state: .serviceNotRunning,
             issues: []
@@ -42,7 +42,7 @@ final class WizardNavigationHeuristicsTests: XCTestCase {
     }
 
     func testDoesNotNavigateWhenAlreadyOnSummary() {
-        let result = shouldNavigateToSummary(
+        let result = WizardRouter.shouldNavigateToSummary(
             currentPage: .summary,
             state: .active,
             issues: []
