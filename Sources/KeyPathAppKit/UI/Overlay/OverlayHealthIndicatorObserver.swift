@@ -42,30 +42,21 @@ final class OverlayHealthIndicatorObserver {
         Task { @MainActor [weak self] in
             var lastState: MainAppStateController.ValidationState?
             var lastIssueCount: Int?
-            var lastInStartupWindow: Bool?
             while let self, !Task.isCancelled {
                 let state = controller.validationState
                 let issues = controller.issues
-                let inStartupWindow = await controller.isInRuntimeStartupWindow()
-                if state != lastState
-                    || issues.count != lastIssueCount
-                    || inStartupWindow != lastInStartupWindow
-                {
+                if state != lastState || issues.count != lastIssueCount {
                     lastState = state
                     lastIssueCount = issues.count
-                    lastInStartupWindow = inStartupWindow
-                    handle(state: state, issues: issues, inStartupWindow: inStartupWindow)
+                    handle(state: state, issues: issues)
                 }
                 try? await Task.sleep(for: .milliseconds(250))
             }
         }
 
-        // Handle initial values — assume we're still in the startup window on
-        // the first evaluation; the polling loop above will correct within 250ms.
         handle(
             state: controller.validationState,
-            issues: controller.issues,
-            inStartupWindow: true
+            issues: controller.issues
         )
     }
 
@@ -98,15 +89,12 @@ final class OverlayHealthIndicatorObserver {
         let state = MainAppStateController.shared.validationState
         let issues = MainAppStateController.shared.issues
         AppLogger.shared.log("🔔 [HealthObserver] refresh() called - forcing state re-evaluation")
-        // refresh() is synchronous by contract; the polling loop re-evaluates
-        // the startup window 250ms later with accurate data.
-        handle(state: state, issues: issues, inStartupWindow: false)
+        handle(state: state, issues: issues)
     }
 
     private func handle(
         state: MainAppStateController.ValidationState?,
-        issues: [WizardIssue],
-        inStartupWindow: Bool
+        issues: [WizardIssue]
     ) {
         AppLogger.shared.log("🔔 [HealthObserver] handle() called - state=\(String(describing: state)), issues=\(issues.count), currentState=\(currentState)")
 
@@ -126,9 +114,6 @@ final class OverlayHealthIndicatorObserver {
         switch state {
         case nil, .checking:
             if currentState == .dismissed {
-                // Routine re-check from a healthy state — don't flash the
-                // checking indicator. If the result comes back unhealthy,
-                // the .failed branch will show the issue directly.
                 return
             } else if currentState == .healthy {
                 scheduleCheckingState()
@@ -136,27 +121,16 @@ final class OverlayHealthIndicatorObserver {
                 setState(.checking)
             }
         case .success:
-            // Cancel any pending "checking" state since we're now healthy
-            // Note: We trust .success state regardless of non-blocking issues
             checkingDebounceTask?.cancel()
             checkingDebounceTask = nil
             setState(.healthy)
             scheduleDismiss()
         case .failed:
-            // Cancel any pending "checking" state
             checkingDebounceTask?.cancel()
             checkingDebounceTask = nil
-            // If there are no blocking issues (only conflicts which are filtered out),
-            // treat as healthy - conflicts don't block the drawer from working
             if blockingIssues.isEmpty {
                 setState(.healthy)
                 scheduleDismiss()
-            } else if inStartupWindow {
-                // During the runtime startup window, a "failed" validation
-                // almost always just means kanata hasn't finished warming up
-                // yet. Render as "checking" so users don't see a false "1 Issue"
-                // badge immediately after every rebuild/restart.
-                setState(.checking)
             } else {
                 setState(.unhealthy(issueCount: blockingIssues.count))
             }

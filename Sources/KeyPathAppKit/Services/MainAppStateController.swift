@@ -670,6 +670,15 @@ class MainAppStateController {
                 )
             }
         }
+
+        // Unified grace period: suppress failures during startup window so all
+        // consumers (overlay, Settings, wizard) see .checking instead of .failed.
+        if case .failed = validationState, await isInRuntimeStartupWindow() {
+            AppLogger.shared.info(
+                "⏳ [MainAppStateController] Suppressing .failed → .checking (startup grace window)"
+            )
+            validationState = .checking
+        }
     }
 
     private func evaluateKanataStartupGate() async -> KanataStartupGateResult {
