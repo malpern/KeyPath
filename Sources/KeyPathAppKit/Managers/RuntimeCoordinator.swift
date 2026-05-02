@@ -28,21 +28,15 @@ import Network
 // - **DiagnosticsManager**: System diagnostics and health checks
 // - **ServiceHealthMonitor**: Health monitoring and restart cooldown
 //
-// ## Extension Files (thin delegation layers):
+// ## File Organization:
 //
-// **RuntimeCoordinator.swift** (main file)
+// **RuntimeCoordinator.swift** (this file)
 // - Core initialization, dependency wiring, and callback plumbing
-// - Public API surface that delegates to coordinators
+// - All delegation methods (state, configuration, lifecycle, service management,
+//   config hot reload, config maintenance, conflict resolution, diagnostics)
 //
-// **RuntimeCoordinator+ServiceManagement.swift** → delegates to ServiceLifecycleCoordinator
-// **RuntimeCoordinator+Configuration.swift** → delegates to ConfigReloadCoordinator
-// **RuntimeCoordinator+RuleCollections.swift** → delegates to RuleCollectionsCoordinator
-// **RuntimeCoordinator+ConfigMaintenance.swift** → delegates to SaveCoordinator
-// **RuntimeCoordinator+ConfigHotReload.swift** → delegates to ConfigHotReloadService
-// **RuntimeCoordinator+Diagnostics.swift** → delegates to DiagnosticsManager
-// **RuntimeCoordinator+ConflictResolution.swift** → conflict resolution UI bridge
-// **RuntimeCoordinator+Lifecycle.swift** → initialization and split runtime monitoring
-// **RuntimeCoordinator+State.swift** → UI state snapshot building
+// **RuntimeCoordinator+RuleCollections.swift** (separate extension)
+// - Rule collection CRUD, delegates to RuleCollectionsCoordinator
 //
 // ## MVVM Architecture Note:
 //
@@ -1041,5 +1035,466 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         AppLogger.shared.log("✅ [RuntimeCoordinator] AI repair completed")
         return repairedConfig
+    }
+
+    // MARK: - SaveCoordinatorDelegate
+
+    func saveStatusDidChange(_ status: SaveStatus) {
+        saveStatus = status
+    }
+
+    func configDidUpdate(mappings: [KeyMapping]) {
+        applyKeyMappings(mappings)
+    }
+
+    // MARK: - UI State Snapshot (Phase 4: MVVM - delegates to StatePublisherService)
+
+    /// Configure state publisher (called during init)
+    func configureStatePublisher() {
+        statePublisher.configure { [weak self] in
+            self?.buildUIState() ?? KanataUIState.empty
+        }
+    }
+
+    /// Notify observers that state has changed
+    /// Call this after any operation that modifies UI-visible state
+    func notifyStateChanged() {
+        statePublisher.notifyStateChanged()
+    }
+
+    /// Refresh process running state from system (call after service operations)
+    /// This is more efficient than checking on every UI state sync
+    func refreshProcessState() {
+        notifyStateChanged()
+    }
+
+    /// Returns a snapshot of current UI state for ViewModel synchronization
+    /// This method allows KanataViewModel to read UI state without @Published properties
+    func getCurrentUIState() -> KanataUIState {
+        buildUIState()
+    }
+
+    /// Build the current UI state snapshot
+    func buildUIState() -> KanataUIState {
+        // Sync diagnostics from DiagnosticsManager
+        diagnostics = diagnosticsManager.getDiagnostics()
+
+        AppLogger.shared.debug("📊 [RuntimeCoordinator] buildUIState: customRules.count = \(customRules.count)")
+        if let error = lastError {
+            AppLogger.shared.debug("🚨 [RuntimeCoordinator] buildUIState: lastError = \(error)")
+        }
+
+        return KanataUIState(
+            // Core Status
+            lastError: lastError,
+            lastWarning: lastWarning,
+            keyMappings: keyMappings,
+            ruleCollections: ruleCollections,
+            customRules: customRules,
+            currentLayerName: currentLayerName,
+            diagnostics: diagnostics,
+            lastProcessExitCode: lastProcessExitCode,
+            lastConfigUpdate: lastConfigUpdate,
+            activeRuntimePathTitle: nil,
+            activeRuntimePathDetail: nil,
+
+            // Validation & Save Status
+            validationError: validationError,
+            saveStatus: saveStatus,
+
+            // Rule conflict resolution
+            pendingRuleConflict: pendingRuleConflict
+        )
+    }
+
+    // MARK: - Configuration Initialization
+
+    func createInitialConfigIfNeeded() async {
+        do {
+            try await configurationService.createInitialConfigIfNeeded()
+        } catch {
+            AppLogger.shared.error(
+                "❌ [Config] Failed to create initial config via ConfigurationService: \(error)"
+            )
+        }
+    }
+
+    /// Public wrapper to ensure a default user config exists.
+    /// Returns true if the config exists after this call.
+    func createDefaultUserConfigIfMissing() async -> Bool {
+        await configurationManager.createDefaultIfMissing()
+    }
+
+    // MARK: - Configuration Validation
+
+    func validateConfigFile() async -> (isValid: Bool, errors: [String]) {
+        await configurationManager.validateConfigFile()
+    }
+
+    func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
+        -> String
+    {
+        try await configurationManager.backupFailedConfigAndApplySafe(
+            failedConfig: failedConfig,
+            mappings: mappings
+        )
+    }
+
+    // MARK: - Hot Reload via TCP (delegates to ConfigReloadCoordinator)
+
+    /// Main reload method using TCP protocol
+    func triggerConfigReload() async -> ReloadResult {
+        await configReloadCoordinator.triggerConfigReload()
+    }
+
+    /// TCP-based config reload (no authentication required - see ADR-013)
+    func triggerTCPReload() async -> TCPReloadResult {
+        await configReloadCoordinator.triggerTCPReload()
+    }
+
+    /// Main reload method that should be used by new code
+    func triggerReload() async {
+        await configReloadCoordinator.triggerReload()
+    }
+
+    // MARK: - Lifecycle Initialization
+
+    func performInitialization() async {
+        if isInitializing {
+            AppLogger.shared.warn("⚠️ [Init] Already initializing - skipping duplicate initialization")
+            return
+        }
+
+        isInitializing = true
+        defer { isInitializing = false }
+
+        let engine = InstallerEngine()
+
+        let ensuredConfig = await createDefaultUserConfigIfMissing()
+        if ensuredConfig {
+            AppLogger.shared.log("✅ [Init] Verified user config exists at \(configPath)")
+        }
+
+        await updateStatus()
+        await saveCoordinator.ensureBackupExists()
+
+        await MainActor.run {
+            startConfigFileWatching()
+        }
+
+        let context = await engine.inspectSystem()
+
+        if context.services.kanataRunning {
+            AppLogger.shared.info("✅ [Init] Kanata is already running - skipping initialization")
+            return
+        }
+
+        AppLogger.shared.log(
+            "🔍 [Init] System Context: installed=\(context.components.kanataBinaryInstalled), permissions=\(context.permissions.isSystemReady)"
+        )
+    }
+
+    // MARK: - Recovery Operations (delegates to RecoveryCoordinator)
+
+    func attemptKeyboardRecovery() async {
+        await recoveryCoordinator.attemptKeyboardRecovery()
+    }
+
+    func killAllKanataProcesses() async {
+        let report = await installerEngine
+            .runSingleAction(.terminateConflictingProcesses, using: privilegeBroker)
+        if report.success {
+            AppLogger.shared.log("🔧 [Recovery] Killed Kanata processes")
+        } else {
+            let failureReason = report.failureReason ?? "Unknown error"
+            AppLogger.shared.warn("⚠️ [Recovery] Failed to kill Kanata processes: \(failureReason)")
+        }
+    }
+
+    // MARK: - Service Management
+
+    /// Type alias preserving backward compatibility for callers that reference
+    /// `RuntimeCoordinator.RuntimeStatus`.
+    typealias RuntimeStatus = ServiceLifecycleCoordinator.RuntimeStatus
+
+    @discardableResult
+    public func startKanata(reason: String = "Manual start") async -> Bool {
+        await serviceLifecycleCoordinator.startKanata(reason: reason)
+    }
+
+    @discardableResult
+    public func stopKanata(reason: String = "Manual stop") async -> Bool {
+        await serviceLifecycleCoordinator.stopKanata(reason: reason)
+    }
+
+    @discardableResult
+    public func restartKanata(reason: String = "Manual restart") async -> Bool {
+        await serviceLifecycleCoordinator.restartKanata(reason: reason)
+    }
+
+    func currentRuntimeStatusInternal() async -> RuntimeStatus {
+        await serviceLifecycleCoordinator.currentRuntimeStatus()
+    }
+
+    // MARK: - Configuration File Watching (delegates to ConfigHotReloadService)
+
+    /// Start watching the configuration file for external changes
+    func startConfigFileWatching() {
+        guard let fileWatcher = configFileWatcher else {
+            AppLogger.shared.warn("⚠️ [FileWatcher] ConfigFileWatcher not initialized")
+            return
+        }
+
+        // Configure the hot reload service
+        configHotReloadService.configure(
+            configurationService: configurationService,
+            reloadHandler: { [weak self] in
+                guard let self else { return false }
+                let result = await triggerConfigReload()
+                return result.isSuccess
+            },
+            configParser: { [weak self] content in
+                guard let self else { return [] }
+                let parsed = try configurationService.parseConfigurationFromString(content)
+                return parsed.keyMappings
+            }
+        )
+
+        // Set up UI callbacks
+        configHotReloadService.callbacks = ConfigHotReloadService.Callbacks(
+            onDetected: {
+                SoundManager.shared.playTinkSound()
+            },
+            onValidating: { [weak self] in
+                self?.saveStatus = .saving
+            },
+            onSuccess: { [weak self] content in
+                SoundManager.shared.playGlassSound()
+                self?.saveStatus = .success
+                // Update in-memory config
+                if let mappings = self?.configHotReloadService.parseKeyMappings(from: content) {
+                    self?.applyKeyMappings(mappings)
+                }
+            },
+            onFailure: { [weak self] message in
+                SoundManager.shared.playErrorSound()
+                self?.saveStatus = .failed(message)
+            },
+            onReset: { [weak self] in
+                self?.saveStatus = .idle
+            }
+        )
+
+        let configPath = configPath
+        AppLogger.shared.log("📁 [FileWatcher] Starting to watch config file: \(configPath)")
+
+        fileWatcher.startWatching(path: configPath) { [weak self] in
+            guard let self else { return }
+            _ = await configHotReloadService.handleExternalChange(configPath: configPath)
+        }
+    }
+
+    /// Stop watching the configuration file
+    func stopConfigFileWatching() {
+        configFileWatcher?.stopWatching()
+        AppLogger.shared.log("📁 [FileWatcher] Stopped watching config file")
+    }
+
+    // MARK: - Config Maintenance
+
+    /// Configuration management errors
+    enum ConfigError: Error, LocalizedError {
+        case noBackupAvailable
+        case reloadFailed(String)
+        case validationFailed([String])
+        case postSaveValidationFailed(errors: [String])
+
+        var errorDescription: String? {
+            switch self {
+            case .noBackupAvailable:
+                "No backup configuration available for rollback"
+            case let .reloadFailed(message):
+                "Config reload failed: \(message)"
+            case let .validationFailed(errors):
+                "Config validation failed: \(errors.joined(separator: ", "))"
+            case let .postSaveValidationFailed(errors):
+                "Post-save validation failed: \(errors.joined(separator: ", "))"
+            }
+        }
+    }
+
+    /// Backup current working config before making changes
+    func backupCurrentConfig() async {
+        let config = await configurationService.current()
+        saveCoordinator.backupCurrentConfig(config.content)
+    }
+
+    /// Restore last known good config in case of validation failure
+    func restoreLastGoodConfig() async throws {
+        try await saveCoordinator.restoreLastGoodConfig()
+    }
+
+    /// Save a complete generated configuration (for Claude API generated configs)
+    func saveGeneratedConfiguration(_ configContent: String) async throws {
+        AppLogger.shared.log("💾 [RuntimeCoordinator] Saving generated configuration")
+
+        let result = await saveCoordinator.saveGeneratedConfig(
+            content: configContent,
+            reloadHandler: { [weak self] in
+                guard let self else { return (false, "Coordinator deallocated") }
+                let reloadResult = await triggerConfigReload()
+                // triggerConfigReload() already checks service health and returns failure
+                // when service is unavailable. Don't trigger rollback for that case -
+                // the config passed our validation, it just can't be applied yet.
+                if !reloadResult.isSuccess,
+                   let reason = reloadResult.errorMessage,
+                   reason.contains("not healthy") || reason.contains("requires approval") || reason.contains("starting")
+                {
+                    AppLogger.shared.info("ℹ️ [SaveCoordinator] Service unavailable - config saved but not validated by kanata")
+                    return (true, nil)
+                }
+                return (reloadResult.isSuccess, reloadResult.errorMessage)
+            }
+        )
+
+        // Sync coordinator state to RuntimeCoordinator
+        saveStatus = saveCoordinator.saveStatus
+
+        if result.success, let mappings = result.mappings {
+            lastConfigUpdate = Date()
+            applyKeyMappings(mappings)
+            notifyStateChanged()
+        } else if let error = result.error {
+            notifyStateChanged()
+            throw error
+        }
+    }
+
+    func saveConfiguration(input: String, output: String) async throws {
+        AppLogger.shared.log("💾 [RuntimeCoordinator] Saving configuration mapping")
+
+        let result = await saveCoordinator.saveMapping(
+            input: input,
+            output: output,
+            ruleCollectionsManager: ruleCollectionsManager,
+            reloadHandler: { [weak self] in
+                guard let self else { return (false, "Coordinator deallocated") }
+                let tcpResult = await triggerTCPReload()
+                // Distinguish "TCP unreachable" (service down) from "kanata rejected config".
+                // Only trigger rollback for actual config rejections, not network errors.
+                if case .networkError = tcpResult {
+                    AppLogger.shared.info("ℹ️ [SaveCoordinator] TCP unreachable - config saved but not validated (service may be starting)")
+                    return (true, nil)
+                }
+                return (tcpResult.isSuccess, tcpResult.errorMessage)
+            }
+        )
+
+        // Sync coordinator state to RuntimeCoordinator
+        saveStatus = saveCoordinator.saveStatus
+
+        if result.success, let mappings = result.mappings {
+            applyKeyMappings(mappings, persistCollections: false)
+            notifyStateChanged()
+            AppLogger.shared.log("⚡ [Config] Validation-on-demand save completed")
+        } else if let error = result.error {
+            notifyStateChanged()
+            throw error
+        }
+    }
+
+    // MARK: - Conflict Resolution
+
+    /// Prompt the user to resolve a rule conflict via the UI
+    @MainActor
+    func promptForConflictResolution(_ context: RuleConflictContext) async -> RuleConflictChoice? {
+        // Cancel any pending resolution to avoid continuation leak
+        conflictResolutionContinuation?.resume(returning: nil)
+        conflictResolutionContinuation = nil
+
+        pendingRuleConflict = context
+        notifyStateChanged()
+
+        return await withCheckedContinuation { continuation in
+            conflictResolutionContinuation = continuation
+        }
+    }
+
+    /// Called by ViewModel when user makes a choice in the conflict resolution dialog
+    func resolveConflict(with choice: RuleConflictChoice?) {
+        pendingRuleConflict = nil
+        conflictResolutionContinuation?.resume(returning: choice)
+        conflictResolutionContinuation = nil
+        notifyStateChanged()
+    }
+
+    // MARK: - Diagnostics
+
+    func addDiagnostic(_ diagnostic: KanataDiagnostic) {
+        diagnosticsManager.addDiagnostic(diagnostic)
+        // Update local diagnostics array for UI state
+        diagnostics = diagnosticsManager.getDiagnostics()
+    }
+
+    func clearDiagnostics() {
+        diagnosticsManager.clearDiagnostics()
+        diagnostics = []
+    }
+
+    func diagnoseKanataFailure(_ exitCode: Int32, _ output: String) {
+        let diagnostics = diagnosticsManager.diagnoseFailure(exitCode: exitCode, output: output)
+
+        recoveryCoordinator.diagnoseKanataFailure(
+            exitCode: exitCode,
+            output: output,
+            diagnostics: diagnostics,
+            addDiagnostic: { [weak self] diagnostic in
+                self?.addDiagnostic(diagnostic)
+            },
+            attemptRecovery: { [weak self] in
+                await self?.attemptKeyboardRecovery()
+            }
+        )
+    }
+
+    // MARK: - Auto-Fix Capabilities
+
+    func autoFixDiagnostic(_ diagnostic: KanataDiagnostic) async -> Bool {
+        guard let action = recoveryCoordinator.autoFixActionType(diagnostic) else {
+            return false
+        }
+
+        var success = false
+        switch action {
+        case .resetConfig:
+            do {
+                try await resetToDefaultConfig()
+                success = true
+            } catch {
+                success = false
+            }
+
+        case .restartService:
+            success = await restartKanata(
+                reason: "AutoFix diagnostic: \(diagnostic.title)"
+            )
+        }
+
+        recoveryCoordinator.logAutoFixResult(action, success: success)
+        return success
+    }
+}
+
+// MARK: - Result Types
+
+/// TCP reload result
+struct ReloadResult {
+    let success: Bool
+    let response: String?
+    let errorMessage: String?
+    let `protocol`: CommunicationProtocol?
+
+    var isSuccess: Bool {
+        success
     }
 }

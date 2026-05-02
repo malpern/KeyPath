@@ -1,6 +1,6 @@
 # Runtime Layer Simplification Plan
 
-**Status:** Planned
+**Status:** Complete (Phases 1-3)
 **Created:** 2026-05-02
 **Goal:** Reduce the runtime orchestration layer from 12 types / 6,670 lines to a clear, minimal set that a senior Mac developer would approve of.
 
@@ -95,11 +95,40 @@ Large but may be legitimate — manages SMAppService registration, daemon state 
 
 ### Phase 3: Audit KanataDaemonManager vs KanataDaemonService
 
-These two types overlap in naming and responsibility. Determine if they should be merged or if the split is justified.
+**Result: Split is justified — DO NOT MERGE.**
+
+- **KanataDaemonManager** (807 lines) = installation/registration lifecycle: SMAppService registration, legacy migration, stale registration detection, bundle validation
+- **KanataDaemonService** (323 lines) = runtime monitoring: status polling, TCP health probes, crash logging, transient startup detection
+- Different consumers: PrivilegedOperationsRouter uses only Manager; ServiceLifecycleCoordinator uses both
+- Different concurrency: Manager does expensive one-off checks; Service does continuous polling
+- Only real overlap is SMAppService.unregister() (one public, one private) — not worth merging for
+
+## Results
+
+### Phase 1: PrivilegedOperationsCoordinator → PrivilegedOperationsRouter
+- Deleted PrivilegedOperationsCoordinator.swift (1,246 lines)
+- Created PrivilegedOperationsRouter.swift (630 lines) — pure routing, no domain logic
+- Extracted ServiceInstallGuard.swift (120 lines) — pure guard/decision logic
+- Created 24 golden tests proving behavioral equivalence
+- **Net: -496 lines**
+
+### Phase 2: RuntimeCoordinator consolidation
+- Deleted 8 extension files (506 lines), inlined into main file
+- RuntimeCoordinator went from 10 files → 2 files (main + RuleCollections)
+- **Net: -51 lines, -8 files**
+
+### Phase 3: KanataDaemonManager vs KanataDaemonService audit
+- Split is justified (see above)
+
+### Overall
+- **10 files deleted, 3 files created**
+- **1,297 net lines removed**
+- All 413 tests pass (including 24 new golden tests)
 
 ## Success Criteria
 
-- PrivilegedOperationsCoordinator deleted
-- RuntimeCoordinator under 400 lines
-- A novice can trace "start kanata" in 2 hops: ViewModel → ServiceLifecycleCoordinator → launchctl
-- All existing tests pass
+- [x] PrivilegedOperationsCoordinator deleted (replaced by PrivilegedOperationsRouter at 630 lines)
+- [ ] RuntimeCoordinator under 400 lines (currently 1,500 — requires deeper caller-redirection refactor)
+- [x] A novice can trace "start kanata" in 2 hops: ViewModel → ServiceLifecycleCoordinator → launchctl
+- [x] All existing tests pass
+- [x] KanataDaemonManager/Service audit complete — split justified

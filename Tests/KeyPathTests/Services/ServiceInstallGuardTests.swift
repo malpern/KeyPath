@@ -4,21 +4,21 @@
 @MainActor
 final class ServiceInstallGuardTests: XCTestCase {
     override func tearDown() async throws {
-        PrivilegedOperationsCoordinator._testResetServiceInstallGuard()
+        PrivilegedOperationsRouter._testResetServiceInstallGuard()
         try await super.tearDown()
     }
 
     func testAutoInstallRunsWhenServiceIsMissing() async throws {
         var serviceState: KanataDaemonManager.ServiceManagementState = .uninstalled
-        PrivilegedOperationsCoordinator.serviceStateOverride = { serviceState }
+        PrivilegedOperationsRouter.serviceStateOverride = { serviceState }
 
         var installCount = 0
-        PrivilegedOperationsCoordinator.installAllServicesOverride = {
+        PrivilegedOperationsRouter.installAllServicesOverride = {
             installCount += 1
             serviceState = .smappserviceActive
         }
 
-        let didInstall = try await PrivilegedOperationsCoordinator.shared._testEnsureServices(
+        let didInstall = try await PrivilegedOperationsRouter.shared._testEnsureServices(
             context: "unit-test"
         )
 
@@ -27,18 +27,18 @@ final class ServiceInstallGuardTests: XCTestCase {
     }
 
     func testInstallGuardThrottlesRapidRepeats() async throws {
-        PrivilegedOperationsCoordinator._testResetServiceInstallGuard()
-        PrivilegedOperationsCoordinator.serviceStateOverride = { .uninstalled }
+        PrivilegedOperationsRouter._testResetServiceInstallGuard()
+        PrivilegedOperationsRouter.serviceStateOverride = { .uninstalled }
 
         var installCount = 0
-        PrivilegedOperationsCoordinator.installAllServicesOverride = {
+        PrivilegedOperationsRouter.installAllServicesOverride = {
             installCount += 1
         }
 
-        let first = try await PrivilegedOperationsCoordinator.shared._testEnsureServices(
+        let first = try await PrivilegedOperationsRouter.shared._testEnsureServices(
             context: "unit-test"
         )
-        let second = try await PrivilegedOperationsCoordinator.shared._testEnsureServices(
+        let second = try await PrivilegedOperationsRouter.shared._testEnsureServices(
             context: "unit-test"
         )
 
@@ -49,15 +49,15 @@ final class ServiceInstallGuardTests: XCTestCase {
 
     func testLegacyStateTriggersMigrationInstall() async throws {
         var serviceState: KanataDaemonManager.ServiceManagementState = .legacyActive
-        PrivilegedOperationsCoordinator.serviceStateOverride = { serviceState }
+        PrivilegedOperationsRouter.serviceStateOverride = { serviceState }
 
         var installCount = 0
-        PrivilegedOperationsCoordinator.installAllServicesOverride = {
+        PrivilegedOperationsRouter.installAllServicesOverride = {
             installCount += 1
             serviceState = .smappserviceActive
         }
 
-        let didInstall = try await PrivilegedOperationsCoordinator.shared._testEnsureServices(
+        let didInstall = try await PrivilegedOperationsRouter.shared._testEnsureServices(
             context: "legacy-test"
         )
 
@@ -66,13 +66,13 @@ final class ServiceInstallGuardTests: XCTestCase {
     }
 
     func testPendingApprovalSkipsAutoInstall() async throws {
-        PrivilegedOperationsCoordinator.serviceStateOverride = { .smappservicePending }
+        PrivilegedOperationsRouter.serviceStateOverride = { .smappservicePending }
         var installCount = 0
-        PrivilegedOperationsCoordinator.installAllServicesOverride = {
+        PrivilegedOperationsRouter.installAllServicesOverride = {
             installCount += 1
         }
 
-        let didInstall = try await PrivilegedOperationsCoordinator.shared._testEnsureServices(
+        let didInstall = try await PrivilegedOperationsRouter.shared._testEnsureServices(
             context: "pending-test"
         )
 
@@ -82,15 +82,15 @@ final class ServiceInstallGuardTests: XCTestCase {
 
     func testConflictedStateTriggersAutoInstall() async throws {
         var serviceState: KanataDaemonManager.ServiceManagementState = .conflicted
-        PrivilegedOperationsCoordinator.serviceStateOverride = { serviceState }
+        PrivilegedOperationsRouter.serviceStateOverride = { serviceState }
 
         var installCount = 0
-        PrivilegedOperationsCoordinator.installAllServicesOverride = {
+        PrivilegedOperationsRouter.installAllServicesOverride = {
             installCount += 1
             serviceState = .smappserviceActive
         }
 
-        let didInstall = try await PrivilegedOperationsCoordinator.shared._testEnsureServices(
+        let didInstall = try await PrivilegedOperationsRouter.shared._testEnsureServices(
             context: "conflict-test"
         )
 
@@ -102,11 +102,11 @@ final class ServiceInstallGuardTests: XCTestCase {
 
     /// Verify the counter resets when system becomes healthy (skipNoInstall path)
     func testStaleRecoveryCounterResetsAcrossHealthyPeriods() {
-        PrivilegedOperationsCoordinator._testResetServiceInstallGuard()
+        PrivilegedOperationsRouter._testResetServiceInstallGuard()
 
         // Simulate 3 stale recovery attempts (should all bypass throttle)
         for i in 1 ... 3 {
-            let decision = PrivilegedOperationsCoordinator._testDecideInstallGuard(
+            let decision = PrivilegedOperationsRouter._testDecideInstallGuard(
                 state: .smappserviceActive,
                 staleEnabledRegistration: true
             )
@@ -118,14 +118,14 @@ final class ServiceInstallGuardTests: XCTestCase {
         }
 
         // System becomes healthy — counter should reset via skipNoInstall path
-        let healthyDecision = PrivilegedOperationsCoordinator._testDecideInstallGuard(
+        let healthyDecision = PrivilegedOperationsRouter._testDecideInstallGuard(
             state: .smappserviceActive,
             staleEnabledRegistration: false
         )
         XCTAssertEqual(healthyDecision, .skipNoInstall)
 
         // Next stale event should start fresh at attempt 1, not 4
-        let afterResetDecision = PrivilegedOperationsCoordinator._testDecideInstallGuard(
+        let afterResetDecision = PrivilegedOperationsRouter._testDecideInstallGuard(
             state: .smappserviceActive,
             staleEnabledRegistration: true
         )
@@ -138,12 +138,12 @@ final class ServiceInstallGuardTests: XCTestCase {
 
     /// Verify that exceeding the bypass limit applies throttle
     func testStaleRecoveryCounterExceedingLimitAppliesThrottle() {
-        PrivilegedOperationsCoordinator._testResetServiceInstallGuard()
+        PrivilegedOperationsRouter._testResetServiceInstallGuard()
         let now = Date()
 
         // Exhaust all 3 bypass attempts
         for _ in 1 ... 3 {
-            _ = PrivilegedOperationsCoordinator._testDecideInstallGuard(
+            _ = PrivilegedOperationsRouter._testDecideInstallGuard(
                 state: .smappserviceActive,
                 staleEnabledRegistration: true,
                 now: now
@@ -151,7 +151,7 @@ final class ServiceInstallGuardTests: XCTestCase {
         }
 
         // 4th attempt with recent lastAttempt should be throttled
-        let throttled = PrivilegedOperationsCoordinator._testDecideInstallGuard(
+        let throttled = PrivilegedOperationsRouter._testDecideInstallGuard(
             state: .smappserviceActive,
             staleEnabledRegistration: true,
             now: now,

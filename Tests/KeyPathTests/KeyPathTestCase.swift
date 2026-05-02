@@ -46,7 +46,7 @@ open class KeyPathTestCase: XCTestCase {
             // Set up test seam to avoid real pgrep calls which can hang after multiple rapid executions.
             VHIDDeviceManager.testPIDProvider = { [] }
             // Configure WizardDependencies so InstallerEngine/PrivilegeBroker init don't crash.
-            WizardDependencies.privilegedOperations = PrivilegedOperationsCoordinator.shared
+            WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
             WizardDependencies.daemonManager = KanataDaemonManager.shared
             if WizardDependencies.systemValidator == nil {
                 WizardDependencies.systemValidator = SystemValidator(
@@ -75,7 +75,7 @@ open class KeyPathAsyncTestCase: XCTestCase {
         await MainActor.run {
             VHIDDeviceManager.testPIDProvider = { [] }
             // Configure WizardDependencies so InstallerEngine/PrivilegeBroker init don't crash.
-            WizardDependencies.privilegedOperations = PrivilegedOperationsCoordinator.shared
+            WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
             WizardDependencies.daemonManager = KanataDaemonManager.shared
             if WizardDependencies.systemValidator == nil {
                 WizardDependencies.systemValidator = SystemValidator(

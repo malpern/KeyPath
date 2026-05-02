@@ -4,10 +4,10 @@ import Foundation
 @testable import KeyPathCore
 @preconcurrency import XCTest
 
-/// Tests for PrivilegedOperationsCoordinator
+/// Tests for PrivilegedOperationsRouter
 /// These verify the coordinator properly delegates to helper or sudo paths
 @MainActor
-final class PrivilegedOperationsCoordinatorTests: XCTestCase {
+final class PrivilegedOperationsRouterTests: XCTestCase {
     private nonisolated(unsafe) var originalExecutor: AdminCommandExecutor!
 
     override func setUp() async throws {
@@ -21,7 +21,7 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
         await MainActor.run {
             AdminCommandExecutorHolder.shared = originalExecutor
             #if DEBUG
-                PrivilegedOperationsCoordinator.resetTestingState()
+                PrivilegedOperationsRouter.resetTestingState()
                 KanataDaemonManager.registeredButNotLoadedOverride = nil
                 ServiceHealthChecker.runtimeSnapshotOverride = nil
                 ServiceHealthChecker.recentlyRestartedOverride = nil
@@ -36,7 +36,7 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
         // so we just verify the method completes (whether success or expected failure).
         // The actual implementation uses AdminCommandExecutor (backed by PrivilegedCommandRunner).
 
-        let coordinator = PrivilegedOperationsCoordinator.shared
+        let coordinator = PrivilegedOperationsRouter.shared
 
         do {
             try await coordinator.installNewsyslogConfig()
@@ -48,14 +48,14 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
     }
 
     func testCoordinatorSingletonExists() {
-        let coordinator = PrivilegedOperationsCoordinator.shared
+        let coordinator = PrivilegedOperationsRouter.shared
         XCTAssertNotNil(coordinator, "Coordinator should be accessible")
     }
 
     func testOperationModeIsDirectSudoInDebug() {
         #if DEBUG
             XCTAssertEqual(
-                PrivilegedOperationsCoordinator.operationMode,
+                PrivilegedOperationsRouter.operationMode,
                 .directSudo,
                 "Debug builds should use directSudo mode"
             )
@@ -71,7 +71,7 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
             AdminCommandExecutorHolder.shared = originalExecutor
         }
 
-        let coordinator = PrivilegedOperationsCoordinator.shared
+        let coordinator = PrivilegedOperationsRouter.shared
         let success = try await coordinator.restartKarabinerDaemonVerified()
 
         XCTAssertTrue(success)
@@ -80,29 +80,29 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 
     func testInstallServicesIfUninstalledSkipsWhenApprovalPending() async throws {
         #if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappservicePending }
-            PrivilegedOperationsCoordinator.installAllServicesOverride = {
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.serviceStateOverride = { .smappservicePending }
+            PrivilegedOperationsRouter.installAllServicesOverride = {
                 XCTFail("Install should not run while SMAppService approval is pending")
             }
         #endif
 
-        let coordinator = PrivilegedOperationsCoordinator.shared
+        let coordinator = PrivilegedOperationsRouter.shared
         let didInstall = try await coordinator.installServicesIfUninstalled(context: "test-pending")
         XCTAssertFalse(didInstall)
     }
 
     func testInstallServicesIfUninstalledRunsInstallWhenUninstalled() async throws {
         #if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
+            PrivilegedOperationsRouter.resetTestingState()
             var installCallCount = 0
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .uninstalled }
-            PrivilegedOperationsCoordinator.installAllServicesOverride = {
+            PrivilegedOperationsRouter.serviceStateOverride = { .uninstalled }
+            PrivilegedOperationsRouter.installAllServicesOverride = {
                 installCallCount += 1
             }
         #endif
 
-        let coordinator = PrivilegedOperationsCoordinator.shared
+        let coordinator = PrivilegedOperationsRouter.shared
         let didInstall = try await coordinator.installServicesIfUninstalled(context: "test-uninstalled")
         XCTAssertTrue(didInstall)
         #if DEBUG
@@ -112,15 +112,15 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 
     func testInstallServicesIfUninstalledThrottlesRepeatedAttempts() async throws {
         #if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
+            PrivilegedOperationsRouter.resetTestingState()
             var installCallCount = 0
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .uninstalled }
-            PrivilegedOperationsCoordinator.installAllServicesOverride = {
+            PrivilegedOperationsRouter.serviceStateOverride = { .uninstalled }
+            PrivilegedOperationsRouter.installAllServicesOverride = {
                 installCallCount += 1
             }
         #endif
 
-        let coordinator = PrivilegedOperationsCoordinator.shared
+        let coordinator = PrivilegedOperationsRouter.shared
         let first = try await coordinator.installServicesIfUninstalled(context: "test-throttle-1")
         let second = try await coordinator.installServicesIfUninstalled(context: "test-throttle-2")
 
@@ -133,16 +133,16 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 
     func testInstallServicesIfUninstalledRunsInstallWhenSMAppServiceIsStaleEnabled() async throws {
         #if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
+            PrivilegedOperationsRouter.resetTestingState()
             var installCallCount = 0
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
+            PrivilegedOperationsRouter.serviceStateOverride = { .smappserviceActive }
             KanataDaemonManager.registeredButNotLoadedOverride = { true }
-            PrivilegedOperationsCoordinator.installAllServicesOverride = {
+            PrivilegedOperationsRouter.installAllServicesOverride = {
                 installCallCount += 1
             }
         #endif
 
-        let coordinator = PrivilegedOperationsCoordinator.shared
+        let coordinator = PrivilegedOperationsRouter.shared
         let didInstall = try await coordinator.installServicesIfUninstalled(context: "test-stale-enabled")
 
         XCTAssertTrue(didInstall)
@@ -153,16 +153,16 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 
     func testInstallServicesIfUninstalledBypassesThrottleForStaleEnabledRecovery() async throws {
         #if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
+            PrivilegedOperationsRouter.resetTestingState()
             var installCallCount = 0
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
+            PrivilegedOperationsRouter.serviceStateOverride = { .smappserviceActive }
             KanataDaemonManager.registeredButNotLoadedOverride = { true }
-            PrivilegedOperationsCoordinator.installAllServicesOverride = {
+            PrivilegedOperationsRouter.installAllServicesOverride = {
                 installCallCount += 1
             }
         #endif
 
-        let coordinator = PrivilegedOperationsCoordinator.shared
+        let coordinator = PrivilegedOperationsRouter.shared
         let first = try await coordinator.installServicesIfUninstalled(context: "test-stale-throttle-1")
         let second = try await coordinator.installServicesIfUninstalled(context: "test-stale-throttle-2")
 
@@ -175,16 +175,16 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 
     func testInstallServicesIfUninstalledLimitsRepeatedStaleBypassAttempts() async throws {
         #if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
+            PrivilegedOperationsRouter.resetTestingState()
             var installCallCount = 0
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
+            PrivilegedOperationsRouter.serviceStateOverride = { .smappserviceActive }
             KanataDaemonManager.registeredButNotLoadedOverride = { true }
-            PrivilegedOperationsCoordinator.installAllServicesOverride = {
+            PrivilegedOperationsRouter.installAllServicesOverride = {
                 installCallCount += 1
             }
         #endif
 
-        let coordinator = PrivilegedOperationsCoordinator.shared
+        let coordinator = PrivilegedOperationsRouter.shared
         let first = try await coordinator.installServicesIfUninstalled(context: "test-stale-cap-1")
         let second = try await coordinator.installServicesIfUninstalled(context: "test-stale-cap-2")
         let third = try await coordinator.installServicesIfUninstalled(context: "test-stale-cap-3")
@@ -201,16 +201,16 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 
     func testInstallServicesIfUninstalledSkipsWhenSMAppServiceIsHealthyEnabled() async throws {
         #if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
+            PrivilegedOperationsRouter.resetTestingState()
             var installCallCount = 0
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
+            PrivilegedOperationsRouter.serviceStateOverride = { .smappserviceActive }
             KanataDaemonManager.registeredButNotLoadedOverride = { false }
-            PrivilegedOperationsCoordinator.installAllServicesOverride = {
+            PrivilegedOperationsRouter.installAllServicesOverride = {
                 installCallCount += 1
             }
         #endif
 
-        let coordinator = PrivilegedOperationsCoordinator.shared
+        let coordinator = PrivilegedOperationsRouter.shared
         let didInstall = try await coordinator.installServicesIfUninstalled(context: "test-healthy-enabled")
 
         XCTAssertFalse(didInstall)
@@ -221,14 +221,14 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 
     func testRestartUnhealthyServicesFailsWhenPostconditionTimesOut() async throws {
         #if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.serviceStateOverride = { .smappserviceActive }
             KanataDaemonManager.registeredButNotLoadedOverride = { false }
-            PrivilegedOperationsCoordinator.killExistingKanataProcessesOverride = {}
-            PrivilegedOperationsCoordinator.kanataReadinessOverride = { _ in .timedOut }
+            PrivilegedOperationsRouter.killExistingKanataProcessesOverride = {}
+            PrivilegedOperationsRouter.kanataReadinessOverride = { _ in .timedOut }
         #endif
 
-        let coordinator = PrivilegedOperationsCoordinator.shared
+        let coordinator = PrivilegedOperationsRouter.shared
         do {
             try await coordinator.recoverRequiredRuntimeServices()
             XCTFail("Expected recoverRequiredRuntimeServices to fail when postcondition does not become ready")
@@ -241,19 +241,19 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 
     func testRestartUnhealthyServicesClearsExistingKanataProcessesBeforeRestart() async throws {
         #if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
-            PrivilegedOperationsCoordinator.serviceStateOverride = { .smappserviceActive }
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.serviceStateOverride = { .smappserviceActive }
             KanataDaemonManager.registeredButNotLoadedOverride = { false }
             var killCalls = 0
-            PrivilegedOperationsCoordinator.killExistingKanataProcessesOverride = {
+            PrivilegedOperationsRouter.killExistingKanataProcessesOverride = {
                 killCalls += 1
             }
-            PrivilegedOperationsCoordinator.kanataReadinessOverride = { _ in .ready }
+            PrivilegedOperationsRouter.kanataReadinessOverride = { _ in .ready }
         #else
-            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsCoordinator test overrides")
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
         #endif
 
-        let coordinator = PrivilegedOperationsCoordinator.shared
+        let coordinator = PrivilegedOperationsRouter.shared
         try await coordinator.recoverRequiredRuntimeServices()
 
         #if DEBUG
@@ -263,11 +263,11 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 
     func testRegenerateServiceConfigurationAllowsPendingApprovalPostcondition() async throws {
         #if DEBUG
-            PrivilegedOperationsCoordinator.resetTestingState()
-            PrivilegedOperationsCoordinator.kanataReadinessOverride = { _ in .pendingApproval }
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.kanataReadinessOverride = { _ in .pendingApproval }
         #endif
 
-        let coordinator = PrivilegedOperationsCoordinator.shared
+        let coordinator = PrivilegedOperationsRouter.shared
         do {
             try await coordinator.regenerateServiceConfiguration()
         } catch {
@@ -279,7 +279,7 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
         let fakeExecutor = FakeAdminCommandExecutor()
         AdminCommandExecutorHolder.shared = fakeExecutor
 
-        let coordinator = PrivilegedOperationsCoordinator.shared
+        let coordinator = PrivilegedOperationsRouter.shared
 
         do {
             try await coordinator.terminateProcess(pid: 0)

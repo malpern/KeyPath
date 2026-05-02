@@ -108,9 +108,9 @@ extension FullDiskAccessChecker: WizardFullDiskAccessChecking {}
 
 extension PermissionRequestService: WizardPermissionRequesting {}
 
-// MARK: - PrivilegedOperationsCoordinator + WizardPrivilegedOperating
+// MARK: - PrivilegedOperationsRouter + WizardPrivilegedOperating
 
-extension PrivilegedOperationsCoordinator: WizardPrivilegedOperating {}
+extension PrivilegedOperationsRouter: WizardPrivilegedOperating {}
 
 // MARK: - TCPProbe + WizardTCPProbing
 
@@ -141,7 +141,7 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
     WizardDependencies.helperMaintenance = HelperMaintenance.shared
     WizardDependencies.fullDiskAccessChecker = FullDiskAccessChecker.shared
     WizardDependencies.permissionRequestService = PermissionRequestService.shared
-    WizardDependencies.privilegedOperations = PrivilegedOperationsCoordinator.shared
+    WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
 
     WizardDependencies.smServiceFactory = { plistName in
         HelperManager.smServiceFactory(plistName)

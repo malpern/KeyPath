@@ -5,18 +5,17 @@ final class FacadeLintTests: XCTestCase {
     func testAppKitSourcesDoNotBypassInstallerEngine() {
         let root = repositoryRoot()
         let appKitRoot = root.appendingPathComponent("Sources/KeyPathAppKit")
-        // Allow coordinator and engine internals to reference the coordinator
         let allow = [
-            root.appendingPathComponent("Sources/KeyPathAppKit/Core/PrivilegedOperationsCoordinator.swift").path,
+            root.appendingPathComponent("Sources/KeyPathAppKit/Core/PrivilegedOperationsRouter.swift").path,
             root.appendingPathComponent("Sources/KeyPathAppKit/InstallationWizard/Core/PrivilegeBroker.swift").path,
             root.appendingPathComponent("Sources/KeyPathAppKit/InstallationWizard/Core/InstallerEngine.swift").path,
             root.appendingPathComponent("Sources/KeyPathAppKit/Managers/RuntimeCoordinator.swift").path,
             root.appendingPathComponent("Sources/KeyPathAppKit/Managers/RuntimeCoordinator+Lifecycle.swift").path,
-            root.appendingPathComponent("Sources/KeyPathAppKit/InstallationWizard/Core/PermissionGrantCoordinator.swift").path
+            root.appendingPathComponent("Sources/KeyPathAppKit/InstallationWizard/Core/PermissionGrantCoordinator.swift").path,
         ]
-        let violations = findPattern("PrivilegedOperationsCoordinator\\.shared", in: appKitRoot, allowList: allow)
+        let violations = findPattern("PrivilegedOperationsRouter\\.shared", in: appKitRoot, allowList: allow)
         if !violations.isEmpty {
-            XCTFail("PrivilegedOperationsCoordinator.shared found outside allowlist:\n" + violations.joined(separator: "\n"))
+            XCTFail("PrivilegedOperationsRouter.shared found outside allowlist:\n" + violations.joined(separator: "\n"))
         }
     }
 
@@ -26,7 +25,7 @@ final class FacadeLintTests: XCTestCase {
         let allow = [
             root.appendingPathComponent("Sources/KeyPathAppKit/Services/KeyboardCapture.swift").path,
             root.appendingPathComponent("Sources/KeyPathAppKit/UI/KeyboardVisualization/KeyboardVisualizationViewModel.swift").path,
-            root.appendingPathComponent("Sources/KeyPathPermissions/PermissionOracle.swift").path
+            root.appendingPathComponent("Sources/KeyPathPermissions/PermissionOracle.swift").path,
         ]
         let violations = findPattern("AXIsProcessTrusted\\(", in: sourcesDir, allowList: allow)
         if !violations.isEmpty {
