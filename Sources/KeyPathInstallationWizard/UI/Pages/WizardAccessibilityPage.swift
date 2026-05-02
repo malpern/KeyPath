@@ -12,6 +12,7 @@ public struct WizardAccessibilityPage: View {
     public let kanataManager: any RuntimeCoordinating
     @State private var permissionPollingTask: Task<Void, Never>?
     @State private var showSuccessBurst = false
+    @State private var permissionSnapshot: PermissionOracle.Snapshot?
 
     @Environment(WizardStateMachine.self) private var stateMachine
 
@@ -245,39 +246,29 @@ public struct WizardAccessibilityPage: View {
             }
         }
         .onAppear {
-            // Start passive polling to reflect manual changes in System Settings
+            // Start Oracle-direct polling — updates @State snapshot for instant UI,
+            // only calls onRefresh() when both permissions are granted (to advance navigation).
             if permissionPollingTask == nil {
                 permissionPollingTask = Task { @MainActor [onRefresh] in
-                    var lastKeyPathGranted: Bool?
-                    var lastKanataGranted: Bool?
                     var hasEverCelebrated = false
                     while !Task.isCancelled {
+                        _ = await WizardSleep.ms(500)
                         let snapshot = await PermissionOracle.shared.currentSnapshot()
-                        let kpGranted = snapshot.keyPath.accessibility.isReady
-                        let kaGranted = snapshot.kanata.accessibility.isReady
-                        let bothGranted = kpGranted && kaGranted
-                        if lastKeyPathGranted != kpGranted || lastKanataGranted != kaGranted {
-                            AppLogger.shared.log(
-                                "🔁 [WizardAccessibilityPage] Passive AX change detected - KeyPath: \(kpGranted), Kanata: \(kaGranted). Refreshing UI."
-                            )
-                            lastKeyPathGranted = kpGranted
-                            lastKanataGranted = kaGranted
+                        permissionSnapshot = snapshot
 
-                            // Celebrate when both permissions are granted for the first time
-                            if bothGranted, !hasEverCelebrated {
-                                hasEverCelebrated = true
-                                // Bounce dock icon to get user's attention back to KeyPath
-                                WizardWindowManager.shared.bounceDocIcon()
-                                withAnimation(.spring(response: 0.3)) {
-                                    showSuccessBurst = true
-                                }
-                                _ = await WizardSleep.ms(1500)
-                                showSuccessBurst = false
+                        let bothGranted = snapshot.keyPath.accessibility.isReady
+                            && snapshot.kanata.accessibility.isReady
+                        if bothGranted, !hasEverCelebrated {
+                            hasEverCelebrated = true
+                            WizardWindowManager.shared.bounceDocIcon()
+                            withAnimation(.spring(response: 0.3)) {
+                                showSuccessBurst = true
                             }
+                            _ = await WizardSleep.ms(1500)
+                            showSuccessBurst = false
                             await onRefresh()
+                            return
                         }
-                        // Poll every 250ms up to 1s to reflect changes promptly without long sleeps
-                        _ = await WizardSleep.ms(250)
                     }
                 }
             }
@@ -303,13 +294,21 @@ public struct WizardAccessibilityPage: View {
     }
 
     private var keyPathAccessibilityStatus: InstallationStatus {
-        stateInterpreter.getPermissionStatus(.keyPathAccessibility, in: issues)
+        guard let snapshot = permissionSnapshot else { return .inProgress }
+        return installationStatus(for: snapshot.keyPath.accessibility)
     }
 
     private var kanataAccessibilityStatus: InstallationStatus {
-        let status = stateInterpreter.getPermissionStatus(.kanataAccessibility, in: issues)
-        AppLogger.shared.log("🔍 [WizardAccessibilityPage] kanataAccessibilityStatus: \(status)")
-        return status
+        guard let snapshot = permissionSnapshot else { return .inProgress }
+        return installationStatus(for: snapshot.kanata.accessibility)
+    }
+
+    private func installationStatus(for status: PermissionOracle.Status) -> InstallationStatus {
+        switch status {
+        case .granted: .completed
+        case .denied, .error: .failed
+        case .unknown: .warning
+        }
     }
 
     /// Issue filtering for tooltips

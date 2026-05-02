@@ -16,6 +16,7 @@ public struct WizardInputMonitoringPage: View {
     @State private var staleEntryDetails: [String] = []
     @State private var permissionPollingTask: Task<Void, Never>?
     @State private var showSuccessBurst = false
+    @State private var permissionSnapshot: PermissionOracle.Snapshot?
 
     @Environment(WizardStateMachine.self) private var stateMachine
 
@@ -230,7 +231,32 @@ public struct WizardInputMonitoringPage: View {
         }
         .onAppear {
             checkForStaleEntries()
-            startPassivePollingIfNeeded()
+            // Start Oracle-direct polling — updates @State snapshot for instant UI,
+            // only calls onRefresh() when both permissions are granted (to advance navigation).
+            if permissionPollingTask == nil {
+                permissionPollingTask = Task { @MainActor [onRefresh] in
+                    var hasEverCelebrated = false
+                    while !Task.isCancelled {
+                        _ = await WizardSleep.ms(500)
+                        let snapshot = await PermissionOracle.shared.currentSnapshot()
+                        permissionSnapshot = snapshot
+
+                        let bothGranted = snapshot.keyPath.inputMonitoring.isReady
+                            && snapshot.kanata.inputMonitoring.isReady
+                        if bothGranted, !hasEverCelebrated {
+                            hasEverCelebrated = true
+                            WizardWindowManager.shared.bounceDocIcon()
+                            withAnimation(.spring(response: 0.3)) {
+                                showSuccessBurst = true
+                            }
+                            _ = await WizardSleep.ms(1500)
+                            showSuccessBurst = false
+                            await onRefresh()
+                            return
+                        }
+                    }
+                }
+            }
         }
         .onDisappear {
             permissionPollingTask?.cancel()
@@ -249,11 +275,21 @@ public struct WizardInputMonitoringPage: View {
     }
 
     private var keyPathInputMonitoringStatus: InstallationStatus {
-        stateInterpreter.getPermissionStatus(.keyPathInputMonitoring, in: issues)
+        guard let snapshot = permissionSnapshot else { return .inProgress }
+        return installationStatus(for: snapshot.keyPath.inputMonitoring)
     }
 
     private var kanataInputMonitoringStatus: InstallationStatus {
-        stateInterpreter.getPermissionStatus(.kanataInputMonitoring, in: issues)
+        guard let snapshot = permissionSnapshot else { return .inProgress }
+        return installationStatus(for: snapshot.kanata.inputMonitoring)
+    }
+
+    private func installationStatus(for status: PermissionOracle.Status) -> InstallationStatus {
+        switch status {
+        case .granted: .completed
+        case .denied, .error: .failed
+        case .unknown: .warning
+        }
     }
 
     /// Issue filtering for tooltips
@@ -331,30 +367,6 @@ public struct WizardInputMonitoringPage: View {
                     // Always open settings manually - never auto-request
                     openInputMonitoringSettings()
                 }
-            }
-        }
-    }
-
-    /// Passive polling started on page appear to detect manual grants in System Settings.
-    private func startPassivePollingIfNeeded() {
-        guard permissionPollingTask == nil else { return }
-        permissionPollingTask = Task { @MainActor [onRefresh] in
-            var lastKeyPathGranted: Bool?
-            var lastKanataGranted: Bool?
-            while !Task.isCancelled {
-                _ = await WizardSleep.ms(500)
-                let snapshot = await PermissionOracle.shared.currentSnapshot()
-                let kpGranted = snapshot.keyPath.inputMonitoring.isReady
-                let kaGranted = snapshot.kanata.inputMonitoring.isReady
-                if lastKeyPathGranted != kpGranted || lastKanataGranted != kaGranted {
-                    AppLogger.shared.log(
-                        "🔁 [WizardInputMonitoringPage] Passive IM change detected - KeyPath: \(kpGranted), Kanata: \(kaGranted). Refreshing UI."
-                    )
-                    lastKeyPathGranted = kpGranted
-                    lastKanataGranted = kaGranted
-                    await onRefresh()
-                }
-                if kpGranted, kaGranted { return }
             }
         }
     }
