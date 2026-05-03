@@ -38,46 +38,37 @@ extension WizardOperations {
                     AppLogger.shared.log("⚠️ [Wizard] State detection timed out: \(error)")
                     progressCallback(1.0)
                     operationProgressCallback(1.0)
-                    // Use partial results from the state machine if available,
-                    // rather than discarding everything and returning only a timeout issue.
-                    // The validation may have completed some checks (permissions, components)
-                    // before the slow helper XPC check timed out.
-                    let partialResult: SystemStateResult? = await MainActor.run {
-                        guard let snapshot = machine.systemSnapshot else { return nil }
-                        AppLogger.shared.log("⚠️ [Wizard] Using partial results from timed-out validation")
-                        let context = SystemContext(
-                            permissions: snapshot.permissions,
-                            services: snapshot.health,
-                            conflicts: snapshot.conflicts,
-                            components: snapshot.components,
-                            helper: snapshot.helper,
-                            system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: true),
-                            timestamp: snapshot.timestamp
-                        )
-                        return SystemContextAdapter.adapt(context)
+                    // machine.refresh() may have partially or fully completed
+                    // before the timeout. Use whatever state it stored.
+                    return await MainActor.run {
+                        let issues = machine.wizardIssues
+                        if !issues.isEmpty {
+                            AppLogger.shared.log("⚠️ [Wizard] Using \(issues.count) issues from timed-out validation")
+                            return SystemStateResult(
+                                state: machine.wizardState,
+                                issues: issues,
+                                autoFixActions: [],
+                                detectionTimestamp: Date()
+                            )
+                        }
+                        return timeoutResult()
                     }
-                    if let partialResult { return partialResult }
-                    return timeoutResult()
                 }
 
                 progressCallback(1.0)
                 operationProgressCallback(1.0)
-                // Adapt snapshot on the main actor
+                // machine.refresh() completed — read state it stored
                 return await MainActor.run {
-                    if let snapshot = machine.systemSnapshot {
-                        let context = SystemContext(
-                            permissions: snapshot.permissions,
-                            services: snapshot.health,
-                            conflicts: snapshot.conflicts,
-                            components: snapshot.components,
-                            helper: snapshot.helper,
-                            system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: true),
-                            timestamp: snapshot.timestamp
+                    let issues = machine.wizardIssues
+                    if !issues.isEmpty || machine.wizardState == .active {
+                        return SystemStateResult(
+                            state: machine.wizardState,
+                            issues: issues,
+                            autoFixActions: [],
+                            detectionTimestamp: Date()
                         )
-                        return SystemContextAdapter.adapt(context)
-                    } else {
-                        return timeoutResult()
                     }
+                    return timeoutResult()
                 }
             } else {
                 progressCallback(1.0)
