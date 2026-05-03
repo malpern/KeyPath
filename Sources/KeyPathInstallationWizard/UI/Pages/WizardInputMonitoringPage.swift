@@ -231,29 +231,26 @@ public struct WizardInputMonitoringPage: View {
         }
         .onAppear {
             checkForStaleEntries()
-            // Start Oracle-direct polling — updates @State snapshot for instant UI,
-            // only calls onRefresh() when both permissions are granted (to advance navigation).
-            if permissionPollingTask == nil {
-                permissionPollingTask = Task { @MainActor [onRefresh] in
-                    var hasEverCelebrated = false
-                    while !Task.isCancelled {
-                        _ = await WizardSleep.ms(500)
-                        let snapshot = await PermissionOracle.shared.currentSnapshot()
-                        permissionSnapshot = snapshot
+            permissionPollingTask?.cancel()
+            permissionPollingTask = Task { @MainActor [onRefresh] in
+                var hasEverCelebrated = false
+                while !Task.isCancelled {
+                    _ = await WizardSleep.ms(1000)
+                    let snapshot = await PermissionOracle.shared.forceRefresh()
+                    permissionSnapshot = snapshot
 
-                        let bothGranted = snapshot.keyPath.inputMonitoring.isReady
-                            && snapshot.kanata.inputMonitoring.isReady
-                        if bothGranted, !hasEverCelebrated {
-                            hasEverCelebrated = true
-                            WizardWindowManager.shared.bounceDocIcon()
-                            withAnimation(.spring(response: 0.3)) {
-                                showSuccessBurst = true
-                            }
-                            _ = await WizardSleep.ms(1500)
-                            showSuccessBurst = false
-                            await onRefresh()
-                            return
+                    let bothGranted = snapshot.keyPath.inputMonitoring.isReady
+                        && snapshot.kanata.inputMonitoring.isReady
+                    if bothGranted, !hasEverCelebrated {
+                        hasEverCelebrated = true
+                        WizardWindowManager.shared.bounceDocIcon()
+                        withAnimation(.spring(response: 0.3)) {
+                            showSuccessBurst = true
                         }
+                        _ = await WizardSleep.ms(1500)
+                        showSuccessBurst = false
+                        await onRefresh()
+                        return
                     }
                 }
             }
