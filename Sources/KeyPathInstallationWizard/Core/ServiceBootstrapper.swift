@@ -823,8 +823,17 @@ public final class ServiceBootstrapper {
             )
         }
 
-        let daemonLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
-        let managerLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
+        // Poll for services to become loaded after bootstrap.
+        // launchctl bootstrap is async — services may take 1-3 seconds to start.
+        var daemonLoaded = false
+        var managerLoaded = false
+        for _ in 0..<10 {
+            ServiceHealthChecker.shared.invalidateHealthCache()
+            daemonLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
+            managerLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
+            if daemonLoaded && managerLoaded { break }
+            _ = await WizardSleep.ms(500)
+        }
         let configured = ServiceHealthChecker.shared.isVHIDDaemonConfiguredCorrectly()
         let postflightIssues = await VHIDDeviceManager().securityPreflightIssues()
         let ok = batchResult.success && daemonLoaded && managerLoaded && configured

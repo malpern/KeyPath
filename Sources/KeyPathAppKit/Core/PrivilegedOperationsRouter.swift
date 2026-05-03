@@ -193,8 +193,16 @@ public final class PrivilegedOperationsRouter {
     public func repairVHIDDaemonServices() async throws {
         switch Self.operationMode {
         case .privilegedHelper:
-            do { try await helperManager.repairVHIDDaemonServices() }
-            catch { try await sudoRepairVHIDServices() }
+            // Check helper responsiveness first to avoid 30s XPC timeout
+            // when the helper isn't installed or isn't responding.
+            let helperWorking = await helperManager.testHelperFunctionality()
+            if helperWorking {
+                do { try await helperManager.repairVHIDDaemonServices() }
+                catch { try await sudoRepairVHIDServices() }
+            } else {
+                AppLogger.shared.log("⚠️ [Router] Helper not responsive — using sudo for VHID repair")
+                try await sudoRepairVHIDServices()
+            }
         case .directSudo:
             try await sudoRepairVHIDServices()
         }
