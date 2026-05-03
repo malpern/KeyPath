@@ -17,7 +17,7 @@ enum LauncherConstants {
 
 struct LauncherService {
     func run() -> Never {
-        guard isVHIDDaemonRunning() else {
+        guard isVHIDServiceHealthy() else {
             handleMissingVHID()
         }
 
@@ -80,7 +80,51 @@ struct LauncherService {
 
     // MARK: - VHID Detection
 
-    func isVHIDDaemonRunning() -> Bool {
+    /// Multi-signal VirtualHID health check to prevent keyboard seizure.
+    /// Kanata grabs keyboard input on launch — if VirtualHID isn't healthy,
+    /// keystrokes are captured but never output, freezing the keyboard.
+    func isVHIDServiceHealthy() -> Bool {
+        let daemonBinaryPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
+
+        // 1. Check daemon binary exists on disk
+        let binaryExists = FileManager.default.fileExists(atPath: daemonBinaryPath)
+        logLine("VHID check: daemon binary exists = \(binaryExists)")
+        if !binaryExists {
+            logLine("VHID check: daemon binary missing at \(daemonBinaryPath)")
+            return false
+        }
+
+        // 2. Check launchctl for daemon service (authoritative — we run as root)
+        let daemonServiceID = "system/com.keypath.karabiner-vhiddaemon"
+        if let daemonOutput = runProcess("/bin/launchctl", arguments: ["print", daemonServiceID]) {
+            // Parse for "pid = <number>" which means the service has an active process
+            let hasPID = daemonOutput.range(of: #"pid\s*=\s*\d+"#, options: .regularExpression) != nil
+            logLine("VHID check: launchctl daemon service has active pid = \(hasPID)")
+            if hasPID {
+                // 3. Also verify the manager service is loaded
+                let managerServiceID = "system/com.keypath.karabiner-vhidmanager"
+                if let _ = runProcess("/bin/launchctl", arguments: ["print", managerServiceID]) {
+                    logLine("VHID check: launchctl manager service is loaded")
+                    return true
+                } else {
+                    logLine("VHID check: manager service not loaded, but daemon has pid — proceeding")
+                    return true
+                }
+            } else {
+                logLine("VHID check: daemon service loaded but no active pid")
+            }
+        } else {
+            logLine("VHID check: launchctl print for daemon service failed (not loaded?)")
+        }
+
+        // 4. Fallback: pgrep for backward compatibility
+        let pgrepResult = isVHIDDaemonProcessRunning()
+        logLine("VHID check: pgrep fallback = \(pgrepResult)")
+        return pgrepResult
+    }
+
+    /// Fallback process-based check (renamed from isVHIDDaemonRunning).
+    private func isVHIDDaemonProcessRunning() -> Bool {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
         process.arguments = ["-f", "VirtualHIDDevice-Daemon"]
@@ -93,6 +137,25 @@ struct LauncherService {
             return process.terminationStatus == 0
         } catch {
             return false
+        }
+    }
+
+    /// Run a process and return stdout as a string, or nil if the process fails.
+    private func runProcess(_ path: String, arguments: [String]) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = arguments
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+        do {
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { return nil }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            return String(decoding: data, as: UTF8.self)
+        } catch {
+            return nil
         }
     }
 
