@@ -113,6 +113,21 @@ Past investigations: [`docs/bugs/`](docs/bugs/)
 - **Labels follow selected `LogicalKeymap`** (user-selected keymap).
 - Do **not** expose a UI toggle for this; treat it as a single consistent rule.
 
+## 📐 Architecture Documentation
+
+Interactive guides at [malpern.github.io/KeyPath/architecture](https://malpern.github.io/KeyPath/architecture/) (also in `docs/architecture/`):
+
+| Guide | Covers |
+|-------|--------|
+| [Installation Wizard](docs/architecture/wizard-architecture.html) | SystemInspector, WizardRouter, InstallerEngine loop |
+| [Live Keyboard Overlay](docs/architecture/overlay-architecture.html) | CGEvent tap, 7 extension files, visibility model |
+| [Runtime & Service Lifecycle](docs/architecture/runtime-architecture.html) | Orchestration, health checks, crash recovery |
+| [PermissionOracle](docs/architecture/permissions-architecture.html) | Apple API priority, TCC fallback, validation |
+| [Rule Collections & Config](docs/architecture/rules-architecture.html) | RuleCollection pattern, config generation, TCP reload |
+| [Privileged Helper & XPC](docs/architecture/xpc-architecture.html) | SMAppService, code signing, helper protocol |
+| [Keyboard Layouts](docs/architecture/layouts-architecture.html) | PhysicalLayout, LogicalKeymap, HID device detection |
+| [KindaVim](docs/architecture/kindavim-architecture.html) | Vim layers, hint overlay, telemetry |
+
 ## 📜 Architecture Decision Records
 
 Full records in [`docs/adr/`](docs/adr/README.md). Key decisions:
