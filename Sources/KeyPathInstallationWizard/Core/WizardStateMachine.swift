@@ -63,16 +63,26 @@ public class WizardStateMachine {
         }
     }
 
-    /// Get the next logical page (delegates to WizardRouter).
+    /// Get the next logical page (delegates to WizardRouter with prereq enforcement).
     public func getNextPage(for state: WizardSystemState, issues: [WizardIssue]) async -> WizardPage? {
-        let next = WizardRouter.nextPage(after: currentPage, state: state, issues: issues)
+        let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
+        let helperNeedsApproval = WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
+        let next = WizardRouter.nextPage(
+            after: currentPage, state: state, issues: issues,
+            helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval
+        )
         return next != currentPage ? next : nil
     }
 
     /// Navigate to the next page (fire-and-forget).
     public func nextPage() {
         Task { @MainActor in
-            let next = WizardRouter.nextPage(after: currentPage, state: wizardState, issues: wizardIssues)
+            let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
+            let helperNeedsApproval = WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
+            let next = WizardRouter.nextPage(
+                after: currentPage, state: wizardState, issues: wizardIssues,
+                helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval
+            )
             if next != currentPage {
                 navigateToPage(next)
             }

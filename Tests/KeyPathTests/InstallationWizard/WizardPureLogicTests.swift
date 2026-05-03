@@ -564,6 +564,67 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertEqual(next, .summary, "Last page should fall through to summary")
     }
 
+    // MARK: - WizardRouter: Prerequisite Enforcement in nextPage()
+
+    func test_nextPage_cannotSkipPastUnresolvedHelper() {
+        let issues = [
+            makeIssue(identifier: .component(.privilegedHelper), category: .backgroundServices),
+            makeIssue(identifier: .component(.karabinerDaemon), category: .installation),
+        ]
+        let next = WizardRouter.nextPage(
+            after: .conflicts,
+            state: .serviceNotRunning,
+            issues: issues,
+            helperInstalled: false,
+            helperNeedsApproval: false
+        )
+        XCTAssertEqual(next, .helper,
+                       "Must stop at helper page — karabiner repair needs the helper")
+    }
+
+    func test_nextPage_cannotSkipPastUnresolvedKarabiner() {
+        let issues = [
+            makeIssue(identifier: .component(.karabinerDaemon), category: .installation),
+        ]
+        let next = WizardRouter.nextPage(
+            after: .accessibility,
+            state: .serviceNotRunning,
+            issues: issues,
+            helperInstalled: true
+        )
+        XCTAssertEqual(next, .karabinerComponents,
+                       "Must stop at karabiner page — service needs VirtualHID")
+    }
+
+    func test_nextPage_helperInstalled_canAdvancePastHelper() {
+        let issues = [
+            makeIssue(identifier: .component(.karabinerDaemon), category: .installation),
+        ]
+        let next = WizardRouter.nextPage(
+            after: .helper,
+            state: .serviceNotRunning,
+            issues: issues,
+            helperInstalled: true
+        )
+        XCTAssertEqual(next, .karabinerComponents,
+                       "Helper resolved — should advance to karabiner")
+    }
+
+    func test_nextPage_helperNeedsApproval_blocksAtHelper() {
+        let issues = [
+            makeIssue(identifier: .component(.privilegedHelper), category: .backgroundServices),
+        ]
+        let next = WizardRouter.nextPage(
+            after: .conflicts,
+            state: .serviceNotRunning,
+            issues: issues,
+            helperInstalled: true,
+            helperNeedsApproval: true
+        )
+        XCTAssertEqual(next, .helper,
+                       "Helper needs approval — must stop there")
+    }
+
     // MARK: - WizardRouter: pageHasRelevantIssues()
 
     func test_pageHasRelevantIssues_helperPage_withHelperIssue() {
