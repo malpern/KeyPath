@@ -27,7 +27,7 @@ public class KanataDaemonManager {
 
         nonisolated(unsafe) static var registeredButNotLoadedOverride: (() async -> Bool)?
     #else
-        static let smServiceFactory: @Sendable (String) -> SMAppServiceProtocol = { plistName in
+        nonisolated(unsafe) static let smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
             NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
         }
     #endif
