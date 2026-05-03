@@ -245,7 +245,7 @@ public struct WizardAccessibilityPage: View {
         .task {
             // Set initial snapshot immediately so the page renders correct state
             // before the polling loop's first 500ms tick.
-            permissionSnapshot = await PermissionOracle.shared.currentSnapshot()
+            permissionSnapshot = await PermissionOracle.shared.forceRefresh()
         }
         .onAppear {
             // Always restart polling on appear — SwiftUI may have cancelled
@@ -357,7 +357,7 @@ public struct WizardAccessibilityPage: View {
             while attempts < maxAttempts {
                 _ = await WizardSleep.ms(1000)
                 attempts += 1
-                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                let snapshot = await PermissionOracle.shared.forceRefresh()
                 let kpGranted = snapshot.keyPath.accessibility.isReady
                 let kaGranted = snapshot.kanata.accessibility.isReady
 
@@ -381,7 +381,7 @@ public struct WizardAccessibilityPage: View {
         // Fallback: if not granted shortly, open Accessibility settings so the user can toggle
         Task { @MainActor in
             _ = await WizardSleep.ms(1500) // 1.5s
-            let snapshot = await PermissionOracle.shared.currentSnapshot()
+            let snapshot = await PermissionOracle.shared.forceRefresh()
             let granted =
                 snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady
             if !granted {
@@ -418,7 +418,7 @@ public struct WizardAccessibilityPage: View {
         // Check if Input Monitoring is already granted - if so, we can close System Settings early
         // since the user won't need to visit it again for permissions
         Task { @MainActor in
-            let snapshot = await PermissionOracle.shared.currentSnapshot()
+            let snapshot = await PermissionOracle.shared.forceRefresh()
             let inputMonitoringGranted = snapshot.keyPath.inputMonitoring.isReady
                 && snapshot.kanata.inputMonitoring.isReady
 

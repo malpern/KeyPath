@@ -227,7 +227,7 @@ public struct WizardInputMonitoringPage: View {
             }
         }
         .task {
-            permissionSnapshot = await PermissionOracle.shared.currentSnapshot()
+            permissionSnapshot = await PermissionOracle.shared.forceRefresh()
         }
         .onAppear {
             checkForStaleEntries()
@@ -377,7 +377,7 @@ public struct WizardInputMonitoringPage: View {
             while attempts < maxAttempts {
                 _ = await WizardSleep.ms(250)
                 attempts += 1
-                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                let snapshot = await PermissionOracle.shared.forceRefresh()
                 let hasPermission: Bool =
                     switch type {
                     case .accessibility:
@@ -428,7 +428,7 @@ public struct WizardInputMonitoringPage: View {
         Task { @MainActor in
             for _ in 0 ..< 6 { // ~1.5s at 250ms
                 _ = await WizardSleep.ms(250)
-                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                let snapshot = await PermissionOracle.shared.forceRefresh()
                 let granted =
                     snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
                 if granted { return }
