@@ -28,7 +28,6 @@ public class WizardStateMachine {
     public var lastRefreshTime: Date?
     public private(set) var stateVersion: Int = 0
     public var lastWizardSnapshot: WizardSnapshotRecord?
-    public var systemSnapshot: SystemSnapshot?
     public var customSequence: [WizardPage]?
 
     // MARK: - One-Time Page Tracking
@@ -160,23 +159,7 @@ public class WizardStateMachine {
         return order[idx + 1]
     }
 
-    public var isSystemReady: Bool {
-        systemSnapshot?.isReady ?? false
-    }
-
-    public var blockingIssueCount: Int {
-        systemSnapshot?.blockingIssues.count ?? 0
-    }
-
-    public var totalIssueCount: Int {
-        systemSnapshot?.allIssues.count ?? 0
-    }
-
-    public var isServiceRunning: Bool {
-        systemSnapshot?.health.kanataRunning ?? false
-    }
-
-    /// Previous page for back navigation (legacy — used by WizardStateMachine.previousPage)
+    /// Previous page for back navigation
     public func previousPage() {
         let previous = determinePreviousPage(from: currentPage)
         navigateToPage(previous)
