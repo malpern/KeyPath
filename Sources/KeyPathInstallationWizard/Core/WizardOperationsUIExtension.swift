@@ -38,6 +38,25 @@ extension WizardOperations {
                     AppLogger.shared.log("⚠️ [Wizard] State detection timed out: \(error)")
                     progressCallback(1.0)
                     operationProgressCallback(1.0)
+                    // Use partial results from the state machine if available,
+                    // rather than discarding everything and returning only a timeout issue.
+                    // The validation may have completed some checks (permissions, components)
+                    // before the slow helper XPC check timed out.
+                    let partialResult: SystemStateResult? = await MainActor.run {
+                        guard let snapshot = machine.systemSnapshot else { return nil }
+                        AppLogger.shared.log("⚠️ [Wizard] Using partial results from timed-out validation")
+                        let context = SystemContext(
+                            permissions: snapshot.permissions,
+                            services: snapshot.health,
+                            conflicts: snapshot.conflicts,
+                            components: snapshot.components,
+                            helper: snapshot.helper,
+                            system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: true),
+                            timestamp: snapshot.timestamp
+                        )
+                        return SystemContextAdapter.adapt(context)
+                    }
+                    if let partialResult { return partialResult }
                     return timeoutResult()
                 }
 

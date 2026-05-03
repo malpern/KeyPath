@@ -936,4 +936,87 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertTrue(activateIdx! < startIdx!,
                       "Activate VHIDDeviceManager should come before starting daemon")
     }
+
+    // MARK: - Timeout Issue Handling (ADR-critical: timeouts must not suppress real issues)
+
+    func test_timeout_doesNotSuppressHelperIssue() {
+        let ctx = makeContext(
+            helper: HelperStatus(isInstalled: false, version: nil, isWorking: false),
+            timedOut: true
+        )
+        let (_, issues) = SystemInspector.inspect(context: ctx)
+
+        let helperIssue = issues.first { issue in
+            if case .component(.privilegedHelper) = issue.identifier { return true }
+            return false
+        }
+        XCTAssertNotNil(helperIssue, "Helper issue must be reported even when validation timed out")
+
+        let timeoutIssue = issues.first { $0.identifier == .validationTimeout }
+        XCTAssertNotNil(timeoutIssue, "Timeout warning should also be present")
+    }
+
+    func test_timeout_doesNotSuppressComponentIssues() {
+        let unhealthyComponents = ComponentStatus(
+            kanataBinaryInstalled: true,
+            karabinerDriverInstalled: true,
+            karabinerDaemonRunning: false,
+            vhidDeviceInstalled: true,
+            vhidDeviceHealthy: false,
+            vhidServicesHealthy: false,
+            vhidVersionMismatch: false
+        )
+        let ctx = makeContext(components: unhealthyComponents, timedOut: true)
+        let (_, issues) = SystemInspector.inspect(context: ctx)
+
+        let componentIssues = issues.filter { $0.category == .backgroundServices || $0.category == .installation }
+        XCTAssertFalse(componentIssues.isEmpty,
+                       "Component issues must be reported even when validation timed out")
+
+        let timeoutIssue = issues.first { $0.identifier == .validationTimeout }
+        XCTAssertNotNil(timeoutIssue, "Timeout warning should also be present")
+    }
+
+    func test_timeout_aloneProducesOnlyTimeoutWarning() {
+        let ctx = makeContext(timedOut: true)
+        let (_, issues) = SystemInspector.inspect(context: ctx)
+
+        let timeoutIssue = issues.first { $0.identifier == .validationTimeout }
+        XCTAssertNotNil(timeoutIssue)
+        XCTAssertEqual(timeoutIssue?.severity, .warning)
+    }
+
+    func test_noTimeout_doesNotProduceTimeoutWarning() {
+        let ctx = makeContext(timedOut: false)
+        let (_, issues) = SystemInspector.inspect(context: ctx)
+
+        let timeoutIssue = issues.first { $0.identifier == .validationTimeout }
+        XCTAssertNil(timeoutIssue, "No timeout warning when validation completed normally")
+    }
+
+    func test_timeout_withMultipleRealIssues_reportsAll() {
+        let ctx = makeContext(
+            components: ComponentStatus(
+                kanataBinaryInstalled: true,
+                karabinerDriverInstalled: true,
+                karabinerDaemonRunning: false,
+                vhidDeviceInstalled: true,
+                vhidDeviceHealthy: false,
+                vhidServicesHealthy: false,
+                vhidVersionMismatch: false
+            ),
+            helper: HelperStatus(isInstalled: false, version: nil, isWorking: false),
+            timedOut: true
+        )
+        let (_, issues) = SystemInspector.inspect(context: ctx)
+
+        XCTAssertGreaterThan(issues.count, 2,
+                             "Should have helper + component + timeout issues")
+
+        let hasHelper = issues.contains { if case .component(.privilegedHelper) = $0.identifier { return true }; return false }
+        let hasTimeout = issues.contains { $0.identifier == .validationTimeout }
+
+        XCTAssertTrue(hasHelper, "Helper issue present")
+        XCTAssertTrue(hasTimeout, "Timeout warning present")
+    }
 }

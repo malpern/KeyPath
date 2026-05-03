@@ -56,18 +56,6 @@ public enum SystemInspector {
     // MARK: - Issue Generation
 
     static func generateIssues(_ context: SystemContext) -> [WizardIssue] {
-        if context.timedOut {
-            return [WizardIssue(
-                identifier: .validationTimeout,
-                severity: .warning,
-                category: .daemon,
-                title: "Status check timed out",
-                description: "System validation exceeded the 12s watchdog. This is usually transient — the next check should succeed.",
-                autoFixAction: nil,
-                userAction: "If this persists, try restarting KeyPath."
-            )]
-        }
-
         var issues: [WizardIssue] = []
 
         appendPermissionIssues(context, into: &issues)
@@ -75,6 +63,18 @@ public enum SystemInspector {
         appendConflictIssues(context, into: &issues)
         appendServiceIssues(context, into: &issues)
         appendHelperIssues(context, into: &issues)
+
+        if context.timedOut {
+            issues.append(WizardIssue(
+                identifier: .validationTimeout,
+                severity: .warning,
+                category: .daemon,
+                title: "Status check timed out",
+                description: "System validation exceeded the 12s watchdog. This is usually transient — the next check should succeed.",
+                autoFixAction: nil,
+                userAction: "If this persists, try restarting KeyPath."
+            ))
+        }
 
         return issues
     }
