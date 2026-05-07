@@ -366,7 +366,26 @@ struct OverlayMapperSection: View {
             }
         }
 
-        let withURLSheet = withResetDialog.sheet(isPresented: $viewModel.showingURLDialog) {
+        let selectedKeyInfo: LayerKeyInfo? = viewModel.inputKeyCode.flatMap { layerKeyMap[$0] }
+        let withLayerMapRefresh = withResetDialog.onChange(of: selectedKeyInfo) { _, newInfo in
+            guard let keyCode = viewModel.inputKeyCode, let newInfo else { return }
+            let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
+            let outputKey = newInfo.displayLabel.isEmpty ? (newInfo.outputKey ?? "") : newInfo.displayLabel
+            guard !outputKey.isEmpty else { return }
+            viewModel.setInputFromKeyClick(
+                keyCode: keyCode,
+                inputLabel: inputKey,
+                outputLabel: outputKey,
+                appIdentifier: newInfo.appLaunchIdentifier,
+                systemActionIdentifier: newInfo.systemActionIdentifier,
+                urlIdentifier: newInfo.urlIdentifier
+            )
+            if let manager = kanataViewModel?.underlyingManager {
+                viewModel.loadBehaviorFromExistingRule(kanataManager: manager)
+            }
+        }
+
+        let withURLSheet = withLayerMapRefresh.sheet(isPresented: $viewModel.showingURLDialog) {
             URLInputDialog(
                 urlText: $viewModel.urlInputText,
                 onSubmit: { viewModel.submitURL() },

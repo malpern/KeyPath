@@ -93,8 +93,8 @@ extension RuntimeCoordinator {
     }
 
     @discardableResult
-    func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false) async -> Bool {
-        await ruleCollectionsCoordinator.saveCustomRule(rule, skipReload: skipReload)
+    func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false, autoResolveConflicts: Bool = false) async -> Bool {
+        await ruleCollectionsCoordinator.saveCustomRule(rule, skipReload: skipReload, autoResolveConflicts: autoResolveConflicts)
     }
 
     func toggleCustomRule(id: UUID, isEnabled: Bool) async {

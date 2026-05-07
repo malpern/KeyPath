@@ -53,10 +53,10 @@ extension LiveKeyboardOverlayController {
             }
         }
 
-        let outputKey: String = if let simpleOutput = layerInfo?.outputKey {
-            simpleOutput
-        } else if let displayLabel = layerInfo?.displayLabel, !displayLabel.isEmpty {
+        let outputKey: String = if let displayLabel = layerInfo?.displayLabel, !displayLabel.isEmpty {
             displayLabel
+        } else if let simpleOutput = layerInfo?.outputKey {
+            simpleOutput
         } else {
             inputKey
         }

@@ -174,6 +174,8 @@ struct OverlayKeyboardView: View {
     private static let specialLabels: Set<String> = [
         "Home", "End", "PgUp", "PgDn", "Del", "␣", "Lyr", "Fn", "Mod", "✦", "◆",
         "↩", "⌫", "⇥", "⇪", "esc", "ESC", "⎋", "🔒",
+        // Modifier symbols (rendered by keycap bottomAlignedContent, not floating labels)
+        "⇧", "⌃", "⌥", "⌘",
         // Arrow symbols (both solid and outline variants)
         "◀", "▶", "▲", "▼", "←", "→", "↑", "↓",
         // Number row (not in standard keymaps, render directly)

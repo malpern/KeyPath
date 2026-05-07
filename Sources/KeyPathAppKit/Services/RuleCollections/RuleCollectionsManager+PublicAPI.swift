@@ -21,7 +21,7 @@ extension RuleCollectionsManager {
     /// Toggle a rule collection on/off
     /// - Returns: `true` if the toggle was applied successfully, `false` if validation failed and state was rolled back
     @discardableResult
-    func toggleCollection(id: UUID, isEnabled: Bool) async -> Bool {
+    func toggleCollection(id: UUID, isEnabled: Bool, autoResolveConflicts: Bool = false) async -> Bool {
         AppLogger.shared.log("🔀 [RuleCollections] toggleCollection called: id=\(id), isEnabled=\(isEnabled)")
         let snapshot = snapshotRuleState()
 
@@ -32,29 +32,32 @@ extension RuleCollectionsManager {
         if var candidate, isEnabled {
             candidate.isEnabled = true
             if let conflict = conflictInfo(for: candidate) {
-                // Show conflict resolution dialog
-                let context = RuleConflictContext(
-                    newRule: .collection(candidate),
-                    existingRule: conflict.source,
-                    conflictingKeys: conflict.keys
-                )
-
-                AppLogger.shared.log(
-                    "⚠️ [RuleCollections] Conflict enabling \(candidate.name) vs \(conflict.displayName) on \(conflict.keys)"
-                )
-
-                guard let choice = await onConflictResolution?(context) else {
-                    // User cancelled - don't enable
-                    return false
-                }
-
-                switch choice {
-                case .keepNew:
-                    // Disable the conflicting rule, then proceed with enabling this one
+                if autoResolveConflicts {
+                    AppLogger.shared.log(
+                        "🔄 [RuleCollections] Auto-resolving conflict: \(candidate.name) wins over \(conflict.displayName) on \(conflict.keys)"
+                    )
                     await disableConflicting(conflict.source, regenerate: false)
-                case .keepExisting:
-                    // User chose to keep the existing rule - don't enable the new one
-                    return false
+                } else {
+                    let context = RuleConflictContext(
+                        newRule: .collection(candidate),
+                        existingRule: conflict.source,
+                        conflictingKeys: conflict.keys
+                    )
+
+                    AppLogger.shared.log(
+                        "⚠️ [RuleCollections] Conflict enabling \(candidate.name) vs \(conflict.displayName) on \(conflict.keys)"
+                    )
+
+                    guard let choice = await onConflictResolution?(context) else {
+                        return false
+                    }
+
+                    switch choice {
+                    case .keepNew:
+                        await disableConflicting(conflict.source, regenerate: false)
+                    case .keepExisting:
+                        return false
+                    }
                 }
             }
         }
@@ -647,37 +650,42 @@ extension RuleCollectionsManager {
     }
 
     /// Save or update a custom rule
+    /// - Parameters:
+    ///   - autoResolveConflicts: When true, automatically wins over conflicting rules without prompting.
     @discardableResult
-    func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false) async -> Bool {
+    func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false, autoResolveConflicts: Bool = false) async -> Bool {
         AppLogger.shared.log("💾 [CustomRules] saveCustomRule called: id=\(rule.id), input='\(rule.input)', output='\(rule.output)'")
         let snapshot = snapshotRuleState()
 
         if rule.isEnabled,
            let conflict = conflictInfo(for: rule)
         {
-            // Show conflict resolution dialog
-            let context = RuleConflictContext(
-                newRule: .customRule(rule),
-                existingRule: conflict.source,
-                conflictingKeys: conflict.keys
-            )
-
-            AppLogger.shared.log(
-                "⚠️ [CustomRules] Conflict saving \(rule.displayTitle) vs \(conflict.displayName) on \(conflict.keys)"
-            )
-
-            guard let choice = await onConflictResolution?(context) else {
-                // User cancelled - don't save
-                return false
-            }
-
-            switch choice {
-            case .keepNew:
-                // Disable the conflicting rule, then proceed with saving this one
+            if autoResolveConflicts {
+                AppLogger.shared.log(
+                    "🔄 [CustomRules] Auto-resolving conflict: \(rule.displayTitle) wins over \(conflict.displayName) on \(conflict.keys)"
+                )
                 await disableConflicting(conflict.source, regenerate: false)
-            case .keepExisting:
-                // User chose to keep the existing rule - don't save the new one
-                return false
+            } else {
+                let context = RuleConflictContext(
+                    newRule: .customRule(rule),
+                    existingRule: conflict.source,
+                    conflictingKeys: conflict.keys
+                )
+
+                AppLogger.shared.log(
+                    "⚠️ [CustomRules] Conflict saving \(rule.displayTitle) vs \(conflict.displayName) on \(conflict.keys)"
+                )
+
+                guard let choice = await onConflictResolution?(context) else {
+                    return false
+                }
+
+                switch choice {
+                case .keepNew:
+                    await disableConflicting(conflict.source, regenerate: false)
+                case .keepExisting:
+                    return false
+                }
             }
         }
 
