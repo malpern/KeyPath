@@ -106,6 +106,7 @@ extension KeyboardVisualizationViewModel {
         ) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
+                AppLogger.shared.info("⌨️ [KeyboardViz] Received .ruleCollectionsChanged notification")
                 self.loadFeatureCollectionStates()
                 // Invalidate layer mapping cache so toggled rules take effect immediately
                 self.invalidateLayerMappings()

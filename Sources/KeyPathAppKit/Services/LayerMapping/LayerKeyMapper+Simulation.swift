@@ -126,8 +126,8 @@ extension LayerKeyMapper {
             let collectionId = keyToCollection[simName]
             let isActivatorKey = activatorKeys.contains(simName.lowercased())
 
-            // Debug: Log raw simulation result for A key (keyCode 0)
-            if keyCode == 0 {
+            // Debug: Log raw simulation result for A key (keyCode 0) and caps (keyCode 57)
+            if keyCode == 0 || keyCode == 57 {
                 if let result {
                     let outputEvents = result.events.compactMap { event -> String? in
                         if case let .output(_, action, key) = event, action == .press { return key }
