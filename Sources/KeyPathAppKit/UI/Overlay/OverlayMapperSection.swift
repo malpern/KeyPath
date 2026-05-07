@@ -136,6 +136,7 @@ struct OverlayMapperSection: View {
             let systemId = notification.userInfo?["systemActionIdentifier"] as? String
             let urlId = notification.userInfo?["urlIdentifier"] as? String
             let shiftedOutputKey = notification.userInfo?["shiftedOutputKey"] as? String
+            let displayLabel = notification.userInfo?["displayLabel"] as? String
 
             // Extract app condition info (for editing app-specific rules)
             let appBundleId = notification.userInfo?["appBundleId"] as? String
@@ -151,6 +152,10 @@ struct OverlayMapperSection: View {
                 urlIdentifier: urlId,
                 shiftedOutputKey: shiftedOutputKey
             )
+            // Override display label when it differs from outputKey (e.g., Hyper shows "✦" not "lctl")
+            if let displayLabel, displayLabel != outputKey {
+                viewModel.outputLabel = viewModel.formatKeyForDisplay(displayLabel)
+            }
             selectedTapOutputMode = shiftedOutputKey == nil ? .default : .shifted
 
             // Load any existing behavior (hold action, etc.) from saved rules
@@ -370,7 +375,7 @@ struct OverlayMapperSection: View {
         let withLayerMapRefresh = withResetDialog.onChange(of: selectedKeyInfo) { _, newInfo in
             guard let keyCode = viewModel.inputKeyCode, let newInfo else { return }
             let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
-            let outputKey = newInfo.displayLabel.isEmpty ? (newInfo.outputKey ?? "") : newInfo.displayLabel
+            let outputKey = newInfo.outputKey ?? newInfo.displayLabel
             guard !outputKey.isEmpty else { return }
             viewModel.setInputFromKeyClick(
                 keyCode: keyCode,
@@ -380,6 +385,9 @@ struct OverlayMapperSection: View {
                 systemActionIdentifier: newInfo.systemActionIdentifier,
                 urlIdentifier: newInfo.urlIdentifier
             )
+            if !newInfo.displayLabel.isEmpty, newInfo.displayLabel != outputKey {
+                viewModel.outputLabel = viewModel.formatKeyForDisplay(newInfo.displayLabel)
+            }
             if let manager = kanataViewModel?.underlyingManager {
                 viewModel.loadBehaviorFromExistingRule(kanataManager: manager)
             }
