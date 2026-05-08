@@ -49,14 +49,15 @@ extension View {
             if isPresented.wrappedValue {
                 ZStack {
                     Color.black.opacity(0.01)
-                        .ignoresSafeArea()
+                        .frame(width: 2000, height: 2000)
                         .onTapGesture { isPresented.wrappedValue = false }
 
                     content()
                         .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
-                        .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .animation(.easeOut(duration: 0.15), value: isPresented.wrappedValue)
+                .transition(.opacity)
+                .zIndex(999)
             }
         }
     }

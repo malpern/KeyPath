@@ -54,7 +54,42 @@ struct OverlayMapperSection: View {
     @State var inputKeycapBounce = false
 
     var body: some View {
-        bodyView
+        ZStack(alignment: .top) {
+            bodyView
+
+            if isSystemActionPickerOpen {
+                ZStack {
+                    Color.black.opacity(0.01)
+                        .onTapGesture { isSystemActionPickerOpen = false }
+                    systemActionPopover
+                        .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
+                }
+                .transition(.opacity)
+                .zIndex(999)
+            }
+
+            if isAppConditionPickerOpen {
+                ZStack {
+                    Color.black.opacity(0.01)
+                        .onTapGesture { isAppConditionPickerOpen = false }
+                    appConditionPopover
+                        .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
+                }
+                .transition(.opacity)
+                .zIndex(999)
+            }
+
+            if isHoldVariantPopoverOpen {
+                ZStack {
+                    Color.black.opacity(0.01)
+                        .onTapGesture { isHoldVariantPopoverOpen = false }
+                    holdVariantPopover
+                        .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
+                }
+                .transition(.opacity)
+                .zIndex(999)
+            }
+        }
     }
 
     private var bodyView: some View {
@@ -691,9 +726,7 @@ struct OverlayMapperSection: View {
             action: { isAppConditionPickerOpen = true }
         )
         .accessibilityIdentifier("overlay-mapper-app-condition")
-        .inlinePopover(isPresented: $isAppConditionPickerOpen) {
-            appConditionPopover
-        }
+        // Popover rendered at OverlayMapperSection.body level to avoid clipping
         .confirmationDialog("How many taps?", isPresented: $showTapCountPicker) {
             Button("Single Tap") { selectedTapCount = 1 }
             Button("Double Tap") { selectedTapCount = 2 }

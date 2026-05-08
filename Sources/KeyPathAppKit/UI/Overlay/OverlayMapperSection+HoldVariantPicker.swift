@@ -31,9 +31,7 @@ extension OverlayMapperSection {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("hold-variant-button")
-        .inlinePopover(isPresented: $isHoldVariantPopoverOpen) {
-            holdVariantPopover
-        }
+        // Popover rendered at OverlayMapperSection.body level to avoid clipping
     }
 
     /// Popover content for hold variant selection
