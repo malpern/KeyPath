@@ -385,6 +385,7 @@ struct MapperKeycapView: View {
             }
             onTap()
         }
+        .accessibilityIdentifier("mapper-output-keycap")
         .accessibilityLabel(isRecording ? "Recording \(label)" : label)
         .accessibilityHint("Click to \(isRecording ? "stop" : "start") recording")
     }
@@ -543,6 +544,7 @@ struct MapperInputKeycap: View {
             }
             onTap()
         }
+        .accessibilityIdentifier("mapper-input-keycap")
     }
 
     // MARK: - Content Routing
