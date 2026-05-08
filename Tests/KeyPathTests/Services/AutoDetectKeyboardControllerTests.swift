@@ -257,12 +257,7 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
         XCTAssertEqual(controller.activeKeyboard?.status, .suggested)
     }
 
-    func testStartupSeedAddsAppleInternalKeyboardWithoutToast() async throws {
-        // This test is sensitive to shared state from other tests in the suite.
-        // Skip when running in full suite to avoid flaky failures.
-        if ProcessInfo.processInfo.environment["KEYPATH_SNAPSHOTS"] == "1" {
-            throw XCTSkip("Flaky in full suite due to shared KeyboardDetectionIndex state")
-        }
+    func testStartupSeedAddsAppleInternalKeyboardWithoutToast() async {
         initialKeyboardEvents = [
             HIDDeviceMonitor.HIDKeyboardEvent(
                 vendorID: 0x05AC,

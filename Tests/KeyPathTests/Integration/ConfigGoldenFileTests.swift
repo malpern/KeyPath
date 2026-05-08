@@ -21,12 +21,6 @@ final class ConfigGoldenFileTests: XCTestCase {
 
     override func setUpWithError() throws {
         try super.setUpWithError()
-        // Golden file tests are sensitive to shared global state from other tests
-        // (RuleCollectionCatalog defaults can be mutated by earlier test suites).
-        // Run them in isolation: swift test --filter ConfigGoldenFileTests
-        if ProcessInfo.processInfo.environment["KEYPATH_SNAPSHOTS"] == "1" {
-            throw XCTSkip("Golden file tests are isolated — run separately to avoid shared state interference")
-        }
         if shouldUpdate {
             try FileManager.default.createDirectory(at: goldenDir, withIntermediateDirectories: true)
         }
