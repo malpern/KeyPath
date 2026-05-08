@@ -1,7 +1,8 @@
 @testable import KeyPathAppKit
 @preconcurrency import XCTest
 
-final class KanataManagerBreakageSummaryTests: XCTestCase {
+final class VirtualHIDBreakageSummaryTests: XCTestCase {
+    @MainActor
     func testSummaryTreatsHealthySinglePIDAsHealthy() {
         let status = VirtualHIDDaemonStatus(
             pids: ["123"],
@@ -11,7 +12,7 @@ final class KanataManagerBreakageSummaryTests: XCTestCase {
             serviceHealthy: true
         )
 
-        let summary = KanataManager.makeVirtualHIDBreakageSummary(
+        let summary = SystemRequirementsChecker.makeVirtualHIDBreakageSummary(
             status: status,
             driverEnabled: true,
             installedVersion: "5.0.0",
@@ -22,6 +23,7 @@ final class KanataManagerBreakageSummaryTests: XCTestCase {
         XCTAssertTrue(summary.contains("launchctl reports healthy"))
     }
 
+    @MainActor
     func testSummaryReportsFailureWhenLaunchctlHealthyIsFalse() {
         let status = VirtualHIDDaemonStatus(
             pids: ["123"],
@@ -31,7 +33,7 @@ final class KanataManagerBreakageSummaryTests: XCTestCase {
             serviceHealthy: false
         )
 
-        let summary = KanataManager.makeVirtualHIDBreakageSummary(
+        let summary = SystemRequirementsChecker.makeVirtualHIDBreakageSummary(
             status: status,
             driverEnabled: true,
             installedVersion: "5.0.0",

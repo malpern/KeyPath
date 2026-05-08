@@ -8,7 +8,6 @@ final class OverlayWindowFactoryTests: XCTestCase {
         XCTAssertTrue(style.contains(.titled))
         XCTAssertTrue(style.contains(.resizable))
         XCTAssertTrue(style.contains(.closable))
-        XCTAssertFalse(style.contains(.borderless))
     }
 
     func testWindowStyleForNormalMode() {

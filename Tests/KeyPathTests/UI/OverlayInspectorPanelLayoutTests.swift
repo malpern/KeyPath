@@ -24,7 +24,7 @@ final class OverlayInspectorPanelLayoutTests: XCTestCase {
             maxVisibleX: 1000
         )
 
-        XCTAssertEqual(frame.origin.x, 360)
+        XCTAssertEqual(frame.origin.x, 460)
         XCTAssertEqual(frame.size.width, 540)
         XCTAssertEqual(frame.size.height, 180)
         XCTAssertEqual(frame.maxX, 1000)

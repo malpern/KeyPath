@@ -15,12 +15,12 @@ final class OverlayWindowFrameStoreTests: XCTestCase {
         let frame = CGRect(x: 10, y: 20, width: 300, height: 200)
 
         store.save(frame: frame)
-        let restored = store.restore()
+        let restored = try XCTUnwrap(store.restore())
 
-        XCTAssertEqual(restored?.origin.x, frame.origin.x, accuracy: 0.001)
-        XCTAssertEqual(restored?.origin.y, frame.origin.y, accuracy: 0.001)
-        XCTAssertEqual(restored?.size.width, frame.size.width, accuracy: 0.001)
-        XCTAssertEqual(restored?.size.height, frame.size.height, accuracy: 0.001)
+        XCTAssertEqual(restored.origin.x, frame.origin.x, accuracy: 0.001)
+        XCTAssertEqual(restored.origin.y, frame.origin.y, accuracy: 0.001)
+        XCTAssertEqual(restored.size.width, frame.size.width, accuracy: 0.001)
+        XCTAssertEqual(restored.size.height, frame.size.height, accuracy: 0.001)
     }
 
     func testRestoreClearsOnVersionMismatch() throws {
