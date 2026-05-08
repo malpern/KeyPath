@@ -1,3 +1,4 @@
+import KeyPathCore
 import SwiftUI
 
 // MARK: - Install / uninstall / apply actions
@@ -105,6 +106,7 @@ extension PackDetailView {
     /// packs creates tagged CustomRules). Install's reload is suppressed
     /// so the follow-up tap/hold update fires exactly one reload.
     func applyPickerEdit(tap: String?, hold: String?) async {
+        AppLogger.shared.log("📦 [PackDetail] applyPickerEdit called: tap=\(tap ?? "nil"), hold=\(hold ?? "nil"), isInstalled=\(isInstalled), collectionID=\(pack.associatedCollectionID?.uuidString ?? "nil")")
         if !isInstalled {
             await install(skipFinalReload: true)
         }
@@ -112,6 +114,7 @@ extension PackDetailView {
             // Collection-backed: edits go through the same API Rules uses,
             // modifying the collection's TapHoldPickerConfig selections.
             if let tap {
+                AppLogger.shared.log("📦 [PackDetail] Calling updateCollectionTapOutput(\(collectionID), tapOutput: \(tap))")
                 await kanataManager.updateCollectionTapOutput(collectionID, tapOutput: tap)
             }
             if let hold {

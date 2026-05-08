@@ -1,3 +1,4 @@
+import KeyPathCore
 import SwiftUI
 
 // MARK: - Binding list & embedded editors
@@ -72,6 +73,7 @@ extension PackDetailView {
                     config: pickerConfig,
                     isEditable: true,
                     onSelectTapOutput: { output in
+                        AppLogger.shared.log("📦 [BindingRows] onSelectTapOutput fired: \(output)")
                         pickerTapSelection = output
                         Task { await applyPickerEdit(tap: output, hold: nil) }
                     },
