@@ -252,6 +252,153 @@ final class ScenarioSnapshotTests: ScreenshotTestCase {
         )
     }
 
+    // MARK: - Collection-Colored Keycaps
+
+    func testKeycap_VimCollectionColor() {
+        let key = makePhysicalKey(keyCode: 4, label: "H")
+        let layerInfo = LayerKeyInfo.mapped(
+            displayLabel: "←",
+            outputKey: "left",
+            outputKeyCode: 123,
+            collectionId: RuleCollectionIdentifier.vimNavigation
+        )
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "H",
+            isPressed: false,
+            scale: 1.0,
+            currentLayerName: "nav",
+            layerKeyInfo: layerInfo
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-vim-orange")
+    }
+
+    func testKeycap_WindowSnappingColor() {
+        let key = makePhysicalKey(keyCode: 4, label: "H")
+        let layerInfo = LayerKeyInfo.mapped(
+            displayLabel: "←",
+            outputKey: "left",
+            outputKeyCode: 123,
+            collectionId: RuleCollectionIdentifier.windowSnapping
+        )
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "H",
+            isPressed: false,
+            scale: 1.0,
+            currentLayerName: "window",
+            layerKeyInfo: layerInfo
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-window-purple")
+    }
+
+    func testKeycap_SymbolLayerColor() {
+        let key = makePhysicalKey(keyCode: 18, label: "1")
+        let layerInfo = LayerKeyInfo.mapped(
+            displayLabel: "!",
+            outputKey: "S-1",
+            outputKeyCode: nil,
+            collectionId: RuleCollectionIdentifier.symbolLayer
+        )
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "1",
+            isPressed: false,
+            scale: 1.0,
+            currentLayerName: "sym",
+            layerKeyInfo: layerInfo
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-symbol-blue")
+    }
+
+    // MARK: - Mapper Input with Shift Symbol
+
+    func testMapperInputKeycap_WithShiftSymbol() {
+        let view = MapperInputKeycap(
+            label: "1",
+            keyCode: 18,
+            isRecording: false,
+            customShiftSymbol: "!",
+            onTap: {}
+        )
+        assertScreenshot(of: view, size: CGSize(width: 120, height: 120), named: "mapper-input-with-shift")
+    }
+
+    func testMapperInputKeycap_CapsLockWide() {
+        let view = MapperInputKeycap(
+            label: "⇪",
+            keyCode: 57,
+            isRecording: false,
+            onTap: {}
+        )
+        assertScreenshot(of: view, size: CGSize(width: 120, height: 120), named: "mapper-input-capslock")
+    }
+
+    func testMapperKeycapPair_WithCustomShiftOutput() {
+        let view = MapperKeycapPair(
+            inputLabel: "1",
+            inputKeyCode: 18,
+            outputLabel: "2",
+            isRecordingInput: false,
+            isRecordingOutput: false,
+            onInputTap: {},
+            onOutputTap: {}
+        )
+        assertScreenshot(of: view, size: SnapshotSize.card, named: "mapper-pair-number-remap")
+    }
+
+    // MARK: - Overlay with Inspector Open
+
+    func testOverlay_WithInspectorOpen() {
+        let viewModel = MockFactories.keyboardVisualizationViewModel()
+        let uiState = MockFactories.overlayUIState(isInspectorOpen: true)
+        let view = LiveKeyboardOverlayView(
+            viewModel: viewModel,
+            uiState: uiState,
+            inspectorWidth: 450,
+            isMapperAvailable: true,
+            kanataViewModel: nil
+        )
+        assertScreenshot(
+            of: view,
+            size: CGSize(width: 1650, height: 450),
+            named: "overlay-with-inspector-open",
+            precision: 0.98,
+            perceptualPrecision: 0.98
+        )
+    }
+
+    // MARK: - Overlay with Collection-Colored Keys (Vim Nav Layer)
+
+    func testOverlay_VimNavLayer() {
+        let viewModel = MockFactories.keyboardVisualizationViewModel()
+        viewModel.currentLayerName = "nav"
+        // Set up vim nav layer mappings on H/J/K/L
+        let vimMappings: [UInt16: LayerKeyInfo] = [
+            4: .mapped(displayLabel: "←", outputKey: "left", outputKeyCode: 123, collectionId: RuleCollectionIdentifier.vimNavigation),
+            38: .mapped(displayLabel: "↓", outputKey: "down", outputKeyCode: 125, collectionId: RuleCollectionIdentifier.vimNavigation),
+            40: .mapped(displayLabel: "↑", outputKey: "up", outputKeyCode: 126, collectionId: RuleCollectionIdentifier.vimNavigation),
+            37: .mapped(displayLabel: "→", outputKey: "right", outputKeyCode: 124, collectionId: RuleCollectionIdentifier.vimNavigation),
+        ]
+        viewModel.layerKeyMap = vimMappings
+
+        let uiState = MockFactories.overlayUIState()
+        let view = LiveKeyboardOverlayView(
+            viewModel: viewModel,
+            uiState: uiState,
+            inspectorWidth: 0,
+            isMapperAvailable: true,
+            kanataViewModel: nil
+        )
+        assertScreenshot(
+            of: view,
+            size: CGSize(width: 1200, height: 450),
+            named: "overlay-vim-nav-layer",
+            precision: 0.98,
+            perceptualPrecision: 0.98
+        )
+    }
+
     // MARK: - Helpers
 
     private let keycapSize = CGSize(width: 80, height: 80)
