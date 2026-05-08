@@ -27,6 +27,7 @@ struct RulesTabView: View {
     @State private var chordGroupsEditState: ChordGroupsEditState?
     @State private var sequencesEditState: SequencesEditState?
     @State private var appKeymaps: [AppKeymap] = []
+    @State private var isKindaVimInstalled = false
     private let catalog = RuleCollectionCatalog()
 
     /// Total count of custom rules (everywhere + app-specific)
@@ -485,6 +486,12 @@ struct RulesTabView: View {
                                         }
                                     }
                                     .padding(.vertical, 4)
+
+                                // Insert KindaVim after Vim Navigation in the Navigation category
+                                if collection.id == RuleCollectionIdentifier.vimNavigation {
+                                    kindaVimRow
+                                        .padding(.vertical, 4)
+                                }
                             }
                         }
 
@@ -535,6 +542,12 @@ struct RulesTabView: View {
             }
             // Load app-specific keymaps
             loadAppKeymaps()
+            // Check KindaVim pack install state
+            Task {
+                isKindaVimInstalled = await InstalledPackTracker.shared.isInstalled(
+                    packID: PackRegistry.kindaVim.id
+                )
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .appKeymapsDidChange)) { _ in
             loadAppKeymaps()
@@ -702,6 +715,65 @@ struct RulesTabView: View {
             } catch {
                 settingsToastManager.showError("Reset failed: \(error.localizedDescription)")
             }
+        }
+    }
+
+    // MARK: - KindaVim Visual-Only Pack
+
+    @ViewBuilder
+    private var kindaVimRow: some View {
+        let pack = PackRegistry.kindaVim
+        if !isSearching || pack.name.localizedCaseInsensitiveContains(trimmedSearchQuery)
+            || "kindavim".contains(trimmedSearchQuery.lowercased())
+        {
+            HStack(spacing: 12) {
+                Image(systemName: pack.iconSymbol)
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(pack.name)
+                        .font(.body.weight(.medium))
+                    Text(pack.tagline)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: Binding(
+                    get: { isKindaVimInstalled },
+                    set: { newValue in
+                        isKindaVimInstalled = newValue
+                        Task {
+                            if newValue {
+                                let record = InstalledPackRecord(
+                                    packID: pack.id,
+                                    version: pack.version,
+                                    installedAt: Date(),
+                                    quickSettingValues: [:]
+                                )
+                                try? await InstalledPackTracker.shared.upsert(record)
+                            } else {
+                                try? await InstalledPackTracker.shared.remove(packID: pack.id)
+                            }
+                        }
+                    }
+                ))
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .labelsHidden()
+                .accessibilityIdentifier("rules-kindavim-toggle")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.primary.opacity(isKindaVimInstalled ? 0.04 : 0.02))
+            )
+            .padding(.horizontal, 8)
         }
     }
 
