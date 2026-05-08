@@ -525,7 +525,7 @@ struct OverlayDragHeader: View {
         .onHover { hovering in
             handleLayerPillHover(hovering)
         }
-        .popover(isPresented: $isLayerPickerOpen, arrowEdge: layerPickerArrowEdge) {
+        .inlinePopover(isPresented: $isLayerPickerOpen) {
             layerPickerPopover
         }
         .sheet(isPresented: $showingNewLayerSheet) {

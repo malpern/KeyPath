@@ -31,7 +31,7 @@ extension OverlayMapperSection {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("hold-variant-button")
-        .popover(isPresented: $isHoldVariantPopoverOpen, arrowEdge: .bottom) {
+        .inlinePopover(isPresented: $isHoldVariantPopoverOpen) {
             holdVariantPopover
         }
     }

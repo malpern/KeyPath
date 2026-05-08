@@ -691,7 +691,7 @@ struct OverlayMapperSection: View {
             action: { isAppConditionPickerOpen = true }
         )
         .accessibilityIdentifier("overlay-mapper-app-condition")
-        .popover(isPresented: $isAppConditionPickerOpen, arrowEdge: .bottom) {
+        .inlinePopover(isPresented: $isAppConditionPickerOpen) {
             appConditionPopover
         }
         .confirmationDialog("How many taps?", isPresented: $showTapCountPicker) {
