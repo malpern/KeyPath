@@ -61,19 +61,19 @@ Exercise the full pipeline with real code but mocked system boundaries.
 
 **What NOT to mock:** Config file generation, `RuleCollectionsManager`, `LayerKeyMapper` simulator, `KeyboardVisualizationViewModel` state updates.
 
-### Layer 4: XCUITest Smoke Tests (future)
+### Layer 4: XCUITest Smoke Tests (not viable for SPM)
 
-2-3 critical-path tests using Xcode 26's record-and-replay. Requires accessibility identifiers on key elements.
+XCUITest requires a native Xcode project with test host/target relationships.
+KeyPath is an SPM-only project — `XCUIApplication(bundleIdentifier:)` cannot
+discover windows from an SPM-built app because the test runner lacks the
+`TEST_HOST`/`BUNDLE_LOADER` configuration that Xcode projects provide.
+`swift package generate-xcodeproj` was removed in Swift 6.
 
-**Prerequisites:**
-- Accessibility identifiers on: pack cards, mapper drawer fields, overlay keycaps, picker controls
-- Naming convention: `gallery.packCard.capsLock`, `mapper.outputPicker`, `overlay.keycap.57`
-- Pre-granted permissions on CI runner (Accessibility, Input Monitoring)
+**Verdict:** Skip XCUITest. The combination of unit tests, scenario snapshots,
+integration tests, and computer-use spot-checks provides equivalent coverage
+without the overhead of maintaining a parallel Xcode project.
 
-**Target flows:**
-1. Open gallery → click pack → install → verify overlay shows new labels
-2. Open mapper → click key → set output → save → verify overlay updates
-3. Install conflicting pack → verify conflict dialog → resolve → verify state
+If Apple adds SPM support for UI test targets in a future Xcode release, revisit.
 
 ### Layer 5: Manual Verification (ad-hoc)
 
@@ -101,6 +101,6 @@ Use Claude Code computer-use or Peekaboo for spot-checking specific bugs — not
 |------|---------|--------|
 | XCTest / Swift Testing | Unit and integration tests | Active (~2500+ tests) |
 | swift-snapshot-testing | Visual regression | Active (easy/medium/hard tiers) |
-| XCUITest + Xcode 26 | UI automation smoke tests | Planned |
+| XCUITest | UI automation | Not viable (SPM-only, no Xcode project) |
 | Peekaboo | Ad-hoc AI-driven UI verification | Available (not in CI) |
 | Computer-use MCP | Spot-check debugging | Available (not for test suites) |
