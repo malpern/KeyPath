@@ -145,6 +145,9 @@ let package = Package(
                 .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/KeyPathAppKit",
+            exclude: [
+                "InstallationWizard/README.md"
+            ],
             resources: [
                 .process("Resources")
             ],
@@ -278,6 +281,9 @@ let package = Package(
                 "KeyPathInstallationWizard"
             ],
             path: "Tests/KeyPathTests",
+            exclude: [
+                "Integration/GoldenConfigs"
+            ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ],
