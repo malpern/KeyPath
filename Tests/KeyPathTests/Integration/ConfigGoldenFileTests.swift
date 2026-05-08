@@ -39,12 +39,16 @@ final class ConfigGoldenFileTests: XCTestCase {
     private func assertGoldenConfig(
         _ config: String,
         named name: String,
+        sortLines: Bool = false,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
         let goldenFile = goldenDir.appendingPathComponent("\(name).kbd")
 
-        let normalized = normalizeConfig(config)
+        var normalized = normalizeConfig(config)
+        if sortLines {
+            normalized = normalized.components(separatedBy: "\n").sorted().joined(separator: "\n")
+        }
 
         if shouldUpdate {
             try? normalized.write(to: goldenFile, atomically: true, encoding: .utf8)
@@ -96,10 +100,16 @@ final class ConfigGoldenFileTests: XCTestCase {
     }
 
     @MainActor
-    func testHomeRowMods_Golden() throws {
-        // HRM config has non-deterministic alias ordering (dictionary iteration order)
-        // TODO: fix the generator to sort alias definitions deterministically
-        throw XCTSkip("HRM alias ordering is non-deterministic — skipped until generator sorts output")
+    func testHomeRowMods_Golden() {
+        var collections = RuleCollectionCatalog().defaultCollections()
+        if let idx = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowMods }) {
+            collections[idx].isEnabled = true
+        }
+        let config = KanataConfiguration.generateFromCollections(collections)
+
+        // HRM alias ordering depends on dictionary iteration order, so we
+        // compare sorted lines to avoid false positives from reordering
+        assertGoldenConfig(config, named: "home-row-mods", sortLines: true)
     }
 
     @MainActor

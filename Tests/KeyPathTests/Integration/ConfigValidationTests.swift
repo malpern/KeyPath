@@ -13,10 +13,11 @@ import XCTest
 final class ConfigValidationTests: XCTestCase {
 
     private func findKanataBinary() -> String? {
+        // Prefer the bundled binary — it matches the version KeyPath actually ships
         let paths = [
+            "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
             "/usr/local/bin/kanata",
             "/opt/homebrew/bin/kanata",
-            "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
         ]
         return paths.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
