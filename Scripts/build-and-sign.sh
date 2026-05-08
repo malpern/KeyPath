@@ -458,6 +458,21 @@ else
     echo "💡 TIP: You may need to manually copy dist/${APP_NAME}.app to /Applications/" >&2
 fi
 
+# Restart kanata service so it picks up the new binary.
+# The daemon runs as root via LaunchDaemon and auto-restarts on kill.
+if pgrep -x "kanata" > /dev/null; then
+    echo "🔄 Restarting kanata service..."
+    KANATA_PID=$(pgrep -x "kanata")
+    sudo kill "$KANATA_PID" 2>/dev/null || true
+    sleep 2
+    if pgrep -x "kanata" > /dev/null; then
+        NEW_KANATA_PID=$(pgrep -x "kanata")
+        echo "   ✅ Kanata restarted (PID: $KANATA_PID → $NEW_KANATA_PID)"
+    else
+        echo "   ⚠️  Kanata did not auto-restart. KeyPath will start it on launch."
+    fi
+fi
+
 echo "🚪 Restarting app..."
 
 # Force quit old app process and wait for it to actually die
