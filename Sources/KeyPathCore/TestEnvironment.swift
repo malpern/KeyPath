@@ -4,16 +4,10 @@ import Foundation
 public enum TestEnvironment {
     /// Check if code is running in test environment
     public static var isRunningTests: Bool {
-        // Check for XCTest environment (XCTest-based tests)
-        if NSClassFromString("XCTestCase") != nil {
-            return true
-        }
-
-        // Check for Swift Testing framework (modern @Test macro-based tests)
-        // The Testing module provides these types when tests are running
-        if NSClassFromString("Testing.Test") != nil
-            || NSClassFromString("XCTestScaffold.XCTestScaffold") != nil
-        {
+        // Check if a test bundle is actually loaded (not just XCTest classes existing).
+        // On macOS 26+, XCTestSupport.framework is loaded into all apps, making
+        // NSClassFromString("XCTestCase") unreliable for test detection.
+        if Bundle.allBundles.contains(where: { $0.bundlePath.hasSuffix(".xctest") }) {
             return true
         }
 
