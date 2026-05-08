@@ -8,7 +8,7 @@ extension KanataConfiguration {
     static func generateHomeRowModsMappings(from config: HomeRowModsConfig) -> [KeyMapping] {
         var mappings: [KeyMapping] = []
 
-        for key in config.enabledKeys {
+        for key in config.enabledKeys.sorted() {
             let holdAction: String
             switch config.holdMode {
             case .modifiers:
@@ -55,7 +55,7 @@ extension KanataConfiguration {
     static func generateHomeRowLayerTogglesMappings(from config: HomeRowLayerTogglesConfig) -> [KeyMapping] {
         var mappings: [KeyMapping] = []
 
-        for key in config.enabledKeys {
+        for key in config.enabledKeys.sorted() {
             guard let layerName = config.layerAssignments[key] else { continue }
 
             let tapTimeout = max(

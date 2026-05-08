@@ -106,10 +106,7 @@ final class ConfigGoldenFileTests: XCTestCase {
             collections[idx].isEnabled = true
         }
         let config = KanataConfiguration.generateFromCollections(collections)
-
-        // HRM alias ordering depends on dictionary iteration order, so we
-        // compare sorted lines to avoid false positives from reordering
-        assertGoldenConfig(config, named: "home-row-mods", sortLines: true)
+        assertGoldenConfig(config, named: "home-row-mods")
     }
 
     @MainActor
