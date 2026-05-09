@@ -31,8 +31,8 @@ final class PackDetailWindowController: NSObject {
         let hosting = NSHostingView(rootView: content)
 
         let newWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 640),
-            styleMask: [.titled, .closable, .miniaturizable],
+            contentRect: NSRect(x: 0, y: 0, width: 580, height: 640),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
