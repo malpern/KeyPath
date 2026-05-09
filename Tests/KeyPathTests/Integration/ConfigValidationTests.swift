@@ -13,13 +13,14 @@ import XCTest
 final class ConfigValidationTests: XCTestCase {
 
     private func findKanataBinary() -> String? {
-        // Prefer the bundled binary — it matches the version KeyPath actually ships
-        let paths = [
-            "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
-            "/usr/local/bin/kanata",
-            "/opt/homebrew/bin/kanata",
-        ]
-        return paths.first { FileManager.default.isExecutableFile(atPath: $0) }
+        // Only use the bundled binary — it matches the version KeyPath ships.
+        // System-installed kanata (e.g., homebrew v1.10) may be too old and
+        // reject features like defhands or tap-hold-require-prior-idle.
+        let bundled = "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata"
+        if FileManager.default.isExecutableFile(atPath: bundled) {
+            return bundled
+        }
+        return nil
     }
 
     @MainActor
