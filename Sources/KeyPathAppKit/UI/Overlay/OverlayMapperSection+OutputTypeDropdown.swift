@@ -13,9 +13,7 @@ extension OverlayMapperSection {
         )
         .accessibilityIdentifier("overlay-mapper-output-type")
         .accessibilityLabel("Select output action type")
-        .popover(isPresented: $isSystemActionPickerOpen, arrowEdge: .bottom) {
-            systemActionPopover
-        }
+        // Popover rendered at OverlayMapperSection.body level to avoid clipping
     }
 
     /// Info about current output type for display

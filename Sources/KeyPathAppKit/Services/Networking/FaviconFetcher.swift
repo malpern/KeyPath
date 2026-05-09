@@ -22,10 +22,12 @@ final class FaviconFetcher {
 
     /// Directory where favicons are cached on disk
     private let cacheDirectory: URL = {
-        let appSupport = Foundation.FileManager().urls(
+        guard let appSupport = Foundation.FileManager().urls(
             for: FileManager.SearchPathDirectory.applicationSupportDirectory,
             in: FileManager.SearchPathDomainMask.userDomainMask
-        ).first!
+        ).first else {
+            fatalError("Application Support directory unavailable")
+        }
         let faviconDir = appSupport.appendingPathComponent("KeyPath/Favicons", isDirectory: true)
         // Create directory if it doesn't exist
         try? Foundation.FileManager().createDirectory(at: faviconDir, withIntermediateDirectories: true)

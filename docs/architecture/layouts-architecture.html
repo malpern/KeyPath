@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keyboard Layouts &amp; Device Detection &mdash; Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f5f5f7;
+    --surface-2: #ebebed;
+    --border: #d2d2d7;
+    --border-light: #e8e8ed;
+    --text: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --text-tertiary: #86868b;
+    --accent: #1d1d1f;
+    --blue: #0071e3;
+    --code-bg: #f5f5f7;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.58;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 740px; margin: 0 auto; padding: 0 24px; }
+
+  /* -- Hero -- */
+  .hero { padding: 96px 0 64px; text-align: center; }
+  .hero-eyebrow {
+    font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px;
+  }
+  .hero h1 {
+    font-size: clamp(2.4rem, 5.5vw, 3.2rem); font-weight: 700;
+    letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px;
+    color: var(--text);
+  }
+  .hero p {
+    font-size: 1.15rem; color: var(--text-secondary); max-width: 480px;
+    margin: 0 auto; line-height: 1.5;
+  }
+
+  /* -- Sections -- */
+  section { padding: 64px 0; }
+  .divider { height: 1px; background: var(--border-light); }
+  .section-label {
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px;
+  }
+  h2 {
+    font-size: clamp(1.6rem, 3.5vw, 2rem); font-weight: 700;
+    letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 10px;
+  }
+  .section-desc {
+    font-size: 1rem; color: var(--text-secondary); max-width: 520px;
+    margin-bottom: 36px; line-height: 1.55;
+  }
+  h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
+  p { color: var(--text-secondary); margin-bottom: 14px; }
+
+  /* -- Three pillars -- */
+  .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border-light); border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; margin: 36px 0; }
+  .pillar { background: var(--bg); padding: 32px 24px; text-align: center; }
+  .pillar-icon { margin-bottom: 14px; display: flex; justify-content: center; }
+  .pillar h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+  .pillar p { font-size: 0.85rem; color: var(--text-tertiary); margin: 0; line-height: 1.45; }
+
+  /* -- Diagram -- */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    margin: 36px 0;
+    display: flex; justify-content: center;
+  }
+
+  /* -- Type cards -- */
+  .types-grid { display: flex; flex-direction: column; gap: 12px; margin: 32px 0; }
+  .type-card {
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .type-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .type-icon {
+    width: 36px; height: 36px; border-radius: 8px; background: var(--surface);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .type-name {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; font-size: 0.95rem;
+    font-weight: 600; color: var(--text);
+  }
+  .type-badge {
+    font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    letter-spacing: 0.03em; text-transform: uppercase;
+    background: var(--surface); color: var(--text-tertiary); border: 1px solid var(--border-light);
+  }
+  .type-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.55; }
+  .type-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em;
+    background: var(--surface); padding: 1px 5px; border-radius: 4px; color: var(--text);
+  }
+
+  /* -- Code -- */
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border-light);
+    border-radius: 10px; padding: 18px 20px; overflow-x: auto;
+    font-size: 0.8rem; line-height: 1.75; margin: 14px 0 0;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; color: var(--text);
+  }
+  .kw { color: #a626a4; }
+  .fn { color: #4078f2; }
+  .tp { color: #986801; }
+  .cm { color: #a0a1a7; }
+  .pr { color: #e45649; }
+
+  /* -- Data flow -- */
+  .flow-list { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .flow-item {
+    display: grid; grid-template-columns: 140px 1fr; gap: 0;
+    font-size: 0.9rem; border-bottom: 1px solid var(--border-light);
+  }
+  .flow-item:last-child { border-bottom: none; }
+  .flow-item > div { padding: 14px 20px; }
+  .flow-event { font-weight: 600; color: var(--text); background: var(--surface); }
+  .flow-desc { color: var(--text-secondary); }
+  .flow-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em; color: var(--blue);
+  }
+
+  /* -- Rules -- */
+  .rules { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .rule-item {
+    padding: 18px 20px; display: flex; gap: 14px; align-items: start;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-num {
+    width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; background: var(--surface); color: var(--text-tertiary);
+  }
+  .rule-content { flex: 1; }
+  .rule-title { font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 2px; }
+  .rule-desc { font-size: 0.85rem; color: var(--text-tertiary); line-height: 1.5; }
+  .rule-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text-secondary);
+  }
+
+  /* -- Invariant -- */
+  .invariant {
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: var(--radius); padding: 20px 24px; margin: 32px 0;
+    display: flex; gap: 14px; align-items: start;
+  }
+  .invariant-icon {
+    width: 32px; height: 32px; border-radius: 8px; background: var(--bg);
+    border: 1px solid var(--border-light);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .invariant-text { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; }
+  .invariant-text strong { color: var(--text); }
+  .invariant-text code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text);
+  }
+
+  /* -- Nav -- */
+  .nav-back {
+    display: inline-block; padding: 12px 0; font-size: 0.85rem;
+    color: var(--blue); text-decoration: none; font-weight: 500;
+  }
+  .nav-back:hover { text-decoration: underline; }
+
+  /* -- Cross-links -- */
+  .cross-links { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .cross-link {
+    display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+    border-bottom: 1px solid var(--border-light); text-decoration: none; color: var(--text);
+    transition: background 0.15s;
+  }
+  .cross-link:last-child { border-bottom: none; }
+  .cross-link:hover { background: var(--surface); }
+  .cross-link-title { font-weight: 600; font-size: 0.9rem; }
+  .cross-link-desc { font-size: 0.82rem; color: var(--text-tertiary); }
+  .cross-link-arrow { margin-left: auto; color: var(--text-tertiary); font-size: 0.9rem; }
+
+  footer {
+    padding: 40px 0; text-align: center;
+    font-size: 0.78rem; color: var(--text-tertiary); border-top: 1px solid var(--border-light);
+  }
+
+  @media (max-width: 640px) {
+    .pillars { grid-template-columns: 1fr; }
+    .flow-item { grid-template-columns: 1fr; }
+    .flow-event { border-bottom: 1px solid var(--border-light); }
+    .hero { padding: 64px 0 48px; }
+    section { padding: 48px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <a href="index.html" class="nav-back">&larr; Back to Index</a>
+</div>
+
+<div class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">Architecture</div>
+    <h1>Keyboard Layouts &amp; Device Detection</h1>
+    <p>Geometry follows layout. Labels follow keymap.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="container">
+
+<section>
+  <div class="section-label">Overview</div>
+  <h2>Define. Label. Detect.</h2>
+  <div class="section-desc">Three concerns, cleanly separated. A physical layout describes where keys sit. A logical keymap describes what goes on each key. A device monitor discovers what keyboards are connected.</div>
+
+  <div class="pillars">
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Grid/layout icon -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="14" ry="3" fill="#3d4852" opacity="0.06"/>
+          <rect x="8" y="10" width="44" height="36" rx="4" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <rect x="12" y="14" width="8" height="8" rx="2" fill="#f5f5f7" stroke="#3d4852" stroke-width="1"/>
+          <rect x="22" y="14" width="8" height="8" rx="2" fill="#f5f5f7" stroke="#3d4852" stroke-width="1"/>
+          <rect x="32" y="14" width="16" height="8" rx="2" fill="#f5f5f7" stroke="#3d4852" stroke-width="1"/>
+          <rect x="12" y="24" width="12" height="8" rx="2" fill="#f5f5f7" stroke="#3d4852" stroke-width="1"/>
+          <rect x="26" y="24" width="8" height="8" rx="2" fill="#f5f5f7" stroke="#3d4852" stroke-width="1"/>
+          <rect x="36" y="24" width="12" height="8" rx="2" fill="#f5f5f7" stroke="#3d4852" stroke-width="1"/>
+          <rect x="12" y="34" width="36" height="8" rx="2" fill="#f5f5f7" stroke="#3d4852" stroke-width="1"/>
+        </svg>
+      </div>
+      <h4>Define</h4>
+      <p>PhysicalLayout describes key positions and sizes</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Label/tag icon -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="14" ry="3" fill="#3d4852" opacity="0.06"/>
+          <rect x="10" y="14" width="40" height="32" rx="5" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <text x="20" y="28" font-family="-apple-system, sans-serif" font-size="10" font-weight="700" fill="#3d4852">A</text>
+          <text x="31" y="28" font-family="-apple-system, sans-serif" font-size="10" font-weight="700" fill="#3d4852">S</text>
+          <text x="42" y="28" font-family="-apple-system, sans-serif" font-size="10" font-weight="700" fill="#3d4852">D</text>
+          <text x="20" y="40" font-family="-apple-system, sans-serif" font-size="10" font-weight="700" fill="#86868b">Q</text>
+          <text x="31" y="40" font-family="-apple-system, sans-serif" font-size="10" font-weight="700" fill="#86868b">W</text>
+          <text x="42" y="40" font-family="-apple-system, sans-serif" font-size="10" font-weight="700" fill="#86868b">E</text>
+        </svg>
+      </div>
+      <h4>Label</h4>
+      <p>LogicalKeymap maps key codes to display labels</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- USB/detect icon -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="14" ry="3" fill="#3d4852" opacity="0.06"/>
+          <rect x="22" y="8" width="16" height="26" rx="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <rect x="25" y="12" width="10" height="6" rx="1" fill="#f5f5f7" stroke="#3d4852" stroke-width="1"/>
+          <line x1="30" y1="34" x2="30" y2="42" stroke="#3d4852" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="18" cy="46" r="4" fill="#d2d2d7" stroke="#3d4852" stroke-width="1.4"/>
+          <circle cx="42" cy="46" r="4" fill="#d2d2d7" stroke="#3d4852" stroke-width="1.4"/>
+          <line x1="30" y1="42" x2="18" y2="46" stroke="#3d4852" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="30" y1="42" x2="42" y2="46" stroke="#3d4852" stroke-width="1.4" stroke-linecap="round"/>
+          <circle cx="30" cy="42" r="2.5" fill="#3d4852"/>
+        </svg>
+      </div>
+      <h4>Detect</h4>
+      <p>HIDDeviceMonitor discovers connected keyboards</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Architecture</div>
+  <h2>The Complete Picture</h2>
+  <div class="section-desc">Physical geometry and logical labels are independent concerns that combine at render time in the overlay view. Device detection feeds per-device config.</div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 580 380" xmlns="http://www.w3.org/2000/svg" style="max-width:540px; width:100%;">
+      <defs>
+        <marker id="arr" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#86868b"/></marker>
+        <marker id="arr-b" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#0071e3"/></marker>
+        <marker id="arr-d" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#d2d2d7"/></marker>
+      </defs>
+
+      <!-- PhysicalLayout -->
+      <rect x="10" y="20" width="200" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="30" y="43" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">GEOMETRY</text>
+      <text x="30" y="59" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">PhysicalLayout</text>
+
+      <!-- LogicalKeymap -->
+      <rect x="10" y="100" width="200" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="30" y="123" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">LABELS</text>
+      <text x="30" y="139" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">LogicalKeymap</text>
+
+      <!-- Arrows from Layout + Keymap to OverlayKeyboardView -->
+      <line x1="210" y1="48" x2="319" y2="108" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <line x1="210" y1="128" x2="319" y2="108" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+
+      <!-- Labels on arrows -->
+      <rect x="228" y="58" width="72" height="18" rx="4" fill="#f0f5ff" stroke="#cce0ff" stroke-width="0.8"/>
+      <text x="264" y="70" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#0071e3">positions</text>
+      <rect x="240" y="118" width="56" height="18" rx="4" fill="#f0f5ff" stroke="#cce0ff" stroke-width="0.8"/>
+      <text x="268" y="130" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#0071e3">labels</text>
+
+      <!-- OverlayKeyboardView -->
+      <rect x="324" y="80" width="240" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="344" y="103" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">SWIFTUI VIEW</text>
+      <text x="344" y="119" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">OverlayKeyboardView</text>
+
+      <!-- Separator line -->
+      <line x1="20" y1="185" x2="560" y2="185" stroke="#e8e8ed" stroke-width="1" stroke-dasharray="4 3"/>
+      <text x="290" y="198" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8.5" fill="#a0a1a7">Device Detection Layer</text>
+
+      <!-- HIDDeviceMonitor -->
+      <rect x="10" y="220" width="200" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="30" y="243" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">IOKIT OBSERVER</text>
+      <text x="30" y="259" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">HIDDeviceMonitor</text>
+
+      <!-- USB/BT labels -->
+      <rect x="10" y="290" width="84" height="22" rx="4" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="0.8"/>
+      <text x="52" y="304" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8.5" fill="#86868b">USB keyboards</text>
+      <rect x="102" y="290" width="108" height="22" rx="4" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="0.8"/>
+      <text x="156" y="304" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8.5" fill="#86868b">Bluetooth keyboards</text>
+
+      <!-- Arrow from HIDDeviceMonitor to DeviceEnumerationService -->
+      <line x1="210" y1="248" x2="319" y2="248" stroke="#86868b" stroke-width="1.2" marker-end="url(#arr)"/>
+      <rect x="228" y="233" width="72" height="18" rx="4" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="0.8"/>
+      <text x="264" y="245" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#86868b">events</text>
+
+      <!-- DeviceEnumerationService -->
+      <rect x="324" y="220" width="240" height="56" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="344" y="243" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">PARSER</text>
+      <text x="344" y="259" font-family="JetBrains Mono, monospace" font-size="11" fill="#1d1d1f" font-weight="600">DeviceEnumerationService</text>
+
+      <!-- Arrow to per-device config -->
+      <line x1="444" y1="276" x2="444" y2="318" stroke="#86868b" stroke-width="1.2" marker-end="url(#arr)"/>
+
+      <!-- Per-device config -->
+      <rect x="344" y="322" width="240" height="44" rx="10" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="464" y="340" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">KANATA CONFIG</text>
+      <text x="464" y="356" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#1d1d1f" font-weight="500">(switch ((device N)) ...)</text>
+
+      <!-- Caption -->
+      <text x="290" y="376" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8.5" fill="#a0a1a7">Blue arrows show the render path. Gray arrows show the device detection path.</text>
+    </svg>
+  </div>
+
+  <div class="invariant">
+    <div class="invariant-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8 L12 14" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="16.5" r="0.8" fill="#3d4852"/></svg>
+    </div>
+    <div class="invariant-text"><strong>Core invariant.</strong> A physical layout is pure geometry &mdash; it has no opinion about what label goes on each key. A logical keymap is pure labeling &mdash; it has no opinion about key positions. The two combine at render time in the overlay view.</div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Types</div>
+  <h2>Five Types, Three Layers</h2>
+  <div class="section-desc">Geometry, labeling, and device detection. Each type has a single responsibility.</div>
+
+  <div class="types-grid">
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><rect x="5" y="5" width="5" height="5" rx="1" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/><rect x="12" y="5" width="7" height="5" rx="1" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/><rect x="5" y="12" width="14" height="5" rx="1" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/></svg>
+        </div>
+        <span class="type-name">PhysicalLayout</span>
+        <span class="type-badge">Model</span>
+      </div>
+      <div class="type-desc">Describes every key's position, size, and optional rotation for a specific keyboard form factor. Pure geometry: <code>x</code>, <code>y</code>, <code>width</code>, <code>height</code>, and <code>totalWidth</code>/<code>totalHeight</code> for aspect ratio. Ships with US (ANSI), International (ISO/JIS/ABNT2/Korean), and Ergonomic (Kinesis, Corne, Sofle, Ferris Sweep) registries. Supports custom user layouts.</div>
+      <pre><span class="kw">struct</span> <span class="tp">PhysicalLayout</span>: <span class="tp">Identifiable</span> {
+    <span class="kw">let</span> <span class="pr">id</span>: <span class="tp">String</span>          <span class="cm">// "macbook-us", "kinesis-360"</span>
+    <span class="kw">let</span> <span class="pr">name</span>: <span class="tp">String</span>        <span class="cm">// "MacBook US"</span>
+    <span class="kw">let</span> <span class="pr">keys</span>: [<span class="tp">PhysicalKey</span>]
+    <span class="kw">let</span> <span class="pr">totalWidth</span>: <span class="tp">Double</span>
+    <span class="kw">let</span> <span class="pr">totalHeight</span>: <span class="tp">Double</span>
+}</pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="16" rx="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><text x="8" y="15" font-family="-apple-system, sans-serif" font-size="9" font-weight="700" fill="#3d4852">Ab</text></svg>
+        </div>
+        <span class="type-name">LogicalKeymap</span>
+        <span class="type-badge">Model</span>
+      </div>
+      <div class="type-desc">Maps <code>UInt16</code> key codes to display strings. Splits labels into <code>coreLabels</code> (30-key letter block, always shown) and <code>extraLabels</code> (number row and punctuation, toggled). Includes QWERTY, Colemak, Colemak-DH, Dvorak, Workman, Graphite, AZERTY, and QWERTZ. A special <code>"system"</code> keymap queries <code>UCKeyTranslate</code> for dynamic OS-driven labels.</div>
+      <pre><span class="kw">struct</span> <span class="tp">LogicalKeymap</span>: <span class="tp">Identifiable</span> {
+    <span class="kw">let</span> <span class="pr">id</span>: <span class="tp">String</span>
+    <span class="kw">let</span> <span class="pr">coreLabels</span>: [<span class="tp">UInt16</span>: <span class="tp">String</span>]   <span class="cm">// letter block</span>
+    <span class="kw">let</span> <span class="pr">extraLabels</span>: [<span class="tp">UInt16</span>: <span class="tp">String</span>]  <span class="cm">// numbers + punctuation</span>
+
+    <span class="kw">func</span> <span class="fn">displayLabel</span>(<span class="pr">for</span> key: <span class="tp">PhysicalKey</span>, <span class="pr">includeExtraKeys</span>: <span class="tp">Bool</span>) -> <span class="tp">String</span>
+}</pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><circle cx="12" cy="12" r="3" fill="#f5f5f7" stroke="#3d4852" stroke-width="1.2"/><path d="M12 4 L13.5 7.5 L10.5 7.5 Z" fill="#3d4852"/><path d="M12 20 L10.5 16.5 L13.5 16.5 Z" fill="#3d4852"/><path d="M4 12 L7.5 10.5 L7.5 13.5 Z" fill="#3d4852"/><path d="M20 12 L16.5 13.5 L16.5 10.5 Z" fill="#3d4852"/></svg>
+        </div>
+        <span class="type-name">HIDDeviceMonitor</span>
+        <span class="type-badge">Service</span>
+      </div>
+      <div class="type-desc">Monitors USB HID keyboard connect/disconnect events via IOKit on a dedicated thread. Publishes <code>connectedKeyboards</code> as an <code>@Published</code> array. Filters out VirtualHID devices and anonymous BLE devices (VID:PID 0:0). Each device is identified by <code>vendorID</code>, <code>productID</code>, and <code>productName</code>.</div>
+      <pre><span class="kw">@MainActor final class</span> <span class="tp">HIDDeviceMonitor</span>: <span class="tp">ObservableObject</span> {
+    <span class="kw">@Published private(set) var</span> <span class="pr">connectedKeyboards</span>: [<span class="tp">HIDKeyboardEvent</span>]
+    <span class="kw">@Published private(set) var</span> <span class="pr">lastConnectedKeyboard</span>: <span class="tp">HIDKeyboardEvent</span>?
+}</pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="6" width="16" height="12" rx="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><line x1="7" y1="10" x2="17" y2="10" stroke="#3d4852" stroke-width="1" stroke-linecap="round"/><line x1="7" y1="13" x2="13" y2="13" stroke="#3d4852" stroke-width="1" stroke-linecap="round"/></svg>
+        </div>
+        <span class="type-name">DeviceEnumerationService</span>
+        <span class="type-badge">Parser</span>
+      </div>
+      <div class="type-desc">Parses <code>kanata --list</code> output into structured <code>ConnectedDevice</code> records. Pure parsing logic kept separate from <code>Process</code> execution for testability. Identifies VirtualHID devices, extracts vendor/product IDs, and deduplicates by device hash.</div>
+      <pre><span class="kw">enum</span> <span class="tp">DeviceEnumerationService</span> {
+    <span class="kw">static func</span> <span class="fn">parseAllDevices</span>(
+        <span class="pr">fromKanataList</span> output: <span class="tp">String</span>
+    ) -> [<span class="tp">ConnectedDevice</span>]
+}</pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="13" rx="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><rect x="5" y="6.5" width="14" height="8.5" rx="0.5" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/><line x1="9" y1="20" x2="15" y2="20" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="20" stroke="#3d4852" stroke-width="1.5"/></svg>
+        </div>
+        <span class="type-name">OverlayKeyboardView</span>
+        <span class="type-badge">Consumer</span>
+      </div>
+      <div class="type-desc">The SwiftUI overlay that renders a keyboard visualization. Receives a <code>PhysicalLayout</code> for key positions and sizes, and a <code>LogicalKeymap</code> for display labels. Combines them at render time &mdash; never stores merged data.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Data Flow</div>
+  <h2>From Boot to Key Label</h2>
+  <div class="section-desc">Five events, one consistent data path.</div>
+
+  <div class="flow-list">
+    <div class="flow-item">
+      <div class="flow-event">App startup</div>
+      <div class="flow-desc"><code>HIDDeviceMonitor</code> starts IOKit run loop, scans for connected USB/BT keyboards</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Layout selected</div>
+      <div class="flow-desc">User picks a <code>PhysicalLayout</code> &mdash; key geometry flows to overlay view</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Keymap applied</div>
+      <div class="flow-desc"><code>LogicalKeymap</code> labels applied to layout &mdash; <code>displayLabel(for:includeExtraKeys:)</code></div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Keyboard connected</div>
+      <div class="flow-desc"><code>HIDDeviceMonitor</code> publishes event &rarr; <code>DeviceEnumerationService</code> identifies device</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Per-device config</div>
+      <div class="flow-desc">Config generator emits <code>(switch ((device N)) ...)</code> only for keys with different mappings</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Principles</div>
+  <h2>Design Rules</h2>
+  <div class="section-desc">Four invariants that keep geometry, labeling, and device detection cleanly separated.</div>
+
+  <div class="rules">
+    <div class="rule-item">
+      <div class="rule-num">1</div>
+      <div class="rule-content">
+        <div class="rule-title">Geometry follows selected PhysicalLayout</div>
+        <div class="rule-desc">The user-selected layout ID determines all key positions, sizes, and rotations. The overlay view reads the layout's <code>keys</code> array directly.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">2</div>
+      <div class="rule-content">
+        <div class="rule-title">Labels follow selected LogicalKeymap</div>
+        <div class="rule-desc">The user-selected keymap determines what text appears on each key. <code>coreLabels</code> for the letter block, <code>extraLabels</code> for number row and punctuation.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">3</div>
+      <div class="rule-content">
+        <div class="rule-title">No UI toggle for this separation</div>
+        <div class="rule-desc">Treat geometry-follows-layout and labels-follow-keymap as a single consistent rule. Do not expose separate toggles for choosing a layout vs. a keymap.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">4</div>
+      <div class="rule-content">
+        <div class="rule-title">Per-device mappings use Kanata's defcfg conditional switch</div>
+        <div class="rule-desc">Not app-level branching. Only keys with different behavior per device get a <code>(switch ((device N)) ... break)</code> wrapper. All other keys are emitted normally.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Related</div>
+  <h2>Cross-References</h2>
+
+  <div class="cross-links">
+    <a href="overlay-architecture.html" class="cross-link">
+      <div>
+        <div class="cross-link-title">Overlay Architecture</div>
+        <div class="cross-link-desc">The overlay renders using layouts and keymaps defined here</div>
+      </div>
+      <span class="cross-link-arrow">&rarr;</span>
+    </a>
+    <a href="rules-architecture.html" class="cross-link">
+      <div>
+        <div class="cross-link-title">Rules Architecture</div>
+        <div class="cross-link-desc">Rules reference key names from the selected keymap</div>
+      </div>
+      <span class="cross-link-arrow">&rarr;</span>
+    </a>
+    <a href="index.html" class="cross-link">
+      <div>
+        <div class="cross-link-title">Architecture Index</div>
+        <div class="cross-link-desc">All architecture documents</div>
+      </div>
+      <span class="cross-link-arrow">&rarr;</span>
+    </a>
+  </div>
+</section>
+
+</div>
+
+<footer>KeyPath Layouts Architecture &mdash; May 2026</footer>
+
+</body>
+</html>

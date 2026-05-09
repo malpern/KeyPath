@@ -91,7 +91,7 @@ public final class PackInstaller {
         // Collection-backed packs (e.g. Home Row Mods) don't generate custom
         // rules — they just toggle the built-in RuleCollection on.
         if let collectionID = pack.associatedCollectionID {
-            let ok = await manager.toggleCollection(id: collectionID, isEnabled: true)
+            let ok = await manager.toggleCollection(id: collectionID, isEnabled: true, autoResolveConflicts: true)
             if !ok {
                 throw InstallError.saveFailed("could not enable associated rule collection")
             }

@@ -695,7 +695,7 @@ extension MapperViewModel {
             customRule.behavior = nil
         }
 
-        let customRuleSaved = await kanataManager.saveCustomRule(customRule, skipReload: false)
+        let customRuleSaved = await kanataManager.saveCustomRule(customRule, skipReload: false, autoResolveConflicts: true)
         AppLogger.shared.log("💾 [MapperViewModel] saveCustomRule returned: \(customRuleSaved)")
 
         if customRuleSaved {
@@ -703,7 +703,7 @@ extension MapperViewModel {
             showTransientStatus("✓ Saved")
             AppLogger.shared.log("✅ [MapperViewModel] Saved mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [layer: \(currentLayer)] (ruleID: \(customRule.id))")
         } else {
-            statusMessage = "Rule save failed"
+            statusMessage = "Rule save failed — config could not be applied"
             statusIsError = true
             AppLogger.shared.error("❌ [MapperViewModel] saveCustomRule returned false for input='\(inputKanata)', output='\(outputKanata)'")
         }

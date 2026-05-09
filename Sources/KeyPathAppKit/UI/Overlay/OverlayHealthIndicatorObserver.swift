@@ -116,7 +116,9 @@ final class OverlayHealthIndicatorObserver {
             if currentState == .dismissed {
                 return
             } else if currentState == .healthy {
-                scheduleCheckingState()
+                // Don't flash "checking" during periodic revalidation —
+                // stay on healthy until the result comes back
+                return
             } else {
                 setState(.checking)
             }

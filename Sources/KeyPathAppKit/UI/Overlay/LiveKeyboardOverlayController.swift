@@ -26,18 +26,15 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     var resizeStartMouse: NSPoint = .zero
     var resizeStartFrame: NSRect = .zero
     var inspectorDebugLastLog: CFTimeInterval = 0
-    private var healthObserver: OverlayHealthIndicatorObserver?
-    private weak var hostingView: NSHostingView<LiveKeyboardOverlayView>?
+    var healthObserver: OverlayHealthIndicatorObserver?
+    weak var hostingView: NSHostingView<LiveKeyboardOverlayView>?
     private let frameStore = OverlayWindowFrameStore()
     var hintWindowController: HideHintWindowController?
     var hintBubbleObserver: Task<Void, Never>?
     private var hiddenHintController: OverlayHiddenHintWindowController?
 
-    /// Reference to KanataViewModel for opening Mapper window
-    private weak var kanataViewModel: KanataViewModel?
-
-    /// Reference to RuleCollectionsManager for keymap changes
-    private weak var ruleCollectionsManager: RuleCollectionsManager?
+    weak var kanataViewModel: KanataViewModel?
+    weak var ruleCollectionsManager: RuleCollectionsManager?
 
     // MARK: - UserDefaults Keys
 
@@ -102,18 +99,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Shared instance for app-wide access
     static let shared = LiveKeyboardOverlayController()
 
-    private enum LayerChangeSource: String {
-        case push
-        case kanata
-        case unknown
-    }
-
-    private let oneShotOverride = OneShotLayerOverrideState(
+    let oneShotOverride = OneShotLayerOverrideState(
         timeoutDuration: LiveKeyboardOverlayController.oneShotTimeoutDuration
     )
-    private var isLauncherSessionActive = false
-    private var shouldRestoreAppHidden = false
-    private var shouldRestoreOverlayHidden = false
+    var isLauncherSessionActive = false
+    var shouldRestoreAppHidden = false
+    var shouldRestoreOverlayHidden = false
+    var wasVisibleBeforeAppSuppression: Bool = false
+    var isAppSuppressed: Bool = false
 
     override private init() {
         super.init()
@@ -149,413 +142,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
     }
 
-    private func setupOpenOverlayWithMapperObserver() {
-        Foundation.NotificationCenter.default.addObserver(
-            forName: Foundation.Notification.Name.openOverlayWithMapper,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] (_: Foundation.Notification) in
-            Task { @MainActor in
-                self?.openWithMapperTab()
-            }
-        }
-
-        Foundation.NotificationCenter.default.addObserver(
-            forName: Foundation.Notification.Name.openOverlayWithMapperPreset,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] (notification: Foundation.Notification) in
-            // Extract sendable values before entering Task to avoid data race
-            let inputKey = notification.userInfo?["inputKey"] as? String
-            let outputKey = notification.userInfo?["outputKey"] as? String
-            let shiftedOutputKey = notification.userInfo?["shiftedOutputKey"] as? String
-            let appBundleId = notification.userInfo?["appBundleId"] as? String
-            let appDisplayName = notification.userInfo?["appDisplayName"] as? String
-            Task { @MainActor in
-                self?.openWithMapperTabAndPreset(
-                    inputKey: inputKey,
-                    outputKey: outputKey,
-                    shiftedOutputKey: shiftedOutputKey,
-                    appBundleId: appBundleId,
-                    appDisplayName: appDisplayName
-                )
-            }
-        }
-    }
-
-    /// Resolve whether accessibility test mode is active.
-    /// The explicit user preference takes priority; the env var is a fallback for
-    /// when the preference has never been set (e.g., automated test harness).
-    static func resolveAccessibilityTestMode() -> Bool {
-        let envVar = ProcessInfo.processInfo.environment["KEYPATH_ACCESSIBILITY_TEST_MODE"] != nil
-        let prefValue = PreferencesService.shared.accessibilityTestMode
-        // If user has explicitly stored a preference, honor it regardless of env var.
-        let hasExplicitPref = UserDefaults.standard.object(forKey: "KeyPath.Testing.AccessibilityTestMode") != nil
-        if hasExplicitPref {
-            return prefValue
-        }
-        return envVar || prefValue
-    }
-
-    private var overlayHiddenByWizard = false
-
-    private func setupWizardVisibilityObserver() {
-        Foundation.NotificationCenter.default.addObserver(
-            forName: .wizardOpened,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, let window = self.window, window.isVisible else { return }
-                self.overlayHiddenByWizard = true
-                window.orderOut(nil)
-                AppLogger.shared.log("🪟 [OverlayController] Hidden overlay — wizard opened")
-            }
-        }
-
-        Foundation.NotificationCenter.default.addObserver(
-            forName: .wizardClosed,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, self.overlayHiddenByWizard else { return }
-                self.overlayHiddenByWizard = false
-                self.window?.orderFront(nil)
-                AppLogger.shared.log("🪟 [OverlayController] Restored overlay — wizard closed")
-            }
-        }
-    }
-
-    private func setupAccessibilityTestModeObserver() {
-        Foundation.NotificationCenter.default.addObserver(
-            forName: Foundation.Notification.Name.accessibilityTestModeChanged,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] (_: Foundation.Notification) in
-            Task { @MainActor in
-                self?.recreateWindowForTestModeChange()
-            }
-        }
-    }
-
-    /// Recreate the overlay window when accessibility test mode changes.
-    /// NSWindow.styleMask cannot be changed after init, so we must destroy and recreate.
-    private func recreateWindowForTestModeChange() {
-        let wasVisible = window?.isVisible ?? false
-        let savedFrame = window?.frame
-
-        // Tear down existing window
-        viewModel.stopCapturing()
-        dismissHintBubble()
-        if uiState.isInspectorOpen || uiState.inspectorReveal > 0 {
-            closeInspector(animated: false)
-        }
-        window?.orderOut(nil)
-        window?.delegate = nil
-        window = nil
-        hostingView = nil
-
-        guard wasVisible else {
-            AppLogger.shared.log("🪟 [OverlayController] Test mode changed - window was hidden, will recreate on next show")
-            return
-        }
-
-        // Recreate with new style
-        createWindow()
-        if let savedFrame, let window {
-            window.setFrame(savedFrame, display: true)
-        }
-        viewModel.startCapturing()
-        viewModel.noteInteraction()
-        window?.orderFront(nil)
-
-        let mode = PreferencesService.shared.accessibilityTestMode ? "titled (test)" : "chromeless"
-        AppLogger.shared.log("🪟 [OverlayController] Recreated overlay window as \(mode)")
-    }
-
-    /// Opens the overlay centered on screen with drawer open and mapper tab selected
-    @MainActor
-    func openWithMapperTab() {
-        // Close settings window if open
-        for window in NSApp.windows where window.title == "KeyPath Settings" {
-            window.close()
-        }
-
-        // Center the window on screen
-        showResetCentered()
-
-        // Open inspector with mapper tab
-        openInspector(animated: true)
-
-        // Post notification for view to switch to mapper tab
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + 0.1,
-            execute: DispatchWorkItem {
-                Foundation.NotificationCenter.default.post(
-                    name: Foundation.Notification.Name.switchToMapperTab,
-                    object: nil
-                )
-            }
-        )
-    }
-
-    /// Opens the overlay centered on screen with drawer open, mapper tab selected, and preset values
-    @MainActor
-    func openWithMapperTabAndPreset(
-        inputKey: String?,
-        outputKey: String?,
-        shiftedOutputKey: String?,
-        appBundleId: String?,
-        appDisplayName: String?
-    ) {
-        // Close settings window if open
-        for window in NSApp.windows where window.title == "KeyPath Settings" {
-            window.close()
-        }
-
-        // Center the window on screen
-        showResetCentered()
-
-        // Open inspector with mapper tab
-        openInspector(animated: true)
-
-        // Post notification for view to switch to mapper tab with preset values
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: DispatchWorkItem {
-            var notificationUserInfo: [String: Any] = [:]
-            if let inputKey {
-                notificationUserInfo["inputKey"] = inputKey
-            }
-            if let outputKey {
-                notificationUserInfo["outputKey"] = outputKey
-            }
-            if let shiftedOutputKey {
-                notificationUserInfo["shiftedOutputKey"] = shiftedOutputKey
-            }
-            if let appBundleId {
-                notificationUserInfo["appBundleId"] = appBundleId
-            }
-            if let appDisplayName {
-                notificationUserInfo["appDisplayName"] = appDisplayName
-            }
-            Foundation.NotificationCenter.default.post(
-                name: Foundation.Notification.Name.switchToMapperTab,
-                object: nil,
-                userInfo: notificationUserInfo.isEmpty ? nil : notificationUserInfo
-            )
-        })
-    }
-
-    // MARK: - Layer State
-
-    /// Update the current layer name displayed on the overlay
-    func updateLayerName(_ layerName: String) {
-        viewModel.updateLayer(layerName)
-    }
-
-    /// Current layer name shown by the overlay
-    var currentLayerName: String {
-        viewModel.currentLayerName
-    }
-
-    /// Look up the current layer mapping for a key code, if available.
-    func lookupCurrentMapping(forKeyCode keyCode: UInt16) -> (layer: String, info: LayerKeyInfo)? {
-        guard let info = viewModel.layerKeyMap[keyCode] else {
-            return nil
-        }
-        return (layer: viewModel.currentLayerName, info: info)
-    }
-
-    /// Set loading state for layer mapping
-    func setLoadingLayerMap(_ isLoading: Bool) {
-        viewModel.isLoadingLayerMap = isLoading
-    }
-
-    private func setupLayerChangeObserver() {
-        Foundation.NotificationCenter.default.addObserver(
-            forName: Foundation.Notification.Name.kanataLayerChanged,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] (notification: Foundation.Notification) in
-            guard let layerName = notification.userInfo?["layerName"] as? String else { return }
-            let sourceRaw = notification.userInfo?["source"] as? String
-            Task { @MainActor in
-                guard let self else { return }
-                let source = LayerChangeSource(rawValue: sourceRaw ?? "") ?? .unknown
-                self.handleLayerChange(layerName, source: source)
-            }
-        }
-
-        // Listen for config changes to rebuild layer mapping
-        Foundation.NotificationCenter.default.addObserver(
-            forName: Foundation.Notification.Name.kanataConfigChanged,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] (_: Foundation.Notification) in
-            AppLogger.shared.info("🔔 [OverlayController] Received kanataConfigChanged notification - invalidating layer mappings")
-            Task { @MainActor in
-                self?.viewModel.invalidateLayerMappings()
-            }
-        }
-    }
-
-    private func setupKeyInputObserver() {
-        Foundation.NotificationCenter.default.addObserver(
-            forName: Foundation.Notification.Name.kanataKeyInput,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] (notification: Foundation.Notification) in
-            let key = notification.userInfo?["key"] as? String
-            let action = notification.userInfo?["action"] as? String
-            Task { @MainActor in
-                guard let self else { return }
-                guard let key, action == "press" else { return }
-
-                // Clear one-shot override on the first non-modifier key press.
-                if let overrideLayer = self.oneShotOverride.clearOnKeyPress(
-                    key,
-                    modifierKeys: Self.modifierKeys
-                ) {
-                    AppLogger.shared.debug(
-                        "🧭 [OverlayController] Clearing one-shot layer override '\(overrideLayer)' on key press: \(key)"
-                    )
-                }
-
-                // Allow physical Escape to always dismiss momentary/one-shot layer state.
-                // This recovers from missed layer-exit notifications.
-                if Self.isEscapeKeyName(key), self.currentLayerName.lowercased() != "base" {
-                    _ = ActionDispatcher.shared.dispatch(message: "layer:base")
-                }
-            }
-        }
-    }
-
-    private func handleLayerChange(_ layerName: String, source: LayerChangeSource) {
-        let normalized = layerName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-        handleLauncherLayerTransition(normalizedLayer: normalized)
-
-        switch source {
-        case .push:
-            if normalized == "base" {
-                oneShotOverride.clear()
-            } else {
-                oneShotOverride.activate(normalized)
-            }
-            updateLayerName(layerName)
-        case .kanata:
-            // Always honor Kanata's "base" layer change — it means the layer definitively
-            // returned to base (one-shot consumed, hold released, etc.). Clear any one-shot
-            // override that may be blocking the update. This handles the case where
-            // one-shot-press layers don't fire an exit fake key (no push-msg "layer:base").
-            if normalized == "base" {
-                oneShotOverride.clear()
-            } else if oneShotOverride.shouldIgnoreKanataUpdate(normalizedLayer: normalized),
-                      let overrideLayer = oneShotOverride.currentLayer
-            {
-                AppLogger.shared.debug(
-                    "🧭 [OverlayController] Ignoring kanata layer '\(layerName)' while one-shot override '\(overrideLayer)' active"
-                )
-                return
-            }
-            updateLayerName(layerName)
-        case .unknown:
-            updateLayerName(layerName)
-        }
-    }
-
-    private static let modifierKeys: Set<String> = [
-        "leftshift",
-        "rightshift",
-        "leftalt",
-        "rightalt",
-        "leftctrl",
-        "rightctrl",
-        "leftmeta",
-        "rightmeta",
-        "capslock",
-        "fn"
-    ]
-
-    private static func isEscapeKeyName(_ key: String) -> Bool {
-        if let keyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(key) {
-            return keyCode == 53
-        }
-        let normalized = key.lowercased()
-        return normalized == "esc" || normalized == "escape"
-    }
+    var overlayHiddenByWizard = false
 
     private static let oneShotTimeoutDuration: Duration = .seconds(5)
-
-    private func handleLauncherLayerTransition(normalizedLayer: String) {
-        if normalizedLayer == "launcher" {
-            handleLauncherLayerActivated()
-            return
-        }
-
-        if isLauncherSessionActive {
-            if shouldRestoreAppHidden || shouldRestoreOverlayHidden {
-                AppLogger.shared.debug(
-                    "🪟 [OverlayController] Launcher exited without action - clearing pending restore"
-                )
-            }
-            isLauncherSessionActive = false
-            shouldRestoreAppHidden = false
-            shouldRestoreOverlayHidden = false
-        }
-    }
-
-    private func handleLauncherLayerActivated() {
-        guard !isLauncherSessionActive else { return }
-        isLauncherSessionActive = true
-
-        let appWasHidden = NSApp.isHidden
-        let overlayWasHidden = !isVisible
-        shouldRestoreAppHidden = appWasHidden
-        shouldRestoreOverlayHidden = overlayWasHidden
-
-        guard appWasHidden || overlayWasHidden else { return }
-
-        AppLogger.shared.log(
-            "🪟 [OverlayController] Launcher activated while hidden (app=\(appWasHidden), overlay=\(overlayWasHidden)) - bringing to front"
-        )
-
-        if appWasHidden {
-            NSApp.unhide(nil)
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        // Launcher activation always bypasses hidden check - user is actively using it
-        showForQuickLaunch(bypassHiddenCheck: true)
-    }
-
-    func noteLauncherActionDispatched() {
-        guard shouldRestoreAppHidden || shouldRestoreOverlayHidden else { return }
-        let restoreAppHidden = shouldRestoreAppHidden
-        let restoreOverlayHidden = shouldRestoreOverlayHidden
-        shouldRestoreAppHidden = false
-        shouldRestoreOverlayHidden = false
-        isLauncherSessionActive = false
-
-        AppLogger.shared.log(
-            "🪟 [OverlayController] Restoring hidden state after launcher action (app=\(restoreAppHidden), overlay=\(restoreOverlayHidden))"
-        )
-
-        if restoreOverlayHidden {
-            isVisible = false
-        }
-        if restoreAppHidden {
-            NSApp.hide(nil)
-        }
-    }
-
-    private func bringOverlayToFront() {
-        if !isVisible {
-            isVisible = true
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        // Use orderFront instead of makeKeyAndOrderFront since overlay can't become key
-        window?.orderFront(nil)
-    }
 
     /// Restore overlay state from previous session
     /// Only restores if system status is healthy (Kanata running)
@@ -664,47 +253,6 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
         window?.orderFront(nil)
         AppLogger.shared.log("🚀 [OverlayController] Showing overlay for launcher activation")
-    }
-
-    /// Observe MainAppStateController for health state changes
-    private func observeHealthState() {
-        if healthObserver == nil {
-            healthObserver = OverlayHealthIndicatorObserver(
-                onStateChange: { [weak self] state in
-                    self?.uiState.healthIndicatorState = state
-                },
-                onDismiss: { [weak self] in
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        self?.uiState.healthIndicatorState = .dismissed
-                    }
-                }
-            )
-        }
-
-        healthObserver?.startObserving(controller: MainAppStateController.shared)
-    }
-
-    /// Handle tap on health indicator - launches wizard and dismisses indicator
-    func handleHealthIndicatorTap() {
-        AppLogger.shared.log("🔘 [Controller] handleHealthIndicatorTap - bringing main window to front and opening wizard")
-
-        // Bring the main app window to front first.
-        NSApp.activate(ignoringOtherApps: true)
-
-        // Find the main window (not the floating overlay)
-        if let mainWindow = NSApp.windows.first(where: { !$0.styleMask.contains(.borderless) && $0.level == .normal }) {
-            mainWindow.makeKeyAndOrderFront(nil)
-        }
-
-        // Post notification to show wizard (handled by AppDelegate wiring).
-        Foundation.NotificationCenter.default.post(
-            name: Foundation.Notification.Name.showWizard,
-            object: nil
-        )
-
-        withAnimation {
-            uiState.healthIndicatorState = .dismissed
-        }
     }
 
     /// Configure the KanataViewModel reference for opening Mapper from overlay clicks
@@ -896,37 +444,6 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
     }
 
-    // MARK: - App-Scoped Suppression
-
-    /// Per-app suppression state. Independent of the Settings/Wizard guard
-    /// above so they don't clobber each other — a user could open Settings
-    /// while Figma is frontmost and both reasons should compose.
-    private var wasVisibleBeforeAppSuppression: Bool = false
-    private var isAppSuppressed: Bool = false
-
-    /// Hide the overlay because the frontmost app is on the user's
-    /// suppression list (e.g. Figma, where hold-Space conflicts). Stashes
-    /// pre-hide visibility so `restoreFromAppSuppression` can put it back.
-    func suppressForApp() {
-        guard !isAppSuppressed else { return }
-        isAppSuppressed = true
-        wasVisibleBeforeAppSuppression = isVisible
-        if isVisible {
-            isVisible = false
-        }
-    }
-
-    /// Restore the overlay when leaving a suppressed app.
-    func restoreFromAppSuppression() {
-        guard isAppSuppressed else { return }
-        let shouldRestore = wasVisibleBeforeAppSuppression
-        isAppSuppressed = false
-        wasVisibleBeforeAppSuppression = false
-        if shouldRestore, !isVisible {
-            isVisible = true
-        }
-    }
-
     // MARK: - Window Management
 
     private func showWindow() {
@@ -1019,130 +536,6 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             }
         } else {
             window?.orderOut(nil)
-        }
-    }
-
-    // MARK: - Key Click Handling
-
-    /// Handle keymap selection change - regenerates Kanata config with new layout
-    private func handleKeymapChanged(keymapId: String, includePunctuation: Bool) {
-        guard let ruleCollectionsManager else {
-            AppLogger.shared.log("⚠️ [OverlayController] Cannot apply keymap - RuleCollectionsManager not configured")
-            return
-        }
-
-        AppLogger.shared.log("⌨️ [OverlayController] Keymap changed to '\(keymapId)' (punctuation: \(includePunctuation))")
-
-        Task { @MainActor in
-            let conflicts = await ruleCollectionsManager.setActiveKeymap(keymapId, includePunctuation: includePunctuation)
-
-            if !conflicts.isEmpty {
-                // The RuleCollectionsManager already logs and warns via its callback
-                AppLogger.shared.log("⚠️ [OverlayController] Keymap change had \(conflicts.count) conflict(s)")
-            }
-        }
-    }
-
-    /// Handle click on a key in the overlay - selects the key in the drawer mapper (when visible)
-    private func handleKeyClick(key: PhysicalKey, layerInfo: LayerKeyInfo?) {
-        if key.layoutRole == .touchId {
-            toggleInspectorPanel()
-            return
-        }
-
-        guard kanataViewModel != nil else {
-            AppLogger.shared.log("⚠️ [OverlayController] Cannot open Mapper - KanataViewModel not configured")
-            return
-        }
-
-        // Convert key code to kanata name for input label
-        let inputKey = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
-
-        // In launcher mode, treat key clicks as immediate launch actions.
-        if viewModel.isLauncherModeActive {
-            let normalizedKey = inputKey.lowercased()
-
-            if normalizedKey == "esc" {
-                AppLogger.shared.log("🖱️ [OverlayController] Launcher cancel clicked (esc)")
-                ActionDispatcher.shared.dispatch(message: "layer:base")
-                return
-            }
-
-            if let mapping = viewModel.launcherMappings[normalizedKey],
-               let message = Self.launcherActionMessage(for: mapping.target)
-            {
-                AppLogger.shared.log("🖱️ [OverlayController] Launcher key clicked: \(normalizedKey) -> \(message)")
-                ActionDispatcher.shared.dispatch(message: message)
-                ActionDispatcher.shared.dispatch(message: "layer:base")
-                return
-            }
-        }
-
-        // Get output from layer info
-        // For simple key mappings, use outputKey (e.g., "left", "esc")
-        // For complex actions (push-msg, app launch), outputKey is nil so use displayLabel
-        let outputKey: String = if let simpleOutput = layerInfo?.outputKey {
-            simpleOutput
-        } else if let displayLabel = layerInfo?.displayLabel, !displayLabel.isEmpty {
-            // Complex action - pass displayLabel so Mapper shows what the key does
-            displayLabel
-        } else {
-            // No mapping - key maps to itself
-            inputKey
-        }
-
-        // Get current layer from the overlay's viewModel
-        let currentLayer = viewModel.currentLayerName
-
-        AppLogger.shared.log("🖱️ [OverlayController] Key clicked: \(key.label) (keyCode: \(key.keyCode)) -> \(outputKey) [layer: \(currentLayer)]")
-
-        let inspectorVisible = uiState.isInspectorOpen || uiState.isInspectorAnimating || uiState.inspectorReveal > 0
-        guard inspectorVisible else {
-            AppLogger.shared.log("🖱️ [OverlayController] Key click ignored (drawer not visible)")
-            return
-        }
-
-        // Update selected key for visual highlight
-        viewModel.selectedKeyCode = key.keyCode
-
-        // Post notification for mapper drawer to update its input
-        var userInfo: [String: Any] = [
-            "keyCode": key.keyCode,
-            "inputKey": inputKey,
-            "outputKey": outputKey,
-            "layer": currentLayer
-        ]
-        // Include action identifiers if present
-        if let appId = layerInfo?.appLaunchIdentifier {
-            userInfo["appIdentifier"] = appId
-        }
-        if let systemId = layerInfo?.systemActionIdentifier {
-            userInfo["systemActionIdentifier"] = systemId
-        }
-        if let urlId = layerInfo?.urlIdentifier {
-            userInfo["urlIdentifier"] = urlId
-        }
-        if let shiftedOutput = kanataViewModel?.underlyingManager.getCustomRule(forInput: inputKey)?.shiftedOutput {
-            userInfo["shiftedOutputKey"] = shiftedOutput
-        }
-        Foundation.NotificationCenter.default.post(
-            name: Foundation.Notification.Name.mapperDrawerKeySelected,
-            object: nil,
-            userInfo: userInfo
-        )
-    }
-
-    private static func launcherActionMessage(for target: LauncherTarget) -> String? {
-        switch target {
-        case let .app(name, bundleId):
-            return "launch:\(bundleId ?? name)"
-        case let .url(urlString):
-            let encoded = URLMappingFormatter.encodeForPushMessage(urlString)
-            return "open:\(encoded)"
-        case let .folder(path, _):
-            return "folder:\(path)"
-        case let .script(path, _):
-            return "script:\(path)"
         }
     }
 
@@ -1241,7 +634,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         )
     }
 
-    private func createWindow() {
+    func createWindow() {
         // Keyboard aspect ratio: totalWidth / totalHeight ≈ 16.45 / 6.5 ≈ 2.53
         // Account for: drag header (15pt) + header spacing, keyboard padding (10pt bottom), top padding, bottom shadow
         // Total chrome ≈ 60pt vertical chrome with current layout constants.

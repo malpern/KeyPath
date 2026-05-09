@@ -31,11 +31,11 @@ public actor HelperManager {
             SubprocessRunner.shared
         }
     #else
-        nonisolated(unsafe) static let smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
+        static let smServiceFactory: @Sendable (String) -> SMAppServiceProtocol = { plistName in
             NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
         }
 
-        nonisolated(unsafe) static let subprocessRunnerFactory: () -> SubprocessRunning = {
+        static let subprocessRunnerFactory: @Sendable () -> SubprocessRunning = {
             SubprocessRunner.shared
         }
     #endif

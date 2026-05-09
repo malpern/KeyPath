@@ -32,6 +32,8 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-034](adr-034-kanata-engine-app-bundle-tcc-identity.md) | Kanata Engine.app Bundle for TCC Identity | Accepted |
 | [ADR-035](adr-035-bundle-id-tcc-detection-with-path-fallback.md) | Bundle ID TCC Detection with Path Fallback | Accepted |
 | [ADR-036](adr-036-per-device-key-mappings.md) | Per-Device Key Mappings via Conditional Switch Wrapping | Accepted |
+| [ADR-037](adr-037-dynamic-os-key-labels.md) | Dynamic OS-Driven Key Labels (System Keymap) | Accepted |
+| [ADR-038](adr-038-extension-file-splitting.md) | Extension-File Splitting for Large Types | Accepted |
 
 ## Key Decisions Summary
 
@@ -46,6 +48,9 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 ### Configuration
 - **ADR-023**: Never parse Kanata config files directly. Use TCP and simulator.
 - **ADR-025**: JSON stores are source of truth; config file is generated output.
+
+### Code Organization
+- **ADR-038**: Split large types using extensions in separate files. Stored properties stay in core; `private` promotes to `internal`.
 
 ### Testing
 - **ADR-019**: Use `TestEnvironment.isRunningTests` for side-effect guards.

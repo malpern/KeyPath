@@ -462,6 +462,7 @@ public final class WindowManager {
             return nil
         }
 
+        // AXUIElement is a CoreFoundation type — as! is safe here (CF bridging always succeeds)
         let axWindow = window as! AXUIElement
 
         // Get current position and size

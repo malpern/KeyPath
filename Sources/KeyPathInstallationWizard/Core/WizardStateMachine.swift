@@ -28,7 +28,6 @@ public class WizardStateMachine {
     public var lastRefreshTime: Date?
     public private(set) var stateVersion: Int = 0
     public var lastWizardSnapshot: WizardSnapshotRecord?
-    public var systemSnapshot: SystemSnapshot?
     public var customSequence: [WizardPage]?
 
     // MARK: - One-Time Page Tracking
@@ -64,16 +63,26 @@ public class WizardStateMachine {
         }
     }
 
-    /// Get the next logical page (delegates to WizardRouter).
+    /// Get the next logical page (delegates to WizardRouter with prereq enforcement).
     public func getNextPage(for state: WizardSystemState, issues: [WizardIssue]) async -> WizardPage? {
-        let next = WizardRouter.nextPage(after: currentPage, state: state, issues: issues)
+        let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
+        let helperNeedsApproval = WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
+        let next = WizardRouter.nextPage(
+            after: currentPage, state: state, issues: issues,
+            helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval
+        )
         return next != currentPage ? next : nil
     }
 
     /// Navigate to the next page (fire-and-forget).
     public func nextPage() {
         Task { @MainActor in
-            let next = WizardRouter.nextPage(after: currentPage, state: wizardState, issues: wizardIssues)
+            let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
+            let helperNeedsApproval = WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
+            let next = WizardRouter.nextPage(
+                after: currentPage, state: wizardState, issues: wizardIssues,
+                helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval
+            )
             if next != currentPage {
                 navigateToPage(next)
             }
@@ -160,23 +169,7 @@ public class WizardStateMachine {
         return order[idx + 1]
     }
 
-    public var isSystemReady: Bool {
-        systemSnapshot?.isReady ?? false
-    }
-
-    public var blockingIssueCount: Int {
-        systemSnapshot?.blockingIssues.count ?? 0
-    }
-
-    public var totalIssueCount: Int {
-        systemSnapshot?.allIssues.count ?? 0
-    }
-
-    public var isServiceRunning: Bool {
-        systemSnapshot?.health.kanataRunning ?? false
-    }
-
-    /// Previous page for back navigation (legacy — used by WizardStateMachine.previousPage)
+    /// Previous page for back navigation
     public func previousPage() {
         let previous = determinePreviousPage(from: currentPage)
         navigateToPage(previous)

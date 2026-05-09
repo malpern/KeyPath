@@ -15,7 +15,8 @@ if [[ ! -f "$PUBLISH_SCRIPT" ]]; then
   exit 1
 fi
 
-app_ids="$(find "$RES_DIR" -maxdepth 1 -type f -name '*.md' -print \
+app_ids="$(find "$RES_DIR" -maxdepth 1 -type f -name '*.md' \
+  ! -name '*.prompt.md' -print \
   | sed 's#^.*/##; s#\.md$##' \
   | sort -u)"
 

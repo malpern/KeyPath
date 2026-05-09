@@ -74,7 +74,9 @@ actor QMKKeyboardDatabase {
 
     /// Disk cache directory for fetched keyboard layouts
     private let cacheDirectory: URL = {
-        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            fatalError("Caches directory unavailable")
+        }
         return caches.appendingPathComponent("KeyPath/qmk", isDirectory: true)
     }()
 

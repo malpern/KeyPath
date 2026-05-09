@@ -423,8 +423,8 @@ struct FloatingSymbol: View {
 
 // MARK: - Keycap Frame Preference Key
 
-struct KeycapFramePreference: PreferenceKey {
-    nonisolated(unsafe) static var defaultValue: [String: CGRect] = [:]
+struct KeycapFramePreference: @preconcurrency PreferenceKey {
+    @MainActor static var defaultValue: [String: CGRect] = [:]
     static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
         value.merge(nextValue()) { $1 }
     }

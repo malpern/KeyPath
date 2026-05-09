@@ -187,9 +187,15 @@ struct LabelMetadata {
     // MARK: - Lookup
 
     static func forLabel(_ label: String) -> LabelMetadata {
-        // Check for labels that start with symbol + space + text (e.g., "⇥ tab")
-        // Extract just the symbol part for matching
-        let cleanLabel = label.contains(" ") ? String(label.split(separator: " ").first ?? "") : label
+        // For labels like "⇥ tab" (symbol + space + text), extract just the symbol.
+        // For multi-word text labels like "Caps Lock", keep the full string and lowercase.
+        let firstWord = label.contains(" ") ? String(label.split(separator: " ").first ?? "") : label
+        let cleanLabel: String
+        if firstWord.count == 1, firstWord.first?.isLetter == false {
+            cleanLabel = firstWord
+        } else {
+            cleanLabel = label.count > 1 ? label.lowercased() : label
+        }
 
         switch cleanLabel {
         // Wide modifiers
@@ -197,8 +203,8 @@ struct LabelMetadata {
         case "↩": return LabelMetadata(wordLabel: "return")
         case "⌫": return LabelMetadata(wordLabel: "delete")
         case "⇥": return LabelMetadata(wordLabel: "tab")
-        case "⇪": return LabelMetadata(wordLabel: "caps lock")
-        case "⎋": return LabelMetadata(wordLabel: "esc")
+        case "⇪", "caps lock": return LabelMetadata(wordLabel: "caps lock")
+        case "⎋", "esc": return LabelMetadata(wordLabel: "esc")
         // Bottom modifiers
         case "⌃": return LabelMetadata(wordLabel: "control")
         case "⌥": return LabelMetadata(wordLabel: "option")

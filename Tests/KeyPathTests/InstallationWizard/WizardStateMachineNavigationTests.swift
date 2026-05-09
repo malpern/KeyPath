@@ -102,11 +102,10 @@ final class WizardStateMachineNavigationTests: XCTestCase {
         // Given - default sequence, on summary (first page)
         XCTAssertFalse(stateMachine.canNavigateBack)
 
-        // When - set custom sequence where summary is not first
-        stateMachine.customSequence = [.inputMonitoring, .summary, .accessibility]
-        stateMachine.navigateToPage(.summary)
+        // When - navigate away from summary
+        stateMachine.navigateToPage(.inputMonitoring)
 
-        // Then - summary is now in middle, can go back
+        // Then - not on summary, can go back
         XCTAssertTrue(stateMachine.canNavigateBack)
     }
 
@@ -164,13 +163,13 @@ final class WizardStateMachineNavigationTests: XCTestCase {
         XCTAssertTrue(stateMachine.canNavigateBack)
     }
 
-    func testCanNavigateForward_whenOnLastPage_returnsFalse() throws {
-        // Given - navigate to last page in default order
+    func testCanNavigateForward_alwaysReturnsTrue() throws {
+        // The wizard always allows forward navigation — the router determines
+        // which page to show next based on system state, not sequence position
         let lastPage = try XCTUnwrap(WizardPage.orderedPages.last)
         stateMachine.navigateToPage(lastPage)
 
-        // Then
-        XCTAssertFalse(stateMachine.canNavigateForward)
+        XCTAssertTrue(stateMachine.canNavigateForward)
     }
 
     func testCanNavigateForward_whenNotOnLastPage_returnsTrue() {

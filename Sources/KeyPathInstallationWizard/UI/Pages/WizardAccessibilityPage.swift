@@ -245,32 +245,31 @@ public struct WizardAccessibilityPage: View {
         .task {
             // Set initial snapshot immediately so the page renders correct state
             // before the polling loop's first 500ms tick.
-            permissionSnapshot = await PermissionOracle.shared.currentSnapshot()
+            permissionSnapshot = await PermissionOracle.shared.forceRefresh()
         }
         .onAppear {
-            // Start Oracle-direct polling — updates @State snapshot for instant UI,
-            // only calls onRefresh() when both permissions are granted (to advance navigation).
-            if permissionPollingTask == nil {
-                permissionPollingTask = Task { @MainActor [onRefresh] in
-                    var hasEverCelebrated = false
-                    while !Task.isCancelled {
-                        _ = await WizardSleep.ms(500)
-                        let snapshot = await PermissionOracle.shared.currentSnapshot()
-                        permissionSnapshot = snapshot
+            // Always restart polling on appear — SwiftUI may have cancelled
+            // the previous task during a view rebuild triggered by onRefresh().
+            permissionPollingTask?.cancel()
+            permissionPollingTask = Task { @MainActor [onRefresh] in
+                var hasEverCelebrated = false
+                while !Task.isCancelled {
+                    _ = await WizardSleep.ms(1000)
+                    let snapshot = await PermissionOracle.shared.forceRefresh()
+                    permissionSnapshot = snapshot
 
-                        let bothGranted = snapshot.keyPath.accessibility.isReady
-                            && snapshot.kanata.accessibility.isReady
-                        if bothGranted, !hasEverCelebrated {
-                            hasEverCelebrated = true
-                            WizardWindowManager.shared.bounceDocIcon()
-                            withAnimation(.spring(response: 0.3)) {
-                                showSuccessBurst = true
-                            }
-                            _ = await WizardSleep.ms(1500)
-                            showSuccessBurst = false
-                            await onRefresh()
-                            return
+                    let bothGranted = snapshot.keyPath.accessibility.isReady
+                        && snapshot.kanata.accessibility.isReady
+                    if bothGranted, !hasEverCelebrated {
+                        hasEverCelebrated = true
+                        WizardWindowManager.shared.bounceDocIcon()
+                        withAnimation(.spring(response: 0.3)) {
+                            showSuccessBurst = true
                         }
+                        _ = await WizardSleep.ms(1500)
+                        showSuccessBurst = false
+                        await onRefresh()
+                        return
                     }
                 }
             }
@@ -358,7 +357,7 @@ public struct WizardAccessibilityPage: View {
             while attempts < maxAttempts {
                 _ = await WizardSleep.ms(1000)
                 attempts += 1
-                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                let snapshot = await PermissionOracle.shared.forceRefresh()
                 let kpGranted = snapshot.keyPath.accessibility.isReady
                 let kaGranted = snapshot.kanata.accessibility.isReady
 
@@ -382,7 +381,7 @@ public struct WizardAccessibilityPage: View {
         // Fallback: if not granted shortly, open Accessibility settings so the user can toggle
         Task { @MainActor in
             _ = await WizardSleep.ms(1500) // 1.5s
-            let snapshot = await PermissionOracle.shared.currentSnapshot()
+            let snapshot = await PermissionOracle.shared.forceRefresh()
             let granted =
                 snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady
             if !granted {
@@ -419,7 +418,7 @@ public struct WizardAccessibilityPage: View {
         // Check if Input Monitoring is already granted - if so, we can close System Settings early
         // since the user won't need to visit it again for permissions
         Task { @MainActor in
-            let snapshot = await PermissionOracle.shared.currentSnapshot()
+            let snapshot = await PermissionOracle.shared.forceRefresh()
             let inputMonitoringGranted = snapshot.keyPath.inputMonitoring.isReady
                 && snapshot.kanata.inputMonitoring.isReady
 

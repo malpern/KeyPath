@@ -44,10 +44,10 @@ extension LayerKeyMapper {
     func kanataKeyToDisplayLabel(_ kanataKey: String) -> String {
         switch kanataKey.lowercased() {
         // Letters
-        case let key where key.count == 1 && key.first!.isLetter:
+        case let key where key.count == 1 && key.first?.isLetter == true:
             key.uppercased()
         // Numbers
-        case let key where key.count == 1 && key.first!.isNumber:
+        case let key where key.count == 1 && key.first?.isNumber == true:
             key
         // Arrow keys - Mac uses these specific Unicode arrows
         case "left": "←"

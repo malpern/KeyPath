@@ -305,6 +305,22 @@ class MainAppStateController {
                     await revalidate()
                 }
 
+                // VHID safety invariant: if kanata is running but VirtualHID daemon
+                // is not healthy, emergency-stop kanata to release the keyboard.
+                if isHealthy {
+                    let vhidHealthy = await ServiceHealthChecker.shared.isServiceHealthy(
+                        serviceID: ServiceHealthChecker.vhidDaemonServiceID
+                    )
+                    if VHIDSafetyCheck.shouldEmergencyStop(
+                        kanataRunning: true, vhidDaemonHealthy: vhidHealthy
+                    ) {
+                        AppLogger.shared.error(
+                            "🚨 [MainAppStateController] SAFETY: Kanata running without VirtualHID daemon — emergency stop"
+                        )
+                        await serviceLifecycle.stopKanata(reason: "Emergency: VirtualHID not running")
+                    }
+                }
+
                 try? await Task.sleep(for: .seconds(2))
             }
         }

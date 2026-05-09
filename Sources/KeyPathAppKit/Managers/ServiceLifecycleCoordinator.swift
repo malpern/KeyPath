@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
+import KeyPathInstallationWizard
 import KeyPathPermissions
 
 /// Manages the lifecycle of the Kanata runtime service (start, stop, restart, status).
@@ -84,6 +85,18 @@ final class ServiceLifecycleCoordinator {
         if let checker = isKarabinerDaemonRunning, await !checker() {
             AppLogger.shared.error("❌ [Service] Cannot start Kanata - VirtualHID daemon is not running")
             onError?("Cannot start: Karabiner VirtualHID daemon is not running. Please complete the setup wizard.")
+            onStateChanged?()
+            return false
+        }
+
+        // Second safety layer: verify VirtualHID daemon via ServiceHealthChecker
+        // (the callback above relies on the caller wiring it; this is a direct check)
+        let vhidHealthy = await ServiceHealthChecker.shared.isServiceHealthy(
+            serviceID: ServiceHealthChecker.vhidDaemonServiceID
+        )
+        if !VHIDSafetyCheck.canStartKanata(vhidDaemonHealthy: vhidHealthy) {
+            AppLogger.shared.error("❌ [Service] Cannot start kanata — VirtualHID daemon not healthy (ServiceHealthChecker)")
+            onError?("Cannot start: VirtualHID daemon health check failed. Please reinstall drivers.")
             onStateChanged?()
             return false
         }

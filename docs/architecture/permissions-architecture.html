@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PermissionOracle &amp; System Detection — Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f5f5f7;
+    --surface-2: #ebebed;
+    --border: #d2d2d7;
+    --border-light: #e8e8ed;
+    --text: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --text-tertiary: #86868b;
+    --accent: #1d1d1f;
+    --blue: #0071e3;
+    --code-bg: #f5f5f7;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.58;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 740px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Hero ── */
+  .hero { padding: 96px 0 64px; text-align: center; }
+  .hero-eyebrow {
+    font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px;
+  }
+  .hero h1 {
+    font-size: clamp(2.4rem, 5.5vw, 3.2rem); font-weight: 700;
+    letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px;
+    color: var(--text);
+  }
+  .hero p {
+    font-size: 1.15rem; color: var(--text-secondary); max-width: 480px;
+    margin: 0 auto; line-height: 1.5;
+  }
+
+  /* ── Sections ── */
+  section { padding: 64px 0; }
+  .divider { height: 1px; background: var(--border-light); }
+  .section-label {
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px;
+  }
+  h2 {
+    font-size: clamp(1.6rem, 3.5vw, 2rem); font-weight: 700;
+    letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 10px;
+  }
+  .section-desc {
+    font-size: 1rem; color: var(--text-secondary); max-width: 520px;
+    margin-bottom: 36px; line-height: 1.55;
+  }
+  h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
+  p { color: var(--text-secondary); margin-bottom: 14px; }
+
+  /* ── Three pillars ── */
+  .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border-light); border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; margin: 36px 0; }
+  .pillar { background: var(--bg); padding: 32px 24px; text-align: center; }
+  .pillar-icon { margin-bottom: 14px; display: flex; justify-content: center; }
+  .pillar h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+  .pillar p { font-size: 0.85rem; color: var(--text-tertiary); margin: 0; line-height: 1.45; }
+
+  /* ── Diagram ── */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    margin: 36px 0;
+    display: flex; justify-content: center;
+  }
+
+  /* ── Type cards ── */
+  .types-grid { display: flex; flex-direction: column; gap: 12px; margin: 32px 0; }
+  .type-card {
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .type-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .type-icon {
+    width: 36px; height: 36px; border-radius: 8px; background: var(--surface);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .type-name {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; font-size: 0.95rem;
+    font-weight: 600; color: var(--text);
+  }
+  .type-badge {
+    font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    letter-spacing: 0.03em; text-transform: uppercase;
+    background: var(--surface); color: var(--text-tertiary); border: 1px solid var(--border-light);
+  }
+  .type-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.55; }
+  .type-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em;
+    background: var(--surface); padding: 1px 5px; border-radius: 4px; color: var(--text);
+  }
+
+  /* ── Code ── */
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border-light);
+    border-radius: 10px; padding: 18px 20px; overflow-x: auto;
+    font-size: 0.8rem; line-height: 1.75; margin: 14px 0 0;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; color: var(--text);
+  }
+  .kw { color: #a626a4; }
+  .fn { color: #4078f2; }
+  .tp { color: #986801; }
+  .cm { color: #a0a1a7; }
+  .pr { color: #e45649; }
+
+  /* ── Data flow ── */
+  .flow-list { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .flow-item {
+    display: grid; grid-template-columns: 140px 1fr; gap: 0;
+    font-size: 0.9rem; border-bottom: 1px solid var(--border-light);
+  }
+  .flow-item:last-child { border-bottom: none; }
+  .flow-item > div { padding: 14px 20px; }
+  .flow-event { font-weight: 600; color: var(--text); background: var(--surface); }
+  .flow-desc { color: var(--text-secondary); }
+  .flow-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em; color: var(--blue);
+  }
+
+  /* ── Rules ── */
+  .rules { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .rule-item {
+    padding: 18px 20px; display: flex; gap: 14px; align-items: start;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-num {
+    width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; background: var(--surface); color: var(--text-tertiary);
+  }
+  .rule-content { flex: 1; }
+  .rule-title { font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 2px; }
+  .rule-desc { font-size: 0.85rem; color: var(--text-tertiary); line-height: 1.5; }
+  .rule-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text-secondary);
+  }
+
+  /* ── Invariant ── */
+  .invariant {
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: var(--radius); padding: 20px 24px; margin: 32px 0;
+    display: flex; gap: 14px; align-items: start;
+  }
+  .invariant-icon {
+    width: 32px; height: 32px; border-radius: 8px; background: var(--bg);
+    border: 1px solid var(--border-light);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .invariant-text { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; }
+  .invariant-text strong { color: var(--text); }
+  .invariant-text code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text);
+  }
+
+  /* ── Nav ── */
+  .back-nav {
+    padding: 20px 0; font-size: 0.85rem;
+  }
+  .back-nav a {
+    color: var(--blue); text-decoration: none; font-weight: 500;
+  }
+  .back-nav a:hover { text-decoration: underline; }
+
+  /* ── Cross-links ── */
+  .cross-links { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .cross-link {
+    display: flex; align-items: center; gap: 12px; padding: 16px 20px;
+    border-bottom: 1px solid var(--border-light); text-decoration: none;
+  }
+  .cross-link:last-child { border-bottom: none; }
+  .cross-link:hover { background: var(--surface); }
+  .cross-link-title { font-weight: 600; font-size: 0.9rem; color: var(--text); }
+  .cross-link-desc { font-size: 0.82rem; color: var(--text-tertiary); }
+  .cross-link-arrow { margin-left: auto; color: var(--text-tertiary); font-size: 1.1rem; }
+
+  footer {
+    padding: 40px 0; text-align: center;
+    font-size: 0.78rem; color: var(--text-tertiary); border-top: 1px solid var(--border-light);
+  }
+
+  @media (max-width: 640px) {
+    .pillars { grid-template-columns: 1fr; }
+    .flow-item { grid-template-columns: 1fr; }
+    .flow-event { border-bottom: 1px solid var(--border-light); }
+    .hero { padding: 64px 0 48px; }
+    section { padding: 48px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="back-nav"><a href="index.html">&larr; Back to Index</a></div>
+</div>
+
+<div class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">Architecture</div>
+    <h1>PermissionOracle &amp; System Detection</h1>
+    <p>The single source of truth for macOS permissions.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="container">
+
+<section>
+  <div class="section-label">Overview</div>
+  <h2>Detect. Decide. Validate.</h2>
+  <div class="section-desc">The Oracle asks the OS for permission state, applies a strict priority hierarchy, and surfaces a tri-state result that the rest of the system can trust without second-guessing.</div>
+
+  <div class="pillars">
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Eye / detect icon -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="52" rx="10" ry="2.5" fill="#3d4852" opacity="0.06"/>
+          <path d="M6 30 Q30 12 54 30 Q30 48 6 30Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="2"/>
+          <circle cx="30" cy="30" r="10" fill="#f5f5f7" stroke="#3d4852" stroke-width="1.8"/>
+          <circle cx="30" cy="30" r="5" fill="#d2d2d7" stroke="#3d4852" stroke-width="1.2"/>
+          <circle cx="30" cy="30" r="2" fill="#3d4852"/>
+          <ellipse cx="27" cy="27" rx="2" ry="1.5" fill="white" opacity="0.6"/>
+        </svg>
+      </div>
+      <h4>Detect</h4>
+      <p>Apple APIs first, TCC database fallback.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Tri-state / decision icon -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="9" ry="2.5" fill="#3d4852" opacity="0.06"/>
+          <rect x="13" y="10" width="34" height="40" rx="6" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <circle cx="24" cy="22" r="4" fill="#4ade80" stroke="#3d4852" stroke-width="1.2"/>
+          <text x="24" y="25" text-anchor="middle" font-size="7" font-weight="700" fill="#3d4852">G</text>
+          <circle cx="36" cy="22" r="4" fill="#f87171" stroke="#3d4852" stroke-width="1.2"/>
+          <text x="36" y="25" text-anchor="middle" font-size="7" font-weight="700" fill="#3d4852">D</text>
+          <circle cx="30" cy="38" r="4" fill="#fbbf24" stroke="#3d4852" stroke-width="1.2"/>
+          <text x="30" y="41" text-anchor="middle" font-size="7" font-weight="700" fill="#3d4852">?</text>
+        </svg>
+      </div>
+      <h4>Decide</h4>
+      <p>Granted, denied, or unknown tri-state.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Pull / validate icon -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="9" ry="2.5" fill="#3d4852" opacity="0.06"/>
+          <rect x="14" y="12" width="32" height="36" rx="4" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <rect x="18" y="16" width="24" height="4" rx="1" fill="#d2d2d7" stroke="#3d4852" stroke-width="0.8"/>
+          <line x1="20" y1="26" x2="26" y2="26" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M18 26 L20 28 L22 24" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+          <line x1="28" y1="26" x2="40" y2="26" stroke="#3d4852" stroke-width="1" stroke-linecap="round" opacity="0.3"/>
+          <line x1="20" y1="32" x2="26" y2="32" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M18 32 L20 34 L22 30" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+          <line x1="28" y1="32" x2="38" y2="32" stroke="#3d4852" stroke-width="1" stroke-linecap="round" opacity="0.3"/>
+          <line x1="20" y1="38" x2="26" y2="38" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M18 38 L20 40 L22 36" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+          <line x1="28" y1="38" x2="36" y2="38" stroke="#3d4852" stroke-width="1" stroke-linecap="round" opacity="0.3"/>
+        </svg>
+      </div>
+      <h4>Validate</h4>
+      <p>Pull-based via <code style="font-size:0.75rem">InstallerEngine.inspectSystem()</code>.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Architecture</div>
+  <h2>The Permission Check Flow</h2>
+  <div class="section-desc">Apple APIs are authoritative. The TCC database is a necessary fallback for <code>.unknown</code> cases only. PermissionOracle sits at the center and delegates to specialized checkers.</div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 580 420" xmlns="http://www.w3.org/2000/svg" style="max-width:540px; width:100%;">
+      <defs>
+        <marker id="arr" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#86868b"/></marker>
+        <marker id="arr-b" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#0071e3"/></marker>
+        <marker id="arr-g" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#22c55e"/></marker>
+        <marker id="arr-y" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#eab308"/></marker>
+        <marker id="arr-d" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#d2d2d7"/></marker>
+      </defs>
+
+      <!-- Caller -->
+      <rect x="190" y="10" width="200" height="40" rx="8" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1"/>
+      <text x="290" y="27" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="600" letter-spacing="0.04em">CALLER</text>
+      <text x="290" y="41" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#1d1d1f" font-weight="500">InstallerEngine.inspectSystem()</text>
+
+      <!-- Arrow to Oracle -->
+      <line x1="290" y1="50" x2="290" y2="78" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+
+      <!-- PermissionOracle - central box -->
+      <rect x="160" y="82" width="260" height="56" rx="10" fill="white" stroke="#0071e3" stroke-width="1.8"/>
+      <text x="220" y="105" font-family="-apple-system, sans-serif" font-size="9" fill="#0071e3" font-weight="600" letter-spacing="0.04em">ACTOR &middot; SINGLE SOURCE OF TRUTH</text>
+      <text x="220" y="123" font-family="JetBrains Mono, monospace" font-size="14" fill="#1d1d1f" font-weight="600">PermissionOracle</text>
+
+      <!-- Arrow to Apple API -->
+      <line x1="290" y1="138" x2="290" y2="180" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <text x="300" y="163" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="500">Step 1</text>
+
+      <!-- Apple API box -->
+      <rect x="160" y="184" width="260" height="50" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="220" y="204" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">APPLE API</text>
+      <text x="220" y="222" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="500">IOHIDCheckAccess</text>
+
+      <!-- .granted / .denied branch (left) -->
+      <path d="M 210 234 L 130 268" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arr-g)"/>
+      <rect x="46" y="272" width="168" height="46" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1"/>
+      <text x="130" y="290" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#15803d" font-weight="600">.granted / .denied</text>
+      <text x="130" y="308" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#22c55e" font-weight="500">TRUST THIS RESULT</text>
+
+      <!-- .unknown branch (right) -->
+      <path d="M 370 234 L 450 268" fill="none" stroke="#eab308" stroke-width="1.5" marker-end="url(#arr-y)"/>
+      <rect x="378" y="272" width="158" height="46" rx="8" fill="#fefce8" stroke="#fef08a" stroke-width="1"/>
+      <text x="457" y="290" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#a16207" font-weight="600">.unknown</text>
+      <text x="457" y="308" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#ca8a04" font-weight="500">Proceed to TCC fallback</text>
+
+      <!-- Arrow to TCC -->
+      <line x1="457" y1="318" x2="457" y2="350" stroke="#eab308" stroke-width="1.5" marker-end="url(#arr-y)"/>
+      <text x="467" y="338" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="500">Step 2</text>
+
+      <!-- TCC Database box -->
+      <rect x="370" y="354" width="174" height="50" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="398" y="374" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">FALLBACK</text>
+      <text x="398" y="392" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="500">TCC Database</text>
+
+      <!-- Checker boxes at bottom-left -->
+      <rect x="20" y="348" width="130" height="30" rx="6" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1"/>
+      <text x="85" y="367" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#1d1d1f">InputMonitoring</text>
+
+      <rect x="160" y="348" width="130" height="30" rx="6" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1"/>
+      <text x="225" y="367" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#1d1d1f">Accessibility</text>
+
+      <rect x="160" y="386" width="130" height="30" rx="6" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1"/>
+      <text x="225" y="405" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#1d1d1f">FullDiskAccess</text>
+
+      <!-- Lines from Oracle to checkers -->
+      <path d="M 200 138 L 85 344" fill="none" stroke="#d2d2d7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr-d)"/>
+      <path d="M 280 138 L 225 344" fill="none" stroke="#d2d2d7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr-d)"/>
+      <path d="M 300 138 L 225 382" fill="none" stroke="#d2d2d7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr-d)"/>
+
+      <!-- Caption -->
+      <text x="290" y="416" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8.5" fill="#a0a1a7">Green path: authoritative result. Yellow path: TCC fallback for .unknown only.</text>
+    </svg>
+  </div>
+
+  <div class="invariant">
+    <div class="invariant-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8 L12 14" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="16.5" r="0.8" fill="#3d4852"/></svg>
+    </div>
+    <div class="invariant-text"><strong>Core invariant.</strong> Given the same system state, <code>PermissionOracle</code> always returns the same result. There is no caching, no timing dependency, and no hidden state. The Oracle asks the OS every time.</div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Types</div>
+  <h2>Key Components</h2>
+  <div class="section-desc">Four types form the permission detection and validation pipeline.</div>
+
+  <div class="types-grid">
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><circle cx="12" cy="12" r="3" fill="#f5f5f7" stroke="#3d4852" stroke-width="1.2"/><path d="M12 4 L13.5 7.5 L10.5 7.5 Z" fill="#3d4852"/><path d="M12 20 L10.5 16.5 L13.5 16.5 Z" fill="#3d4852"/><path d="M4 12 L7.5 10.5 L7.5 13.5 Z" fill="#3d4852"/><path d="M20 12 L16.5 13.5 L16.5 10.5 Z" fill="#3d4852"/></svg>
+        </div>
+        <span class="type-name">PermissionOracle</span>
+        <span class="type-badge">Actor</span>
+      </div>
+      <div class="type-desc">The single source of truth for all permission detection. An <code>actor</code> with a <code>.shared</code> singleton. Returns <code>Status</code> values (<code>.granted</code>, <code>.denied</code>, <code>.unknown</code>, <code>.error</code>) and aggregates them into a <code>Snapshot</code> covering both KeyPath and Kanata.</div>
+      <pre><span class="kw">public actor</span> <span class="tp">PermissionOracle</span> {
+    <span class="kw">public static let</span> shared = <span class="tp">PermissionOracle</span>()
+
+    <span class="kw">public enum</span> <span class="tp">Status</span>: <span class="tp">Equatable</span>, <span class="tp">Sendable</span> {
+        <span class="kw">case</span> granted, denied, unknown
+        <span class="kw">case</span> error(<span class="tp">String</span>)
+    }
+
+    <span class="kw">public struct</span> <span class="tp">Snapshot</span>: <span class="tp">Sendable</span> {
+        <span class="kw">let</span> <span class="pr">keyPath</span>: <span class="tp">PermissionSet</span>
+        <span class="kw">let</span> <span class="pr">kanata</span>: <span class="tp">PermissionSet</span>
+        <span class="kw">var</span> <span class="pr">isSystemReady</span>: <span class="tp">Bool</span> { keyPath.accessibility.isReady &amp;&amp; kanata.hasAllPermissions }
+    }
+}</pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="18" height="14" rx="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><rect x="6" y="8" width="12" height="2" rx="0.5" fill="#d2d2d7" stroke="#3d4852" stroke-width="0.6"/><rect x="6" y="12" width="8" height="2" rx="0.5" fill="#d2d2d7" stroke="#3d4852" stroke-width="0.6"/><circle cx="17" cy="15" r="2" fill="#f5f5f7" stroke="#3d4852" stroke-width="1"/></svg>
+        </div>
+        <span class="type-name">FullDiskAccessChecker</span>
+        <span class="type-badge">Singleton</span>
+      </div>
+      <div class="type-desc">Best-effort FDA detection via file-readability probe against the system TCC database (<code>/Library/Application Support/com.apple.TCC/TCC.db</code>). Results are cached for 10 seconds. FDA is needed to read TCC entries for Kanata's permission state.</div>
+      <pre><span class="kw">public final class</span> <span class="tp">FullDiskAccessChecker</span> {
+    <span class="cm">// Probes system TCC.db readability as a heuristic</span>
+    <span class="kw">public func</span> <span class="fn">hasFullDiskAccess</span>() -> <span class="tp">Bool</span>
+    <span class="kw">func</span> <span class="fn">refresh</span>() -> <span class="tp">Bool</span>
+}</pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10.5" cy="10.5" r="6.5" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.6"/><circle cx="10.5" cy="10.5" r="4" fill="#f5f5f7" stroke="#3d4852" stroke-width="1"/><line x1="15.5" y1="15.5" x2="20" y2="20" stroke="#3d4852" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </div>
+        <span class="type-name">SystemInspector</span>
+        <span class="type-badge">Pure Function</span>
+      </div>
+      <div class="type-desc">Validates permissions as part of system inspection. Checks permission state from the snapshot and produces <code>WizardIssue</code> values for any missing permissions. Used by the wizard to decide which permission page to show.</div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="13" rx="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><rect x="5" y="6.5" width="14" height="8.5" rx="0.5" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/><line x1="9" y1="20" x2="15" y2="20" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="20" stroke="#3d4852" stroke-width="1.5"/></svg>
+        </div>
+        <span class="type-name">InstallerEngine.inspectSystem()</span>
+        <span class="type-badge">Facade</span>
+      </div>
+      <div class="type-desc">The pull-based entry point for all validation. Gathers a <code>SystemSnapshot</code> (including permission state from <code>PermissionOracle</code>) and returns it as a pure value struct. No component queries permissions on its own.</div>
+      <pre><span class="kw">let</span> engine = <span class="tp">InstallerEngine</span>()
+<span class="kw">let</span> context = <span class="kw">await</span> engine.<span class="fn">inspectSystem</span>() <span class="cm">// Pure value struct</span>
+<span class="kw">if</span> context.permissions.inputMonitoring != .granted { <span class="cm">/* show wizard page */</span> }</pre>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Data Flow</div>
+  <h2>Permission Check Lifecycle</h2>
+  <div class="section-desc">From request to resolution, every permission check follows the same path.</div>
+
+  <div class="flow-list">
+    <div class="flow-item">
+      <div class="flow-event">Check requested</div>
+      <div class="flow-desc"><code>InstallerEngine.inspectSystem()</code> calls <code>PermissionOracle.shared</code> to gather permission state</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Apple API returns</div>
+      <div class="flow-desc"><code>IOHIDCheckAccess</code> returns <code>.granted</code> or <code>.denied</code> &mdash; Oracle trusts this immediately and returns</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">API returns unknown</div>
+      <div class="flow-desc"><code>IOHIDCheckAccess</code> returns <code>.unknown</code> &mdash; Oracle falls back to TCC database query (requires Full Disk Access)</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Wizard page shown</div>
+      <div class="flow-desc"><code>SystemInspector</code> finds missing permission &rarr; <code>WizardRouter</code> returns <code>.inputMonitoring</code> or <code>.accessibility</code> page</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">User grants access</div>
+      <div class="flow-desc">User enables permission in System Settings &rarr; wizard re-inspects &rarr; Oracle re-queries OS &rarr; <code>.granted</code> &rarr; advance</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Principles</div>
+  <h2>Design Rules</h2>
+  <div class="section-desc">Five rules that keep permission detection reliable and deterministic.</div>
+
+  <div class="rules">
+    <div class="rule-item">
+      <div class="rule-num">1</div>
+      <div class="rule-content">
+        <div class="rule-title">Apple APIs ALWAYS take precedence over TCC database</div>
+        <div class="rule-desc">This is the fundamental rule. TCC is a cache that can be stale. <code>IOHIDCheckAccess</code> reflects actual system state. When the Apple API gives a definitive answer, trust it unconditionally.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">2</div>
+      <div class="rule-content">
+        <div class="rule-title">Tri-state dispatch: .granted/.denied are authoritative, .unknown triggers TCC</div>
+        <div class="rule-desc"><code>IOHIDCheckAccess</code> returning <code>.granted</code> or <code>.denied</code> &mdash; trust this result. Only <code>.unknown</code> proceeds to the TCC database fallback path.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">3</div>
+      <div class="rule-content">
+        <div class="rule-title">Never bypass PermissionOracle.shared</div>
+        <div class="rule-desc">All permission checks go through the Oracle. No direct <code>IOHIDCheckAccess</code> calls from UI code, no ad-hoc TCC queries. One path, one source of truth.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">4</div>
+      <div class="rule-content">
+        <div class="rule-title">Never check permissions from root process</div>
+        <div class="rule-desc">Root processes get unreliable results from both Apple APIs and TCC. All permission detection runs in the GUI app context (user session), never from the LaunchDaemon.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">5</div>
+      <div class="rule-content">
+        <div class="rule-title">Validation is pull-based via InstallerEngine.inspectSystem()</div>
+        <div class="rule-desc">No component queries permissions on its own. <code>InstallerEngine.inspectSystem()</code> gathers a complete <code>SystemSnapshot</code> including permissions. Consumers read the snapshot, never re-query.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">See Also</div>
+  <h2>Related Architecture</h2>
+
+  <div class="cross-links">
+    <a href="wizard-architecture.html" class="cross-link">
+      <div>
+        <div class="cross-link-title">Installation Wizard</div>
+        <div class="cross-link-desc">The wizard uses permission state to decide which page to show and when to advance.</div>
+      </div>
+      <div class="cross-link-arrow">&rarr;</div>
+    </a>
+    <a href="runtime-architecture.html" class="cross-link">
+      <div>
+        <div class="cross-link-title">Runtime Architecture</div>
+        <div class="cross-link-desc">The runtime requires all permissions to be granted before starting Kanata.</div>
+      </div>
+      <div class="cross-link-arrow">&rarr;</div>
+    </a>
+    <a href="index.html" class="cross-link">
+      <div>
+        <div class="cross-link-title">Architecture Index</div>
+        <div class="cross-link-desc">Overview of all architecture documentation.</div>
+      </div>
+      <div class="cross-link-arrow">&rarr;</div>
+    </a>
+  </div>
+</section>
+
+</div>
+
+<footer>KeyPath Permissions Architecture &mdash; May 2026</footer>
+
+</body>
+</html>

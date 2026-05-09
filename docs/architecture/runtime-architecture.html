@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Runtime &amp; Service Lifecycle — Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f5f5f7;
+    --surface-2: #ebebed;
+    --border: #d2d2d7;
+    --border-light: #e8e8ed;
+    --text: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --text-tertiary: #86868b;
+    --accent: #1d1d1f;
+    --blue: #0071e3;
+    --code-bg: #f5f5f7;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.58;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 740px; margin: 0 auto; padding: 0 24px; }
+
+  /* -- Nav -- */
+  .nav { padding: 20px 0; }
+  .nav a {
+    font-size: 0.85rem; color: var(--blue); text-decoration: none; font-weight: 500;
+  }
+  .nav a:hover { text-decoration: underline; }
+
+  /* -- Hero -- */
+  .hero { padding: 96px 0 64px; text-align: center; }
+  .hero-eyebrow {
+    font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px;
+  }
+  .hero h1 {
+    font-size: clamp(2.4rem, 5.5vw, 3.2rem); font-weight: 700;
+    letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px;
+    color: var(--text);
+  }
+  .hero p {
+    font-size: 1.15rem; color: var(--text-secondary); max-width: 480px;
+    margin: 0 auto; line-height: 1.5;
+  }
+
+  /* -- Sections -- */
+  section { padding: 64px 0; }
+  .divider { height: 1px; background: var(--border-light); }
+  .section-label {
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px;
+  }
+  h2 {
+    font-size: clamp(1.6rem, 3.5vw, 2rem); font-weight: 700;
+    letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 10px;
+  }
+  .section-desc {
+    font-size: 1rem; color: var(--text-secondary); max-width: 520px;
+    margin-bottom: 36px; line-height: 1.55;
+  }
+  h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
+  p { color: var(--text-secondary); margin-bottom: 14px; }
+
+  /* -- Three pillars -- */
+  .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border-light); border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; margin: 36px 0; }
+  .pillar { background: var(--bg); padding: 32px 24px; text-align: center; }
+  .pillar-icon { margin-bottom: 14px; display: flex; justify-content: center; }
+  .pillar h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+  .pillar p { font-size: 0.85rem; color: var(--text-tertiary); margin: 0; line-height: 1.45; }
+
+  /* -- Diagram -- */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    margin: 36px 0;
+    display: flex; justify-content: center;
+  }
+
+  /* -- Type cards -- */
+  .types-grid { display: flex; flex-direction: column; gap: 12px; margin: 32px 0; }
+  .type-card {
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .type-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .type-icon {
+    width: 36px; height: 36px; border-radius: 8px; background: var(--surface);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .type-name {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; font-size: 0.95rem;
+    font-weight: 600; color: var(--text);
+  }
+  .type-badge {
+    font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    letter-spacing: 0.03em; text-transform: uppercase;
+    background: var(--surface); color: var(--text-tertiary); border: 1px solid var(--border-light);
+  }
+  .type-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.55; }
+  .type-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em;
+    background: var(--surface); padding: 1px 5px; border-radius: 4px; color: var(--text);
+  }
+
+  /* -- Code -- */
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border-light);
+    border-radius: 10px; padding: 18px 20px; overflow-x: auto;
+    font-size: 0.8rem; line-height: 1.75; margin: 14px 0 0;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; color: var(--text);
+  }
+  .kw { color: #a626a4; }
+  .fn { color: #4078f2; }
+  .tp { color: #986801; }
+  .cm { color: #a0a1a7; }
+  .pr { color: #e45649; }
+
+  /* -- Data flow -- */
+  .flow-list { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .flow-item {
+    display: grid; grid-template-columns: 140px 1fr; gap: 0;
+    font-size: 0.9rem; border-bottom: 1px solid var(--border-light);
+  }
+  .flow-item:last-child { border-bottom: none; }
+  .flow-item > div { padding: 14px 20px; }
+  .flow-event { font-weight: 600; color: var(--text); background: var(--surface); }
+  .flow-desc { color: var(--text-secondary); }
+  .flow-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em; color: var(--blue);
+  }
+
+  /* -- Rules -- */
+  .rules { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .rule-item {
+    padding: 18px 20px; display: flex; gap: 14px; align-items: start;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-num {
+    width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; background: var(--surface); color: var(--text-tertiary);
+  }
+  .rule-content { flex: 1; }
+  .rule-title { font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 2px; }
+  .rule-desc { font-size: 0.85rem; color: var(--text-tertiary); line-height: 1.5; }
+  .rule-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text-secondary);
+  }
+
+  /* -- Invariant -- */
+  .invariant {
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: var(--radius); padding: 20px 24px; margin: 32px 0;
+    display: flex; gap: 14px; align-items: start;
+  }
+  .invariant-icon {
+    width: 32px; height: 32px; border-radius: 8px; background: var(--bg);
+    border: 1px solid var(--border-light);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .invariant-text { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; }
+  .invariant-text strong { color: var(--text); }
+  .invariant-text code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text);
+  }
+
+  /* -- Cross-links -- */
+  .cross-links {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    background: var(--border-light); border: 1px solid var(--border-light);
+    border-radius: var(--radius); overflow: hidden; margin: 32px 0;
+  }
+  .cross-link {
+    background: var(--bg); padding: 24px 20px; text-decoration: none; display: block;
+    transition: background 0.15s;
+  }
+  .cross-link:hover { background: var(--surface); }
+  .cross-link h4 { font-size: 0.85rem; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .cross-link p { font-size: 0.82rem; color: var(--text-tertiary); margin: 0; line-height: 1.45; }
+
+  footer {
+    padding: 40px 0; text-align: center;
+    font-size: 0.78rem; color: var(--text-tertiary); border-top: 1px solid var(--border-light);
+  }
+
+  @media (max-width: 640px) {
+    .pillars, .cross-links { grid-template-columns: 1fr; }
+    .flow-item { grid-template-columns: 1fr; }
+    .flow-event { border-bottom: 1px solid var(--border-light); }
+    .hero { padding: 64px 0 48px; }
+    section { padding: 48px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="nav"><a href="index.html">&larr; Back to Index</a></div>
+</div>
+
+<div class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">Architecture</div>
+    <h1>Runtime &amp; Service Lifecycle</h1>
+    <p>How Kanata starts, stops, recovers, and stays healthy.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="container">
+
+<section>
+  <div class="section-label">Overview</div>
+  <h2>Orchestrate. Lifecycle. Monitor.</h2>
+  <div class="section-desc">The runtime layer manages the Kanata process after installation. It starts the daemon, watches its health, reloads config over TCP, and recovers from crashes.</div>
+
+  <div class="pillars">
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Conductor baton / orchestrator -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="55" rx="10" ry="2" fill="#3d4852" opacity="0.06"/>
+          <rect x="14" y="16" width="32" height="28" rx="4" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <rect x="14" y="16" width="32" height="8" rx="4" fill="#d2d2d7" stroke="#3d4852" stroke-width="1.8"/>
+          <circle cx="22" cy="20" r="1.5" fill="#3d4852" opacity="0.3"/>
+          <circle cx="30" cy="20" r="1.5" fill="#3d4852" opacity="0.3"/>
+          <circle cx="38" cy="20" r="1.5" fill="#3d4852" opacity="0.3"/>
+          <line x1="20" y1="30" x2="40" y2="30" stroke="#3d4852" stroke-width="1" opacity="0.2"/>
+          <line x1="20" y1="34" x2="36" y2="34" stroke="#3d4852" stroke-width="1" opacity="0.15"/>
+          <line x1="20" y1="38" x2="32" y2="38" stroke="#3d4852" stroke-width="1" opacity="0.1"/>
+        </svg>
+      </div>
+      <h4>Orchestrate</h4>
+      <p>RuntimeCoordinator wires sub-coordinators and delegates all work.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Power / lifecycle -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="55" rx="10" ry="2" fill="#3d4852" opacity="0.06"/>
+          <circle cx="30" cy="30" r="16" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <path d="M30 14 L30 30" stroke="#3d4852" stroke-width="3" stroke-linecap="round"/>
+          <path d="M22 18 A14 14 0 1 0 38 18" fill="none" stroke="#3d4852" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h4>Lifecycle</h4>
+      <p>ServiceLifecycleCoordinator is the ONLY start/stop/restart entry point.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Heartbeat / monitor -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="55" rx="10" ry="2" fill="#3d4852" opacity="0.06"/>
+          <rect x="10" y="14" width="40" height="32" rx="6" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <rect x="14" y="18" width="32" height="24" rx="2" fill="#f5f5f7" stroke="#3d4852" stroke-width="1"/>
+          <polyline points="16,32 22,32 25,24 28,38 31,26 34,32 37,32 40,28 44,32" fill="none" stroke="#3d4852" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h4>Monitor</h4>
+      <p>ServiceHealthChecker polls launchctl status + TCP probe.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Architecture</div>
+  <h2>The Complete Picture</h2>
+  <div class="section-desc">RuntimeCoordinator sits at the top and delegates to focused coordinators. Health flows up from launchctl and TCP probes.</div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 600 420" xmlns="http://www.w3.org/2000/svg" style="max-width:560px; width:100%;">
+      <defs>
+        <marker id="arr" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#86868b"/></marker>
+        <marker id="arr-b" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#0071e3"/></marker>
+        <marker id="arr-d" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#d2d2d7"/></marker>
+      </defs>
+
+      <!-- RuntimeCoordinator (top) -->
+      <rect x="180" y="10" width="240" height="50" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="220" y="30" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="600" letter-spacing="0.04em">ORCHESTRATOR</text>
+      <text x="220" y="46" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">RuntimeCoordinator</text>
+
+      <!-- ServiceLifecycleCoordinator -->
+      <rect x="20" y="110" width="200" height="50" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="40" y="130" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="600" letter-spacing="0.04em">LIFECYCLE</text>
+      <text x="40" y="146" font-family="JetBrains Mono, monospace" font-size="10" fill="#1d1d1f" font-weight="600">ServiceLifecycleCoordinator</text>
+
+      <!-- ConfigReloadCoordinator -->
+      <rect x="245" y="110" width="200" height="50" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="265" y="130" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="600" letter-spacing="0.04em">CONFIG RELOAD</text>
+      <text x="265" y="146" font-family="JetBrains Mono, monospace" font-size="10" fill="#1d1d1f" font-weight="600">ConfigReloadCoordinator</text>
+
+      <!-- RecoveryCoordinator -->
+      <rect x="470" y="110" width="120" height="50" rx="10" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="484" y="130" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="600" letter-spacing="0.04em">RECOVERY</text>
+      <text x="484" y="146" font-family="JetBrains Mono, monospace" font-size="10" fill="#1d1d1f" font-weight="600">RecoveryCoordinator</text>
+
+      <!-- Arrows from RuntimeCoordinator down -->
+      <line x1="250" y1="60" x2="130" y2="107" stroke="#0071e3" stroke-width="1.2" marker-end="url(#arr-b)"/>
+      <line x1="300" y1="60" x2="340" y2="107" stroke="#0071e3" stroke-width="1.2" marker-end="url(#arr-b)"/>
+      <line x1="380" y1="60" x2="520" y2="107" stroke="#0071e3" stroke-width="1.2" marker-end="url(#arr-b)"/>
+
+      <!-- KanataDaemonService -->
+      <rect x="20" y="210" width="200" height="50" rx="10" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="40" y="230" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="600" letter-spacing="0.04em">DAEMON MANAGEMENT</text>
+      <text x="40" y="246" font-family="JetBrains Mono, monospace" font-size="10" fill="#1d1d1f" font-weight="500">KanataDaemonService</text>
+
+      <!-- ServiceHealthChecker -->
+      <rect x="260" y="210" width="200" height="50" rx="10" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="280" y="230" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="600" letter-spacing="0.04em">HEALTH MONITORING</text>
+      <text x="280" y="246" font-family="JetBrains Mono, monospace" font-size="10" fill="#1d1d1f" font-weight="500">ServiceHealthChecker</text>
+
+      <!-- Arrows down to services -->
+      <line x1="120" y1="160" x2="120" y2="207" stroke="#86868b" stroke-width="1.2" marker-end="url(#arr)"/>
+      <line x1="345" y1="160" x2="360" y2="207" stroke="#86868b" stroke-width="1.2" marker-end="url(#arr)"/>
+
+      <!-- Health check flow boxes -->
+      <rect x="80" y="310" width="140" height="44" rx="8" fill="white" stroke="#d2d2d7" stroke-width="1"/>
+      <text x="150" y="328" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#86868b">launchctl status</text>
+      <text x="150" y="344" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8" fill="#a0a1a7">PID + exit code</text>
+
+      <rect x="260" y="310" width="100" height="44" rx="8" fill="white" stroke="#d2d2d7" stroke-width="1"/>
+      <text x="310" y="328" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#86868b">TCP probe</text>
+      <text x="310" y="344" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8" fill="#a0a1a7">port 6174</text>
+
+      <rect x="400" y="310" width="140" height="44" rx="8" fill="white" stroke="#d2d2d7" stroke-width="1"/>
+      <text x="470" y="328" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#86868b">healthy / unhealthy</text>
+      <text x="470" y="344" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8" fill="#a0a1a7">composite result</text>
+
+      <!-- Arrows in health check flow -->
+      <line x1="120" y1="260" x2="150" y2="307" stroke="#d2d2d7" stroke-width="1.2" marker-end="url(#arr-d)"/>
+      <line x1="360" y1="260" x2="310" y2="307" stroke="#d2d2d7" stroke-width="1.2" marker-end="url(#arr-d)"/>
+      <line x1="220" y1="332" x2="257" y2="332" stroke="#86868b" stroke-width="1" marker-end="url(#arr)"/>
+      <line x1="360" y1="332" x2="397" y2="332" stroke="#86868b" stroke-width="1" marker-end="url(#arr)"/>
+
+      <!-- Legend -->
+      <text x="300" y="400" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8.5" fill="#a0a1a7">Blue arrows: delegation. Gray arrows: data flow. Health combines launchctl + TCP.</text>
+    </svg>
+  </div>
+
+  <div class="invariant">
+    <div class="invariant-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8 L12 14" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="16.5" r="0.8" fill="#3d4852"/></svg>
+    </div>
+    <div class="invariant-text"><strong>Core invariant.</strong> The <code>ServiceHealthChecker</code> is the single source of truth for whether Kanata is running. It combines <code>launchctl</code> status with TCP probe results into a <code>KanataServiceRuntimeSnapshot</code>. No other code should check process state directly.</div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Types</div>
+  <h2>Six Focused Coordinators</h2>
+  <div class="section-desc">Each owns a single responsibility. RuntimeCoordinator wires them together but contains no business logic itself.</div>
+
+  <div class="types-grid">
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><line x1="8" y1="9" x2="16" y2="9" stroke="#3d4852" stroke-width="1.2" stroke-linecap="round"/><line x1="8" y1="12" x2="14" y2="12" stroke="#3d4852" stroke-width="1" stroke-linecap="round" opacity="0.5"/><line x1="8" y1="15" x2="12" y2="15" stroke="#3d4852" stroke-width="1" stroke-linecap="round" opacity="0.3"/></svg>
+        </div>
+        <span class="type-name">RuntimeCoordinator</span>
+        <span class="type-badge">Orchestrator</span>
+      </div>
+      <div class="type-desc">Thin wiring layer. Initializes all sub-coordinators, sets up callbacks, and delegates every public method. Not an <code>ObservableObject</code> &mdash; UI state lives in <code>KanataViewModel</code>, which reads snapshots via <code>getCurrentUIState()</code>. Annotated <code>@MainActor</code>.</div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><path d="M12 4 L12 12" stroke="#3d4852" stroke-width="2" stroke-linecap="round"/><path d="M8 6.5 A7 7 0 1 0 16 6.5" fill="none" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <span class="type-name">ServiceLifecycleCoordinator</span>
+        <span class="type-badge">Lifecycle</span>
+      </div>
+      <div class="type-desc">The <strong>only</strong> entry point for start, stop, and restart. Registers the LaunchDaemon via <code>KanataDaemonManager.register()</code>, kills orphaned processes before each start, kickstarts if registered but not running. Caches <code>SMAppService</code> pending status with a 5-second TTL to avoid blocking IPC in polling loops.</div>
+      <pre><span class="kw">func</span> <span class="fn">startKanata</span>(<span class="pr">reason</span>: <span class="tp">String</span>) <span class="kw">async</span> -> <span class="tp">Bool</span>
+<span class="kw">func</span> <span class="fn">stopKanata</span>(<span class="pr">reason</span>: <span class="tp">String</span>) <span class="kw">async</span> -> <span class="tp">Bool</span>
+<span class="kw">func</span> <span class="fn">restartKanata</span>(<span class="pr">reason</span>: <span class="tp">String</span>) <span class="kw">async</span> -> <span class="tp">Bool</span>
+<span class="kw">func</span> <span class="fn">currentRuntimeStatus</span>() <span class="kw">async</span> -> <span class="tp">RuntimeStatus</span></pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="3" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><polyline points="7,13 10,13 11,9 13,17 15,11 17,13" fill="none" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="type-name">ServiceHealthChecker</span>
+        <span class="type-badge">Singleton</span>
+      </div>
+      <div class="type-desc">The <strong>sole authority</strong> on whether Kanata is running. Combines <code>launchctl</code> exit codes with TCP probes on port 6174 to produce a <code>KanataServiceRuntimeSnapshot</code>. Short-lived cache (2s TTL) deduplicates parallel health checks. Thread-safe via <code>OSAllocatedUnfairLock</code>.</div>
+      <pre><span class="kw">public struct</span> <span class="tp">KanataServiceRuntimeSnapshot</span> {
+    <span class="kw">let</span> <span class="pr">managementState</span>: <span class="tp">WizardServiceManagementState</span>
+    <span class="kw">let</span> <span class="pr">isRunning</span>: <span class="tp">Bool</span>         <span class="cm">// launchctl says process exists</span>
+    <span class="kw">let</span> <span class="pr">isResponding</span>: <span class="tp">Bool</span>      <span class="cm">// TCP probe got a reply</span>
+    <span class="kw">let</span> <span class="pr">inputCaptureReady</span>: <span class="tp">Bool</span> <span class="cm">// kanata capturing keys</span>
+}</pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="3" width="14" height="18" rx="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5"/><line x1="8" y1="7" x2="16" y2="7" stroke="#3d4852" stroke-width="1" opacity="0.3"/><line x1="8" y1="10" x2="16" y2="10" stroke="#3d4852" stroke-width="1" opacity="0.3"/><circle cx="12" cy="16" r="2" fill="#d2d2d7" stroke="#3d4852" stroke-width="1"/></svg>
+        </div>
+        <span class="type-name">KanataDaemonService</span>
+        <span class="type-badge">Daemon</span>
+      </div>
+      <div class="type-desc">Manages the <code>com.keypath.kanata</code> LaunchDaemon via <code>SMAppService</code>. Handles stop/unregister, polls launchd-backed status, and debounces transient "enabled but no PID" samples to avoid false failure reports. Factory-based <code>SMAppService</code> creation provides a test seam.</div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 4 L20 4 L20 20 L4 20 Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5" rx="2"/><path d="M8 12 L11 15 L16 9" fill="none" stroke="#3d4852" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="type-name">ConfigReloadCoordinator</span>
+        <span class="type-badge">Config</span>
+      </div>
+      <div class="type-desc">Sends config reload commands over TCP after rule changes. Checks service health and permission gates before reloading. Uses cached <code>KanataDaemonManager</code> state to avoid synchronous IPC in hot paths. Coordinates with <code>ReloadSafetyMonitor</code> and <code>ProcessLifecycleManager</code>.</div>
+      <pre><span class="kw">func</span> <span class="fn">triggerConfigReload</span>() <span class="kw">async</span> -> <span class="tp">ReloadResult</span></pre>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2 L15 8 L12 6 L9 8 Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.3"/><path d="M4 14 A8 8 0 1 0 20 14" fill="none" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><path d="M4 14 L4 10 L7 14" fill="none" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="type-name">RecoveryCoordinator</span>
+        <span class="type-badge">Recovery</span>
+      </div>
+      <div class="type-desc">Coordinates keyboard and VirtualHID recovery. Executes a 5-step sequence: kill all Kanata processes, wait for keyboard release, restart Karabiner daemon, wait before retry, restart Kanata. Handlers are injected after <code>RuntimeCoordinator</code> initialization.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Data Flow</div>
+  <h2>Runtime Events</h2>
+  <div class="section-desc">Every runtime interaction follows a predictable path through the coordinator stack.</div>
+
+  <div class="flow-list">
+    <div class="flow-item">
+      <div class="flow-event">Start Kanata</div>
+      <div class="flow-desc"><code>ServiceLifecycleCoordinator.startKanata()</code> &rarr; kill orphans &rarr; <code>KanataDaemonManager.register()</code> &rarr; kickstart if needed &rarr; verify running</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Stop Kanata</div>
+      <div class="flow-desc"><code>ServiceLifecycleCoordinator.stopKanata()</code> &rarr; <code>AppContextService.stop()</code> &rarr; <code>KanataDaemonService.stopIfRunning()</code></div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Config reload</div>
+      <div class="flow-desc"><code>ConfigReloadCoordinator.triggerConfigReload()</code> &rarr; check health &rarr; TCP command to port 6174 &rarr; <code>ReloadResult</code></div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Health check</div>
+      <div class="flow-desc"><code>ServiceHealthChecker.checkKanataServiceHealth()</code> &rarr; launchctl status + TCP probe &rarr; <code>KanataServiceRuntimeSnapshot</code></div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">Crash recovery</div>
+      <div class="flow-desc"><code>RecoveryCoordinator.attemptKeyboardRecovery()</code> &rarr; kill &rarr; wait &rarr; restart VirtualHID &rarr; wait &rarr; restart Kanata</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">TCP reconnect</div>
+      <div class="flow-desc"><code>EngineClient</code> reconnects on next reload attempt. Health checker marks <code>isResponding = false</code> until TCP probe succeeds.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Principles</div>
+  <h2>Design Rules</h2>
+  <div class="section-desc">Five rules that keep the runtime layer predictable and safe.</div>
+
+  <div class="rules">
+    <div class="rule-item">
+      <div class="rule-num">1</div>
+      <div class="rule-content">
+        <div class="rule-title">All lifecycle goes through ServiceLifecycleCoordinator</div>
+        <div class="rule-desc">Don't start, stop, or restart Kanata from anywhere else. Not from the view model, not from recovery code, not from config reload. One entry point.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">2</div>
+      <div class="rule-content">
+        <div class="rule-title">Don't roll your own process checks</div>
+        <div class="rule-desc">No <code>pgrep</code>, no direct <code>launchctl</code> calls to check status. Use <code>ServiceHealthChecker.checkKanataServiceHealth()</code>. It combines PID + TCP and caches results.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">3</div>
+      <div class="rule-content">
+        <div class="rule-title">SMAppService.status is registration, not liveness</div>
+        <div class="rule-desc">Treat <code>SMAppService.status == .enabled</code> as "the daemon is registered" not "the daemon is running." Only the health checker knows if the process is alive.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">4</div>
+      <div class="rule-content">
+        <div class="rule-title">Cache SMAppService calls in hot paths</div>
+        <div class="rule-desc"><code>SMAppService.status</code> is synchronous IPC that can block 10&ndash;30+ seconds under load. Cache within a validation cycle. <code>ServiceLifecycleCoordinator</code> uses a 5s TTL cache for pending checks.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">5</div>
+      <div class="rule-content">
+        <div class="rule-title">Installer success requires verified runtime readiness</div>
+        <div class="rule-desc">Don't return success from an installer action until the service is both running (launchctl) <strong>and</strong> responding (TCP). A registered-but-dead daemon is a failure.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Related</div>
+  <h2>Cross-References</h2>
+  <div class="section-desc">How the runtime layer connects to the rest of KeyPath.</div>
+
+  <div class="cross-links">
+    <a class="cross-link" href="wizard-architecture.html">
+      <h4>Installation Wizard</h4>
+      <p>InstallerEngine sets up what the runtime manages. The wizard ensures prerequisites before the daemon starts.</p>
+    </a>
+    <a class="cross-link" href="overlay-architecture.html">
+      <h4>Overlay System</h4>
+      <p>The overlay reads events that the runtime produces. Health status drives overlay indicators.</p>
+    </a>
+    <a class="cross-link" href="index.html">
+      <h4>Architecture Index</h4>
+      <p>All architecture documents in one place.</p>
+    </a>
+  </div>
+</section>
+
+</div>
+
+<footer>KeyPath Runtime Architecture &mdash; May 2026</footer>
+
+</body>
+</html>

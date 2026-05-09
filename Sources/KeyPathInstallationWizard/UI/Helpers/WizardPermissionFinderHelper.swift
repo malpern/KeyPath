@@ -78,20 +78,26 @@ enum WizardPermissionFinderHelper {
             .filter { $0 != keepName && !$0.hasPrefix(".") }
             .map { (directory as NSString).appendingPathComponent($0) }
 
-        Task.detached {
-            var hidden: [String] = []
-            for path in pathsToHide {
-                if let result = try? await SubprocessRunner.shared.run("/usr/bin/chflags", args: ["-h", "hidden", path]),
-                   result.exitCode == 0
-                {
+        // Hide synchronously so hiddenPaths is set before any other code
+        // can call restoreHiddenFiles(). The previous Task.detached approach
+        // raced with restore calls, leaving files visible.
+        var hidden: [String] = []
+        for path in pathsToHide {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
+            process.arguments = ["-h", "hidden", path]
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+            do {
+                try process.run()
+                process.waitUntilExit()
+                if process.terminationStatus == 0 {
                     hidden.append(path)
                 }
-            }
-            await MainActor.run {
-                hiddenPaths = hidden
-                AppLogger.shared.log("📂 [PermissionFinder] Hidden \(hidden.count) sibling files in \(directory)")
-            }
+            } catch {}
         }
+        hiddenPaths = hidden
+        AppLogger.shared.log("📂 [PermissionFinder] Hidden \(hidden.count) sibling files in \(directory)")
     }
 
     private static func positionSettingsAndFinderSideBySide() {

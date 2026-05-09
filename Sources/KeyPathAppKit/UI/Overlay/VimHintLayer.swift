@@ -132,7 +132,7 @@ struct VimHintLayer: View {
         return !motionGroups.contains(hint.group)
     }
 
-    nonisolated(unsafe) private static let terminalBundleIDs: Set<String> = [
+    nonisolated private static let terminalBundleIDs: Set<String> = [
         "net.kovidgoyal.kitty",
         "com.mitchellh.ghostty",
         "com.apple.Terminal",

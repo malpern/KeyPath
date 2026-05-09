@@ -301,7 +301,9 @@ struct KindaVimInsightsView: View {
         case "\u{F701}": return "↓"
         case "\u{F702}": return "←"
         case "\u{F703}": return "→"
-        case "\u{F704}"..."\u{F70F}": return "F\(key.unicodeScalars.first!.value - 0xF704 + 1)"
+        case "\u{F704}"..."\u{F70F}":
+            guard let scalar = key.unicodeScalars.first else { return "?" }
+            return "F\(scalar.value - 0xF704 + 1)"
         case "\u{F72C}": return "PgUp"
         case "\u{F72D}": return "PgDn"
         case "\u{F729}": return "Home"

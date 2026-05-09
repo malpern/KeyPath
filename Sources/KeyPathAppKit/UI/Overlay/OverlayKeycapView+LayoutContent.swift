@@ -151,6 +151,9 @@ extension OverlayKeycapView {
                 if let holdLabel {
                     return holdLabel
                 }
+                if isRemappedKey, let remapLabel = metadata.wordLabel {
+                    return remapLabel
+                }
                 if currentLayerName.lowercased() == "nav" {
                     return physicalMetadata.wordLabel ?? key.label
                 }

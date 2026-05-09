@@ -227,33 +227,30 @@ public struct WizardInputMonitoringPage: View {
             }
         }
         .task {
-            permissionSnapshot = await PermissionOracle.shared.currentSnapshot()
+            permissionSnapshot = await PermissionOracle.shared.forceRefresh()
         }
         .onAppear {
             checkForStaleEntries()
-            // Start Oracle-direct polling — updates @State snapshot for instant UI,
-            // only calls onRefresh() when both permissions are granted (to advance navigation).
-            if permissionPollingTask == nil {
-                permissionPollingTask = Task { @MainActor [onRefresh] in
-                    var hasEverCelebrated = false
-                    while !Task.isCancelled {
-                        _ = await WizardSleep.ms(500)
-                        let snapshot = await PermissionOracle.shared.currentSnapshot()
-                        permissionSnapshot = snapshot
+            permissionPollingTask?.cancel()
+            permissionPollingTask = Task { @MainActor [onRefresh] in
+                var hasEverCelebrated = false
+                while !Task.isCancelled {
+                    _ = await WizardSleep.ms(1000)
+                    let snapshot = await PermissionOracle.shared.forceRefresh()
+                    permissionSnapshot = snapshot
 
-                        let bothGranted = snapshot.keyPath.inputMonitoring.isReady
-                            && snapshot.kanata.inputMonitoring.isReady
-                        if bothGranted, !hasEverCelebrated {
-                            hasEverCelebrated = true
-                            WizardWindowManager.shared.bounceDocIcon()
-                            withAnimation(.spring(response: 0.3)) {
-                                showSuccessBurst = true
-                            }
-                            _ = await WizardSleep.ms(1500)
-                            showSuccessBurst = false
-                            await onRefresh()
-                            return
+                    let bothGranted = snapshot.keyPath.inputMonitoring.isReady
+                        && snapshot.kanata.inputMonitoring.isReady
+                    if bothGranted, !hasEverCelebrated {
+                        hasEverCelebrated = true
+                        WizardWindowManager.shared.bounceDocIcon()
+                        withAnimation(.spring(response: 0.3)) {
+                            showSuccessBurst = true
                         }
+                        _ = await WizardSleep.ms(1500)
+                        showSuccessBurst = false
+                        await onRefresh()
+                        return
                     }
                 }
             }
@@ -380,7 +377,7 @@ public struct WizardInputMonitoringPage: View {
             while attempts < maxAttempts {
                 _ = await WizardSleep.ms(250)
                 attempts += 1
-                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                let snapshot = await PermissionOracle.shared.forceRefresh()
                 let hasPermission: Bool =
                     switch type {
                     case .accessibility:
@@ -431,7 +428,7 @@ public struct WizardInputMonitoringPage: View {
         Task { @MainActor in
             for _ in 0 ..< 6 { // ~1.5s at 250ms
                 _ = await WizardSleep.ms(250)
-                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                let snapshot = await PermissionOracle.shared.forceRefresh()
                 let granted =
                     snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
                 if granted { return }

@@ -8,8 +8,8 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
     private var capturedWarnings: [String?] = []
     private var stateChangeCount = 0
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         coordinator = ServiceLifecycleCoordinator(
             kanataDaemonService: KanataDaemonService(),
             recoveryCoordinator: RecoveryCoordinator()

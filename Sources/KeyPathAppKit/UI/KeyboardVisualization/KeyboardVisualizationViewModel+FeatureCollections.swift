@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 @MainActor
 extension KeyboardVisualizationViewModel {
@@ -21,8 +22,10 @@ extension KeyboardVisualizationViewModel {
             guard let output, let keyCode = Self.kanataNameToKeyCode(config.inputKey) else { continue }
             if let label = Self.tapHoldOutputDisplayLabel(output) {
                 labels[keyCode] = label
+                AppLogger.shared.info("🏷️ [TapHoldIdle] keyCode=\(keyCode) input=\(config.inputKey) tapOutput=\(output) label=\(label)")
             }
         }
+        AppLogger.shared.info("🏷️ [TapHoldIdle] Updated: \(labels.count) entries")
         tapHoldIdleLabels = labels
     }
 

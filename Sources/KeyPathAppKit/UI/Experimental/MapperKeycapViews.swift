@@ -354,8 +354,9 @@ struct MapperKeycapView: View {
                         .foregroundStyle(foregroundColor)
                 }
             } else {
-                // Key label - match INPUT keycap layout (no internal padding for short labels)
-                Text(label)
+                // Key label - use word label for special keys (e.g., ⎋ → "esc") to match overlay
+                let displayLabel = LabelMetadata.forLabel(label).wordLabel ?? label
+                Text(displayLabel)
                     .font(.system(size: dynamicOutputFontSize, weight: .medium))
                     .foregroundStyle(foregroundColor)
                     .multilineTextAlignment(.center)
@@ -384,6 +385,7 @@ struct MapperKeycapView: View {
             }
             onTap()
         }
+        .accessibilityIdentifier("mapper-output-keycap")
         .accessibilityLabel(isRecording ? "Recording \(label)" : label)
         .accessibilityHint("Click to \(isRecording ? "stop" : "start") recording")
     }
@@ -542,6 +544,7 @@ struct MapperInputKeycap: View {
             }
             onTap()
         }
+        .accessibilityIdentifier("mapper-input-keycap")
     }
 
     // MARK: - Content Routing

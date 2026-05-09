@@ -181,8 +181,8 @@ final class RuleCollectionsCoordinator {
 
     /// Save a custom rule
     @discardableResult
-    func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false) async -> Bool {
-        let result = await ruleCollectionsManager.saveCustomRule(rule, skipReload: skipReload)
+    func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false, autoResolveConflicts: Bool = false) async -> Bool {
+        let result = await ruleCollectionsManager.saveCustomRule(rule, skipReload: skipReload, autoResolveConflicts: autoResolveConflicts)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
         if result {

@@ -52,15 +52,32 @@ public enum WizardRouter {
         return .summary
     }
 
-    // MARK: - Next Page (skipping resolved pages)
+    // MARK: - Next Page (skipping resolved pages, enforcing prerequisites)
 
     /// Find the next page that needs attention after the current one.
-    /// Walks forward through the page order, skipping pages with no relevant issues.
+    /// Enforces prerequisites: if route() says we should be on an earlier
+    /// blocking page (e.g. helper not installed), go there instead of forward.
     public static func nextPage(
         after current: WizardPage,
         state: WizardSystemState,
-        issues: [WizardIssue]
+        issues: [WizardIssue],
+        helperInstalled: Bool = true,
+        helperNeedsApproval: Bool = false
     ) -> WizardPage {
+        // Check if a blocking prerequisite page needs attention first.
+        // This catches cases where the helper page is behind us in the order
+        // but must be resolved before we can advance.
+        let target = route(
+            state: state, issues: issues,
+            helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval
+        )
+        if target != current,
+           isBlockingPage(target, helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval)
+        {
+            return target
+        }
+
+        // Walk forward, skipping resolved pages
         let pageOrder = WizardPage.orderedPages
         guard let currentIndex = pageOrder.firstIndex(of: current) else {
             return .summary
