@@ -726,53 +726,24 @@ struct RulesTabView: View {
         if !isSearching || pack.name.localizedCaseInsensitiveContains(trimmedSearchQuery)
             || "kindavim".contains(trimmedSearchQuery.lowercased())
         {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: pack.iconSymbol)
-                    .font(.system(size: 14 * 0.85, weight: .regular))
-                    .foregroundColor(.secondary)
-                    .frame(width: 24 * 0.85, height: 24 * 0.85)
-                    .padding(.top, 2)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(pack.name)
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                    Text(pack.tagline)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer(minLength: 0)
-
-                Toggle("", isOn: Binding(
-                    get: { isKindaVimInstalled },
-                    set: { newValue in
-                        isKindaVimInstalled = newValue
-                        Task {
-                            if newValue {
-                                let record = InstalledPackRecord(
-                                    packID: pack.id,
-                                    version: pack.version,
-                                    installedAt: Date(),
-                                    quickSettingValues: [:]
-                                )
-                                try? await InstalledPackTracker.shared.upsert(record)
-                            } else {
-                                try? await InstalledPackTracker.shared.remove(packID: pack.id)
-                            }
+            ExpandableKindaVimRow(
+                isPackEnabled: isKindaVimInstalled,
+                onToggle: { newValue in
+                    isKindaVimInstalled = newValue
+                    Task {
+                        if newValue {
+                            let record = InstalledPackRecord(
+                                packID: pack.id,
+                                version: pack.version,
+                                installedAt: Date(),
+                                quickSettingValues: [:]
+                            )
+                            try? await InstalledPackTracker.shared.upsert(record)
+                        } else {
+                            try? await InstalledPackTracker.shared.remove(packID: pack.id)
                         }
                     }
-                ))
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .labelsHidden()
-                .accessibilityIdentifier("rules-kindavim-toggle")
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color(NSColor.windowBackgroundColor))
+                }
             )
         }
     }
