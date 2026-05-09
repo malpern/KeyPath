@@ -73,7 +73,7 @@ public enum PackRegistry {
         name: "Caps Lock Remap",
         tagline: "Make Caps Lock actually useful with tap and hold actions",
         shortDescription:
-            "Caps Lock is prime real estate in the corner — almost nobody uses it. Put it to work: tap it for a quick action like Escape, hold it for Hyper (⌃⌥⇧⌘), a modifier no app collides with. Pick your tap and hold below.",
+            "Tap Caps Lock for a quick action (Escape, Backspace, or Hyper). Hold it for a modifier (Hyper, Control, Shift, or Meh). One key, two jobs — pick your combo below.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "capslock",
@@ -100,7 +100,7 @@ public enum PackRegistry {
         name: "Home Row Mods",
         tagline: "Tap for letters, hold for modifiers or layers",
         shortDescription:
-            "Put your modifier keys under your strongest fingers. Tap A/S/D/F and J/K/L/; for the letter; hold for Shift / Control / Option / Command so shortcuts happen without leaving the home row.",
+            "Tap home row keys normally. Hold them for ⌘ ⇧ ⌥ ⌃ — every shortcut stays under your fingers. Adjust the hold timing to match your typing speed.",
         longDescription: "",
         category: "Ergonomics",
         iconSymbol: "keyboard",
@@ -152,7 +152,7 @@ public enum PackRegistry {
         name: "Escape Remap",
         tagline: "Remap the Escape key",
         shortDescription:
-            "Escape sits awkwardly off in the corner. Turn it into something more useful: Caps Lock (pairs perfectly with Caps Lock → Escape), backtick, or Tab. Pick below.",
+            "Remap Escape to something you'll use more — Caps Lock, Backtick, or Tab. Pairs naturally with Caps Lock Remap so both keys stay useful.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "escape",
@@ -171,7 +171,7 @@ public enum PackRegistry {
         name: "Delete Enhancement",
         tagline: "Leader + Delete for enhanced delete actions",
         shortDescription:
-            "Regular Delete stays as-is. Hold the Leader key and press Delete to get a different action: forward delete, delete word, or delete to line start. Pick which below. Requires a Leader pack on (Vim Navigation, KindaVim, or Neovim Terminal) for Space to activate the nav layer.",
+            "Hold your Leader key + Delete for forward delete, delete word, or delete to line start. Regular Delete still works normally.\n\nRequires Vim Navigation or another Leader pack.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "delete.left",
@@ -190,7 +190,7 @@ public enum PackRegistry {
         name: "Backup Caps Lock",
         tagline: "Alternative way to access Caps Lock",
         shortDescription:
-            "If Caps Lock Remap turns your Caps Lock into something else, you can still get Caps Lock back via a chord. Pick the one that feels natural.",
+            "Get Caps Lock back by pressing both Shift keys together. Useful when Caps Lock Remap gives that key a new job.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "shift",
@@ -215,7 +215,7 @@ public enum PackRegistry {
         name: "Vim Navigation",
         tagline: "Hold Space for hjkl arrows and Vim motions",
         shortDescription:
-            "Hold Space to enter Vim mode. h/j/k/l become arrow keys, y/p are copy/paste, u is undo, / is find. Release Space to go back to normal typing.",
+            "Hold Space for Vim-style navigation: H/J/K/L for arrows, Y/P for copy/paste, U for undo, / for find. Release Space to type normally.",
         longDescription: "",
         category: "Navigation",
         iconSymbol: "arrow.up.and.down.and.arrow.left.and.right",
@@ -243,7 +243,7 @@ public enum PackRegistry {
         name: "Window Snapping",
         tagline: "Snap, move, and tile windows with Leader → w",
         shortDescription:
-            "Hold Space, press W, then: L/R for left/right halves, M to maximize, U/I/J/K for corners, [ ] for displays, , . for Spaces, Z to undo. Requires a Leader pack (Vim Navigation, KindaVim, or Neovim Terminal) for Space to activate the nav layer, and Accessibility access (macOS will prompt on first use).",
+            "Snap windows to halves, corners, or full screen — all from the keyboard. Hold Space → W, then pick a position.\n\nRequires Vim Navigation and Accessibility permission.",
         longDescription: "",
         category: "Navigation",
         iconSymbol: "rectangle.split.2x2",
@@ -264,7 +264,7 @@ public enum PackRegistry {
         name: "Mission Control",
         tagline: "Leader + single key for Exposé, Desktops, Notifications",
         shortDescription:
-            "Hold Space, then: M = Mission Control, Q = App Exposé, T = Show Desktop, C = Notification Center, , / . for previous / next Desktop. Requires a Leader pack on (Vim Navigation, KindaVim, or Neovim Terminal) for Space to activate the nav layer.",
+            "Mission Control, Exposé, Show Desktop, and Notification Center — each one key away. Switch desktops with , and . keys.\n\nRequires Vim Navigation or another Leader pack.",
         longDescription: "",
         category: "Navigation",
         iconSymbol: "rectangle.3.group",
@@ -290,7 +290,7 @@ public enum PackRegistry {
         name: "Auto Shift Symbols",
         tagline: "Hold a symbol key for its shifted version",
         shortDescription:
-            "Tap `-` for `-`, hold for `_`. Tap `'` for `'`, hold for `\"`. Tap `/` for `/`, hold for `?`. Works for all the usual shifted-symbol pairs — no more awkward Shift stretches.",
+            "Hold any symbol key slightly longer to type its shifted variant — no Shift key needed. Tap for the symbol, hold for the shifted version.",
         longDescription: "",
         category: "Ergonomics",
         iconSymbol: "arrow.up.square",
@@ -321,7 +321,7 @@ public enum PackRegistry {
         name: "Numpad",
         tagline: "Turn your right hand into a numpad",
         shortDescription:
-            "Hold Space, press `;`, then use u/i/o + j/k/l + m/,/. as a numpad. Left-hand keys become operators (+ − × ÷ ⏎). Release Space to go back to normal typing. Requires a Leader pack on (Vim Navigation, KindaVim, or Neovim Terminal) for Space to activate the nav layer.",
+            "Your right hand becomes a numpad, left hand gets operators. Hold Space → ; to activate.\n\nRequires Vim Navigation or another Leader pack.",
         longDescription: "",
         category: "Layers",
         iconSymbol: "number.square",
@@ -348,7 +348,7 @@ public enum PackRegistry {
         name: "Symbol",
         tagline: "Programming symbols under your home row",
         shortDescription:
-            "Hold Space, hold `s`, then hit the number row for shifted symbols in the same positions (1→!, 2→@, 3→#…), home row for brackets/operators ([, ], {, }, -, =, +…). Picks up whichever preset is selected in Rules. Requires a Leader pack on (Vim Navigation, KindaVim, or Neovim Terminal) for Space to activate the nav layer.",
+            "Brackets, operators, and shifted symbols all under your home row. Hold Space → S to activate. Choose from preset layouts.\n\nRequires Vim Navigation or another Leader pack.",
         longDescription: "",
         category: "Layers",
         iconSymbol: "textformat.abc.dottedunderline",
@@ -382,7 +382,7 @@ public enum PackRegistry {
         name: "Function",
         tagline: "Right hand becomes F-keys, left hand is media/brightness",
         shortDescription:
-            "Hold Space, press `f`, then: right hand (u/i/o + j/k/l + m/,/.) is an F-key grid; left hand is media — play/pause, prev/next, mute, volume, brightness. Everything reachable from home position. Requires a Leader pack on (Vim Navigation, KindaVim, or Neovim Terminal) for Space to activate the nav layer.",
+            "F-keys on your right hand, media controls on your left — play/pause, volume, brightness. Hold Space → F to activate.\n\nRequires Vim Navigation or another Leader pack.",
         longDescription: "",
         category: "Layers",
         iconSymbol: "f.cursive",
@@ -408,7 +408,7 @@ public enum PackRegistry {
         name: "Quick Launcher",
         tagline: "Hold Hyper, press a key to launch an app or website",
         shortDescription:
-            "Map any key to launch an app (Slack, Cursor, Figma) or open a URL (gmail.com, calendar.google.com). Tap Hyper + the key. Add and edit mappings inline — drag an app onto a key, or pick from your browser history.",
+            "Launch any app or open any URL with a single key. Hold Hyper, press the key. Drag apps onto keys to assign them.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "arrow.up.forward.app",
@@ -436,7 +436,7 @@ public enum PackRegistry {
         name: "Leader Key",
         tagline: "Pick which key activates the navigation layer",
         shortDescription:
-            "Default is Space — but if your thumb's already busy, swap to Caps Lock (the most common alternative), Tab, or Backtick. The change applies everywhere: Vim Nav, Mission Control, Numpad, Symbol, Function, Window Snapping, and Delete Enhancement all use whatever you pick.",
+            "Choose which key activates all your layers — Space, Caps Lock, Tab, or Backtick. Applies to Vim Nav, Window Snapping, and every other layer pack.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "hand.point.up.left",
@@ -468,7 +468,7 @@ public enum PackRegistry {
         name: "KindaVim Mode Display",
         tagline: "Show KindaVim mode in the overlay (no remapping)",
         shortDescription:
-            "If you use KindaVim for full Vim modes, this pack tells the KeyPath overlay and hint panel about your current mode. When KindaVim is in Normal mode, the overlay surfaces the Vim keys you can press; in Insert mode, it gets out of the way. Adds no kanata remappings of its own — KindaVim itself handles every keypress. Requires KindaVim.app to be installed.",
+            "Shows your KindaVim mode (Normal, Insert, Visual) in the overlay header. The overlay adapts — Vim hints in Normal mode, clean keyboard in Insert.\n\nDisplay only — no key remapping. Requires KindaVim.app.",
         longDescription: "",
         category: "Navigation",
         iconSymbol: "keyboard.macwindow",
