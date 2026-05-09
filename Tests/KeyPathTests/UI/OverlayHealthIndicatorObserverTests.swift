@@ -20,8 +20,6 @@ final class OverlayHealthIndicatorObserverTests: XCTestCase {
         controller.issues = []
 
         observer.startObserving(controller: controller)
-
-        // Allow polling loop to run
         try? await Task.sleep(for: .milliseconds(400))
 
         XCTAssertTrue(states.contains(.healthy))
@@ -160,6 +158,42 @@ final class OverlayHealthIndicatorObserverTests: XCTestCase {
         try? await Task.sleep(for: .milliseconds(100))
 
         XCTAssertEqual(states.last, .unhealthy(issueCount: 1))
+    }
+
+    @MainActor
+    func testRevalidationDoesNotFlashCheckingWhenHealthy() async {
+        var states: [HealthIndicatorState] = []
+
+        let observer = OverlayHealthIndicatorObserver(
+            onStateChange: { state in states.append(state) },
+            onDismiss: { states.append(.dismissed) },
+            sleep: { _ in }
+        )
+
+        let controller = MainAppStateController()
+        controller.validationState = .success
+        controller.issues = []
+
+        observer.startObserving(controller: controller)
+        try? await Task.sleep(for: .milliseconds(400))
+
+        // At this point observer should be healthy then dismissed
+        XCTAssertTrue(states.contains(.healthy))
+        states.removeAll()
+
+        // Simulate periodic revalidation: success → checking → success
+        controller.validationState = .checking
+        try? await Task.sleep(for: .milliseconds(400))
+
+        controller.validationState = .success
+        try? await Task.sleep(for: .milliseconds(400))
+
+        // Should NOT have flashed .checking — the observer should suppress it
+        // when transitioning from healthy/dismissed
+        XCTAssertFalse(
+            states.contains(.checking),
+            "Should not flash 'checking' during periodic revalidation when already healthy"
+        )
     }
 }
 
