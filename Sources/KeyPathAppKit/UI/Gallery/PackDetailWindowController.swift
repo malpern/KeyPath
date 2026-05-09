@@ -44,7 +44,9 @@ final class PackDetailWindowController: NSObject {
             newWindow.center()
         }
 
-        LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
+        // Don't manage overlay visibility — the Settings container handles that.
+        // Pack Detail is opened from the Rules tab (inside Settings), so the
+        // overlay is already hidden and should stay hidden until Settings closes.
 
         willCloseObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
@@ -52,7 +54,6 @@ final class PackDetailWindowController: NSObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                LiveKeyboardOverlayController.shared.resetSettingsAutoHideGuard()
                 self?.willCloseObserver.map(NotificationCenter.default.removeObserver)
                 self?.willCloseObserver = nil
                 self?.window = nil
