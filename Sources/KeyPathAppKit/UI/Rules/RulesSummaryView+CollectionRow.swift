@@ -313,23 +313,37 @@ private var fallbackKeyMappings: [KeyMapping] {
                         .padding(.bottom, 12)
                         .padding(.horizontal, 12)
                 } else if showZeroState, mappings.isEmpty, appKeymaps.isEmpty, let onCreate = onCreateFirstRule {
-                    // Zero State - only show if BOTH showZeroState is true AND all mappings are actually empty
-                    VStack(spacing: 12) {
-                        Text("No rules yet")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                    Button(action: onCreate) {
+                        HStack(spacing: 8) {
+                            Text("A")
+                                .font(.body.monospaced().weight(.semibold))
+                                .foregroundColor(.secondary.opacity(0.5))
+                                .modifier(KeycapStyle(ghost: true))
 
-                        Button {
-                            onCreate()
-                        } label: {
-                            Label("Create Your First Rule", systemImage: "plus.circle.fill")
-                                .font(.body.weight(.medium))
+                            Image(systemName: "arrow.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary.opacity(0.4))
+
+                            Text("B")
+                                .font(.body.monospaced().weight(.semibold))
+                                .foregroundColor(.secondary.opacity(0.5))
+                                .modifier(KeycapStyle(ghost: true))
+
+                            Spacer()
+
+                            Image(systemName: "plus.circle")
+                                .font(.body)
+                                .foregroundColor(.accentColor.opacity(0.7))
+
+                            Text("Add rule")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 8)
+                        .contentShape(Rectangle())
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
+                    .buttonStyle(.plain)
                 } else if displayStyle == .singleKeyPicker, let coll = collection {
                     // Segmented picker for single-key remapping
                     SingleKeyPickerContent(

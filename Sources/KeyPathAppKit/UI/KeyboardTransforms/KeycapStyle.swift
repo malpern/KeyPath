@@ -16,18 +16,20 @@ struct KeycapStyle: ViewModifier {
     /// Corner radius matching overlay keycaps
     static let cornerRadius: CGFloat = 6
 
+    var ghost: Bool = false
+
     func body(content: Content) -> some View {
         content
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: Self.cornerRadius)
-                    .fill(Self.backgroundColor)
-                    .shadow(color: .black.opacity(0.4), radius: 1, y: 1)
+                    .fill(Self.backgroundColor.opacity(ghost ? 0.4 : 1))
+                    .shadow(color: .black.opacity(ghost ? 0.1 : 0.4), radius: 1, y: 1)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Self.cornerRadius)
-                    .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                    .stroke(Color.white.opacity(ghost ? 0.06 : 0.15), lineWidth: 0.5)
             )
     }
 }
