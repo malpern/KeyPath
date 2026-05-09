@@ -244,6 +244,7 @@ struct HomeRowModsCollectionView: View {
                 showsHrmInsights: true,
                 onConfigChanged: onConfigChanged
             )
+            .frame(maxWidth: 500)
         }
     }
 
