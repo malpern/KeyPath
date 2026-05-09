@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 import XCTest
 
+@MainActor
 final class OverlayWindowFactoryTests: XCTestCase {
     func testWindowStyleForAccessibilityTestMode() {
         let style = OverlayWindowFactory.windowStyle(useAccessibilityTestMode: true)

@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 import XCTest
 
+@MainActor
 final class OverlayWindowFrameStoreTests: XCTestCase {
     private let suiteName = "OverlayWindowFrameStoreTests"
 

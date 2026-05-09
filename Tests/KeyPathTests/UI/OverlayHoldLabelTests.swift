@@ -3,6 +3,7 @@ import KeyPathCore
 import XCTest
 
 /// Regression tests for hold-label resolution and rendering inputs.
+@MainActor
 final class OverlayHoldLabelTests: XCTestCase {
     func testHoldDisplayLabelHyperUsesStar() async throws {
         let mapper = LayerKeyMapper()

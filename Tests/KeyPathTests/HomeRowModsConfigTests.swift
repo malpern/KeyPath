@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 import XCTest
 
+@MainActor
 final class HomeRowModsConfigTests: XCTestCase {
     func testDefaultMappingUsesMacCAGS() {
         let config = HomeRowModsConfig()

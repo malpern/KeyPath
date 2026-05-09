@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 import XCTest
 
+@MainActor
 final class OverlayInspectorPanelLayoutTests: XCTestCase {
     func testExpandedFrameKeepsOriginWhenNoOverflow() {
         let baseFrame = NSRect(x: 100, y: 50, width: 300, height: 200)

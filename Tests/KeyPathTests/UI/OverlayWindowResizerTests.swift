@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 import XCTest
 
+@MainActor
 final class OverlayWindowResizerTests: XCTestCase {
     func testConstrainedSizeAnchorsWidthAndRespectsMinHeight() {
         let size = OverlayWindowResizer.constrainedSize(

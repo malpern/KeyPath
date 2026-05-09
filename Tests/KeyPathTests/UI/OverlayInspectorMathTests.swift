@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 import XCTest
 
+@MainActor
 final class OverlayInspectorMathTests: XCTestCase {
     func testEasedProgressClampsEndpoints() {
         XCTAssertEqual(OverlayInspectorMath.easedProgress(0), 0, accuracy: 0.0001)

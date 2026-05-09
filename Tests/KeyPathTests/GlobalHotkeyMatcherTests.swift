@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 import XCTest
 
+@MainActor
 final class GlobalHotkeyMatcherTests: XCTestCase {
     func testMatchesToggleHotkey() {
         let match = GlobalHotkeyMatcher.match(

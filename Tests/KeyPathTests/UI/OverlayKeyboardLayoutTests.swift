@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 import XCTest
 
+@MainActor
 final class OverlayKeyboardLayoutTests: XCTestCase {
     func testEscLeftInsetMatchesKeyGapAtScaleOne() {
         let inset = OverlayKeyboardView.escLeftInset(

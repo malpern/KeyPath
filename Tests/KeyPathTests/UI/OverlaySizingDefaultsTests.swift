@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 import XCTest
 
+@MainActor
 final class OverlaySizingDefaultsTests: XCTestCase {
     func testStartupSizeUsesBaseHeightAndScale() {
         let size = OverlaySizingDefaults.startupSize(

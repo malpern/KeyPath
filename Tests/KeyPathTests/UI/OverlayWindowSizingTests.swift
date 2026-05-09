@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 import XCTest
 
+@MainActor
 final class OverlayWindowSizingTests: XCTestCase {
     func testSizeUsesChromeAndAspectRatio() {
         let baseHeight: CGFloat = 200
