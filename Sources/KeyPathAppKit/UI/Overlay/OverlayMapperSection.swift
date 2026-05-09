@@ -637,6 +637,9 @@ struct OverlayMapperSection: View {
 
             Spacer(minLength: 0)
 
+            activeRulesFooter
+                .padding(.horizontal, 8)
+
             packSuggestionsBanner
                 .padding(.bottom, 12)
                 .overlay(alignment: .top) {
@@ -657,6 +660,120 @@ struct OverlayMapperSection: View {
                 }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Active Rules Footer
+
+    /// Enabled user-facing packs (excludes system defaults like macOS Function Keys)
+    private var enabledUserPacks: [Pack] {
+        guard let vm = kanataViewModel else { return [] }
+        let enabledIDs = Set(vm.ruleCollections.filter(\.isEnabled).map(\.id))
+        return PackRegistry.starterKit.filter { pack in
+            guard let collectionID = pack.associatedCollectionID else { return false }
+            guard !pack.visualOnly else { return false }
+            return enabledIDs.contains(collectionID)
+        }.filter { pack in
+            // Exclude system-default collections that aren't user-facing packs
+            let systemIDs: Set<String> = ["com.keypath.pack.leader-key"]
+            return !systemIDs.contains(pack.id)
+        }
+    }
+
+    /// Whether the user has customized beyond factory defaults
+    private var hasCustomizedRules: Bool {
+        let defaultEnabledIDs = Set(
+            RuleCollectionCatalog().defaultCollections()
+                .filter(\.isEnabled)
+                .map(\.id)
+        )
+        let currentEnabledIDs = Set(
+            (kanataViewModel?.ruleCollections ?? [])
+                .filter(\.isEnabled)
+                .map(\.id)
+        )
+        let hasCustomRules = !(kanataViewModel?.customRules.isEmpty ?? true)
+        return currentEnabledIDs != defaultEnabledIDs || hasCustomRules
+    }
+
+    @ViewBuilder
+    private var activeRulesFooter: some View {
+        let packs = enabledUserPacks
+
+        if !hasCustomizedRules {
+            // Merchandising: user hasn't changed anything
+            VStack(spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.accentColor)
+                    Text("\(PackRegistry.starterKit.count) ready-made rules")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.primary)
+                }
+
+                Button {
+                    NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "square.grid.2x2")
+                            .font(.system(size: 10))
+                        Text("Browse rules")
+                            .font(.system(size: 11, weight: .medium))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 8, weight: .semibold))
+                    }
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(Color.accentColor.opacity(0.1))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.vertical, 8)
+        } else if !packs.isEmpty {
+            // Compact: show enabled packs as tappable chips
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Active Rules")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+
+                FlowLayout(spacing: 4) {
+                    ForEach(packs) { pack in
+                        Button {
+                            if let vm = kanataViewModel {
+                                PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: vm)
+                            }
+                        } label: {
+                            Text(pack.name)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                        .fill(Color.primary.opacity(0.06))
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                Button {
+                    NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+                } label: {
+                    Text("All rules →")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.vertical, 8)
+        }
     }
 
     private var currentInputKanataToken: String? {
