@@ -94,9 +94,19 @@ struct ExpandableKindaVimRow: View {
                     staticModeBadge("VISUAL", tint: .orange)
                 }
 
-                Text("Shows your current Vim mode in the overlay header")
+                HStack(spacing: 0) {
+                    Text("Shows your current Vim mode in the overlay header. Requires ")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Button("kindaVim.app ↗") {
+                        if let url = URL(string: "https://kindavim.app") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                    .buttonStyle(.plain)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.accentColor)
+                }
 
                 if !appInstalled {
                     Button {
@@ -109,11 +119,6 @@ struct ExpandableKindaVimRow: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                     .accessibilityIdentifier("kindavim-row-get-app")
-                } else if isPackEnabled {
-                    Label("Active — mode badge appears in overlay header",
-                          systemImage: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundColor(.green)
                 }
             }
             .padding(.top, 4)
