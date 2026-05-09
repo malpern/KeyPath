@@ -43,9 +43,8 @@ open class KeyPathTestCase: XCTestCase {
     override open func setUp() {
         super.setUp()
         MainActor.assumeIsolated {
-            // Set up test seam to avoid real pgrep calls which can hang after multiple rapid executions.
+            TestSingletonReset.resetAll()
             VHIDDeviceManager.testPIDProvider = { [] }
-            // Configure WizardDependencies so InstallerEngine/PrivilegeBroker init don't crash.
             WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
             WizardDependencies.daemonManager = KanataDaemonManager.shared
             if WizardDependencies.systemValidator == nil {
@@ -60,21 +59,20 @@ open class KeyPathTestCase: XCTestCase {
         MainActor.assumeIsolated {
             VHIDDeviceManager.testPIDProvider = nil
             WizardDependencies.reset()
+            TestSingletonReset.resetAll()
         }
         super.tearDown()
     }
 }
 
 /// Async variant for tests that use async setUp/tearDown.
-///
-/// Use this when your test class needs async setUp (e.g., `override func setUp() async throws`).
 @MainActor
 open class KeyPathAsyncTestCase: XCTestCase {
     override open func setUp() async throws {
         try await super.setUp()
         await MainActor.run {
+            TestSingletonReset.resetAll()
             VHIDDeviceManager.testPIDProvider = { [] }
-            // Configure WizardDependencies so InstallerEngine/PrivilegeBroker init don't crash.
             WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
             WizardDependencies.daemonManager = KanataDaemonManager.shared
             if WizardDependencies.systemValidator == nil {
@@ -89,6 +87,7 @@ open class KeyPathAsyncTestCase: XCTestCase {
         await MainActor.run {
             VHIDDeviceManager.testPIDProvider = nil
             WizardDependencies.reset()
+            TestSingletonReset.resetAll()
         }
         try await super.tearDown()
     }

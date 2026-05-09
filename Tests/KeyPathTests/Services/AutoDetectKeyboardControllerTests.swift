@@ -9,6 +9,7 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        await MainActor.run { TestSingletonReset.resetAll() }
         tempDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("AutoDetectKeyboardControllerTests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
