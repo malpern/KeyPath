@@ -344,28 +344,12 @@ struct RulesTabView: View {
         VStack(spacing: 0) {
             // Top Action Bar
             HStack(spacing: 12) {
-                Button {
-                    // Close settings and open overlay with mapper tab
-                    NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
-                } label: {
-                    Label("Create Rule", systemImage: "plus.circle.fill")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .accessibilityIdentifier("rules-create-button")
-                .accessibilityLabel("Create Rule")
+                MacSearchField(text: $searchQuery)
+                    .accessibilityIdentifier("rules-search-field")
+                    .accessibilityLabel("Search rules")
+                    .frame(width: 128)
 
                 Spacer()
-
-                Button {
-                    openConfigInEditor()
-                } label: {
-                    Label("Edit config", systemImage: "square.and.pencil")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                .accessibilityIdentifier("rules-edit-config-button")
-                .accessibilityLabel("Edit Config")
 
                 Button {
                     showingResetConfirmation = true
@@ -378,10 +362,25 @@ struct RulesTabView: View {
                 .accessibilityIdentifier("rules-reset-button")
                 .accessibilityLabel("Reset Rules")
 
-                MacSearchField(text: $searchQuery)
-                    .accessibilityIdentifier("rules-search-field")
-                    .accessibilityLabel("Search rules")
-                    .frame(width: 128)
+                Button {
+                    openConfigInEditor()
+                } label: {
+                    Label("Edit config", systemImage: "square.and.pencil")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .accessibilityIdentifier("rules-edit-config-button")
+                .accessibilityLabel("Edit Config")
+
+                Button {
+                    NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
+                } label: {
+                    Label("Create Rule", systemImage: "plus.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .accessibilityIdentifier("rules-create-button")
+                .accessibilityLabel("Create Rule")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
