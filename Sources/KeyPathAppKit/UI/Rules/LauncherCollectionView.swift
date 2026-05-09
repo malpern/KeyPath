@@ -38,44 +38,39 @@ struct LauncherCollectionView: View {
 
             Divider()
 
-            // Main content: Keyboard + Drawer
-            HStack(alignment: .top, spacing: 0) {
-                // Keyboard visualization
-                VStack(spacing: 8) {
-                    LauncherKeyboardView(
-                        config: $config,
-                        selectedKey: selectedKey,
-                        onKeyClicked: handleKeyClicked
-                    )
-                    .padding(16)
-
-                    // Instructions
-                    Text("Click any key to configure")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.bottom, 12)
-                }
-                .frame(maxWidth: .infinity)
-                .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
-
-                Divider()
-
-                // Drawer with mappings list
-                LauncherDrawerView(
+            // Keyboard visualization (full width)
+            VStack(spacing: 8) {
+                LauncherKeyboardView(
                     config: $config,
-                    selectedKey: $selectedKey,
-                    onAddMapping: { showAddMapping = true },
-                    onEditMapping: { mapping in
-                        editingMapping = mapping
-                    },
-                    onDeleteMapping: { id in
-                        deleteMapping(id: id)
-                    }
+                    selectedKey: selectedKey,
+                    onKeyClicked: handleKeyClicked
                 )
-                .frame(width: 280)
-                .onChange(of: config) { _, newValue in
-                    onConfigChanged(newValue)
+                .padding(16)
+
+                Text("Click any key to configure")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.bottom, 12)
+            }
+            .frame(maxWidth: .infinity)
+            .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
+
+            Divider()
+
+            // Mappings list (full width)
+            LauncherDrawerView(
+                config: $config,
+                selectedKey: $selectedKey,
+                onAddMapping: { showAddMapping = true },
+                onEditMapping: { mapping in
+                    editingMapping = mapping
+                },
+                onDeleteMapping: { id in
+                    deleteMapping(id: id)
                 }
+            )
+            .onChange(of: config) { _, newValue in
+                onConfigChanged(newValue)
             }
         }
         .sheet(isPresented: $showBrowserHistory) {
