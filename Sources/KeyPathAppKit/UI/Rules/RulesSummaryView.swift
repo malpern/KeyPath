@@ -410,8 +410,8 @@ struct RulesTabView: View {
                             .padding(.vertical, 4)
                         }
 
-                        if !isSearching || !filteredCustomRules.isEmpty || !filteredAppKeymaps.isEmpty {
-                            // Custom Rules Section (toggleable, expanded when has rules)
+                        if true {
+                            // Custom Rules Section — always visible, shows CTA when empty
                             ExpandableCollectionRow(
                                 collectionId: "custom-rules",
                                 name: customRulesTitle,
@@ -470,7 +470,7 @@ struct RulesTabView: View {
                                     NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
                                 },
                                 description: isSearching ? "Filtered custom rules" : "Remap any key combination or sequence",
-                                defaultExpanded: false,
+                                defaultExpanded: !hasAnyCustomRules,
                                 scrollID: "custom-rules",
                                 scrollProxy: scrollProxy
                             )
