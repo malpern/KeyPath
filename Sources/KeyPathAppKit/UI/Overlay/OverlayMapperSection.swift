@@ -699,42 +699,7 @@ struct OverlayMapperSection: View {
     private var activeRulesFooter: some View {
         let packs = enabledUserPacks
 
-        if !hasCustomizedRules {
-            // Merchandising: user hasn't changed anything
-            VStack(spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color.accentColor)
-                    Text("\(PackRegistry.starterKit.count) ready-made rules")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.primary)
-                }
-
-                Button {
-                    NotificationCenter.default.post(name: .openSettingsRules, object: nil)
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "square.grid.2x2")
-                            .font(.system(size: 10))
-                        Text("Browse rules")
-                            .font(.system(size: 11, weight: .medium))
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 8, weight: .semibold))
-                    }
-                    .foregroundStyle(Color.accentColor)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(Color.accentColor.opacity(0.1))
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.vertical, 8)
-        } else if !packs.isEmpty {
-            // Compact: show enabled packs as tappable chips
+        if !packs.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Active Rules")
                     .font(.system(size: 10, weight: .semibold))
@@ -763,14 +728,39 @@ struct OverlayMapperSection: View {
                     }
                 }
 
-                Button {
-                    NotificationCenter.default.post(name: .openSettingsRules, object: nil)
-                } label: {
-                    Text("All rules →")
-                        .font(.system(size: 10))
+                if !hasCustomizedRules {
+                    // Merchandising: user on defaults, encourage exploration
+                    Button {
+                        NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 10))
+                            Text("\(PackRegistry.starterKit.count - packs.count) more rules available")
+                                .font(.system(size: 11, weight: .medium))
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 8, weight: .semibold))
+                        }
                         .foregroundStyle(Color.accentColor)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(Color.accentColor.opacity(0.1))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 2)
+                } else {
+                    Button {
+                        NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+                    } label: {
+                        Text("All rules →")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
             .padding(.vertical, 8)
         }
