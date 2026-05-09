@@ -75,7 +75,7 @@ struct ExpandableKindaVimRow: View {
                 set: { onToggle($0) }
             ))
             .toggleStyle(.switch)
-            .controlSize(.small)
+            .tint(.blue)
             .labelsHidden()
             .accessibilityIdentifier("rules-kindavim-toggle")
         }
