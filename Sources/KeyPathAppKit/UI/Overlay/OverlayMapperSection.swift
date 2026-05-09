@@ -698,9 +698,10 @@ struct OverlayMapperSection: View {
     @ViewBuilder
     private var activeRulesFooter: some View {
         let packs = enabledUserPacks
+        let remaining = PackRegistry.starterKit.count - packs.count
 
-        if !packs.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
+            if !packs.isEmpty {
                 Text("Active Rules")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
@@ -727,43 +728,73 @@ struct OverlayMapperSection: View {
                         .buttonStyle(.plain)
                     }
                 }
-
-                if !hasCustomizedRules {
-                    // Merchandising: user on defaults, encourage exploration
-                    Button {
-                        NotificationCenter.default.post(name: .openSettingsRules, object: nil)
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 10))
-                            Text("\(PackRegistry.starterKit.count - packs.count) more rules available")
-                                .font(.system(size: 11, weight: .medium))
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 8, weight: .semibold))
-                        }
-                        .foregroundStyle(Color.accentColor)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(Color.accentColor.opacity(0.1))
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 2)
-                } else {
-                    Button {
-                        NotificationCenter.default.post(name: .openSettingsRules, object: nil)
-                    } label: {
-                        Text("All rules →")
-                            .font(.system(size: 10))
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    .buttonStyle(.plain)
-                }
             }
-            .padding(.vertical, 8)
+
+            if packs.count < 5, remaining > 0 {
+                // Prominent merchandising card
+                Button {
+                    NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+                } label: {
+                    VStack(spacing: 8) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color.accentColor.opacity(0.08))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .strokeBorder(Color.accentColor.opacity(0.15), lineWidth: 0.5)
+                                )
+
+                            HStack(spacing: 6) {
+                                Image(systemName: "keyboard")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(.tint)
+                                    .symbolRenderingMode(.hierarchical)
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 8, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(.tint)
+                                    .symbolRenderingMode(.hierarchical)
+                            }
+                        }
+                        .frame(height: 48)
+
+                        VStack(spacing: 2) {
+                            Text("\(remaining) more rules")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.primary)
+                            Text("Shortcuts, layers, window management")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color(NSColor.controlBackgroundColor).opacity(0.4))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
+                    )
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
+            } else if remaining > 0 {
+                // Compact link
+                Button {
+                    NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+                } label: {
+                    Text("All rules →")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain)
+            }
         }
+        .padding(.vertical, 8)
     }
 
     private var currentInputKanataToken: String? {
