@@ -29,12 +29,10 @@ final class PackDetailWindowController: NSObject {
             .environment(kanataManager)
 
         let hosting = NSHostingView(rootView: content)
-        let fittingSize = hosting.fittingSize
-        let width = max(560, min(fittingSize.width, 900))
-        let height = max(500, min(fittingSize.height, 800))
+        let width = Self.windowWidth(for: pack)
 
         let newWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: width, height: height),
+            contentRect: NSRect(x: 0, y: 0, width: width, height: 640),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -67,6 +65,30 @@ final class PackDetailWindowController: NSObject {
         newWindow.makeKeyAndOrderFront(nil)
         self.window = newWindow
         self.currentPackID = pack.id
+    }
+
+    private static func windowWidth(for pack: Pack) -> CGFloat {
+        // Wide: packs with multi-column binding tables
+        let widePacks: Set<String> = [
+            "com.keypath.pack.vim-navigation",
+            "com.keypath.pack.window-snapping",
+            "com.keypath.pack.mission-control",
+            "com.keypath.pack.numpad-layer",
+            "com.keypath.pack.symbol-layer",
+            "com.keypath.pack.fun-layer",
+        ]
+        if widePacks.contains(pack.id) { return 760 }
+
+        // Medium: packs with sliders, grids, or multi-key editors
+        let mediumPacks: Set<String> = [
+            "com.keypath.pack.home-row-mods",
+            "com.keypath.pack.auto-shift-symbols",
+            "com.keypath.pack.quick-launcher",
+        ]
+        if mediumPacks.contains(pack.id) { return 640 }
+
+        // Narrow: simple pickers and toggles
+        return 560
     }
 
     func closeWindow() {
