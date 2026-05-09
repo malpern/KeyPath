@@ -45,7 +45,8 @@ struct LauncherCollectionView: View {
                     selectedKey: selectedKey,
                     onKeyClicked: handleKeyClicked
                 )
-                .padding(16)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 12)
 
                 Text("Click any key to configure")
                     .font(.caption)
