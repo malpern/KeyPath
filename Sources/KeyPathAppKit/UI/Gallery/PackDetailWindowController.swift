@@ -29,10 +29,13 @@ final class PackDetailWindowController: NSObject {
             .environment(kanataManager)
 
         let hosting = NSHostingView(rootView: content)
+        let fittingSize = hosting.fittingSize
+        let width = max(560, min(fittingSize.width, 900))
+        let height = max(500, min(fittingSize.height, 800))
 
         let newWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 580, height: 640),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            contentRect: NSRect(x: 0, y: 0, width: width, height: height),
+            styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
