@@ -179,7 +179,14 @@ public enum PackRegistry {
         bindings: [
             PackBindingTemplate(input: "bspc", output: "del", title: "Delete Enhancement")
         ],
-        associatedCollectionID: RuleCollectionIdentifier.deleteRemap
+        associatedCollectionID: RuleCollectionIdentifier.deleteRemap,
+        dependencies: [
+            PackDependency(
+                packID: "com.keypath.pack.vim-navigation",
+                kind: .requires,
+                description: "Needs Vim Navigation for Leader key layer activation"
+            ),
+        ]
     )
 
     // MARK: - Pack 5: Backup Caps Lock
@@ -198,7 +205,14 @@ public enum PackRegistry {
         bindings: [
             PackBindingTemplate(input: "lsft-rsft", output: "caps", title: "Backup Caps Lock")
         ],
-        associatedCollectionID: RuleCollectionIdentifier.backupCapsLock
+        associatedCollectionID: RuleCollectionIdentifier.backupCapsLock,
+        dependencies: [
+            PackDependency(
+                packID: "com.keypath.pack.caps-lock-to-escape",
+                kind: .suggests,
+                description: "Most useful when Caps Lock is remapped to something else"
+            ),
+        ]
     )
 
     // MARK: - Pack 6: Vim Navigation
@@ -249,7 +263,14 @@ public enum PackRegistry {
         iconSymbol: "rectangle.split.2x2",
         quickSettings: [],
         bindings: [],
-        associatedCollectionID: RuleCollectionIdentifier.windowSnapping
+        associatedCollectionID: RuleCollectionIdentifier.windowSnapping,
+        dependencies: [
+            PackDependency(
+                packID: "com.keypath.pack.vim-navigation",
+                kind: .requires,
+                description: "Needs Vim Navigation for Leader key layer activation"
+            ),
+        ]
     )
 
     // MARK: - Pack 8: Mission Control
@@ -270,7 +291,14 @@ public enum PackRegistry {
         iconSymbol: "rectangle.3.group",
         quickSettings: [],
         bindings: [],
-        associatedCollectionID: RuleCollectionIdentifier.missionControl
+        associatedCollectionID: RuleCollectionIdentifier.missionControl,
+        dependencies: [
+            PackDependency(
+                packID: "com.keypath.pack.vim-navigation",
+                kind: .requires,
+                description: "Needs Vim Navigation for Leader key layer activation"
+            ),
+        ]
     )
 
     // MARK: - Pack 9: Auto Shift Symbols
@@ -327,7 +355,14 @@ public enum PackRegistry {
         iconSymbol: "number.square",
         quickSettings: [],
         bindings: [],
-        associatedCollectionID: RuleCollectionIdentifier.numpadLayer
+        associatedCollectionID: RuleCollectionIdentifier.numpadLayer,
+        dependencies: [
+            PackDependency(
+                packID: "com.keypath.pack.vim-navigation",
+                kind: .requires,
+                description: "Needs Vim Navigation for Leader key layer activation"
+            ),
+        ]
     )
 
     // MARK: - Pack 11: Symbol Layer
@@ -364,7 +399,14 @@ public enum PackRegistry {
             PackBindingTemplate(input: "k", output: "S-[", title: "k → {"),
             PackBindingTemplate(input: "l", output: "S-]", title: "l → }")
         ],
-        associatedCollectionID: RuleCollectionIdentifier.symbolLayer
+        associatedCollectionID: RuleCollectionIdentifier.symbolLayer,
+        dependencies: [
+            PackDependency(
+                packID: "com.keypath.pack.vim-navigation",
+                kind: .requires,
+                description: "Needs Vim Navigation for Leader key layer activation"
+            ),
+        ]
     )
 
     // MARK: - Pack 12: Function / Media Layer
@@ -388,7 +430,14 @@ public enum PackRegistry {
         iconSymbol: "f.cursive",
         quickSettings: [],
         bindings: [],
-        associatedCollectionID: RuleCollectionIdentifier.funLayer
+        associatedCollectionID: RuleCollectionIdentifier.funLayer,
+        dependencies: [
+            PackDependency(
+                packID: "com.keypath.pack.vim-navigation",
+                kind: .requires,
+                description: "Needs Vim Navigation for Leader key layer activation"
+            ),
+        ]
     )
 
     // MARK: - Pack 13: Quick Launcher
@@ -414,7 +463,15 @@ public enum PackRegistry {
         iconSymbol: "arrow.up.forward.app",
         quickSettings: [],
         bindings: [],
-        associatedCollectionID: RuleCollectionIdentifier.launcher
+        associatedCollectionID: RuleCollectionIdentifier.launcher,
+        dependencies: [
+            PackDependency(
+                packID: "com.keypath.pack.caps-lock-to-escape",
+                kind: .suggests,
+                configPredicate: .holdOutput("C-S-M-A-"),
+                description: "Hyper mode works best with Caps Lock Remap hold set to Hyper"
+            ),
+        ]
     )
 
     // MARK: - Pack 14: Leader Key
