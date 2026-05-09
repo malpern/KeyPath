@@ -130,38 +130,54 @@ struct LauncherCollectionView: View {
                 .accessibilityIdentifier("launcher-suggest-button")
             }
 
-            HStack(spacing: 8) {
-                Label(activationDescription, systemImage: "hand.point.up.left")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                Spacer()
-
-                Button {
-                    if let leaderPack = PackRegistry.pack(id: "com.keypath.pack.leader-key") {
-                        PackDetailWindowController.shared.showWindow(
-                            pack: leaderPack,
-                            kanataManager: kanataManager
-                        )
-                    }
-                } label: {
-                    Text("Change in Leader Key →")
-                        .font(.caption)
-                        .foregroundColor(.accentColor)
+            Picker("Activation Mode", selection: Binding(
+                get: { config.activationMode },
+                set: { newMode in
+                    config.activationMode = newMode
+                    onConfigChanged(config)
                 }
-                .buttonStyle(.plain)
+            )) {
+                Text(LauncherActivationMode.holdHyper.displayName).tag(LauncherActivationMode.holdHyper)
+                Text(LauncherActivationMode.leaderSequence.displayName).tag(LauncherActivationMode.leaderSequence)
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .accessibilityIdentifier("launcher-activation-mode-picker")
+
+            // Hyper trigger mode segmented picker (only shown when Hyper mode is selected)
+            if config.activationMode == .holdHyper {
+                Picker("Trigger Mode", selection: Binding(
+                    get: { localHyperTriggerMode },
+                    set: { newMode in
+                        localHyperTriggerMode = newMode
+                        var updated = config
+                        updated.hyperTriggerMode = newMode
+                        onConfigChanged(updated)
+                    }
+                )) {
+                    Text(HyperTriggerMode.hold.displayName).tag(HyperTriggerMode.hold)
+                    Text(HyperTriggerMode.tap.displayName).tag(HyperTriggerMode.tap)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityIdentifier("launcher-hyper-trigger-picker")
+                .onAppear {
+                    localHyperTriggerMode = config.hyperTriggerMode
+                }
+            }
+
+            Text(activationDescription)
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
     }
-
-    @Environment(KanataViewModel.self) private var kanataManager
 
     private var activationDescription: String {
         switch config.activationMode {
         case .holdHyper:
-            "Hold Hyper, press a shortcut key"
+            localHyperTriggerMode.description + " Then press a shortcut key."
         case .leaderSequence:
-            "Press Leader → L, then a shortcut key"
+            "Press Leader, then L, then press a shortcut key."
         }
     }
 
