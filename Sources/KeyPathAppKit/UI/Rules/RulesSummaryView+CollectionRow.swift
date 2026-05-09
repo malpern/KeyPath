@@ -205,34 +205,42 @@ private var fallbackKeyMappings: [KeyMapping] {
 
     private var headerButtonView: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Left side: Clickable area — opens detail window or expands inline
+            // Icon tap → always expand inline (debug: compare inline vs gallery)
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                    if isExpanded, let id = scrollID, let proxy = scrollProxy {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                proxy.scrollTo(id, anchor: .top)
+                            }
+                        }
+                    }
+                }
+            } label: {
+                iconView(for: icon)
+                    .frame(width: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            // Rest of row → opens detail window (or expands if no pack)
             Button {
                 if let onTapRow {
                     onTapRow()
                 } else {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         isExpanded.toggle()
-                        if isExpanded, let id = scrollID, let proxy = scrollProxy {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    proxy.scrollTo(id, anchor: .top)
-                                }
-                            }
-                        }
                     }
                 }
             } label: {
-                HStack(alignment: .top, spacing: 12) {
-                    iconView(for: icon)
-                        .frame(width: 24)
-
+                HStack(alignment: .top, spacing: 0) {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
                             Text(name)
                                 .font(.headline)
                                 .foregroundColor(.primary)
                             if count > 0, showZeroState || onEditMapping != nil {
-                                // Show count for custom rules section only
                                 Text("(\(count))")
                                     .font(.headline)
                                     .fontWeight(.regular)
@@ -247,12 +255,10 @@ private var fallbackKeyMappings: [KeyMapping] {
                         }
 
                         if let hint = activationHint {
-                            // Use collection's custom activation hint (e.g., "Hold Hyper key")
                             Label(hint, systemImage: "hand.point.up.left")
                                 .font(.caption)
                                 .foregroundColor(.accentColor)
                         } else if layerActivator != nil {
-                            // Fall back to leader key display for leader-based collections
                             Label("Hold \(leaderKeyDisplay)", systemImage: "hand.point.up.left")
                                 .font(.caption)
                                 .foregroundColor(.accentColor)
