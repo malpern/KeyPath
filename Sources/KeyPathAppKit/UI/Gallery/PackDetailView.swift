@@ -122,18 +122,6 @@ struct PackDetailView: View {
                 .accessibilityLabel("Close and return to rules")
                 .accessibilityIdentifier("pack-detail-close")
                 Spacer()
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24, height: 24)
-                        .background(Circle().fill(.quaternary))
-                }
-                .buttonStyle(.plain)
-                .focusable(false)
-                .keyboardShortcut(.cancelAction)
-                .accessibilityLabel("Close")
-                .accessibilityIdentifier("pack-detail-close")
             }
 
             HStack(alignment: .center, spacing: 16) {
