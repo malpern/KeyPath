@@ -726,22 +726,23 @@ struct RulesTabView: View {
         if !isSearching || pack.name.localizedCaseInsensitiveContains(trimmedSearchQuery)
             || "kindavim".contains(trimmedSearchQuery.lowercased())
         {
-            HStack(spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
                 Image(systemName: pack.iconSymbol)
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 28)
+                    .font(.system(size: 14 * 0.85, weight: .regular))
+                    .foregroundColor(.secondary)
+                    .frame(width: 24 * 0.85, height: 24 * 0.85)
+                    .padding(.top, 2)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(pack.name)
-                        .font(.body.weight(.medium))
+                        .font(.headline)
+                        .foregroundColor(.primary)
                     Text(pack.tagline)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
 
-                Spacer()
+                Spacer(minLength: 0)
 
                 Toggle("", isOn: Binding(
                     get: { isKindaVimInstalled },
@@ -767,13 +768,12 @@ struct RulesTabView: View {
                 .labelsHidden()
                 .accessibilityIdentifier("rules-kindavim-toggle")
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(isKindaVimInstalled ? 0.04 : 0.02))
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(NSColor.windowBackgroundColor))
             )
-            .padding(.horizontal, 8)
         }
     }
 
