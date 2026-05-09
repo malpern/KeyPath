@@ -74,7 +74,7 @@ struct PackDetailView: View {
                 .padding(.bottom, 20)
             }
         }
-        .frame(width: 560, height: 640)
+        .frame(minWidth: 480, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
         .task {
             await refreshInstallState()
             loadDefaultQuickSettings()
