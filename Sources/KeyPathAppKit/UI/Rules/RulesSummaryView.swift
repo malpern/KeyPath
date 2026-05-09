@@ -28,6 +28,14 @@ struct RulesTabView: View {
     @State private var sequencesEditState: SequencesEditState?
     @State private var appKeymaps: [AppKeymap] = []
     @State private var isKindaVimInstalled = false
+    /// Dependency resolution: pack awaiting enable confirmation
+    @State private var pendingEnablePack: Pack?
+    @State private var pendingEnableUnmetDeps: [UnmetDependency] = []
+    /// Dependency resolution: pack awaiting disable confirmation
+    @State private var pendingDisablePack: Pack?
+    @State private var pendingDisableDependents: [Pack] = []
+    /// Tracks packs with unmet dependencies (for warning badges)
+    @State private var unmetDependencyMap: [String: [UnmetDependency]] = [:]
     private let catalog = RuleCollectionCatalog()
 
     /// Total count of custom rules (everywhere + app-specific)
@@ -217,18 +225,7 @@ struct RulesTabView: View {
                 ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id, nil)
             },
             onToggle: { isOn in
-                AppLogger.shared.log("🎚️ [RulesSummary] onToggle called: collection=\(collection.name), id=\(collection.id), isOn=\(isOn)")
-                pendingToggles[collection.id] = isOn
-                if !isOn {
-                    pendingSelections.removeValue(forKey: collection.id)
-                }
-                // Toggle collection directly (welcome dialog moved to drawer's launcher tab)
-                Task {
-                    await kanataManager.toggleRuleCollection(collection.id, enabled: isOn)
-                    // Clear optimistic state after async completion to avoid stale values
-                    // racing against view model updates from conflict-resolution flows.
-                    pendingToggles.removeValue(forKey: collection.id)
-                }
+                handleCollectionToggle(collection: collection, isOn: isOn)
             },
             onEditMapping: nil,
             onDeleteMapping: nil,
@@ -328,6 +325,84 @@ struct RulesTabView: View {
 
     private func packForCollection(_ collection: RuleCollection) -> Pack? {
         PackRegistry.starterKit.first { $0.associatedCollectionID == collection.id }
+    }
+
+    // MARK: - Dependency-Aware Toggle
+
+    private func handleCollectionToggle(collection: RuleCollection, isOn: Bool) {
+        let pack = packForCollection(collection)
+
+        if isOn, let pack {
+            // Check for unmet dependencies before enabling
+            let unmet = PackDependencyChecker.unmetRequirements(
+                for: pack.id,
+                enabledCollections: kanataManager.ruleCollections,
+                installedPackIDs: []
+            )
+
+            if !unmet.isEmpty {
+                // Auto-resolvable: all unmet deps just need to be enabled
+                let allAutoResolvable = unmet.allSatisfy { $0.reason == .notEnabled }
+
+                if allAutoResolvable {
+                    // Auto-enable dependencies and the pack
+                    pendingToggles[collection.id] = true
+                    Task {
+                        for dep in unmet {
+                            if let depPack = PackRegistry.pack(id: dep.dependency.packID),
+                               let depCollectionID = depPack.associatedCollectionID
+                            {
+                                await kanataManager.toggleRuleCollection(depCollectionID, enabled: true)
+                            }
+                        }
+                        await kanataManager.toggleRuleCollection(collection.id, enabled: true)
+                        pendingToggles.removeValue(forKey: collection.id)
+                        refreshUnmetDependencies()
+                        let depNames = unmet.map { PackRegistry.pack(id: $0.dependency.packID)?.name ?? $0.dependency.packID }
+                        settingsToastManager.showSuccess("Also enabled \(depNames.joined(separator: ", "))")
+                    }
+                    return
+                } else {
+                    // Config mismatch — show dialog
+                    pendingEnablePack = pack
+                    pendingEnableUnmetDeps = unmet
+                    return
+                }
+            }
+        }
+
+        if !isOn, let pack {
+            // Check if other enabled packs depend on this one
+            let dependents = PackDependencyChecker.dependents(
+                of: pack.id,
+                enabledCollections: kanataManager.ruleCollections,
+                installedPackIDs: []
+            )
+
+            if !dependents.isEmpty {
+                pendingDisablePack = pack
+                pendingDisableDependents = dependents
+                return
+            }
+        }
+
+        // No dependency issues — toggle directly
+        pendingToggles[collection.id] = isOn
+        if !isOn {
+            pendingSelections.removeValue(forKey: collection.id)
+        }
+        Task {
+            await kanataManager.toggleRuleCollection(collection.id, enabled: isOn)
+            pendingToggles.removeValue(forKey: collection.id)
+            refreshUnmetDependencies()
+        }
+    }
+
+    private func refreshUnmetDependencies() {
+        unmetDependencyMap = PackDependencyChecker.allUnmetRequirements(
+            enabledCollections: kanataManager.ruleCollections,
+            installedPackIDs: []
+        )
     }
 
     private func availableHomeRowLayers(for _: RuleCollection) -> [String] {
@@ -683,6 +758,59 @@ struct RulesTabView: View {
                 A safety backup will be stored in ~/.config/keypath/.backups.
                 """
             )
+        }
+        // Dependency: config mismatch dialog (can't auto-resolve)
+        .alert("Missing Configuration", isPresented: Binding(
+            get: { pendingEnablePack != nil },
+            set: { if !$0 { pendingEnablePack = nil; pendingEnableUnmetDeps = [] } }
+        )) {
+            if let depPackID = pendingEnableUnmetDeps.first?.dependency.packID,
+               let depPack = PackRegistry.pack(id: depPackID)
+            {
+                Button("Open \(depPack.name)") {
+                    PackDetailWindowController.shared.showWindow(pack: depPack, kanataManager: kanataManager)
+                    pendingEnablePack = nil
+                    pendingEnableUnmetDeps = []
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                pendingEnablePack = nil
+                pendingEnableUnmetDeps = []
+            }
+        } message: {
+            if let pack = pendingEnablePack, let dep = pendingEnableUnmetDeps.first {
+                Text("\(pack.name) needs \(PackRegistry.pack(id: dep.dependency.packID)?.name ?? dep.dependency.packID): \(dep.dependency.description)")
+            }
+        }
+        // Dependency: disable warning dialog
+        .alert("Other Rules Depend on This", isPresented: Binding(
+            get: { pendingDisablePack != nil },
+            set: { if !$0 { pendingDisablePack = nil; pendingDisableDependents = [] } }
+        )) {
+            Button("Disable Anyway", role: .destructive) {
+                if let pack = pendingDisablePack,
+                   let collectionID = pack.associatedCollectionID
+                {
+                    pendingToggles[collectionID] = false
+                    Task {
+                        await kanataManager.toggleRuleCollection(collectionID, enabled: false)
+                        pendingToggles.removeValue(forKey: collectionID)
+                        refreshUnmetDependencies()
+                    }
+                }
+                pendingDisablePack = nil
+                pendingDisableDependents = []
+            }
+            Button("Cancel", role: .cancel) {
+                pendingDisablePack = nil
+                pendingDisableDependents = []
+            }
+        } message: {
+            let names = pendingDisableDependents.map(\.name).joined(separator: ", ")
+            Text("Disabling \(pendingDisablePack?.name ?? "") will affect: \(names)")
+        }
+        .onAppear {
+            refreshUnmetDependencies()
         }
     }
 
