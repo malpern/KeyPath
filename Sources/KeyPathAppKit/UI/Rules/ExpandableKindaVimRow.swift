@@ -63,13 +63,6 @@ struct ExpandableKindaVimRow: View {
                     }
 
                     Spacer(minLength: 0)
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.secondary)
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                        .animation(.easeInOut(duration: 0.2), value: isExpanded)
-                        .padding(.top, 4)
                 }
                 .contentShape(Rectangle())
             }
