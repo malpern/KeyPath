@@ -471,6 +471,11 @@ public enum PackRegistry {
                 configPredicate: .holdOutput("C-S-M-A-"),
                 description: "Hyper mode works best with Caps Lock Remap hold set to Hyper"
             ),
+            PackDependency(
+                packID: "com.keypath.pack.vim-navigation",
+                kind: .suggests,
+                description: "Required when using Leader → L activation mode"
+            ),
         ]
     )
 
@@ -499,7 +504,14 @@ public enum PackRegistry {
         iconSymbol: "hand.point.up.left",
         quickSettings: [],
         bindings: [],
-        associatedCollectionID: RuleCollectionIdentifier.leaderKey
+        associatedCollectionID: RuleCollectionIdentifier.leaderKey,
+        dependencies: [
+            PackDependency(
+                packID: "com.keypath.pack.vim-navigation",
+                kind: .suggests,
+                description: "Leader Key sets which key activates the nav layer — needs a nav provider like Vim Navigation"
+            ),
+        ]
     )
 
     // MARK: - Pack 15: KindaVim (visual-only companion)
