@@ -180,54 +180,6 @@ final class ScenarioSnapshotTests: ScreenshotTestCase {
 
     // MARK: - Pack Card Scenarios
 
-    func testPackCard_NotInstalled() {
-        guard let pack = PackRegistry.pack(id: "com.keypath.pack.caps-lock-to-escape") else {
-            return XCTFail("Pack not found")
-        }
-        let view = PackCardView(
-            pack: pack,
-            isInstalled: false,
-            onSelect: {}
-        )
-        assertScreenshot(of: view, size: SnapshotSize.card, named: "pack-card-not-installed")
-    }
-
-    func testPackCard_Installed() {
-        guard let pack = PackRegistry.pack(id: "com.keypath.pack.caps-lock-to-escape") else {
-            return XCTFail("Pack not found")
-        }
-        let view = PackCardView(
-            pack: pack,
-            isInstalled: true,
-            onSelect: {}
-        )
-        assertScreenshot(of: view, size: SnapshotSize.card, named: "pack-card-installed")
-    }
-
-    func testPackCard_HomeRowMods() {
-        guard let pack = PackRegistry.pack(id: "com.keypath.pack.home-row-mods") else {
-            return XCTFail("Pack not found")
-        }
-        let view = PackCardView(
-            pack: pack,
-            isInstalled: false,
-            onSelect: {}
-        )
-        assertScreenshot(of: view, size: SnapshotSize.card, named: "pack-card-hrm")
-    }
-
-    func testPackCard_VimNavigation() {
-        guard let pack = PackRegistry.pack(id: "com.keypath.pack.vim-navigation") else {
-            return XCTFail("Pack not found")
-        }
-        let view = PackCardView(
-            pack: pack,
-            isInstalled: true,
-            onSelect: {}
-        )
-        assertScreenshot(of: view, size: SnapshotSize.card, named: "pack-card-vim-installed")
-    }
-
     // MARK: - Overlay with Tap-Hold Idle Labels
 
     func testOverlay_WithTapHoldIdleLabels() {

@@ -657,14 +657,7 @@ struct OverlayMapperSection: View {
                 }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .sheet(item: $packForDetail) { pack in
-            if let vm = kanataViewModel {
-                PackDetailView(pack: pack).environment(vm)
-            }
-        }
     }
-
-    @State private var packForDetail: Pack?
 
     private var currentInputKanataToken: String? {
         viewModel.inputSequence?.keys.first?.baseKey.lowercased()
@@ -680,7 +673,11 @@ struct OverlayMapperSection: View {
         if !packSuggestions.isEmpty {
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(packSuggestions) { pack in
-                    Button { packForDetail = pack } label: {
+                    Button {
+                        if let vm = kanataViewModel {
+                            PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: vm)
+                        }
+                    } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "lightbulb.min")
                                 .font(.system(size: 11))

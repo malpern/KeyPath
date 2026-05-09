@@ -108,19 +108,19 @@ struct PackDetailView: View {
             // in the overlay inspector) — it gives users a way to jump to
             // the full list instead of just dismissing the sheet.
             HStack {
-                Button(action: { openGalleryWindow() }) {
+                Button(action: { PackDetailWindowController.shared.closeWindow() }) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 10, weight: .semibold))
-                        Text("Gallery")
+                        Text("All Rules")
                             .font(.system(size: 12, weight: .medium))
                     }
                     .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
                 .focusable(false)
-                .accessibilityLabel("Open Gallery")
-                .accessibilityIdentifier("pack-detail-open-gallery")
+                .accessibilityLabel("Close and return to rules")
+                .accessibilityIdentifier("pack-detail-close")
                 Spacer()
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")

@@ -129,11 +129,6 @@ struct AppMenuCommands: Commands {
             }
             .keyboardShortcut("m", modifiers: [.command, .shift])
 
-            Button("Gallery…") {
-                GalleryWindowController.shared.showWindow(kanataManager: viewModel)
-            }
-            .keyboardShortcut("g", modifiers: [.command, .shift])
-
             Divider()
 
             Button("Stop KeyPath Runtime...") {

@@ -27,13 +27,6 @@ extension PackDetailView {
     }
 
     /// Dismiss this sheet and bring the Gallery window forward. Works
-    /// whether Pack Detail was opened from the Gallery itself (no-op
-    /// beyond dismiss) or from another surface like the Suggested banner.
-    func openGalleryWindow() {
-        dismiss()
-        GalleryWindowController.shared.showWindow(kanataManager: kanataManager)
-    }
-
     func loadDefaultQuickSettings() {
         for setting in pack.quickSettings {
             if quickSettingValues[setting.id] == nil,

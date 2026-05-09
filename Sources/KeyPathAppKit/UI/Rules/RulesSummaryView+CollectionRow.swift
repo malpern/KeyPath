@@ -22,6 +22,7 @@ struct ExpandableCollectionRow: View {
     var onEditAppRule: ((AppKeymap, AppKeyOverride) -> Void)?
     var showZeroState: Bool = false
     var onCreateFirstRule: (() -> Void)?
+    var onTapRow: (() -> Void)?
     var description: String?
     var layerActivator: MomentaryActivator?
     /// Current leader key display name for layer-based collections
@@ -204,16 +205,18 @@ private var fallbackKeyMappings: [KeyMapping] {
 
     private var headerButtonView: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Left side: Clickable area for expansion
+            // Left side: Clickable area — opens detail window or expands inline
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isExpanded.toggle()
-                    // Auto-scroll to show expanded content
-                    if isExpanded, let id = scrollID, let proxy = scrollProxy {
-                        // Delay slightly to allow expansion animation to begin
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                proxy.scrollTo(id, anchor: .top)
+                if let onTapRow {
+                    onTapRow()
+                } else {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded.toggle()
+                        if isExpanded, let id = scrollID, let proxy = scrollProxy {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    proxy.scrollTo(id, anchor: .top)
+                                }
                             }
                         }
                     }

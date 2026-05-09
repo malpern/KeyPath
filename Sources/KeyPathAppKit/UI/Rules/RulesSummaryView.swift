@@ -232,6 +232,9 @@ struct RulesTabView: View {
             },
             onEditMapping: nil,
             onDeleteMapping: nil,
+            onTapRow: packForCollection(collection).map { pack in
+                { PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: kanataManager) }
+            },
             description: dynamicCollectionDescription(for: collection),
             layerActivator: collection.momentaryActivator,
             leaderKeyDisplay: currentLeaderKeyDisplay,
@@ -314,6 +317,17 @@ struct RulesTabView: View {
             scrollID: "collection-\(collection.id.uuidString)",
             scrollProxy: scrollProxy
         )
+        .overlay(
+            // Orange border for collections that need a Pack Detail view built
+            packForCollection(collection) == nil && !collection.isSystemDefault
+                ? RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(Color.orange.opacity(0.35), lineWidth: 1.5)
+                : nil
+        )
+    }
+
+    private func packForCollection(_ collection: RuleCollection) -> Pack? {
+        PackRegistry.starterKit.first { $0.associatedCollectionID == collection.id }
     }
 
     private func availableHomeRowLayers(for _: RuleCollection) -> [String] {
@@ -383,9 +397,13 @@ struct RulesTabView: View {
                             RecommendedRulesSection(
                                 recommendations: recommendationCollections,
                                 onReview: { collection in
-                                    recommendationFocusCollectionId = collection.id
-                                    withAnimation(.easeInOut(duration: 0.25)) {
-                                        scrollProxy.scrollTo("collection-\(collection.id.uuidString)", anchor: .top)
+                                    if let pack = packForCollection(collection) {
+                                        PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: kanataManager)
+                                    } else {
+                                        recommendationFocusCollectionId = collection.id
+                                        withAnimation(.easeInOut(duration: 0.25)) {
+                                            scrollProxy.scrollTo("collection-\(collection.id.uuidString)", anchor: .top)
+                                        }
                                     }
                                 }
                             )
@@ -743,6 +761,9 @@ struct RulesTabView: View {
                             try? await InstalledPackTracker.shared.remove(packID: pack.id)
                         }
                     }
+                },
+                onTapRow: {
+                    PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: kanataManager)
                 }
             )
         }
