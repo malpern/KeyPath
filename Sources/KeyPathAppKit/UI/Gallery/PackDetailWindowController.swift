@@ -80,8 +80,9 @@ final class PackDetailWindowController: NSObject {
         if widePacks.contains(pack.id) { return 760 }
 
         // Medium: packs with sliders, grids, or multi-key editors
+        if pack.id == "com.keypath.pack.home-row-mods" { return 860 }
+
         let mediumPacks: Set<String> = [
-            "com.keypath.pack.home-row-mods",
             "com.keypath.pack.auto-shift-symbols",
             "com.keypath.pack.quick-launcher",
         ]
