@@ -29,6 +29,7 @@ struct BehaviorSlotKeycap: View {
     let isConfigured: Bool
     let isRecording: Bool
     let slotName: String // e.g., "Hold", "Double Tap"
+    var fadeAmount: CGFloat = 0
     let onTap: () -> Void
     let onClear: () -> Void
 
@@ -41,13 +42,12 @@ struct BehaviorSlotKeycap: View {
     var body: some View {
         ZStack {
             if !isConfigured, !isRecording {
-                // Not configured: show inviting "+" placeholder
                 emptyStateView
             } else {
-                // Configured or recording: show keycap with label
                 configuredStateView
             }
         }
+        .modifier(TextGlowModifier(fadeAmount: fadeAmount))
         .frame(width: baseSize, height: baseSize)
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
@@ -195,6 +195,7 @@ struct MapperKeycapView: View {
     var appInfo: AppLaunchInfo?
     var systemActionInfo: SystemActionInfo?
     var urlFavicon: NSImage?
+    var fadeAmount: CGFloat = 0
     let onTap: () -> Void
 
     @State private var isHovered = false
@@ -364,6 +365,7 @@ struct MapperKeycapView: View {
                     .minimumScaleFactor(minFontSize / outputFontSize)
             }
         }
+        .modifier(TextGlowModifier(fadeAmount: fadeAmount))
         .frame(width: (appInfo != nil || urlFavicon != nil) ? 120 : keycapWidth, height: (appInfo != nil || urlFavicon != nil) ? 100 : keycapHeight)
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)

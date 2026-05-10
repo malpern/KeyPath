@@ -605,6 +605,7 @@ struct OverlayMapperSection: View {
                                     appInfo: selectedTapOutputMode == .default ? viewModel.selectedApp : nil,
                                     systemActionInfo: selectedTapOutputMode == .default ? viewModel.selectedSystemAction : nil,
                                     urlFavicon: selectedTapOutputMode == .default ? viewModel.selectedURLFavicon : nil,
+                                    fadeAmount: fadeAmount,
                                     onTap: { toggleRecordingForCurrentSlot() }
                                 )
                             } else {
@@ -616,6 +617,7 @@ struct OverlayMapperSection: View {
                                     isConfigured: currentSlotIsConfigured,
                                     isRecording: isRecordingForCurrentSlot,
                                     slotName: slotName,
+                                    fadeAmount: fadeAmount,
                                     onTap: { toggleRecordingForCurrentSlot() },
                                     onClear: { clearCurrentSlot() }
                                 )
