@@ -320,30 +320,37 @@ class KanataViewModel {
 
     func updateCollectionOutput(_ id: UUID, output: String) async {
         await manager.updateCollectionOutput(id: id, output: output)
+        ruleCollections = manager.rulesManager.ruleCollections
     }
 
     func updateCollectionTapOutput(_ id: UUID, tapOutput: String) async {
         await manager.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
+        ruleCollections = manager.rulesManager.ruleCollections
     }
 
     func updateCollectionHoldOutput(_ id: UUID, holdOutput: String) async {
         await manager.updateCollectionHoldOutput(id: id, holdOutput: holdOutput)
+        ruleCollections = manager.rulesManager.ruleCollections
     }
 
     func updateCollectionLayerPreset(_ id: UUID, presetId: String) async {
         await manager.updateCollectionLayerPreset(id, presetId: presetId)
+        ruleCollections = manager.rulesManager.ruleCollections
     }
 
     func updateWindowKeyConvention(_ id: UUID, convention: WindowKeyConvention) async {
         await manager.updateWindowKeyConvention(id, convention: convention)
+        ruleCollections = manager.rulesManager.ruleCollections
     }
 
     func updateFunctionKeyMode(_ id: UUID, mode: FunctionKeyMode) async {
         await manager.updateFunctionKeyMode(id, mode: mode)
+        ruleCollections = manager.rulesManager.ruleCollections
     }
 
     func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async {
         let wasNewlyEnabled = await manager.updateHomeRowModsConfig(collectionId: collectionId, config: config)
+        ruleCollections = manager.rulesManager.ruleCollections
         if wasNewlyEnabled {
             let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
             showToast("Turned on \(name)", type: .success)
@@ -352,6 +359,7 @@ class KanataViewModel {
 
     func updateHomeRowLayerTogglesConfig(collectionId: UUID, config: HomeRowLayerTogglesConfig) async {
         let wasNewlyEnabled = await manager.updateHomeRowLayerTogglesConfig(collectionId: collectionId, config: config)
+        ruleCollections = manager.rulesManager.ruleCollections
         if wasNewlyEnabled {
             let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
             showToast("Turned on \(name)", type: .success)
@@ -360,6 +368,7 @@ class KanataViewModel {
 
     func updateChordGroupsConfig(collectionId: UUID, config: ChordGroupsConfig) async {
         let wasNewlyEnabled = await manager.updateChordGroupsConfig(collectionId: collectionId, config: config)
+        ruleCollections = manager.rulesManager.ruleCollections
         if wasNewlyEnabled {
             let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
             showToast("Turned on \(name)", type: .success)
@@ -368,6 +377,7 @@ class KanataViewModel {
 
     func updateSequencesConfig(collectionId: UUID, config: SequencesConfig) async {
         let wasNewlyEnabled = await manager.updateSequencesConfig(collectionId: collectionId, config: config)
+        ruleCollections = manager.rulesManager.ruleCollections
         if wasNewlyEnabled {
             let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
             showToast("Turned on \(name)", type: .success)
