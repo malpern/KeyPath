@@ -1,10 +1,10 @@
 import AppKit
 import SwiftUI
 
-/// Drawer view showing the list of launcher mappings.
+/// Grid view showing launcher mappings as cards.
 ///
-/// Displays apps and websites in separate sections.
-/// Clicking a mapping highlights the corresponding key on the keyboard.
+/// Displays mappings in a multi-column grid with large icons and key badges.
+/// Clicking a card opens the editor for that mapping.
 struct LauncherDrawerView: View {
     @Binding var config: LauncherGridConfig
     @Binding var selectedKey: String?
@@ -12,130 +12,70 @@ struct LauncherDrawerView: View {
     var onEditMapping: (LauncherMapping) -> Void
     var onDeleteMapping: (UUID) -> Void
 
-    /// App mappings (sorted by key)
-    private var appMappings: [LauncherMapping] {
-        config.mappings
-            .filter(\.target.isApp)
-            .sorted { $0.key < $1.key }
+    private var sortedMappings: [LauncherMapping] {
+        config.mappings.sorted { $0.key < $1.key }
     }
 
-    /// Website mappings (sorted by key)
-    private var websiteMappings: [LauncherMapping] {
-        config.mappings
-            .filter(\.target.isURL)
-            .sorted { $0.key < $1.key }
-    }
-
-    /// Folder mappings (sorted by key)
-    private var folderMappings: [LauncherMapping] {
-        config.mappings
-            .filter(\.target.isFolder)
-            .sorted { $0.key < $1.key }
-    }
-
-    /// Script mappings (sorted by key)
-    private var scriptMappings: [LauncherMapping] {
-        config.mappings
-            .filter(\.target.isScript)
-            .sorted { $0.key < $1.key }
-    }
+    private let columns = [
+        GridItem(.adaptive(minimum: 250, maximum: 340), spacing: 10),
+    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
-            HStack {
-                Text("Launchers")
+            HStack(spacing: 8) {
+                Text("Mappings")
                     .font(.headline)
-                Spacer()
                 Text("\(config.mappings.count)")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(
-                        Capsule()
-                            .fill(Color.secondary.opacity(0.2))
-                    )
+                    .background(Capsule().fill(Color.secondary.opacity(0.2)))
+                Spacer()
+                Button(action: onAddMapping) {
+                    Label("Add Mapping", systemImage: "plus")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityIdentifier("launcher-drawer-add-button")
+                Menu {
+                    Button("Reset to Defaults") { config = LauncherGridConfig.defaultConfig }
+                    Divider()
+                    Button("Clear All", role: .destructive) { config.mappings.removeAll() }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .menuStyle(.borderlessButton)
+                .accessibilityIdentifier("launcher-drawer-menu-button")
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 16)
             .padding(.vertical, 10)
 
             Divider()
 
-            // Scrollable content
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Apps section
-                    if !appMappings.isEmpty {
-                        sectionHeader("Apps", count: appMappings.count)
-                        mappingsList(appMappings)
+            if config.mappings.isEmpty {
+                emptyState
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 10) {
+                        ForEach(sortedMappings) { mapping in
+                            LauncherMappingCard(
+                                mapping: mapping,
+                                isSelected: selectedKey?.lowercased() == mapping.key.lowercased(),
+                                onEdit: {
+                                    selectedKey = mapping.key
+                                    onEditMapping(mapping)
+                                },
+                                onDelete: { onDeleteMapping(mapping.id) }
+                            )
+                        }
                     }
-
-                    // Websites section
-                    if !websiteMappings.isEmpty {
-                        sectionHeader("Websites", count: websiteMappings.count)
-                        mappingsList(websiteMappings)
-                    }
-
-                    // Folders section
-                    if !folderMappings.isEmpty {
-                        sectionHeader("Folders", count: folderMappings.count)
-                        mappingsList(folderMappings)
-                    }
-
-                    // Scripts section
-                    if !scriptMappings.isEmpty {
-                        sectionHeader("Scripts", count: scriptMappings.count)
-                        mappingsList(scriptMappings)
-                    }
-
-                    // Empty state
-                    if config.mappings.isEmpty {
-                        emptyState
-                    }
+                    .padding(12)
                 }
-                .padding(12)
             }
-
-            Divider()
-
-            // Action buttons
-            actionButtons
         }
         .background(Color(NSColor.controlBackgroundColor))
-    }
-
-    // MARK: - Section Header
-
-    private func sectionHeader(_ title: String, count _: Int) -> some View {
-        HStack {
-            Text(title)
-                .font(.subheadline.weight(.medium))
-                .foregroundColor(.secondary)
-            Spacer()
-        }
-    }
-
-    // MARK: - Mappings List
-
-    private func mappingsList(_ mappings: [LauncherMapping]) -> some View {
-        VStack(spacing: 6) {
-            ForEach(mappings) { mapping in
-                DrawerMappingRow(
-                    mapping: mapping,
-                    isSelected: selectedKey?.lowercased() == mapping.key.lowercased(),
-                    onSelect: {
-                        selectedKey = mapping.key
-                    },
-                    onEdit: {
-                        onEditMapping(mapping)
-                    },
-                    onDelete: {
-                        onDeleteMapping(mapping.id)
-                    }
-                )
-            }
-        }
     }
 
     // MARK: - Empty State
@@ -148,52 +88,21 @@ struct LauncherDrawerView: View {
             Text("No launchers configured")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-            Text("Click a key or use \"Add\" to create shortcuts")
+            Text("Click a key above or tap \"Add Mapping\"")
                 .font(.caption)
                 .foregroundColor(.secondary.opacity(0.8))
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-    }
-
-    // MARK: - Action Buttons
-
-    private var actionButtons: some View {
-        HStack(spacing: 8) {
-            Button(action: onAddMapping) {
-                Label("Add", systemImage: "plus")
-            }
-            .buttonStyle(.bordered)
-            .accessibilityIdentifier("launcher-drawer-add-button")
-
-            Spacer()
-
-            Menu {
-                Button("Reset to Defaults") {
-                    config = LauncherGridConfig.defaultConfig
-                }
-                Divider()
-                Button("Clear All", role: .destructive) {
-                    config.mappings.removeAll()
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .menuStyle(.borderlessButton)
-            .accessibilityIdentifier("launcher-drawer-menu-button")
-        }
-        .padding(12)
+        .padding(.vertical, 40)
     }
 }
 
-// MARK: - Drawer Mapping Row
+// MARK: - Mapping Card
 
-/// Individual row in the drawer for a launcher mapping.
-private struct DrawerMappingRow: View {
+private struct LauncherMappingCard: View {
     let mapping: LauncherMapping
     let isSelected: Bool
-    var onSelect: () -> Void
     var onEdit: () -> Void
     var onDelete: () -> Void
 
@@ -211,101 +120,117 @@ private struct DrawerMappingRow: View {
         keyTranslator.displayLabel(for: mapping.key)
     }
 
+    private var typeLabel: String {
+        switch mapping.target {
+        case .app: "App"
+        case .url: "Website"
+        case .folder: "Folder"
+        case .script: "Script"
+        }
+    }
+
     var body: some View {
-        HStack(spacing: 10) {
-            // Icon
-            Group {
-                if let icon {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 24, height: 24)
-                        .clipShape(RoundedRectangle(cornerRadius: 5))
-                } else {
-                    Image(systemName: fallbackIconName)
-                        .frame(width: 24, height: 24)
-                        .foregroundColor(.secondary)
+        HStack(spacing: 12) {
+            iconView
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(mapping.target.displayName)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(1)
+                    .foregroundColor(mapping.isEnabled ? .primary : .secondary)
+
+                HStack(spacing: 4) {
+                    Image(systemName: typeIconName)
+                        .font(.system(size: 9))
+                    Text(typeLabel)
+                        .font(.caption2)
+                    if !mapping.isEnabled {
+                        Text("· Disabled")
+                            .font(.caption2)
+                    }
                 }
+                .foregroundColor(.secondary)
             }
 
-            // Key badge
+            Spacer(minLength: 4)
+
             Text(displayKey.uppercased())
-                .font(.footnote.monospaced().weight(.bold))
+                .font(.system(size: 14, weight: .bold, design: .monospaced))
                 .foregroundColor(.white)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
+                .frame(minWidth: 28)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
                 .background(
-                    RoundedRectangle(cornerRadius: 4)
+                    RoundedRectangle(cornerRadius: 6)
                         .fill(Color.accentColor)
                 )
-
-            // Target name
-            Text(mapping.target.displayName)
-                .font(.subheadline)
-                .lineLimit(1)
-                .foregroundColor(mapping.isEnabled ? .primary : .secondary)
-
-            Spacer()
-
-            // Disabled indicator
-            if !mapping.isEnabled {
-                Image(systemName: "eye.slash")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 10)
                 .fill(backgroundColor)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 10)
                 .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
         )
         .contentShape(Rectangle())
-        .onTapGesture {
-            onSelect()
-        }
-        .onHover { hovering in
-            isHovering = hovering
-        }
+        .onTapGesture { onEdit() }
+        .onHover { isHovering = $0 }
         .contextMenu {
             Button("Edit") { onEdit() }
             Divider()
             Button("Delete", role: .destructive) { onDelete() }
         }
-        .accessibilityIdentifier("launcher-drawer-row-\(mapping.key)")
+        .accessibilityIdentifier("launcher-card-\(mapping.key)")
         .accessibilityLabel("\(mapping.target.displayName), key \(displayKey)")
-        .task {
-            await loadIcon()
+        .task { await loadIcon() }
+    }
+
+    // MARK: - Icon
+
+    @ViewBuilder
+    private var iconView: some View {
+        if let icon {
+            Image(nsImage: icon)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
+        } else {
+            Image(systemName: typeIconName)
+                .font(.system(size: 20))
+                .foregroundColor(.secondary)
+                .frame(width: 44, height: 44)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.secondary.opacity(0.12))
+                )
         }
     }
 
     private var backgroundColor: Color {
         if isSelected {
-            Color.accentColor.opacity(0.15)
+            Color.accentColor.opacity(0.12)
         } else if isHovering {
-            Color.primary.opacity(0.05)
+            Color.primary.opacity(0.06)
         } else {
-            Color.clear
+            Color(NSColor.controlBackgroundColor).opacity(0.8)
         }
     }
 
     private func loadIcon() async {
         switch mapping.target {
-        case .app:
+        case .app, .folder, .script:
             icon = AppIconResolver.icon(for: mapping.target)
         case let .url(urlString):
             icon = await services.faviconFetcher.fetchFavicon(for: urlString)
-        case .folder, .script:
-            icon = AppIconResolver.icon(for: mapping.target)
         }
     }
 
-    /// Fallback SF Symbol name based on target type
-    private var fallbackIconName: String {
+    private var typeIconName: String {
         switch mapping.target {
         case .app: "app.fill"
         case .url: "globe"
@@ -317,7 +242,7 @@ private struct DrawerMappingRow: View {
 
 // MARK: - Preview
 
-#Preview("Launcher Drawer") {
+#Preview("Launcher Grid") {
     LauncherDrawerView(
         config: .constant(LauncherGridConfig.defaultConfig),
         selectedKey: .constant("s"),
@@ -325,10 +250,10 @@ private struct DrawerMappingRow: View {
         onEditMapping: { _ in },
         onDeleteMapping: { _ in }
     )
-    .frame(width: 280, height: 500)
+    .frame(width: 900, height: 400)
 }
 
-#Preview("Launcher Drawer - Empty") {
+#Preview("Launcher Grid - Empty") {
     LauncherDrawerView(
         config: .constant(LauncherGridConfig(activationMode: .holdHyper, mappings: [])),
         selectedKey: .constant(nil),
@@ -336,5 +261,5 @@ private struct DrawerMappingRow: View {
         onEditMapping: { _ in },
         onDeleteMapping: { _ in }
     )
-    .frame(width: 280, height: 420)
+    .frame(width: 900, height: 300)
 }

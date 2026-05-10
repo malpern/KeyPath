@@ -141,9 +141,6 @@ extension LiveKeyboardOverlayView {
             },
             onCreateNewAppRule: {
                 inspectorSection = .mapper
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    NotificationCenter.default.post(name: .openMapperAppConditionPicker, object: nil)
-                }
             },
             onRuleHover: onRuleHover
         )

@@ -33,6 +33,7 @@ struct OverlayMapperSection: View {
     @State var newLayerName = ""
     @State var isHoldVariantPopoverOpen = false
     @State var showMultiTapSlideOver = false
+    @State private var popoverDismissMonitor: Any?
     /// Currently selected layer for "Go to Layer" output
     @State var selectedLayerOutput: String?
     /// Selected tap count (1 = single, 2 = double, 3 = triple)
@@ -59,8 +60,7 @@ struct OverlayMapperSection: View {
 
             if isSystemActionPickerOpen {
                 ZStack {
-                    Color.black.opacity(0.01)
-                        .onTapGesture { isSystemActionPickerOpen = false }
+                    Color.clear
                     systemActionPopover
                         .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
                 }
@@ -70,8 +70,7 @@ struct OverlayMapperSection: View {
 
             if isAppConditionPickerOpen {
                 ZStack {
-                    Color.black.opacity(0.01)
-                        .onTapGesture { isAppConditionPickerOpen = false }
+                    Color.clear
                     appConditionPopover
                         .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
                 }
@@ -81,8 +80,7 @@ struct OverlayMapperSection: View {
 
             if isHoldVariantPopoverOpen {
                 ZStack {
-                    Color.black.opacity(0.01)
-                        .onTapGesture { isHoldVariantPopoverOpen = false }
+                    Color.clear
                     holdVariantPopover
                         .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
                 }
@@ -90,6 +88,49 @@ struct OverlayMapperSection: View {
                 .zIndex(999)
             }
         }
+        .onChange(of: anyPopoverOpen) { _, isOpen in
+            if isOpen {
+                installPopoverDismissMonitor()
+            } else {
+                removePopoverDismissMonitor()
+            }
+        }
+        .onDisappear {
+            removePopoverDismissMonitor()
+        }
+    }
+
+    private var anyPopoverOpen: Bool {
+        isSystemActionPickerOpen || isAppConditionPickerOpen || isHoldVariantPopoverOpen
+    }
+
+    private func installPopoverDismissMonitor() {
+        removePopoverDismissMonitor()
+        popoverDismissMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { event in
+            if event.type == .keyDown, event.keyCode == 53 {
+                dismissAllPopovers()
+                return nil
+            }
+            if event.type == .leftMouseDown || event.type == .rightMouseDown {
+                DispatchQueue.main.async {
+                    dismissAllPopovers()
+                }
+            }
+            return event
+        }
+    }
+
+    private func removePopoverDismissMonitor() {
+        if let monitor = popoverDismissMonitor {
+            NSEvent.removeMonitor(monitor)
+            popoverDismissMonitor = nil
+        }
+    }
+
+    private func dismissAllPopovers() {
+        isSystemActionPickerOpen = false
+        isAppConditionPickerOpen = false
+        isHoldVariantPopoverOpen = false
     }
 
     private var bodyView: some View {
@@ -513,7 +554,7 @@ struct OverlayMapperSection: View {
 
             // Custom keycap layout with labels on top
             GeometryReader { proxy in
-                let availableWidth = max(1, proxy.size.width)
+                let availableWidth = max(1, proxy.size.width - 8)
                 let keycapWidth: CGFloat = 100
                 let arrowWidth: CGFloat = 20
                 let spacing: CGFloat = 16
@@ -636,215 +677,8 @@ struct OverlayMapperSection: View {
             }
 
             Spacer(minLength: 0)
-
-            activeRulesFooter
-                .padding(.horizontal, 8)
-
-            packSuggestionsBanner
-                .padding(.bottom, 12)
-                .overlay(alignment: .top) {
-                    if let status = viewModel.statusMessage {
-                        Text(status)
-                            .font(.caption)
-                            .foregroundStyle(viewModel.statusIsError ? .red : (status.contains("✓") ? .green : .secondary))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(.ultraThinMaterial)
-                            )
-                            .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                            .animation(.easeOut(duration: 0.2), value: status)
-                            .offset(y: -24)
-                    }
-                }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: - Active Rules Footer
-
-    /// Enabled user-facing packs (excludes system defaults like macOS Function Keys)
-    private var enabledUserPacks: [Pack] {
-        guard let vm = kanataViewModel else { return [] }
-        let enabledIDs = Set(vm.ruleCollections.filter(\.isEnabled).map(\.id))
-        return PackRegistry.starterKit.filter { pack in
-            guard let collectionID = pack.associatedCollectionID else { return false }
-            guard !pack.visualOnly else { return false }
-            return enabledIDs.contains(collectionID)
-        }.filter { pack in
-            // Exclude system-default collections that aren't user-facing packs
-            let systemIDs: Set<String> = ["com.keypath.pack.leader-key"]
-            return !systemIDs.contains(pack.id)
-        }
-    }
-
-    /// Whether the user has customized beyond factory defaults
-    private var hasCustomizedRules: Bool {
-        let defaultEnabledIDs = Set(
-            RuleCollectionCatalog().defaultCollections()
-                .filter(\.isEnabled)
-                .map(\.id)
-        )
-        let currentEnabledIDs = Set(
-            (kanataViewModel?.ruleCollections ?? [])
-                .filter(\.isEnabled)
-                .map(\.id)
-        )
-        let hasCustomRules = !(kanataViewModel?.customRules.isEmpty ?? true)
-        return currentEnabledIDs != defaultEnabledIDs || hasCustomRules
-    }
-
-    @ViewBuilder
-    private var activeRulesFooter: some View {
-        let packs = enabledUserPacks
-        let remaining = PackRegistry.starterKit.count - packs.count
-
-        VStack(alignment: .leading, spacing: 6) {
-            if !packs.isEmpty {
-                Text("Active Rules")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.5)
-
-                FlowLayout(spacing: 4) {
-                    ForEach(packs) { pack in
-                        Button {
-                            if let vm = kanataViewModel {
-                                PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: vm)
-                            }
-                        } label: {
-                            Text(pack.name)
-                                .font(.system(size: 10))
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                        .fill(Color.primary.opacity(0.06))
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-
-            if packs.count < 5, remaining > 0 {
-                // Prominent merchandising card
-                Button {
-                    NotificationCenter.default.post(name: .openSettingsRules, object: nil)
-                } label: {
-                    VStack(spacing: 8) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(Color.accentColor.opacity(0.08))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .strokeBorder(Color.accentColor.opacity(0.15), lineWidth: 0.5)
-                                )
-
-                            HStack(spacing: 6) {
-                                Image(systemName: "keyboard")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundStyle(.tint)
-                                    .symbolRenderingMode(.hierarchical)
-                                Image(systemName: "arrow.right")
-                                    .font(.system(size: 8, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundStyle(.tint)
-                                    .symbolRenderingMode(.hierarchical)
-                            }
-                        }
-                        .frame(height: 48)
-
-                        VStack(spacing: 2) {
-                            Text("\(remaining) more rules")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.primary)
-                            Text("Shortcuts, layers, window management")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color(NSColor.controlBackgroundColor).opacity(0.4))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
-                    )
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 4)
-            } else if remaining > 0 {
-                // Compact link
-                Button {
-                    NotificationCenter.default.post(name: .openSettingsRules, object: nil)
-                } label: {
-                    Text("All rules →")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color.accentColor)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.vertical, 8)
-    }
-
-    private var currentInputKanataToken: String? {
-        viewModel.inputSequence?.keys.first?.baseKey.lowercased()
-    }
-
-    private var packSuggestions: [Pack] {
-        guard let token = currentInputKanataToken else { return [] }
-        return PackRegistry.packsTargeting(kanataKey: token)
-    }
-
-    @ViewBuilder
-    private var packSuggestionsBanner: some View {
-        if !packSuggestions.isEmpty {
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(packSuggestions) { pack in
-                    Button {
-                        if let vm = kanataViewModel {
-                            PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: vm)
-                        }
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "lightbulb.min")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.white)
-                            Text(pack.name)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.primary)
-                            Spacer(minLength: 0)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(Color.accentColor.opacity(0.08))
-                        )
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .help(pack.tagline)
-                    .accessibilityIdentifier("overlay-pack-suggestion-\(pack.id)")
-                }
-            }
-            .padding(.top, 2)
-            .padding(.leading, 4)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
     }
 
     private var multiTapPanelContent: some View {
