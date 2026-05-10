@@ -47,7 +47,6 @@ struct BehaviorSlotKeycap: View {
                 configuredStateView
             }
         }
-        .modifier(TextGlowModifier(fadeAmount: fadeAmount))
         .frame(width: baseSize, height: baseSize)
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
@@ -104,27 +103,27 @@ struct BehaviorSlotKeycap: View {
                         .stroke(borderColor, lineWidth: isRecording ? 2 : 1)
                 )
 
-            // Key label - show "..." when recording, otherwise show configured action
-            if isRecording {
-                // Recording mode: show "..." placeholder
-                Text("...")
-                    .font(.system(size: 42, weight: .medium))
-                    .foregroundStyle(foregroundColor)
-            } else if let shiftSymbol = LabelMetadata.forLabel(label).shiftSymbol {
-                // Dual symbol key (numbers, punctuation): shift symbol above, main below
-                VStack(spacing: 6) {
-                    Text(shiftSymbol)
-                        .font(.system(size: 28, weight: .light))
-                        .foregroundStyle(foregroundColor.opacity(0.6))
-                    Text(label.uppercased())
+            Group {
+                if isRecording {
+                    Text("...")
+                        .font(.system(size: 42, weight: .medium))
+                        .foregroundStyle(foregroundColor)
+                } else if let shiftSymbol = LabelMetadata.forLabel(label).shiftSymbol {
+                    VStack(spacing: 6) {
+                        Text(shiftSymbol)
+                            .font(.system(size: 28, weight: .light))
+                            .foregroundStyle(foregroundColor.opacity(0.6))
+                        Text(label.uppercased())
+                            .font(.system(size: 42, weight: .medium))
+                            .foregroundStyle(foregroundColor)
+                    }
+                } else {
+                    Text(label)
                         .font(.system(size: 42, weight: .medium))
                         .foregroundStyle(foregroundColor)
                 }
-            } else {
-                Text(label)
-                    .font(.system(size: 42, weight: .medium))
-                    .foregroundStyle(foregroundColor)
             }
+            .modifier(TextGlowModifier(fadeAmount: fadeAmount))
 
             // Clear button (top-right) - only shown when configured (not while recording)
             if isConfigured, !isRecording {
@@ -298,74 +297,70 @@ struct MapperKeycapView: View {
 
             // Content: app icon + name, system action SF Symbol, or key label
             // All output types use outputFontSize for consistent emphasis
-            if let app = appInfo {
-                // App launch mode: show icon + name
-                VStack(spacing: 6) {
-                    Image(nsImage: app.icon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: outputFontSize * 1.3, height: outputFontSize * 1.3) // Scale with outputFontSize
-                        .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+            Group {
+                if let app = appInfo {
+                    VStack(spacing: 6) {
+                        Image(nsImage: app.icon)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: outputFontSize * 1.3, height: outputFontSize * 1.3)
+                            .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
 
-                    Text(app.name)
-                        .font(.system(size: 14, weight: .medium))
+                        Text(app.name)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(foregroundColor)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                } else if let systemAction = systemActionInfo {
+                    Image(systemName: systemAction.sfSymbol)
+                        .font(.system(size: outputFontSize, weight: .medium))
                         .foregroundStyle(foregroundColor)
-                        .lineLimit(1)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-            } else if let systemAction = systemActionInfo {
-                // System action mode: show SF Symbol
-                Image(systemName: systemAction.sfSymbol)
-                    .font(.system(size: outputFontSize, weight: .medium))
+                } else if let favicon = urlFavicon {
+                    VStack(spacing: 6) {
+                        Image(nsImage: favicon)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: outputFontSize * 1.1, height: outputFontSize * 1.1)
+                            .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+
+                        Text(label)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(foregroundColor)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                } else if label.lowercased() == "fn" {
+                    HStack(spacing: 8) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 28, weight: .regular))
+                        Text("fn")
+                            .font(.system(size: 24, weight: .regular))
+                    }
                     .foregroundStyle(foregroundColor)
-            } else if let favicon = urlFavicon {
-                // URL mode: show favicon + domain
-                VStack(spacing: 6) {
-                    Image(nsImage: favicon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: outputFontSize * 1.1, height: outputFontSize * 1.1)
-                        .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
-
-                    Text(label)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(foregroundColor)
-                        .lineLimit(1)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-            } else if label.lowercased() == "fn" {
-                // fn key: show globe SF Symbol + "fn" text like input keycap
-                HStack(spacing: 8) {
-                    Image(systemName: "globe")
-                        .font(.system(size: 28, weight: .regular))
-                    Text("fn")
-                        .font(.system(size: 24, weight: .regular))
-                }
-                .foregroundStyle(foregroundColor)
-            } else if let shiftSymbol = LabelMetadata.forLabel(label).shiftSymbol {
-                // Dual symbol key (numbers, punctuation): shift symbol above, main below
-                VStack(spacing: 6) {
-                    Text(shiftSymbol)
-                        .font(.system(size: 28, weight: .light))
-                        .foregroundStyle(foregroundColor.opacity(0.6))
-                    Text(label.uppercased())
+                } else if let shiftSymbol = LabelMetadata.forLabel(label).shiftSymbol {
+                    VStack(spacing: 6) {
+                        Text(shiftSymbol)
+                            .font(.system(size: 28, weight: .light))
+                            .foregroundStyle(foregroundColor.opacity(0.6))
+                        Text(label.uppercased())
+                            .font(.system(size: dynamicOutputFontSize, weight: .medium))
+                            .foregroundStyle(foregroundColor)
+                    }
+                } else {
+                    let displayLabel = LabelMetadata.forLabel(label).wordLabel ?? label
+                    Text(displayLabel)
                         .font(.system(size: dynamicOutputFontSize, weight: .medium))
                         .foregroundStyle(foregroundColor)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(2)
+                        .minimumScaleFactor(minFontSize / outputFontSize)
                 }
-            } else {
-                // Key label - use word label for special keys (e.g., ⎋ → "esc") to match overlay
-                let displayLabel = LabelMetadata.forLabel(label).wordLabel ?? label
-                Text(displayLabel)
-                    .font(.system(size: dynamicOutputFontSize, weight: .medium))
-                    .foregroundStyle(foregroundColor)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(2)
-                    .minimumScaleFactor(minFontSize / outputFontSize)
             }
+            .modifier(TextGlowModifier(fadeAmount: fadeAmount))
         }
-        .modifier(TextGlowModifier(fadeAmount: fadeAmount))
         .frame(width: (appInfo != nil || urlFavicon != nil) ? 120 : keycapWidth, height: (appInfo != nil || urlFavicon != nil) ? 100 : keycapHeight)
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
