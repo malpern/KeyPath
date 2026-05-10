@@ -65,11 +65,11 @@ struct PackDetailView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     descriptionBlock
-                    dependencySection
                     if !pack.quickSettings.isEmpty {
                         quickSettingsBlock
                     }
                     bindingsBlock
+                    dependencySection
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 20)
