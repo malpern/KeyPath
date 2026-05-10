@@ -33,6 +33,7 @@ struct OverlayMapperSection: View {
     @State var newLayerName = ""
     @State var isHoldVariantPopoverOpen = false
     @State var showMultiTapSlideOver = false
+    @State private var popoverDismissMonitor: Any?
     /// Currently selected layer for "Go to Layer" output
     @State var selectedLayerOutput: String?
     /// Selected tap count (1 = single, 2 = double, 3 = triple)
@@ -59,8 +60,7 @@ struct OverlayMapperSection: View {
 
             if isSystemActionPickerOpen {
                 ZStack {
-                    Color.black.opacity(0.01)
-                        .onTapGesture { isSystemActionPickerOpen = false }
+                    Color.clear
                     systemActionPopover
                         .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
                 }
@@ -70,8 +70,7 @@ struct OverlayMapperSection: View {
 
             if isAppConditionPickerOpen {
                 ZStack {
-                    Color.black.opacity(0.01)
-                        .onTapGesture { isAppConditionPickerOpen = false }
+                    Color.clear
                     appConditionPopover
                         .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
                 }
@@ -81,8 +80,7 @@ struct OverlayMapperSection: View {
 
             if isHoldVariantPopoverOpen {
                 ZStack {
-                    Color.black.opacity(0.01)
-                        .onTapGesture { isHoldVariantPopoverOpen = false }
+                    Color.clear
                     holdVariantPopover
                         .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
                 }
@@ -90,6 +88,49 @@ struct OverlayMapperSection: View {
                 .zIndex(999)
             }
         }
+        .onChange(of: anyPopoverOpen) { _, isOpen in
+            if isOpen {
+                installPopoverDismissMonitor()
+            } else {
+                removePopoverDismissMonitor()
+            }
+        }
+        .onDisappear {
+            removePopoverDismissMonitor()
+        }
+    }
+
+    private var anyPopoverOpen: Bool {
+        isSystemActionPickerOpen || isAppConditionPickerOpen || isHoldVariantPopoverOpen
+    }
+
+    private func installPopoverDismissMonitor() {
+        removePopoverDismissMonitor()
+        popoverDismissMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { event in
+            if event.type == .keyDown, event.keyCode == 53 {
+                dismissAllPopovers()
+                return nil
+            }
+            if event.type == .leftMouseDown || event.type == .rightMouseDown {
+                DispatchQueue.main.async {
+                    dismissAllPopovers()
+                }
+            }
+            return event
+        }
+    }
+
+    private func removePopoverDismissMonitor() {
+        if let monitor = popoverDismissMonitor {
+            NSEvent.removeMonitor(monitor)
+            popoverDismissMonitor = nil
+        }
+    }
+
+    private func dismissAllPopovers() {
+        isSystemActionPickerOpen = false
+        isAppConditionPickerOpen = false
+        isHoldVariantPopoverOpen = false
     }
 
     private var bodyView: some View {
@@ -513,7 +554,7 @@ struct OverlayMapperSection: View {
 
             // Custom keycap layout with labels on top
             GeometryReader { proxy in
-                let availableWidth = max(1, proxy.size.width)
+                let availableWidth = max(1, proxy.size.width - 8)
                 let keycapWidth: CGFloat = 100
                 let arrowWidth: CGFloat = 20
                 let spacing: CGFloat = 16
@@ -636,80 +677,8 @@ struct OverlayMapperSection: View {
             }
 
             Spacer(minLength: 0)
-
-            packSuggestionsBanner
-                .padding(.bottom, 12)
-                .overlay(alignment: .top) {
-                    if let status = viewModel.statusMessage {
-                        Text(status)
-                            .font(.caption)
-                            .foregroundStyle(viewModel.statusIsError ? .red : (status.contains("✓") ? .green : .secondary))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(.ultraThinMaterial)
-                            )
-                            .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                            .animation(.easeOut(duration: 0.2), value: status)
-                            .offset(y: -24)
-                    }
-                }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .sheet(item: $packForDetail) { pack in
-            if let vm = kanataViewModel {
-                PackDetailView(pack: pack).environment(vm)
-            }
-        }
-    }
-
-    @State private var packForDetail: Pack?
-
-    private var currentInputKanataToken: String? {
-        viewModel.inputSequence?.keys.first?.baseKey.lowercased()
-    }
-
-    private var packSuggestions: [Pack] {
-        guard let token = currentInputKanataToken else { return [] }
-        return PackRegistry.packsTargeting(kanataKey: token)
-    }
-
-    @ViewBuilder
-    private var packSuggestionsBanner: some View {
-        if !packSuggestions.isEmpty {
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(packSuggestions) { pack in
-                    Button { packForDetail = pack } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "lightbulb.min")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.white)
-                            Text(pack.name)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.primary)
-                            Spacer(minLength: 0)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(Color.accentColor.opacity(0.08))
-                        )
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .help(pack.tagline)
-                    .accessibilityIdentifier("overlay-pack-suggestion-\(pack.id)")
-                }
-            }
-            .padding(.top, 2)
-            .padding(.leading, 4)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
     }
 
     private var multiTapPanelContent: some View {

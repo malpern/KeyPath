@@ -66,6 +66,9 @@ public struct Pack: Identifiable, Equatable, Sendable {
     /// handles all key behavior and our pack only drives mode visualization).
     public let visualOnly: Bool
 
+    /// Dependencies on other packs (requires + suggests).
+    public let dependencies: [PackDependency]
+
     public init(
         id: String,
         version: String,
@@ -80,7 +83,8 @@ public struct Pack: Identifiable, Equatable, Sendable {
         quickSettings: [PackQuickSetting] = [],
         bindings: [PackBindingTemplate],
         associatedCollectionID: UUID? = nil,
-        visualOnly: Bool = false
+        visualOnly: Bool = false,
+        dependencies: [PackDependency] = []
     ) {
         self.id = id
         self.version = version
@@ -96,6 +100,7 @@ public struct Pack: Identifiable, Equatable, Sendable {
         self.bindings = bindings
         self.associatedCollectionID = associatedCollectionID
         self.visualOnly = visualOnly
+        self.dependencies = dependencies
     }
 
     /// The physical keys this pack affects. Drives Pack Detail's keyboard

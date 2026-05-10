@@ -22,6 +22,7 @@ struct ExpandableCollectionRow: View {
     var onEditAppRule: ((AppKeymap, AppKeyOverride) -> Void)?
     var showZeroState: Bool = false
     var onCreateFirstRule: (() -> Void)?
+    var onTapRow: (() -> Void)?
     var description: String?
     var layerActivator: MomentaryActivator?
     /// Current leader key display name for layer-based collections
@@ -204,13 +205,11 @@ private var fallbackKeyMappings: [KeyMapping] {
 
     private var headerButtonView: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Left side: Clickable area for expansion
+            // Icon tap → always expand inline (debug: compare inline vs gallery)
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isExpanded.toggle()
-                    // Auto-scroll to show expanded content
                     if isExpanded, let id = scrollID, let proxy = scrollProxy {
-                        // Delay slightly to allow expansion animation to begin
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             withAnimation(.easeInOut(duration: 0.3)) {
                                 proxy.scrollTo(id, anchor: .top)
@@ -219,17 +218,29 @@ private var fallbackKeyMappings: [KeyMapping] {
                     }
                 }
             } label: {
-                HStack(alignment: .top, spacing: 12) {
-                    iconView(for: icon)
-                        .frame(width: 24)
+                iconView(for: icon)
+                    .frame(width: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
 
+            // Rest of row → opens detail window (or expands if no pack)
+            Button {
+                if let onTapRow {
+                    onTapRow()
+                } else {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded.toggle()
+                    }
+                }
+            } label: {
+                HStack(alignment: .top, spacing: 0) {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
                             Text(name)
                                 .font(.headline)
                                 .foregroundColor(.primary)
                             if count > 0, showZeroState || onEditMapping != nil {
-                                // Show count for custom rules section only
                                 Text("(\(count))")
                                     .font(.headline)
                                     .fontWeight(.regular)
@@ -244,12 +255,10 @@ private var fallbackKeyMappings: [KeyMapping] {
                         }
 
                         if let hint = activationHint {
-                            // Use collection's custom activation hint (e.g., "Hold Hyper key")
                             Label(hint, systemImage: "hand.point.up.left")
                                 .font(.caption)
                                 .foregroundColor(.accentColor)
                         } else if layerActivator != nil {
-                            // Fall back to leader key display for leader-based collections
                             Label("Hold \(leaderKeyDisplay)", systemImage: "hand.point.up.left")
                                 .font(.caption)
                                 .foregroundColor(.accentColor)
@@ -310,23 +319,37 @@ private var fallbackKeyMappings: [KeyMapping] {
                         .padding(.bottom, 12)
                         .padding(.horizontal, 12)
                 } else if showZeroState, mappings.isEmpty, appKeymaps.isEmpty, let onCreate = onCreateFirstRule {
-                    // Zero State - only show if BOTH showZeroState is true AND all mappings are actually empty
-                    VStack(spacing: 12) {
-                        Text("No rules yet")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                    Button(action: onCreate) {
+                        HStack(spacing: 8) {
+                            Text("A")
+                                .font(.body.monospaced().weight(.semibold))
+                                .foregroundColor(.secondary.opacity(0.5))
+                                .modifier(KeycapStyle(ghost: true))
 
-                        Button {
-                            onCreate()
-                        } label: {
-                            Label("Create Your First Rule", systemImage: "plus.circle.fill")
-                                .font(.body.weight(.medium))
+                            Image(systemName: "arrow.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary.opacity(0.4))
+
+                            Text("B")
+                                .font(.body.monospaced().weight(.semibold))
+                                .foregroundColor(.secondary.opacity(0.5))
+                                .modifier(KeycapStyle(ghost: true))
+
+                            Spacer()
+
+                            Image(systemName: "plus.circle")
+                                .font(.body)
+                                .foregroundColor(.accentColor.opacity(0.7))
+
+                            Text("Add rule")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 8)
+                        .contentShape(Rectangle())
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
+                    .buttonStyle(.plain)
                 } else if displayStyle == .singleKeyPicker, let coll = collection {
                     // Segmented picker for single-key remapping
                     SingleKeyPickerContent(

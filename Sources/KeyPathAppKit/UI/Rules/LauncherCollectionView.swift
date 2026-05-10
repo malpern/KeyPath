@@ -38,44 +38,40 @@ struct LauncherCollectionView: View {
 
             Divider()
 
-            // Main content: Keyboard + Drawer
-            HStack(alignment: .top, spacing: 0) {
-                // Keyboard visualization
-                VStack(spacing: 8) {
-                    LauncherKeyboardView(
-                        config: $config,
-                        selectedKey: selectedKey,
-                        onKeyClicked: handleKeyClicked
-                    )
-                    .padding(16)
-
-                    // Instructions
-                    Text("Click any key to configure")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.bottom, 12)
-                }
-                .frame(maxWidth: .infinity)
-                .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
-
-                Divider()
-
-                // Drawer with mappings list
-                LauncherDrawerView(
+            // Keyboard visualization (full width)
+            VStack(spacing: 8) {
+                LauncherKeyboardView(
                     config: $config,
-                    selectedKey: $selectedKey,
-                    onAddMapping: { showAddMapping = true },
-                    onEditMapping: { mapping in
-                        editingMapping = mapping
-                    },
-                    onDeleteMapping: { id in
-                        deleteMapping(id: id)
-                    }
+                    selectedKey: selectedKey,
+                    onKeyClicked: handleKeyClicked
                 )
-                .frame(width: 280)
-                .onChange(of: config) { _, newValue in
-                    onConfigChanged(newValue)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 12)
+
+                Text("Click any key to configure")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.bottom, 12)
+            }
+            .frame(maxWidth: .infinity)
+            .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
+
+            Divider()
+
+            // Mappings list (full width)
+            LauncherDrawerView(
+                config: $config,
+                selectedKey: $selectedKey,
+                onAddMapping: { showAddMapping = true },
+                onEditMapping: { mapping in
+                    editingMapping = mapping
+                },
+                onDeleteMapping: { id in
+                    deleteMapping(id: id)
                 }
+            )
+            .onChange(of: config) { _, newValue in
+                onConfigChanged(newValue)
             }
         }
         .sheet(isPresented: $showBrowserHistory) {
@@ -260,6 +256,7 @@ private struct LauncherMappingEditor: View {
     let onSave: (LauncherMapping) -> Void
     let onCancel: () -> Void
 
+    @Environment(\.services) private var services
     @State private var key: String
     @State private var targetType: TargetType
     @State private var appName: String
@@ -271,6 +268,7 @@ private struct LauncherMappingEditor: View {
     @State private var scriptName: String
     @State private var isEnabled: Bool
     @State private var isScriptExecutionEnabled: Bool = ScriptSecurityService.shared.isScriptExecutionEnabled
+    @State private var icon: NSImage?
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
 
@@ -282,6 +280,15 @@ private struct LauncherMappingEditor: View {
 
         var requiresScriptExecution: Bool {
             self == .script
+        }
+
+        var iconName: String {
+            switch self {
+            case .app: "app.fill"
+            case .website: "globe"
+            case .folder: "folder.fill"
+            case .script: "terminal.fill"
+            }
         }
     }
 
@@ -352,175 +359,307 @@ private struct LauncherMappingEditor: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text(mapping == nil ? "Add Shortcut" : "Edit Shortcut")
-                .font(.headline)
-
-            Form {
-                // Key selection
-                TextField("Key", text: Binding(
-                    get: { displayKey },
-                    set: { updateKey(from: $0) }
-                ))
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 60)
-                .accessibilityIdentifier("launcher-editor-key-field")
-
-                // Target type
-                Picker("Type", selection: $targetType) {
-                    ForEach(TargetType.allCases, id: \.self) { type in
-                        Text(type.rawValue)
-                            .tag(type)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("launcher-editor-type-picker")
-                .onChange(of: targetType) { oldValue, newValue in
-                    // Prevent switching to script type if execution is disabled
-                    if newValue.requiresScriptExecution, !isScriptExecutionEnabled {
-                        targetType = oldValue
-                    }
-                }
-
-                // Script execution disabled warning (shown when trying to select Script)
-                if !isScriptExecutionEnabled, targetType == .script {
-                    HStack(spacing: 8) {
-                        Image(systemName: "lock.shield.fill")
-                            .foregroundColor(.orange)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Script execution is disabled")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(.orange)
-                            Button("Enable in Settings") {
-                                openSettings()
-                            }
-                            .buttonStyle(.link)
-                            .font(.caption)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                    .accessibilityIdentifier("launcher-editor-script-disabled-warning")
-                }
-
-                switch targetType {
-                case .app:
-                    HStack {
-                        TextField("App Name", text: $appName)
-                            .textFieldStyle(.roundedBorder)
-                            .accessibilityIdentifier("launcher-editor-app-name-field")
-                        Button("Browse...") {
-                            browseForApp()
-                        }
-                        .accessibilityIdentifier("launcher-editor-app-browse-button")
-                    }
-                    TextField("Bundle ID (optional)", text: $bundleId)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.caption.monospaced())
-                        .accessibilityIdentifier("launcher-editor-bundle-id-field")
-                case .website:
-                    TextField("URL (e.g., github.com)", text: $url)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("launcher-editor-url-field")
-                case .folder:
-                    HStack {
-                        TextField("Folder Path", text: $folderPath)
-                            .textFieldStyle(.roundedBorder)
-                            .accessibilityIdentifier("launcher-editor-folder-path-field")
-                        Button("Browse...") {
-                            browseForFolder()
-                        }
-                        .accessibilityIdentifier("launcher-editor-folder-browse-button")
-                    }
-
-                    // Folder path validation warning
-                    if let warning = folderPathWarning {
-                        HStack(spacing: 6) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                            Text(warning)
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                        }
-                    }
-
-                    TextField("Display Name (optional)", text: $folderName)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("launcher-editor-folder-name-field")
-                case .script:
-                    HStack {
-                        TextField("Script Path", text: $scriptPath)
-                            .textFieldStyle(.roundedBorder)
-                            .accessibilityIdentifier("launcher-editor-script-path-field")
-                            .disabled(!isScriptExecutionEnabled)
-                        Button("Browse...") {
-                            browseForScript()
-                        }
-                        .accessibilityIdentifier("launcher-editor-script-browse-button")
-                        .disabled(!isScriptExecutionEnabled)
-                    }
-
-                    // Script path validation warning
-                    if let warning = scriptPathWarning {
-                        HStack(spacing: 6) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                            Text(warning)
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                        }
-                    }
-
-                    TextField("Display Name (optional)", text: $scriptName)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("launcher-editor-script-name-field")
-                        .disabled(!isScriptExecutionEnabled)
-                }
-
-                Toggle("Enabled", isOn: $isEnabled)
-                    .accessibilityIdentifier("launcher-editor-enabled-toggle")
-
-                // Validation feedback
-                if let error = validationError {
-                    Text(error)
+        VStack(spacing: 0) {
+            // Title + Enabled toggle
+            HStack {
+                Text(mapping == nil ? "Add Launcher" : "Edit Launcher")
+                    .font(.headline)
+                Spacer()
+                Toggle(isOn: $isEnabled) {
+                    Text(isEnabled ? "Enabled" : "Disabled")
                         .font(.caption)
-                        .foregroundColor(.red)
+                        .foregroundColor(.secondary)
                 }
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .accessibilityIdentifier("launcher-editor-enabled-toggle")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
+            .padding(.bottom, 14)
 
+            Divider()
+
+            // Content
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    previewCard
+
+                    // Form fields — right-aligned labels, left-aligned controls
+                    VStack(spacing: 10) {
+                        formRow("Key") {
+                            HStack(spacing: 8) {
+                                TextField("", text: Binding(
+                                    get: { displayKey },
+                                    set: { updateKey(from: $0) }
+                                ))
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 48)
+                                .accessibilityIdentifier("launcher-editor-key-field")
+
+                                Text("Single letter or number")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+
+                        formRow("Type") {
+                            Picker("Type", selection: $targetType) {
+                                ForEach(TargetType.allCases, id: \.self) { type in
+                                    Text(type.rawValue).tag(type)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                            .accessibilityIdentifier("launcher-editor-type-picker")
+                            .onChange(of: targetType) { oldValue, newValue in
+                                if newValue.requiresScriptExecution, !isScriptExecutionEnabled {
+                                    targetType = oldValue
+                                }
+                            }
+                        }
+
+                        if !isScriptExecutionEnabled, targetType == .script {
+                            HStack(spacing: 8) {
+                                Image(systemName: "lock.shield.fill")
+                                    .foregroundColor(.orange)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Script execution is disabled")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.orange)
+                                    Button("Enable in Settings") { openSettings() }
+                                        .buttonStyle(.link)
+                                        .font(.caption)
+                                }
+                            }
+                            .padding(.leading, 84)
+                            .accessibilityIdentifier("launcher-editor-script-disabled-warning")
+                        }
+
+                        targetFormRows
+                    }
+
+                    // Validation
+                    if let error = validationError {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .foregroundColor(.red)
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
+                        .padding(.leading, 84)
+                    }
+                }
+                .padding(24)
+            }
+
+            Divider()
+
+            // Buttons
             HStack {
                 Button("Cancel") { onCancel() }
                     .keyboardShortcut(.cancelAction)
                     .accessibilityIdentifier("launcher-editor-cancel-button")
-
                 Spacer()
-
                 Button("Save") { save() }
                     .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
                     .disabled(!isValid)
                     .accessibilityIdentifier("launcher-editor-save-button")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
         }
-        .padding()
-        .frame(width: 320)
+        .frame(width: 480)
         .onAppear {
-            // Sync state with security service
             isScriptExecutionEnabled = ScriptSecurityService.shared.isScriptExecutionEnabled
         }
+        .task {
+            await loadIcon()
+        }
         .onReceive(NotificationObserverManager.defaultCenter.publisher(for: UserDefaults.didChangeNotification)) { _ in
-            // Update when settings change
             let newValue = ScriptSecurityService.shared.isScriptExecutionEnabled
             if isScriptExecutionEnabled != newValue {
                 isScriptExecutionEnabled = newValue
-                // If script execution is now disabled and we're editing a script, show warning
-                if !newValue, targetType == .script {
-                    // Keep on script tab to show warning, but prevent saving
-                }
             }
         }
     }
+
+    // MARK: - Preview Card
+
+    private var previewCard: some View {
+        HStack(spacing: 14) {
+            if let icon {
+                Image(nsImage: icon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 56, height: 56)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
+            } else {
+                Image(systemName: targetType.iconName)
+                    .font(.system(size: 24))
+                    .foregroundColor(.secondary)
+                    .frame(width: 56, height: 56)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.secondary.opacity(0.12))
+                    )
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(currentDisplayName.isEmpty ? "New Launcher" : currentDisplayName)
+                    .font(.system(size: 15, weight: .medium))
+                    .lineLimit(1)
+                    .foregroundColor(currentDisplayName.isEmpty ? .secondary : .primary)
+                Text(targetType.rawValue)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            if !normalizedKey.isEmpty {
+                Text(displayKey.uppercased())
+                    .font(.system(size: 20, weight: .bold, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(minWidth: 40)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.accentColor)
+                    )
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(NSColor.windowBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Form Rows
+
+    @ViewBuilder
+    private var targetFormRows: some View {
+        switch targetType {
+        case .app:
+            formRow("App") {
+                HStack {
+                    TextField("Name", text: $appName)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("launcher-editor-app-name-field")
+                    Button("Browse...") { browseForApp() }
+                        .accessibilityIdentifier("launcher-editor-app-browse-button")
+                }
+            }
+            formRow("Bundle ID") {
+                TextField("Optional", text: $bundleId)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.caption.monospaced())
+                    .accessibilityIdentifier("launcher-editor-bundle-id-field")
+            }
+        case .website:
+            formRow("URL") {
+                TextField("e.g., github.com", text: $url)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("launcher-editor-url-field")
+            }
+        case .folder:
+            formRow("Path") {
+                HStack {
+                    TextField("Folder path", text: $folderPath)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("launcher-editor-folder-path-field")
+                    Button("Browse...") { browseForFolder() }
+                        .accessibilityIdentifier("launcher-editor-folder-browse-button")
+                }
+            }
+            if let warning = folderPathWarning {
+                warningLabel(warning)
+                    .padding(.leading, 84)
+            }
+            formRow("Name") {
+                TextField("Display name (optional)", text: $folderName)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("launcher-editor-folder-name-field")
+            }
+        case .script:
+            formRow("Path") {
+                HStack {
+                    TextField("Script path", text: $scriptPath)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("launcher-editor-script-path-field")
+                        .disabled(!isScriptExecutionEnabled)
+                    Button("Browse...") { browseForScript() }
+                        .accessibilityIdentifier("launcher-editor-script-browse-button")
+                        .disabled(!isScriptExecutionEnabled)
+                }
+            }
+            if let warning = scriptPathWarning {
+                warningLabel(warning)
+                    .padding(.leading, 84)
+            }
+            formRow("Name") {
+                TextField("Display name (optional)", text: $scriptName)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("launcher-editor-script-name-field")
+                    .disabled(!isScriptExecutionEnabled)
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func formRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+                .frame(width: 72, alignment: .trailing)
+            content()
+        }
+    }
+
+    private func warningLabel(_ text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.orange)
+            Text(text)
+                .font(.caption)
+                .foregroundColor(.orange)
+        }
+    }
+
+    private var currentDisplayName: String {
+        switch targetType {
+        case .app: appName
+        case .website: url
+        case .folder: folderName.isEmpty ? (folderPath as NSString).lastPathComponent : folderName
+        case .script: scriptName.isEmpty ? (scriptPath as NSString).lastPathComponent : scriptName
+        }
+    }
+
+    // MARK: - Icon Loading
+
+    private func loadIcon() async {
+        guard let mapping else { return }
+        switch mapping.target {
+        case .app, .folder, .script:
+            icon = AppIconResolver.icon(for: mapping.target)
+        case let .url(urlString):
+            icon = await services.faviconFetcher.fetchFavicon(for: urlString)
+        }
+    }
+
+    // MARK: - Validation
 
     private var isValid: Bool {
         validationError == nil
@@ -533,7 +672,6 @@ private struct LauncherMappingEditor: View {
         if !LauncherGridConfig.isValidKey(normalizedKey) {
             return "Use a single letter or number"
         }
-        // Allow same key when editing
         if let mapping, LauncherGridConfig.normalizeKey(mapping.key) == normalizedKey {
             // OK - same key
         } else if existingKeys.contains(normalizedKey) {
@@ -542,68 +680,48 @@ private struct LauncherMappingEditor: View {
 
         switch targetType {
         case .app:
-            if appName.isEmpty {
-                return "App name is required"
-            }
+            if appName.isEmpty { return "App name is required" }
         case .website:
-            if url.isEmpty {
-                return "URL is required"
-            }
+            if url.isEmpty { return "URL is required" }
         case .folder:
-            if folderPath.isEmpty {
-                return "Folder path is required"
-            }
+            if folderPath.isEmpty { return "Folder path is required" }
         case .script:
-            if scriptPath.isEmpty {
-                return "Script path is required"
-            }
-            if !isScriptExecutionEnabled {
-                return "Script execution is disabled in Settings"
-            }
+            if scriptPath.isEmpty { return "Script path is required" }
+            if !isScriptExecutionEnabled { return "Script execution is disabled in Settings" }
         }
 
         return nil
     }
 
-    /// Warning for folder path (not a blocking error, just informational)
     private var folderPathWarning: String? {
         guard !folderPath.isEmpty else { return nil }
-
         let expandedPath = (folderPath as NSString).expandingTildeInPath
         var isDirectory: ObjCBool = false
-
         if !Foundation.FileManager().fileExists(atPath: expandedPath, isDirectory: &isDirectory) {
             return "Folder not found at this path"
         }
-
         if !isDirectory.boolValue {
             return "Path points to a file, not a folder"
         }
-
         return nil
     }
 
-    /// Warning for script path (not a blocking error, just informational)
     private var scriptPathWarning: String? {
         guard !scriptPath.isEmpty else { return nil }
-
         let expandedPath = (scriptPath as NSString).expandingTildeInPath
-
         if !Foundation.FileManager().fileExists(atPath: expandedPath) {
             return "Script not found at this path"
         }
-
-        // Check if it's a recognized script type or executable
         let securityService = ScriptSecurityService.shared
         let isScript = securityService.isRecognizedScript(expandedPath)
         let isExecutable = Foundation.FileManager().isExecutableFile(atPath: expandedPath)
-
         if !isScript, !isExecutable {
             return "File may not be executable"
         }
-
         return nil
     }
+
+    // MARK: - Actions
 
     private func save() {
         let target: LauncherTarget = switch targetType {
@@ -626,12 +744,8 @@ private struct LauncherMappingEditor: View {
         onSave(result)
     }
 
-    // MARK: - Navigation Methods
-
     private func openSettings() {
-        // Open Settings window on General tab (where script execution toggle is)
         NotificationObserverManager.defaultCenter.post(name: Notification.Name.openSettingsGeneral, object: nil)
-        // Also open the settings window if it's not already open
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 
@@ -646,14 +760,12 @@ private struct LauncherMappingEditor: View {
         panel.prompt = "Select"
 
         if panel.runModal() == .OK, let url = panel.url {
-            // Use ~ shorthand for home directory
             let path = url.path
             if path.hasPrefix(NSHomeDirectory()) {
                 folderPath = path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
             } else {
                 folderPath = path
             }
-            // Auto-set name from folder name if not already set
             if folderName.isEmpty {
                 folderName = url.lastPathComponent
             }
@@ -668,50 +780,23 @@ private struct LauncherMappingEditor: View {
         panel.message = "Select a script file"
         panel.prompt = "Select"
 
-        // Build comprehensive list of script types
-        var allowedTypes: [UTType] = [
-            .shellScript, // .sh files
-            .unixExecutable // Binary executables
-        ]
-
-        // Add AppleScript types (both .applescript and .scpt)
-        if let appleScriptType = UTType(filenameExtension: "applescript") {
-            allowedTypes.append(appleScriptType)
-        }
-        if let scptType = UTType(filenameExtension: "scpt") {
-            allowedTypes.append(scptType)
-        }
-
-        // Add common scripting languages
-        if let pythonType = UTType(filenameExtension: "py") {
-            allowedTypes.append(pythonType)
-        }
-        if let rubyType = UTType(filenameExtension: "rb") {
-            allowedTypes.append(rubyType)
-        }
-        if let perlType = UTType(filenameExtension: "pl") {
-            allowedTypes.append(perlType)
-        }
-
-        // Add zsh and bash explicitly (beyond .shellScript)
-        if let zshType = UTType(filenameExtension: "zsh") {
-            allowedTypes.append(zshType)
-        }
-        if let bashType = UTType(filenameExtension: "bash") {
-            allowedTypes.append(bashType)
-        }
-
+        var allowedTypes: [UTType] = [.shellScript, .unixExecutable]
+        if let t = UTType(filenameExtension: "applescript") { allowedTypes.append(t) }
+        if let t = UTType(filenameExtension: "scpt") { allowedTypes.append(t) }
+        if let t = UTType(filenameExtension: "py") { allowedTypes.append(t) }
+        if let t = UTType(filenameExtension: "rb") { allowedTypes.append(t) }
+        if let t = UTType(filenameExtension: "pl") { allowedTypes.append(t) }
+        if let t = UTType(filenameExtension: "zsh") { allowedTypes.append(t) }
+        if let t = UTType(filenameExtension: "bash") { allowedTypes.append(t) }
         panel.allowedContentTypes = allowedTypes
 
         if panel.runModal() == .OK, let url = panel.url {
-            // Use ~ shorthand for home directory
             let path = url.path
             if path.hasPrefix(NSHomeDirectory()) {
                 scriptPath = path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
             } else {
                 scriptPath = path
             }
-            // Auto-set name from script name if not already set
             if scriptName.isEmpty {
                 scriptName = url.deletingPathExtension().lastPathComponent
             }
@@ -728,12 +813,9 @@ private struct LauncherMappingEditor: View {
         panel.allowedContentTypes = [.application]
 
         if panel.runModal() == .OK, let url = panel.url {
-            let displayName = url.deletingPathExtension().lastPathComponent
-            let bundle = Bundle(url: url)
-            let selectedBundleId = bundle?.bundleIdentifier ?? ""
-
-            appName = displayName
-            bundleId = selectedBundleId
+            appName = url.deletingPathExtension().lastPathComponent
+            bundleId = Bundle(url: url)?.bundleIdentifier ?? ""
+            icon = AppIconResolver.icon(for: .app(name: appName, bundleId: bundleId.isEmpty ? nil : bundleId))
         }
     }
 

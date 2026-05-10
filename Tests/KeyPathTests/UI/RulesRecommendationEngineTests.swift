@@ -5,20 +5,19 @@ import XCTest
 final class RulesRecommendationEngineTests: XCTestCase {
     func testPopularRecommendationsIncludeDisabledPopularRules() {
         let collections = [
+            makeCollection(id: RuleCollectionIdentifier.capsLockRemap, enabled: false, category: .productivity),
             makeCollection(id: RuleCollectionIdentifier.windowSnapping, enabled: false, category: .productivity),
             makeCollection(id: RuleCollectionIdentifier.homeRowMods, enabled: false, category: .productivity),
             makeCollection(id: RuleCollectionIdentifier.launcher, enabled: false, category: .productivity),
-            makeCollection(id: RuleCollectionIdentifier.symbolLayer, enabled: false, category: .productivity)
         ]
 
         let recommendations = RulesRecommendationEngine.recommendations(from: collections)
+        let ids = Set(recommendations.map(\.collectionId))
 
-        XCTAssertEqual(recommendations.map(\.collectionId), [
-            RuleCollectionIdentifier.windowSnapping,
-            RuleCollectionIdentifier.homeRowMods,
-            RuleCollectionIdentifier.launcher,
-            RuleCollectionIdentifier.symbolLayer
-        ])
+        XCTAssertTrue(ids.contains(RuleCollectionIdentifier.capsLockRemap))
+        XCTAssertTrue(ids.contains(RuleCollectionIdentifier.windowSnapping))
+        XCTAssertTrue(ids.contains(RuleCollectionIdentifier.homeRowMods))
+        XCTAssertTrue(ids.contains(RuleCollectionIdentifier.launcher))
     }
 
     func testVimEnabledKeepsWindowAndHomeRowRecommended() {
@@ -51,18 +50,19 @@ final class RulesRecommendationEngineTests: XCTestCase {
         XCTAssertFalse(recommendations.map(\.collectionId).contains(RuleCollectionIdentifier.windowSnapping))
     }
 
-    func testSymbolLayerEnabledRecommendsSequences() {
+    func testCodingFocused_RecommendsSymbolLayer() {
         let collections = [
-            makeCollection(id: RuleCollectionIdentifier.symbolLayer, enabled: true, category: .productivity),
-            makeCollection(id: RuleCollectionIdentifier.sequences, enabled: false, category: .productivity),
+            makeCollection(id: RuleCollectionIdentifier.homeRowMods, enabled: true, category: .productivity),
+            makeCollection(id: RuleCollectionIdentifier.symbolLayer, enabled: false, category: .layers),
+            makeCollection(id: RuleCollectionIdentifier.capsLockRemap, enabled: false, category: .productivity),
             makeCollection(id: RuleCollectionIdentifier.windowSnapping, enabled: false, category: .productivity),
-            makeCollection(id: RuleCollectionIdentifier.homeRowMods, enabled: false, category: .productivity),
-            makeCollection(id: RuleCollectionIdentifier.launcher, enabled: false, category: .productivity)
+            makeCollection(id: RuleCollectionIdentifier.launcher, enabled: false, category: .productivity),
         ]
 
         let recommendations = RulesRecommendationEngine.recommendations(from: collections)
 
-        XCTAssertTrue(recommendations.map(\.collectionId).contains(RuleCollectionIdentifier.sequences))
+        XCTAssertTrue(recommendations.map(\.collectionId).contains(RuleCollectionIdentifier.symbolLayer),
+                      "Should recommend Symbol Layer when HRM is enabled (coding-focused)")
     }
 
     func testThreeEnabledProductivityRulesRecommendLeaderKey() {

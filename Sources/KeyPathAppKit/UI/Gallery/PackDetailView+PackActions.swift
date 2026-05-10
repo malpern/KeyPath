@@ -6,11 +6,8 @@ import SwiftUI
 extension PackDetailView {
     func handleToggle(to newValue: Bool) {
         guard newValue != isInstalled else { return }
-        // Cancel any in-flight install/uninstall so two quick taps (install →
-        // uninstall → install) don't interleave writes into the rules table.
-        // `.disabled(isWorking)` guards the tap-through case, but SwiftUI
-        // Toggles can re-fire before the disabled state propagates on a
-        // rapid double-flick.
+        // Optimistic: update UI immediately so the switch feels instant
+        isInstalled = newValue
         toggleTask?.cancel()
         toggleTask = Task { newValue ? await install() : await uninstall() }
     }

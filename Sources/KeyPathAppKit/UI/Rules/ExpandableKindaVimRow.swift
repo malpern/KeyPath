@@ -4,6 +4,7 @@ import SwiftUI
 struct ExpandableKindaVimRow: View {
     let isPackEnabled: Bool
     let onToggle: (Bool) -> Void
+    var onTapRow: (() -> Void)?
 
     @State private var isExpanded = false
     @State private var isHovered = false
@@ -42,8 +43,12 @@ struct ExpandableKindaVimRow: View {
     private var headerView: some View {
         HStack(alignment: .top, spacing: 12) {
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isExpanded.toggle()
+                if let onTapRow {
+                    onTapRow()
+                } else {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded.toggle()
+                    }
                 }
             } label: {
                 HStack(alignment: .top, spacing: 12) {

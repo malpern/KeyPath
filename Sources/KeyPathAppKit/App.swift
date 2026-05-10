@@ -234,6 +234,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Set up main window and overlay (normal mode only)
         if !isHeadlessMode {
             setupMainWindowAndOverlay()
+
+            // Fallback: auto-hide splash after 3s even if app never becomes active
+            // (e.g., launched at login while another app has focus)
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(3))
+                if !self.initialMainWindowShown {
+                    AppLogger.shared.info("🪟 [AppDelegate] Splash fallback auto-hide (app never activated)")
+                    self.initialMainWindowShown = true
+                    LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+                    self.mainWindowController?.window?.orderOut(nil)
+                }
+            }
         } else {
             AppLogger.shared.debug("🤖 [AppDelegate] Headless mode - skipping window management")
         }

@@ -69,12 +69,13 @@ struct PackDetailView: View {
                         quickSettingsBlock
                     }
                     bindingsBlock
+                    dependencySection
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 20)
             }
         }
-        .frame(width: 560, height: 640)
+        .frame(minWidth: 480, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
         .task {
             await refreshInstallState()
             loadDefaultQuickSettings()
@@ -108,32 +109,20 @@ struct PackDetailView: View {
             // in the overlay inspector) — it gives users a way to jump to
             // the full list instead of just dismissing the sheet.
             HStack {
-                Button(action: { openGalleryWindow() }) {
+                Button(action: { PackDetailWindowController.shared.closeWindow() }) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 10, weight: .semibold))
-                        Text("Gallery")
+                        Text("All Rules")
                             .font(.system(size: 12, weight: .medium))
                     }
                     .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
                 .focusable(false)
-                .accessibilityLabel("Open Gallery")
-                .accessibilityIdentifier("pack-detail-open-gallery")
-                Spacer()
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24, height: 24)
-                        .background(Circle().fill(.quaternary))
-                }
-                .buttonStyle(.plain)
-                .focusable(false)
-                .keyboardShortcut(.cancelAction)
-                .accessibilityLabel("Close")
+                .accessibilityLabel("Close and return to rules")
                 .accessibilityIdentifier("pack-detail-close")
+                Spacer()
             }
 
             HStack(alignment: .center, spacing: 16) {
@@ -364,16 +353,127 @@ struct PackDetailView: View {
 
     // MARK: - Description
 
-    /// Single scannable paragraph that answers WHY (the problem this solves)
-    /// and WHAT (how this pack solves it). Replaces the prior two-block
-    /// short + long description — packs should front-load the pitch, not
-    /// split it into a lede and a follow-up.
     var descriptionBlock: some View {
         Text(pack.shortDescription)
             .font(.system(size: 13))
             .foregroundStyle(.primary)
             .fixedSize(horizontal: false, vertical: true)
             .lineSpacing(2)
+    }
+
+    // MARK: - Dependency Section
+
+    @ViewBuilder
+    var dependencySection: some View {
+        let requires = pack.dependencies.filter { $0.kind == .requires }
+        let enhancedBy = pack.dependencies.filter { $0.kind == .enhancedBy }
+        let enhances = PackRegistry.starterKit.filter { other in
+            other.id != pack.id && other.dependencies.contains { dep in
+                dep.packID == pack.id
+            }
+        }
+
+        if !requires.isEmpty || !enhancedBy.isEmpty || !enhances.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                // Requires
+                if !requires.isEmpty {
+                    dependencyGroup(
+                        label: "Requires",
+                        icon: "exclamationmark.circle",
+                        tint: .orange,
+                        items: requires.compactMap { dep in
+                            PackRegistry.pack(id: dep.packID).map { ($0, dep.description) }
+                        }
+                    )
+                }
+
+                // Enhanced by (this pack gains features from these)
+                if !enhancedBy.isEmpty {
+                    dependencyGroup(
+                        label: "Enhanced by",
+                        icon: "sparkles",
+                        tint: .blue,
+                        items: enhancedBy.compactMap { dep in
+                            PackRegistry.pack(id: dep.packID).map { ($0, dep.description) }
+                        }
+                    )
+                }
+
+                // Enhances (other packs that benefit from this one)
+                if !enhances.isEmpty {
+                    dependencyGroup(
+                        label: "Enhances",
+                        icon: "arrow.up.right",
+                        tint: .green,
+                        items: enhances.map { other in
+                            let desc = other.dependencies
+                                .first { $0.packID == pack.id }?.description ?? ""
+                            return (other, desc)
+                        }
+                    )
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color(NSColor.controlBackgroundColor).opacity(0.3))
+            )
+        }
+    }
+
+    private func dependencyGroup(
+        label: String,
+        icon: String,
+        tint: Color,
+        items: [(pack: Pack, description: String)]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(label, systemImage: icon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(tint)
+
+            ForEach(items, id: \.pack.id) { item in
+                Button {
+                    PackDetailWindowController.shared.showWindow(
+                        pack: item.pack,
+                        kanataManager: kanataManager
+                    )
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: item.pack.iconSymbol)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 16)
+
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(item.pack.name)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(.primary)
+                            if !item.description.isEmpty {
+                                Text(item.description)
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+
+                        Spacer(minLength: 0)
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(Color.primary.opacity(0.04))
+                    )
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     // MARK: - Quick settings

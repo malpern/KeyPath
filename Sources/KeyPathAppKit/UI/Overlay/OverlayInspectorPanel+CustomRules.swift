@@ -6,11 +6,10 @@ extension OverlayInspectorPanel {
     // MARK: - Custom Rules Content
 
     var customRulesContent: some View {
-        VStack(spacing: 0) {
-            // Scrollable list of rule cards (no header - title removed)
-            ScrollView {
+        ScrollView {
+            VStack(spacing: 0) {
+                // Rule cards
                 LazyVStack(spacing: 10) {
-                    // "Everywhere" section for global rules (only shown when rules exist)
                     if !customRules.isEmpty {
                         GlobalRulesCard(
                             rules: customRules,
@@ -21,7 +20,6 @@ extension OverlayInspectorPanel {
                                 onDeleteGlobalRule?(rule)
                             },
                             onAddRule: {
-                                // Switch to mapper with no app condition (global/everywhere)
                                 onSelectSection(.mapper)
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: DispatchWorkItem {
                                     Foundation.NotificationCenter.default.post(
@@ -35,7 +33,6 @@ extension OverlayInspectorPanel {
                         )
                     }
 
-                    // App-specific rules
                     ForEach(appKeymaps) { keymap in
                         AppRuleCard(
                             keymap: keymap,
@@ -52,37 +49,194 @@ extension OverlayInspectorPanel {
                         )
                     }
                 }
-            }
 
-            Spacer()
+                // Action buttons below the rules list
+                HStack(spacing: 2) {
+                    Spacer()
+                    Button { onResetAllRules?() } label: {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 24, height: 24)
+                            .background(
+                                Circle()
+                                    .fill(Color.secondary.opacity(0.5))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { inside in
+                        if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                    }
+                    .accessibilityIdentifier("custom-rules-reset-button")
+                    .accessibilityLabel("Reset all custom rules")
+                    .help("Reset all custom rules")
 
-            // Bottom action bar with reset and add buttons (anchored to bottom right)
-            HStack {
-                Spacer()
-                // Reset all rules button
-                Button { onResetAllRules?() } label: {
-                    Image(systemName: "arrow.counterclockwise")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(.secondary)
+                    Button { onCreateNewAppRule?() } label: {
+                        Image(systemName: "plus")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 24, height: 24)
+                            .background(
+                                Circle()
+                                    .fill(Color.accentColor)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { inside in
+                        if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                    }
+                    .accessibilityIdentifier("custom-rules-new-button")
+                    .accessibilityLabel("Create new custom rule")
+                    .help("Create new custom rule")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("custom-rules-reset-button")
-                .accessibilityLabel("Reset all custom rules")
-                .help("Reset all custom rules")
+                .padding(.top, 8)
 
-                // New rule button
-                Button { onCreateNewAppRule?() } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.headline)
-                        .foregroundStyle(Color.accentColor)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("custom-rules-new-button")
-                .accessibilityLabel("Create new custom rule")
-                .help("Create new custom rule")
+                // Active rules + merchandising
+                activeRulesFooter
+                    .padding(.horizontal, 8)
+                    .padding(.top, 12)
             }
-            .padding(.top, 8)
         }
+    }
+
+    // MARK: - Active Rules Footer
+
+    private var enabledUserPacks: [Pack] {
+        guard let vm = kanataViewModel else { return [] }
+        let enabledIDs = Set(vm.ruleCollections.filter(\.isEnabled).map(\.id))
+        return PackRegistry.starterKit.filter { pack in
+            guard let collectionID = pack.associatedCollectionID else { return false }
+            guard !pack.visualOnly else { return false }
+            return enabledIDs.contains(collectionID)
+        }.filter { pack in
+            let systemIDs: Set<String> = ["com.keypath.pack.leader-key"]
+            return !systemIDs.contains(pack.id)
+        }
+    }
+
+    @ViewBuilder
+    private var activeRulesFooter: some View {
+        let packs = enabledUserPacks
+        let remaining = PackRegistry.starterKit.count - packs.count
+
+        VStack(alignment: .leading, spacing: 6) {
+            if !packs.isEmpty {
+                Text("Active Rules")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+
+                FlowLayout(spacing: 4) {
+                    ForEach(packs) { pack in
+                        Button {
+                            if let vm = kanataViewModel {
+                                PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: vm)
+                            }
+                        } label: {
+                            Text(pack.name)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                        .fill(Color.primary.opacity(0.06))
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { inside in
+                            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                        }
+                    }
+                }
+            }
+
+            if packs.count < 6, remaining > 0 {
+                Spacer()
+                    .frame(height: 8)
+
+                Button {
+                    openPreferencesTab(.openSettingsRules)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+                    }
+                } label: {
+                    VStack(alignment: .center, spacing: 12) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 24, weight: .medium))
+                            .foregroundStyle(.tint)
+                            .symbolRenderingMode(.hierarchical)
+                            .padding(.top, 4)
+
+                        VStack(spacing: 6) {
+                            Text("Vim nav, home row mods, window snapping")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.center)
+                                .lineSpacing(2)
+
+                            Text("and \(remaining - 3) more ready-made rules →")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.accentColor.opacity(0.06))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(Color.accentColor.opacity(0.12), lineWidth: 0.5)
+                    )
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onHover { inside in
+                    if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                }
+                .padding(.top, 4)
+            } else if remaining > 0 {
+                Spacer()
+                    .frame(height: 8)
+
+                Button {
+                    openPreferencesTab(.openSettingsRules)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.tint)
+                            .symbolRenderingMode(.hierarchical)
+                        Text("Unlock \(remaining) more shortcuts & layers")
+                            .font(.system(size: 11, weight: .medium))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(Color.accentColor.opacity(0.08))
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+                .onHover { inside in
+                    if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                }
+                .padding(.top, 2)
+            }
+        }
+        .padding(.vertical, 8)
     }
 
     // MARK: - Custom Rules Actions
