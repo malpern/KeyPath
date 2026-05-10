@@ -62,7 +62,7 @@ enum PackDependencyChecker {
     static func suggestions(for packID: String, installedPackIDs: Set<String>) -> [PackDependency] {
         guard let pack = PackRegistry.pack(id: packID) else { return [] }
         return pack.dependencies.filter { dep in
-            dep.kind == .suggests && !installedPackIDs.contains(dep.packID)
+            dep.kind == .enhancedBy && !installedPackIDs.contains(dep.packID)
         }
     }
 
@@ -90,7 +90,7 @@ enum PackDependencyChecker {
             guard isPackOn else { return false }
 
             return pack.dependencies.contains { dep in
-                dep.kind == .requires && dep.packID == packID
+                (dep.kind == .requires || dep.kind == .enhancedBy) && dep.packID == packID
             }
         }
     }

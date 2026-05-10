@@ -9,7 +9,7 @@ public struct PackDependency: Codable, Equatable, Sendable {
     /// The pack ID this dependency targets
     public let packID: String
 
-    /// Whether this dependency is required or just suggested
+    /// Whether this dependency is required or enhances the pack
     public let kind: DependencyKind
 
     /// Optional configuration requirement beyond "is enabled"
@@ -33,7 +33,7 @@ public struct PackDependency: Codable, Equatable, Sendable {
 
 public enum DependencyKind: String, Codable, Sendable {
     case requires
-    case suggests
+    case enhancedBy
 }
 
 /// Serializable predicates for configuration state checks.

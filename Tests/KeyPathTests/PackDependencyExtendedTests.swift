@@ -9,11 +9,10 @@ final class PackDependencyExtendedTests: XCTestCase {
     // MARK: - allUnmetRequirements
 
     @MainActor
-    func testAllUnmetRequirements_MultipleBrokenDeps() {
+    func testAllUnmetRequirements_EmptyWhenNoRequiredDeps() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        // Disable everything, then enable layer packs WITHOUT Vim Nav
         for i in collections.indices { collections[i].isEnabled = false }
-        // Enable Window Snapping and Mission Control (both need Vim Nav)
+        // Enable layer packs WITHOUT Vim Nav — they only have enhancedBy, not requires
         for i in collections.indices {
             if collections[i].id == RuleCollectionIdentifier.windowSnapping
                 || collections[i].id == RuleCollectionIdentifier.missionControl
@@ -27,8 +26,8 @@ final class PackDependencyExtendedTests: XCTestCase {
             installedPackIDs: []
         )
 
-        XCTAssertTrue(unmetMap.keys.contains("com.keypath.pack.window-snapping"))
-        XCTAssertTrue(unmetMap.keys.contains("com.keypath.pack.mission-control"))
+        XCTAssertTrue(unmetMap.isEmpty,
+                      "No unmet requirements since all deps are enhancedBy, not requires")
     }
 
     @MainActor

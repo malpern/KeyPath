@@ -47,7 +47,7 @@ final class PackDependencyTests: XCTestCase {
         XCTAssertTrue(noDeps.contains { $0.id == "com.keypath.pack.home-row-mods" })
     }
 
-    func testLayerPacksRequireVimNavigation() {
+    func testLayerPacksEnhancedByVimNavigation() {
         let layerPacks = ["com.keypath.pack.window-snapping", "com.keypath.pack.numpad-layer",
                           "com.keypath.pack.symbol-layer", "com.keypath.pack.fun-layer",
                           "com.keypath.pack.mission-control", "com.keypath.pack.delete-enhancement"]
@@ -57,17 +57,16 @@ final class PackDependencyTests: XCTestCase {
                 XCTFail("Pack \(packID) not found")
                 continue
             }
-            let requiresVim = pack.dependencies.contains {
-                $0.packID == "com.keypath.pack.vim-navigation" && $0.kind == .requires
+            let enhancedByVim = pack.dependencies.contains {
+                $0.packID == "com.keypath.pack.vim-navigation" && $0.kind == .enhancedBy
             }
-            XCTAssertTrue(requiresVim, "\(pack.name) should require Vim Navigation")
+            XCTAssertTrue(enhancedByVim, "\(pack.name) should be enhanced by Vim Navigation")
         }
     }
 
     @MainActor
-    func testUnmetRequirements_WhenDependencyDisabled() {
+    func testNoRequiredDeps_UnmetRequirementsEmpty() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        // Disable everything, then enable only Window Snapping
         for i in collections.indices { collections[i].isEnabled = false }
         if let idx = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.windowSnapping }) {
             collections[idx].isEnabled = true
@@ -79,28 +78,21 @@ final class PackDependencyTests: XCTestCase {
             installedPackIDs: []
         )
 
-        XCTAssertFalse(unmet.isEmpty, "Window Snapping should have unmet requirements when Vim Nav is disabled")
-        XCTAssertEqual(unmet.first?.reason, .notEnabled)
+        XCTAssertTrue(unmet.isEmpty, "Window Snapping has no required deps — only enhancedBy")
     }
 
     @MainActor
-    func testUnmetRequirements_WhenDependencyEnabled() {
+    func testEnhancedByDeps_NotReportedAsUnmet() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        // Enable both Window Snapping AND Vim Navigation
-        for i in collections.indices {
-            if collections[i].id == RuleCollectionIdentifier.vimNavigation
-                || collections[i].id == RuleCollectionIdentifier.windowSnapping
-            {
-                collections[i].isEnabled = true
-            }
-        }
+        for i in collections.indices { collections[i].isEnabled = false }
 
+        // Window Snapping is enhancedBy Vim Nav, not requires
         let unmet = PackDependencyChecker.unmetRequirements(
             for: "com.keypath.pack.window-snapping",
             enabledCollections: collections,
             installedPackIDs: []
         )
 
-        XCTAssertTrue(unmet.isEmpty, "Window Snapping requirements should be met when Vim Nav is enabled")
+        XCTAssertTrue(unmet.isEmpty, "enhancedBy deps should not appear as unmet requirements")
     }
 }

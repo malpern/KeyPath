@@ -183,8 +183,8 @@ public enum PackRegistry {
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
-                kind: .requires,
-                description: "Needs Vim Navigation for Leader key layer activation"
+                kind: .enhancedBy,
+                description: "Adds Leader key layer activation when Vim Navigation is enabled"
             ),
         ]
     )
@@ -209,7 +209,7 @@ public enum PackRegistry {
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.caps-lock-to-escape",
-                kind: .suggests,
+                kind: .enhancedBy,
                 description: "Most useful when Caps Lock is remapped to something else"
             ),
         ]
@@ -267,8 +267,8 @@ public enum PackRegistry {
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
-                kind: .requires,
-                description: "Needs Vim Navigation for Leader key layer activation"
+                kind: .enhancedBy,
+                description: "Adds Leader key layer activation when Vim Navigation is enabled"
             ),
         ]
     )
@@ -295,8 +295,8 @@ public enum PackRegistry {
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
-                kind: .requires,
-                description: "Needs Vim Navigation for Leader key layer activation"
+                kind: .enhancedBy,
+                description: "Adds Leader key layer activation when Vim Navigation is enabled"
             ),
         ]
     )
@@ -359,8 +359,8 @@ public enum PackRegistry {
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
-                kind: .requires,
-                description: "Needs Vim Navigation for Leader key layer activation"
+                kind: .enhancedBy,
+                description: "Adds Leader key layer activation when Vim Navigation is enabled"
             ),
         ]
     )
@@ -403,8 +403,8 @@ public enum PackRegistry {
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
-                kind: .requires,
-                description: "Needs Vim Navigation for Leader key layer activation"
+                kind: .enhancedBy,
+                description: "Adds Leader key layer activation when Vim Navigation is enabled"
             ),
         ]
     )
@@ -434,8 +434,8 @@ public enum PackRegistry {
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
-                kind: .requires,
-                description: "Needs Vim Navigation for Leader key layer activation"
+                kind: .enhancedBy,
+                description: "Adds Leader key layer activation when Vim Navigation is enabled"
             ),
         ]
     )
@@ -467,13 +467,13 @@ public enum PackRegistry {
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.caps-lock-to-escape",
-                kind: .suggests,
+                kind: .enhancedBy,
                 configPredicate: .holdOutput("C-S-M-A-"),
                 description: "Hyper mode works best with Caps Lock Remap hold set to Hyper"
             ),
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
-                kind: .suggests,
+                kind: .enhancedBy,
                 description: "Required when using Leader → L activation mode"
             ),
         ]
@@ -508,7 +508,7 @@ public enum PackRegistry {
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
-                kind: .suggests,
+                kind: .enhancedBy,
                 description: "Leader Key sets which key activates the nav layer — needs a nav provider like Vim Navigation"
             ),
         ]
