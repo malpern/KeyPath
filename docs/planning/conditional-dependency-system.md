@@ -17,6 +17,8 @@ KeyPath packs can depend on capabilities provided by other packs, but these depe
 3. **Warnings are informational, never blocking** — The user might have a good reason. Show the consequence, don't prevent the action
 4. **Recommendations point to the preferred pack** — "Set up Hyper on Caps Lock" is actionable. "Hyper isn't available" is vague
 5. **Show warnings where the user is making the decision** — On the dependent pack, on the upstream pack when changing config, and on the rules summary
+6. **Collections self-report their outputs** — Each collection declares what it produces via a uniform interface, so the scanner never needs to know about specific config types. This scales to community-contributed rules without updating the checker.
+7. **Config model is the source of truth** — The dependency checker reads the config model directly, not the kanata simulator. "Is Hyper configured?" is a config-time question answered by `producedOutputs`. "What happens when you press X?" is a runtime question for the simulator. Different concerns.
 
 ## Current System
 
@@ -32,8 +34,56 @@ KeyPath packs can depend on capabilities provided by other packs, but these depe
 - No conditional activation (dependency always checked regardless of dependent's config)
 - No inline warnings when changing upstream config (e.g., switching Caps Lock away from Hyper)
 - `unmetDependencyMap` is computed but not displayed as badges in the rules list
+- Scanner hardcodes knowledge of each config type — won't scale to community rules
 
 ## Proposed Design
+
+### Collection Self-Reporting: `producedOutputs`
+
+Instead of the scanner knowing how to crack open each config type, each collection reports what it produces:
+
+```swift
+extension RuleCollection {
+    /// All key outputs this collection produces when enabled.
+    /// Read from the config model, not the simulator.
+    var producedOutputs: Set<String> {
+        switch configuration {
+        case .tapHoldPicker(let config):
+            // Reports both tap and hold outputs
+            var outputs: Set<String> = []
+            if let tap = config.selectedTapOutput ?? config.tapOptions.first?.output {
+                outputs.insert(tap)
+            }
+            if let hold = config.selectedHoldOutput ?? config.holdOptions.first?.output {
+                outputs.insert(hold)
+            }
+            return outputs
+
+        case .homeRowMods(let config):
+            // Reports all configured modifier outputs
+            return Set(config.keyConfigs.compactMap(\.holdOutput))
+
+        case .customMappings(let rules):
+            // Reports all output keys from custom rules
+            return Set(rules.map(\.output))
+
+        // ... other config types report their outputs similarly
+        default:
+            return []
+        }
+    }
+
+    /// All layers this collection can activate.
+    var activatableLayers: Set<String> {
+        guard let activator = momentaryActivator else { return [] }
+        return [activator.targetLayer.name]
+    }
+}
+```
+
+**Why this scales:** When a community contributor adds a new collection type, they implement `producedOutputs` on their config. The scanner works automatically — no central switch statement to update.
+
+**Why not the simulator:** `producedOutputs` reads declared config, not simulated keypress results. This is a static analysis question ("what did the user configure?") not a runtime question ("what happens when key X is pressed at time T?"). The config model is the source of truth, always available, and fast to read.
 
 ### Dependency Model: Priority-Chain Checking
 
@@ -82,10 +132,10 @@ What to scan the entire keymap for if the preferred source doesn't satisfy:
 
 ```swift
 enum FallbackCapability: Codable, Equatable, Sendable {
-    /// Any enabled collection outputs this key (hold, tap, or mapping)
+    /// Any enabled collection's producedOutputs contains this key
     case keyOutputExists(String)
 
-    /// Any enabled collection has a momentary activator for this layer
+    /// Any enabled collection's activatableLayers contains this layer
     case layerActivatable(String)
 }
 ```
@@ -101,12 +151,34 @@ enum FallbackCapability: Codable, Equatable, Sendable {
    └─ Yes → dependency met, no warning
    └─ No  → continue
 
-3. Does fallbackCapability exist anywhere? (scan all enabled collections)
+3. Does fallbackCapability exist anywhere? (query producedOutputs / activatableLayers)
    └─ Yes → dependency met, no warning (power user path)
    └─ No  → UNMET — warn with recommendation to use preferred source
 ```
 
-This is cheap: step 1 and 2 are O(1). Step 3 only runs when the preferred source fails, which is the uncommon case.
+Step 1 and 2 are O(1). Step 3 is a linear scan of `producedOutputs` across enabled collections — fast even with hundreds of community rules because it's just set lookups, no simulation.
+
+### Fallback Scanner
+
+Uses the self-reporting interface, not hardcoded config knowledge:
+
+```swift
+extension PackDependencyChecker {
+    static func isFallbackMet(
+        _ capability: FallbackCapability,
+        enabledCollections: [RuleCollection]
+    ) -> Bool {
+        switch capability {
+        case .keyOutputExists(let key):
+            return enabledCollections.contains { $0.producedOutputs.contains(key) }
+        case .layerActivatable(let layer):
+            return enabledCollections.contains { $0.activatableLayers.contains(layer) }
+        }
+    }
+}
+```
+
+This is the entire scanner. It never needs updating when new collection types are added — they just implement `producedOutputs` and `activatableLayers`.
 
 ### UnmetDependency — Enhanced with Recommendation
 
@@ -122,7 +194,6 @@ struct UnmetDependency: Equatable, Sendable {
     enum UnmetReason: Equatable, Sendable {
         case notEnabled          // Preferred source pack is disabled
         case configMismatch      // Preferred source enabled but wrong config
-        case dormant             // Condition not met (should never appear in results)
     }
 }
 ```
@@ -170,27 +241,6 @@ PackDependency(
 )
 ```
 
-### FallbackCapability Scanner
-
-```swift
-extension PackDependencyChecker {
-    static func isFallbackMet(
-        _ capability: FallbackCapability,
-        enabledCollections: [RuleCollection]
-    ) -> Bool
-}
-```
-
-For `.keyOutputExists("C-S-M-A-")`:
-1. Scan all enabled collections with `tapHoldPicker` configs — check `selectedHoldOutput` and `selectedTapOutput`
-2. Scan all `homeRowMods` configs — check if any key outputs the target
-3. Scan custom rules — check if any output matches
-4. Return true on first match
-
-For `.layerActivatable("nav")`:
-1. Check all enabled collections with a `momentaryActivator` targeting that layer
-2. Return true if any found
-
 ## Warning Surfaces
 
 ### 1. Pack Detail View (inline banner) — PRIMARY
@@ -207,7 +257,7 @@ For `.layerActivatable("nav")`:
 
 ### 3. Upstream Config Change (inline on the pack being changed)
 - When user changes Caps Lock hold output away from Hyper:
-  - Compute downstream impact: which enabled packs depend on Hyper?
+  - Compute downstream impact: which enabled packs depend on Hyper via `producedOutputs`?
   - Show inline note below the picker: "Quick Launcher uses Hyper"
   - Informational only — don't block the change
 - Same pattern for Leader Key when user changes the leader key assignment
@@ -232,11 +282,12 @@ Pack Detail's "Requires / Enhanced by / Enhances" cards continue to show regardl
 
 ## Migration Path
 
-1. Add `condition` and `fallbackCapability` as optional fields on `PackDependency` (defaults to nil = existing behavior)
-2. Extend `PackDependencyChecker.checkDependency()` to implement the priority chain
-3. Add `isFallbackMet()` scanner
-4. Wire Quick Launcher's Hyper dependency as the first real use case
-5. Add warning surfaces incrementally (Pack Detail first)
+1. Implement `producedOutputs` and `activatableLayers` on `RuleCollection` (reads config model directly)
+2. Add `condition` and `fallbackCapability` as optional fields on `PackDependency` (defaults to nil = existing behavior)
+3. Extend `PackDependencyChecker.checkDependency()` to implement the priority chain
+4. Add `isFallbackMet()` scanner using `producedOutputs` / `activatableLayers`
+5. Wire Quick Launcher's Hyper dependency as the first real use case
+6. Add warning surfaces incrementally (Pack Detail first)
 
 No breaking changes. Existing dependencies without `condition` or `fallbackCapability` continue to work exactly as before.
 
@@ -244,19 +295,31 @@ No breaking changes. Existing dependencies without `condition` or `fallbackCapab
 
 | Phase | What | Effort |
 |-------|------|--------|
-| 1 | Add `condition` + `fallbackCapability` to `PackDependency`, extend checker with priority chain | 1 day |
-| 2 | `isFallbackMet()` scanner for `.keyOutputExists` and `.layerActivatable` | 0.5 day |
-| 3 | Quick Launcher → Hyper dependency (condition + fallback) | 0.5 day |
-| 4 | Pack Detail inline warning banner | 0.5 day |
-| 5 | Rules Summary warning badges | 0.5 day |
-| 6 | Upstream config change warnings (Caps Lock Remap picker) | 1 day |
-| 7 | Activation mode picker inline warning | 0.5 day |
+| 1 | `producedOutputs` + `activatableLayers` on `RuleCollection` | 0.5 day |
+| 2 | Add `condition` + `fallbackCapability` to `PackDependency`, extend checker with priority chain | 1 day |
+| 3 | `isFallbackMet()` scanner using self-reporting interface | 0.5 day |
+| 4 | Quick Launcher → Hyper dependency (condition + fallback) — first real validation | 0.5 day |
+| 5 | Pack Detail inline warning banner | 0.5 day |
+| 6 | Rules Summary warning badges | 0.5 day |
+| 7 | Upstream config change warnings (Caps Lock Remap picker) | 1 day |
+| 8 | Activation mode picker inline warning | 0.5 day |
 
-Total: ~4.5 days
+Total: ~5 days
 
 ## Risks
 
-- **False negatives on fallback scan:** A key mapped to Hyper on an unreachable layer won't actually work. We accept this — tracing full layer reachability is a rabbit hole. The system checks "is it configured" not "is it physically reachable through N layer hops."
-- **Custom rules:** Users can map any key to Hyper via custom rules. The fallback scanner should check these too, otherwise power users who set up Hyper without a pack get false warnings.
+- **Incomplete `producedOutputs`:** If a collection type doesn't implement it, capabilities from that type won't be found by the fallback scan. Mitigated by: the preferred source check (step 2) doesn't use `producedOutputs` — it uses the existing `configPredicate`. The fallback scan is a safety net, not the primary path.
+- **False negatives:** A key configured to output Hyper on an unreachable layer won't actually work. We accept this — tracing full layer reachability through the config model is a rabbit hole. The system checks "is it configured" not "is it physically reachable through N layer hops."
+- **Community rule coverage:** New collection types need to implement `producedOutputs` to participate in fallback scanning. This is a lightweight protocol obligation — document it as a requirement for community rule authors.
 - **UI clutter:** Mitigated by only warning for `.requires` and keeping to one line + one button.
-- **Performance:** Fallback scan is rare (only when preferred source fails) and cheap (linear scan of ~20 collections). No caching needed initially.
+- **Performance:** `producedOutputs` is a property computed from the config model — no simulation, no I/O. Fallback scan is a linear scan of set lookups. No caching needed initially; can add lazy caching invalidated on `ruleCollectionsChanged` if profiling shows a need.
+
+## Future: Community Rules
+
+When the rules system opens to community contributions, rule authors implement `producedOutputs` and `activatableLayers` on their collection config type. The dependency system works automatically:
+
+- Their outputs are discoverable by the fallback scanner
+- Other packs can declare dependencies on capabilities their rules provide
+- No central registry of "what config types exist" — each type self-reports
+
+This is the same pattern as Swift's `CustomStringConvertible` — you conform, the system uses it.
