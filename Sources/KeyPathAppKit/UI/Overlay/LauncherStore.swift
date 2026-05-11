@@ -5,7 +5,7 @@ import SwiftUI
 @Observable
 @MainActor
 final class LauncherStore {
-    var mappings: [QuickLaunchMapping] = []
+    var mappings: [LauncherMapping] = []
     private var knownMappingIds: Set<UUID> = []
 
     init() {
@@ -13,7 +13,7 @@ final class LauncherStore {
     }
 
     /// Testing init that accepts pre-populated mappings without hitting RuleCollectionStore.
-    init(testMappings: [QuickLaunchMapping]) {
+    init(testMappings: [LauncherMapping]) {
         mappings = testMappings
         knownMappingIds = Set(testMappings.map(\.id))
     }
@@ -32,43 +32,18 @@ final class LauncherStore {
                 return
             }
 
-            // Convert LauncherMapping to QuickLaunchMapping, filtering for installed apps
-            let convertedMappings: [QuickLaunchMapping] = config.mappings.compactMap { mapping in
-                guard mapping.isEnabled else { return nil }
-
+            // Filter for installed apps (keep all non-app targets)
+            let filteredMappings: [LauncherMapping] = config.mappings.filter { mapping in
                 switch mapping.target {
                 case let .app(name, bundleId):
-                    guard Self.isAppInstalled(name: name, bundleId: bundleId) else { return nil }
-                    return QuickLaunchMapping(
-                        id: mapping.id, key: mapping.key, targetType: .app,
-                        targetName: name, bundleId: bundleId, isEnabled: mapping.isEnabled,
-                        customIconPath: mapping.customIconPath, userDescription: mapping.userDescription
-                    )
-                case let .url(urlString):
-                    return QuickLaunchMapping(
-                        id: mapping.id, key: mapping.key, targetType: .website,
-                        targetName: urlString, bundleId: nil, isEnabled: mapping.isEnabled,
-                        customIconPath: mapping.customIconPath, userDescription: mapping.userDescription
-                    )
-                case let .folder(path, name):
-                    return QuickLaunchMapping(
-                        id: mapping.id, key: mapping.key, targetType: .folder,
-                        targetName: name ?? URL(fileURLWithPath: path).lastPathComponent, bundleId: nil,
-                        isEnabled: mapping.isEnabled, customIconPath: mapping.customIconPath,
-                        userDescription: mapping.userDescription
-                    )
-                case let .script(path, name):
-                    return QuickLaunchMapping(
-                        id: mapping.id, key: mapping.key, targetType: .script,
-                        targetName: name ?? URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent,
-                        bundleId: path, isEnabled: mapping.isEnabled,
-                        customIconPath: mapping.customIconPath, userDescription: mapping.userDescription
-                    )
+                    return Self.isAppInstalled(name: name, bundleId: bundleId)
+                case .url, .folder, .script:
+                    return true
                 }
             }
 
-            mappings = convertedMappings
-            knownMappingIds = Set(convertedMappings.map(\.id))
+            mappings = filteredMappings
+            knownMappingIds = Set(filteredMappings.map(\.id))
             AppLogger.shared.info("🚀 [LauncherStore] Loaded \(mappings.count) launcher mappings")
         }
     }
@@ -78,7 +53,7 @@ final class LauncherStore {
     }
 
     /// Mappings sorted by proximity to the physical home row.
-    var sortedMappings: [QuickLaunchMapping] {
+    var sortedMappings: [LauncherMapping] {
         mappings.sorted { Self.homeRowProximity(for: $0.key) < Self.homeRowProximity(for: $1.key) }
     }
 
@@ -148,12 +123,12 @@ final class LauncherStore {
         return false
     }
 
-    func addMapping(_ mapping: QuickLaunchMapping) {
+    func addMapping(_ mapping: LauncherMapping) {
         mappings.append(mapping)
         persistMappings()
     }
 
-    func updateMapping(_ mapping: QuickLaunchMapping) {
+    func updateMapping(_ mapping: LauncherMapping) {
         if let index = mappings.firstIndex(where: { $0.id == mapping.id }) {
             mappings[index] = mapping
         }
@@ -165,12 +140,12 @@ final class LauncherStore {
         persistMappings()
     }
 
-    private static var defaultMappings: [QuickLaunchMapping] {
+    private static var defaultMappings: [LauncherMapping] {
         [
-            QuickLaunchMapping(key: "s", targetType: .app, targetName: "Safari"),
-            QuickLaunchMapping(key: "t", targetType: .app, targetName: "Terminal"),
-            QuickLaunchMapping(key: "f", targetType: .app, targetName: "Finder"),
-            QuickLaunchMapping(key: "g", targetType: .website, targetName: "github.com")
+            LauncherMapping(key: "s", target: .app(name: "Safari", bundleId: nil)),
+            LauncherMapping(key: "t", target: .app(name: "Terminal", bundleId: nil)),
+            LauncherMapping(key: "f", target: .app(name: "Finder", bundleId: nil)),
+            LauncherMapping(key: "g", target: .url("github.com"))
         ]
     }
 
@@ -194,29 +169,11 @@ final class LauncherStore {
             var updatedMappings = config.mappings
             updatedMappings.removeAll { removedIds.contains($0.id) }
 
-            for quick in currentMappings {
-                let target: LauncherTarget = switch quick.targetType {
-                case .app:
-                    .app(name: quick.targetName, bundleId: quick.bundleId)
-                case .website:
-                    .url(quick.targetName)
-                case .folder:
-                    .folder(path: quick.bundleId ?? quick.targetName, name: quick.targetName)
-                case .script:
-                    .script(path: quick.bundleId ?? quick.targetName, name: quick.targetName)
-                }
-
-                if let existingIndex = updatedMappings.firstIndex(where: { $0.id == quick.id }) {
-                    updatedMappings[existingIndex].key = quick.key
-                    updatedMappings[existingIndex].target = target
-                    updatedMappings[existingIndex].isEnabled = quick.isEnabled
+            for mapping in currentMappings {
+                if let existingIndex = updatedMappings.firstIndex(where: { $0.id == mapping.id }) {
+                    updatedMappings[existingIndex] = mapping
                 } else {
-                    updatedMappings.append(LauncherMapping(
-                        id: quick.id,
-                        key: quick.key,
-                        target: target,
-                        isEnabled: quick.isEnabled
-                    ))
+                    updatedMappings.append(mapping)
                 }
             }
 

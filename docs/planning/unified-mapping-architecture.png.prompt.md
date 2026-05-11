@@ -1,0 +1,1 @@
+Architecture diagram for unified mapping model planning doc. Shows three phases: current fragmented state (4 models, 4 config paths), Phase 0 (shared KeyAction output type), and full refactor (unified KeyRule with one store, one editor, one config path). Generated with gpt-image-1.

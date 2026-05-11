@@ -13,9 +13,6 @@ struct LauncherCollectionView: View {
 
     @State private var selectedKey: String?
     @State private var showBrowserHistory = false
-    @State private var editingMapping: LauncherMapping?
-    @State private var showAddMapping = false
-    @State private var preselectedKey: String?
 
     /// Local state for immediate UI response
     @State private var localHyperTriggerMode: HyperTriggerMode = .hold
@@ -62,13 +59,7 @@ struct LauncherCollectionView: View {
             LauncherDrawerView(
                 config: $config,
                 selectedKey: $selectedKey,
-                onAddMapping: { showAddMapping = true },
-                onEditMapping: { mapping in
-                    editingMapping = mapping
-                },
-                onDeleteMapping: { id in
-                    deleteMapping(id: id)
-                }
+                onConfigChanged: onConfigChanged
             )
             .onChange(of: config) { _, newValue in
                 onConfigChanged(newValue)
@@ -79,42 +70,7 @@ struct LauncherCollectionView: View {
                 addSuggestedSites(selectedSites)
             }
         }
-        .sheet(item: $editingMapping) { mapping in
-            LauncherMappingEditor(
-                mapping: mapping,
-                existingKeys: Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) }),
-                onSave: { updated in
-                    updateMapping(updated)
-                    editingMapping = nil
-                },
-                onCancel: {
-                    editingMapping = nil
-                }
-            )
-        }
-        .sheet(isPresented: $showAddMapping) {
-            LauncherMappingEditor(
-                mapping: preselectedKey.map { key in
-                    LauncherMapping(key: key, target: .app(name: "", bundleId: nil))
-                },
-                existingKeys: Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) }),
-                onSave: { newMapping in
-                    addMapping(newMapping)
-                    showAddMapping = false
-                    preselectedKey = nil
-                },
-                onCancel: {
-                    showAddMapping = false
-                    preselectedKey = nil
-                }
-            )
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .launcherSelectKey)) { notification in
-            guard let key = notification.userInfo?["key"] as? String else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                handleKeyClicked(key)
-            }
-        }
+        // Note: .launcherSelectKey is handled by LauncherDrawerView directly
     }
 
     // MARK: - Activation Mode Section
@@ -190,40 +146,13 @@ struct LauncherCollectionView: View {
     // MARK: - Actions
 
     private func handleKeyClicked(_ key: String) {
-        // Check if key is already mapped
-        if let existingMapping = config.mappings.first(where: { $0.key.lowercased() == key.lowercased() }) {
-            // Key is mapped - select it and open edit dialog
-            selectedKey = key
-            editingMapping = existingMapping
-        } else {
-            // Key is unmapped - open add dialog with key pre-selected
-            preselectedKey = key
-            showAddMapping = true
-        }
-    }
-
-    private func updateMapping(_ mapping: LauncherMapping) {
-        guard let index = config.mappings.firstIndex(where: { $0.id == mapping.id }) else { return }
-        config.mappings[index] = mapping
-        onConfigChanged(config)
-    }
-
-    private func addMapping(_ mapping: LauncherMapping) {
-        config.mappings.append(mapping)
-        onConfigChanged(config)
-        // Select the newly added key
-        selectedKey = mapping.key
-    }
-
-    private func deleteMapping(id: UUID) {
-        config.mappings.removeAll { $0.id == id }
-        onConfigChanged(config)
-        // Clear selection if deleted key was selected
-        if let selected = selectedKey,
-           config.mappings.first(where: { $0.key.lowercased() == selected.lowercased() }) == nil
-        {
-            selectedKey = nil
-        }
+        selectedKey = key
+        // Post notification so the drawer picks it up and opens the editor
+        NotificationCenter.default.post(
+            name: .launcherSelectKey,
+            object: nil,
+            userInfo: ["key": key]
+        )
     }
 
     private func addSuggestedSites(_ sites: [BrowserHistoryScanner.VisitedSite]) {
@@ -261,6 +190,7 @@ struct LauncherMappingEditor: View {
     let existingKeys: Set<String>
     let onSave: (LauncherMapping) -> Void
     let onCancel: () -> Void
+    var onDelete: (() -> Void)?
 
     @Environment(\.services) private var services
     @State private var key: String
@@ -305,12 +235,14 @@ struct LauncherMappingEditor: View {
         mapping: LauncherMapping?,
         existingKeys: Set<String>,
         onSave: @escaping (LauncherMapping) -> Void,
-        onCancel: @escaping () -> Void
+        onCancel: @escaping () -> Void,
+        onDelete: (() -> Void)? = nil
     ) {
         self.mapping = mapping
         self.existingKeys = existingKeys
         self.onSave = onSave
         self.onCancel = onCancel
+        self.onDelete = onDelete
 
         if let mapping {
             _key = State(initialValue: mapping.key)
@@ -474,6 +406,14 @@ struct LauncherMappingEditor: View {
 
             // Buttons
             HStack {
+                if mapping != nil, let onDelete {
+                    Button("Delete", role: .destructive) {
+                        onDelete()
+                    }
+                    .foregroundColor(.red)
+                    .accessibilityIdentifier("launcher-editor-delete-button")
+                }
+
                 Button("Cancel") { onCancel() }
                     .keyboardShortcut(.cancelAction)
                     .accessibilityIdentifier("launcher-editor-cancel-button")

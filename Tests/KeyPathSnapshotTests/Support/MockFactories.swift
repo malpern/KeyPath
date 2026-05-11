@@ -44,20 +44,6 @@ enum MockFactories {
         ]
     }
 
-    static func quickLaunchMapping(
-        key: String = "s",
-        targetType: QuickLaunchMapping.TargetType = .app,
-        targetName: String = "Safari",
-        bundleId: String? = "com.apple.Safari"
-    ) -> QuickLaunchMapping {
-        QuickLaunchMapping(
-            key: key,
-            targetType: targetType,
-            targetName: targetName,
-            bundleId: bundleId
-        )
-    }
-
     // MARK: - Rule Models
 
     static func appKeyOverride(

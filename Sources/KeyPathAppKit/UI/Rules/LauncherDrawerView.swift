@@ -8,9 +8,10 @@ import SwiftUI
 struct LauncherDrawerView: View {
     @Binding var config: LauncherGridConfig
     @Binding var selectedKey: String?
-    var onAddMapping: () -> Void
-    var onEditMapping: (LauncherMapping) -> Void
-    var onDeleteMapping: (UUID) -> Void
+    var onConfigChanged: ((LauncherGridConfig) -> Void)?
+
+    @State private var editingMapping: LauncherMapping?
+    @State private var showAddMapping = false
 
     private var sortedMappings: [LauncherMapping] {
         config.mappings.sorted { $0.key < $1.key }
@@ -33,7 +34,7 @@ struct LauncherDrawerView: View {
                     .padding(.vertical, 2)
                     .background(Capsule().fill(Color.secondary.opacity(0.2)))
                 Spacer()
-                Button(action: onAddMapping) {
+                Button(action: { showAddMapping = true }) {
                     Label("Add Mapping", systemImage: "plus")
                 }
                 .buttonStyle(.bordered)
@@ -65,9 +66,12 @@ struct LauncherDrawerView: View {
                                 isSelected: selectedKey?.lowercased() == mapping.key.lowercased(),
                                 onEdit: {
                                     selectedKey = mapping.key
-                                    onEditMapping(mapping)
+                                    editingMapping = mapping
                                 },
-                                onDelete: { onDeleteMapping(mapping.id) }
+                                onDelete: { deleteMapping(id: mapping.id) },
+                                onToggleEnabled: { newValue in
+                                    toggleMapping(mapping, enabled: newValue)
+                                }
                             )
                         }
                     }
@@ -76,6 +80,52 @@ struct LauncherDrawerView: View {
             }
         }
         .background(Color(NSColor.controlBackgroundColor))
+        .onReceive(NotificationCenter.default.publisher(for: .launcherSelectKey)) { notification in
+            guard let key = notification.userInfo?["key"] as? String else { return }
+            let normalized = key.lowercased()
+            if let existing = config.mappings.first(where: { $0.key.lowercased() == normalized }) {
+                selectedKey = key
+                editingMapping = existing
+            } else {
+                selectedKey = key
+                editingMapping = LauncherMapping(key: LauncherGridConfig.normalizeKey(key), target: .app(name: "", bundleId: nil))
+            }
+        }
+        .sheet(item: $editingMapping) { mapping in
+            let isExisting = config.mappings.contains(where: { $0.id == mapping.id })
+            LauncherMappingEditor(
+                mapping: mapping,
+                existingKeys: Set(config.mappings.filter { $0.id != mapping.id }.map { LauncherGridConfig.normalizeKey($0.key) }),
+                onSave: { updated in
+                    if isExisting {
+                        updateMapping(updated)
+                    } else {
+                        addMapping(updated)
+                    }
+                    editingMapping = nil
+                },
+                onCancel: {
+                    editingMapping = nil
+                },
+                onDelete: isExisting ? {
+                    deleteMapping(id: mapping.id)
+                    editingMapping = nil
+                } : nil
+            )
+        }
+        .sheet(isPresented: $showAddMapping) {
+            LauncherMappingEditor(
+                mapping: nil,
+                existingKeys: Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) }),
+                onSave: { newMapping in
+                    addMapping(newMapping)
+                    showAddMapping = false
+                },
+                onCancel: {
+                    showAddMapping = false
+                }
+            )
+        }
     }
 
     // MARK: - Empty State
@@ -96,6 +146,36 @@ struct LauncherDrawerView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
     }
+
+    // MARK: - Actions
+
+    private func updateMapping(_ mapping: LauncherMapping) {
+        guard let index = config.mappings.firstIndex(where: { $0.id == mapping.id }) else { return }
+        config.mappings[index] = mapping
+        onConfigChanged?(config)
+    }
+
+    private func addMapping(_ mapping: LauncherMapping) {
+        config.mappings.append(mapping)
+        onConfigChanged?(config)
+        selectedKey = mapping.key
+    }
+
+    private func deleteMapping(id: UUID) {
+        config.mappings.removeAll { $0.id == id }
+        onConfigChanged?(config)
+        if let selected = selectedKey,
+           config.mappings.first(where: { $0.key.lowercased() == selected.lowercased() }) == nil
+        {
+            selectedKey = nil
+        }
+    }
+
+    private func toggleMapping(_ mapping: LauncherMapping, enabled: Bool) {
+        guard let index = config.mappings.firstIndex(where: { $0.id == mapping.id }) else { return }
+        config.mappings[index].isEnabled = enabled
+        onConfigChanged?(config)
+    }
 }
 
 // MARK: - Mapping Card
@@ -105,6 +185,7 @@ private struct LauncherMappingCard: View {
     let isSelected: Bool
     var onEdit: () -> Void
     var onDelete: () -> Void
+    var onToggleEnabled: ((Bool) -> Void)?
 
     @Environment(\.services) private var services
     @State private var icon: NSImage?
@@ -131,13 +212,29 @@ private struct LauncherMappingCard: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            iconView
+            // Icon or Checkbox (checkbox replaces icon on hover)
+            Group {
+                if isHovering {
+                    Toggle("", isOn: Binding(
+                        get: { mapping.isEnabled },
+                        set: { newValue in onToggleEnabled?(newValue) }
+                    ))
+                    .toggleStyle(.checkbox)
+                    .labelsHidden()
+                    .controlSize(.regular)
+                    .frame(width: 44, height: 44)
+                    .accessibilityIdentifier("launcher-card-toggle-\(mapping.key)")
+                } else {
+                    iconView
+                }
+            }
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(mapping.userDescription ?? mapping.target.displayName)
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
                     .foregroundColor(mapping.isEnabled ? .primary : .secondary)
+                    .strikethrough(!mapping.isEnabled, color: .secondary)
 
                 HStack(spacing: 4) {
                     Image(systemName: typeIconName)
@@ -162,7 +259,7 @@ private struct LauncherMappingCard: View {
                 .padding(.vertical, 6)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.accentColor)
+                        .fill(mapping.isEnabled ? Color.accentColor : Color.gray)
                 )
         }
         .padding(.horizontal, 12)
@@ -180,6 +277,12 @@ private struct LauncherMappingCard: View {
         .onHover { isHovering = $0 }
         .contextMenu {
             Button("Edit") { onEdit() }
+            Divider()
+            if mapping.isEnabled {
+                Button("Disable") { onToggleEnabled?(false) }
+            } else {
+                Button("Enable") { onToggleEnabled?(true) }
+            }
             Divider()
             Button("Delete", role: .destructive) { onDelete() }
         }
@@ -199,6 +302,7 @@ private struct LauncherMappingCard: View {
                 .frame(width: 44, height: 44)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
+                .saturation(mapping.isEnabled ? 1.0 : 0.3)
         } else {
             Image(systemName: typeIconName)
                 .font(.system(size: 20))
@@ -253,10 +357,7 @@ private struct LauncherMappingCard: View {
 #Preview("Launcher Grid") {
     LauncherDrawerView(
         config: .constant(LauncherGridConfig.defaultConfig),
-        selectedKey: .constant("s"),
-        onAddMapping: {},
-        onEditMapping: { _ in },
-        onDeleteMapping: { _ in }
+        selectedKey: .constant("s")
     )
     .frame(width: 900, height: 400)
 }
@@ -264,10 +365,7 @@ private struct LauncherMappingCard: View {
 #Preview("Launcher Grid - Empty") {
     LauncherDrawerView(
         config: .constant(LauncherGridConfig(activationMode: .holdHyper, mappings: [])),
-        selectedKey: .constant(nil),
-        onAddMapping: {},
-        onEditMapping: { _ in },
-        onDeleteMapping: { _ in }
+        selectedKey: .constant(nil)
     )
     .frame(width: 900, height: 300)
 }
