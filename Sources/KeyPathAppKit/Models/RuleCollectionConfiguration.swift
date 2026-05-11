@@ -463,6 +463,20 @@ public enum LauncherTarget: Codable, Equatable, Sendable {
         }
     }
 
+    /// Auto-generated description for tooltips
+    public var autoDescription: String {
+        switch self {
+        case let .app(name, _):
+            "Open \(name)"
+        case let .url(urlString):
+            "Open \(URLMappingFormatter.displayDomain(for: urlString))"
+        case let .folder(_, name):
+            "Open \(name ?? "folder")"
+        case let .script(_, name):
+            "Run \(name ?? "script")"
+        }
+    }
+
     /// Whether this target is an app
     public var isApp: Bool {
         if case .app = self { return true }
@@ -510,17 +524,27 @@ public struct LauncherMapping: Codable, Equatable, Sendable, Identifiable {
     public var key: String
     public var target: LauncherTarget
     public var isEnabled: Bool
+    public var customIconPath: String?
+    public var userDescription: String?
 
     public init(
         id: UUID = UUID(),
         key: String,
         target: LauncherTarget,
-        isEnabled: Bool = true
+        isEnabled: Bool = true,
+        customIconPath: String? = nil,
+        userDescription: String? = nil
     ) {
         self.id = id
         self.key = key
         self.target = target
         self.isEnabled = isEnabled
+        self.customIconPath = customIconPath
+        self.userDescription = userDescription
+    }
+
+    public var tooltip: String {
+        userDescription ?? target.autoDescription
     }
 }
 

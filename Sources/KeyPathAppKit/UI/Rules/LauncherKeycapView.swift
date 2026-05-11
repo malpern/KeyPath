@@ -50,6 +50,7 @@ struct LauncherKeycapView: View {
             }
         }
         .aspectRatio(key.width / key.height, contentMode: .fit)
+        .help(mapping?.tooltip ?? "")
         .contentShape(Rectangle())
         .onTapGesture {
             onTap()
@@ -181,6 +182,15 @@ struct LauncherKeycapView: View {
         guard let mapping else {
             icon = nil
             return
+        }
+
+        if let iconPath = mapping.customIconPath {
+            let expanded = (iconPath as NSString).expandingTildeInPath
+            if let img = NSImage(contentsOfFile: expanded) {
+                img.size = NSSize(width: 32, height: 32)
+                icon = img
+                return
+            }
         }
 
         switch mapping.target {

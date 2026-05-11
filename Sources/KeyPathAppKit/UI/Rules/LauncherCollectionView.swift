@@ -273,7 +273,10 @@ struct LauncherMappingEditor: View {
     @State private var scriptPath: String
     @State private var scriptName: String
     @State private var isEnabled: Bool
+    @State private var customIconPath: String
+    @State private var userDescription: String
     @State private var isScriptExecutionEnabled: Bool = ScriptSecurityService.shared.isScriptExecutionEnabled
+    @State private var showScriptEnableConfirmation = false
     @State private var icon: NSImage?
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
@@ -312,6 +315,8 @@ struct LauncherMappingEditor: View {
         if let mapping {
             _key = State(initialValue: mapping.key)
             _isEnabled = State(initialValue: mapping.isEnabled)
+            _customIconPath = State(initialValue: mapping.customIconPath ?? "")
+            _userDescription = State(initialValue: mapping.userDescription ?? "")
             switch mapping.target {
             case let .app(name, bundleId):
                 _targetType = State(initialValue: .app)
@@ -361,6 +366,8 @@ struct LauncherMappingEditor: View {
             _scriptPath = State(initialValue: "")
             _scriptName = State(initialValue: "")
             _isEnabled = State(initialValue: true)
+            _customIconPath = State(initialValue: "")
+            _userDescription = State(initialValue: "")
         }
     }
 
@@ -425,7 +432,7 @@ struct LauncherMappingEditor: View {
                             }
                         }
 
-                        if !isScriptExecutionEnabled, targetType == .script {
+                        if !isScriptExecutionEnabled, targetType.requiresScriptExecution {
                             HStack(spacing: 8) {
                                 Image(systemName: "lock.shield.fill")
                                     .foregroundColor(.orange)
@@ -434,9 +441,11 @@ struct LauncherMappingEditor: View {
                                         .font(.caption)
                                         .fontWeight(.medium)
                                         .foregroundColor(.orange)
-                                    Button("Enable in Settings") { openSettings() }
-                                        .buttonStyle(.link)
-                                        .font(.caption)
+                                    Button("Allow Scripts") {
+                                        showScriptEnableConfirmation = true
+                                    }
+                                    .buttonStyle(.link)
+                                    .font(.caption)
                                 }
                             }
                             .padding(.leading, 84)
@@ -469,7 +478,13 @@ struct LauncherMappingEditor: View {
                     .keyboardShortcut(.cancelAction)
                     .accessibilityIdentifier("launcher-editor-cancel-button")
                 Spacer()
-                Button("Save") { save() }
+                Button("Save") {
+                    if targetType == .script, !isScriptExecutionEnabled {
+                        showScriptEnableConfirmation = true
+                    } else {
+                        save()
+                    }
+                }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .disabled(!isValid)
@@ -480,6 +495,18 @@ struct LauncherMappingEditor: View {
         }
         .frame(width: 480)
         .frame(minHeight: 400)
+        .sheet(isPresented: $showScriptEnableConfirmation) {
+            ScriptEnableConfirmationView(
+                onAllow: {
+                    isScriptExecutionEnabled = true
+                    showScriptEnableConfirmation = false
+                    save()
+                },
+                onCancel: {
+                    showScriptEnableConfirmation = false
+                }
+            )
+        }
         .onAppear {
             isScriptExecutionEnabled = ScriptSecurityService.shared.isScriptExecutionEnabled
         }
@@ -645,6 +672,44 @@ struct LauncherMappingEditor: View {
                     }
                 }
             }
+
+            // Description (shown in overlay sidebar)
+            formRow("Description") {
+                TextField("What this shortcut does (optional)", text: $userDescription)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("launcher-editor-description-field")
+            }
+
+            // Custom icon (available for all target types)
+            formRow("Icon") {
+                HStack(spacing: 8) {
+                    if !customIconPath.isEmpty,
+                       let img = NSImage(contentsOfFile: (customIconPath as NSString).expandingTildeInPath)
+                    {
+                        Image(nsImage: img)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 20, height: 20)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
+                    Button(customIconPath.isEmpty ? "Choose..." : "Change...") {
+                        browseForIcon()
+                    }
+                    .controlSize(.small)
+                    .accessibilityIdentifier("launcher-editor-icon-browse")
+                    if !customIconPath.isEmpty {
+                        Button {
+                            customIconPath = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Remove custom icon")
+                        .accessibilityIdentifier("launcher-editor-icon-clear")
+                    }
+                }
+            }
         }
     }
 
@@ -671,7 +736,8 @@ struct LauncherMappingEditor: View {
     }
 
     private var currentDisplayName: String {
-        switch targetType {
+        if !userDescription.isEmpty { return userDescription }
+        return switch targetType {
         case .app: appName
         case .website: url
         case .folder: folderName.isEmpty ? (folderPath as NSString).lastPathComponent : folderName
@@ -682,6 +748,14 @@ struct LauncherMappingEditor: View {
     // MARK: - Icon Loading
 
     private func loadIcon() async {
+        if !customIconPath.isEmpty {
+            let expanded = (customIconPath as NSString).expandingTildeInPath
+            if let img = NSImage(contentsOfFile: expanded) {
+                img.size = NSSize(width: 56, height: 56)
+                icon = img
+                return
+            }
+        }
         guard let mapping else { return }
         switch mapping.target {
         case .app, .folder, .script:
@@ -803,7 +877,9 @@ struct LauncherMappingEditor: View {
             id: mapping?.id ?? UUID(),
             key: normalizedKey,
             target: target,
-            isEnabled: isEnabled
+            isEnabled: isEnabled,
+            customIconPath: customIconPath.isEmpty ? nil : customIconPath,
+            userDescription: userDescription.isEmpty ? nil : userDescription
         )
         onSave(result)
     }
@@ -863,6 +939,25 @@ struct LauncherMappingEditor: View {
             }
             if scriptName.isEmpty {
                 scriptName = url.deletingPathExtension().lastPathComponent
+            }
+        }
+    }
+
+    private func browseForIcon() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Choose an icon image"
+        panel.prompt = "Select"
+        panel.allowedContentTypes = [.png, .jpeg, .icns, .svg, .tiff]
+
+        if panel.runModal() == .OK, let url = panel.url {
+            let path = url.path
+            if path.hasPrefix(NSHomeDirectory()) {
+                customIconPath = path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+            } else {
+                customIconPath = path
             }
         }
     }

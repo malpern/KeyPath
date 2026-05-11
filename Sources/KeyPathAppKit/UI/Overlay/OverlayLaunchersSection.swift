@@ -106,12 +106,16 @@ struct OverlayLaunchersSection: View {
             }
             .padding(.top, 6)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .launcherSelectKey)) { notification in
+            guard let key = notification.userInfo?["key"] as? String else { return }
+            editOrCreateMapping(forKey: key)
+        }
         .sheet(item: $editingMapping) { mapping in
             LauncherMappingEditor(
                 mapping: mapping,
                 existingKeys: Set(store.mappings.filter { $0.id != mapping.id }.map { LauncherGridConfig.normalizeKey($0.key) }),
                 onSave: { updated in
-                    saveLauncherMapping(updated)
+                    saveOrAddLauncherMapping(updated)
                     editingMapping = nil
                 },
                 onCancel: {
@@ -130,7 +134,7 @@ struct OverlayLaunchersSection: View {
         )
     }
 
-    private func saveLauncherMapping(_ mapping: LauncherMapping) {
+    private func saveOrAddLauncherMapping(_ mapping: LauncherMapping) {
         Task { @MainActor in
             var collections = await RuleCollectionStore.shared.loadCollections()
             guard let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }),
@@ -138,11 +142,28 @@ struct OverlayLaunchersSection: View {
             else { return }
             if let mappingIndex = config.mappings.firstIndex(where: { $0.id == mapping.id }) {
                 config.mappings[mappingIndex] = mapping
+            } else {
+                config.mappings.append(mapping)
             }
             collections[index].configuration = .launcherGrid(config)
             try? await RuleCollectionStore.shared.saveCollections(collections)
             NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
             store.reloadFromCollections()
+        }
+    }
+
+    private func editOrCreateMapping(forKey key: String) {
+        Task { @MainActor in
+            let collections = await RuleCollectionStore.shared.loadCollections()
+            guard let collection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
+                  let config = collection.configuration.launcherGridConfig
+            else { return }
+            let normalized = LauncherGridConfig.normalizeKey(key)
+            if let existing = config.mappings.first(where: { LauncherGridConfig.normalizeKey($0.key) == normalized }) {
+                editingMapping = existing
+            } else {
+                editingMapping = LauncherMapping(key: normalized, target: .app(name: "", bundleId: nil))
+            }
         }
     }
 
@@ -418,6 +439,14 @@ private struct LauncherMappingRow: View {
     }
 
     private func loadIcon() async {
+        if let customPath = mapping.customIconPath {
+            let expanded = (customPath as NSString).expandingTildeInPath
+            if let nsImage = NSImage(contentsOfFile: expanded) {
+                nsImage.size = NSSize(width: 16, height: 16)
+                icon = nsImage
+                return
+            }
+        }
         switch mapping.targetType {
         case .app:
             icon = LauncherStore.appIcon(name: mapping.targetName, bundleId: mapping.bundleId)

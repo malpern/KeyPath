@@ -54,6 +54,7 @@ extension OverlayKeycapView {
                     .offset(x: labelOffsetX, y: labelOffsetY)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .help(mapping.tooltip)
         } else {
             ZStack {
                 Text(launcherKeyLabel.uppercased())

@@ -38,42 +38,31 @@ final class LauncherStore {
 
                 switch mapping.target {
                 case let .app(name, bundleId):
-                    // Check if app is installed
                     guard Self.isAppInstalled(name: name, bundleId: bundleId) else { return nil }
                     return QuickLaunchMapping(
-                        id: mapping.id,
-                        key: mapping.key,
-                        targetType: .app,
-                        targetName: name,
-                        bundleId: bundleId,
-                        isEnabled: mapping.isEnabled
+                        id: mapping.id, key: mapping.key, targetType: .app,
+                        targetName: name, bundleId: bundleId, isEnabled: mapping.isEnabled,
+                        customIconPath: mapping.customIconPath, userDescription: mapping.userDescription
                     )
                 case let .url(urlString):
                     return QuickLaunchMapping(
-                        id: mapping.id,
-                        key: mapping.key,
-                        targetType: .website,
-                        targetName: urlString,
-                        bundleId: nil,
-                        isEnabled: mapping.isEnabled
+                        id: mapping.id, key: mapping.key, targetType: .website,
+                        targetName: urlString, bundleId: nil, isEnabled: mapping.isEnabled,
+                        customIconPath: mapping.customIconPath, userDescription: mapping.userDescription
                     )
                 case let .folder(path, name):
                     return QuickLaunchMapping(
-                        id: mapping.id,
-                        key: mapping.key,
-                        targetType: .folder,
-                        targetName: name ?? URL(fileURLWithPath: path).lastPathComponent,
-                        bundleId: nil,
-                        isEnabled: mapping.isEnabled
+                        id: mapping.id, key: mapping.key, targetType: .folder,
+                        targetName: name ?? URL(fileURLWithPath: path).lastPathComponent, bundleId: nil,
+                        isEnabled: mapping.isEnabled, customIconPath: mapping.customIconPath,
+                        userDescription: mapping.userDescription
                     )
                 case let .script(path, name):
                     return QuickLaunchMapping(
-                        id: mapping.id,
-                        key: mapping.key,
-                        targetType: .script,
+                        id: mapping.id, key: mapping.key, targetType: .script,
                         targetName: name ?? URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent,
-                        bundleId: path,
-                        isEnabled: mapping.isEnabled
+                        bundleId: path, isEnabled: mapping.isEnabled,
+                        customIconPath: mapping.customIconPath, userDescription: mapping.userDescription
                     )
                 }
             }

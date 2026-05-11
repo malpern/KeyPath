@@ -6,6 +6,16 @@ extension OverlayKeycapView {
 
     /// Load app icon for launch action if needed (via IconResolverService)
     func loadAppIconIfNeeded() {
+        // Check for custom icon on launcher mapping first
+        if let mapping = launcherMapping, let iconPath = mapping.customIconPath {
+            let expanded = (iconPath as NSString).expandingTildeInPath
+            if let img = NSImage(contentsOfFile: expanded) {
+                img.size = NSSize(width: 32, height: 32)
+                appIcon = img
+                return
+            }
+        }
+
         // Check layer-based app launch first
         if let appIdentifier = layerKeyInfo?.appLaunchIdentifier {
             appIcon = services.iconResolver.resolveAppIcon(for: appIdentifier)

@@ -134,7 +134,7 @@ private struct LauncherMappingCard: View {
             iconView
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(mapping.target.displayName)
+                Text(mapping.userDescription ?? mapping.target.displayName)
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
                     .foregroundColor(mapping.isEnabled ? .primary : .secondary)
@@ -184,7 +184,7 @@ private struct LauncherMappingCard: View {
             Button("Delete", role: .destructive) { onDelete() }
         }
         .accessibilityIdentifier("launcher-card-\(mapping.key)")
-        .accessibilityLabel("\(mapping.target.displayName), key \(displayKey)")
+        .accessibilityLabel("\(mapping.userDescription ?? mapping.target.displayName), key \(displayKey)")
         .task { await loadIcon() }
     }
 
@@ -222,6 +222,14 @@ private struct LauncherMappingCard: View {
     }
 
     private func loadIcon() async {
+        if let iconPath = mapping.customIconPath {
+            let expanded = (iconPath as NSString).expandingTildeInPath
+            if let img = NSImage(contentsOfFile: expanded) {
+                img.size = NSSize(width: 44, height: 44)
+                icon = img
+                return
+            }
+        }
         switch mapping.target {
         case .app, .folder, .script:
             icon = AppIconResolver.icon(for: mapping.target)

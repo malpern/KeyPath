@@ -7,6 +7,7 @@ import SwiftUI
 struct ScriptExecutionSettingsSection: View {
     @Bindable private var securityService = ScriptSecurityService.shared
     @State private var showingExecutionLog = false
+    @State private var showingEnableConfirmation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -29,12 +30,31 @@ struct ScriptExecutionSettingsSection: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                Toggle("", isOn: $securityService.isScriptExecutionEnabled)
+                Toggle("", isOn: Binding(
+                    get: { securityService.isScriptExecutionEnabled },
+                    set: { newValue in
+                        if newValue {
+                            showingEnableConfirmation = true
+                        } else {
+                            securityService.isScriptExecutionEnabled = false
+                        }
+                    }
+                ))
                     .toggleStyle(.switch)
                     .labelsHidden()
             }
             .accessibilityIdentifier("settings-script-execution-toggle")
             .accessibilityLabel("Allow script execution")
+            .sheet(isPresented: $showingEnableConfirmation) {
+                ScriptEnableConfirmationView(
+                    onAllow: {
+                        showingEnableConfirmation = false
+                    },
+                    onCancel: {
+                        showingEnableConfirmation = false
+                    }
+                )
+            }
 
             if securityService.isScriptExecutionEnabled {
                 HStack {
