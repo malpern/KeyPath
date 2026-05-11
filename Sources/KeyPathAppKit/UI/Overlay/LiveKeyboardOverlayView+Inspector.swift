@@ -104,6 +104,10 @@ struct OverlayInspectorPanel: View {
         KeymapPreferences.includePunctuation(for: selectedKeymapId, store: includePunctuationStore)
     }
 
+    private var isLauncherCollectionEnabled: Bool {
+        kanataViewModel?.ruleCollections.first(where: { $0.id == RuleCollectionIdentifier.launcher })?.isEnabled ?? false
+    }
+
     private var visibleInspectorWidth: CGFloat {
         let gap = max(0, min(inspectorLeadingGap, inspectorTotalWidth))
         let panelWidth = max(0, inspectorTotalWidth - gap)
@@ -127,12 +131,13 @@ struct OverlayInspectorPanel: View {
                         isMapperAvailable: isMapperAvailable,
                         healthIndicatorState: healthIndicatorState,
                         hasCustomRules: hasCustomRules,
+                        isLauncherEnabled: isLauncherCollectionEnabled,
                         isSettingsShelfActive: isSettingsShelfActive,
                         onToggleSettingsShelf: onToggleSettingsShelf
                     )
 
                     // Content based on selected section
-                    if selectedSection == .launchers {
+                    if selectedSection == .launchers, isLauncherCollectionEnabled {
                         // Launchers section fills available space with button pinned to bottom
                         launchersContent
                             .padding(.horizontal, 12)

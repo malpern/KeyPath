@@ -25,6 +25,7 @@ struct InspectorPanelToolbar: View {
     let isMapperAvailable: Bool
     let healthIndicatorState: HealthIndicatorState
     let hasCustomRules: Bool
+    let isLauncherEnabled: Bool
     let isSettingsShelfActive: Bool
     let onToggleSettingsShelf: () -> Void
     private let buttonSize: CGFloat = 32
@@ -216,17 +217,19 @@ struct InspectorPanelToolbar: View {
             .accessibilityLabel("Key Mapper")
             .help("Key Mapper")
 
-            // Launchers
-            toolbarButton(
-                systemImage: "bolt.fill",
-                isSelected: selectedSection == .launchers,
-                isHovering: isHoveringLaunchers,
-                onHover: { isHoveringLaunchers = $0 },
-                action: { onSelectSection(.launchers) }
-            )
-            .accessibilityIdentifier("inspector-tab-launchers")
-            .accessibilityLabel("Quick Launcher")
-            .help("Quick Launcher")
+            // Launchers (only when collection is enabled)
+            if isLauncherEnabled {
+                toolbarButton(
+                    systemImage: "bolt.fill",
+                    isSelected: selectedSection == .launchers,
+                    isHovering: isHoveringLaunchers,
+                    onHover: { isHoveringLaunchers = $0 },
+                    action: { onSelectSection(.launchers) }
+                )
+                .accessibilityIdentifier("inspector-tab-launchers")
+                .accessibilityLabel("Quick Launcher")
+                .help("Quick Launcher")
+            }
         }
     }
 

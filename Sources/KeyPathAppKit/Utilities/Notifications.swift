@@ -74,6 +74,9 @@ extension Notification.Name {
     /// Device selection apply completed. userInfo["success"] = Bool
     static let deviceSelectionApplyCompleted = Notification.Name("KeyPath.Devices.ApplyCompleted")
 
+    /// Launcher: select and edit a specific key in LauncherCollectionView. userInfo["key"] = String
+    static let launcherSelectKey = Notification.Name("KeyPath.Launcher.SelectKey")
+
     /// HID keyboard connected (posted by HIDDeviceMonitor). object = HIDKeyboardEvent
     static let hidKeyboardConnected = Notification.Name("KeyPath.HID.KeyboardConnected")
     /// HID keyboard disconnected (posted by HIDDeviceMonitor). object = HIDKeyboardEvent

@@ -57,9 +57,24 @@ final class LauncherStore {
                         bundleId: nil,
                         isEnabled: mapping.isEnabled
                     )
-                case .folder, .script:
-                    // Skip folders and scripts for now
-                    return nil
+                case let .folder(path, name):
+                    return QuickLaunchMapping(
+                        id: mapping.id,
+                        key: mapping.key,
+                        targetType: .folder,
+                        targetName: name ?? URL(fileURLWithPath: path).lastPathComponent,
+                        bundleId: nil,
+                        isEnabled: mapping.isEnabled
+                    )
+                case let .script(path, name):
+                    return QuickLaunchMapping(
+                        id: mapping.id,
+                        key: mapping.key,
+                        targetType: .script,
+                        targetName: name ?? URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent,
+                        bundleId: path,
+                        isEnabled: mapping.isEnabled
+                    )
                 }
             }
 
@@ -67,6 +82,10 @@ final class LauncherStore {
             knownMappingIds = Set(convertedMappings.map(\.id))
             AppLogger.shared.info("🚀 [LauncherStore] Loaded \(mappings.count) launcher mappings")
         }
+    }
+
+    func reloadFromCollections() {
+        loadFromRuleCollections()
     }
 
     /// Mappings sorted by proximity to the physical home row.
@@ -192,6 +211,10 @@ final class LauncherStore {
                     .app(name: quick.targetName, bundleId: quick.bundleId)
                 case .website:
                     .url(quick.targetName)
+                case .folder:
+                    .folder(path: quick.bundleId ?? quick.targetName, name: quick.targetName)
+                case .script:
+                    .script(path: quick.bundleId ?? quick.targetName, name: quick.targetName)
                 }
 
                 if let existingIndex = updatedMappings.firstIndex(where: { $0.id == quick.id }) {

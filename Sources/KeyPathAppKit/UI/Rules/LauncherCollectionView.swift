@@ -109,6 +109,12 @@ struct LauncherCollectionView: View {
                 }
             )
         }
+        .onReceive(NotificationCenter.default.publisher(for: .launcherSelectKey)) { notification in
+            guard let key = notification.userInfo?["key"] as? String else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                handleKeyClicked(key)
+            }
+        }
     }
 
     // MARK: - Activation Mode Section
@@ -250,7 +256,7 @@ struct LauncherCollectionView: View {
 
 // MARK: - Mapping Editor
 
-private struct LauncherMappingEditor: View {
+struct LauncherMappingEditor: View {
     let mapping: LauncherMapping?
     let existingKeys: Set<String>
     let onSave: (LauncherMapping) -> Void
@@ -473,6 +479,7 @@ private struct LauncherMappingEditor: View {
             .padding(.vertical, 16)
         }
         .frame(width: 480)
+        .frame(minHeight: 400)
         .onAppear {
             isScriptExecutionEnabled = ScriptSecurityService.shared.isScriptExecutionEnabled
         }
@@ -613,6 +620,31 @@ private struct LauncherMappingEditor: View {
                     .accessibilityIdentifier("launcher-editor-script-name-field")
                     .disabled(!isScriptExecutionEnabled)
             }
+            if let preview = scriptPreview {
+                formRow("") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(coloredScriptPreview(preview))
+                            .font(.system(size: 10, design: .monospaced))
+                            .lineLimit(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .fill(Color.primary.opacity(0.04))
+                            )
+                        Button {
+                            let url = URL(fileURLWithPath: (scriptPath as NSString).expandingTildeInPath)
+                            NSWorkspace.shared.open(url)
+                        } label: {
+                            Label("Open in Editor", systemImage: "pencil.and.outline")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("launcher-editor-open-script")
+                    }
+                }
+            }
         }
     }
 
@@ -719,6 +751,38 @@ private struct LauncherMappingEditor: View {
             return "File may not be executable"
         }
         return nil
+    }
+
+    private func coloredScriptPreview(_ text: String) -> AttributedString {
+        var result = AttributedString()
+        let lines = text.components(separatedBy: .newlines)
+        for (index, line) in lines.enumerated() {
+            var attr = AttributedString(line)
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("#!") {
+                attr.foregroundColor = .accentColor
+            } else if trimmed.hasPrefix("#") || trimmed.hasPrefix("--") || trimmed.hasPrefix("//") {
+                attr.foregroundColor = Color(.tertiaryLabelColor)
+            } else {
+                attr.foregroundColor = .secondary
+            }
+            result.append(attr)
+            if index < lines.count - 1 {
+                result.append(AttributedString("\n"))
+            }
+        }
+        return result
+    }
+
+    private var scriptPreview: String? {
+        guard !scriptPath.isEmpty else { return nil }
+        let expanded = (scriptPath as NSString).expandingTildeInPath
+        guard let data = Foundation.FileManager().contents(atPath: expanded),
+              let content = String(data: data, encoding: .utf8),
+              !content.isEmpty
+        else { return nil }
+        let lines = content.components(separatedBy: .newlines).prefix(10)
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - Actions

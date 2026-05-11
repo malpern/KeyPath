@@ -360,7 +360,7 @@ pub extern "C" fn keypath_kanata_bridge_passthru_send_input(
         return false;
     };
 
-    let input_event = kanata_state_machine::oskbd::InputEvent { value, page, code };
+    let input_event = kanata_state_machine::oskbd::InputEvent { value, page, code, device_hash: 0 };
     let key_event = match kanata_state_machine::oskbd::KeyEvent::try_from(input_event) {
         Ok(event) => event,
         Err(()) => {

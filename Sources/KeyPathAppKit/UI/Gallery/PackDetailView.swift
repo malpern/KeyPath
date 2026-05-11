@@ -168,6 +168,7 @@ struct PackDetailView: View {
                 )
                 .labelsHidden()
                 .toggleStyle(.switch)
+                .tint(.accentColor)
                 .scaleEffect(0.91, anchor: .trailing)
                 .disabled(isWorking)
                 .accessibilityLabel(isInstalled ? "Turn off pack" : "Turn on pack")
@@ -374,7 +375,7 @@ struct PackDetailView: View {
         }
 
         if !requires.isEmpty || !enhancedBy.isEmpty || !enhances.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 14) {
                 // Requires
                 if !requires.isEmpty {
                     dependencyGroup(
@@ -413,7 +414,7 @@ struct PackDetailView: View {
                     )
                 }
             }
-            .padding(12)
+            .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(Color(NSColor.controlBackgroundColor).opacity(0.3))
@@ -427,7 +428,7 @@ struct PackDetailView: View {
         tint: Color,
         items: [(pack: Pack, description: String)]
     ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Label(label, systemImage: icon)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(tint)
@@ -463,8 +464,8 @@ struct PackDetailView: View {
                             .font(.system(size: 9, weight: .semibold))
                             .foregroundStyle(.tertiary)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
                     .background(
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .fill(Color.primary.opacity(0.04))

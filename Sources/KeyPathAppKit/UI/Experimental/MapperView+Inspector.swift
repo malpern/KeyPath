@@ -91,11 +91,18 @@ struct MapperInspectorPanel: View {
         }
     }
 
-    /// A single pack suggestion as a compact clickable row. Shows the pack's
-    /// hero icon, name, and tagline, plus an install state indicator.
+    private func isPackEnabled(_ pack: Pack) -> Bool {
+        guard let collectionID = pack.associatedCollectionID else { return false }
+        return kanataManager.ruleCollections.first(where: { $0.id == collectionID })?.isEnabled == true
+    }
+
     private func packSuggestionRow(_ pack: Pack) -> some View {
-        Button(action: { packForDetail = pack }) {
+        let enabled = isPackEnabled(pack)
+        return Button(action: { packForDetail = pack }) {
             HStack(spacing: 6) {
+                if enabled {
+                    PackActiveLED()
+                }
                 Image(systemName: "lightbulb.min")
                     .font(.system(size: 10))
                     .foregroundStyle(.white)
@@ -108,7 +115,7 @@ struct MapperInspectorPanel: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(pack.tagline)
+        .help(enabled ? "\(pack.name) is active — tap to configure" : pack.tagline)
         .accessibilityIdentifier("pack-suggestion-row-\(pack.id)")
     }
 

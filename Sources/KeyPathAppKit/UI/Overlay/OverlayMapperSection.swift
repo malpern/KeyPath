@@ -549,6 +549,7 @@ struct OverlayMapperSection: View {
     }
 
     private var mapperMainContent: some View {
+        ScrollView {
         VStack(spacing: 0) {
             Spacer(minLength: 8)
 
@@ -665,6 +666,10 @@ struct OverlayMapperSection: View {
                 .saturation(Double(1 - fadeAmount))
                 .opacity(Double(1 - fadeAmount * 0.5))
 
+            packSuggestionsForSelectedKey
+                .saturation(Double(1 - fadeAmount))
+                .opacity(Double(1 - fadeAmount * 0.5))
+
             if selectedBehaviorSlot == .hold, !viewModel.holdAction.isEmpty {
                 holdVariantButton
                     .saturation(Double(1 - fadeAmount))
@@ -678,9 +683,9 @@ struct OverlayMapperSection: View {
                     .opacity(Double(1 - fadeAmount * 0.5))
             }
 
-            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     private var multiTapPanelContent: some View {
@@ -769,5 +774,84 @@ struct OverlayMapperSection: View {
         }
         .frame(minWidth: 240, maxHeight: 400)
         .pickerPopoverChrome()
+    }
+
+    // MARK: - Pack Suggestions for Selected Key
+
+    @State private var packForDetail: Pack?
+
+    private var packsForSelectedKey: [Pack] {
+        guard let keyCode = viewModel.inputKeyCode else { return [] }
+        let kanataKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
+        guard !kanataKey.isEmpty else { return [] }
+        return PackRegistry.packsTargeting(kanataKey: kanataKey)
+    }
+
+    private func isPackEnabled(_ pack: Pack) -> Bool {
+        guard let collectionID = pack.associatedCollectionID else { return false }
+        return kanataViewModel?.ruleCollections.first(where: { $0.id == collectionID })?.isEnabled == true
+    }
+
+    @ViewBuilder
+    var packSuggestionsForSelectedKey: some View {
+        let packs = packsForSelectedKey
+        if !packs.isEmpty {
+            VStack(spacing: 4) {
+                ForEach(packs) { pack in
+                    let enabled = isPackEnabled(pack)
+                    Button {
+                        packForDetail = pack
+                    } label: {
+                        HStack(spacing: 8) {
+                            if enabled {
+                                PackActiveLED()
+                            }
+                            Image(systemName: pack.iconSymbol)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                            Text(pack.name)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 8, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(Color.primary.opacity(0.04))
+                        )
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(enabled ? "\(pack.name) is active — tap to configure" : pack.tagline)
+                    .accessibilityIdentifier("overlay-pack-suggestion-\(pack.id)")
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 4)
+            .padding(.bottom, 12)
+            .sheet(item: $packForDetail) { pack in
+                if let vm = kanataViewModel {
+                    PackDetailView(pack: pack)
+                        .environment(vm)
+                }
+            }
+        }
+    }
+}
+
+/// Green LED indicator matching the caps lock key LED style.
+struct PackActiveLED: View {
+    var body: some View {
+        Circle()
+            .fill(Color.green)
+            .frame(width: 5, height: 5)
+            .shadow(color: Color.green.opacity(1.0), radius: 2)
+            .shadow(color: Color.green.opacity(0.8), radius: 4)
+            .shadow(color: Color.green.opacity(0.5), radius: 8)
     }
 }

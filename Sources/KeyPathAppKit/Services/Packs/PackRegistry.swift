@@ -43,6 +43,7 @@ public enum PackRegistry {
         guard !normalized.isEmpty else { return [] }
         return starterKit.filter { pack in
             pack.affectedKeys.contains(where: { normalizeKanataKey($0) == normalized })
+                || pack.suggestedForKeys.contains(where: { normalizeKanataKey($0) == normalized })
         }
     }
 
@@ -53,6 +54,11 @@ public enum PackRegistry {
         let lower = key.lowercased()
         switch lower {
         case "capslock": return "caps"
+        case "space": return "spc"
+        case "backspace": return "bspc"
+        case "escape": return "esc"
+        case "equal": return "eql"
+        case "semicolon": return "scln"
         case "leftmeta": return "lmet"
         case "rightmeta": return "rmet"
         case "leftshift": return "lsft"
@@ -206,6 +212,7 @@ public enum PackRegistry {
             PackBindingTemplate(input: "lsft-rsft", output: "caps", title: "Backup Caps Lock")
         ],
         associatedCollectionID: RuleCollectionIdentifier.backupCapsLock,
+        suggestedForKeys: ["caps", "lsft", "rsft"],
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.caps-lock-to-escape",
@@ -235,7 +242,8 @@ public enum PackRegistry {
         iconSymbol: "arrow.up.and.down.and.arrow.left.and.right",
         quickSettings: [],
         bindings: [],
-        associatedCollectionID: RuleCollectionIdentifier.vimNavigation
+        associatedCollectionID: RuleCollectionIdentifier.vimNavigation,
+        suggestedForKeys: ["spc", "h", "j", "k", "l"]
     )
 
     // MARK: - Pack 7: Window Snapping
@@ -264,6 +272,7 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.windowSnapping,
+        suggestedForKeys: ["w"],
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
@@ -292,6 +301,7 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.missionControl,
+        suggestedForKeys: ["m"],
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
@@ -356,6 +366,7 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.numpadLayer,
+        suggestedForKeys: ["scln"],
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
@@ -400,6 +411,7 @@ public enum PackRegistry {
             PackBindingTemplate(input: "l", output: "S-]", title: "l → }")
         ],
         associatedCollectionID: RuleCollectionIdentifier.symbolLayer,
+        suggestedForKeys: ["s"],
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
@@ -431,6 +443,7 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.funLayer,
+        suggestedForKeys: ["f"],
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
@@ -505,6 +518,7 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.leaderKey,
+        suggestedForKeys: ["spc", "caps", "tab", "grv"],
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",

@@ -19,6 +19,10 @@ struct AdvancedSettingsTabView: View {
     @State private var showingResetEverythingConfirmation = false
     @State private var showingUninstallDialog = false
 
+    @State private var backups: [BackupInfo] = []
+    @State private var backupToRestore: BackupInfo?
+    @State private var showingRestoreConfirm = false
+
     @State private var settingsToastManager = WizardToastManager()
 
     var body: some View {
@@ -164,6 +168,11 @@ struct AdvancedSettingsTabView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
                 }
+
+                // Configuration Backups
+                configBackupsSection
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
             }
         }
         .settingsBackground()
@@ -175,6 +184,7 @@ struct AdvancedSettingsTabView: View {
         .task {
             await refreshHelperStatus()
             duplicateAppCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
+            backups = kanataManager.underlyingManager.configBackupManager.getAvailableBackups()
         }
         .alert("Uninstall Privileged Helper?", isPresented: $showingHelperUninstallConfirm) {
             Button("Cancel", role: .cancel) {}
@@ -203,6 +213,20 @@ struct AdvancedSettingsTabView: View {
             Text(
                 "Force kill Kanata, remove PID files, and clear transient state. Service does not restart automatically."
             )
+        }
+        .alert("Restore Configuration?", isPresented: $showingRestoreConfirm) {
+            Button("Cancel", role: .cancel) {
+                backupToRestore = nil
+            }
+            Button("Restore", role: .destructive) {
+                if let backup = backupToRestore {
+                    restoreBackup(backup)
+                }
+            }
+        } message: {
+            if let backup = backupToRestore {
+                Text("Replace your current config with the backup from \(backup.formattedDate)?")
+            }
         }
     }
 
@@ -255,6 +279,69 @@ struct AdvancedSettingsTabView: View {
             .accessibilityLabel("Remove Extra Copies")
         }
         .padding(.vertical, 8)
+    }
+
+    // MARK: - Configuration Backups
+
+    private var configBackupsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Configuration Backups")
+                .font(.headline)
+                .foregroundColor(.secondary)
+
+            Text("KeyPath automatically saves your config before edits. Up to 5 recent backups are kept.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            if backups.isEmpty {
+                Text("No backups yet")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary.opacity(0.6))
+                    .padding(.vertical, 4)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(backups.enumerated()), id: \.element.filename) { index, backup in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(backup.createdAt.relativeDescription)
+                                    .font(.subheadline)
+                                Text("\(backup.formattedDate) \u{2022} \(backup.formattedSize)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+
+                            Spacer()
+
+                            Button("Restore") {
+                                backupToRestore = backup
+                                showingRestoreConfirm = true
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+
+                        if index < backups.count - 1 {
+                            Divider()
+                        }
+                    }
+                }
+                .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
+    }
+
+    private func restoreBackup(_ backup: BackupInfo) {
+        let manager = kanataManager.underlyingManager.configBackupManager
+        do {
+            try manager.restoreFromBackup(backup)
+            backups = manager.getAvailableBackups()
+            settingsToastManager.showSuccess("Restored config from \(backup.createdAt.relativeDescription)")
+        } catch {
+            settingsToastManager.showError("Restore failed: \(error.localizedDescription)")
+        }
+        backupToRestore = nil
     }
 
     // MARK: - Actions
@@ -360,5 +447,13 @@ private struct HelperStatusDot: View {
             .fill(color)
             .frame(width: 14, height: 14)
             .shadow(color: color.opacity(0.35), radius: 6, x: 0, y: 2)
+    }
+}
+
+private extension Date {
+    var relativeDescription: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: self, relativeTo: Date())
     }
 }

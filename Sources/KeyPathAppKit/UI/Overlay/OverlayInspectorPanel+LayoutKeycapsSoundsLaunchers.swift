@@ -45,7 +45,8 @@ extension OverlayInspectorPanel {
             isDark: isDark,
             fadeAmount: fadeAmount,
             onMappingHover: onRuleHover,
-            onCustomize: { activeDrawerPanel = .launcherSettings }
+            onCustomize: { activeDrawerPanel = .launcherSettings },
+            kanataViewModel: kanataViewModel
         )
     }
 }

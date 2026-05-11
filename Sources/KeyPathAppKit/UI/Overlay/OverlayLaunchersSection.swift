@@ -12,21 +12,25 @@ struct OverlayLaunchersSection: View {
     var onMappingHover: ((String?) -> Void)?
     /// Callback when customize is tapped (opens slide-over panel)
     var onCustomize: (() -> Void)?
+    /// KanataViewModel for opening Pack Detail window
+    var kanataViewModel: KanataViewModel?
 
     @State private var store: LauncherStore
     @State private var showAddSheet = false
-    @State private var editingMapping: QuickLaunchMapping?
+    @State private var editingMapping: LauncherMapping?
 
     init(
         isDark: Bool,
         fadeAmount: CGFloat = 0,
         onMappingHover: ((String?) -> Void)? = nil,
-        onCustomize: (() -> Void)? = nil
+        onCustomize: (() -> Void)? = nil,
+        kanataViewModel: KanataViewModel? = nil
     ) {
         self.isDark = isDark
         self.fadeAmount = fadeAmount
         self.onMappingHover = onMappingHover
         self.onCustomize = onCustomize
+        self.kanataViewModel = kanataViewModel
         _store = State(initialValue: LauncherStore())
     }
 
@@ -36,6 +40,7 @@ struct OverlayLaunchersSection: View {
         self.fadeAmount = fadeAmount
         onMappingHover = nil
         onCustomize = nil
+        kanataViewModel = nil
         let store = LauncherStore(testMappings: testMappings)
         _store = State(initialValue: store)
     }
@@ -56,11 +61,13 @@ struct OverlayLaunchersSection: View {
 
             Spacer(minLength: 0)
 
-            // Bottom controls: Add Shortcut (left) and Settings (right)
+            // Promo card linking to full Pack Detail editor
+            launcherPromoCard
+
+            // Bottom controls: Add/Edit (left) and Settings (right)
             HStack(spacing: 8) {
-                // Add button
                 Button {
-                    showAddSheet = true
+                    openLauncherPackDetail()
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "plus")
@@ -99,31 +106,88 @@ struct OverlayLaunchersSection: View {
             }
             .padding(.top, 6)
         }
-        .sheet(isPresented: $showAddSheet) {
-            AddLauncherSheet(
-                existingKeys: Set(store.mappings.map { LauncherGridConfig.normalizeKey($0.key) }),
-                onSave: { mapping in
-                    withAnimation(.easeOut(duration: 0.25)) {
-                        store.addMapping(mapping)
-                    }
-                    showAddSheet = false
-                }
-            )
-        }
         .sheet(item: $editingMapping) { mapping in
-            EditLauncherSheet(
+            LauncherMappingEditor(
                 mapping: mapping,
                 existingKeys: Set(store.mappings.filter { $0.id != mapping.id }.map { LauncherGridConfig.normalizeKey($0.key) }),
                 onSave: { updated in
-                    store.updateMapping(updated)
+                    saveLauncherMapping(updated)
                     editingMapping = nil
                 },
-                onDelete: {
-                    store.deleteMapping(mapping.id)
+                onCancel: {
                     editingMapping = nil
                 }
             )
         }
+    }
+
+    private func openLauncherPackDetail() {
+        guard let vm = kanataViewModel else { return }
+        PackDetailWindowController.shared.showWindow(
+            pack: PackRegistry.launcher,
+            kanataManager: vm,
+            fromOverlay: true
+        )
+    }
+
+    private func saveLauncherMapping(_ mapping: LauncherMapping) {
+        Task { @MainActor in
+            var collections = await RuleCollectionStore.shared.loadCollections()
+            guard let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }),
+                  var config = collections[index].configuration.launcherGridConfig
+            else { return }
+            if let mappingIndex = config.mappings.firstIndex(where: { $0.id == mapping.id }) {
+                config.mappings[mappingIndex] = mapping
+            }
+            collections[index].configuration = .launcherGrid(config)
+            try? await RuleCollectionStore.shared.saveCollections(collections)
+            NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
+            store.reloadFromCollections()
+        }
+    }
+
+    private func editMapping(for quickMapping: QuickLaunchMapping) {
+        Task { @MainActor in
+            let collections = await RuleCollectionStore.shared.loadCollections()
+            guard let collection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
+                  let config = collection.configuration.launcherGridConfig
+            else { return }
+            if let launcherMapping = config.mappings.first(where: { $0.id == quickMapping.id }) {
+                editingMapping = launcherMapping
+            }
+        }
+    }
+
+    private var launcherPromoCard: some View {
+        Button { openLauncherPackDetail() } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.up.forward.app")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tint)
+                    .symbolRenderingMode(.hierarchical)
+                Text("Edit in Quick Launcher")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.06))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(Color.accentColor.opacity(0.12), lineWidth: 0.5)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 8)
+        .accessibilityIdentifier("overlay-launcher-promo-card")
     }
 
     private var emptyState: some View {
@@ -155,7 +219,7 @@ struct OverlayLaunchersSection: View {
                         }
                     ),
                     fadeAmount: fadeAmount,
-                    onTap: { editingMapping = mapping },
+                    onTap: { editMapping(for: mapping) },
                     onDelete: {
                         withAnimation(.easeOut(duration: 0.15)) {
                             store.deleteMapping(mapping.id)
@@ -255,7 +319,7 @@ private struct LauncherMappingRow: View {
                             .clipShape(RoundedRectangle(cornerRadius: 3))
                             .saturation(Double(1 - fadeAmount)) // Monochromatic when faded
                     } else {
-                        Image(systemName: mapping.isApp ? "app.fill" : "globe")
+                        Image(systemName: fallbackIcon)
                             .font(.footnote)
                             .frame(width: 16, height: 16)
                             .foregroundStyle(.secondary)
@@ -344,11 +408,23 @@ private struct LauncherMappingRow: View {
         }
     }
 
+    private var fallbackIcon: String {
+        switch mapping.targetType {
+        case .app: "app.fill"
+        case .website: "globe"
+        case .folder: "folder.fill"
+        case .script: "terminal.fill"
+        }
+    }
+
     private func loadIcon() async {
-        if mapping.isApp {
+        switch mapping.targetType {
+        case .app:
             icon = LauncherStore.appIcon(name: mapping.targetName, bundleId: mapping.bundleId)
-        } else {
+        case .website:
             icon = await services.faviconFetcher.fetchFavicon(for: mapping.targetName)
+        case .folder, .script:
+            break
         }
     }
 }

@@ -8,8 +8,9 @@ final class PackDetailWindowController: NSObject {
     private var window: NSWindow?
     private var willCloseObserver: NSObjectProtocol?
     private var currentPackID: String?
+    private var openedFromOverlay = false
 
-    func showWindow(pack: Pack, kanataManager: KanataViewModel) {
+    func showWindow(pack: Pack, kanataManager: KanataViewModel, fromOverlay: Bool = false) {
         if let existingWindow = window, existingWindow.isVisible {
             if currentPackID == pack.id {
                 existingWindow.makeKeyAndOrderFront(nil)
@@ -49,17 +50,27 @@ final class PackDetailWindowController: NSObject {
         // Pack Detail is opened from the Rules tab (inside Settings), so the
         // overlay is already hidden and should stay hidden until Settings closes.
 
+        self.openedFromOverlay = fromOverlay
+
         willCloseObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: newWindow,
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
+                if self?.openedFromOverlay == true {
+                    LiveKeyboardOverlayController.shared.resetSettingsAutoHideGuard()
+                }
+                self?.openedFromOverlay = false
                 self?.willCloseObserver.map(NotificationCenter.default.removeObserver)
                 self?.willCloseObserver = nil
                 self?.window = nil
                 self?.currentPackID = nil
             }
+        }
+
+        if fromOverlay {
+            LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
         }
 
         newWindow.makeKeyAndOrderFront(nil)
@@ -83,6 +94,8 @@ final class PackDetailWindowController: NSObject {
         if pack.id == "com.keypath.pack.home-row-mods" { return 860 }
 
         if pack.id == "com.keypath.pack.quick-launcher" { return 960 }
+
+        if pack.id == "com.keypath.pack.caps-lock-to-escape" { return 760 }
 
         let mediumPacks: Set<String> = [
             "com.keypath.pack.auto-shift-symbols",

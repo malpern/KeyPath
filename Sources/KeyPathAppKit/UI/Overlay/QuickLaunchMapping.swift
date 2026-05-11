@@ -12,6 +12,8 @@ struct QuickLaunchMapping: Identifiable, Codable, Equatable {
     enum TargetType: String, Codable {
         case app
         case website
+        case folder
+        case script
     }
 
     var isApp: Bool {
@@ -19,10 +21,12 @@ struct QuickLaunchMapping: Identifiable, Codable, Equatable {
     }
 
     var displayName: String {
-        if targetType == .website {
+        switch targetType {
+        case .website:
             return URLMappingFormatter.displayDomain(for: targetName)
+        default:
+            return targetName
         }
-        return targetName
     }
 
     init(id: UUID = UUID(), key: String, targetType: TargetType, targetName: String, bundleId: String? = nil, isEnabled: Bool = true) {

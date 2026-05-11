@@ -69,6 +69,11 @@ public struct Pack: Identifiable, Equatable, Sendable {
     /// Dependencies on other packs (requires + suggests).
     public let dependencies: [PackDependency]
 
+    /// Keys that should trigger this pack's merchandising card when selected,
+    /// independent of bindings. Used for packs like Leader Key whose input
+    /// key is configurable rather than hardcoded in bindings.
+    public let suggestedForKeys: [String]
+
     public init(
         id: String,
         version: String,
@@ -84,6 +89,7 @@ public struct Pack: Identifiable, Equatable, Sendable {
         bindings: [PackBindingTemplate],
         associatedCollectionID: UUID? = nil,
         visualOnly: Bool = false,
+        suggestedForKeys: [String] = [],
         dependencies: [PackDependency] = []
     ) {
         self.id = id
@@ -101,6 +107,7 @@ public struct Pack: Identifiable, Equatable, Sendable {
         self.associatedCollectionID = associatedCollectionID
         self.visualOnly = visualOnly
         self.dependencies = dependencies
+        self.suggestedForKeys = suggestedForKeys
     }
 
     /// The physical keys this pack affects. Drives Pack Detail's keyboard
