@@ -61,11 +61,13 @@ extension OverlayMapperSection {
 
     /// Popover content for output type picker with collapsible sections
     var systemActionPopover: some View {
-        let isKeystrokeSelected = viewModel.selectedSystemAction == nil && viewModel.selectedApp == nil && selectedLayerOutput == nil
+        let isKeystrokeSelected = viewModel.selectedSystemAction == nil && viewModel.selectedApp == nil && selectedLayerOutput == nil && viewModel.selectedURL == nil && viewModel.selectedFolder == nil && viewModel.selectedScript == nil
         let isSystemActionSelected = viewModel.selectedSystemAction != nil
         let isAppSelected = viewModel.selectedApp != nil
         let isLayerSelected = selectedLayerOutput != nil
         let isURLSelected = viewModel.selectedURL != nil
+        let isFolderSelected = viewModel.selectedFolder != nil
+        let isScriptSelected = viewModel.selectedScript != nil
 
         return ScrollView {
             VStack(spacing: 0) {
@@ -237,6 +239,74 @@ extension OverlayMapperSection {
 
                 PopoverListDivider()
 
+                // "Open Folder" option
+                Button {
+                    collapseAllSections()
+                    isSystemActionPickerOpen = false
+                    browseForFolder()
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: isFolderSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(isFolderSelected ? Color.accentColor : .secondary)
+                            .frame(width: 24)
+                        Image(systemName: "folder.fill")
+                            .font(.body)
+                            .frame(width: 20)
+                        Text("Open Folder")
+                            .font(.body)
+                        Spacer()
+                        if let folder = viewModel.selectedFolder {
+                            Text(folder.name ?? URL(fileURLWithPath: folder.path).lastPathComponent)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(LayerPickerItemButtonStyle())
+                .focusable(false)
+                .accessibilityIdentifier("overlay-mapper-output-folder")
+
+                PopoverListDivider()
+
+                // "Run Script" option
+                Button {
+                    collapseAllSections()
+                    isSystemActionPickerOpen = false
+                    browseForScript()
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: isScriptSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(isScriptSelected ? Color.accentColor : .secondary)
+                            .frame(width: 24)
+                        Image(systemName: "terminal.fill")
+                            .font(.body)
+                            .frame(width: 20)
+                        Text("Run Script")
+                            .font(.body)
+                        Spacer()
+                        if let script = viewModel.selectedScript {
+                            Text(script.name ?? URL(fileURLWithPath: script.path).lastPathComponent)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(LayerPickerItemButtonStyle())
+                .focusable(false)
+                .accessibilityIdentifier("overlay-mapper-output-script")
+
+                PopoverListDivider()
+
                 // "Go to Layer" option - clickable to expand/collapse
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
@@ -330,5 +400,49 @@ extension OverlayMapperSection {
             isLaunchAppsExpanded = false
             isLayersExpanded = false
         }
+    }
+
+    /// Browse for a folder using NSOpenPanel
+    private func browseForFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.message = "Select a folder to open"
+        panel.prompt = "Select"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let path: String
+        if url.path.hasPrefix(NSHomeDirectory()) {
+            path = url.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+        } else {
+            path = url.path
+        }
+
+        viewModel.selectFolder(path: path, name: url.lastPathComponent)
+    }
+
+    /// Browse for a script file using NSOpenPanel
+    private func browseForScript() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Select a script file"
+        panel.prompt = "Select"
+        panel.allowedContentTypes = [.shellScript, .unixExecutable]
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let path: String
+        if url.path.hasPrefix(NSHomeDirectory()) {
+            path = url.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+        } else {
+            path = url.path
+        }
+
+        let name = url.deletingPathExtension().lastPathComponent
+        viewModel.selectScript(path: path, name: name)
     }
 }

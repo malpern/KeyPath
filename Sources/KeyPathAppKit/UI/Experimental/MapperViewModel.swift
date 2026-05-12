@@ -43,6 +43,10 @@ class MapperViewModel {
     var showingURLDialog = false
     /// Text input for URL dialog
     var urlInputText = ""
+    /// Selected folder path for folder-open mapping (nil = normal key output)
+    var selectedFolder: (path: String, name: String?)?
+    /// Selected script path for script-run mapping (nil = normal key output)
+    var selectedScript: (path: String, name: String?)?
     /// Key code of the captured input (for overlay-style rendering)
     /// Default to 0 (A key) so the default state shows the A key selected
     var inputKeyCode: UInt16? = 0

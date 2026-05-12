@@ -62,6 +62,8 @@ struct MapperView: View {
                     outputAppInfo: viewModel.selectedApp,
                     outputSystemActionInfo: viewModel.selectedSystemAction,
                     outputURLFavicon: viewModel.selectedURLFavicon,
+                    outputFolderInfo: viewModel.selectedFolder,
+                    outputScriptInfo: viewModel.selectedScript,
                     onInputTap: { viewModel.toggleInputRecording() },
                     onOutputTap: { viewModel.toggleOutputRecording() }
                 )

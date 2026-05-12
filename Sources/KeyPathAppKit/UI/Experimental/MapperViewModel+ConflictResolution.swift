@@ -476,23 +476,25 @@ extension MapperViewModel {
 
         AppLogger.shared.log("🎯 [MapperViewModel] finalizeCapture: canSave=\(canSave) selectedApp=\(selectedApp?.name ?? "nil") inputSeq=\(inputSequence?.displayString ?? "nil")")
 
-        // Auto-save when input is captured and we have either output or app/system action/URL
+        // Auto-save when input is captured and we have either output or app/system action/URL/folder/script
         if canSave, let manager = kanataManager {
             Task {
                 if selectedURL != nil {
-                    // URL mapping
                     AppLogger.shared.log("🎯 [MapperViewModel] Calling saveURLMapping")
                     await saveURLMapping(kanataManager: manager)
                 } else if selectedApp != nil {
-                    // App launch mapping
                     AppLogger.shared.log("🎯 [MapperViewModel] Calling saveAppLaunchMapping")
                     await saveAppLaunchMapping(kanataManager: manager)
                 } else if selectedSystemAction != nil {
-                    // System action mapping
                     AppLogger.shared.log("🎯 [MapperViewModel] Calling saveSystemActionMapping")
                     await saveSystemActionMapping(kanataManager: manager)
+                } else if selectedFolder != nil {
+                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveFolderMapping")
+                    await saveFolderMapping(kanataManager: manager)
+                } else if selectedScript != nil {
+                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveScriptMapping")
+                    await saveScriptMapping(kanataManager: manager)
                 } else {
-                    // Key-to-key mapping
                     await save(kanataManager: manager)
                 }
             }
@@ -827,6 +829,8 @@ extension MapperViewModel {
         selectedApp = nil
         selectedSystemAction = nil
         selectedURL = nil
+        selectedFolder = nil
+        selectedScript = nil
         clearShiftedOutput()
 
         // Reset output to match input (identity mapping: A→A)

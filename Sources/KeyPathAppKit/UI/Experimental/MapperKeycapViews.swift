@@ -194,6 +194,8 @@ struct MapperKeycapView: View {
     var appInfo: AppLaunchInfo?
     var systemActionInfo: SystemActionInfo?
     var urlFavicon: NSImage?
+    var folderInfo: (path: String, name: String?)?
+    var scriptInfo: (path: String, name: String?)?
     var fadeAmount: CGFloat = 0
     let onTap: () -> Void
 
@@ -210,6 +212,10 @@ struct MapperKeycapView: View {
     private let outputFontSize: CGFloat = 42 // Emphasized size for output content (icons, letters, actions)
     private let minFontSize: CGFloat = 12 // Minimum font size when shrinking
     private let cornerRadius: CGFloat = 10 // Match MapperInputKeycap
+
+    private var hasRichContent: Bool {
+        appInfo != nil || urlFavicon != nil || folderInfo != nil || scriptInfo != nil
+    }
 
     /// Maximum height for the keycap
     private var maxHeight: CGFloat {
@@ -332,6 +338,32 @@ struct MapperKeycapView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
+                } else if let folder = folderInfo {
+                    VStack(spacing: 6) {
+                        Image(systemName: "folder.fill")
+                            .font(.system(size: outputFontSize * 0.8, weight: .medium))
+                            .foregroundStyle(.blue)
+
+                        Text(folder.name ?? URL(fileURLWithPath: folder.path).lastPathComponent)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(foregroundColor)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                } else if let script = scriptInfo {
+                    VStack(spacing: 6) {
+                        Image(systemName: "terminal.fill")
+                            .font(.system(size: outputFontSize * 0.8, weight: .medium))
+                            .foregroundStyle(.green)
+
+                        Text(script.name ?? URL(fileURLWithPath: script.path).deletingPathExtension().lastPathComponent)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(foregroundColor)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
                 } else if label.lowercased() == "fn" {
                     HStack(spacing: 8) {
                         Image(systemName: "globe")
@@ -361,7 +393,7 @@ struct MapperKeycapView: View {
             }
             .modifier(TextGlowModifier(fadeAmount: fadeAmount))
         }
-        .frame(width: (appInfo != nil || urlFavicon != nil) ? 120 : keycapWidth, height: (appInfo != nil || urlFavicon != nil) ? 100 : keycapHeight)
+        .frame(width: hasRichContent ? 120 : keycapWidth, height: hasRichContent ? 100 : keycapHeight)
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
         .animation(.spring(response: 0.2, dampingFraction: 0.8), value: keycapHeight)

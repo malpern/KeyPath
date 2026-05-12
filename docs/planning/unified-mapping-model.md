@@ -203,12 +203,13 @@ struct LauncherMapping {
 
 ## Phasing
 
-### Phase 0: Shared Output Type (2-3 days)
-- Create `KeyAction` enum
-- Add `KeyAction` to `CustomRule` and `KeyMapping` (alongside existing `output: String` for backward compat)
-- Config generator uses `KeyAction.kanataOutput` when present, falls back to string
-- No UI changes, no persistence changes
-- **Value:** Scripts and app launches become available in the mapper without UI work
+### Phase 0: Shared Output Type ✅ DONE
+- Created `KeyAction` enum with 8 cases: `keystroke`, `launchApp`, `openURL`, `openFolder`, `runScript`, `systemAction`, `activateLayer`, `rawKanata`
+- Replaced `output: String` on `CustomRule`, `KeyMapping`, and `AppKeyOverride` with `action: KeyAction`
+- Replaced `LauncherMapping.target: LauncherTarget` with `LauncherMapping.action: KeyAction`
+- Deleted `LauncherTarget` enum (fully subsumed by `KeyAction`)
+- Updated config generators, all UI, services, and tests (112 files, 413 tests pass)
+- **What it enables:** The type system now supports any output type on any model. A `CustomRule` can hold `.runScript(...)` or `.launchApp(...)`, not just keystroke strings.
 
 ### Phase 1: Unified Persistence (1 week)
 - Create `KeyRuleStore` that stores `[KeyRule]`
@@ -218,16 +219,161 @@ struct LauncherMapping {
 - Keep old stores as read-only for migration
 - **Value:** One file, one store, one source of truth
 
-### Phase 2: Unified Editor (1 week)
-- Build `KeyRuleEditor` that replaces LauncherMappingEditor and the mapper's output recording
-- Input picker + output type picker (keystroke/app/url/script/system) + behavior (tap-hold/etc) + conditions (app/device/layer)
-- Both overlay and gallery use the same editor
-- **Value:** Feature parity everywhere, one editor to maintain
+### Phase 2: Unified Editor (1-2 weeks)
+
+The mapper and launcher currently have separate editors that each support a subset of `KeyAction` cases. This phase creates a single output editor that works everywhere.
+
+#### Current State
+
+**Mapper** (`MapperViewModel` + `MapperView`):
+- Output captured via key recording (`RecordingCoordinator` → `KeyboardCapture`)
+- Auto-detect output type in `finalizeCapture()`: checks `selectedApp`, `selectedURL`, `selectedSystemAction`, then falls back to keystroke
+- Supports: keystroke, app launch, URL, system action
+- Missing: folder, script, layer switch
+- Has advanced behaviors (tap-hold, tap-dance, macro, chord) but only for keystroke outputs
+
+**Launcher** (`LauncherMappingEditor` in `LauncherCollectionView.swift`):
+- Form-based editor with `TargetType` segmented picker (app/website/folder/script)
+- Each type shows a specialized form: file browser for apps, text field for URLs, etc.
+- Supports: app launch, URL, folder, script
+- Missing: keystroke, system action, layer switch, advanced behaviors
+
+**App-specific** (`MapperViewModel+AppKeymapIntegration.swift`):
+- Reuses mapper recording flow, scoped to an app via `selectedAppCondition`
+- Creates `AppKeyOverride` with the recorded output
+- Missing: all non-keystroke output types (can't assign "launch app X when in Safari")
+
+#### Goal
+
+One output picker component that:
+1. Lets the user choose an output type (keystroke, app, URL, folder, script, system action, layer)
+2. Shows the right sub-editor for each type (key recording, file browser, text field, picker)
+3. Returns a `KeyAction` to the caller
+4. Works in the overlay mapper, the gallery launcher editor, and app-specific rules
+
+#### Architecture: `KeyActionPicker`
+
+```swift
+struct KeyActionPicker: View {
+    @Binding var action: KeyAction
+    var allowedTypes: Set<KeyActionType>  // constrain which types appear
+    var onSave: (KeyAction) -> Void
+    
+    enum KeyActionType: CaseIterable {
+        case keystroke, app, url, folder, script, systemAction, layer
+    }
+}
+```
+
+**Sub-editors by type:**
+
+| Type | UI Component | Data Source |
+|------|-------------|-------------|
+| Keystroke | Key recording (existing `RecordingCoordinator`) | Keyboard capture |
+| App | "Browse..." button → `NSOpenPanel` for `.app` bundles | File system |
+| URL | Text field with domain validation | User input |
+| Folder | "Browse..." button → `NSOpenPanel` for directories | File system |
+| Script | "Browse..." button → `NSOpenPanel` for any file | File system + security gate |
+| System Action | Picker/menu from `SystemActionInfo.allActions` | Built-in catalog |
+| Layer | Picker from active layer names | `RuleCollectionsManager` |
+
+**File sources to extract from:**
+- App browse: `LauncherCollectionView.swift` → `browseForApp()` (~line 777)
+- Folder browse: `LauncherCollectionView.swift` → `browseForFolder()` 
+- Script browse: `LauncherCollectionView.swift` → `browseForScript()`
+- URL field: `LauncherCollectionView.swift` → URL text field in editor
+- System action picker: `OverlayMapperSection+SystemActionGroups.swift`
+- Key recording: `RecordingCoordinator.swift` (stays as-is, just wired to keystroke type)
+
+#### Mapper Changes
+
+The mapper currently auto-detects output type via side-state (`selectedApp`, `selectedURL`, `selectedSystemAction`). With `KeyActionPicker`, this simplifies:
+
+1. **Replace side-state with `KeyAction`:** Remove `selectedApp`, `selectedURL`, `selectedSystemAction` properties from `MapperViewModel`. Replace with a single `pendingAction: KeyAction?` that the picker sets directly.
+
+2. **Output keycap becomes a type-aware display:**
+   ```
+   Current:  [esc] (always shows a key name)
+   Unified:  [Safari ▸] or [github.com ▸] or [esc] (shows action type icon + label)
+   ```
+
+3. **Click on output keycap opens `KeyActionPicker`** instead of starting key recording. For keystroke type, the picker itself starts recording. For other types, it shows the appropriate sub-editor.
+
+4. **`finalizeCapture()` simplifies:** No more type detection. The `KeyActionPicker` already returns the correct `KeyAction` case. `save()` just stores it.
+
+5. **`MapperViewModel+LayerManagement.swift` simplifies:** The separate `saveAppLaunchMapping()`, `saveSystemActionMapping()`, `saveURLMapping()` methods collapse into one `save()` that stores whatever `KeyAction` the picker returned.
+
+**Files to modify:**
+
+| File | Change |
+|------|--------|
+| `MapperViewModel.swift` | Remove `selectedApp/URL/SystemAction`, add `pendingAction: KeyAction?` |
+| `MapperViewModel+ConflictResolution.swift` | Simplify `finalizeCapture()` — no type detection |
+| `MapperViewModel+LayerManagement.swift` | Collapse 4 save methods into 1 |
+| `MapperView.swift` | Output keycap displays `KeyAction.displayName` with type icon |
+| `OverlayMapperSection.swift` | Wire output area to `KeyActionPicker` |
+| `RecordingCoordinator.swift` | No change — still used for keystroke sub-editor |
+
+#### Launcher Changes
+
+Replace `LauncherMappingEditor` (the modal form in `LauncherCollectionView.swift`) with a wrapper around `KeyActionPicker`:
+
+1. **`LauncherMappingEditor` becomes thin:** Key selector + `KeyActionPicker` + icon/description fields. No more `TargetType` enum or per-type form sections.
+
+2. **Add keystroke support to launcher:** Users can now assign a key remap on the launcher layer, not just app/URL/folder/script. The `KeyActionPicker`'s keystroke sub-editor (key recording) handles this.
+
+3. **Add system action support to launcher:** Mission Control, volume, brightness controls assignable from the launcher keyboard.
+
+**Files to modify:**
+
+| File | Change |
+|------|--------|
+| `LauncherCollectionView.swift` | Replace `LauncherMappingEditor` body with `KeyActionPicker` + metadata fields |
+| `LauncherDrawerView.swift` | Update type display to use `KeyAction` type icons |
+| `LauncherKeycapView.swift` | Already uses `KeyAction` — may need new icons for keystroke/system types |
+
+#### App-Specific Rule Changes
+
+`saveAppSpecificMapping()` currently only handles keystroke outputs. With `KeyActionPicker` in the mapper, it naturally gets all output types:
+
+1. User selects an app condition in the mapper
+2. User picks any output type via `KeyActionPicker`
+3. `save()` creates an `AppKeyOverride` with the chosen `KeyAction`
+4. Config generator already handles `action.kanataOutput` for all types
+
+No additional files need changing — the mapper changes cascade.
+
+#### Behavior Compatibility
+
+Not all `KeyAction` types make sense with all behaviors:
+
+| Behavior | keystroke | app/url/folder/script | systemAction | layer |
+|----------|-----------|----------------------|-------------|-------|
+| Simple remap | ✅ | ✅ | ✅ | ✅ |
+| Tap-hold | ✅ tap + hold | ✅ tap + hold | ✅ | ✅ |
+| Tap-dance | ✅ | ⚠️ unusual | ⚠️ | ❌ |
+| Macro | ✅ | ❌ | ❌ | ❌ |
+| Chord | ✅ | ✅ | ✅ | ❌ |
+
+`KeyActionPicker` should show/hide the behavior section based on the selected action type. Tap-hold is the most useful combo: "tap for Escape, hold to launch Terminal."
+
+#### Migration Path
+
+- `LauncherMappingEditor` stays as a thin wrapper initially — it calls `KeyActionPicker` for the output selection but keeps its own key/icon/description fields
+- Mapper gains an "output type" selector that defaults to keystroke (preserving current UX for simple remaps)
+- No persistence changes — both mapper and launcher already save `KeyAction`
+- Gradual: ship keystroke-only `KeyActionPicker` first, add file-browser types one at a time
+
+#### Value
+
+- **Feature parity:** Scripts in the mapper, key remaps in the launcher, app launches in app-specific rules
+- **One editor to maintain:** Bug fixes and new output types appear everywhere
+- **Tap-hold app launch:** "Hold Caps Lock for Hyper, tap to launch Terminal" — the #1 requested combo, currently impossible
 
 ### Phase 3: Unified Config Generation (3-5 days)
 - Replace per-model config generator methods with single `KeyRule → kanata` path
 - Remove `CustomRule.asKeyMapping()` translation
-- Remove `LauncherTarget.kanataOutput` (replaced by `KeyAction.kanataOutput`)
+- `KeyAction.kanataOutput` already handles all output types (done in Phase 0)
 - **Value:** Simpler config generator, fewer code paths to test
 
 ### Phase 4: Remove Legacy Models (2-3 days)
@@ -236,13 +382,13 @@ struct LauncherMapping {
 - Delete migration code after one release cycle
 - **Value:** Clean codebase, no dead code
 
-**Total:** ~4-5 weeks for full unification. Phase 0 alone delivers immediate value (scripts in mapper) in 2-3 days.
+**Total:** ~4-5 weeks for full unification. Phase 0 is done. Phase 2 delivers the most user-visible value.
 
 ## Recommendation
 
-Start with **Phase 0** (shared output type). It's low-risk, backward-compatible, and immediately enables scripts/app launches in the mapper. Evaluate whether the full unification is worth it after Phase 0 ships and we see how `KeyAction` feels in practice.
+Phase 0 is shipped. The next highest-impact phase is **Phase 2 (unified editor)** — it's the one that puts new capabilities in users' hands. Phase 1 (unified persistence) is important but invisible to users; it can come before or after Phase 2.
 
-The full unification (Phases 1-4) is the right long-term architecture, but it's a big investment that should be planned as a dedicated milestone, not bolted on incrementally.
+Suggested order: **Phase 0** ✅ → **Phase 2** (editor) → **Phase 1** (persistence) → **Phase 3** (config gen) → **Phase 4** (cleanup).
 
 ## Open Questions
 

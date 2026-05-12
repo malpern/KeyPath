@@ -15,6 +15,8 @@ struct MapperKeycapPair: View {
     var outputAppInfo: AppLaunchInfo?
     var outputSystemActionInfo: SystemActionInfo?
     var outputURLFavicon: NSImage?
+    var outputFolderInfo: (path: String, name: String?)?
+    var outputScriptInfo: (path: String, name: String?)?
     let onInputTap: () -> Void
     let onOutputTap: () -> Void
 
@@ -31,7 +33,7 @@ struct MapperKeycapPair: View {
     /// Whether to use vertical (stacked) layout
     private var shouldStack: Bool {
         // Don't stack for app icons, system actions, or URL favicons
-        if outputAppInfo != nil || outputSystemActionInfo != nil || outputURLFavicon != nil { return false }
+        if outputAppInfo != nil || outputSystemActionInfo != nil || outputURLFavicon != nil || outputFolderInfo != nil || outputScriptInfo != nil { return false }
         // Don't stack when input has keyCode (fixed-size overlay-style keycap)
         if inputKeyCode != nil { return false }
         return inputLabel.count > verticalThreshold || outputLabel.count > verticalThreshold
@@ -42,6 +44,8 @@ struct MapperKeycapPair: View {
         if outputAppInfo != nil { return "Launch" }
         if outputSystemActionInfo != nil { return "Action" }
         if outputURLFavicon != nil { return "URL" }
+        if outputFolderInfo != nil { return "Folder" }
+        if outputScriptInfo != nil { return "Script" }
         return "Out"
     }
 
@@ -99,6 +103,8 @@ struct MapperKeycapPair: View {
                     appInfo: outputAppInfo,
                     systemActionInfo: outputSystemActionInfo,
                     urlFavicon: outputURLFavicon,
+                    folderInfo: outputFolderInfo,
+                    scriptInfo: outputScriptInfo,
                     onTap: onOutputTap
                 )
                 Text(outputTypeLabel)
@@ -143,6 +149,8 @@ struct MapperKeycapPair: View {
                     appInfo: outputAppInfo,
                     systemActionInfo: outputSystemActionInfo,
                     urlFavicon: outputURLFavicon,
+                    folderInfo: outputFolderInfo,
+                    scriptInfo: outputScriptInfo,
                     onTap: onOutputTap
                 )
 

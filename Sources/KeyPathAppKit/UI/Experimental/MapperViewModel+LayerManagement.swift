@@ -190,9 +190,11 @@ extension MapperViewModel {
     /// Select a system action for the output
     func selectSystemAction(_ action: SystemActionInfo) {
         selectedSystemAction = action
-        selectedApp = nil // Clear any app selection
+        selectedApp = nil
         selectedURL = nil
-        outputSequence = nil // Clear any key sequence output
+        selectedFolder = nil
+        selectedScript = nil
+        outputSequence = nil
         clearShiftedOutput()
         outputLabel = action.name
 
@@ -272,9 +274,11 @@ extension MapperViewModel {
         }
 
         selectedURL = trimmed
-        selectedApp = nil // Clear any app selection
-        selectedSystemAction = nil // Clear any system action selection
-        outputSequence = nil // Clear any key sequence output
+        selectedApp = nil
+        selectedSystemAction = nil
+        selectedFolder = nil
+        selectedScript = nil
+        outputSequence = nil
         clearShiftedOutput()
         outputLabel = extractDomain(from: trimmed)
         selectedURLFavicon = nil // Clear old favicon while loading
@@ -358,5 +362,131 @@ extension MapperViewModel {
     /// Extract domain from URL for display purposes
     func extractDomain(from url: String) -> String {
         KeyMappingFormatter.extractDomain(from: url)
+    }
+
+    // MARK: - Folder Mapping
+
+    /// Select a folder for the output
+    func selectFolder(path: String, name: String?) {
+        selectedFolder = (path: path, name: name)
+        selectedApp = nil
+        selectedSystemAction = nil
+        selectedURL = nil
+        selectedScript = nil
+        outputSequence = nil
+        clearShiftedOutput()
+        outputLabel = name ?? URL(fileURLWithPath: path).lastPathComponent
+
+        AppLogger.shared.log("📁 [MapperViewModel] Selected folder: \(path)")
+
+        if let manager = kanataManager, inputSequence != nil {
+            Task { await saveFolderMapping(kanataManager: manager) }
+        }
+    }
+
+    /// Save a mapping that opens a folder
+    func saveFolderMapping(kanataManager: RuntimeCoordinator) async {
+        guard let inputSeq = inputSequence, let folder = selectedFolder else {
+            statusMessage = "Set input key first"
+            statusIsError = true
+            return
+        }
+
+        isSaving = true
+        statusMessage = nil
+
+        let inputKanata = convertSequenceToKanataFormat(inputSeq)
+        let action = KeyAction.openFolder(path: folder.path, name: folder.name)
+        let targetLayer = layerFromString(currentLayer)
+        clearShiftedOutput()
+
+        var customRule = kanataManager.makeCustomRule(input: inputKanata, output: action.kanataOutput)
+        customRule.action = action
+        customRule.notes = "Open \(folder.name ?? folder.path) [\(currentLayer) layer]"
+        customRule.targetLayer = targetLayer
+
+        if let deviceCondition = selectedDeviceCondition {
+            customRule.deviceOverrides = [
+                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: action.kanataOutput, behavior: nil)
+            ]
+            customRule.action = .keystroke(key: inputKanata)
+        }
+
+        let success = await kanataManager.saveCustomRule(customRule, skipReload: false)
+
+        if success {
+            lastSavedRuleID = customRule.id
+            statusMessage = "✓ Saved"
+            statusIsError = false
+            AppLogger.shared.log("✅ [MapperViewModel] Saved folder mapping: \(inputSeq.displayString) → open:\(folder.path)")
+        } else {
+            statusMessage = "Failed to save"
+            statusIsError = true
+        }
+
+        isSaving = false
+    }
+
+    // MARK: - Script Mapping
+
+    /// Select a script for the output
+    func selectScript(path: String, name: String?) {
+        selectedScript = (path: path, name: name)
+        selectedApp = nil
+        selectedSystemAction = nil
+        selectedURL = nil
+        selectedFolder = nil
+        outputSequence = nil
+        clearShiftedOutput()
+        outputLabel = name ?? URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
+
+        AppLogger.shared.log("📜 [MapperViewModel] Selected script: \(path)")
+
+        if let manager = kanataManager, inputSequence != nil {
+            Task { await saveScriptMapping(kanataManager: manager) }
+        }
+    }
+
+    /// Save a mapping that runs a script
+    func saveScriptMapping(kanataManager: RuntimeCoordinator) async {
+        guard let inputSeq = inputSequence, let script = selectedScript else {
+            statusMessage = "Set input key first"
+            statusIsError = true
+            return
+        }
+
+        isSaving = true
+        statusMessage = nil
+
+        let inputKanata = convertSequenceToKanataFormat(inputSeq)
+        let action = KeyAction.runScript(path: script.path, name: script.name)
+        let targetLayer = layerFromString(currentLayer)
+        clearShiftedOutput()
+
+        var customRule = kanataManager.makeCustomRule(input: inputKanata, output: action.kanataOutput)
+        customRule.action = action
+        customRule.notes = "Run \(script.name ?? script.path) [\(currentLayer) layer]"
+        customRule.targetLayer = targetLayer
+
+        if let deviceCondition = selectedDeviceCondition {
+            customRule.deviceOverrides = [
+                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: action.kanataOutput, behavior: nil)
+            ]
+            customRule.action = .keystroke(key: inputKanata)
+        }
+
+        let success = await kanataManager.saveCustomRule(customRule, skipReload: false)
+
+        if success {
+            lastSavedRuleID = customRule.id
+            statusMessage = "✓ Saved"
+            statusIsError = false
+            AppLogger.shared.log("✅ [MapperViewModel] Saved script mapping: \(inputSeq.displayString) → run:\(script.path)")
+        } else {
+            statusMessage = "Failed to save"
+            statusIsError = true
+        }
+
+        isSaving = false
     }
 }

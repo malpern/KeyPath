@@ -549,9 +549,10 @@ struct OverlayMapperSection: View {
     }
 
     private var mapperMainContent: some View {
+        GeometryReader { scrollProxy in
         ScrollView {
         VStack(spacing: 0) {
-            Spacer(minLength: 8)
+            Spacer(minLength: 20)
 
             // Custom keycap layout with labels on top
             GeometryReader { proxy in
@@ -606,6 +607,8 @@ struct OverlayMapperSection: View {
                                     appInfo: selectedTapOutputMode == .default ? viewModel.selectedApp : nil,
                                     systemActionInfo: selectedTapOutputMode == .default ? viewModel.selectedSystemAction : nil,
                                     urlFavicon: selectedTapOutputMode == .default ? viewModel.selectedURLFavicon : nil,
+                                    folderInfo: selectedTapOutputMode == .default ? viewModel.selectedFolder : nil,
+                                    scriptInfo: selectedTapOutputMode == .default ? viewModel.selectedScript : nil,
                                     fadeAmount: fadeAmount,
                                     onTap: { toggleRecordingForCurrentSlot() }
                                 )
@@ -660,7 +663,7 @@ struct OverlayMapperSection: View {
                 .scaleEffect(scale, anchor: .center)
                 .frame(width: availableWidth, height: proxy.size.height, alignment: .center)
             }
-            .frame(height: 160)
+            .frame(height: 132)
 
             appMappingIndicators
                 .saturation(Double(1 - fadeAmount))
@@ -683,8 +686,10 @@ struct OverlayMapperSection: View {
                     .opacity(Double(1 - fadeAmount * 0.5))
             }
 
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: scrollProxy.size.height, alignment: .leading)
+        }
         }
     }
 
@@ -832,8 +837,8 @@ struct OverlayMapperSection: View {
                 }
             }
             .padding(.horizontal, 8)
-            .padding(.top, 4)
-            .padding(.bottom, 12)
+            .padding(.top, 3)
+            .padding(.bottom, 4)
             .sheet(item: $packForDetail) { pack in
                 if let vm = kanataViewModel {
                     PackDetailView(pack: pack)

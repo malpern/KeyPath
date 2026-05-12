@@ -24,6 +24,10 @@ extension OverlayMapperSection {
             (viewModel.selectedSystemAction?.name ?? "System", "gearshape", false)
         } else if viewModel.selectedURL != nil {
             ("Open URL", "link", false)
+        } else if viewModel.selectedFolder != nil {
+            ("Open Folder", "folder.fill", false)
+        } else if viewModel.selectedScript != nil {
+            ("Run Script", "terminal.fill", false)
         } else if selectedLayerOutput != nil {
             ("Go to Layer", "square.stack.3d.up", false)
         } else if viewModel.hasShiftedOutputConfigured {
