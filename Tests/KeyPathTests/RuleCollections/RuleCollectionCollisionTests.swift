@@ -72,14 +72,14 @@ final class RuleCollectionCollisionTests: XCTestCase {
                 let key = "\(layerKey):\(mapping.input.lowercased())"
                 if let existing = claimed[key] {
                     // Same output across two collections is fine (both agree).
-                    if existing.output != mapping.output {
+                    if existing.output != mapping.action.outputString {
                         collisions.append(
                             "\(key): \(existing.name)(\(existing.output)) ↔ " +
-                                "\(collection.name)(\(mapping.output))"
+                                "\(collection.name)(\(mapping.action.outputString))"
                         )
                     }
                 } else {
-                    claimed[key] = (collection.name, mapping.output)
+                    claimed[key] = (collection.name, mapping.action.outputString)
                 }
             }
         }

@@ -20,7 +20,7 @@ struct AppRuleRow: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
 
-                KeyCapChip(text: override.outputAction.uppercased())
+                KeyCapChip(text: override.action.outputString.uppercased())
             }
 
             Spacer()
@@ -35,7 +35,7 @@ struct AppRuleRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("app-rule-delete-\(override.id)")
-            .accessibilityLabel("Delete rule \(override.inputKey) to \(override.outputAction)")
+            .accessibilityLabel("Delete rule \(override.inputKey) to \(override.action.outputString)")
         }
         .padding(14)
         .background(

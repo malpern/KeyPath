@@ -217,9 +217,14 @@ struct KarabinerConverterService: Sendable {
                 continue
             }
 
+            let keyAction: KeyAction = if output.hasPrefix("(") || output.contains(" ") {
+                .rawKanata(output)
+            } else {
+                .keystroke(key: output)
+            }
             mappings.append(KeyMapping(
                 input: input,
-                output: output,
+                action: keyAction,
                 description: "\(fromKey) → \(toKey)"
             ))
         }
@@ -475,9 +480,14 @@ struct KarabinerConverterService: Sendable {
             return
         }
 
+        let remapAction: KeyAction = if output.hasPrefix("(") || output.contains(" ") {
+            .rawKanata(output)
+        } else {
+            .keystroke(key: output)
+        }
         let mapping = KeyMapping(
             input: input,
-            output: output,
+            action: remapAction,
             description: "\(fromKey) → \(toKey)"
         )
 
@@ -557,9 +567,14 @@ struct KarabinerConverterService: Sendable {
             activateHoldOnOtherKey: true
         ))
 
+        let holdKeyAction: KeyAction = if holdAction.hasPrefix("(") || holdAction.contains(" ") {
+            .rawKanata(holdAction)
+        } else {
+            .keystroke(key: holdAction)
+        }
         let mapping = KeyMapping(
             input: input,
-            output: holdAction,
+            action: holdKeyAction,
             description: "Tap: \(tapAction), Hold: \(holdAction)",
             behavior: behavior
         )
@@ -630,9 +645,14 @@ struct KarabinerConverterService: Sendable {
             description: rule
         ))
 
+        let chordAction: KeyAction = if output.hasPrefix("(") || output.contains(" ") {
+            .rawKanata(output)
+        } else {
+            .keystroke(key: output)
+        }
         let mapping = KeyMapping(
             input: chordKeys.first ?? "",
-            output: output,
+            action: chordAction,
             description: "Chord: \(chordKeys.joined(separator: "+")) → \(output)",
             behavior: behavior
         )
@@ -707,9 +727,15 @@ struct KarabinerConverterService: Sendable {
             source: .keys
         ))
 
+        let macroFirstOutput = outputs.first ?? ""
+        let macroAction: KeyAction = if macroFirstOutput.hasPrefix("(") || macroFirstOutput.contains(" ") {
+            .rawKanata(macroFirstOutput)
+        } else {
+            .keystroke(key: macroFirstOutput)
+        }
         let mapping = KeyMapping(
             input: input,
-            output: outputs.first ?? "",
+            action: macroAction,
             description: "Macro: \(outputs.joined(separator: " "))",
             behavior: behavior
         )
@@ -751,37 +777,37 @@ struct KarabinerConverterService: Sendable {
         }
 
         // Parse shell command to detect app launches and URL opens
-        let target = parseShellCommand(shellCmd)
+        let action = parseShellCommand(shellCmd)
 
         let launcherMapping = LauncherMapping(
             key: input,
-            target: target
+            action: action
         )
         result.launcherMappings.append(launcherMapping)
     }
 
     /// Parse a shell command string to detect `open -a "App"`, `open "URL"`, or raw scripts.
-    private func parseShellCommand(_ cmd: String) -> LauncherTarget {
+    private func parseShellCommand(_ cmd: String) -> KeyAction {
         let trimmed = cmd.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Detect: open [-n] -a "AppName" [--args ...] or open -a AppName.app
         if let captured = captureGroup(in: trimmed, regex: Self.openAppRegex) {
             let appName = captured.hasSuffix(".app") ? String(captured.dropLast(4)) : captured
-            return .app(name: appName, bundleId: nil)
+            return .launchApp(name: appName, bundleId: nil)
         }
 
         // Detect: open "https://..." or open https://...
         if let captured = captureGroup(in: trimmed, regex: Self.openURLRegex) {
-            return .url(captured)
+            return .openURL(captured)
         }
 
         // Detect: open /path/to/folder or open ~/folder
         if let captured = captureGroup(in: trimmed, regex: Self.openPathRegex) {
-            return .folder(path: captured, name: nil)
+            return .openFolder(path: captured, name: nil)
         }
 
         // Generic script
-        return .script(path: trimmed, name: nil)
+        return .runScript(path: trimmed, name: nil)
     }
 
     /// Extract the first capture group from a pre-compiled regex match.
@@ -857,7 +883,7 @@ struct KarabinerConverterService: Sendable {
 
                     let override = AppKeyOverride(
                         inputKey: mapping.input,
-                        outputAction: mapping.output,
+                        action: mapping.action,
                         description: mapping.description
                     )
 

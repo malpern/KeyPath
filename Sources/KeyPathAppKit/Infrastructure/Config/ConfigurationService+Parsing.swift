@@ -48,7 +48,9 @@ extension ConfigurationService {
         for (index, srcKey) in srcKeys.enumerated() where index < layerKeys.count {
             // Skip obviously invalid keys
             if srcKey != "invalid", !srcKey.isEmpty {
-                tempMappings.append(KeyMapping(input: srcKey, output: layerKeys[index]))
+                let layerOutput = layerKeys[index]
+                let action: KeyAction = layerOutput.hasPrefix("(") ? .rawKanata(layerOutput) : .keystroke(key: layerOutput)
+                tempMappings.append(KeyMapping(input: srcKey, action: action))
             }
         }
 

@@ -38,7 +38,7 @@ enum KeymapMappingGenerator {
             if qwertyLabel != targetLabel {
                 mappings.append(KeyMapping(
                     input: qwertyLabel,
-                    output: targetLabel,
+                    action: .keystroke(key: targetLabel),
                     description: "Keymap: \(qwertyLabel) → \(targetLabel)"
                 ))
             }
@@ -56,7 +56,7 @@ enum KeymapMappingGenerator {
                 if qwertyLabel != targetLabel {
                     mappings.append(KeyMapping(
                         input: qwertyLabel,
-                        output: targetLabel,
+                        action: .keystroke(key: targetLabel),
                         description: "Keymap punctuation: \(qwertyLabel) → \(targetLabel)"
                     ))
                 }

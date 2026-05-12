@@ -15,7 +15,7 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
             name: "Navigation",
             summary: "Nav layer",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "left")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
         )
@@ -37,7 +37,7 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
             name: "Navigation",
             summary: "Nav layer",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "left")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
         )
@@ -69,7 +69,7 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
             name: "Navigation",
             summary: "Nav layer",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "left")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
         )
@@ -79,7 +79,7 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
             name: "Window Snapping",
             summary: "Window layer",
             category: .productivity,
-            mappings: [KeyMapping(input: "h", output: "(push-msg \"window:left\")")],
+            mappings: [KeyMapping(input: "h", action: .rawKanata("(push-msg \"window:left\")"))],
             targetLayer: .custom("window"),
             momentaryActivator: MomentaryActivator(
                 input: "w",
@@ -103,8 +103,8 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
             summary: "Nav layer",
             category: .navigation,
             mappings: [
-                KeyMapping(input: "p", output: "M-v"),
-                KeyMapping(input: "slash", output: "C-S-z"),
+                KeyMapping(input: "p", action: .keystroke(key: "M-v")),
+                KeyMapping(input: "slash", action: .keystroke(key: "C-S-z")),
             ],
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
@@ -139,7 +139,7 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
                 LauncherMapping(
                     id: XCTUnwrap(UUID(uuidString: "33333333-3333-3333-3333-333333333333")),
                     key: "a",
-                    target: .app(name: "Calculator", bundleId: "com.apple.calculator"),
+                    action: .launchApp(name: "Calculator", bundleId: "com.apple.calculator"),
                     isEnabled: true
                 )
             ],

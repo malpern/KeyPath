@@ -42,7 +42,7 @@ extension KanataConfiguration {
 
             let mapping = KeyMapping(
                 input: key,
-                output: key, // Fallback, but behavior takes precedence
+                action: .keystroke(key: key),
                 behavior: .dualRole(behavior)
             )
             mappings.append(mapping)
@@ -84,7 +84,7 @@ extension KanataConfiguration {
 
             let mapping = KeyMapping(
                 input: key,
-                output: key, // Fallback, but behavior takes precedence
+                action: .keystroke(key: key),
                 behavior: .dualRole(behavior)
             )
             mappings.append(mapping)
@@ -105,11 +105,10 @@ extension KanataConfiguration {
 
             // For each participating key, create a mapping: input → (chord groupName key)
             for key in participatingKeys {
-                let output = "(chord \(group.name) \(key))"
+                let chordExpr = "(chord \(group.name) \(key))"
                 let mapping = KeyMapping(
                     input: key,
-                    output: output
-                    // behavior: nil (default) = simple remap
+                    action: .rawKanata(chordExpr)
                 )
                 mappings.append(mapping)
             }
@@ -140,7 +139,7 @@ extension KanataConfiguration {
 
         let mapping = KeyMapping(
             input: config.inputKey,
-            output: tapOutput, // Fallback, but behavior takes precedence
+            action: .keystroke(key: tapOutput),
             behavior: .dualRole(behavior)
         )
 
@@ -177,7 +176,7 @@ extension KanataConfiguration {
 
             let mapping = KeyMapping(
                 input: key,
-                output: key,
+                action: .keystroke(key: key),
                 behavior: .dualRole(behavior)
             )
             mappings.append(mapping)
@@ -192,23 +191,21 @@ extension KanataConfiguration {
 
         var mappings = config.mappings
             .filter(\.isEnabled)
-            // In tap mode, ESC is reserved for canceling the one-shot, so filter it out
             .filter { !isTapMode || $0.key.lowercased() != "esc" }
             .map { mapping in
-                let output = if isTapMode {
-                    "(multi \(mapping.target.kanataOutput) (push-msg \"layer:base\"))"
+                let kanata = if isTapMode {
+                    "(multi \(mapping.action.kanataOutput) (push-msg \"layer:base\"))"
                 } else {
-                    mapping.target.kanataOutput
+                    mapping.action.kanataOutput
                 }
                 return KeyMapping(
                     input: mapping.key,
-                    output: output
+                    action: .rawKanata(kanata)
                 )
             }
 
-        // In tap mode, add ESC → XX (no output) to cancel one-shot without side effects
         if isTapMode {
-            mappings.append(KeyMapping(input: "esc", output: "(multi XX (push-msg \"layer:base\"))"))
+            mappings.append(KeyMapping(input: "esc", action: .rawKanata("(multi XX (push-msg \"layer:base\"))")))
         }
 
         return mappings

@@ -82,7 +82,7 @@ final class KeyPathTests: XCTestCase {
 
     func testGenerateKanataConfig() {
         // Test basic config generation
-        let mapping = KeyMapping(input: "caps", output: "escape")
+        let mapping = KeyMapping(input: "caps", action: .keystroke(key: "escape"))
         let config = KanataConfiguration.generateFromMappings([mapping])
 
         // Check config structure
@@ -111,7 +111,7 @@ final class KeyPathTests: XCTestCase {
         ]
 
         for (input, output, expectedInput, expectedOutput) in testCases {
-            let mapping = KeyMapping(input: input, output: output)
+            let mapping = KeyMapping(input: input, action: .keystroke(key: output))
             let config = KanataConfiguration.generateFromMappings([mapping])
 
             XCTAssertTrue(config.contains("(defsrc"))
@@ -123,7 +123,7 @@ final class KeyPathTests: XCTestCase {
 
     func testConfigValidation() {
         // Generate a config and validate it's well-formed
-        let mapping = KeyMapping(input: "caps", output: "escape")
+        let mapping = KeyMapping(input: "caps", action: .keystroke(key: "escape"))
         let config = KanataConfiguration.generateFromMappings([mapping])
 
         // Check that it has balanced parentheses
@@ -182,7 +182,7 @@ final class KeyPathTests: XCTestCase {
         let manager = RuntimeCoordinator()
 
         // Test that generated config can be used by the manager
-        let mapping = KeyMapping(input: "caps", output: "escape")
+        let mapping = KeyMapping(input: "caps", action: .keystroke(key: "escape"))
         let config = KanataConfiguration.generateFromMappings([mapping])
 
         // Verify the config has the expected structure for KanataManager
@@ -205,7 +205,7 @@ final class KeyPathTests: XCTestCase {
             for i in 0 ..< 100 {
                 let input = i % 2 == 0 ? "caps" : "space"
                 let output = i % 2 == 0 ? "escape" : "return"
-                let mapping = KeyMapping(input: input, output: output)
+                let mapping = KeyMapping(input: input, action: .keystroke(key: output))
                 _ = KanataConfiguration.generateFromMappings([mapping])
             }
         }
@@ -230,13 +230,13 @@ final class KeyPathTests: XCTestCase {
 
     func testInvalidInputHandling() {
         // Test empty inputs
-        let emptyMapping = KeyMapping(input: "", output: "a")
+        let emptyMapping = KeyMapping(input: "", action: .keystroke(key: "a"))
         let emptyConfig = KanataConfiguration.generateFromMappings([emptyMapping])
         XCTAssertTrue(emptyConfig.contains("(defsrc"))
         XCTAssertTrue(emptyConfig.contains("(deflayer base"))
 
         // Test with special characters
-        let specialMapping = KeyMapping(input: "caps", output: "!")
+        let specialMapping = KeyMapping(input: "caps", action: .keystroke(key: "!"))
         let specialConfig = KanataConfiguration.generateFromMappings([specialMapping])
         XCTAssertTrue(specialConfig.contains("caps"))
         XCTAssertTrue(specialConfig.contains("!"))
@@ -377,7 +377,7 @@ final class KeyPathTests: XCTestCase {
         let manager = RuntimeCoordinator()
 
         // Test configuration generation and validation
-        let mapping = KeyMapping(input: "caps", output: "escape")
+        let mapping = KeyMapping(input: "caps", action: .keystroke(key: "escape"))
         let config = KanataConfiguration.generateFromMappings([mapping])
 
         // Config should pass through unmapped keys and include F-key mappings
@@ -618,7 +618,7 @@ final class KeyPathTests: XCTestCase {
         )
 
         // Test that config includes proper attribution
-        let mapping = KeyMapping(input: "caps", output: "escape")
+        let mapping = KeyMapping(input: "caps", action: .keystroke(key: "escape"))
         let config = KanataConfiguration.generateFromMappings([mapping])
         // Note: The actual date/attribution is added in resetToDefaultConfig,
         // but we can test the basic structure

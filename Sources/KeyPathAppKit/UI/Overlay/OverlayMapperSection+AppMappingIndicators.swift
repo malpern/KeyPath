@@ -32,7 +32,7 @@ extension OverlayMapperSection {
         let bundleId = appKeymap.mapping.bundleIdentifier
         let displayName = appKeymap.mapping.displayName
         let mapping = appKeymap.overrides.first { $0.inputKey.lowercased() == inputKey.lowercased() }
-        let output = mapping?.outputAction ?? "?"
+        let output = mapping?.action.outputString ?? "?"
         let tooltip = "\(displayName): \(inputKey) → \(output)"
 
         return Button {
@@ -74,7 +74,7 @@ extension OverlayMapperSection {
         if let keyCode = viewModel.inputKeyCode {
             let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
             if let override = appKeymap.overrides.first(where: { $0.inputKey.lowercased() == inputKey.lowercased() }) {
-                viewModel.outputLabel = KeyDisplayFormatter.format(override.outputAction)
+                viewModel.outputLabel = KeyDisplayFormatter.format(override.action.outputString)
             }
         }
     }

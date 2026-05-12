@@ -36,9 +36,9 @@ struct RuleConflictSourceSnapshot: Sendable, Equatable {
         // Copy all mappings for later filtering
         switch source {
         case let .collection(collection):
-            mappings = collection.mappings.map { ConflictMapping(input: $0.input, output: $0.output) }
+            mappings = collection.mappings.map { ConflictMapping(input: $0.input, output: $0.action.outputString) }
         case let .customRule(rule):
-            mappings = [ConflictMapping(input: rule.input, output: rule.output)]
+            mappings = [ConflictMapping(input: rule.input, output: rule.action.outputString)]
         }
     }
 }

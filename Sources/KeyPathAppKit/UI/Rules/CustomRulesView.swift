@@ -115,7 +115,7 @@ struct CustomRulesView: View {
             }
         } message: {
             if let pending = pendingDeleteAppRule {
-                Text("Delete \(pending.override.inputKey) → \(pending.override.outputAction) from \(pending.keymap.mapping.displayName)?")
+                Text("Delete \(pending.override.inputKey) → \(pending.override.action.outputString) from \(pending.keymap.mapping.displayName)?")
             }
         }
         .settingsBackground()
@@ -164,10 +164,11 @@ struct CustomRulesView: View {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        let action: KeyAction = trimmedOutput.hasPrefix("(") ? .rawKanata(trimmedOutput) : .keystroke(key: trimmedOutput)
         return CustomRule(
             title: trimmedTitle,
             input: trimmedInput,
-            output: trimmedOutput,
+            action: action,
             isEnabled: true,
             notes: trimmedNotes.isEmpty ? nil : trimmedNotes
         )
@@ -176,7 +177,7 @@ struct CustomRulesView: View {
     private func openRuleInDrawer(_ rule: CustomRule) {
         var userInfo: [String: Any] = [
             "inputKey": rule.input,
-            "outputKey": rule.output
+            "outputKey": rule.action.outputString
         ]
         if let shiftedOutput = rule.shiftedOutput {
             userInfo["shiftedOutputKey"] = shiftedOutput

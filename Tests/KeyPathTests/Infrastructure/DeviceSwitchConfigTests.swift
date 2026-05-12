@@ -20,7 +20,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
     // MARK: - renderDeviceSwitchExpression Tests
 
     func testKeyMappingDefaultsToNilDeviceOverrides() {
-        let mapping = KeyMapping(input: "a", output: "b")
+        let mapping = KeyMapping(input: "a", action: .keystroke(key: "b"))
         XCTAssertNil(mapping.deviceOverrides)
     }
 
@@ -96,14 +96,14 @@ final class DeviceSwitchConfigTests: XCTestCase {
     }
 
     func testDeviceSwitchAliasName_SanitizesSpecialCharacters() {
-        let mapping = KeyMapping(input: "caps-lock", output: "esc")
+        let mapping = KeyMapping(input: "caps-lock", action: .keystroke(key: "esc"))
         XCTAssertEqual(
             KanataConfiguration.deviceSwitchAliasName(for: mapping, layer: .base),
             "dev_base_caps_lock"
         )
 
         // Characters beyond `-` and ` ` should also be sanitized
-        let mappingWithSpecial = KeyMapping(input: "key.name+extra", output: "esc")
+        let mappingWithSpecial = KeyMapping(input: "key.name+extra", action: .keystroke(key: "esc"))
         XCTAssertEqual(
             KanataConfiguration.deviceSwitchAliasName(for: mappingWithSpecial, layer: .base),
             "dev_base_key_name_extra"
@@ -204,7 +204,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
         let mapping = KeyMapping(
             input: "a",
-            output: "b",
+            action: .keystroke(key: "b"),
             deviceOverrides: [
                 DeviceKeyOverride(deviceHash: "0xAAAA0000", output: "x"),
                 DeviceKeyOverride(deviceHash: "0xBBBB1111", output: "y"),
@@ -237,7 +237,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
         let mapping = KeyMapping(
             input: "h",
-            output: "left",
+            action: .keystroke(key: "left"),
             deviceOverrides: [
                 DeviceKeyOverride(deviceHash: "0xAAAA0000", output: "home"),
             ]
@@ -277,8 +277,8 @@ final class DeviceSwitchConfigTests: XCTestCase {
         let fixedCollectionId = UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
         let fixedMappingId = UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!
 
-        let mappingWithout = KeyMapping(id: fixedMappingId, input: "a", output: "b")
-        let mappingWith = KeyMapping(id: fixedMappingId, input: "a", output: "b", deviceOverrides: nil)
+        let mappingWithout = KeyMapping(id: fixedMappingId, input: "a", action: .keystroke(key: "b"))
+        let mappingWith = KeyMapping(id: fixedMappingId, input: "a", action: .keystroke(key: "b"), deviceOverrides: nil)
 
         let collectionWithout = RuleCollection(
             id: fixedCollectionId, name: "Test", summary: "T", category: .productivity, mappings: [mappingWithout]
@@ -305,7 +305,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
         let mapping = KeyMapping(
             input: "a",
-            output: "b",
+            action: .keystroke(key: "b"),
             deviceOverrides: [
                 DeviceKeyOverride(deviceHash: "0xAAAA0000", output: "x"),
             ]
@@ -334,7 +334,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
         let mapping = KeyMapping(
             input: "a",
-            output: "b",
+            action: .keystroke(key: "b"),
             deviceOverrides: [
                 DeviceKeyOverride(deviceHash: "0xAAAA0000", output: "x"),
             ]
@@ -360,7 +360,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
     }
 
     func testCollectionWithoutDeviceOverrides_NoSwitchAlias() {
-        let mapping = KeyMapping(input: "a", output: "b")
+        let mapping = KeyMapping(input: "a", action: .keystroke(key: "b"))
 
         let collection = RuleCollection(
             name: "Test",

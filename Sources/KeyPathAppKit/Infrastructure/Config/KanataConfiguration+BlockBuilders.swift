@@ -258,7 +258,7 @@ extension KanataConfiguration {
             // Add chord mappings to the separate chord list
             for mapping in chordInputMappings {
                 let inputKeys = mapping.input.split(separator: " ").map { KanataKeyConverter.convertToKanataKey(String($0)) }.joined(separator: " ")
-                let output = KanataKeyConverter.convertToKanataSequence(mapping.output)
+                let output = KanataKeyConverter.convertToKanataSequence(mapping.action.kanataOutput)
                 chordMappings.append(ChordMapping(inputKeys: inputKeys, output: output, description: mapping.description))
             }
 
@@ -276,7 +276,7 @@ extension KanataConfiguration {
                 let sourceKey = KanataKeyConverter.convertToKanataKey(mapping.input)
                 var layerOutputs: [RuleCollectionLayer: String] = [:]
 
-                let trimmedOutput = mapping.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                let trimmedOutput = mapping.action.kanataOutput.trimmingCharacters(in: .whitespacesAndNewlines)
                 let hasLayerBasePush = trimmedOutput.contains("layer:base")
 
                 // Determine the output action based on behavior or simple output
@@ -638,7 +638,7 @@ extension KanataConfiguration {
     /// Fork syntax: (fork default-action alternate-action (trigger-keys))
     /// Note: Inside fork, modifier prefixes like m-right must be (multi lmet right)
     static func buildForkDefinition(for mapping: KeyMapping) -> String {
-        let defaultOutput = normalizeForkOutput(convertToForkAction(mapping.output))
+        let defaultOutput = normalizeForkOutput(convertToForkAction(mapping.action.kanataOutput))
 
         // Shift modifier takes precedence
         if let shiftedOutput = mapping.shiftedOutput {

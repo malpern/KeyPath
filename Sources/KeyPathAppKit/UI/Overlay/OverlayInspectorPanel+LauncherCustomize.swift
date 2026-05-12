@@ -196,7 +196,7 @@ extension OverlayInspectorPanel {
             .launcherGridConfig?
             .mappings
             .compactMap { mapping -> String? in
-                if case let .url(domain) = mapping.target {
+                if case let .openURL(domain) = mapping.action {
                     return normalizeDomain(domain)
                 }
                 return nil
@@ -239,7 +239,7 @@ extension OverlayInspectorPanel {
                     // Get existing keys
                     var existingKeys = Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) })
                     let existingDomains = Set(config.mappings.compactMap { mapping in
-                        if case let .url(domain) = mapping.target {
+                        if case let .openURL(domain) = mapping.action {
                             return normalizeDomain(domain)
                         }
                         return nil
@@ -258,7 +258,7 @@ extension OverlayInspectorPanel {
 
                         let mapping = LauncherMapping(
                             key: key,
-                            target: .url(site.domain)
+                            action: .openURL(site.domain)
                         )
                         config.mappings.append(mapping)
                     }

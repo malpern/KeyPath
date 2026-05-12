@@ -18,12 +18,12 @@ public struct DeviceKeyOverride: Codable, Equatable, Sendable {
     }
 }
 
-/// Represents a simple key mapping from input to output
-/// Used throughout the codebase for representing user-configured key remappings
+/// Represents a key mapping from input to output action.
+/// Used throughout the codebase for representing user-configured key remappings.
 public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     public let id: UUID
     public let input: String
-    public let output: String
+    public let action: KeyAction
 
     /// Optional output when Shift modifier is held (uses Kanata fork)
     public let shiftedOutput: String?
@@ -37,7 +37,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     /// If true, a visual separator row should appear before this mapping in table display
     public let sectionBreak: Bool
 
-    /// Advanced behavior (dual-role, tap-dance, macro). Nil means simple remap using `output`.
+    /// Advanced behavior (dual-role, tap-dance, macro). Nil means simple remap using `action`.
     public let behavior: MappingBehavior?
 
     /// Per-device output overrides. When present, the config generator wraps
@@ -47,7 +47,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     public init(
         id: UUID = UUID(),
         input: String,
-        output: String,
+        action: KeyAction,
         shiftedOutput: String? = nil,
         ctrlOutput: String? = nil,
         description: String? = nil,
@@ -57,7 +57,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     ) {
         self.id = id
         self.input = input
-        self.output = output
+        self.action = action
         self.shiftedOutput = shiftedOutput
         self.ctrlOutput = ctrlOutput
         self.description = description
@@ -72,14 +72,14 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, input, output, shiftedOutput, ctrlOutput, description, sectionBreak, behavior, deviceOverrides
+        case id, input, action, shiftedOutput, ctrlOutput, description, sectionBreak, behavior, deviceOverrides
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = (try? container.decode(UUID.self, forKey: .id)) ?? UUID()
         input = try container.decode(String.self, forKey: .input)
-        output = try container.decode(String.self, forKey: .output)
+        action = try container.decode(KeyAction.self, forKey: .action)
         shiftedOutput = try container.decodeIfPresent(String.self, forKey: .shiftedOutput)
         ctrlOutput = try container.decodeIfPresent(String.self, forKey: .ctrlOutput)
         description = try container.decodeIfPresent(String.self, forKey: .description)
@@ -92,7 +92,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(input, forKey: .input)
-        try container.encode(output, forKey: .output)
+        try container.encode(action, forKey: .action)
         try container.encodeIfPresent(shiftedOutput, forKey: .shiftedOutput)
         try container.encodeIfPresent(ctrlOutput, forKey: .ctrlOutput)
         try container.encodeIfPresent(description, forKey: .description)

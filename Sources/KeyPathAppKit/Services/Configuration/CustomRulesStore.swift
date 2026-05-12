@@ -39,7 +39,7 @@ actor CustomRulesStore {
             let rules = try decoder.decode([CustomRule].self, from: data)
             AppLogger.shared.log("📂 [CustomRulesStore] Decoded \(rules.count) rules:")
             for rule in rules {
-                AppLogger.shared.log("📂 [CustomRulesStore]   - '\(rule.input)' → '\(rule.output)' (enabled: \(rule.isEnabled))")
+                AppLogger.shared.log("📂 [CustomRulesStore]   - '\(rule.input)' → '\(rule.action.displayName)' (enabled: \(rule.isEnabled))")
             }
             return rules
         } catch {
@@ -51,7 +51,7 @@ actor CustomRulesStore {
     func saveRules(_ rules: [CustomRule]) throws {
         AppLogger.shared.log("💾 [CustomRulesStore] saveRules: \(rules.count) rules to \(fileURL.path)")
         for rule in rules {
-            AppLogger.shared.log("💾 [CustomRulesStore]   - '\(rule.input)' → '\(rule.output)' (enabled: \(rule.isEnabled))")
+            AppLogger.shared.log("💾 [CustomRulesStore]   - '\(rule.input)' → '\(rule.action.displayName)' (enabled: \(rule.isEnabled))")
         }
         let directory = fileURL.deletingLastPathComponent()
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)

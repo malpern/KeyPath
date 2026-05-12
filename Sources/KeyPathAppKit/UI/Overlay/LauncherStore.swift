@@ -34,10 +34,12 @@ final class LauncherStore {
 
             // Filter for installed apps (keep all non-app targets)
             let filteredMappings: [LauncherMapping] = config.mappings.filter { mapping in
-                switch mapping.target {
-                case let .app(name, bundleId):
+                switch mapping.action {
+                case let .launchApp(name, bundleId):
                     return Self.isAppInstalled(name: name, bundleId: bundleId)
-                case .url, .folder, .script:
+                case .openURL, .openFolder, .runScript:
+                    return true
+                default:
                     return true
                 }
             }
@@ -142,16 +144,16 @@ final class LauncherStore {
 
     private static var defaultMappings: [LauncherMapping] {
         [
-            LauncherMapping(key: "s", target: .app(name: "Safari", bundleId: nil)),
-            LauncherMapping(key: "t", target: .app(name: "Terminal", bundleId: nil)),
-            LauncherMapping(key: "f", target: .app(name: "Finder", bundleId: nil)),
-            LauncherMapping(key: "g", target: .url("github.com"))
+            LauncherMapping(key: "s", action: .launchApp(name: "Safari", bundleId: nil)),
+            LauncherMapping(key: "t", action: .launchApp(name: "Terminal", bundleId: nil)),
+            LauncherMapping(key: "f", action: .launchApp(name: "Finder", bundleId: nil)),
+            LauncherMapping(key: "g", action: .openURL("github.com"))
         ]
     }
 
     /// Get icon for an app - checks multiple locations
     static func appIcon(name: String, bundleId: String?) -> NSImage? {
-        AppIconResolver.icon(for: .app(name: name, bundleId: bundleId))
+        AppIconResolver.icon(for: .launchApp(name: name, bundleId: bundleId))
     }
 
     private func persistMappings() {

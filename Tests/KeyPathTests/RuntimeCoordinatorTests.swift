@@ -54,12 +54,12 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
     }
 
     func testKeyMappingStorage() {
-        let testMapping = KeyMapping(input: "caps", output: "escape")
+        let testMapping = KeyMapping(input: "caps", action: .keystroke(key: "escape"))
         manager.keyMappings.append(testMapping)
 
         XCTAssertEqual(manager.keyMappings.count, 1, "Should have one mapping")
         XCTAssertEqual(manager.keyMappings.first?.input, "caps")
-        XCTAssertEqual(manager.keyMappings.first?.output, "escape")
+        XCTAssertEqual(manager.keyMappings.first?.action, .keystroke(key: "escape"))
     }
 
     func testConfigPathProperty() {

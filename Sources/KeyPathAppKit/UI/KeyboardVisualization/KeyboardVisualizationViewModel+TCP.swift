@@ -191,15 +191,16 @@ extension KeyboardVisualizationViewModel {
             }
 
             // Create a new LayerKeyInfo with the override output
-            let displayLabel = formatOutputForDisplay(override.outputAction)
+            let outputStr = override.action.outputString
+            let displayLabel = formatOutputForDisplay(outputStr)
             let newInfo = LayerKeyInfo.mapped(
                 displayLabel: displayLabel,
-                outputKey: override.outputAction,
-                outputKeyCode: Self.kanataNameToKeyCode(override.outputAction)
+                outputKey: outputStr,
+                outputKeyCode: Self.kanataNameToKeyCode(outputStr)
             )
 
             modifiedMap[keyCode] = newInfo
-            AppLogger.shared.info("🔄 [KeyboardViz] Applied app override: \(override.inputKey) → \(override.outputAction) (keyCode \(keyCode))")
+            AppLogger.shared.info("🔄 [KeyboardViz] Applied app override: \(override.inputKey) → \(outputStr) (keyCode \(keyCode))")
         }
 
         return modifiedMap

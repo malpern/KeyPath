@@ -714,13 +714,15 @@ final class ContextHUDController {
                 continue
             }
 
-            let info: LayerKeyInfo = switch mapping.target {
-            case let .app(name, bundleId):
+            let info: LayerKeyInfo = switch mapping.action {
+            case let .launchApp(name, bundleId):
                 .appLaunch(appIdentifier: bundleId ?? name, collectionId: collectionId)
-            case let .url(urlString):
+            case let .openURL(urlString):
                 .webURL(url: urlString, collectionId: collectionId)
-            case .folder, .script:
-                .pushMsg(message: mapping.target.displayName, collectionId: collectionId)
+            case .openFolder, .runScript:
+                .pushMsg(message: mapping.action.displayName, collectionId: collectionId)
+            default:
+                .pushMsg(message: mapping.action.displayName, collectionId: collectionId)
             }
 
             keyMap[keyCode] = info

@@ -114,10 +114,11 @@ struct ExpandableCollectionRow: View {
 
 private var fallbackKeyMappings: [KeyMapping] {
         mappings.map { mapping in
-            KeyMapping(
+            let action: KeyAction = mapping.output.hasPrefix("(") ? .rawKanata(mapping.output) : .keystroke(key: mapping.output)
+            return KeyMapping(
                 id: mapping.id,
                 input: mapping.input,
-                output: mapping.output,
+                action: action,
                 shiftedOutput: mapping.shiftedOutput,
                 ctrlOutput: mapping.ctrlOutput,
                 description: mapping.description,

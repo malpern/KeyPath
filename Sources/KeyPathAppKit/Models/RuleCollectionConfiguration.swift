@@ -442,87 +442,11 @@ public enum HyperTriggerMode: String, Codable, Equatable, Sendable {
     }
 }
 
-/// Target for a launcher mapping - app, URL, folder, or script
-public enum LauncherTarget: Codable, Equatable, Sendable {
-    case app(name: String, bundleId: String?)
-    case url(String)
-    case folder(path: String, name: String?)
-    case script(path: String, name: String?)
-
-    /// Display name for the target
-    public var displayName: String {
-        switch self {
-        case let .app(name, _):
-            name
-        case let .url(urlString):
-            URLMappingFormatter.displayDomain(for: urlString)
-        case let .folder(path, name):
-            name ?? URL(fileURLWithPath: path).lastPathComponent
-        case let .script(path, name):
-            name ?? URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
-        }
-    }
-
-    /// Auto-generated description for tooltips
-    public var autoDescription: String {
-        switch self {
-        case let .app(name, _):
-            "Open \(name)"
-        case let .url(urlString):
-            "Open \(URLMappingFormatter.displayDomain(for: urlString))"
-        case let .folder(_, name):
-            "Open \(name ?? "folder")"
-        case let .script(_, name):
-            "Run \(name ?? "script")"
-        }
-    }
-
-    /// Whether this target is an app
-    public var isApp: Bool {
-        if case .app = self { return true }
-        return false
-    }
-
-    /// Whether this target is a URL
-    public var isURL: Bool {
-        if case .url = self { return true }
-        return false
-    }
-
-    /// Whether this target is a folder
-    public var isFolder: Bool {
-        if case .folder = self { return true }
-        return false
-    }
-
-    /// Whether this target is a script
-    public var isScript: Bool {
-        if case .script = self { return true }
-        return false
-    }
-
-    /// Generate the Kanata output string for this target
-    public var kanataOutput: String {
-        switch self {
-        case let .app(name, bundleId):
-            let identifier = bundleId?.isEmpty == false ? bundleId! : name
-            return "(push-msg \"launch:\(identifier)\")"
-        case let .url(urlString):
-            let encoded = URLMappingFormatter.encodeForPushMessage(urlString)
-            return "(push-msg \"open:\(encoded)\")"
-        case let .folder(path, _):
-            return "(push-msg \"folder:\(path)\")"
-        case let .script(path, _):
-            return "(push-msg \"script:\(path)\")"
-        }
-    }
-}
-
 /// A single mapping in the launcher grid
 public struct LauncherMapping: Codable, Equatable, Sendable, Identifiable {
     public let id: UUID
     public var key: String
-    public var target: LauncherTarget
+    public var action: KeyAction
     public var isEnabled: Bool
     public var customIconPath: String?
     public var userDescription: String?
@@ -530,21 +454,21 @@ public struct LauncherMapping: Codable, Equatable, Sendable, Identifiable {
     public init(
         id: UUID = UUID(),
         key: String,
-        target: LauncherTarget,
+        action: KeyAction,
         isEnabled: Bool = true,
         customIconPath: String? = nil,
         userDescription: String? = nil
     ) {
         self.id = id
         self.key = key
-        self.target = target
+        self.action = action
         self.isEnabled = isEnabled
         self.customIconPath = customIconPath
         self.userDescription = userDescription
     }
 
     public var tooltip: String {
-        userDescription ?? target.autoDescription
+        userDescription ?? action.autoDescription
     }
 }
 
@@ -653,42 +577,42 @@ public struct LauncherGridConfig: Codable, Equatable, Sendable {
     public static var defaultMappings: [LauncherMapping] {
         // Home row - most used (asdfghjkl)
         let homeRowMappings: [LauncherMapping] = [
-            LauncherMapping(key: "a", target: .app(name: "Calendar", bundleId: "com.apple.iCal")),
-            LauncherMapping(key: "s", target: .app(name: "Safari", bundleId: "com.apple.Safari")),
-            LauncherMapping(key: "d", target: .app(name: "Terminal", bundleId: "com.apple.Terminal")),
-            LauncherMapping(key: "f", target: .app(name: "Finder", bundleId: "com.apple.finder")),
-            LauncherMapping(key: "g", target: .url("chatgpt.com")),
-            LauncherMapping(key: "h", target: .url("youtube.com")),
-            LauncherMapping(key: "j", target: .url("x.com")),
-            LauncherMapping(key: "k", target: .app(name: "Messages", bundleId: "com.apple.MobileSMS")),
-            LauncherMapping(key: "l", target: .url("linkedin.com"))
+            LauncherMapping(key: "a", action: .launchApp(name: "Calendar", bundleId: "com.apple.iCal")),
+            LauncherMapping(key: "s", action: .launchApp(name: "Safari", bundleId: "com.apple.Safari")),
+            LauncherMapping(key: "d", action: .launchApp(name: "Terminal", bundleId: "com.apple.Terminal")),
+            LauncherMapping(key: "f", action: .launchApp(name: "Finder", bundleId: "com.apple.finder")),
+            LauncherMapping(key: "g", action: .openURL("chatgpt.com")),
+            LauncherMapping(key: "h", action: .openURL("youtube.com")),
+            LauncherMapping(key: "j", action: .openURL("x.com")),
+            LauncherMapping(key: "k", action: .launchApp(name: "Messages", bundleId: "com.apple.MobileSMS")),
+            LauncherMapping(key: "l", action: .openURL("linkedin.com"))
         ]
 
         // Top row (qwertyuiop)
         let topRowMappings: [LauncherMapping] = [
-            LauncherMapping(key: "e", target: .app(name: "Mail", bundleId: "com.apple.mail")),
-            LauncherMapping(key: "r", target: .url("reddit.com")),
-            LauncherMapping(key: "u", target: .app(name: "Music", bundleId: "com.apple.Music")),
-            LauncherMapping(key: "i", target: .url("claude.ai")),
-            LauncherMapping(key: "o", target: .app(name: "Obsidian", bundleId: "md.obsidian")),
-            LauncherMapping(key: "p", target: .app(name: "Photos", bundleId: "com.apple.Photos"))
+            LauncherMapping(key: "e", action: .launchApp(name: "Mail", bundleId: "com.apple.mail")),
+            LauncherMapping(key: "r", action: .openURL("reddit.com")),
+            LauncherMapping(key: "u", action: .launchApp(name: "Music", bundleId: "com.apple.Music")),
+            LauncherMapping(key: "i", action: .openURL("claude.ai")),
+            LauncherMapping(key: "o", action: .launchApp(name: "Obsidian", bundleId: "md.obsidian")),
+            LauncherMapping(key: "p", action: .launchApp(name: "Photos", bundleId: "com.apple.Photos"))
         ]
 
         // Bottom row (zxcvbnm)
         let bottomRowMappings: [LauncherMapping] = [
-            LauncherMapping(key: "z", target: .app(name: "Zoom", bundleId: "us.zoom.xos")),
-            LauncherMapping(key: "x", target: .app(name: "Slack", bundleId: "com.tinyspeck.slackmacgap")),
-            LauncherMapping(key: "c", target: .app(name: "Discord", bundleId: "com.hnc.Discord")),
-            LauncherMapping(key: "v", target: .app(name: "VS Code", bundleId: "com.microsoft.VSCode")),
-            LauncherMapping(key: "n", target: .app(name: "Notes", bundleId: "com.apple.Notes"))
+            LauncherMapping(key: "z", action: .launchApp(name: "Zoom", bundleId: "us.zoom.xos")),
+            LauncherMapping(key: "x", action: .launchApp(name: "Slack", bundleId: "com.tinyspeck.slackmacgap")),
+            LauncherMapping(key: "c", action: .launchApp(name: "Discord", bundleId: "com.hnc.Discord")),
+            LauncherMapping(key: "v", action: .launchApp(name: "VS Code", bundleId: "com.microsoft.VSCode")),
+            LauncherMapping(key: "n", action: .launchApp(name: "Notes", bundleId: "com.apple.Notes"))
         ]
 
         // Number row (websites + folders + scripts)
         let numberRowMappings: [LauncherMapping] = [
-            LauncherMapping(key: "1", target: .url("github.com")),
-            LauncherMapping(key: "2", target: .url("google.com")),
-            LauncherMapping(key: "3", target: .url("notion.so")),
-            LauncherMapping(key: "4", target: .url("stackoverflow.com"))
+            LauncherMapping(key: "1", action: .openURL("github.com")),
+            LauncherMapping(key: "2", action: .openURL("google.com")),
+            LauncherMapping(key: "3", action: .openURL("notion.so")),
+            LauncherMapping(key: "4", action: .openURL("stackoverflow.com"))
         ]
 
         // Note: Script examples are not included by default since script execution requires

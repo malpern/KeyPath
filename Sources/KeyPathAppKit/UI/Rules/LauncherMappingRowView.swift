@@ -52,7 +52,7 @@ struct LauncherMappingRowView: View {
                 .foregroundColor(mapping.isEnabled || !showToggle ? .accentColor : .secondary)
 
             // Target name
-            Text(mapping.target.displayName)
+            Text(mapping.action.displayName)
                 .font(.footnote)
                 .foregroundColor(mapping.isEnabled || !showToggle ? .primary : .secondary)
 
@@ -90,28 +90,31 @@ struct LauncherMappingRowView: View {
             }
         }
         .accessibilityIdentifier("launcher-mapping-row-\(mapping.key)")
-        .accessibilityLabel("\(mapping.target.displayName), key \(displayKey)")
+        .accessibilityLabel("\(mapping.action.displayName), key \(displayKey)")
         .task {
             await loadIcon()
         }
     }
 
     private func loadIcon() async {
-        switch mapping.target {
-        case .app, .folder, .script:
-            icon = AppIconResolver.icon(for: mapping.target)
-        case let .url(urlString):
+        switch mapping.action {
+        case .launchApp, .openFolder, .runScript:
+            icon = AppIconResolver.icon(for: mapping.action)
+        case let .openURL(urlString):
             icon = await services.faviconFetcher.fetchFavicon(for: urlString)
+        default:
+            break
         }
     }
 
-    /// Fallback SF Symbol name based on target type
+    /// Fallback SF Symbol name based on action type
     private var fallbackIconName: String {
-        switch mapping.target {
-        case .app: "app"
-        case .url: "globe"
-        case .folder: "folder"
-        case .script: "terminal"
+        switch mapping.action {
+        case .launchApp: "app"
+        case .openURL: "globe"
+        case .openFolder: "folder"
+        case .runScript: "terminal"
+        default: "questionmark.circle"
         }
     }
 }

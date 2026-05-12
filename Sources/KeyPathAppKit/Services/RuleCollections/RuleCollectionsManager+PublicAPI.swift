@@ -279,7 +279,8 @@ extension RuleCollectionsManager {
                 // Update the mapping based on selected output
                 if let config = catalogCollection.configuration.singleKeyPickerConfig {
                     let description = config.presetOptions.first { $0.output == output }?.label ?? "Custom"
-                    catalogCollection.mappings = [KeyMapping(input: config.inputKey, output: output, description: description)]
+                    let keyAction: KeyAction = output.hasPrefix("(") ? .rawKanata(output) : .keystroke(key: output)
+                    catalogCollection.mappings = [KeyMapping(input: config.inputKey, action: keyAction, description: description)]
                 }
                 ruleCollections.append(catalogCollection)
                 dedupeRuleCollectionsInPlace()
@@ -297,7 +298,8 @@ extension RuleCollectionsManager {
            config.inputKey != "leader"
         {
             let description = config.presetOptions.first { $0.output == output }?.label ?? "Custom"
-            ruleCollections[index].mappings = [KeyMapping(input: config.inputKey, output: output, description: description)]
+            let keyAction: KeyAction = output.hasPrefix("(") ? .rawKanata(output) : .keystroke(key: output)
+            ruleCollections[index].mappings = [KeyMapping(input: config.inputKey, action: keyAction, description: description)]
         }
 
         dedupeRuleCollectionsInPlace()
@@ -615,7 +617,7 @@ extension RuleCollectionsManager {
         AppLogger.shared.debug("🖼️ [RuleCollections] Warming cache for \(enabledMappings.count) launcher mappings")
 
         for mapping in enabledMappings {
-            await IconResolverService.shared.preloadIcon(for: mapping.target)
+            await IconResolverService.shared.preloadIcon(for: mapping.action)
         }
     }
 
@@ -654,7 +656,7 @@ extension RuleCollectionsManager {
     ///   - autoResolveConflicts: When true, automatically wins over conflicting rules without prompting.
     @discardableResult
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false, autoResolveConflicts: Bool = false) async -> Bool {
-        AppLogger.shared.log("💾 [CustomRules] saveCustomRule called: id=\(rule.id), input='\(rule.input)', output='\(rule.output)'")
+        AppLogger.shared.log("💾 [CustomRules] saveCustomRule called: id=\(rule.id), input='\(rule.input)', action='\(rule.action.displayName)'")
         let snapshot = snapshotRuleState()
 
         if rule.isEnabled,
@@ -777,14 +779,15 @@ extension RuleCollectionsManager {
 
     /// Create or update a custom rule for the given input/output
     func makeCustomRule(input: String, output: String) -> CustomRule {
+        let action: KeyAction = output.hasPrefix("(") ? .rawKanata(output) : .keystroke(key: output)
         if let existing = customRules.first(where: {
             $0.input.caseInsensitiveCompare(input) == .orderedSame
         }) {
-            CustomRule(
+            return CustomRule(
                 id: existing.id,
                 title: existing.title,
                 input: input,
-                output: output,
+                action: action,
                 shiftedOutput: existing.shiftedOutput,
                 isEnabled: true,
                 notes: existing.notes,
@@ -792,7 +795,7 @@ extension RuleCollectionsManager {
                 deviceOverrides: existing.deviceOverrides
             )
         } else {
-            CustomRule(input: input, output: output)
+            return CustomRule(input: input, action: action)
         }
     }
 

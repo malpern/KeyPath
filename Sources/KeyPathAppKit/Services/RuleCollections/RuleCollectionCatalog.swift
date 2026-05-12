@@ -83,18 +83,18 @@ struct RuleCollectionCatalog {
             summary: "Preserves brightness, volume, media, and system control keys (F1-F12).",
             category: .system,
             mappings: [
-                KeyMapping(input: "f1", output: "brdn", description: "Brightness down"),
-                KeyMapping(input: "f2", output: "brup", description: "Brightness up"),
-                KeyMapping(input: "f3", output: #"(push-msg "system:mission-control")"#, description: "Mission Control"),
-                KeyMapping(input: "f4", output: #"(push-msg "system:spotlight")"#, description: "Spotlight"),
-                KeyMapping(input: "f5", output: #"(push-msg "system:dictation")"#, description: "Dictation"),
-                KeyMapping(input: "f6", output: #"(push-msg "system:dnd")"#, description: "Do Not Disturb"),
-                KeyMapping(input: "f7", output: "prev", description: "Previous track"),
-                KeyMapping(input: "f8", output: "pp", description: "Play / Pause"),
-                KeyMapping(input: "f9", output: "next", description: "Next track"),
-                KeyMapping(input: "f10", output: "mute", description: "Mute"),
-                KeyMapping(input: "f11", output: "vold", description: "Volume down"),
-                KeyMapping(input: "f12", output: "volu", description: "Volume up")
+                KeyMapping(input: "f1", action: .keystroke(key: "brdn"), description: "Brightness down"),
+                KeyMapping(input: "f2", action: .keystroke(key: "brup"), description: "Brightness up"),
+                KeyMapping(input: "f3", action: .rawKanata(#"(push-msg "system:mission-control")"#), description: "Mission Control"),
+                KeyMapping(input: "f4", action: .rawKanata(#"(push-msg "system:spotlight")"#), description: "Spotlight"),
+                KeyMapping(input: "f5", action: .rawKanata(#"(push-msg "system:dictation")"#), description: "Dictation"),
+                KeyMapping(input: "f6", action: .rawKanata(#"(push-msg "system:dnd")"#), description: "Do Not Disturb"),
+                KeyMapping(input: "f7", action: .keystroke(key: "prev"), description: "Previous track"),
+                KeyMapping(input: "f8", action: .keystroke(key: "pp"), description: "Play / Pause"),
+                KeyMapping(input: "f9", action: .keystroke(key: "next"), description: "Next track"),
+                KeyMapping(input: "f10", action: .keystroke(key: "mute"), description: "Mute"),
+                KeyMapping(input: "f11", action: .keystroke(key: "vold"), description: "Volume down"),
+                KeyMapping(input: "f12", action: .keystroke(key: "volu"), description: "Volume up")
             ],
             isEnabled: true,
             isSystemDefault: true,
@@ -162,35 +162,35 @@ struct RuleCollectionCatalog {
             category: .navigation,
             mappings: [
                 // === Basic navigation (hjkl) ===
-                KeyMapping(input: "h", output: "left", description: "h — left"),
-                KeyMapping(input: "j", output: "down", description: "j — down"),
-                KeyMapping(input: "k", output: "up", description: "k — up"),
-                KeyMapping(input: "l", output: "right", description: "l — right"),
+                KeyMapping(input: "h", action: .keystroke(key: "left"), description: "h — left"),
+                KeyMapping(input: "j", action: .keystroke(key: "down"), description: "j — down"),
+                KeyMapping(input: "k", action: .keystroke(key: "up"), description: "k — up"),
+                KeyMapping(input: "l", action: .keystroke(key: "right"), description: "l — right"),
 
                 // === Line navigation ===
-                KeyMapping(input: "0", output: "M-left", description: "0 — line start"),
-                KeyMapping(input: "4", output: "M-right", description: "$ — line end"),
-                KeyMapping(input: "a", output: "right", shiftedOutput: "M-right", description: "a — append"),
+                KeyMapping(input: "0", action: .keystroke(key: "M-left"), description: "0 — line start"),
+                KeyMapping(input: "4", action: .keystroke(key: "M-right"), description: "$ — line end"),
+                KeyMapping(input: "a", action: .keystroke(key: "right"), shiftedOutput: "M-right", description: "a — append"),
 
                 // === Document navigation ===
-                KeyMapping(input: "g", output: "M-up", shiftedOutput: "M-down", description: "gg / G — doc top/bottom"),
+                KeyMapping(input: "g", action: .keystroke(key: "M-up"), shiftedOutput: "M-down", description: "gg / G — doc top/bottom"),
 
                 // === Search ===
-                KeyMapping(input: "/", output: "M-f", description: "/ — find", sectionBreak: true),
-                KeyMapping(input: "n", output: "M-g", shiftedOutput: "M-S-g", description: "n / N — next/prev match"),
+                KeyMapping(input: "/", action: .keystroke(key: "M-f"), description: "/ — find", sectionBreak: true),
+                KeyMapping(input: "n", action: .keystroke(key: "M-g"), shiftedOutput: "M-S-g", description: "n / N — next/prev match"),
 
                 // === Copy/paste ===
-                KeyMapping(input: "y", output: "M-c", description: "y — yank"),
-                KeyMapping(input: "p", output: "M-v", description: "p — put"),
+                KeyMapping(input: "y", action: .keystroke(key: "M-c"), description: "y — yank"),
+                KeyMapping(input: "p", action: .keystroke(key: "M-v"), description: "p — put"),
 
                 // === Editing ===
-                KeyMapping(input: "x", output: "del", description: "x — delete char"),
-                KeyMapping(input: "r", output: "M-S-z", description: "r — redo"),
-                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn", description: "d — delete previous word"),
-                KeyMapping(input: "u", output: "M-z", ctrlOutput: "pgup", description: "u — undo"),
+                KeyMapping(input: "x", action: .keystroke(key: "del"), description: "x — delete char"),
+                KeyMapping(input: "r", action: .keystroke(key: "M-S-z"), description: "r — redo"),
+                KeyMapping(input: "d", action: .keystroke(key: "A-bspc"), ctrlOutput: "pgdn", description: "d — delete previous word"),
+                KeyMapping(input: "u", action: .keystroke(key: "M-z"), ctrlOutput: "pgup", description: "u — undo"),
 
                 // === Line operations ===
-                KeyMapping(input: "o", output: "M-right ret", shiftedOutput: "up M-right ret", description: "o / O — open line below/above")
+                KeyMapping(input: "o", action: .keystroke(key: "M-right ret"), shiftedOutput: "up M-right ret", description: "o / O — open line below/above")
             ],
             isEnabled: true,
             isSystemDefault: true,
@@ -214,39 +214,39 @@ struct RuleCollectionCatalog {
             category: .navigation,
             mappings: [
                 // === Basic navigation (hjkl) ===
-                KeyMapping(input: "h", output: "left", description: "h — left"),
-                KeyMapping(input: "j", output: "down", description: "j — down"),
-                KeyMapping(input: "k", output: "up", description: "k — up"),
-                KeyMapping(input: "l", output: "right", description: "l — right"),
+                KeyMapping(input: "h", action: .keystroke(key: "left"), description: "h — left"),
+                KeyMapping(input: "j", action: .keystroke(key: "down"), description: "j — down"),
+                KeyMapping(input: "k", action: .keystroke(key: "up"), description: "k — up"),
+                KeyMapping(input: "l", action: .keystroke(key: "right"), description: "l — right"),
 
                 // === Word motions ===
-                KeyMapping(input: "w", output: "A-right", description: "w — word forward", sectionBreak: true),
-                KeyMapping(input: "b", output: "A-left", description: "b — word back"),
-                KeyMapping(input: "e", output: "A-right", description: "e — end of word"),
+                KeyMapping(input: "w", action: .keystroke(key: "A-right"), description: "w — word forward", sectionBreak: true),
+                KeyMapping(input: "b", action: .keystroke(key: "A-left"), description: "b — word back"),
+                KeyMapping(input: "e", action: .keystroke(key: "A-right"), description: "e — end of word"),
 
                 // === Line navigation ===
-                KeyMapping(input: "0", output: "M-left", description: "0 — line start"),
-                KeyMapping(input: "4", output: "M-right", description: "$ — line end"),
+                KeyMapping(input: "0", action: .keystroke(key: "M-left"), description: "0 — line start"),
+                KeyMapping(input: "4", action: .keystroke(key: "M-right"), description: "$ — line end"),
 
                 // === Document navigation ===
-                KeyMapping(input: "g", output: "M-up", shiftedOutput: "M-down", description: "gg / G — doc top/bottom"),
+                KeyMapping(input: "g", action: .keystroke(key: "M-up"), shiftedOutput: "M-down", description: "gg / G — doc top/bottom"),
 
                 // === Search ===
-                KeyMapping(input: "/", output: "M-f", description: "/ — find", sectionBreak: true),
-                KeyMapping(input: "n", output: "M-g", shiftedOutput: "M-S-g", description: "n / N — next/prev match"),
+                KeyMapping(input: "/", action: .keystroke(key: "M-f"), description: "/ — find", sectionBreak: true),
+                KeyMapping(input: "n", action: .keystroke(key: "M-g"), shiftedOutput: "M-S-g", description: "n / N — next/prev match"),
 
                 // === Copy/paste ===
-                KeyMapping(input: "y", output: "M-c", description: "y — yank"),
-                KeyMapping(input: "p", output: "M-v", description: "p — put"),
+                KeyMapping(input: "y", action: .keystroke(key: "M-c"), description: "y — yank"),
+                KeyMapping(input: "p", action: .keystroke(key: "M-v"), description: "p — put"),
 
                 // === Editing ===
-                KeyMapping(input: "x", output: "del", description: "x — delete char"),
-                KeyMapping(input: "r", output: "M-S-z", description: "r — redo"),
-                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn", description: "d — delete previous word"),
-                KeyMapping(input: "u", output: "M-z", ctrlOutput: "pgup", description: "u — undo"),
+                KeyMapping(input: "x", action: .keystroke(key: "del"), description: "x — delete char"),
+                KeyMapping(input: "r", action: .keystroke(key: "M-S-z"), description: "r — redo"),
+                KeyMapping(input: "d", action: .keystroke(key: "A-bspc"), ctrlOutput: "pgdn", description: "d — delete previous word"),
+                KeyMapping(input: "u", action: .keystroke(key: "M-z"), ctrlOutput: "pgup", description: "u — undo"),
 
                 // === Line operations ===
-                KeyMapping(input: "o", output: "M-right ret", shiftedOutput: "up M-right ret", description: "o / O — open line below/above")
+                KeyMapping(input: "o", action: .keystroke(key: "M-right ret"), shiftedOutput: "up M-right ret", description: "o / O — open line below/above")
             ],
             isEnabled: false,
             isSystemDefault: false,
@@ -279,12 +279,12 @@ struct RuleCollectionCatalog {
             // nav; a user can have either enabled). Safe unclaimed keys:
             // `q t c v m , .` — picked for mnemonic fit where possible.
             mappings: [
-                KeyMapping(input: "m", output: "C-up", description: "Mission Control"),
-                KeyMapping(input: "q", output: "C-down", description: "App Exposé"),
-                KeyMapping(input: "t", output: "f11", description: "Show Desktop"),
-                KeyMapping(input: "c", output: "C-S-n", description: "Notification Center"),
-                KeyMapping(input: ",", output: "C-left", description: "Previous Desktop"),
-                KeyMapping(input: ".", output: "C-right", description: "Next Desktop")
+                KeyMapping(input: "m", action: .keystroke(key: "C-up"), description: "Mission Control"),
+                KeyMapping(input: "q", action: .keystroke(key: "C-down"), description: "App Exposé"),
+                KeyMapping(input: "t", action: .keystroke(key: "f11"), description: "Show Desktop"),
+                KeyMapping(input: "c", action: .keystroke(key: "C-S-n"), description: "Notification Center"),
+                KeyMapping(input: ",", action: .keystroke(key: "C-left"), description: "Previous Desktop"),
+                KeyMapping(input: ".", action: .keystroke(key: "C-right"), description: "Next Desktop")
             ],
             isEnabled: false,
             isSystemDefault: false,
@@ -336,47 +336,47 @@ struct RuleCollectionCatalog {
             // Mnemonic keys: L=Left, R=Right, U/I/J/K spatial grid for corners
             [
                 // Halves (mnemonic)
-                KeyMapping(input: "l", output: #"(push-msg "window:left")"#, description: "Left half"),
-                KeyMapping(input: "r", output: #"(push-msg "window:right")"#, description: "Right half"),
+                KeyMapping(input: "l", action: .rawKanata(#"(push-msg "window:left")"#), description: "Left half"),
+                KeyMapping(input: "r", action: .rawKanata(#"(push-msg "window:right")"#), description: "Right half"),
                 // Full/center (mnemonic)
-                KeyMapping(input: "m", output: #"(push-msg "window:maximize")"#, description: "Maximize/Restore"),
-                KeyMapping(input: "c", output: #"(push-msg "window:center")"#, description: "Center"),
+                KeyMapping(input: "m", action: .rawKanata(#"(push-msg "window:maximize")"#), description: "Maximize/Restore"),
+                KeyMapping(input: "c", action: .rawKanata(#"(push-msg "window:center")"#), description: "Center"),
                 // Corners (U/I/J/K spatial grid mirrors screen quadrants)
-                KeyMapping(input: "u", output: #"(push-msg "window:top-left")"#, description: "Top-left", sectionBreak: true),
-                KeyMapping(input: "i", output: #"(push-msg "window:top-right")"#, description: "Top-right"),
-                KeyMapping(input: "j", output: #"(push-msg "window:bottom-left")"#, description: "Bottom-left"),
-                KeyMapping(input: "k", output: #"(push-msg "window:bottom-right")"#, description: "Bottom-right"),
+                KeyMapping(input: "u", action: .rawKanata(#"(push-msg "window:top-left")"#), description: "Top-left", sectionBreak: true),
+                KeyMapping(input: "i", action: .rawKanata(#"(push-msg "window:top-right")"#), description: "Top-right"),
+                KeyMapping(input: "j", action: .rawKanata(#"(push-msg "window:bottom-left")"#), description: "Bottom-left"),
+                KeyMapping(input: "k", action: .rawKanata(#"(push-msg "window:bottom-right")"#), description: "Bottom-right"),
                 // Display movement
-                KeyMapping(input: "[", output: #"(push-msg "window:previous-display")"#, description: "Previous display", sectionBreak: true),
-                KeyMapping(input: "]", output: #"(push-msg "window:next-display")"#, description: "Next display"),
+                KeyMapping(input: "[", action: .rawKanata(#"(push-msg "window:previous-display")"#), description: "Previous display", sectionBreak: true),
+                KeyMapping(input: "]", action: .rawKanata(#"(push-msg "window:next-display")"#), description: "Next display"),
                 // Space movement (< > direction via , .)
-                KeyMapping(input: ",", output: #"(push-msg "window:previous-space")"#, description: "Previous Space", sectionBreak: true),
-                KeyMapping(input: ".", output: #"(push-msg "window:next-space")"#, description: "Next Space"),
+                KeyMapping(input: ",", action: .rawKanata(#"(push-msg "window:previous-space")"#), description: "Previous Space", sectionBreak: true),
+                KeyMapping(input: ".", action: .rawKanata(#"(push-msg "window:next-space")"#), description: "Next Space"),
                 // Undo
-                KeyMapping(input: "z", output: #"(push-msg "window:undo")"#, description: "Undo", sectionBreak: true)
+                KeyMapping(input: "z", action: .rawKanata(#"(push-msg "window:undo")"#), description: "Undo", sectionBreak: true)
             ]
         case .vim:
             // Vim-style: H/L for left/right, Y/U/B/N for corners
             [
                 // Halves (vim navigation)
-                KeyMapping(input: "h", output: #"(push-msg "window:left")"#, description: "Left half"),
-                KeyMapping(input: "l", output: #"(push-msg "window:right")"#, description: "Right half"),
+                KeyMapping(input: "h", action: .rawKanata(#"(push-msg "window:left")"#), description: "Left half"),
+                KeyMapping(input: "l", action: .rawKanata(#"(push-msg "window:right")"#), description: "Right half"),
                 // Full/center
-                KeyMapping(input: "m", output: #"(push-msg "window:maximize")"#, description: "Maximize/Restore"),
-                KeyMapping(input: "c", output: #"(push-msg "window:center")"#, description: "Center"),
+                KeyMapping(input: "m", action: .rawKanata(#"(push-msg "window:maximize")"#), description: "Maximize/Restore"),
+                KeyMapping(input: "c", action: .rawKanata(#"(push-msg "window:center")"#), description: "Center"),
                 // Corners (vim-adjacent keys: y/u for top, b/n for bottom)
-                KeyMapping(input: "y", output: #"(push-msg "window:top-left")"#, description: "Top-left", sectionBreak: true),
-                KeyMapping(input: "u", output: #"(push-msg "window:top-right")"#, description: "Top-right"),
-                KeyMapping(input: "b", output: #"(push-msg "window:bottom-left")"#, description: "Bottom-left"),
-                KeyMapping(input: "n", output: #"(push-msg "window:bottom-right")"#, description: "Bottom-right"),
+                KeyMapping(input: "y", action: .rawKanata(#"(push-msg "window:top-left")"#), description: "Top-left", sectionBreak: true),
+                KeyMapping(input: "u", action: .rawKanata(#"(push-msg "window:top-right")"#), description: "Top-right"),
+                KeyMapping(input: "b", action: .rawKanata(#"(push-msg "window:bottom-left")"#), description: "Bottom-left"),
+                KeyMapping(input: "n", action: .rawKanata(#"(push-msg "window:bottom-right")"#), description: "Bottom-right"),
                 // Display movement
-                KeyMapping(input: "[", output: #"(push-msg "window:previous-display")"#, description: "Previous display", sectionBreak: true),
-                KeyMapping(input: "]", output: #"(push-msg "window:next-display")"#, description: "Next display"),
+                KeyMapping(input: "[", action: .rawKanata(#"(push-msg "window:previous-display")"#), description: "Previous display", sectionBreak: true),
+                KeyMapping(input: "]", action: .rawKanata(#"(push-msg "window:next-display")"#), description: "Next display"),
                 // Space movement
-                KeyMapping(input: "a", output: #"(push-msg "window:previous-space")"#, description: "Previous Space", sectionBreak: true),
-                KeyMapping(input: "s", output: #"(push-msg "window:next-space")"#, description: "Next Space"),
+                KeyMapping(input: "a", action: .rawKanata(#"(push-msg "window:previous-space")"#), description: "Previous Space", sectionBreak: true),
+                KeyMapping(input: "s", action: .rawKanata(#"(push-msg "window:next-space")"#), description: "Next Space"),
                 // Undo
-                KeyMapping(input: "z", output: #"(push-msg "window:undo")"#, description: "Undo", sectionBreak: true)
+                KeyMapping(input: "z", action: .rawKanata(#"(push-msg "window:undo")"#), description: "Undo", sectionBreak: true)
             ]
         }
     }
@@ -389,34 +389,34 @@ struct RuleCollectionCatalog {
         case .media:
             // Default Mac behavior: F1-F12 send media/system commands
             [
-                KeyMapping(input: "f1", output: "brdn", description: "Brightness down"),
-                KeyMapping(input: "f2", output: "brup", description: "Brightness up"),
-                KeyMapping(input: "f3", output: #"(push-msg "system:mission-control")"#, description: "Mission Control"),
-                KeyMapping(input: "f4", output: #"(push-msg "system:spotlight")"#, description: "Spotlight"),
-                KeyMapping(input: "f5", output: #"(push-msg "system:dictation")"#, description: "Dictation"),
-                KeyMapping(input: "f6", output: #"(push-msg "system:dnd")"#, description: "Do Not Disturb"),
-                KeyMapping(input: "f7", output: "prev", description: "Previous track"),
-                KeyMapping(input: "f8", output: "pp", description: "Play / Pause"),
-                KeyMapping(input: "f9", output: "next", description: "Next track"),
-                KeyMapping(input: "f10", output: "mute", description: "Mute"),
-                KeyMapping(input: "f11", output: "vold", description: "Volume down"),
-                KeyMapping(input: "f12", output: "volu", description: "Volume up")
+                KeyMapping(input: "f1", action: .keystroke(key: "brdn"), description: "Brightness down"),
+                KeyMapping(input: "f2", action: .keystroke(key: "brup"), description: "Brightness up"),
+                KeyMapping(input: "f3", action: .rawKanata(#"(push-msg "system:mission-control")"#), description: "Mission Control"),
+                KeyMapping(input: "f4", action: .rawKanata(#"(push-msg "system:spotlight")"#), description: "Spotlight"),
+                KeyMapping(input: "f5", action: .rawKanata(#"(push-msg "system:dictation")"#), description: "Dictation"),
+                KeyMapping(input: "f6", action: .rawKanata(#"(push-msg "system:dnd")"#), description: "Do Not Disturb"),
+                KeyMapping(input: "f7", action: .keystroke(key: "prev"), description: "Previous track"),
+                KeyMapping(input: "f8", action: .keystroke(key: "pp"), description: "Play / Pause"),
+                KeyMapping(input: "f9", action: .keystroke(key: "next"), description: "Next track"),
+                KeyMapping(input: "f10", action: .keystroke(key: "mute"), description: "Mute"),
+                KeyMapping(input: "f11", action: .keystroke(key: "vold"), description: "Volume down"),
+                KeyMapping(input: "f12", action: .keystroke(key: "volu"), description: "Volume up")
             ]
         case .function:
             // Standard F-keys: F1-F12 pass through as-is
             [
-                KeyMapping(input: "f1", output: "f1", description: "F1"),
-                KeyMapping(input: "f2", output: "f2", description: "F2"),
-                KeyMapping(input: "f3", output: "f3", description: "F3"),
-                KeyMapping(input: "f4", output: "f4", description: "F4"),
-                KeyMapping(input: "f5", output: "f5", description: "F5"),
-                KeyMapping(input: "f6", output: "f6", description: "F6"),
-                KeyMapping(input: "f7", output: "f7", description: "F7"),
-                KeyMapping(input: "f8", output: "f8", description: "F8"),
-                KeyMapping(input: "f9", output: "f9", description: "F9"),
-                KeyMapping(input: "f10", output: "f10", description: "F10"),
-                KeyMapping(input: "f11", output: "f11", description: "F11"),
-                KeyMapping(input: "f12", output: "f12", description: "F12")
+                KeyMapping(input: "f1", action: .keystroke(key: "f1"), description: "F1"),
+                KeyMapping(input: "f2", action: .keystroke(key: "f2"), description: "F2"),
+                KeyMapping(input: "f3", action: .keystroke(key: "f3"), description: "F3"),
+                KeyMapping(input: "f4", action: .keystroke(key: "f4"), description: "F4"),
+                KeyMapping(input: "f5", action: .keystroke(key: "f5"), description: "F5"),
+                KeyMapping(input: "f6", action: .keystroke(key: "f6"), description: "F6"),
+                KeyMapping(input: "f7", action: .keystroke(key: "f7"), description: "F7"),
+                KeyMapping(input: "f8", action: .keystroke(key: "f8"), description: "F8"),
+                KeyMapping(input: "f9", action: .keystroke(key: "f9"), description: "F9"),
+                KeyMapping(input: "f10", action: .keystroke(key: "f10"), description: "F10"),
+                KeyMapping(input: "f11", action: .keystroke(key: "f11"), description: "F11"),
+                KeyMapping(input: "f12", action: .keystroke(key: "f12"), description: "F12")
             ]
         }
     }
@@ -431,7 +431,7 @@ struct RuleCollectionCatalog {
                 // Mapping will be generated based on selectedTapOutput and selectedHoldOutput
                 KeyMapping(
                     input: "caps",
-                    output: "hyper",
+                    action: .keystroke(key: "hyper"),
                     description: "Tap: Hyper, Hold: Hyper",
                     behavior: .dualRole(
                         DualRoleBehavior(
@@ -517,7 +517,7 @@ struct RuleCollectionCatalog {
             category: .productivity,
             mappings: [
                 // Chord mapping: lsft + rsft = caps
-                KeyMapping(input: "lsft rsft", output: "caps", description: "Both Shifts → Caps Lock")
+                KeyMapping(input: "lsft rsft", action: .keystroke(key: "caps"), description: "Both Shifts → Caps Lock")
             ],
             isEnabled: false,
             isSystemDefault: false,
@@ -551,7 +551,7 @@ struct RuleCollectionCatalog {
             summary: "Remap the Escape key",
             category: .productivity,
             mappings: [
-                KeyMapping(input: "esc", output: "caps", description: "Caps Lock")
+                KeyMapping(input: "esc", action: .keystroke(key: "caps"), description: "Caps Lock")
             ],
             isEnabled: false,
             isSystemDefault: false,
@@ -591,7 +591,7 @@ struct RuleCollectionCatalog {
             summary: "Leader + Delete for enhanced delete actions (regular Delete unchanged)",
             category: .productivity,
             mappings: [
-                KeyMapping(input: "bspc", output: "del", description: "Forward Delete")
+                KeyMapping(input: "bspc", action: .keystroke(key: "del"), description: "Forward Delete")
             ],
             isEnabled: false,
             isSystemDefault: false,
@@ -696,23 +696,23 @@ struct RuleCollectionCatalog {
             category: .layers,
             mappings: [
                 // Right hand numpad (standard layout)
-                KeyMapping(input: "u", output: "kp7", description: "7"),
-                KeyMapping(input: "i", output: "kp8", description: "8"),
-                KeyMapping(input: "o", output: "kp9", description: "9"),
-                KeyMapping(input: "j", output: "kp4", description: "4"),
-                KeyMapping(input: "k", output: "kp5", description: "5"),
-                KeyMapping(input: "l", output: "kp6", description: "6"),
-                KeyMapping(input: "m", output: "kp1", description: "1"),
-                KeyMapping(input: ",", output: "kp2", description: "2"),
-                KeyMapping(input: ".", output: "kp3", description: "3"),
-                KeyMapping(input: "n", output: "kp0", description: "0"),
-                KeyMapping(input: "/", output: "kp.", description: "."),
+                KeyMapping(input: "u", action: .keystroke(key: "kp7"), description: "7"),
+                KeyMapping(input: "i", action: .keystroke(key: "kp8"), description: "8"),
+                KeyMapping(input: "o", action: .keystroke(key: "kp9"), description: "9"),
+                KeyMapping(input: "j", action: .keystroke(key: "kp4"), description: "4"),
+                KeyMapping(input: "k", action: .keystroke(key: "kp5"), description: "5"),
+                KeyMapping(input: "l", action: .keystroke(key: "kp6"), description: "6"),
+                KeyMapping(input: "m", action: .keystroke(key: "kp1"), description: "1"),
+                KeyMapping(input: ",", action: .keystroke(key: "kp2"), description: "2"),
+                KeyMapping(input: ".", action: .keystroke(key: "kp3"), description: "3"),
+                KeyMapping(input: "n", action: .keystroke(key: "kp0"), description: "0"),
+                KeyMapping(input: "/", action: .keystroke(key: "kp."), description: "."),
                 // Left hand operators
-                KeyMapping(input: "f", output: "kp+", description: "+", sectionBreak: true),
-                KeyMapping(input: "d", output: "kp-", description: "−"),
-                KeyMapping(input: "s", output: "kp*", description: "×"),
-                KeyMapping(input: "a", output: "kp/", description: "÷"),
-                KeyMapping(input: "g", output: "kprt", description: "⏎")
+                KeyMapping(input: "f", action: .keystroke(key: "kp+"), description: "+", sectionBreak: true),
+                KeyMapping(input: "d", action: .keystroke(key: "kp-"), description: "−"),
+                KeyMapping(input: "s", action: .keystroke(key: "kp*"), description: "×"),
+                KeyMapping(input: "a", action: .keystroke(key: "kp/"), description: "÷"),
+                KeyMapping(input: "g", action: .keystroke(key: "kprt"), description: "⏎")
             ],
             isEnabled: false,
             isSystemDefault: false,
@@ -766,37 +766,37 @@ struct RuleCollectionCatalog {
                 icon: "arrow.left.arrow.right",
                 mappings: [
                     // Top row - shifted numbers in same positions
-                    KeyMapping(input: "1", output: "S-1", description: "!"),
-                    KeyMapping(input: "2", output: "S-2", description: "@"),
-                    KeyMapping(input: "3", output: "S-3", description: "#"),
-                    KeyMapping(input: "4", output: "S-4", description: "$"),
-                    KeyMapping(input: "5", output: "S-5", description: "%"),
-                    KeyMapping(input: "6", output: "S-6", description: "^"),
-                    KeyMapping(input: "7", output: "S-7", description: "&"),
-                    KeyMapping(input: "8", output: "S-8", description: "*"),
-                    KeyMapping(input: "9", output: "S-9", description: "("),
-                    KeyMapping(input: "0", output: "S-0", description: ")"),
+                    KeyMapping(input: "1", action: .keystroke(key: "S-1"), description: "!"),
+                    KeyMapping(input: "2", action: .keystroke(key: "S-2"), description: "@"),
+                    KeyMapping(input: "3", action: .keystroke(key: "S-3"), description: "#"),
+                    KeyMapping(input: "4", action: .keystroke(key: "S-4"), description: "$"),
+                    KeyMapping(input: "5", action: .keystroke(key: "S-5"), description: "%"),
+                    KeyMapping(input: "6", action: .keystroke(key: "S-6"), description: "^"),
+                    KeyMapping(input: "7", action: .keystroke(key: "S-7"), description: "&"),
+                    KeyMapping(input: "8", action: .keystroke(key: "S-8"), description: "*"),
+                    KeyMapping(input: "9", action: .keystroke(key: "S-9"), description: "("),
+                    KeyMapping(input: "0", action: .keystroke(key: "S-0"), description: ")"),
                     // Home row - common operators
-                    KeyMapping(input: "a", output: "S-grv", description: "~", sectionBreak: true),
-                    KeyMapping(input: "s", output: "grv", description: "`"),
-                    KeyMapping(input: "d", output: "min", description: "-"),
-                    KeyMapping(input: "f", output: "eql", description: "="),
-                    KeyMapping(input: "g", output: "S-eql", description: "+"),
-                    KeyMapping(input: "h", output: "[", description: "["),
-                    KeyMapping(input: "j", output: "]", description: "]"),
-                    KeyMapping(input: "k", output: "S-[", description: "{"),
-                    KeyMapping(input: "l", output: "S-]", description: "}"),
-                    KeyMapping(input: ";", output: "S-\\", description: "|"),
+                    KeyMapping(input: "a", action: .keystroke(key: "S-grv"), description: "~", sectionBreak: true),
+                    KeyMapping(input: "s", action: .keystroke(key: "grv"), description: "`"),
+                    KeyMapping(input: "d", action: .keystroke(key: "min"), description: "-"),
+                    KeyMapping(input: "f", action: .keystroke(key: "eql"), description: "="),
+                    KeyMapping(input: "g", action: .keystroke(key: "S-eql"), description: "+"),
+                    KeyMapping(input: "h", action: .keystroke(key: "["), description: "["),
+                    KeyMapping(input: "j", action: .keystroke(key: "]"), description: "]"),
+                    KeyMapping(input: "k", action: .keystroke(key: "S-["), description: "{"),
+                    KeyMapping(input: "l", action: .keystroke(key: "S-]"), description: "}"),
+                    KeyMapping(input: ";", action: .keystroke(key: "S-\\"), description: "|"),
                     // Bottom row - less common
-                    KeyMapping(input: "z", output: "\\", description: "\\", sectionBreak: true),
-                    KeyMapping(input: "x", output: "S-min", description: "_"),
-                    KeyMapping(input: "c", output: "/", description: "/"),
-                    KeyMapping(input: "v", output: "S-/", description: "?"),
-                    KeyMapping(input: "b", output: "'", description: "'"),
-                    KeyMapping(input: "n", output: "S-'", description: "\""),
-                    KeyMapping(input: "m", output: "S-;", description: ":"),
-                    KeyMapping(input: ",", output: "S-,", description: "<"),
-                    KeyMapping(input: ".", output: "S-.", description: ">")
+                    KeyMapping(input: "z", action: .keystroke(key: "\\"), description: "\\", sectionBreak: true),
+                    KeyMapping(input: "x", action: .keystroke(key: "S-min"), description: "_"),
+                    KeyMapping(input: "c", action: .keystroke(key: "/"), description: "/"),
+                    KeyMapping(input: "v", action: .keystroke(key: "S-/"), description: "?"),
+                    KeyMapping(input: "b", action: .keystroke(key: "'"), description: "'"),
+                    KeyMapping(input: "n", action: .keystroke(key: "S-'"), description: "\""),
+                    KeyMapping(input: "m", action: .keystroke(key: "S-;"), description: ":"),
+                    KeyMapping(input: ",", action: .keystroke(key: "S-,"), description: "<"),
+                    KeyMapping(input: ".", action: .keystroke(key: "S-."), description: ">")
                 ]
             ),
             LayerPreset(
@@ -806,37 +806,37 @@ struct RuleCollectionCatalog {
                 icon: "curlybraces",
                 mappings: [
                     // Left hand - opening brackets and operators
-                    KeyMapping(input: "q", output: "S-grv", description: "~"),
-                    KeyMapping(input: "w", output: "S-1", description: "!"),
-                    KeyMapping(input: "e", output: "S-2", description: "@"),
-                    KeyMapping(input: "r", output: "S-3", description: "#"),
-                    KeyMapping(input: "t", output: "S-4", description: "$"),
-                    KeyMapping(input: "a", output: "S-[", description: "{", sectionBreak: true),
-                    KeyMapping(input: "s", output: "S-9", description: "("),
-                    KeyMapping(input: "d", output: "[", description: "["),
-                    KeyMapping(input: "f", output: "S-,", description: "<"),
-                    KeyMapping(input: "g", output: "min", description: "-"),
-                    KeyMapping(input: "z", output: "S-\\", description: "|", sectionBreak: true),
-                    KeyMapping(input: "x", output: "S-eql", description: "+"),
-                    KeyMapping(input: "c", output: "S-min", description: "_"),
-                    KeyMapping(input: "v", output: "/", description: "/"),
-                    KeyMapping(input: "b", output: "\\", description: "\\"),
+                    KeyMapping(input: "q", action: .keystroke(key: "S-grv"), description: "~"),
+                    KeyMapping(input: "w", action: .keystroke(key: "S-1"), description: "!"),
+                    KeyMapping(input: "e", action: .keystroke(key: "S-2"), description: "@"),
+                    KeyMapping(input: "r", action: .keystroke(key: "S-3"), description: "#"),
+                    KeyMapping(input: "t", action: .keystroke(key: "S-4"), description: "$"),
+                    KeyMapping(input: "a", action: .keystroke(key: "S-["), description: "{", sectionBreak: true),
+                    KeyMapping(input: "s", action: .keystroke(key: "S-9"), description: "("),
+                    KeyMapping(input: "d", action: .keystroke(key: "["), description: "["),
+                    KeyMapping(input: "f", action: .keystroke(key: "S-,"), description: "<"),
+                    KeyMapping(input: "g", action: .keystroke(key: "min"), description: "-"),
+                    KeyMapping(input: "z", action: .keystroke(key: "S-\\"), description: "|", sectionBreak: true),
+                    KeyMapping(input: "x", action: .keystroke(key: "S-eql"), description: "+"),
+                    KeyMapping(input: "c", action: .keystroke(key: "S-min"), description: "_"),
+                    KeyMapping(input: "v", action: .keystroke(key: "/"), description: "/"),
+                    KeyMapping(input: "b", action: .keystroke(key: "\\"), description: "\\"),
                     // Right hand - closing brackets and symbols
-                    KeyMapping(input: "y", output: "S-5", description: "%", sectionBreak: true),
-                    KeyMapping(input: "u", output: "S-6", description: "^"),
-                    KeyMapping(input: "i", output: "S-7", description: "&"),
-                    KeyMapping(input: "o", output: "S-8", description: "*"),
-                    KeyMapping(input: "p", output: "grv", description: "`"),
-                    KeyMapping(input: "h", output: "eql", description: "=", sectionBreak: true),
-                    KeyMapping(input: "j", output: "S-.", description: ">"),
-                    KeyMapping(input: "k", output: "]", description: "]"),
-                    KeyMapping(input: "l", output: "S-0", description: ")"),
-                    KeyMapping(input: ";", output: "S-]", description: "}"),
-                    KeyMapping(input: "n", output: "S-/", description: "?", sectionBreak: true),
-                    KeyMapping(input: "m", output: "S-;", description: ":"),
-                    KeyMapping(input: ",", output: ";", description: ";"),
-                    KeyMapping(input: ".", output: "'", description: "'"),
-                    KeyMapping(input: "/", output: "S-'", description: "\"")
+                    KeyMapping(input: "y", action: .keystroke(key: "S-5"), description: "%", sectionBreak: true),
+                    KeyMapping(input: "u", action: .keystroke(key: "S-6"), description: "^"),
+                    KeyMapping(input: "i", action: .keystroke(key: "S-7"), description: "&"),
+                    KeyMapping(input: "o", action: .keystroke(key: "S-8"), description: "*"),
+                    KeyMapping(input: "p", action: .keystroke(key: "grv"), description: "`"),
+                    KeyMapping(input: "h", action: .keystroke(key: "eql"), description: "=", sectionBreak: true),
+                    KeyMapping(input: "j", action: .keystroke(key: "S-."), description: ">"),
+                    KeyMapping(input: "k", action: .keystroke(key: "]"), description: "]"),
+                    KeyMapping(input: "l", action: .keystroke(key: "S-0"), description: ")"),
+                    KeyMapping(input: ";", action: .keystroke(key: "S-]"), description: "}"),
+                    KeyMapping(input: "n", action: .keystroke(key: "S-/"), description: "?", sectionBreak: true),
+                    KeyMapping(input: "m", action: .keystroke(key: "S-;"), description: ":"),
+                    KeyMapping(input: ",", action: .keystroke(key: ";"), description: ";"),
+                    KeyMapping(input: ".", action: .keystroke(key: "'"), description: "'"),
+                    KeyMapping(input: "/", action: .keystroke(key: "S-'"), description: "\"")
                 ]
             ),
             LayerPreset(
@@ -846,38 +846,38 @@ struct RuleCollectionCatalog {
                 icon: "chevron.left.forwardslash.chevron.right",
                 mappings: [
                     // Top row - numbers as-is for easy access
-                    KeyMapping(input: "q", output: "S-1", description: "!"),
-                    KeyMapping(input: "w", output: "S-2", description: "@"),
-                    KeyMapping(input: "e", output: "S-3", description: "#"),
-                    KeyMapping(input: "r", output: "S-4", description: "$"),
-                    KeyMapping(input: "t", output: "S-5", description: "%"),
-                    KeyMapping(input: "y", output: "S-6", description: "^"),
-                    KeyMapping(input: "u", output: "S-7", description: "&"),
-                    KeyMapping(input: "i", output: "S-8", description: "*"),
-                    KeyMapping(input: "o", output: "S-grv", description: "~"),
-                    KeyMapping(input: "p", output: "grv", description: "`"),
+                    KeyMapping(input: "q", action: .keystroke(key: "S-1"), description: "!"),
+                    KeyMapping(input: "w", action: .keystroke(key: "S-2"), description: "@"),
+                    KeyMapping(input: "e", action: .keystroke(key: "S-3"), description: "#"),
+                    KeyMapping(input: "r", action: .keystroke(key: "S-4"), description: "$"),
+                    KeyMapping(input: "t", action: .keystroke(key: "S-5"), description: "%"),
+                    KeyMapping(input: "y", action: .keystroke(key: "S-6"), description: "^"),
+                    KeyMapping(input: "u", action: .keystroke(key: "S-7"), description: "&"),
+                    KeyMapping(input: "i", action: .keystroke(key: "S-8"), description: "*"),
+                    KeyMapping(input: "o", action: .keystroke(key: "S-grv"), description: "~"),
+                    KeyMapping(input: "p", action: .keystroke(key: "grv"), description: "`"),
                     // Home row - brackets optimized for -> <= != bigrams
-                    KeyMapping(input: "a", output: "S-[", description: "{", sectionBreak: true),
-                    KeyMapping(input: "s", output: "S-9", description: "("),
-                    KeyMapping(input: "d", output: "[", description: "["),
-                    KeyMapping(input: "f", output: "S-,", description: "<"),
-                    KeyMapping(input: "g", output: "eql", description: "="),
-                    KeyMapping(input: "h", output: "min", description: "-"),
-                    KeyMapping(input: "j", output: "S-.", description: ">"),
-                    KeyMapping(input: "k", output: "]", description: "]"),
-                    KeyMapping(input: "l", output: "S-0", description: ")"),
-                    KeyMapping(input: ";", output: "S-]", description: "}"),
+                    KeyMapping(input: "a", action: .keystroke(key: "S-["), description: "{", sectionBreak: true),
+                    KeyMapping(input: "s", action: .keystroke(key: "S-9"), description: "("),
+                    KeyMapping(input: "d", action: .keystroke(key: "["), description: "["),
+                    KeyMapping(input: "f", action: .keystroke(key: "S-,"), description: "<"),
+                    KeyMapping(input: "g", action: .keystroke(key: "eql"), description: "="),
+                    KeyMapping(input: "h", action: .keystroke(key: "min"), description: "-"),
+                    KeyMapping(input: "j", action: .keystroke(key: "S-."), description: ">"),
+                    KeyMapping(input: "k", action: .keystroke(key: "]"), description: "]"),
+                    KeyMapping(input: "l", action: .keystroke(key: "S-0"), description: ")"),
+                    KeyMapping(input: ";", action: .keystroke(key: "S-]"), description: "}"),
                     // Bottom row - less common symbols
-                    KeyMapping(input: "z", output: "S-\\", description: "|", sectionBreak: true),
-                    KeyMapping(input: "x", output: "S-eql", description: "+"),
-                    KeyMapping(input: "c", output: "S-min", description: "_"),
-                    KeyMapping(input: "v", output: "S-/", description: "?"),
-                    KeyMapping(input: "b", output: "\\", description: "\\"),
-                    KeyMapping(input: "n", output: "/", description: "/"),
-                    KeyMapping(input: "m", output: "S-;", description: ":"),
-                    KeyMapping(input: ",", output: ";", description: ";"),
-                    KeyMapping(input: ".", output: "'", description: "'"),
-                    KeyMapping(input: "/", output: "S-'", description: "\"")
+                    KeyMapping(input: "z", action: .keystroke(key: "S-\\"), description: "|", sectionBreak: true),
+                    KeyMapping(input: "x", action: .keystroke(key: "S-eql"), description: "+"),
+                    KeyMapping(input: "c", action: .keystroke(key: "S-min"), description: "_"),
+                    KeyMapping(input: "v", action: .keystroke(key: "S-/"), description: "?"),
+                    KeyMapping(input: "b", action: .keystroke(key: "\\"), description: "\\"),
+                    KeyMapping(input: "n", action: .keystroke(key: "/"), description: "/"),
+                    KeyMapping(input: "m", action: .keystroke(key: "S-;"), description: ":"),
+                    KeyMapping(input: ",", action: .keystroke(key: ";"), description: ";"),
+                    KeyMapping(input: ".", action: .keystroke(key: "'"), description: "'"),
+                    KeyMapping(input: "/", action: .keystroke(key: "S-'"), description: "\"")
                 ]
             )
         ]
@@ -893,27 +893,27 @@ struct RuleCollectionCatalog {
             category: .layers,
             mappings: [
                 // Right hand F-keys (numpad grid layout)
-                KeyMapping(input: "u", output: "f7", description: "F7"),
-                KeyMapping(input: "i", output: "f8", description: "F8"),
-                KeyMapping(input: "o", output: "f9", description: "F9"),
-                KeyMapping(input: "j", output: "f4", description: "F4"),
-                KeyMapping(input: "k", output: "f5", description: "F5"),
-                KeyMapping(input: "l", output: "f6", description: "F6"),
-                KeyMapping(input: "m", output: "f1", description: "F1"),
-                KeyMapping(input: ",", output: "f2", description: "F2"),
-                KeyMapping(input: ".", output: "f3", description: "F3"),
-                KeyMapping(input: "n", output: "f10", description: "F10"),
-                KeyMapping(input: "/", output: "f11", description: "F11"),
-                KeyMapping(input: ";", output: "f12", description: "F12"),
+                KeyMapping(input: "u", action: .keystroke(key: "f7"), description: "F7"),
+                KeyMapping(input: "i", action: .keystroke(key: "f8"), description: "F8"),
+                KeyMapping(input: "o", action: .keystroke(key: "f9"), description: "F9"),
+                KeyMapping(input: "j", action: .keystroke(key: "f4"), description: "F4"),
+                KeyMapping(input: "k", action: .keystroke(key: "f5"), description: "F5"),
+                KeyMapping(input: "l", action: .keystroke(key: "f6"), description: "F6"),
+                KeyMapping(input: "m", action: .keystroke(key: "f1"), description: "F1"),
+                KeyMapping(input: ",", action: .keystroke(key: "f2"), description: "F2"),
+                KeyMapping(input: ".", action: .keystroke(key: "f3"), description: "F3"),
+                KeyMapping(input: "n", action: .keystroke(key: "f10"), description: "F10"),
+                KeyMapping(input: "/", action: .keystroke(key: "f11"), description: "F11"),
+                KeyMapping(input: ";", action: .keystroke(key: "f12"), description: "F12"),
                 // Left hand media controls
-                KeyMapping(input: "f", output: "pp", description: "Play/Pause", sectionBreak: true),
-                KeyMapping(input: "d", output: "prev", description: "Previous"),
-                KeyMapping(input: "s", output: "next", description: "Next"),
-                KeyMapping(input: "a", output: "mute", description: "Mute"),
-                KeyMapping(input: "g", output: "volu", description: "Volume Up"),
-                KeyMapping(input: "r", output: "vold", description: "Volume Down"),
-                KeyMapping(input: "v", output: "brup", description: "Brightness Up"),
-                KeyMapping(input: "c", output: "brdn", description: "Brightness Down")
+                KeyMapping(input: "f", action: .keystroke(key: "pp"), description: "Play/Pause", sectionBreak: true),
+                KeyMapping(input: "d", action: .keystroke(key: "prev"), description: "Previous"),
+                KeyMapping(input: "s", action: .keystroke(key: "next"), description: "Next"),
+                KeyMapping(input: "a", action: .keystroke(key: "mute"), description: "Mute"),
+                KeyMapping(input: "g", action: .keystroke(key: "volu"), description: "Volume Up"),
+                KeyMapping(input: "r", action: .keystroke(key: "vold"), description: "Volume Down"),
+                KeyMapping(input: "v", action: .keystroke(key: "brup"), description: "Brightness Up"),
+                KeyMapping(input: "c", action: .keystroke(key: "brdn"), description: "Brightness Down")
             ],
             isEnabled: false,
             isSystemDefault: false,

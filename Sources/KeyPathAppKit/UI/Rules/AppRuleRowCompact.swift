@@ -16,22 +16,22 @@ struct AppRuleRowCompact: View {
     @State private var isHovered = false
 
     private var appLaunchIdentifier: String? {
-        KeyboardVisualizationViewModel.extractAppLaunchIdentifier(from: override.outputAction)
+        KeyboardVisualizationViewModel.extractAppLaunchIdentifier(from: override.action.kanataOutput)
     }
 
     private var systemActionIdentifier: String? {
-        if let extracted = KeyboardVisualizationViewModel.extractSystemActionIdentifier(from: override.outputAction) {
+        if let extracted = KeyboardVisualizationViewModel.extractSystemActionIdentifier(from: override.action.kanataOutput) {
             return extracted
         }
-        return SystemActionInfo.find(byOutput: override.outputAction)?.id
+        return SystemActionInfo.find(byOutput: override.action.kanataOutput)?.id
     }
 
     private var urlIdentifier: String? {
-        KeyboardVisualizationViewModel.extractUrlIdentifier(from: override.outputAction)
+        KeyboardVisualizationViewModel.extractUrlIdentifier(from: override.action.kanataOutput)
     }
 
     private var layerSwitchIdentifier: String? {
-        LayerInfo.extractLayerName(from: override.outputAction)
+        LayerInfo.extractLayerName(from: override.action.kanataOutput)
     }
 
     var body: some View {
@@ -61,7 +61,7 @@ struct AppRuleRowCompact: View {
                         } else if let layerName = layerSwitchIdentifier {
                             RulesSummaryLayerSwitchChip(layerName: layerName)
                         } else {
-                            Text(prettyKeyName(override.outputAction))
+                            Text(prettyKeyName(override.action.outputString))
                                 .font(.body.monospaced().weight(.semibold))
                                 .foregroundColor(KeycapStyle.textColor)
                                 .modifier(KeycapStyle())

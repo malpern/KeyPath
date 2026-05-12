@@ -78,7 +78,7 @@ final class RuleCollectionsManagerLayerTests: XCTestCase {
         let rule = CustomRule(
             id: UUID(),
             input: "a",
-            output: "b",
+            action: .keystroke(key: "b"),
             isEnabled: true,
             targetLayer: .custom("window")
         )
@@ -90,7 +90,7 @@ final class RuleCollectionsManagerLayerTests: XCTestCase {
         let rule = CustomRule(
             id: UUID(),
             input: "a",
-            output: "b"
+            action: .keystroke(key: "b")
         )
 
         // Default target layer is base
@@ -158,10 +158,10 @@ final class RuleCollectionsManagerLayerTests: XCTestCase {
 
     func testLayerRemoval_filtersCorrectRules() {
         var rules = [
-            CustomRule(id: UUID(), input: "a", output: "b", isEnabled: true, targetLayer: .custom("window")),
-            CustomRule(id: UUID(), input: "c", output: "d", isEnabled: true, targetLayer: .custom("vim")),
-            CustomRule(id: UUID(), input: "e", output: "f", isEnabled: true, targetLayer: .custom("window")),
-            CustomRule(id: UUID(), input: "g", output: "h", isEnabled: true, targetLayer: .base)
+            CustomRule(id: UUID(), input: "a", action: .keystroke(key: "b"), isEnabled: true, targetLayer: .custom("window")),
+            CustomRule(id: UUID(), input: "c", action: .keystroke(key: "d"), isEnabled: true, targetLayer: .custom("vim")),
+            CustomRule(id: UUID(), input: "e", action: .keystroke(key: "f"), isEnabled: true, targetLayer: .custom("window")),
+            CustomRule(id: UUID(), input: "g", action: .keystroke(key: "h"), isEnabled: true, targetLayer: .base)
         ]
 
         let normalizedName = "window"
@@ -234,9 +234,9 @@ final class RuleCollectionsManagerLayerTests: XCTestCase {
 
     func testAvailableLayers_fromCustomRules() {
         let rules = [
-            CustomRule(id: UUID(), input: "a", output: "b", isEnabled: true, targetLayer: .base),
-            CustomRule(id: UUID(), input: "c", output: "d", isEnabled: true, targetLayer: .custom("vim")),
-            CustomRule(id: UUID(), input: "e", output: "f", isEnabled: false, targetLayer: .custom("disabled"))
+            CustomRule(id: UUID(), input: "a", action: .keystroke(key: "b"), isEnabled: true, targetLayer: .base),
+            CustomRule(id: UUID(), input: "c", action: .keystroke(key: "d"), isEnabled: true, targetLayer: .custom("vim")),
+            CustomRule(id: UUID(), input: "e", action: .keystroke(key: "f"), isEnabled: false, targetLayer: .custom("disabled"))
         ]
 
         var layers = Set<String>(["base", "nav"])

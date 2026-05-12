@@ -11,14 +11,14 @@ enum MockFactories {
 
     static func launcherMapping(
         key: String = "s",
-        target: LauncherTarget = .app(name: "Safari", bundleId: "com.apple.Safari"),
+        action: KeyAction = .launchApp(name: "Safari", bundleId: "com.apple.Safari"),
         isEnabled: Bool = true
     ) -> LauncherMapping {
         LauncherMapping(
             id: UUID(uuidString: "00000000-0000-0000-0000-00000000000\(key.hashValue % 10)")
                 ?? UUID(),
             key: key,
-            target: target,
+            action: action,
             isEnabled: isEnabled
         )
     }
@@ -36,11 +36,11 @@ enum MockFactories {
 
     static var defaultLauncherMappings: [LauncherMapping] {
         [
-            launcherMapping(key: "s", target: .app(name: "Safari", bundleId: "com.apple.Safari")),
-            launcherMapping(key: "t", target: .app(name: "Terminal", bundleId: "com.apple.Terminal")),
-            launcherMapping(key: "m", target: .app(name: "Messages", bundleId: "com.apple.MobileSMS")),
-            launcherMapping(key: "f", target: .app(name: "Finder", bundleId: "com.apple.finder")),
-            launcherMapping(key: "g", target: .url("https://github.com")),
+            launcherMapping(key: "s", action: .launchApp(name: "Safari", bundleId: "com.apple.Safari")),
+            launcherMapping(key: "t", action: .launchApp(name: "Terminal", bundleId: "com.apple.Terminal")),
+            launcherMapping(key: "m", action: .launchApp(name: "Messages", bundleId: "com.apple.MobileSMS")),
+            launcherMapping(key: "f", action: .launchApp(name: "Finder", bundleId: "com.apple.finder")),
+            launcherMapping(key: "g", action: .openURL("https://github.com")),
         ]
     }
 
@@ -48,12 +48,12 @@ enum MockFactories {
 
     static func appKeyOverride(
         inputKey: String = "h",
-        outputAction: String = "left_arrow",
+        action: KeyAction = .keystroke(key: "left_arrow"),
         description: String? = nil
     ) -> AppKeyOverride {
         AppKeyOverride(
             inputKey: inputKey,
-            outputAction: outputAction,
+            action: action,
             description: description
         )
     }
@@ -67,10 +67,10 @@ enum MockFactories {
             bundleIdentifier: bundleIdentifier,
             displayName: displayName,
             overrides: overrides ?? [
-                appKeyOverride(inputKey: "h", outputAction: "left_arrow"),
-                appKeyOverride(inputKey: "j", outputAction: "down_arrow"),
-                appKeyOverride(inputKey: "k", outputAction: "up_arrow"),
-                appKeyOverride(inputKey: "l", outputAction: "right_arrow"),
+                appKeyOverride(inputKey: "h", action: .keystroke(key: "left_arrow")),
+                appKeyOverride(inputKey: "j", action: .keystroke(key: "down_arrow")),
+                appKeyOverride(inputKey: "k", action: .keystroke(key: "up_arrow")),
+                appKeyOverride(inputKey: "l", action: .keystroke(key: "right_arrow")),
             ]
         )
     }
@@ -84,7 +84,7 @@ enum MockFactories {
             bundleIdentifier: "com.apple.Terminal",
             displayName: "Terminal",
             overrides: [
-                appKeyOverride(inputKey: "n", outputAction: "cmd+t", description: "New tab"),
+                appKeyOverride(inputKey: "n", action: .keystroke(key: "cmd+t"), description: "New tab"),
             ]
         )
     }
@@ -93,23 +93,23 @@ enum MockFactories {
 
     static func customRule(
         input: String = "caps_lock",
-        output: String = "escape",
+        action: KeyAction = .keystroke(key: "escape"),
         title: String = "",
         isEnabled: Bool = true
     ) -> CustomRule {
         CustomRule(
             title: title,
             input: input,
-            output: output,
+            action: action,
             isEnabled: isEnabled
         )
     }
 
     static var sampleGlobalRules: [CustomRule] {
         [
-            customRule(input: "caps_lock", output: "escape"),
-            customRule(input: "a", output: "left_shift", title: "Home row mod"),
-            customRule(input: "f", output: "left_command", title: "Home row mod"),
+            customRule(input: "caps_lock", action: .keystroke(key: "escape")),
+            customRule(input: "a", action: .keystroke(key: "left_shift"), title: "Home row mod"),
+            customRule(input: "f", action: .keystroke(key: "left_command"), title: "Home row mod"),
         ]
     }
 

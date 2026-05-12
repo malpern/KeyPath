@@ -44,7 +44,7 @@ final class MapperSaveIntegrationTests: XCTestCase {
         let (manager, tempDir) = try await createTestEnvironment()
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        let rule = CustomRule(input: "a", output: "b")
+        let rule = CustomRule(input: "a", action: .keystroke(key: "b"))
         await manager.saveCustomRule(rule, skipReload: true, autoResolveConflicts: true)
 
         let configPath = tempDir.appendingPathComponent("keypath.kbd")
@@ -62,7 +62,7 @@ final class MapperSaveIntegrationTests: XCTestCase {
         let (manager, tempDir) = try await createTestEnvironment()
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        let rule = CustomRule(input: "1", output: "2", shiftedOutput: "at")
+        let rule = CustomRule(input: "1", action: .keystroke(key: "2"), shiftedOutput: "at")
         await manager.saveCustomRule(rule, skipReload: true, autoResolveConflicts: true)
 
         let configPath = tempDir.appendingPathComponent("keypath.kbd")
@@ -83,9 +83,9 @@ final class MapperSaveIntegrationTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let rules = [
-            CustomRule(input: "a", output: "b"),
-            CustomRule(input: "s", output: "d"),
-            CustomRule(input: "f", output: "g"),
+            CustomRule(input: "a", action: .keystroke(key: "b")),
+            CustomRule(input: "s", action: .keystroke(key: "d")),
+            CustomRule(input: "f", action: .keystroke(key: "g")),
         ]
 
         for rule in rules {
@@ -108,7 +108,7 @@ final class MapperSaveIntegrationTests: XCTestCase {
         let (manager, tempDir) = try await createTestEnvironment()
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        let rule = CustomRule(input: "a", output: "b")
+        let rule = CustomRule(input: "a", action: .keystroke(key: "b"))
         await manager.saveCustomRule(rule, skipReload: true, autoResolveConflicts: true)
 
         // Verify rule is in config
@@ -140,11 +140,11 @@ final class MapperSaveIntegrationTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         // Save a custom rule
-        let rule = CustomRule(input: "a", output: "b")
+        let rule = CustomRule(input: "a", action: .keystroke(key: "b"))
         await manager.saveCustomRule(rule, skipReload: true, autoResolveConflicts: true)
 
         // Verify the custom rule is in the manager's store
-        let found = manager.customRules.contains { $0.input == "a" && $0.output == "b" }
+        let found = manager.customRules.contains { $0.input == "a" && $0.action == .keystroke(key: "b") }
         XCTAssertTrue(found, "Custom rule should be persisted in the store")
     }
 
@@ -168,7 +168,7 @@ final class MapperSaveIntegrationTests: XCTestCase {
         XCTAssertTrue(packSuccess)
 
         // Add a custom rule on top
-        let rule = CustomRule(input: "s", output: "d")
+        let rule = CustomRule(input: "s", action: .keystroke(key: "d"))
         await manager.saveCustomRule(rule, skipReload: true, autoResolveConflicts: true)
 
         // Verify config has both
@@ -192,7 +192,7 @@ final class MapperSaveIntegrationTests: XCTestCase {
 
         let expectation = expectation(forNotification: .ruleCollectionsChanged, object: nil)
 
-        let rule = CustomRule(input: "a", output: "b")
+        let rule = CustomRule(input: "a", action: .keystroke(key: "b"))
         await manager.saveCustomRule(rule, skipReload: true, autoResolveConflicts: true)
 
         await fulfillment(of: [expectation], timeout: 5.0)

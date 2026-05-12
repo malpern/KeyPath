@@ -289,7 +289,7 @@ extension RuleCollectionsManager {
             onBeforeSave?()
 
             AppLogger.shared.log("🔄 [RuleCollections] Calling configurationService.saveConfiguration...")
-            AppLogger.shared.log("🔄 [RuleCollections] Custom rules to save: \(customRules.map { "'\($0.input)' → '\($0.output)'" }.joined(separator: ", "))")
+            AppLogger.shared.log("🔄 [RuleCollections] Custom rules to save: \(customRules.map { "'\($0.input)' → '\($0.action.displayName)'" }.joined(separator: ", "))")
             // IMPORTANT: Save config FIRST (validates before writing)
             // Only persist to stores AFTER config is successfully written
             // This prevents store/config mismatch if validation fails

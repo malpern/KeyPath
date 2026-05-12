@@ -241,7 +241,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
             configurationService: configService,
             reloadHandler: { true },
             configParser: { _ in
-                [KeyMapping(input: "caps", output: "esc")]
+                [KeyMapping(input: "caps", action: .keystroke(key: "esc"))]
             }
         )
 

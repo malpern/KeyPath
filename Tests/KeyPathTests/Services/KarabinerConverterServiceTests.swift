@@ -182,7 +182,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         XCTAssertEqual(result.collections[0].name, "Karabiner Simple Remaps")
         XCTAssertEqual(result.collections[0].mappings.count, 1)
         XCTAssertEqual(result.collections[0].mappings[0].input, "caps")
-        XCTAssertEqual(result.collections[0].mappings[0].output, "esc")
+        XCTAssertEqual(result.collections[0].mappings[0].action.outputString, "esc")
     }
 
     func testMultipleSimpleModifications() throws {
@@ -240,7 +240,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         XCTAssertEqual(result.collections[0].name, "Vim arrows")
         XCTAssertEqual(result.collections[0].mappings.count, 1)
         XCTAssertEqual(result.collections[0].mappings[0].input, "M-h")
-        XCTAssertEqual(result.collections[0].mappings[0].output, "left")
+        XCTAssertEqual(result.collections[0].mappings[0].action.outputString, "left")
     }
 
     // MARK: - Dual Role
@@ -385,10 +385,10 @@ final class KarabinerConverterServiceTests: XCTestCase {
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.launcherMappings.count, 1)
-        if case let .app(name, _) = result.launcherMappings[0].target {
+        if case let .launchApp(name, _) = result.launcherMappings[0].action {
             XCTAssertEqual(name, "Safari")
         } else {
-            XCTFail("Expected app launcher target")
+            XCTFail("Expected app launcher action")
         }
     }
 
@@ -417,10 +417,10 @@ final class KarabinerConverterServiceTests: XCTestCase {
         let result = try service.convert(data: data, profileIndex: 0)
 
         XCTAssertEqual(result.launcherMappings.count, 1)
-        if case let .url(urlString) = result.launcherMappings[0].target {
+        if case let .openURL(urlString) = result.launcherMappings[0].action {
             XCTAssertEqual(urlString, "https://google.com")
         } else {
-            XCTFail("Expected URL launcher target")
+            XCTFail("Expected URL launcher action")
         }
     }
 
@@ -456,7 +456,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         XCTAssertEqual(keymap.mapping.bundleIdentifier, "com.google.Chrome")
         XCTAssertEqual(keymap.overrides.count, 1)
         XCTAssertEqual(keymap.overrides[0].inputKey, "j")
-        XCTAssertEqual(keymap.overrides[0].outputAction, "down")
+        XCTAssertEqual(keymap.overrides[0].action.outputString, "down")
     }
 
     // MARK: - Skipped Rules
@@ -584,7 +584,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
 
         XCTAssertEqual(result.collections.count, 1)
         XCTAssertEqual(result.collections[0].mappings[0].input, "volu")
-        XCTAssertEqual(result.collections[0].mappings[0].output, "vold")
+        XCTAssertEqual(result.collections[0].mappings[0].action.outputString, "vold")
     }
 
     // MARK: - Metadata

@@ -156,7 +156,7 @@ extension PackDetailView {
                     }
                     MappingTableContent(
                         mappings: collection.mappings.map {
-                            ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput,
+                            ($0.input, $0.action.outputString, $0.shiftedOutput, $0.ctrlOutput,
                              $0.description, $0.sectionBreak, isInstalled, $0.id, nil)
                         }
                     )

@@ -34,7 +34,7 @@ extension KanataConfiguration {
                 // but we pass the real input key for correctness and future-proofing.
                 let syntheticMapping = KeyMapping(
                     input: inputKey,
-                    output: override.output,
+                    action: .keystroke(key: override.output),
                     behavior: behavior
                 )
                 // TODO: Thread real hyperLinkedLayerInfos through when per-device

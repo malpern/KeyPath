@@ -15,6 +15,7 @@ extension MapperViewModel {
         appCondition: AppConditionInfo,
         kanataManager: RuntimeCoordinator
     ) async -> Bool {
+        let action: KeyAction = outputAction.contains("(") ? .rawKanata(outputAction) : .keystroke(key: outputAction)
         AppLogger.shared.log("🎯 [MapperViewModel] Saving app-specific mapping: \(inputKey) → \(outputAction) [only in \(appCondition.displayName)]")
 
         do {
@@ -42,7 +43,7 @@ extension MapperViewModel {
             // 3. Add or update the override for this input key
             let newOverride = AppKeyOverride(
                 inputKey: inputKey.lowercased(),
-                outputAction: outputAction,
+                action: action,
                 description: "Created via Mapper"
             )
 

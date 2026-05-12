@@ -166,7 +166,7 @@ extension MapperViewModel {
             customRule.deviceOverrides = [
                 DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: app.kanataOutput, behavior: nil)
             ]
-            customRule.output = inputKanata
+            customRule.action = .keystroke(key: inputKanata)
         }
 
         let success = await kanataManager.saveCustomRule(customRule, skipReload: false)
@@ -233,7 +233,7 @@ extension MapperViewModel {
             customRule.deviceOverrides = [
                 DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: action.kanataOutput, behavior: nil)
             ]
-            customRule.output = inputKanata
+            customRule.action = .keystroke(key: inputKanata)
         }
 
         let success = await kanataManager.saveCustomRule(customRule, skipReload: false)
@@ -332,7 +332,7 @@ extension MapperViewModel {
             customRule.deviceOverrides = [
                 DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: outputKanata, behavior: nil)
             ]
-            customRule.output = inputKanata
+            customRule.action = .keystroke(key: inputKanata)
         }
 
         let success = await kanataManager.saveCustomRule(customRule, skipReload: false)

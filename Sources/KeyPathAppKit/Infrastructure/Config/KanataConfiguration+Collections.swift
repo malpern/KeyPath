@@ -27,16 +27,16 @@ extension KanataConfiguration {
 
     static var macFunctionKeyMappings: [KeyMapping] {
         [
-            KeyMapping(input: "f1", output: "brdn"),
-            KeyMapping(input: "f2", output: "brup"),
-            KeyMapping(input: "f3", output: "f3"),
-            KeyMapping(input: "f4", output: "f4"),
-            KeyMapping(input: "f7", output: "prev"),
-            KeyMapping(input: "f8", output: "pp"),
-            KeyMapping(input: "f9", output: "next"),
-            KeyMapping(input: "f10", output: "mute"),
-            KeyMapping(input: "f11", output: "vold"),
-            KeyMapping(input: "f12", output: "volu")
+            KeyMapping(input: "f1", action: .keystroke(key: "brdn")),
+            KeyMapping(input: "f2", action: .keystroke(key: "brup")),
+            KeyMapping(input: "f3", action: .keystroke(key: "f3")),
+            KeyMapping(input: "f4", action: .keystroke(key: "f4")),
+            KeyMapping(input: "f7", action: .keystroke(key: "prev")),
+            KeyMapping(input: "f8", action: .keystroke(key: "pp")),
+            KeyMapping(input: "f9", action: .keystroke(key: "next")),
+            KeyMapping(input: "f10", action: .keystroke(key: "mute")),
+            KeyMapping(input: "f11", action: .keystroke(key: "vold")),
+            KeyMapping(input: "f12", action: .keystroke(key: "volu"))
         ]
     }
 }

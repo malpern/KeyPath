@@ -56,7 +56,7 @@ extension LiveKeyboardOverlayController {
             }
 
             if let mapping = viewModel.launcherMappings[normalizedKey],
-               let message = Self.launcherActionMessage(for: mapping.target)
+               let message = Self.launcherActionMessage(for: mapping.action)
             {
                 AppLogger.shared.log("🖱️ [OverlayController] Launcher key clicked: \(normalizedKey) -> \(message)")
                 ActionDispatcher.shared.dispatch(message: message)

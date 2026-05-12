@@ -77,7 +77,7 @@ struct AppRuleCard: View {
                     .foregroundStyle(.secondary)
 
                 // Output key chip
-                KeyChip(text: override.outputAction)
+                KeyChip(text: override.action.outputString)
 
                 Spacer(minLength: 4)
 
@@ -92,7 +92,7 @@ struct AppRuleCard: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("edit-rule-\(override.id)")
-                    .accessibilityLabel("Edit rule \(override.inputKey) to \(override.outputAction)")
+                    .accessibilityLabel("Edit rule \(override.inputKey) to \(override.action.outputString)")
 
                     Button { onDelete(override) } label: {
                         Image(systemName: "trash")
@@ -103,7 +103,7 @@ struct AppRuleCard: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("delete-rule-\(override.id)")
-                    .accessibilityLabel("Delete rule \(override.inputKey) to \(override.outputAction)")
+                    .accessibilityLabel("Delete rule \(override.inputKey) to \(override.action.outputString)")
                 }
             }
             .padding(.vertical, 4)
@@ -215,10 +215,10 @@ struct GlobalRulesCard: View {
                             .foregroundStyle(.secondary)
 
                         // Output - show layer chip for layer switches, otherwise regular key chip
-                        if let layerName = LayerInfo.extractLayerName(from: rule.output) {
+                        if let layerName = LayerInfo.extractLayerName(from: rule.action.outputString) {
                             DrawerLayerChip(layerName: layerName)
                         } else {
-                            GlobalKeyChip(text: rule.output)
+                            GlobalKeyChip(text: rule.action.outputString)
                         }
 
                         Spacer(minLength: 0)
@@ -244,7 +244,7 @@ struct GlobalRulesCard: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("edit-global-rule-\(rule.id)")
-                        .accessibilityLabel("Edit rule \(rule.input) to \(rule.output)")
+                        .accessibilityLabel("Edit rule \(rule.input) to \(rule.action.outputString)")
 
                         Button { onDelete(rule) } label: {
                             Image(systemName: "trash")
@@ -258,7 +258,7 @@ struct GlobalRulesCard: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("delete-global-rule-\(rule.id)")
-                        .accessibilityLabel("Delete rule \(rule.input) to \(rule.output)")
+                        .accessibilityLabel("Delete rule \(rule.input) to \(rule.action.outputString)")
                     }
                     .padding(.trailing, 4)
                     .transition(.opacity.combined(with: .scale(scale: 0.8)))
@@ -381,7 +381,7 @@ private struct DrawerLayerChip: View {
                     displayName: "TextEdit",
                     virtualKeyName: "vk_textedit"
                 ),
-                overrides: [AppKeyOverride(inputKey: "f", outputAction: "home")]
+                overrides: [AppKeyOverride(inputKey: "f", action: .keystroke(key: "home"))]
             ),
             onEdit: { _ in },
             onDelete: { _ in },

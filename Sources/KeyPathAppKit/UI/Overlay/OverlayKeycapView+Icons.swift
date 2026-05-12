@@ -23,8 +23,8 @@ extension OverlayKeycapView {
         }
 
         // Check launcher mapping for app target
-        if let mapping = launcherMapping, case let .app(name, bundleId) = mapping.target {
-            appIcon = AppIconResolver.icon(for: .app(name: name, bundleId: bundleId))
+        if let mapping = launcherMapping, case let .launchApp(name, bundleId) = mapping.action {
+            appIcon = AppIconResolver.icon(for: .launchApp(name: name, bundleId: bundleId))
             return
         }
 
@@ -44,7 +44,7 @@ extension OverlayKeycapView {
         }
 
         // Check launcher mapping for URL target
-        if let mapping = launcherMapping, case let .url(urlString) = mapping.target {
+        if let mapping = launcherMapping, case let .openURL(urlString) = mapping.action {
             Task { @MainActor in
                 faviconImage = await services.iconResolver.resolveFavicon(for: urlString)
             }

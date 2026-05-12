@@ -31,7 +31,7 @@ extension OverlayKeycapView {
                                 .frame(width: 20 * scale, height: 20 * scale)
                                 .clipShape(RoundedRectangle(cornerRadius: 4 * scale))
 
-                            if !mapping.target.isApp {
+                            if !mapping.action.isLaunchApp {
                                 launcherLinkBadge(size: 6 * scale)
                             }
                         }
@@ -39,7 +39,7 @@ extension OverlayKeycapView {
                         .opacity((iconVisible ? 1.0 : 0) * fadeFactor)
                         .offset(x: 2 * scale)
                     } else {
-                        Image(systemName: mapping.target.isApp ? "app.fill" : "globe")
+                        Image(systemName: mapping.action.isLaunchApp ? "app.fill" : "globe")
                             .font(.system(size: 14 * scale))
                             .foregroundStyle(foregroundColor.opacity(0.6))
                             .scaleEffect(iconVisible ? 1.0 : 0.3)

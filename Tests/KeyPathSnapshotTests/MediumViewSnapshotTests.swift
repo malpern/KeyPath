@@ -23,11 +23,11 @@ final class MediumViewSnapshotTests: ScreenshotTestCase {
 
     func testLaunchersSectionPopulated() {
         let mappings = [
-            MockFactories.launcherMapping(key: "s", target: .app(name: "Safari", bundleId: "com.apple.Safari")),
-            MockFactories.launcherMapping(key: "t", target: .app(name: "Terminal", bundleId: "com.apple.Terminal")),
-            MockFactories.launcherMapping(key: "m", target: .app(name: "Messages", bundleId: "com.apple.MobileSMS")),
-            MockFactories.launcherMapping(key: "f", target: .app(name: "Finder", bundleId: "com.apple.finder")),
-            MockFactories.launcherMapping(key: "g", target: .url("github.com")),
+            MockFactories.launcherMapping(key: "s", action: .launchApp(name: "Safari", bundleId: "com.apple.Safari")),
+            MockFactories.launcherMapping(key: "t", action: .launchApp(name: "Terminal", bundleId: "com.apple.Terminal")),
+            MockFactories.launcherMapping(key: "m", action: .launchApp(name: "Messages", bundleId: "com.apple.MobileSMS")),
+            MockFactories.launcherMapping(key: "f", action: .launchApp(name: "Finder", bundleId: "com.apple.finder")),
+            MockFactories.launcherMapping(key: "g", action: .openURL("github.com")),
         ]
         let view = OverlayLaunchersSection(
             isDark: false,
@@ -45,9 +45,9 @@ final class MediumViewSnapshotTests: ScreenshotTestCase {
 
     func testLaunchersSectionCompact() {
         let mappings = [
-            MockFactories.launcherMapping(key: "s", target: .app(name: "Safari", bundleId: "com.apple.Safari")),
-            MockFactories.launcherMapping(key: "t", target: .app(name: "Terminal", bundleId: "com.apple.Terminal")),
-            MockFactories.launcherMapping(key: "g", target: .url("github.com")),
+            MockFactories.launcherMapping(key: "s", action: .launchApp(name: "Safari", bundleId: "com.apple.Safari")),
+            MockFactories.launcherMapping(key: "t", action: .launchApp(name: "Terminal", bundleId: "com.apple.Terminal")),
+            MockFactories.launcherMapping(key: "g", action: .openURL("github.com")),
         ]
         let view = OverlayLaunchersSection(
             isDark: false,

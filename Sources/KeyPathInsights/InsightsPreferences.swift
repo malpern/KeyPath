@@ -9,7 +9,16 @@ enum InsightsPreferences {
     }
 
     static var activityLoggingEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: Keys.activityLoggingEnabled) }
+        get {
+            if UserDefaults.standard.object(forKey: Keys.activityLoggingEnabled) == nil {
+                #if DEBUG
+                return true
+                #else
+                return false
+                #endif
+            }
+            return UserDefaults.standard.bool(forKey: Keys.activityLoggingEnabled)
+        }
         set {
             UserDefaults.standard.set(newValue, forKey: Keys.activityLoggingEnabled)
             NotificationCenter.default.post(name: .insightsActivityLoggingChanged, object: nil)

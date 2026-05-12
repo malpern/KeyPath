@@ -10,7 +10,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             name: "Vim Nav",
             summary: "Nav",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "left")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
             targetLayer: .navigation
         )
 
@@ -18,7 +18,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             name: "Arrow Keys",
             summary: "Arrows",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "home")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "home"))],
             targetLayer: .navigation
         )
 
@@ -34,7 +34,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             name: "Nav Vim",
             summary: "Nav",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "left")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
             targetLayer: .navigation
         )
 
@@ -42,7 +42,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             name: "Base Vim",
             summary: "Base",
             category: .productivity,
-            mappings: [KeyMapping(input: "h", output: "backspace")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "backspace"))],
             targetLayer: .base
         )
 
@@ -56,7 +56,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             name: "Vim Nav",
             summary: "Nav",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "left")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
             targetLayer: .navigation
         )
 
@@ -64,7 +64,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             name: "Delete Keys",
             summary: "Del",
             category: .navigation,
-            mappings: [KeyMapping(input: "d", output: "del")],
+            mappings: [KeyMapping(input: "d", action: .keystroke(key: "del"))],
             targetLayer: .navigation
         )
 
@@ -78,7 +78,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             name: "Vim Nav",
             summary: "Nav",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "left")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
             isEnabled: true,
             targetLayer: .navigation
         )
@@ -87,7 +87,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             name: "Disabled",
             summary: "Disabled",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "home")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "home"))],
             isEnabled: false,
             targetLayer: .navigation
         )
@@ -104,8 +104,8 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             summary: "Vim",
             category: .navigation,
             mappings: [
-                KeyMapping(input: "h", output: "left"),
-                KeyMapping(input: "j", output: "down")
+                KeyMapping(input: "h", action: .keystroke(key: "left")),
+                KeyMapping(input: "j", action: .keystroke(key: "down"))
             ],
             targetLayer: .navigation
         )
@@ -115,8 +115,8 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             summary: "Arrows",
             category: .navigation,
             mappings: [
-                KeyMapping(input: "h", output: "home"),
-                KeyMapping(input: "j", output: "pgdn")
+                KeyMapping(input: "h", action: .keystroke(key: "home")),
+                KeyMapping(input: "j", action: .keystroke(key: "pgdn"))
             ],
             targetLayer: .navigation
         )
@@ -137,7 +137,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             name: "Disabled",
             summary: "Disabled",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "home")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "home"))],
             isEnabled: false,
             targetLayer: .navigation
         )
@@ -147,7 +147,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             name: "Enabled",
             summary: "Enabled",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "left")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
             isEnabled: true,
             targetLayer: .navigation
         )
@@ -159,7 +159,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
         XCTAssertEqual(deduped[0].mappings.count, 1)
         // Enabled collection should KEEP its mapping (not be filtered out)
         XCTAssertEqual(deduped[1].mappings.count, 1)
-        XCTAssertEqual(deduped[1].mappings.first?.output, "left")
+        XCTAssertEqual(deduped[1].mappings.first?.action.outputString, "left")
     }
 
     func testKeepsFirstMomentaryActivator() {
@@ -167,7 +167,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             name: "Vim Nav",
             summary: "Nav layer",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "left")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
             isEnabled: true,
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
@@ -177,7 +177,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             name: "Delete Enh",
             summary: "Delete",
             category: .navigation,
-            mappings: [KeyMapping(input: "d", output: "del")],
+            mappings: [KeyMapping(input: "d", action: .keystroke(key: "del"))],
             isEnabled: true,
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
@@ -190,8 +190,8 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
     }
 
     func testRemovesDuplicateMappingsWithinCollection() {
-        let mapping = KeyMapping(input: "caps", output: "esc")
-        let duplicate = KeyMapping(input: "caps", output: "esc")
+        let mapping = KeyMapping(input: "caps", action: .keystroke(key: "esc"))
+        let duplicate = KeyMapping(input: "caps", action: .keystroke(key: "esc"))
         let collection = RuleCollection(
             name: "Caps Remap",
             summary: "Test",
@@ -207,8 +207,8 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
     func testKeepsFirstMappingWhenInputRepeated() {
         // Same input key with different outputs - only first should be kept
         // because Kanata doesn't allow duplicate keys in defsrc
-        let first = KeyMapping(input: "caps", output: "esc")
-        let second = KeyMapping(input: "caps", output: "hyper")
+        let first = KeyMapping(input: "caps", action: .keystroke(key: "esc"))
+        let second = KeyMapping(input: "caps", action: .keystroke(key: "hyper"))
         let collection = RuleCollection(
             name: "Caps Options",
             summary: "Test",
@@ -219,7 +219,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
         let deduped = RuleCollectionDeduplicator.dedupe([collection])
 
         XCTAssertEqual(deduped.first?.mappings.count, 1)
-        XCTAssertEqual(deduped.first?.mappings.first?.output, "esc")
+        XCTAssertEqual(deduped.first?.mappings.first?.action.outputString, "esc")
     }
 
     func testRemovesDuplicateInputKeysAcrossCollections() {
@@ -228,7 +228,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             name: "Launch Arc",
             summary: "Custom",
             category: .custom,
-            mappings: [KeyMapping(input: "f6", output: "(push-msg \"launch:com.browser\")")]
+            mappings: [KeyMapping(input: "f6", action: .rawKanata("(push-msg \"launch:com.browser\")"))]
         )
 
         let functionKeys = RuleCollection(
@@ -236,9 +236,9 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             summary: "System",
             category: .system,
             mappings: [
-                KeyMapping(input: "f5", output: "(push-msg \"system:dictation\")"),
-                KeyMapping(input: "f6", output: "(push-msg \"system:dnd\")"),
-                KeyMapping(input: "f7", output: "prev")
+                KeyMapping(input: "f5", action: .rawKanata("(push-msg \"system:dictation\")")),
+                KeyMapping(input: "f6", action: .rawKanata("(push-msg \"system:dnd\")")),
+                KeyMapping(input: "f7", action: .keystroke(key: "prev"))
             ]
         )
 
@@ -248,7 +248,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
         // Custom rule should keep its F6 mapping
         XCTAssertEqual(deduped[0].mappings.count, 1)
         XCTAssertEqual(deduped[0].mappings[0].input, "f6")
-        XCTAssertTrue(deduped[0].mappings[0].output.contains("launch"))
+        XCTAssertTrue(deduped[0].mappings[0].action.outputString.contains("launch"))
 
         // Function keys should have F6 removed (claimed by custom rule)
         XCTAssertEqual(deduped[1].mappings.count, 2)

@@ -14,7 +14,7 @@ final class RemapEndToEndTests: XCTestCase {
         let simulatorPath = try requireSimulatorPath()
 
         // 1. Create a rule collection with a 1→2 mapping
-        let mapping = KeyMapping(input: "1", output: "2")
+        let mapping = KeyMapping(input: "1", action: .keystroke(key: "2"))
         let collections = [RuleCollection].collection(
             named: "Test 1→2",
             mappings: [mapping]
@@ -50,9 +50,9 @@ final class RemapEndToEndTests: XCTestCase {
 
         // Create multiple remaps and verify all of them
         let mappings = [
-            KeyMapping(input: "a", output: "b"),
-            KeyMapping(input: "1", output: "2"),
-            KeyMapping(input: "q", output: "w"),
+            KeyMapping(input: "a", action: .keystroke(key: "b")),
+            KeyMapping(input: "1", action: .keystroke(key: "2")),
+            KeyMapping(input: "q", action: .keystroke(key: "w")),
         ]
         let collections = [RuleCollection].collection(
             named: "Test Multi-Remap",

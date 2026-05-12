@@ -691,7 +691,7 @@ extension MapperViewModel {
                 )
             ]
             // Default output becomes identity (pass-through for unmatched devices)
-            customRule.output = inputKanata
+            customRule.action = .keystroke(key: inputKanata)
             customRule.behavior = nil
         }
 

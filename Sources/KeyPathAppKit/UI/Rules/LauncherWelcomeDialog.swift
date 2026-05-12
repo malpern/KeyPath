@@ -234,11 +234,11 @@ struct LauncherWelcomeDialog: View {
     }
 
     private var appMappings: [LauncherMapping] {
-        config.mappings.filter(\.target.isApp)
+        config.mappings.filter(\.action.isLaunchApp)
     }
 
     private var websiteMappings: [LauncherMapping] {
-        config.mappings.filter { !$0.target.isApp }
+        config.mappings.filter { !$0.action.isLaunchApp }
     }
 
     // MARK: - Customize Step
@@ -293,7 +293,7 @@ struct LauncherWelcomeDialog: View {
 
     private var browserHistoryStep: some View {
         let existingDomains = Set(config.mappings.compactMap { mapping in
-            if case let .url(domain) = mapping.target {
+            if case let .openURL(domain) = mapping.action {
                 return normalizeDomain(domain)
             }
             return nil
@@ -311,7 +311,7 @@ struct LauncherWelcomeDialog: View {
                 }
                 let mapping = LauncherMapping(
                     key: key,
-                    target: .url(site.domain),
+                    action: .openURL(site.domain),
                     isEnabled: true
                 )
                 config.mappings.append(mapping)

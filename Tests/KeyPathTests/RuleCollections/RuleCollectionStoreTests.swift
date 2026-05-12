@@ -27,8 +27,8 @@ final class RuleCollectionStoreTests: XCTestCase {
                 summary: "User rules",
                 category: .custom,
                 mappings: [
-                    KeyMapping(input: "caps_lock", output: "escape"),
-                    KeyMapping(input: "left_shift", output: "hyper")
+                    KeyMapping(input: "caps_lock", action: .keystroke(key: "escape")),
+                    KeyMapping(input: "left_shift", action: .keystroke(key: "hyper"))
                 ],
                 isEnabled: true,
                 isSystemDefault: false,
@@ -65,7 +65,7 @@ final class RuleCollectionStoreTests: XCTestCase {
             "summary": "Legacy",
             "category": RuleCollectionCategory.navigation.rawValue,
             "mappings": [
-                ["id": UUID().uuidString, "input": "h", "output": "left"]
+                ["id": UUID().uuidString, "input": "h", "action": ["keystroke": ["key": "left"]]]
             ],
             "isEnabled": true,
             "isSystemDefault": false,

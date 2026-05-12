@@ -1,22 +1,24 @@
 import AppKit
 import UniformTypeIdentifiers
 
-/// Resolves icons for launcher targets: apps, folders, and scripts.
+/// Resolves icons for key actions: apps, folders, and scripts.
 ///
 /// Uses `NSWorkspace` to locate apps and retrieve their icons.
-/// Falls back to generic icons if targets cannot be found.
+/// Falls back to generic icons if actions cannot be found.
 enum AppIconResolver {
-    /// Get icon for any launcher target type
-    static func icon(for target: LauncherTarget) -> NSImage? {
-        switch target {
-        case let .app(name, bundleId):
+    /// Get icon for any key action type
+    static func icon(for action: KeyAction) -> NSImage? {
+        switch action {
+        case let .launchApp(name, bundleId):
             appIcon(name: name, bundleId: bundleId)
-        case .url:
+        case .openURL:
             urlIcon()
-        case let .folder(path, _):
+        case let .openFolder(path, _):
             folderIcon(for: path)
-        case let .script(path, _):
+        case let .runScript(path, _):
             scriptIcon(for: path)
+        default:
+            nil
         }
     }
 
@@ -72,7 +74,7 @@ enum AppIconResolver {
 
     /// Get icon for an app by name
     static func icon(forAppName name: String) -> NSImage? {
-        icon(for: .app(name: name, bundleId: nil))
+        icon(for: .launchApp(name: name, bundleId: nil))
     }
 
     // MARK: - URL Icons

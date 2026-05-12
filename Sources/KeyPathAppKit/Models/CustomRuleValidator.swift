@@ -205,7 +205,7 @@ public enum CustomRuleValidator {
         var errors: [ValidationError] = []
 
         let trimmedInput = rule.input.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedOutput = rule.output.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedOutput = rule.action.outputString.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Check for empty values
         if trimmedInput.isEmpty {

@@ -88,7 +88,7 @@ struct LauncherDrawerView: View {
                 editingMapping = existing
             } else {
                 selectedKey = key
-                editingMapping = LauncherMapping(key: LauncherGridConfig.normalizeKey(key), target: .app(name: "", bundleId: nil))
+                editingMapping = LauncherMapping(key: LauncherGridConfig.normalizeKey(key), action: .launchApp(name: "", bundleId: nil))
             }
         }
         .sheet(item: $editingMapping) { mapping in
@@ -202,11 +202,12 @@ private struct LauncherMappingCard: View {
     }
 
     private var typeLabel: String {
-        switch mapping.target {
-        case .app: "App"
-        case .url: "Website"
-        case .folder: "Folder"
-        case .script: "Script"
+        switch mapping.action {
+        case .launchApp: "App"
+        case .openURL: "Website"
+        case .openFolder: "Folder"
+        case .runScript: "Script"
+        default: "Action"
         }
     }
 
@@ -230,7 +231,7 @@ private struct LauncherMappingCard: View {
             }
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(mapping.userDescription ?? mapping.target.displayName)
+                Text(mapping.userDescription ?? mapping.action.displayName)
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
                     .foregroundColor(mapping.isEnabled ? .primary : .secondary)
@@ -287,7 +288,7 @@ private struct LauncherMappingCard: View {
             Button("Delete", role: .destructive) { onDelete() }
         }
         .accessibilityIdentifier("launcher-card-\(mapping.key)")
-        .accessibilityLabel("\(mapping.userDescription ?? mapping.target.displayName), key \(displayKey)")
+        .accessibilityLabel("\(mapping.userDescription ?? mapping.action.displayName), key \(displayKey)")
         .task { await loadIcon() }
     }
 
@@ -334,20 +335,23 @@ private struct LauncherMappingCard: View {
                 return
             }
         }
-        switch mapping.target {
-        case .app, .folder, .script:
-            icon = AppIconResolver.icon(for: mapping.target)
-        case let .url(urlString):
+        switch mapping.action {
+        case .launchApp, .openFolder, .runScript:
+            icon = AppIconResolver.icon(for: mapping.action)
+        case let .openURL(urlString):
             icon = await services.faviconFetcher.fetchFavicon(for: urlString)
+        default:
+            break
         }
     }
 
     private var typeIconName: String {
-        switch mapping.target {
-        case .app: "app.fill"
-        case .url: "globe"
-        case .folder: "folder.fill"
-        case .script: "terminal.fill"
+        switch mapping.action {
+        case .launchApp: "app.fill"
+        case .openURL: "globe"
+        case .openFolder: "folder.fill"
+        case .runScript: "terminal.fill"
+        default: "questionmark.circle"
         }
     }
 }

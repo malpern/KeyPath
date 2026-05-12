@@ -116,10 +116,7 @@ final class EasyViewSnapshotTests: ScreenshotTestCase {
         let config = MockFactories.launcherGridConfig()
         let view = LauncherDrawerView(
             config: .constant(config),
-            selectedKey: .constant(nil),
-            onAddMapping: {},
-            onEditMapping: { _ in },
-            onDeleteMapping: { _ in }
+            selectedKey: .constant(nil)
         )
         // App icon loading from NSWorkspace produces pixel-level variation between runs
         assertScreenshot(

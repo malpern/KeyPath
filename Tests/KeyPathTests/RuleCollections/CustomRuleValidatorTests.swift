@@ -110,21 +110,21 @@ final class CustomRuleValidatorTests: XCTestCase {
     // MARK: - Rule Validation
 
     func testValidateEmptyInput() {
-        let rule = CustomRule(input: "", output: "esc")
+        let rule = CustomRule(input: "", action: .keystroke(key: "esc"))
         let errors = CustomRuleValidator.validate(rule)
 
         XCTAssertTrue(errors.contains(.emptyInput))
     }
 
     func testValidateEmptyOutput() {
-        let rule = CustomRule(input: "caps", output: "")
+        let rule = CustomRule(input: "caps", action: .keystroke(key: ""))
         let errors = CustomRuleValidator.validate(rule)
 
         XCTAssertTrue(errors.contains(.emptyOutput))
     }
 
     func testValidateInvalidInputKey() {
-        let rule = CustomRule(input: "notakey", output: "esc")
+        let rule = CustomRule(input: "notakey", action: .keystroke(key: "esc"))
         let errors = CustomRuleValidator.validate(rule)
 
         XCTAssertEqual(errors.count, 1)
@@ -136,7 +136,7 @@ final class CustomRuleValidatorTests: XCTestCase {
     }
 
     func testValidateInvalidOutputKey() {
-        let rule = CustomRule(input: "caps", output: "notakey")
+        let rule = CustomRule(input: "caps", action: .keystroke(key: "notakey"))
         let errors = CustomRuleValidator.validate(rule)
 
         XCTAssertEqual(errors.count, 1)
@@ -148,7 +148,7 @@ final class CustomRuleValidatorTests: XCTestCase {
     }
 
     func testValidateSelfMapping() {
-        let rule = CustomRule(input: "caps", output: "caps")
+        let rule = CustomRule(input: "caps", action: .keystroke(key: "caps"))
         let errors = CustomRuleValidator.validate(rule)
 
         XCTAssertTrue(errors.contains(.selfMapping))
@@ -156,28 +156,28 @@ final class CustomRuleValidatorTests: XCTestCase {
 
     func testValidateSelfMappingWithAlias() {
         // "capslock" normalizes to "caps", so this should detect self-mapping
-        let rule = CustomRule(input: "capslock", output: "caps")
+        let rule = CustomRule(input: "capslock", action: .keystroke(key: "caps"))
         let errors = CustomRuleValidator.validate(rule)
 
         XCTAssertTrue(errors.contains(.selfMapping))
     }
 
     func testValidateValidRule() {
-        let rule = CustomRule(input: "caps", output: "esc")
+        let rule = CustomRule(input: "caps", action: .keystroke(key: "esc"))
         let errors = CustomRuleValidator.validate(rule)
 
         XCTAssertTrue(errors.isEmpty)
     }
 
     func testValidateRuleWithMultipleOutputs() {
-        let rule = CustomRule(input: "caps", output: "M-right M-left")
+        let rule = CustomRule(input: "caps", action: .keystroke(key: "M-right M-left"))
         let errors = CustomRuleValidator.validate(rule)
 
         XCTAssertTrue(errors.isEmpty)
     }
 
     func testValidateRuleWithInvalidOutputSequence() {
-        let rule = CustomRule(input: "caps", output: "M-right notakey M-left")
+        let rule = CustomRule(input: "caps", action: .keystroke(key: "M-right notakey M-left"))
         let errors = CustomRuleValidator.validate(rule)
 
         XCTAssertEqual(errors.count, 1)
@@ -192,9 +192,9 @@ final class CustomRuleValidatorTests: XCTestCase {
 
     func testConflictDetection() {
         let existingRules = [
-            CustomRule(input: "caps", output: "esc", isEnabled: true)
+            CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
         ]
-        let newRule = CustomRule(input: "caps", output: "tab", isEnabled: true)
+        let newRule = CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: true)
 
         let conflict = CustomRuleValidator.checkConflict(for: newRule, against: existingRules)
 
@@ -208,10 +208,10 @@ final class CustomRuleValidatorTests: XCTestCase {
 
     func testConflictDetectionWithAlias() {
         let existingRules = [
-            CustomRule(input: "caps", output: "esc", isEnabled: true)
+            CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
         ]
         // "capslock" normalizes to "caps", so this should conflict
-        let newRule = CustomRule(input: "capslock", output: "tab", isEnabled: true)
+        let newRule = CustomRule(input: "capslock", action: .keystroke(key: "tab"), isEnabled: true)
 
         let conflict = CustomRuleValidator.checkConflict(for: newRule, against: existingRules)
 
@@ -220,9 +220,9 @@ final class CustomRuleValidatorTests: XCTestCase {
 
     func testNoConflictWithDisabledRule() {
         let existingRules = [
-            CustomRule(input: "caps", output: "esc", isEnabled: false)
+            CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: false)
         ]
-        let newRule = CustomRule(input: "caps", output: "tab", isEnabled: true)
+        let newRule = CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: true)
 
         let conflict = CustomRuleValidator.checkConflict(for: newRule, against: existingRules)
 
@@ -232,10 +232,10 @@ final class CustomRuleValidatorTests: XCTestCase {
     func testNoConflictWithSameId() {
         let ruleId = UUID()
         let existingRules = [
-            CustomRule(id: ruleId, title: "", input: "caps", output: "esc", isEnabled: true)
+            CustomRule(id: ruleId, title: "", input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
         ]
         // Editing the same rule shouldn't conflict with itself
-        let updatedRule = CustomRule(id: ruleId, title: "", input: "caps", output: "tab", isEnabled: true)
+        let updatedRule = CustomRule(id: ruleId, title: "", input: "caps", action: .keystroke(key: "tab"), isEnabled: true)
 
         let conflict = CustomRuleValidator.checkConflict(for: updatedRule, against: existingRules)
 
@@ -244,9 +244,9 @@ final class CustomRuleValidatorTests: XCTestCase {
 
     func testNoConflictWithDifferentKeys() {
         let existingRules = [
-            CustomRule(input: "caps", output: "esc", isEnabled: true)
+            CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
         ]
-        let newRule = CustomRule(input: "tab", output: "esc", isEnabled: true)
+        let newRule = CustomRule(input: "tab", action: .keystroke(key: "esc"), isEnabled: true)
 
         let conflict = CustomRuleValidator.checkConflict(for: newRule, against: existingRules)
 
@@ -255,9 +255,9 @@ final class CustomRuleValidatorTests: XCTestCase {
 
     func testValidateWithExistingRulesIncludesConflict() {
         let existingRules = [
-            CustomRule(input: "caps", output: "esc", isEnabled: true)
+            CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
         ]
-        let newRule = CustomRule(input: "caps", output: "tab", isEnabled: true)
+        let newRule = CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: true)
 
         let errors = CustomRuleValidator.validate(newRule, existingRules: existingRules)
 

@@ -29,10 +29,10 @@ final class CustomRulesStoreTests: XCTestCase {
         let fixedDate = Date(timeIntervalSince1970: 0) // Truncated to seconds to survive ISO8601 encode/decode
         let rules = [
             CustomRule(
-                title: "Caps Escape", input: "caps", output: "escape", createdAt: fixedDate
+                title: "Caps Escape", input: "caps", action: .keystroke(key: "escape"), createdAt: fixedDate
             ),
             CustomRule(
-                title: "Space Nav", input: "space", output: "nav", isEnabled: false,
+                title: "Space Nav", input: "space", action: .keystroke(key: "nav"), isEnabled: false,
                 createdAt: fixedDate
             )
         ]

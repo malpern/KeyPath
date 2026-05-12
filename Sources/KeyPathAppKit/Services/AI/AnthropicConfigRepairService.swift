@@ -30,7 +30,7 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
         \(errors.joined(separator: "\n"))
 
         INTENDED KEY MAPPINGS:
-        \(mappings.map { "\($0.input) -> \($0.output)" }.joined(separator: "\n"))
+        \(mappings.map { "\($0.input) -> \($0.action.kanataOutput)" }.joined(separator: "\n"))
 
         Please generate a corrected Kanata configuration that:
         1. Fixes all validation errors

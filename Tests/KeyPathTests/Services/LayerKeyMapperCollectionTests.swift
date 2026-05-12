@@ -16,10 +16,10 @@ final class LayerKeyMapperCollectionTests: XCTestCase {
             summary: "Vim-style navigation",
             category: .navigation,
             mappings: [
-                KeyMapping(input: "h", output: "left", description: "Left"),
-                KeyMapping(input: "j", output: "down", description: "Down"),
-                KeyMapping(input: "k", output: "up", description: "Up"),
-                KeyMapping(input: "l", output: "right", description: "Right")
+                KeyMapping(input: "h", action: .keystroke(key: "left"), description: "Left"),
+                KeyMapping(input: "j", action: .keystroke(key: "down"), description: "Down"),
+                KeyMapping(input: "k", action: .keystroke(key: "up"), description: "Up"),
+                KeyMapping(input: "l", action: .keystroke(key: "right"), description: "Right")
             ],
             isEnabled: true,
             isSystemDefault: false,
@@ -36,8 +36,8 @@ final class LayerKeyMapperCollectionTests: XCTestCase {
             summary: "Snap windows to edges",
             category: .productivity,
             mappings: [
-                KeyMapping(input: "h", output: "window:left", description: "Snap left"),
-                KeyMapping(input: "l", output: "window:right", description: "Snap right")
+                KeyMapping(input: "h", action: .keystroke(key: "window:left"), description: "Snap left"),
+                KeyMapping(input: "l", action: .keystroke(key: "window:right"), description: "Snap right")
             ],
             isEnabled: true,
             isSystemDefault: false,
@@ -59,7 +59,7 @@ final class LayerKeyMapperCollectionTests: XCTestCase {
             summary: "User custom mappings",
             category: .custom,
             mappings: [
-                KeyMapping(input: "q", output: "quit", description: "Quit")
+                KeyMapping(input: "q", action: .keystroke(key: "quit"), description: "Quit")
             ],
             isEnabled: true,
             isSystemDefault: false,

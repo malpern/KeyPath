@@ -226,7 +226,7 @@ public final class ConfigurationService: FileConfigurationProviding {
         let customRuleCollections = customRules.asRuleCollections()
         AppLogger.shared.log("🔧 [ConfigService] Converting \(customRules.count) custom rules to \(customRuleCollections.count) collections")
         for (i, coll) in customRuleCollections.enumerated() {
-            let mappingStrs = coll.mappings.map { "'\($0.input)' → '\($0.output)'" }.joined(separator: ", ")
+            let mappingStrs = coll.mappings.map { "'\($0.input)' → '\($0.action.kanataOutput)'" }.joined(separator: ", ")
             AppLogger.shared.log("🔧 [ConfigService]   Custom collection \(i): '\(coll.name)' (enabled: \(coll.isEnabled), layer: \(coll.targetLayer)) mappings: [\(mappingStrs)]")
         }
         let allCollections = customRuleCollections + ruleCollections
@@ -323,7 +323,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     /// Save configuration with specific input/output mapping
     public func saveConfiguration(input: String, output: String) async throws {
-        let keyMapping = KeyMapping(input: input, output: output)
+        let keyMapping = KeyMapping(input: input, action: .keystroke(key: output))
         try await saveConfiguration(keyMappings: [keyMapping])
     }
 
@@ -381,7 +381,7 @@ public final class ConfigurationService: FileConfigurationProviding {
         setCurrentConfiguration(
             KanataConfiguration(
                 content: safeConfig,
-                keyMappings: [KeyMapping(input: "caps", output: "escape")],
+                keyMappings: [KeyMapping(input: "caps", action: .keystroke(key: "escape"))],
                 lastModified: Date(),
                 path: configurationPath
             )

@@ -310,7 +310,8 @@ struct MappingBehaviorEditor: View {
         guard let behavior else { return output }
 
         // Create a temporary mapping to render
-        let mapping = KeyMapping(input: "x", output: output, behavior: behavior)
+        let action: KeyAction = output.hasPrefix("(") ? .rawKanata(output) : .keystroke(key: output)
+        let mapping = KeyMapping(input: "x", action: action, behavior: behavior)
         return KanataBehaviorRenderer.render(mapping)
     }
 

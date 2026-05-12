@@ -51,7 +51,7 @@ struct RulesTabView: View {
     /// View ID for custom rules section to force re-render on changes
     private var customRulesViewId: String {
         let rulesHash = kanataManager.customRules
-            .map { "\($0.id)-\($0.input.hashValue)-\($0.output.hashValue)-\($0.title.hashValue)" }
+            .map { "\($0.id)-\($0.input.hashValue)-\($0.action.outputString.hashValue)-\($0.title.hashValue)" }
             .joined()
         let appsHash = appKeymaps.map(\.id.uuidString).joined()
         return "custom-rules-\(rulesHash)-\(appsHash)"
@@ -102,7 +102,7 @@ struct RulesTabView: View {
         guard isSearching else { return kanataManager.customRules }
         let query = trimmedSearchQuery.lowercased()
         return kanataManager.customRules.filter { rule in
-            [rule.title, rule.notes ?? "", rule.input, rule.output]
+            [rule.title, rule.notes ?? "", rule.input, rule.action.outputString]
                 .joined(separator: " ")
                 .lowercased()
                 .contains(query)
@@ -116,7 +116,7 @@ struct RulesTabView: View {
             .map { keymap in
                 var filtered = keymap
                 filtered.overrides = keymap.overrides.filter { override in
-                    [keymap.mapping.displayName, keymap.mapping.bundleIdentifier, override.inputKey, override.outputAction]
+                    [keymap.mapping.displayName, keymap.mapping.bundleIdentifier, override.inputKey, override.action.outputString]
                         .joined(separator: " ")
                         .lowercased()
                         .contains(query)
@@ -222,7 +222,7 @@ struct RulesTabView: View {
                 (style == .layerPresetPicker ? (collection.configuration.layerPresetPickerConfig?.selectedMappings.count ?? 0) : collection.mappings.count),
             isEnabled: pendingToggles[collection.id] ?? collection.isEnabled,
             mappings: collection.mappings.map {
-                ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id, nil)
+                ($0.input, $0.action.outputString, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id, nil)
             },
             onToggle: { isOn in
                 handleCollectionToggle(collection: collection, isOn: isOn)
@@ -493,7 +493,7 @@ struct RulesTabView: View {
                                 count: isSearching ? (filteredCustomRules.count + filteredAppKeymaps.flatMap(\.overrides).count) : totalCustomRulesCount,
                                 isEnabled: filteredCustomRules.isEmpty
                                     || filteredCustomRules.allSatisfy(\.isEnabled),
-                                mappings: filteredCustomRules.map { ($0.input, $0.output, $0.shiftedOutput, nil, $0.title.isEmpty ? nil : $0.title, false, $0.isEnabled, $0.id, $0.behavior) },
+                                mappings: filteredCustomRules.map { ($0.input, $0.action.outputString, $0.shiftedOutput, nil, $0.title.isEmpty ? nil : $0.title, false, $0.isEnabled, $0.id, $0.behavior) },
                                 appKeymaps: filteredAppKeymaps,
                                 onToggle: { isOn in
                                     Task {
@@ -507,7 +507,7 @@ struct RulesTabView: View {
                                     if let rule = kanataManager.customRules.first(where: { $0.id == id }) {
                                         var userInfo: [String: Any] = [
                                             "inputKey": rule.input,
-                                            "outputKey": rule.output
+                                            "outputKey": rule.action.outputString
                                         ]
                                         if let shiftedOutput = rule.shiftedOutput {
                                             userInfo["shiftedOutputKey"] = shiftedOutput
@@ -532,7 +532,7 @@ struct RulesTabView: View {
                                         object: nil,
                                         userInfo: [
                                             "inputKey": override.inputKey,
-                                            "outputKey": override.outputAction,
+                                            "outputKey": override.action.kanataOutput,
                                             "appBundleId": keymap.mapping.bundleIdentifier,
                                             "appDisplayName": keymap.mapping.displayName
                                         ]
@@ -820,7 +820,7 @@ struct RulesTabView: View {
 
         let mappingText = collection.mappings
             .flatMap { mapping in
-                [mapping.input, mapping.output, mapping.shiftedOutput ?? "", mapping.ctrlOutput ?? "", mapping.description ?? ""]
+                [mapping.input, mapping.action.outputString, mapping.shiftedOutput ?? "", mapping.ctrlOutput ?? "", mapping.description ?? ""]
             }
             .joined(separator: " ")
 

@@ -228,7 +228,7 @@ final class RuleCollectionConfigurationTests: XCTestCase {
     }
 
     func testEncodingAndDecodingLayerPresetPicker() throws {
-        let mapping = KeyMapping(input: "a", output: "1")
+        let mapping = KeyMapping(input: "a", action: .keystroke(key: "1"))
         let preset = LayerPreset(id: "standard", label: "Standard", description: "Standard layout", mappings: [mapping])
         let original = RuleCollectionConfiguration.layerPresetPicker(
             LayerPresetPickerConfig(presets: [preset], selectedPresetId: "standard")
@@ -260,154 +260,154 @@ final class RuleCollectionConfigurationTests: XCTestCase {
     }
 
     func testSelectedMappingsReturnsCorrectMappings() {
-        let mapping1 = KeyMapping(input: "a", output: "1")
-        let mapping2 = KeyMapping(input: "b", output: "2")
+        let mapping1 = KeyMapping(input: "a", action: .keystroke(key: "1"))
+        let mapping2 = KeyMapping(input: "b", action: .keystroke(key: "2"))
         let preset = LayerPreset(id: "preset1", label: "Preset 1", description: "", mappings: [mapping1, mapping2])
         let config = LayerPresetPickerConfig(presets: [preset], selectedPresetId: "preset1")
 
         XCTAssertEqual(config.selectedMappings.count, 2)
         XCTAssertEqual(config.selectedMappings[0].input, "a")
-        XCTAssertEqual(config.selectedMappings[1].output, "2")
+        XCTAssertEqual(config.selectedMappings[1].action.outputString, "2")
     }
 
     func testSelectedMappingsReturnsEmptyWhenNoPresetSelected() {
-        let mapping = KeyMapping(input: "a", output: "1")
+        let mapping = KeyMapping(input: "a", action: .keystroke(key: "1"))
         let preset = LayerPreset(id: "preset1", label: "Preset 1", description: "", mappings: [mapping])
         let config = LayerPresetPickerConfig(presets: [preset], selectedPresetId: nil)
 
         XCTAssertTrue(config.selectedMappings.isEmpty)
     }
 
-    // MARK: - LauncherTarget Tests
+    // MARK: - KeyAction Tests (replaces LauncherTarget)
 
-    func testLauncherTargetAppDisplayName() {
-        let target = LauncherTarget.app(name: "Safari", bundleId: "com.apple.Safari")
-        XCTAssertEqual(target.displayName, "Safari")
-        XCTAssertTrue(target.isApp)
-        XCTAssertFalse(target.isURL)
-        XCTAssertFalse(target.isFolder)
-        XCTAssertFalse(target.isScript)
+    func testKeyActionAppDisplayName() {
+        let action = KeyAction.launchApp(name: "Safari", bundleId: "com.apple.Safari")
+        XCTAssertEqual(action.displayName, "Safari")
+        XCTAssertTrue(action.isLaunchApp)
+        XCTAssertFalse(action.isOpenURL)
+        XCTAssertFalse(action.isOpenFolder)
+        XCTAssertFalse(action.isRunScript)
     }
 
-    func testLauncherTargetURLDisplayName() {
-        let target = LauncherTarget.url("github.com")
-        XCTAssertEqual(target.displayName, "github.com")
-        XCTAssertFalse(target.isApp)
-        XCTAssertTrue(target.isURL)
-        XCTAssertFalse(target.isFolder)
-        XCTAssertFalse(target.isScript)
+    func testKeyActionURLDisplayName() {
+        let action = KeyAction.openURL("github.com")
+        XCTAssertEqual(action.displayName, "github.com")
+        XCTAssertFalse(action.isLaunchApp)
+        XCTAssertTrue(action.isOpenURL)
+        XCTAssertFalse(action.isOpenFolder)
+        XCTAssertFalse(action.isRunScript)
     }
 
-    func testLauncherTargetURLDisplayNameStripsScheme() {
-        let target = LauncherTarget.url("https://github.com/openai")
-        XCTAssertEqual(target.displayName, "github.com")
+    func testKeyActionURLDisplayNameStripsScheme() {
+        let action = KeyAction.openURL("https://github.com/openai")
+        XCTAssertEqual(action.displayName, "github.com")
     }
 
-    func testLauncherTargetFolderDisplayName() {
+    func testKeyActionFolderDisplayName() {
         // With custom name
-        let targetWithName = LauncherTarget.folder(path: "~/Downloads", name: "Downloads")
-        XCTAssertEqual(targetWithName.displayName, "Downloads")
-        XCTAssertFalse(targetWithName.isApp)
-        XCTAssertFalse(targetWithName.isURL)
-        XCTAssertTrue(targetWithName.isFolder)
-        XCTAssertFalse(targetWithName.isScript)
+        let actionWithName = KeyAction.openFolder(path: "~/Downloads", name: "Downloads")
+        XCTAssertEqual(actionWithName.displayName, "Downloads")
+        XCTAssertFalse(actionWithName.isLaunchApp)
+        XCTAssertFalse(actionWithName.isOpenURL)
+        XCTAssertTrue(actionWithName.isOpenFolder)
+        XCTAssertFalse(actionWithName.isRunScript)
 
         // Without custom name - should derive from path
-        let targetNoName = LauncherTarget.folder(path: "~/Documents", name: nil)
-        XCTAssertEqual(targetNoName.displayName, "Documents")
+        let actionNoName = KeyAction.openFolder(path: "~/Documents", name: nil)
+        XCTAssertEqual(actionNoName.displayName, "Folder")
     }
 
-    func testLauncherTargetScriptDisplayName() {
+    func testKeyActionScriptDisplayName() {
         // With custom name
-        let targetWithName = LauncherTarget.script(path: "~/Scripts/backup.sh", name: "Backup")
-        XCTAssertEqual(targetWithName.displayName, "Backup")
-        XCTAssertFalse(targetWithName.isApp)
-        XCTAssertFalse(targetWithName.isURL)
-        XCTAssertFalse(targetWithName.isFolder)
-        XCTAssertTrue(targetWithName.isScript)
+        let actionWithName = KeyAction.runScript(path: "~/Scripts/backup.sh", name: "Backup")
+        XCTAssertEqual(actionWithName.displayName, "Backup")
+        XCTAssertFalse(actionWithName.isLaunchApp)
+        XCTAssertFalse(actionWithName.isOpenURL)
+        XCTAssertFalse(actionWithName.isOpenFolder)
+        XCTAssertTrue(actionWithName.isRunScript)
 
         // Without custom name - should derive from path (without extension)
-        let targetNoName = LauncherTarget.script(path: "~/Scripts/backup.sh", name: nil)
-        XCTAssertEqual(targetNoName.displayName, "backup")
+        let actionNoName = KeyAction.runScript(path: "~/Scripts/backup.sh", name: nil)
+        XCTAssertEqual(actionNoName.displayName, "backup")
     }
 
-    func testLauncherTargetKanataOutputForApp() {
-        let target = LauncherTarget.app(name: "Safari", bundleId: "com.apple.Safari")
-        XCTAssertEqual(target.kanataOutput, "(push-msg \"launch:com.apple.Safari\")")
+    func testKeyActionKanataOutputForApp() {
+        let action = KeyAction.launchApp(name: "Safari", bundleId: "com.apple.Safari")
+        XCTAssertEqual(action.kanataOutput, "(push-msg \"launch:com.apple.Safari\")")
     }
 
-    func testLauncherTargetKanataOutputForURL() {
-        let target = LauncherTarget.url("github.com")
-        XCTAssertEqual(target.kanataOutput, "(push-msg \"open:github.com\")")
+    func testKeyActionKanataOutputForURL() {
+        let action = KeyAction.openURL("github.com")
+        XCTAssertEqual(action.kanataOutput, "(push-msg \"open:github.com\")")
     }
 
-    func testLauncherTargetKanataOutputForFolder() {
-        let target = LauncherTarget.folder(path: "~/Downloads", name: nil)
-        XCTAssertEqual(target.kanataOutput, "(push-msg \"folder:~/Downloads\")")
+    func testKeyActionKanataOutputForFolder() {
+        let action = KeyAction.openFolder(path: "~/Downloads", name: nil)
+        XCTAssertEqual(action.kanataOutput, "(push-msg \"folder:~/Downloads\")")
     }
 
-    func testLauncherTargetKanataOutputForScript() {
-        let target = LauncherTarget.script(path: "~/Scripts/backup.sh", name: nil)
-        XCTAssertEqual(target.kanataOutput, "(push-msg \"script:~/Scripts/backup.sh\")")
+    func testKeyActionKanataOutputForScript() {
+        let action = KeyAction.runScript(path: "~/Scripts/backup.sh", name: nil)
+        XCTAssertEqual(action.kanataOutput, "(push-msg \"script:~/Scripts/backup.sh\")")
     }
 
-    func testLauncherTargetEncodingAndDecodingFolder() throws {
-        let original = LauncherTarget.folder(path: "~/Documents", name: "My Docs")
+    func testKeyActionEncodingAndDecodingFolder() throws {
+        let original = KeyAction.openFolder(path: "~/Documents", name: "My Docs")
         let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(LauncherTarget.self, from: data)
+        let decoded = try JSONDecoder().decode(KeyAction.self, from: data)
 
         XCTAssertEqual(original, decoded)
-        if case let .folder(path, name) = decoded {
+        if case let .openFolder(path, name) = decoded {
             XCTAssertEqual(path, "~/Documents")
             XCTAssertEqual(name, "My Docs")
         } else {
-            XCTFail("Expected folder target")
+            XCTFail("Expected openFolder action")
         }
     }
 
-    func testLauncherTargetEncodingAndDecodingScript() throws {
-        let original = LauncherTarget.script(path: "~/Scripts/test.sh", name: "Test Script")
+    func testKeyActionEncodingAndDecodingScript() throws {
+        let original = KeyAction.runScript(path: "~/Scripts/test.sh", name: "Test Script")
         let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(LauncherTarget.self, from: data)
+        let decoded = try JSONDecoder().decode(KeyAction.self, from: data)
 
         XCTAssertEqual(original, decoded)
-        if case let .script(path, name) = decoded {
+        if case let .runScript(path, name) = decoded {
             XCTAssertEqual(path, "~/Scripts/test.sh")
             XCTAssertEqual(name, "Test Script")
         } else {
-            XCTFail("Expected script target")
+            XCTFail("Expected runScript action")
         }
     }
 
-    func testLauncherMappingWithFolderTarget() {
+    func testLauncherMappingWithFolderAction() {
         let mapping = LauncherMapping(
             key: "f5",
-            target: .folder(path: "~/Downloads", name: "Downloads"),
+            action: .openFolder(path: "~/Downloads", name: "Downloads"),
             isEnabled: true
         )
 
         XCTAssertEqual(mapping.key, "f5")
-        XCTAssertTrue(mapping.target.isFolder)
+        XCTAssertTrue(mapping.action.isOpenFolder)
         XCTAssertTrue(mapping.isEnabled)
     }
 
-    func testLauncherMappingWithScriptTarget() {
+    func testLauncherMappingWithScriptAction() {
         let mapping = LauncherMapping(
             key: "f9",
-            target: .script(path: "~/Scripts/backup.sh", name: "Backup"),
+            action: .runScript(path: "~/Scripts/backup.sh", name: "Backup"),
             isEnabled: true
         )
 
         XCTAssertEqual(mapping.key, "f9")
-        XCTAssertTrue(mapping.target.isScript)
+        XCTAssertTrue(mapping.action.isRunScript)
         XCTAssertTrue(mapping.isEnabled)
     }
 
     func testLauncherGridConfigDefaultMappingsIncludeAppsAndURLs() {
         let config = LauncherGridConfig.defaultConfig
-        let appMappings = config.mappings.filter(\.target.isApp)
-        let urlMappings = config.mappings.filter(\.target.isURL)
-        let folderMappings = config.mappings.filter(\.target.isFolder)
+        let appMappings = config.mappings.filter(\.action.isLaunchApp)
+        let urlMappings = config.mappings.filter(\.action.isOpenURL)
+        let folderMappings = config.mappings.filter(\.action.isOpenFolder)
 
         XCTAssertFalse(appMappings.isEmpty, "Default config should include app mappings")
         XCTAssertFalse(urlMappings.isEmpty, "Default config should include URL mappings")
@@ -416,7 +416,7 @@ final class RuleCollectionConfigurationTests: XCTestCase {
         // Spot-check a known default
         let safariMapping = appMappings.first { $0.key == "s" }
         XCTAssertNotNil(safariMapping)
-        if case let .app(name, bundleId) = safariMapping?.target {
+        if case let .launchApp(name, bundleId) = safariMapping?.action {
             XCTAssertEqual(name, "Safari")
             XCTAssertEqual(bundleId, "com.apple.Safari")
         }
@@ -427,17 +427,17 @@ final class RuleCollectionConfigurationTests: XCTestCase {
     func testLauncherGridConfigEncodingWithFoldersAndScripts() throws {
         var config = LauncherGridConfig(activationMode: .holdHyper, mappings: [], hasSeenWelcome: true)
         config.mappings = [
-            LauncherMapping(key: "a", target: .app(name: "Safari", bundleId: nil)),
-            LauncherMapping(key: "1", target: .url("github.com")),
-            LauncherMapping(key: "f5", target: .folder(path: "~/Downloads", name: "Downloads")),
-            LauncherMapping(key: "f9", target: .script(path: "~/test.sh", name: "Test"))
+            LauncherMapping(key: "a", action: .launchApp(name: "Safari", bundleId: nil)),
+            LauncherMapping(key: "1", action: .openURL("github.com")),
+            LauncherMapping(key: "f5", action: .openFolder(path: "~/Downloads", name: "Downloads")),
+            LauncherMapping(key: "f9", action: .runScript(path: "~/test.sh", name: "Test"))
         ]
 
         let data = try JSONEncoder().encode(config)
         let decoded = try JSONDecoder().decode(LauncherGridConfig.self, from: data)
 
         XCTAssertEqual(decoded.mappings.count, 4)
-        XCTAssertTrue(decoded.mappings[2].target.isFolder)
-        XCTAssertTrue(decoded.mappings[3].target.isScript)
+        XCTAssertTrue(decoded.mappings[2].action.isOpenFolder)
+        XCTAssertTrue(decoded.mappings[3].action.isRunScript)
     }
 }

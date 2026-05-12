@@ -122,11 +122,11 @@ final class FaviconLoader {
     }
 }
 
-/// Convenience extension for getting favicons for LauncherTarget
+/// Convenience extension for getting favicons for KeyAction
 extension FaviconLoader {
-    /// Get favicon for a URL target
-    func favicon(for target: LauncherTarget) async -> NSImage? {
-        guard case let .url(urlString) = target else {
+    /// Get favicon for an openURL action
+    func favicon(for action: KeyAction) async -> NSImage? {
+        guard case let .openURL(urlString) = action else {
             return nil
         }
         return await favicon(for: urlString)

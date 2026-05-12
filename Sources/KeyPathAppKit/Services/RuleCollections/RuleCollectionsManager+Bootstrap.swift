@@ -28,7 +28,7 @@ extension RuleCollectionsManager {
                     id: mapping.id,
                     title: "",
                     input: mapping.input,
-                    output: mapping.output,
+                    action: mapping.action,
                     isEnabled: legacy.isEnabled
                 )
             }

@@ -173,8 +173,8 @@ extension OverlayKeycapView {
 
         // Launcher mode: describe the app/URL this key launches
         if isLauncherMode, let mapping = launcherMapping {
-            let targetType = mapping.target.isApp ? "app" : "website"
-            return "\(keyName), launches \(targetType) \(mapping.target.displayName)"
+            let targetType = mapping.action.isLaunchApp ? "app" : "website"
+            return "\(keyName), launches \(targetType) \(mapping.action.displayName)"
         }
 
         // For dots legend style, describe the visual representation

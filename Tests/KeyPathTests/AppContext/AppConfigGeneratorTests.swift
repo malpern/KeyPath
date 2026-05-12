@@ -19,7 +19,7 @@ final class AppConfigGeneratorTests: XCTestCase {
         )
         let keymap = AppKeymap(
             mapping: disabledMapping,
-            overrides: [AppKeyOverride(inputKey: "j", outputAction: "down")]
+            overrides: [AppKeyOverride(inputKey: "j", action: .keystroke(key: "down"))]
         )
 
         let content = AppConfigGenerator.generate(from: [keymap])
@@ -33,7 +33,7 @@ final class AppConfigGeneratorTests: XCTestCase {
         let keymap = AppKeymap(
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari",
-            overrides: [AppKeyOverride(inputKey: "j", outputAction: "down")]
+            overrides: [AppKeyOverride(inputKey: "j", action: .keystroke(key: "down"))]
         )
 
         let content = AppConfigGenerator.generate(from: [keymap])
@@ -49,12 +49,12 @@ final class AppConfigGeneratorTests: XCTestCase {
             AppKeymap(
                 bundleIdentifier: "com.apple.Safari",
                 displayName: "Safari",
-                overrides: [AppKeyOverride(inputKey: "j", outputAction: "down")]
+                overrides: [AppKeyOverride(inputKey: "j", action: .keystroke(key: "down"))]
             ),
             AppKeymap(
                 bundleIdentifier: "com.microsoft.VSCode",
                 displayName: "VS Code",
-                overrides: [AppKeyOverride(inputKey: "j", outputAction: "down")]
+                overrides: [AppKeyOverride(inputKey: "j", action: .keystroke(key: "down"))]
             )
         ]
 
@@ -90,7 +90,7 @@ final class AppConfigGeneratorTests: XCTestCase {
         let keymap = AppKeymap(
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari",
-            overrides: [AppKeyOverride(inputKey: "j", outputAction: "down")]
+            overrides: [AppKeyOverride(inputKey: "j", action: .keystroke(key: "down"))]
         )
 
         let content = AppConfigGenerator.generate(from: [keymap])
@@ -107,12 +107,12 @@ final class AppConfigGeneratorTests: XCTestCase {
             AppKeymap(
                 bundleIdentifier: "com.apple.Safari",
                 displayName: "Safari",
-                overrides: [AppKeyOverride(inputKey: "j", outputAction: "down")]
+                overrides: [AppKeyOverride(inputKey: "j", action: .keystroke(key: "down"))]
             ),
             AppKeymap(
                 bundleIdentifier: "com.microsoft.VSCode",
                 displayName: "VS Code",
-                overrides: [AppKeyOverride(inputKey: "j", outputAction: "pgdn")]
+                overrides: [AppKeyOverride(inputKey: "j", action: .keystroke(key: "pgdn"))]
             )
         ]
 
@@ -146,7 +146,7 @@ final class AppConfigGeneratorTests: XCTestCase {
         let keymap = AppKeymap(
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari",
-            overrides: [AppKeyOverride(inputKey: "semicolon", outputAction: "cmd")]
+            overrides: [AppKeyOverride(inputKey: "semicolon", action: .keystroke(key: "cmd"))]
         )
 
         let content = AppConfigGenerator.generate(from: [keymap])
@@ -158,7 +158,7 @@ final class AppConfigGeneratorTests: XCTestCase {
         let keymap = AppKeymap(
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari",
-            overrides: [AppKeyOverride(inputKey: "1", outputAction: "f1")]
+            overrides: [AppKeyOverride(inputKey: "1", action: .keystroke(key: "f1"))]
         )
 
         let content = AppConfigGenerator.generate(from: [keymap])
@@ -224,8 +224,8 @@ final class AppConfigGeneratorTests: XCTestCase {
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari",
             overrides: [
-                AppKeyOverride(inputKey: "j", outputAction: "down"),
-                AppKeyOverride(inputKey: "k", outputAction: "up")
+                AppKeyOverride(inputKey: "j", action: .keystroke(key: "down")),
+                AppKeyOverride(inputKey: "k", action: .keystroke(key: "up"))
             ]
         )
 
@@ -244,9 +244,9 @@ final class AppConfigGeneratorTests: XCTestCase {
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari",
             overrides: [
-                AppKeyOverride(inputKey: "z", outputAction: "a"),
-                AppKeyOverride(inputKey: "a", outputAction: "z"),
-                AppKeyOverride(inputKey: "m", outputAction: "m")
+                AppKeyOverride(inputKey: "z", action: .keystroke(key: "a")),
+                AppKeyOverride(inputKey: "a", action: .keystroke(key: "z")),
+                AppKeyOverride(inputKey: "m", action: .keystroke(key: "m"))
             ]
         )
 
@@ -307,11 +307,11 @@ final class AppConfigGeneratorTests: XCTestCase {
         let keymaps = [
             AppKeymap(bundleIdentifier: "com.apple.Safari", displayName: "Safari", overrides: []),
             AppKeymap(bundleIdentifier: "com.microsoft.VSCode", displayName: "VS Code", overrides: [
-                AppKeyOverride(inputKey: "j", outputAction: "down")
+                AppKeyOverride(inputKey: "j", action: .keystroke(key: "down"))
             ]),
             AppKeymap(bundleIdentifier: "com.openai.ChatGPT", displayName: "ChatGPT", overrides: [
-                AppKeyOverride(inputKey: "a", outputAction: "b"),
-                AppKeyOverride(inputKey: "k", outputAction: "up")
+                AppKeyOverride(inputKey: "a", action: .keystroke(key: "b")),
+                AppKeyOverride(inputKey: "k", action: .keystroke(key: "up"))
             ])
         ]
 

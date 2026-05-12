@@ -11,19 +11,19 @@ final class UnitTestSuite: XCTestCase {
     // MARK: - Key Mapping Tests
 
     func testKeyMappingInitialization() {
-        let mapping = KeyMapping(input: "caps", output: "escape")
+        let mapping = KeyMapping(input: "caps", action: .keystroke(key: "escape"))
 
         XCTAssertEqual(mapping.input, "caps")
-        XCTAssertEqual(mapping.output, "escape")
+        XCTAssertEqual(mapping.action, .keystroke(key: "escape"))
     }
 
     func testKeyMappingValidation() {
         // Valid mapping
-        let validMapping = KeyMapping(input: "caps", output: "esc")
+        let validMapping = KeyMapping(input: "caps", action: .keystroke(key: "esc"))
         XCTAssertTrue(validMapping.isValid)
 
         // Invalid mapping (empty keys)
-        let invalidMapping = KeyMapping(input: "", output: "esc")
+        let invalidMapping = KeyMapping(input: "", action: .keystroke(key: "esc"))
         XCTAssertFalse(invalidMapping.isValid)
     }
 
@@ -31,8 +31,8 @@ final class UnitTestSuite: XCTestCase {
 
     func testBasicConfigGeneration() {
         let mappings = [
-            KeyMapping(input: "caps", output: "esc"),
-            KeyMapping(input: "space", output: "space") // passthrough
+            KeyMapping(input: "caps", action: .keystroke(key: "esc")),
+            KeyMapping(input: "space", action: .keystroke(key: "space")) // passthrough
         ]
 
         let config = KanataConfiguration.generateFromMappings(mappings)
@@ -49,7 +49,7 @@ final class UnitTestSuite: XCTestCase {
     }
 
     func testComplexKeyMappingGeneration() {
-        let mapping = KeyMapping(input: "caps", output: "cmd+c")
+        let mapping = KeyMapping(input: "caps", action: .keystroke(key: "cmd+c"))
 
         let config = KanataConfiguration.generateFromMappings([mapping])
 
@@ -139,7 +139,7 @@ final class UnitTestSuite: XCTestCase {
 
 extension KeyMapping {
     var isValid: Bool {
-        !input.isEmpty && !output.isEmpty
+        !input.isEmpty && !action.outputString.isEmpty
     }
 }
 

@@ -320,30 +320,31 @@ struct CustomRuleRow: View {
 
     /// Extract app identifier from push-msg launch output
     private var appLaunchIdentifier: String? {
-        KeyboardVisualizationViewModel.extractAppLaunchIdentifier(from: rule.output)
+        KeyboardVisualizationViewModel.extractAppLaunchIdentifier(from: rule.action.kanataOutput)
     }
 
     /// Extract system action identifier from push-msg output
     private var systemActionIdentifier: String? {
         // Look for (push-msg "system:ACTION_NAME") pattern
+        let kanataOutput = rule.action.kanataOutput
         let pattern = #"\(push-msg\s+"system:([^"]+)"\)"#
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
-              let match = regex.firstMatch(in: rule.output, range: NSRange(rule.output.startIndex..., in: rule.output)),
-              let actionRange = Range(match.range(at: 1), in: rule.output)
+              let match = regex.firstMatch(in: kanataOutput, range: NSRange(kanataOutput.startIndex..., in: kanataOutput)),
+              let actionRange = Range(match.range(at: 1), in: kanataOutput)
         else {
             return nil
         }
-        return String(rule.output[actionRange])
+        return String(kanataOutput[actionRange])
     }
 
     /// Extract URL from push-msg open output
     private var urlIdentifier: String? {
-        KeyboardVisualizationViewModel.extractUrlIdentifier(from: rule.output)
+        KeyboardVisualizationViewModel.extractUrlIdentifier(from: rule.action.kanataOutput)
     }
 
     /// Extract layer name from layer-switch output
     private var layerSwitchIdentifier: String? {
-        LayerInfo.extractLayerName(from: rule.output)
+        LayerInfo.extractLayerName(from: rule.action.kanataOutput)
     }
 
     var body: some View {
@@ -369,7 +370,7 @@ struct CustomRuleRow: View {
                         } else if let layerName = layerSwitchIdentifier {
                             LayerSwitchChip(layerName: layerName)
                         } else {
-                            KeyCapChip(text: rule.output)
+                            KeyCapChip(text: rule.action.outputString)
                         }
 
                         // Behavior summary on same line

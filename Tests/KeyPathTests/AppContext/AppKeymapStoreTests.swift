@@ -47,15 +47,15 @@ final class AppKeymapStoreTests: XCTestCase {
                 bundleIdentifier: "com.apple.Safari",
                 displayName: "Safari",
                 overrides: [
-                    AppKeyOverride(inputKey: "j", outputAction: "down"),
-                    AppKeyOverride(inputKey: "k", outputAction: "up")
+                    AppKeyOverride(inputKey: "j", action: .keystroke(key: "down")),
+                    AppKeyOverride(inputKey: "k", action: .keystroke(key: "up"))
                 ]
             ),
             AppKeymap(
                 bundleIdentifier: "com.microsoft.VSCode",
                 displayName: "VS Code",
                 overrides: [
-                    AppKeyOverride(inputKey: "h", outputAction: "left")
+                    AppKeyOverride(inputKey: "h", action: .keystroke(key: "left"))
                 ]
             )
         ]
@@ -91,7 +91,7 @@ final class AppKeymapStoreTests: XCTestCase {
         let initial = AppKeymap(
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari",
-            overrides: [AppKeyOverride(inputKey: "j", outputAction: "down")]
+            overrides: [AppKeyOverride(inputKey: "j", action: .keystroke(key: "down"))]
         )
         try await store.upsertKeymap(initial)
 
@@ -100,8 +100,8 @@ final class AppKeymapStoreTests: XCTestCase {
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari Updated",
             overrides: [
-                AppKeyOverride(inputKey: "j", outputAction: "down"),
-                AppKeyOverride(inputKey: "k", outputAction: "up")
+                AppKeyOverride(inputKey: "j", action: .keystroke(key: "down")),
+                AppKeyOverride(inputKey: "k", action: .keystroke(key: "up"))
             ]
         )
         try await store.upsertKeymap(updated)

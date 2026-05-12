@@ -110,8 +110,8 @@ public struct AppKeyOverride: Codable, Identifiable, Sendable, Equatable {
     /// The input key (e.g., "j", "k", "semicolon")
     public let inputKey: String
 
-    /// The output action - any valid Kanata action (e.g., "down", "(macro h e l l o)")
-    public let outputAction: String
+    /// The output action (e.g., keystroke "down", raw kanata "(macro h e l l o)")
+    public let action: KeyAction
 
     /// Optional description for this override
     public var description: String?
@@ -119,12 +119,12 @@ public struct AppKeyOverride: Codable, Identifiable, Sendable, Equatable {
     public init(
         id: UUID = UUID(),
         inputKey: String,
-        outputAction: String,
+        action: KeyAction,
         description: String? = nil
     ) {
         self.id = id
         self.inputKey = inputKey
-        self.outputAction = outputAction
+        self.action = action
         self.description = description
     }
 }

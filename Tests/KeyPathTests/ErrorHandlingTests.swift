@@ -124,7 +124,7 @@ final class ErrorHandlingTests: XCTestCase {
         ]
 
         for (input, output) in problematicCombos {
-            let mapping = KeyMapping(input: input, output: output)
+            let mapping = KeyMapping(input: input, action: .keystroke(key: output))
             let config = KanataConfiguration.generateFromMappings([mapping])
 
             // Config should still be valid structure
@@ -159,7 +159,7 @@ final class ErrorHandlingTests: XCTestCase {
         ]
 
         for specialChar in specialKanataChars {
-            let mapping = KeyMapping(input: "caps", output: specialChar)
+            let mapping = KeyMapping(input: "caps", action: .keystroke(key: specialChar))
             let config = KanataConfiguration.generateFromMappings([mapping])
 
             // Should handle special Kanata syntax characters
@@ -187,9 +187,9 @@ final class ErrorHandlingTests: XCTestCase {
         ]
 
         for char in internationalChars {
-            let inputMapping = KeyMapping(input: char, output: "escape")
+            let inputMapping = KeyMapping(input: char, action: .keystroke(key: "escape"))
             let inputConfig = KanataConfiguration.generateFromMappings([inputMapping])
-            let outputMapping = KeyMapping(input: "caps", output: char)
+            let outputMapping = KeyMapping(input: "caps", action: .keystroke(key: char))
             let outputConfig = KanataConfiguration.generateFromMappings([outputMapping])
 
             // Should generate valid configs
@@ -292,7 +292,7 @@ final class ErrorHandlingTests: XCTestCase {
             let largeInput = String(repeating: "caps", count: 100)
             let largeOutput = String(repeating: "escape", count: 100)
 
-            let mapping = KeyMapping(input: largeInput, output: largeOutput)
+            let mapping = KeyMapping(input: largeInput, action: .keystroke(key: largeOutput))
             let config = KanataConfiguration.generateFromMappings([mapping])
 
             // Should still generate valid config structure
@@ -489,7 +489,7 @@ final class ErrorHandlingTests: XCTestCase {
         ]
 
         for (input, output) in testCases {
-            let mapping = KeyMapping(input: input, output: output)
+            let mapping = KeyMapping(input: input, action: .keystroke(key: output))
             let config1 = KanataConfiguration.generateFromMappings([mapping])
             let config2 = KanataConfiguration.generateFromMappings([mapping])
 
@@ -510,7 +510,7 @@ final class ErrorHandlingTests: XCTestCase {
         }
 
         for input in randomInputs {
-            let mapping = KeyMapping(input: input, output: "escape")
+            let mapping = KeyMapping(input: input, action: .keystroke(key: "escape"))
             let config = KanataConfiguration.generateFromMappings([mapping])
 
             // All configs should have required sections

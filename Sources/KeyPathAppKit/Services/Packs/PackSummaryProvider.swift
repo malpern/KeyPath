@@ -54,7 +54,7 @@ struct PackSummaryProvider {
         // default mapping > pack template > "—".
         let defaultTap = collection.mappings.first.flatMap { mapping -> String? in
             if case let .dualRole(dr) = mapping.behavior { return dr.tapAction }
-            return mapping.output
+            return mapping.action.outputString
         }
         let defaultHold = collection.mappings.first.flatMap { mapping -> String? in
             if case let .dualRole(dr) = mapping.behavior { return dr.holdAction }

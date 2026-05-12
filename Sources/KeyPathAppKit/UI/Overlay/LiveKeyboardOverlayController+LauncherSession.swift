@@ -65,17 +65,19 @@ extension LiveKeyboardOverlayController {
         }
     }
 
-    static func launcherActionMessage(for target: LauncherTarget) -> String? {
-        switch target {
-        case let .app(name, bundleId):
+    static func launcherActionMessage(for action: KeyAction) -> String? {
+        switch action {
+        case let .launchApp(name, bundleId):
             return "launch:\(bundleId ?? name)"
-        case let .url(urlString):
+        case let .openURL(urlString):
             let encoded = URLMappingFormatter.encodeForPushMessage(urlString)
             return "open:\(encoded)"
-        case let .folder(path, _):
+        case let .openFolder(path, _):
             return "folder:\(path)"
-        case let .script(path, _):
+        case let .runScript(path, _):
             return "script:\(path)"
+        default:
+            return nil
         }
     }
 

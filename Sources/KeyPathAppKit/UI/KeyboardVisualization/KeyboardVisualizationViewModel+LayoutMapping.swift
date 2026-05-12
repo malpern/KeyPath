@@ -80,10 +80,10 @@ extension KeyboardVisualizationViewModel {
                 guard mapping.isEnabled else { return false }
 
                 // URLs are always included (browser handles them)
-                if case .url = mapping.target { return true }
+                if case .openURL = mapping.action { return true }
 
                 // Apps: check if installed
-                if case let .app(name, bundleId) = mapping.target {
+                if case let .launchApp(name, bundleId) = mapping.action {
                     let isInstalled = Self.isAppInstalled(name: name, bundleId: bundleId)
                     if !isInstalled {
                         AppLogger.shared.debug("🚀 [KeyboardViz] Skipping \(name) - not installed")
@@ -334,11 +334,11 @@ extension KeyboardVisualizationViewModel {
             for keyMapping in collection.mappings {
                 let input = keyMapping.input.lowercased()
                 // First try push-msg pattern (apps, system actions, URLs)
-                if let info = Self.extractPushMsgInfo(from: keyMapping.output, description: keyMapping.description) {
+                if let info = Self.extractPushMsgInfo(from: keyMapping.action.kanataOutput, description: keyMapping.description) {
                     actionByInput[input] = info
                 } else {
                     // Simple key remap
-                    let outputKey = keyMapping.output.lowercased()
+                    let outputKey = keyMapping.action.outputString.lowercased()
                     if let outputKeyCode = Self.kanataNameToKeyCode(outputKey) {
                         let displayLabel = outputKey.count == 1 ? outputKey.uppercased() : outputKey.capitalized
                         actionByInput[input] = .mapped(
@@ -364,11 +364,11 @@ extension KeyboardVisualizationViewModel {
 
             let input = rule.input.lowercased()
             // First try push-msg pattern (apps, system actions, URLs)
-            if let info = Self.extractPushMsgInfo(from: rule.output, description: rule.notes) {
+            if let info = Self.extractPushMsgInfo(from: rule.action.kanataOutput, description: rule.notes) {
                 actionByInput[input] = info
             } else {
                 // Simple key remap (e.g., "a" -> "b") or media key (e.g., "brup", "volu")
-                let outputKey = rule.output.lowercased()
+                let outputKey = rule.action.outputString.lowercased()
 
                 // Check if this is a known system action/media key (brup, volu, pp, etc.)
                 // If so, create a systemAction LayerKeyInfo so the SF Symbol renders correctly

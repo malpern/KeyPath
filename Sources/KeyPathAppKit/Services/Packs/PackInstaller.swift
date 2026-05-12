@@ -248,11 +248,11 @@ public final class PackInstaller {
             return nil
         }()
 
-        let newTap = tap ?? existingDual?.tapAction ?? rule.output
+        let newTap = tap ?? existingDual?.tapAction ?? rule.action.outputString
         let newHold = hold ?? existingDual?.holdAction
 
         if let newHold, !newHold.isEmpty {
-            rule.output = newTap
+            rule.action = .keystroke(key: newTap)
             rule.behavior = .dualRole(
                 DualRoleBehavior(
                     tapAction: newTap,
@@ -270,7 +270,7 @@ public final class PackInstaller {
             )
         } else {
             // Simple remap (no hold).
-            rule.output = newTap
+            rule.action = .keystroke(key: newTap)
             rule.behavior = nil
         }
 
@@ -335,7 +335,7 @@ public final class PackInstaller {
                 id: UUID(),
                 title: title,
                 input: template.input,
-                output: template.output,
+                action: .keystroke(key: template.output),
                 shiftedOutput: nil,
                 isEnabled: true,
                 notes: template.notes,

@@ -36,7 +36,7 @@ public enum KanataBehaviorRenderer {
     public static func render(_ mapping: KeyMapping, hyperLinkedLayerInfos: [HyperLinkedLayerInfo]) -> String {
         guard let behavior = mapping.behavior else {
             // No advanced behavior—fall back to simple output rendering
-            return KanataKeyConverter.convertToKanataSequence(mapping.output)
+            return KanataKeyConverter.convertToKanataSequence(mapping.action.kanataOutput)
         }
 
         switch behavior {
@@ -163,7 +163,7 @@ public enum KanataBehaviorRenderer {
     ) -> String {
         switch behavior {
         case .tap:
-            KanataKeyConverter.convertToKanataSequence(mapping.output)
+            KanataKeyConverter.convertToKanataSequence(mapping.action.kanataOutput)
         case let .tapDance(tapDance):
             renderTapDance(tapDance, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
         }

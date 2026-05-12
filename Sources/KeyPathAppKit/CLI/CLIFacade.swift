@@ -13,7 +13,7 @@ public struct CLIFacade: Sendable {
 
     public func loadCustomRules() async -> [CLICustomRule] {
         let rules = await CustomRulesStore.shared.loadRules()
-        return rules.map { CLICustomRule(input: $0.input, output: $0.output, behavior: $0.behavior.map(Self.describeBehavior)) }
+        return rules.map { CLICustomRule(input: $0.input, output: $0.action.outputString, behavior: $0.behavior.map(Self.describeBehavior)) }
     }
 
     private static func describeBehavior(_ behavior: MappingBehavior) -> String {
@@ -37,7 +37,7 @@ public struct CLIFacade: Sendable {
         var rules = await CustomRulesStore.shared.loadRules()
         let hadExisting = rules.contains { $0.input == input }
         rules.removeAll { $0.input == input }
-        let rule = CustomRule(input: input, output: output)
+        let rule = CustomRule(input: input, action: .keystroke(key: output))
         rules.append(rule)
         try await CustomRulesStore.shared.saveRules(rules)
         return hadExisting
@@ -51,7 +51,7 @@ public struct CLIFacade: Sendable {
         rules.removeAll { $0.input == input }
         let rule = CustomRule(
             input: input,
-            output: tap,
+            action: .keystroke(key: tap),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: tap,
                 holdAction: hold,

@@ -76,7 +76,7 @@ final class MapperViewModelAppSpecificTests: XCTestCase {
         // Create a keymap with an override
         let override = AppKeyOverride(
             inputKey: "a",
-            outputAction: "b",
+            action: .keystroke(key: "b"),
             description: "Test mapping"
         )
         let keymap = AppKeymap(
@@ -94,14 +94,14 @@ final class MapperViewModelAppSpecificTests: XCTestCase {
         XCTAssertEqual(loaded?.mapping.displayName, displayName)
         XCTAssertEqual(loaded?.overrides.count, 1)
         XCTAssertEqual(loaded?.overrides.first?.inputKey, "a")
-        XCTAssertEqual(loaded?.overrides.first?.outputAction, "b")
+        XCTAssertEqual(loaded?.overrides.first?.action.outputString, "b")
     }
 
     func testAppKeymapStore_UpdateExistingOverride() async throws {
         let bundleId = "com.apple.Bear"
 
         // Create initial keymap
-        let override1 = AppKeyOverride(inputKey: "a", outputAction: "b")
+        let override1 = AppKeyOverride(inputKey: "a", action: .keystroke(key: "b"))
         let keymap1 = AppKeymap(
             bundleIdentifier: bundleId,
             displayName: "Bear",
@@ -110,7 +110,7 @@ final class MapperViewModelAppSpecificTests: XCTestCase {
         try await store.upsertKeymap(keymap1)
 
         // Update with new override for same key
-        let override2 = AppKeyOverride(inputKey: "a", outputAction: "c")
+        let override2 = AppKeyOverride(inputKey: "a", action: .keystroke(key: "c"))
         let fetched = await store.getKeymap(bundleIdentifier: bundleId)
         var keymap2 = try XCTUnwrap(fetched)
         keymap2.overrides = [override2]
@@ -119,12 +119,12 @@ final class MapperViewModelAppSpecificTests: XCTestCase {
         // Verify update
         let loaded = await store.getKeymap(bundleIdentifier: bundleId)
         XCTAssertEqual(loaded?.overrides.count, 1)
-        XCTAssertEqual(loaded?.overrides.first?.outputAction, "c")
+        XCTAssertEqual(loaded?.overrides.first?.action.outputString, "c")
     }
 
     func testAppKeymapStore_MultipleAppsWithSameKeyMapping() async throws {
         // Bear: a → b
-        let bearOverride = AppKeyOverride(inputKey: "a", outputAction: "b")
+        let bearOverride = AppKeyOverride(inputKey: "a", action: .keystroke(key: "b"))
         let bearKeymap = AppKeymap(
             bundleIdentifier: "com.apple.Bear",
             displayName: "Bear",
@@ -132,7 +132,7 @@ final class MapperViewModelAppSpecificTests: XCTestCase {
         )
 
         // Safari: a → c (same input key, different output)
-        let safariOverride = AppKeyOverride(inputKey: "a", outputAction: "c")
+        let safariOverride = AppKeyOverride(inputKey: "a", action: .keystroke(key: "c"))
         let safariKeymap = AppKeymap(
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari",
@@ -149,15 +149,15 @@ final class MapperViewModelAppSpecificTests: XCTestCase {
         let bearLoaded = await store.getKeymap(bundleIdentifier: "com.apple.Bear")
         let safariLoaded = await store.getKeymap(bundleIdentifier: "com.apple.Safari")
 
-        XCTAssertEqual(bearLoaded?.overrides.first?.outputAction, "b")
-        XCTAssertEqual(safariLoaded?.overrides.first?.outputAction, "c")
+        XCTAssertEqual(bearLoaded?.overrides.first?.action.outputString, "b")
+        XCTAssertEqual(safariLoaded?.overrides.first?.action.outputString, "c")
     }
 
     // MARK: - Config Generation Integration
 
     func testConfigGenerator_ProducesCorrectSwitchExpression() async throws {
         // Store a mapping for Bear
-        let override = AppKeyOverride(inputKey: "a", outputAction: "b")
+        let override = AppKeyOverride(inputKey: "a", action: .keystroke(key: "b"))
         let keymap = AppKeymap(
             bundleIdentifier: "com.apple.Bear",
             displayName: "Bear",
@@ -184,13 +184,13 @@ final class MapperViewModelAppSpecificTests: XCTestCase {
         let bearKeymap = AppKeymap(
             bundleIdentifier: "com.apple.Bear",
             displayName: "Bear",
-            overrides: [AppKeyOverride(inputKey: "a", outputAction: "b")]
+            overrides: [AppKeyOverride(inputKey: "a", action: .keystroke(key: "b"))]
         )
         // Safari: a → c
         let safariKeymap = AppKeymap(
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari",
-            overrides: [AppKeyOverride(inputKey: "a", outputAction: "c")]
+            overrides: [AppKeyOverride(inputKey: "a", action: .keystroke(key: "c"))]
         )
 
         try await store.upsertKeymap(bearKeymap)
@@ -215,7 +215,7 @@ final class MapperViewModelAppSpecificTests: XCTestCase {
         let keymap = AppKeymap(
             bundleIdentifier: "com.apple.Bear",
             displayName: "Bear",
-            overrides: [AppKeyOverride(inputKey: "a", outputAction: "b")]
+            overrides: [AppKeyOverride(inputKey: "a", action: .keystroke(key: "b"))]
         )
         try await store.upsertKeymap(keymap)
 

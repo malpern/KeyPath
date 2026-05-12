@@ -187,20 +187,20 @@ struct MappingBehaviorTests {
 
     // MARK: - KeyMapping integration
 
-    @Test("KeyMapping with nil behavior decodes from legacy JSON")
+    @Test("KeyMapping with nil behavior decodes from JSON")
     func keyMappingLegacyDecode() throws {
-        let legacyJSON = """
+        let json = """
         {
             "id": "11111111-1111-1111-1111-111111111111",
             "input": "caps",
-            "output": "esc"
+            "action": {"keystroke":{"key":"esc"}}
         }
         """
-        let data = try #require(legacyJSON.data(using: .utf8))
+        let data = try #require(json.data(using: .utf8))
         let mapping = try JSONDecoder().decode(KeyMapping.self, from: data)
 
         #expect(mapping.input == "caps")
-        #expect(mapping.output == "esc")
+        #expect(mapping.action == .keystroke(key: "esc"))
         #expect(mapping.behavior == nil)
     }
 
@@ -208,7 +208,7 @@ struct MappingBehaviorTests {
     func keyMappingWithBehavior() throws {
         let mapping = KeyMapping(
             input: "a",
-            output: "a",
+            action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior.homeRowMod(letter: "a", modifier: "lctl"))
         )
 
@@ -232,7 +232,7 @@ struct MappingBehaviorTests {
         let rule = CustomRule(
             title: "Home Row A",
             input: "a",
-            output: "a",
+            action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior.homeRowMod(letter: "a", modifier: "lctl"))
         )
 
@@ -257,7 +257,7 @@ struct MappingBehaviorTests {
         )
         let rule = CustomRule(
             input: "s",
-            output: "s",
+            action: .keystroke(key: "s"),
             behavior: behavior
         )
 
@@ -267,23 +267,23 @@ struct MappingBehaviorTests {
         #expect(mapping.behavior == behavior)
     }
 
-    @Test("CustomRule without behavior decodes from legacy JSON")
+    @Test("CustomRule without behavior decodes from JSON")
     func customRuleLegacyDecode() throws {
-        let legacyJSON = """
+        let json = """
         {
             "id": "22222222-2222-2222-2222-222222222222",
             "title": "Test",
             "input": "caps",
-            "output": "esc",
+            "action": {"keystroke":{"key":"esc"}},
             "isEnabled": true,
             "createdAt": 0
         }
         """
-        let data = try #require(legacyJSON.data(using: .utf8))
+        let data = try #require(json.data(using: .utf8))
         let rule = try JSONDecoder().decode(CustomRule.self, from: data)
 
         #expect(rule.input == "caps")
-        #expect(rule.output == "esc")
+        #expect(rule.action == .keystroke(key: "esc"))
         #expect(rule.behavior == nil)
     }
 
@@ -428,7 +428,7 @@ struct MappingBehaviorTests {
     func keyMappingWithChordBehavior() throws {
         let mapping = KeyMapping(
             input: "j",
-            output: "_", // placeholder - chord doesn't use individual output
+            action: .keystroke(key: "_"), // placeholder - chord doesn't use individual output
             behavior: .chord(ChordBehavior.twoKey("j", "k", output: "esc"))
         )
 
@@ -451,7 +451,7 @@ struct MappingBehaviorTests {
         let rule = CustomRule(
             title: "J+K Escape",
             input: "j",
-            output: "_",
+            action: .keystroke(key: "_"),
             behavior: .chord(ChordBehavior.twoKey("j", "k", output: "esc"))
         )
 

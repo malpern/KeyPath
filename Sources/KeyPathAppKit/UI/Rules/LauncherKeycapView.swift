@@ -58,7 +58,7 @@ struct LauncherKeycapView: View {
         .task {
             await loadIcon()
         }
-        .onChange(of: mapping?.target) { _, _ in
+        .onChange(of: mapping?.action) { _, _ in
             Task {
                 await loadIcon()
             }
@@ -100,7 +100,7 @@ struct LauncherKeycapView: View {
                         .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
 
                     // Link badge for websites only
-                    if mapping?.target.isURL == true {
+                    if mapping?.action.isOpenURL == true {
                         linkBadge(size: iconSize * 0.35)
                     }
                 }
@@ -170,7 +170,7 @@ struct LauncherKeycapView: View {
         if isCapsLockKey {
             "Hyper key (Caps Lock)"
         } else if let mapping {
-            "\(displayLabel.uppercased()): \(mapping.target.displayName)"
+            "\(displayLabel.uppercased()): \(mapping.action.displayName)"
         } else {
             "\(displayLabel.uppercased()): Unmapped"
         }
@@ -193,22 +193,25 @@ struct LauncherKeycapView: View {
             }
         }
 
-        switch mapping.target {
-        case .app, .folder, .script:
-            icon = AppIconResolver.icon(for: mapping.target)
-        case let .url(urlString):
+        switch mapping.action {
+        case .launchApp, .openFolder, .runScript:
+            icon = AppIconResolver.icon(for: mapping.action)
+        case let .openURL(urlString):
             icon = await services.faviconFetcher.fetchFavicon(for: urlString)
+        default:
+            break
         }
     }
 
-    /// Fallback SF Symbol name based on target type
+    /// Fallback SF Symbol name based on action type
     private var fallbackIconName: String {
-        guard let target = mapping?.target else { return "questionmark" }
-        switch target {
-        case .app: return "app.fill"
-        case .url: return "globe"
-        case .folder: return "folder.fill"
-        case .script: return "terminal.fill"
+        guard let action = mapping?.action else { return "questionmark" }
+        switch action {
+        case .launchApp: return "app.fill"
+        case .openURL: return "globe"
+        case .openFolder: return "folder.fill"
+        case .runScript: return "terminal.fill"
+        default: return "questionmark"
         }
     }
 }
@@ -235,7 +238,7 @@ struct LauncherKeycapView: View {
             accessibilityKey: "s",
             mapping: LauncherMapping(
                 key: "s",
-                target: .app(name: "Safari", bundleId: "com.apple.Safari")
+                action: .launchApp(name: "Safari", bundleId: "com.apple.Safari")
             ),
             isSelected: false,
             onTap: {}
@@ -249,7 +252,7 @@ struct LauncherKeycapView: View {
             accessibilityKey: "t",
             mapping: LauncherMapping(
                 key: "t",
-                target: .app(name: "Terminal", bundleId: "com.apple.Terminal")
+                action: .launchApp(name: "Terminal", bundleId: "com.apple.Terminal")
             ),
             isSelected: true,
             onTap: {}
@@ -263,7 +266,7 @@ struct LauncherKeycapView: View {
             accessibilityKey: "1",
             mapping: LauncherMapping(
                 key: "1",
-                target: .url("github.com")
+                action: .openURL("github.com")
             ),
             isSelected: false,
             onTap: {}

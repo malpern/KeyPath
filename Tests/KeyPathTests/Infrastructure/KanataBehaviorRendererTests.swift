@@ -8,14 +8,14 @@ struct KanataBehaviorRendererTests {
 
     @Test("Simple mapping renders output directly")
     func simpleMapping() {
-        let mapping = KeyMapping(input: "caps", output: "esc")
+        let mapping = KeyMapping(input: "caps", action: .keystroke(key: "esc"))
         let result = KanataBehaviorRenderer.render(mapping)
         #expect(result == "esc")
     }
 
     @Test("Simple mapping with modifier prefix")
     func simpleMappingWithModifier() {
-        let mapping = KeyMapping(input: "a", output: "M-c")
+        let mapping = KeyMapping(input: "a", action: .keystroke(key: "M-c"))
         let result = KanataBehaviorRenderer.render(mapping)
         #expect(result == "M-c")
     }
@@ -26,7 +26,7 @@ struct KanataBehaviorRendererTests {
     func basicTapHold() {
         let mapping = KeyMapping(
             input: "a",
-            output: "a",
+            action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "a",
                 holdAction: "lctl"
@@ -40,7 +40,7 @@ struct KanataBehaviorRendererTests {
     func tapHoldCustomTimeouts() {
         let mapping = KeyMapping(
             input: "s",
-            output: "s",
+            action: .keystroke(key: "s"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "s",
                 holdAction: "lalt",
@@ -56,7 +56,7 @@ struct KanataBehaviorRendererTests {
     func tapHoldPress() {
         let mapping = KeyMapping(
             input: "f",
-            output: "f",
+            action: .keystroke(key: "f"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "f",
                 holdAction: "lmet",
@@ -71,7 +71,7 @@ struct KanataBehaviorRendererTests {
     func tapHoldRelease() {
         let mapping = KeyMapping(
             input: "j",
-            output: "j",
+            action: .keystroke(key: "j"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "j",
                 holdAction: "rsft",
@@ -86,7 +86,7 @@ struct KanataBehaviorRendererTests {
     func homeRowModFactory() {
         let mapping = KeyMapping(
             input: "d",
-            output: "d",
+            action: .keystroke(key: "d"),
             behavior: .dualRole(DualRoleBehavior.homeRowMod(letter: "d", modifier: "lsft"))
         )
         let result = KanataBehaviorRenderer.render(mapping)
@@ -98,7 +98,7 @@ struct KanataBehaviorRendererTests {
     func bothFlagsSet() {
         let mapping = KeyMapping(
             input: "a",
-            output: "a",
+            action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "a",
                 holdAction: "lctl",
@@ -115,7 +115,7 @@ struct KanataBehaviorRendererTests {
     func customTapKeys() {
         let mapping = KeyMapping(
             input: "a",
-            output: "a",
+            action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "a",
                 holdAction: "lctl",
@@ -130,7 +130,7 @@ struct KanataBehaviorRendererTests {
     func customTapKeysWithFlags() {
         let mapping = KeyMapping(
             input: "a",
-            output: "a",
+            action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "a",
                 holdAction: "lctl",
@@ -190,7 +190,7 @@ struct KanataBehaviorRendererTests {
     func nonHrmDualRoleStillTapHoldPress() {
         let mapping = KeyMapping(
             input: "caps",
-            output: "caps",
+            action: .keystroke(key: "caps"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "esc",
                 holdAction: "lctl",
@@ -208,7 +208,7 @@ struct KanataBehaviorRendererTests {
     func twoStepTapDance() {
         let mapping = KeyMapping(
             input: "caps",
-            output: "esc",
+            action: .keystroke(key: "esc"),
             behavior: .tapOrTapDance(.tapDance(TapDanceBehavior.twoStep(
                 singleTap: "esc",
                 doubleTap: "caps"
@@ -222,7 +222,7 @@ struct KanataBehaviorRendererTests {
     func tapDanceCustomWindow() {
         let mapping = KeyMapping(
             input: "spc",
-            output: "spc",
+            action: .keystroke(key: "spc"),
             behavior: .tapOrTapDance(.tapDance(TapDanceBehavior(
                 windowMs: 150,
                 steps: [
@@ -240,7 +240,7 @@ struct KanataBehaviorRendererTests {
     func emptyTapDance() {
         let mapping = KeyMapping(
             input: "x",
-            output: "x",
+            action: .keystroke(key: "x"),
             behavior: .tapOrTapDance(.tapDance(TapDanceBehavior(windowMs: 200, steps: [])))
         )
         let result = KanataBehaviorRenderer.render(mapping)
@@ -253,7 +253,7 @@ struct KanataBehaviorRendererTests {
     func macroTextRendering() {
         let mapping = KeyMapping(
             input: "m",
-            output: "m",
+            action: .keystroke(key: "m"),
             behavior: .macro(MacroBehavior(text: "hi!"))
         )
         let result = KanataBehaviorRenderer.render(mapping)
@@ -264,7 +264,7 @@ struct KanataBehaviorRendererTests {
     func macroKeySequenceRendering() {
         let mapping = KeyMapping(
             input: "m",
-            output: "m",
+            action: .keystroke(key: "m"),
             behavior: .macro(MacroBehavior(outputs: ["M-right", "a"], source: .keys))
         )
         let result = KanataBehaviorRenderer.render(mapping)
@@ -275,7 +275,7 @@ struct KanataBehaviorRendererTests {
     func macroTextUnsupportedCharacters() {
         let mapping = KeyMapping(
             input: "m",
-            output: "m",
+            action: .keystroke(key: "m"),
             behavior: .macro(MacroBehavior(text: "hi\u{00E9}"))
         )
         let result = KanataBehaviorRenderer.render(mapping)
@@ -288,7 +288,7 @@ struct KanataBehaviorRendererTests {
     func tapHoldSpecialKeys() {
         let mapping = KeyMapping(
             input: "caps",
-            output: "caps",
+            action: .keystroke(key: "caps"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "escape",
                 holdAction: "command"
@@ -306,7 +306,7 @@ struct KanataBehaviorRendererTests {
         let rule = CustomRule(
             title: "Home Row A",
             input: "a",
-            output: "a",
+            action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior.homeRowMod(letter: "a", modifier: "lctl"))
         )
 
@@ -321,7 +321,7 @@ struct KanataBehaviorRendererTests {
         let rule = CustomRule(
             title: "Caps Escape/CapsLock",
             input: "caps",
-            output: "esc",
+            action: .keystroke(key: "esc"),
             behavior: .tapOrTapDance(.tapDance(TapDanceBehavior.twoStep(singleTap: "esc", doubleTap: "caps")))
         )
 
@@ -335,7 +335,7 @@ struct KanataBehaviorRendererTests {
     func customRuleSimpleIntegration() {
         let rule = CustomRule(
             input: "caps",
-            output: "esc"
+            action: .keystroke(key: "esc")
         )
 
         let mapping = rule.asKeyMapping()
@@ -350,7 +350,7 @@ struct KanataBehaviorRendererTests {
     func hyperKeyword() {
         let mapping = KeyMapping(
             input: "caps",
-            output: "caps",
+            action: .keystroke(key: "caps"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "esc",
                 holdAction: "hyper"
@@ -364,7 +364,7 @@ struct KanataBehaviorRendererTests {
     func mehKeyword() {
         let mapping = KeyMapping(
             input: "caps",
-            output: "caps",
+            action: .keystroke(key: "caps"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "esc",
                 holdAction: "meh"
@@ -378,7 +378,7 @@ struct KanataBehaviorRendererTests {
     func hyperCaseInsensitive() {
         let mapping = KeyMapping(
             input: "caps",
-            output: "caps",
+            action: .keystroke(key: "caps"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "esc",
                 holdAction: "HYPER"
@@ -394,7 +394,7 @@ struct KanataBehaviorRendererTests {
     func multiKeyAction() {
         let mapping = KeyMapping(
             input: "a",
-            output: "a",
+            action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "a",
                 holdAction: "lctl lmet"
@@ -408,7 +408,7 @@ struct KanataBehaviorRendererTests {
     func multiKeyTapDance() {
         let mapping = KeyMapping(
             input: "x",
-            output: "x",
+            action: .keystroke(key: "x"),
             behavior: .tapOrTapDance(.tapDance(TapDanceBehavior(
                 windowMs: 200,
                 steps: [
@@ -425,7 +425,7 @@ struct KanataBehaviorRendererTests {
     func hyperInTapDance() {
         let mapping = KeyMapping(
             input: "caps",
-            output: "caps",
+            action: .keystroke(key: "caps"),
             behavior: .tapOrTapDance(.tapDance(TapDanceBehavior(
                 windowMs: 200,
                 steps: [
@@ -444,7 +444,7 @@ struct KanataBehaviorRendererTests {
     func sExpressionLayerWhileHeld() {
         let mapping = KeyMapping(
             input: "a",
-            output: "a",
+            action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "a",
                 holdAction: "(layer-while-held nav)",
@@ -459,7 +459,7 @@ struct KanataBehaviorRendererTests {
     func sExpressionLayerToggle() {
         let mapping = KeyMapping(
             input: "a",
-            output: "a",
+            action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "a",
                 holdAction: "(layer-toggle nav)",
@@ -474,7 +474,7 @@ struct KanataBehaviorRendererTests {
     func sExpressionNotMangled() {
         let mapping = KeyMapping(
             input: "s",
-            output: "s",
+            action: .keystroke(key: "s"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "s",
                 holdAction: "(layer-while-held sym)",
@@ -491,7 +491,7 @@ struct KanataBehaviorRendererTests {
     func sExpressionTapAction() {
         let mapping = KeyMapping(
             input: "a",
-            output: "a",
+            action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
                 tapAction: "(one-shot-press 5000 (layer-while-held nav))",
                 holdAction: "lctl"
@@ -505,7 +505,7 @@ struct KanataBehaviorRendererTests {
 
     @Test("Simple mapping with S-expression output passes through")
     func simpleOutputSExpression() {
-        let mapping = KeyMapping(input: "s", output: "(multi XX (push-msg \"layer:base\"))")
+        let mapping = KeyMapping(input: "s", action: .rawKanata("(multi XX (push-msg \"layer:base\"))"))
         let result = KanataBehaviorRenderer.render(mapping)
         #expect(result == "(multi XX (push-msg \"layer:base\"))")
     }

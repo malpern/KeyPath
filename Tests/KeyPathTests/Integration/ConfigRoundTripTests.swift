@@ -57,9 +57,9 @@ final class ConfigRoundTripTests: XCTestCase {
         )
 
         let rules = [
-            CustomRule(input: "a", output: "b", shiftedOutput: "c"),
-            CustomRule(input: "caps", output: "esc", isEnabled: true),
-            CustomRule(input: "1", output: "2", shiftedOutput: "at", isEnabled: false),
+            CustomRule(input: "a", action: .keystroke(key: "b"), shiftedOutput: "c"),
+            CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true),
+            CustomRule(input: "1", action: .keystroke(key: "2"), shiftedOutput: "at", isEnabled: false),
         ]
 
         try await store.saveRules(rules)
@@ -69,7 +69,7 @@ final class ConfigRoundTripTests: XCTestCase {
 
         for (original, roundTripped) in zip(rules, loaded) {
             XCTAssertEqual(roundTripped.input, original.input)
-            XCTAssertEqual(roundTripped.output, original.output)
+            XCTAssertEqual(roundTripped.action, original.action)
             XCTAssertEqual(roundTripped.shiftedOutput, original.shiftedOutput)
             XCTAssertEqual(roundTripped.isEnabled, original.isEnabled)
         }
@@ -106,7 +106,7 @@ final class ConfigRoundTripTests: XCTestCase {
             autoResolveConflicts: true
         )
         await manager.saveCustomRule(
-            CustomRule(input: "s", output: "d"),
+            CustomRule(input: "s", action: .keystroke(key: "d")),
             skipReload: true,
             autoResolveConflicts: true
         )

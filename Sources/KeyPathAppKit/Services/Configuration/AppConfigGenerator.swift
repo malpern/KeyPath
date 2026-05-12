@@ -317,7 +317,7 @@ public enum AppConfigGenerator {
         // Add each app-specific case (Kanata switch requires: condition action break/fallthrough)
         for (keymap, override) in overrides {
             let vkName = keymap.mapping.virtualKeyName
-            let output = escapeOutputAction(override.outputAction)
+            let output = escapeOutputAction(override.action.kanataOutput)
             parts.append("((\(KanataKeyword.inputVirtual) \(vkName))) \(output) break")
         }
 
@@ -334,7 +334,7 @@ public enum AppConfigGenerator {
             var formatted = "(switch\n"
             for (keymap, override) in overrides {
                 let vkName = keymap.mapping.virtualKeyName
-                let output = escapeOutputAction(override.outputAction)
+                let output = escapeOutputAction(override.action.kanataOutput)
                 formatted += "            ((\(KanataKeyword.inputVirtual) \(vkName))) \(output) break\n"
             }
             formatted += "            () \(safeInputKey) break)"

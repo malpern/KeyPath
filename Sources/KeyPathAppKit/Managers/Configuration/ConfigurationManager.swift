@@ -265,7 +265,7 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging { // @pr
                 let backupPath = await handleInvalidStartupConfig(configContent: configContent, errors: cli.errors)
 
                 // Return default mapping (caps->esc) and the validation error for UI
-                let defaultMapping = KeyMapping(input: "caps", output: "esc")
+                let defaultMapping = KeyMapping(input: "caps", action: .keystroke(key: "esc"))
                 return ([defaultMapping], .invalidStartup(errors: cli.errors, backupPath: backupPath))
             }
         } catch {
@@ -295,7 +295,7 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging { // @pr
 
         // Generate default configuration
         AppLogger.shared.log("🔧 [ConfigManager] Generating default fallback configuration...")
-        let defaultMapping = KeyMapping(input: "caps", output: "esc")
+        let defaultMapping = KeyMapping(input: "caps", action: .keystroke(key: "esc"))
         let defaultConfig = generateConfig(mappings: [defaultMapping])
         AppLogger.shared.log("🔧 [ConfigManager] Default config generated with mapping: caps → esc")
 
@@ -408,7 +408,7 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging { // @pr
     func generateConfig(mappings: [KeyMapping]) -> String {
         guard !mappings.isEmpty else {
             // Return default config with caps->esc if no mappings
-            let defaultMapping = KeyMapping(input: "caps", output: "escape")
+            let defaultMapping = KeyMapping(input: "caps", action: .keystroke(key: "escape"))
             return KanataConfiguration.generateFromMappings([defaultMapping])
         }
 

@@ -97,7 +97,7 @@ private struct AvailableRuleCollectionCard: View {
                                 }
                                 Image(systemName: "arrow.right")
                                     .font(.caption2)
-                                Text(mapping.output)
+                                Text(mapping.action.outputString)
                                     .font(.caption.monospaced())
                             }
                             .padding(.horizontal, 6)

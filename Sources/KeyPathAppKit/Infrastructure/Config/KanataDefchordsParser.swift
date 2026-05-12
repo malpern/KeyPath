@@ -60,7 +60,7 @@ enum KanataDefchordsParser {
     static func referencedChordGroups(in mappings: [KeyMapping]) -> Set<String> {
         var names: Set<String> = []
         for mapping in mappings {
-            guard let name = parseChordGroupName(from: mapping.output) else { continue }
+            guard let name = parseChordGroupName(from: mapping.action.kanataOutput) else { continue }
             names.insert(name)
         }
         return names

@@ -37,15 +37,15 @@ final class KeymapMappingGeneratorTests: XCTestCase {
 
         // Verify some specific Colemak remappings
         // In Colemak, the physical 'e' key (QWERTY) outputs 'f'
-        let eToF = mappings.first { $0.input == "e" && $0.output == "f" }
+        let eToF = mappings.first { $0.input == "e" && $0.action == .keystroke(key: "f") }
         XCTAssertNotNil(eToF, "Colemak should remap e -> f")
 
         // In Colemak, the physical 'r' key (QWERTY) outputs 'p'
-        let rToP = mappings.first { $0.input == "r" && $0.output == "p" }
+        let rToP = mappings.first { $0.input == "r" && $0.action == .keystroke(key: "p") }
         XCTAssertNotNil(rToP, "Colemak should remap r -> p")
 
         // In Colemak, the physical 's' key stays as 's' - this should NOT be in mappings
-        let sToS = mappings.first { $0.input == "s" && $0.output == "s" }
+        let sToS = mappings.first { $0.input == "s" && $0.action == .keystroke(key: "s") }
         XCTAssertNil(sToS, "Colemak should not have identity mappings (s -> s)")
     }
 
@@ -59,7 +59,7 @@ final class KeymapMappingGeneratorTests: XCTestCase {
         let unchangedKeys = ["q", "w", "a", "z", "x", "c", "v", "b", "m", ",", ".", "/"]
 
         for key in unchangedKeys {
-            let identityMapping = mappings.first { $0.input == key && $0.output == key }
+            let identityMapping = mappings.first { $0.input == key && $0.action == .keystroke(key: key) }
             XCTAssertNil(identityMapping, "Key '\(key)' should not have an identity mapping")
         }
     }
@@ -76,11 +76,11 @@ final class KeymapMappingGeneratorTests: XCTestCase {
 
         // Colemak-DH specific: D and H are moved compared to regular Colemak
         // The physical 't' key in QWERTY outputs 'b' in Colemak-DH (top row position 5)
-        let tToB = mappings.first { $0.input == "t" && $0.output == "b" }
+        let tToB = mappings.first { $0.input == "t" && $0.action == .keystroke(key: "b") }
         XCTAssertNotNil(tToB, "Colemak-DH should remap t -> b")
 
         // The physical 'd' key in QWERTY outputs 's' in Colemak-DH
-        let dToS = mappings.first { $0.input == "d" && $0.output == "s" }
+        let dToS = mappings.first { $0.input == "d" && $0.action == .keystroke(key: "s") }
         XCTAssertNotNil(dToS, "Colemak-DH should remap d -> s")
     }
 
@@ -96,11 +96,11 @@ final class KeymapMappingGeneratorTests: XCTestCase {
 
         // Dvorak radically rearranges the keyboard
         // In Dvorak, the physical 'q' key (QWERTY) outputs apostrophe
-        let qToApostrophe = mappings.first { $0.input == "q" && $0.output == "'" }
+        let qToApostrophe = mappings.first { $0.input == "q" && $0.action == .keystroke(key: "'") }
         XCTAssertNotNil(qToApostrophe, "Dvorak should remap q -> '")
 
         // In Dvorak, the physical 'a' key stays 'a'
-        let aToA = mappings.first { $0.input == "a" && $0.output == "a" }
+        let aToA = mappings.first { $0.input == "a" && $0.action == .keystroke(key: "a") }
         XCTAssertNil(aToA, "Dvorak should not have identity mapping for 'a'")
     }
 
@@ -135,11 +135,11 @@ final class KeymapMappingGeneratorTests: XCTestCase {
         XCTAssertFalse(mappings.isEmpty, "Workman should generate mappings")
 
         // In Workman, the physical 'w' key (QWERTY) outputs 'd'
-        let wToD = mappings.first { $0.input == "w" && $0.output == "d" }
+        let wToD = mappings.first { $0.input == "w" && $0.action == .keystroke(key: "d") }
         XCTAssertNotNil(wToD, "Workman should remap w -> d")
 
         // In Workman, the physical 'e' key (QWERTY) outputs 'r'
-        let eToR = mappings.first { $0.input == "e" && $0.output == "r" }
+        let eToR = mappings.first { $0.input == "e" && $0.action == .keystroke(key: "r") }
         XCTAssertNotNil(eToR, "Workman should remap e -> r")
     }
 
@@ -199,7 +199,7 @@ final class KeymapMappingGeneratorTests: XCTestCase {
 
         for mapping in mappings {
             XCTAssertFalse(mapping.input.isEmpty, "Mapping should have non-empty input")
-            XCTAssertFalse(mapping.output.isEmpty, "Mapping should have non-empty output")
+            XCTAssertFalse(mapping.action.outputString.isEmpty, "Mapping should have non-empty output")
         }
     }
 
@@ -212,7 +212,7 @@ final class KeymapMappingGeneratorTests: XCTestCase {
 
             for mapping in mappings {
                 XCTAssertFalse(mapping.input.isEmpty, "Mapping input should not be empty for \(keymap.id)")
-                XCTAssertFalse(mapping.output.isEmpty, "Mapping output should not be empty for \(keymap.id)")
+                XCTAssertFalse(mapping.action.outputString.isEmpty, "Mapping output should not be empty for \(keymap.id)")
             }
         }
     }
@@ -227,7 +227,7 @@ final class KeymapMappingGeneratorTests: XCTestCase {
             for mapping in mappings {
                 XCTAssertNotEqual(
                     mapping.input,
-                    mapping.output,
+                    mapping.action.outputString,
                     "Mapping should not have same input and output for \(keymap.id): \(mapping.input)"
                 )
             }

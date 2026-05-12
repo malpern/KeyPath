@@ -168,7 +168,7 @@ struct OverlayLaunchersSection: View {
             if let existing = config.mappings.first(where: { LauncherGridConfig.normalizeKey($0.key) == normalized }) {
                 editingMapping = existing
             } else {
-                editingMapping = LauncherMapping(key: normalized, target: .app(name: "", bundleId: nil))
+                editingMapping = LauncherMapping(key: normalized, action: .launchApp(name: "", bundleId: nil))
             }
         }
     }
@@ -309,7 +309,7 @@ private struct LauncherMappingRow: View {
     }
 
     private var displayName: String {
-        mapping.userDescription ?? mapping.target.displayName
+        mapping.userDescription ?? mapping.action.displayName
     }
 
     private var rowOpacity: Double {
@@ -428,11 +428,12 @@ private struct LauncherMappingRow: View {
     }
 
     private var fallbackIcon: String {
-        switch mapping.target {
-        case .app: "app.fill"
-        case .url: "globe"
-        case .folder: "folder.fill"
-        case .script: "terminal.fill"
+        switch mapping.action {
+        case .launchApp: "app.fill"
+        case .openURL: "globe"
+        case .openFolder: "folder.fill"
+        case .runScript: "terminal.fill"
+        default: "questionmark.circle"
         }
     }
 
@@ -445,11 +446,13 @@ private struct LauncherMappingRow: View {
                 return
             }
         }
-        switch mapping.target {
-        case .app, .folder, .script:
-            icon = AppIconResolver.icon(for: mapping.target)
-        case let .url(urlString):
+        switch mapping.action {
+        case .launchApp, .openFolder, .runScript:
+            icon = AppIconResolver.icon(for: mapping.action)
+        case let .openURL(urlString):
             icon = await services.faviconFetcher.fetchFavicon(for: urlString)
+        default:
+            break
         }
     }
 }

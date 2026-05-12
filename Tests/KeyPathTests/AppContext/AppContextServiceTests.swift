@@ -29,7 +29,7 @@ final class AppContextServiceTests: XCTestCase {
         let keymap = AppKeymap(
             bundleIdentifier: "com.apple.Bear",
             displayName: "Bear",
-            overrides: [AppKeyOverride(inputKey: "a", outputAction: "b")]
+            overrides: [AppKeyOverride(inputKey: "a", action: .keystroke(key: "b"))]
         )
         try await store.upsertKeymap(keymap)
 
@@ -132,7 +132,7 @@ final class AppContextServiceTests: XCTestCase {
         let bearKeymap = AppKeymap(
             bundleIdentifier: "com.apple.Bear",
             displayName: "Bear",
-            overrides: [AppKeyOverride(inputKey: "a", outputAction: "b")]
+            overrides: [AppKeyOverride(inputKey: "a", action: .keystroke(key: "b"))]
         )
         try await store.upsertKeymap(bearKeymap)
 
@@ -155,12 +155,12 @@ final class AppContextServiceTests: XCTestCase {
         let bearKeymap = AppKeymap(
             bundleIdentifier: "com.apple.Bear",
             displayName: "Bear",
-            overrides: [AppKeyOverride(inputKey: "a", outputAction: "b")]
+            overrides: [AppKeyOverride(inputKey: "a", action: .keystroke(key: "b"))]
         )
         let safariKeymap = AppKeymap(
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari",
-            overrides: [AppKeyOverride(inputKey: "a", outputAction: "c")]
+            overrides: [AppKeyOverride(inputKey: "a", action: .keystroke(key: "c"))]
         )
         try await store.upsertKeymap(bearKeymap)
         try await store.upsertKeymap(safariKeymap)
@@ -184,7 +184,7 @@ final class AppContextServiceTests: XCTestCase {
         let bearKeymap = AppKeymap(
             bundleIdentifier: "com.apple.Bear",
             displayName: "Bear",
-            overrides: [AppKeyOverride(inputKey: "a", outputAction: "b")]
+            overrides: [AppKeyOverride(inputKey: "a", action: .keystroke(key: "b"))]
         )
         try await store.upsertKeymap(bearKeymap)
 
@@ -218,7 +218,7 @@ final class AppContextServiceTests: XCTestCase {
         )
         let keymap = AppKeymap(
             mapping: disabledMapping,
-            overrides: [AppKeyOverride(inputKey: "a", outputAction: "b")]
+            overrides: [AppKeyOverride(inputKey: "a", action: .keystroke(key: "b"))]
         )
         try await store.upsertKeymap(keymap)
 

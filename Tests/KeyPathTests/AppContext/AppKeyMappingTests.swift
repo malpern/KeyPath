@@ -138,12 +138,12 @@ final class AppKeyMappingTests: XCTestCase {
     func testAppKeyOverride_Initialization() {
         let override = AppKeyOverride(
             inputKey: "j",
-            outputAction: "down",
+            action: .keystroke(key: "down"),
             description: "Vim-style down"
         )
 
         XCTAssertEqual(override.inputKey, "j")
-        XCTAssertEqual(override.outputAction, "down")
+        XCTAssertEqual(override.action.outputString, "down")
         XCTAssertEqual(override.description, "Vim-style down")
     }
 
@@ -154,8 +154,8 @@ final class AppKeyMappingTests: XCTestCase {
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari",
             overrides: [
-                AppKeyOverride(inputKey: "j", outputAction: "down"),
-                AppKeyOverride(inputKey: "k", outputAction: "up")
+                AppKeyOverride(inputKey: "j", action: .keystroke(key: "down")),
+                AppKeyOverride(inputKey: "k", action: .keystroke(key: "up"))
             ]
         )
 
@@ -171,8 +171,8 @@ final class AppKeyMappingTests: XCTestCase {
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari",
             overrides: [
-                AppKeyOverride(inputKey: "j", outputAction: "down"),
-                AppKeyOverride(inputKey: "k", outputAction: "up")
+                AppKeyOverride(inputKey: "j", action: .keystroke(key: "down")),
+                AppKeyOverride(inputKey: "k", action: .keystroke(key: "up"))
             ]
         )
 

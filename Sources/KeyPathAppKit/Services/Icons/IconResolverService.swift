@@ -151,7 +151,7 @@ final class IconResolverService {
         AppLogger.shared.log("🖼️ [IconResolver] Preloading \(enabledMappings.count) launcher icons...")
 
         for mapping in enabledMappings {
-            await preloadIcon(for: mapping.target)
+            await preloadIcon(for: mapping.action)
         }
 
         AppLogger.shared.log("🖼️ [IconResolver] Launcher icon preload complete")
@@ -165,11 +165,11 @@ final class IconResolverService {
 
         for collection in collections where collection.isEnabled {
             for mapping in collection.mappings {
-                let output = mapping.output.lowercased()
+                let output = mapping.action.kanataOutput.lowercased()
 
                 // Check for app launch: (push-msg "launch:AppName")
                 if output.contains("launch:") {
-                    if let appName = extractAppName(from: mapping.output) {
+                    if let appName = extractAppName(from: mapping.action.kanataOutput) {
                         _ = resolveAppIcon(for: appName)
                         appCount += 1
                     }
@@ -177,7 +177,7 @@ final class IconResolverService {
 
                 // Check for URL open: (push-msg "open:domain.com")
                 if output.contains("open:") {
-                    if let url = extractUrl(from: mapping.output) {
+                    if let url = extractUrl(from: mapping.action.kanataOutput) {
                         _ = await resolveFavicon(for: url)
                         urlCount += 1
                     }
@@ -191,19 +191,21 @@ final class IconResolverService {
     }
 
     /// Pre-load a single icon (for cache warming on collection change)
-    func preloadIcon(for target: LauncherTarget) async {
-        switch target {
-        case let .app(name, bundleId):
+    func preloadIcon(for action: KeyAction) async {
+        switch action {
+        case let .launchApp(name, bundleId):
             let identifier = bundleId ?? name
             _ = resolveAppIcon(for: identifier)
-        case let .url(urlString):
+        case let .openURL(urlString):
             _ = await resolveFavicon(for: urlString)
-        case let .folder(path, _):
+        case let .openFolder(path, _):
             // Folder icons are resolved synchronously by NSWorkspace
             _ = AppIconResolver.folderIcon(for: path)
-        case let .script(path, _):
+        case let .runScript(path, _):
             // Script icons are resolved synchronously by NSWorkspace
             _ = AppIconResolver.scriptIcon(for: path)
+        default:
+            break
         }
     }
 

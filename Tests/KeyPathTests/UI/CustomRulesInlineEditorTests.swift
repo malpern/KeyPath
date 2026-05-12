@@ -12,7 +12,7 @@ final class CustomRulesInlineEditorTests: XCTestCase {
         )
 
         XCTAssertEqual(rule.input, "a")
-        XCTAssertEqual(rule.output, "b")
+        XCTAssertEqual(rule.action.outputString, "b")
         XCTAssertEqual(rule.title, "My Rule")
         XCTAssertNil(rule.notes)
     }

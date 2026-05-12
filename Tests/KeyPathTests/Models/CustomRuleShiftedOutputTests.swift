@@ -3,12 +3,12 @@
 
 final class CustomRuleShiftedOutputTests: XCTestCase {
     func testAsKeyMappingIncludesShiftedOutput() {
-        let rule = CustomRule(input: "g", output: "M-up", shiftedOutput: "M-down")
+        let rule = CustomRule(input: "g", action: .keystroke(key: "M-up"), shiftedOutput: "M-down")
 
         let mapping = rule.asKeyMapping()
 
         XCTAssertEqual(mapping.input, "g")
-        XCTAssertEqual(mapping.output, "M-up")
+        XCTAssertEqual(mapping.action, .keystroke(key: "M-up"))
         XCTAssertEqual(mapping.shiftedOutput, "M-down")
     }
 
@@ -18,7 +18,7 @@ final class CustomRuleShiftedOutputTests: XCTestCase {
             id: UUID(),
             title: "Go to top/bottom",
             input: "g",
-            output: "M-up",
+            action: .keystroke(key: "M-up"),
             shiftedOutput: "M-down",
             isEnabled: true,
             notes: "Vim-style",
@@ -39,7 +39,7 @@ final class CustomRuleShiftedOutputTests: XCTestCase {
           "id": "\(id.uuidString)",
           "title": "",
           "input": "g",
-          "output": "M-up",
+          "action": {"keystroke":{"key":"M-up"}},
           "isEnabled": true,
           "createdAt": 0
         }
@@ -49,7 +49,7 @@ final class CustomRuleShiftedOutputTests: XCTestCase {
 
         XCTAssertEqual(decoded.id, id)
         XCTAssertEqual(decoded.input, "g")
-        XCTAssertEqual(decoded.output, "M-up")
+        XCTAssertEqual(decoded.action, .keystroke(key: "M-up"))
         XCTAssertNil(decoded.shiftedOutput)
         XCTAssertEqual(decoded.targetLayer, .base)
     }

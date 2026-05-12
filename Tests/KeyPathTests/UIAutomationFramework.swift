@@ -49,7 +49,7 @@ public class UIAutomationFramework {
             }
 
             // Step 3: Execute output capture
-            let outputResult = await executeOutputCapture(mapping.output, uiState: uiState)
+            let outputResult = await executeOutputCapture(mapping.action.outputString, uiState: uiState)
             guard outputResult.success else {
                 throw AutomationError.outputCaptureFailed(outputResult.error)
             }
@@ -113,54 +113,54 @@ public class UIAutomationFramework {
                 name: "Basic Numeric Remaps",
                 description: "Test basic number key remapping",
                 mappings: [
-                    KeyMapping(input: "1", output: "2"),
-                    KeyMapping(input: "5", output: "6"),
-                    KeyMapping(input: "9", output: "0")
+                    KeyMapping(input: "1", action: .keystroke(key: "2")),
+                    KeyMapping(input: "5", action: .keystroke(key: "6")),
+                    KeyMapping(input: "9", action: .keystroke(key: "0"))
                 ]
             ),
             KeyMappingScenario(
                 name: "Common System Remaps",
                 description: "Test commonly used system key remaps",
                 mappings: [
-                    KeyMapping(input: "caps", output: "esc"),
-                    KeyMapping(input: "space", output: "tab"),
-                    KeyMapping(input: "delete", output: "backspace")
+                    KeyMapping(input: "caps", action: .keystroke(key: "esc")),
+                    KeyMapping(input: "space", action: .keystroke(key: "tab")),
+                    KeyMapping(input: "delete", action: .keystroke(key: "backspace"))
                 ]
             ),
             KeyMappingScenario(
                 name: "Function Key Remaps",
                 description: "Test function key remapping",
                 mappings: [
-                    KeyMapping(input: "f1", output: "f2"),
-                    KeyMapping(input: "f11", output: "f12"),
-                    KeyMapping(input: "f5", output: "f6")
+                    KeyMapping(input: "f1", action: .keystroke(key: "f2")),
+                    KeyMapping(input: "f11", action: .keystroke(key: "f12")),
+                    KeyMapping(input: "f5", action: .keystroke(key: "f6"))
                 ]
             ),
             KeyMappingScenario(
                 name: "Letter Key Remaps",
                 description: "Test letter key remapping",
                 mappings: [
-                    KeyMapping(input: "a", output: "b"),
-                    KeyMapping(input: "x", output: "y"),
-                    KeyMapping(input: "q", output: "w")
+                    KeyMapping(input: "a", action: .keystroke(key: "b")),
+                    KeyMapping(input: "x", action: .keystroke(key: "y")),
+                    KeyMapping(input: "q", action: .keystroke(key: "w"))
                 ]
             ),
             KeyMappingScenario(
                 name: "Complex Multi-Key Output",
                 description: "Test mappings with multiple output keys",
                 mappings: [
-                    KeyMapping(input: "caps", output: "ctrl shift"),
-                    KeyMapping(input: "tab", output: "alt space"),
-                    KeyMapping(input: "esc", output: "cmd w")
+                    KeyMapping(input: "caps", action: .keystroke(key: "ctrl shift")),
+                    KeyMapping(input: "tab", action: .keystroke(key: "alt space")),
+                    KeyMapping(input: "esc", action: .keystroke(key: "cmd w"))
                 ]
             ),
             KeyMappingScenario(
                 name: "Special Character Remaps",
                 description: "Test special character key remapping",
                 mappings: [
-                    KeyMapping(input: "semicolon", output: "colon"),
-                    KeyMapping(input: "comma", output: "period"),
-                    KeyMapping(input: "slash", output: "backslash")
+                    KeyMapping(input: "semicolon", action: .keystroke(key: "colon")),
+                    KeyMapping(input: "comma", action: .keystroke(key: "period")),
+                    KeyMapping(input: "slash", action: .keystroke(key: "backslash"))
                 ]
             )
         ]
@@ -223,10 +223,10 @@ public class UIAutomationFramework {
     }
 
     private func executeSave(_ mapping: KeyMapping, uiState _: UIStateSnapshot) async -> SaveResult {
-        log(.saving, "Saving mapping: \(mapping.input) → \(mapping.output)")
+        log(.saving, "Saving mapping: \(mapping.input) → \(mapping.action.outputString)")
 
         do {
-            try await kanataManager.saveConfiguration(input: mapping.input, output: mapping.output)
+            try await kanataManager.saveConfiguration(input: mapping.input, output: mapping.action.outputString)
             log(.saved, "Mapping saved successfully")
             return SaveResult(success: true)
         } catch {
@@ -277,7 +277,7 @@ public class UIAutomationFramework {
 /// Note: KeyMapping is imported from the main KeyPath module via @testable import
 extension KeyMapping {
     var description: String {
-        "\(input) → \(output)"
+        "\(input) → \(action.outputString)"
     }
 }
 

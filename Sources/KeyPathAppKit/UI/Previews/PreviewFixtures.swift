@@ -6,9 +6,9 @@
     /// Shared deterministic fixtures used by SwiftUI previews.
     enum PreviewFixtures {
         static let customRulesPopulated: [CustomRule] = [
-            CustomRule(title: "Home Row Down", input: "j", output: "down", isEnabled: true, notes: "Vim navigation"),
-            CustomRule(title: "Home Row Up", input: "k", output: "up", isEnabled: true),
-            CustomRule(title: "Legacy Escape", input: "caps", output: "esc", isEnabled: false),
+            CustomRule(title: "Home Row Down", input: "j", action: .keystroke(key: "down"), isEnabled: true, notes: "Vim navigation"),
+            CustomRule(title: "Home Row Up", input: "k", action: .keystroke(key: "up"), isEnabled: true),
+            CustomRule(title: "Legacy Escape", input: "caps", action: .keystroke(key: "esc"), isEnabled: false),
         ]
 
         /// Rules with device overrides for previewing the per-device grouping.
@@ -16,21 +16,21 @@
             CustomRule(
                 title: "Kinesis: Caps → Ctrl",
                 input: "caps",
-                output: "caps",
+                action: .keystroke(key: "caps"),
                 isEnabled: true,
                 deviceOverrides: [DeviceKeyOverride(deviceHash: "0xDEADBEEF", output: "lctl")]
             ),
             CustomRule(
                 title: "Kinesis: Tab → Hyper",
                 input: "tab",
-                output: "tab",
+                action: .keystroke(key: "tab"),
                 isEnabled: true,
                 deviceOverrides: [DeviceKeyOverride(deviceHash: "0xDEADBEEF", output: "lmet")]
             ),
             CustomRule(
                 title: "Moonlander: A → Ctrl",
                 input: "a",
-                output: "a",
+                action: .keystroke(key: "a"),
                 isEnabled: true,
                 deviceOverrides: [DeviceKeyOverride(deviceHash: "0xCAFEBABE", output: "lctl")]
             ),
@@ -40,14 +40,14 @@
             AppKeymap(
                 mapping: AppKeyMapping(bundleIdentifier: "com.apple.Safari", displayName: "Safari", virtualKeyName: "vk_safari"),
                 overrides: [
-                    AppKeyOverride(inputKey: "j", outputAction: "down"),
-                    AppKeyOverride(inputKey: "k", outputAction: "up")
+                    AppKeyOverride(inputKey: "j", action: .keystroke(key: "down")),
+                    AppKeyOverride(inputKey: "k", action: .keystroke(key: "up"))
                 ]
             ),
             AppKeymap(
                 mapping: AppKeyMapping(bundleIdentifier: "com.openai.chat", displayName: "ChatGPT", virtualKeyName: "vk_chatgpt"),
                 overrides: [
-                    AppKeyOverride(inputKey: "h", outputAction: "left")
+                    AppKeyOverride(inputKey: "h", action: .keystroke(key: "left"))
                 ]
             )
         ]

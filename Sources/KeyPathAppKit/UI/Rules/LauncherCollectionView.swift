@@ -19,7 +19,7 @@ struct LauncherCollectionView: View {
 
     private var existingDomains: Set<String> {
         Set(config.mappings.compactMap { mapping in
-            if case let .url(domain) = mapping.target {
+            if case let .openURL(domain) = mapping.action {
                 return normalizeDomain(domain)
             }
             return nil
@@ -166,7 +166,7 @@ struct LauncherCollectionView: View {
             }
             let mapping = LauncherMapping(
                 key: key,
-                target: .url(site.domain),
+                action: .openURL(site.domain),
                 isEnabled: true
             )
             config.mappings.append(mapping)
@@ -249,8 +249,8 @@ struct LauncherMappingEditor: View {
             _isEnabled = State(initialValue: mapping.isEnabled)
             _customIconPath = State(initialValue: mapping.customIconPath ?? "")
             _userDescription = State(initialValue: mapping.userDescription ?? "")
-            switch mapping.target {
-            case let .app(name, bundleId):
+            switch mapping.action {
+            case let .launchApp(name, bundleId):
                 _targetType = State(initialValue: .app)
                 _appName = State(initialValue: name)
                 _bundleId = State(initialValue: bundleId ?? "")
@@ -259,7 +259,7 @@ struct LauncherMappingEditor: View {
                 _folderName = State(initialValue: "")
                 _scriptPath = State(initialValue: "")
                 _scriptName = State(initialValue: "")
-            case let .url(urlString):
+            case let .openURL(urlString):
                 _targetType = State(initialValue: .website)
                 _appName = State(initialValue: "")
                 _bundleId = State(initialValue: "")
@@ -268,7 +268,7 @@ struct LauncherMappingEditor: View {
                 _folderName = State(initialValue: "")
                 _scriptPath = State(initialValue: "")
                 _scriptName = State(initialValue: "")
-            case let .folder(path, name):
+            case let .openFolder(path, name):
                 _targetType = State(initialValue: .folder)
                 _appName = State(initialValue: "")
                 _bundleId = State(initialValue: "")
@@ -277,7 +277,7 @@ struct LauncherMappingEditor: View {
                 _folderName = State(initialValue: name ?? "")
                 _scriptPath = State(initialValue: "")
                 _scriptName = State(initialValue: "")
-            case let .script(path, name):
+            case let .runScript(path, name):
                 _targetType = State(initialValue: .script)
                 _appName = State(initialValue: "")
                 _bundleId = State(initialValue: "")
@@ -286,6 +286,15 @@ struct LauncherMappingEditor: View {
                 _folderName = State(initialValue: "")
                 _scriptPath = State(initialValue: path)
                 _scriptName = State(initialValue: name ?? "")
+            default:
+                _targetType = State(initialValue: .app)
+                _appName = State(initialValue: "")
+                _bundleId = State(initialValue: "")
+                _url = State(initialValue: "")
+                _folderPath = State(initialValue: "")
+                _folderName = State(initialValue: "")
+                _scriptPath = State(initialValue: "")
+                _scriptName = State(initialValue: "")
             }
         } else {
             _key = State(initialValue: "")
@@ -697,11 +706,13 @@ struct LauncherMappingEditor: View {
             }
         }
         guard let mapping else { return }
-        switch mapping.target {
-        case .app, .folder, .script:
-            icon = AppIconResolver.icon(for: mapping.target)
-        case let .url(urlString):
+        switch mapping.action {
+        case .launchApp, .openFolder, .runScript:
+            icon = AppIconResolver.icon(for: mapping.action)
+        case let .openURL(urlString):
             icon = await services.faviconFetcher.fetchFavicon(for: urlString)
+        default:
+            break
         }
     }
 
@@ -802,21 +813,21 @@ struct LauncherMappingEditor: View {
     // MARK: - Actions
 
     private func save() {
-        let target: LauncherTarget = switch targetType {
+        let action: KeyAction = switch targetType {
         case .app:
-            .app(name: appName, bundleId: bundleId.isEmpty ? nil : bundleId)
+            .launchApp(name: appName, bundleId: bundleId.isEmpty ? nil : bundleId)
         case .website:
-            .url(url)
+            .openURL(url)
         case .folder:
-            .folder(path: folderPath, name: folderName.isEmpty ? nil : folderName)
+            .openFolder(path: folderPath, name: folderName.isEmpty ? nil : folderName)
         case .script:
-            .script(path: scriptPath, name: scriptName.isEmpty ? nil : scriptName)
+            .runScript(path: scriptPath, name: scriptName.isEmpty ? nil : scriptName)
         }
 
         let result = LauncherMapping(
             id: mapping?.id ?? UUID(),
             key: normalizedKey,
-            target: target,
+            action: action,
             isEnabled: isEnabled,
             customIconPath: customIconPath.isEmpty ? nil : customIconPath,
             userDescription: userDescription.isEmpty ? nil : userDescription
@@ -914,7 +925,7 @@ struct LauncherMappingEditor: View {
         if panel.runModal() == .OK, let url = panel.url {
             appName = url.deletingPathExtension().lastPathComponent
             bundleId = Bundle(url: url)?.bundleIdentifier ?? ""
-            icon = AppIconResolver.icon(for: .app(name: appName, bundleId: bundleId.isEmpty ? nil : bundleId))
+            icon = AppIconResolver.icon(for: .launchApp(name: appName, bundleId: bundleId.isEmpty ? nil : bundleId))
         }
     }
 

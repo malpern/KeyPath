@@ -103,7 +103,7 @@ struct KanataBehaviorParserTests {
             holdAction: "lctl",
             customTapKeys: ["s", "d", "f"]
         )
-        let mapping = KeyMapping(input: "a", output: "a", behavior: .dualRole(original))
+        let mapping = KeyMapping(input: "a", action: .keystroke(key: "a"), behavior: .dualRole(original))
         let rendered = KanataBehaviorRenderer.render(mapping)
         let parsed = KanataBehaviorParser.parse(rendered)
 
@@ -177,7 +177,7 @@ struct KanataBehaviorParserTests {
             tapTimeout: 180,
             holdTimeout: 220
         )
-        let mapping = KeyMapping(input: "a", output: "a", behavior: .dualRole(original))
+        let mapping = KeyMapping(input: "a", action: .keystroke(key: "a"), behavior: .dualRole(original))
         let rendered = KanataBehaviorRenderer.render(mapping)
         let parsed = KanataBehaviorParser.parse(rendered)
 
@@ -195,7 +195,7 @@ struct KanataBehaviorParserTests {
     @Test("Tap-dance round-trips through render and parse")
     func tapDanceRoundTrip() {
         let original = TapDanceBehavior.twoStep(singleTap: "esc", doubleTap: "caps", windowMs: 180)
-        let mapping = KeyMapping(input: "caps", output: "esc", behavior: .tapOrTapDance(.tapDance(original)))
+        let mapping = KeyMapping(input: "caps", action: .keystroke(key: "esc"), behavior: .tapOrTapDance(.tapDance(original)))
         let rendered = KanataBehaviorRenderer.render(mapping)
         let parsed = KanataBehaviorParser.parse(rendered)
 
@@ -264,7 +264,7 @@ struct KanataBehaviorParserTests {
             tapAction: "esc",
             holdAction: "hyper"
         )
-        let mapping = KeyMapping(input: "caps", output: "caps", behavior: .dualRole(original))
+        let mapping = KeyMapping(input: "caps", action: .keystroke(key: "caps"), behavior: .dualRole(original))
         let rendered = KanataBehaviorRenderer.render(mapping)
 
         // Verify it expanded

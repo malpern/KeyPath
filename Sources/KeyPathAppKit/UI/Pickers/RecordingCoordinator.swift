@@ -217,9 +217,12 @@ final class RecordingCoordinator {
         let inputKanata = convertSequenceToKanataInput(inputSequence)
         let outputKanata = convertSequenceToKanataOutput(outputSequence)
         AppLogger.shared.log("📝 [RecordingCoordinator] Creating CustomRule: '\(inputKanata)' → '\(outputKanata)'")
+        let outputAction: KeyAction = outputKanata.contains(" ") || outputKanata.contains("(")
+            ? .rawKanata(outputKanata)
+            : .keystroke(key: outputKanata)
         let customRule = CustomRule(
             input: inputKanata,
-            output: outputKanata,
+            action: outputAction,
             isEnabled: true,
             notes: "Created via recording"
         )

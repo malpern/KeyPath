@@ -92,7 +92,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         let (manager, _) = try await createTestManager()
         defer { TestEnvironment.forceTestMode = false }
 
-        let original = CustomRule(input: "g", output: "M-up", shiftedOutput: "M-down", isEnabled: true)
+        let original = CustomRule(input: "g", action: .keystroke(key: "M-up"), shiftedOutput: "M-down", isEnabled: true)
         let saved = await manager.saveCustomRule(original)
         XCTAssertTrue(saved)
 
@@ -100,7 +100,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
 
         XCTAssertEqual(updated.id, original.id)
         XCTAssertEqual(updated.input, "g")
-        XCTAssertEqual(updated.output, "home")
+        XCTAssertEqual(updated.action.outputString, "home")
         XCTAssertEqual(updated.shiftedOutput, "M-down")
     }
 
@@ -112,7 +112,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         let shiftedRule = CustomRule(
             title: "Shift-aware nav",
             input: "g",
-            output: "M-up",
+            action: .keystroke(key: "M-up"),
             shiftedOutput: "M-down",
             isEnabled: true
         )
@@ -137,7 +137,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         await reloadedManager.bootstrap()
 
         let reloadedRule = try XCTUnwrap(reloadedManager.customRules.first { $0.input == "g" })
-        XCTAssertEqual(reloadedRule.output, "M-up")
+        XCTAssertEqual(reloadedRule.action.outputString, "M-up")
         XCTAssertEqual(reloadedRule.shiftedOutput, "M-down")
 
         let configPath = tempDir.appendingPathComponent("keypath.kbd")
@@ -164,12 +164,12 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertEqual(mappings.count, 12, "Should have 12 function key mappings")
 
         // Verify media key outputs
-        XCTAssertTrue(mappings.contains { $0.input == "f1" && $0.output == "brdn" }, "F1 should map to brightness down")
-        XCTAssertTrue(mappings.contains { $0.input == "f2" && $0.output == "brup" }, "F2 should map to brightness up")
-        XCTAssertTrue(mappings.contains { $0.input == "f7" && $0.output == "prev" }, "F7 should map to previous track")
-        XCTAssertTrue(mappings.contains { $0.input == "f8" && $0.output == "pp" }, "F8 should map to play/pause")
-        XCTAssertTrue(mappings.contains { $0.input == "f10" && $0.output == "mute" }, "F10 should map to mute")
-        XCTAssertTrue(mappings.contains { $0.input == "f12" && $0.output == "volu" }, "F12 should map to volume up")
+        XCTAssertTrue(mappings.contains { $0.input == "f1" && $0.action.outputString == "brdn" }, "F1 should map to brightness down")
+        XCTAssertTrue(mappings.contains { $0.input == "f2" && $0.action.outputString == "brup" }, "F2 should map to brightness up")
+        XCTAssertTrue(mappings.contains { $0.input == "f7" && $0.action.outputString == "prev" }, "F7 should map to previous track")
+        XCTAssertTrue(mappings.contains { $0.input == "f8" && $0.action.outputString == "pp" }, "F8 should map to play/pause")
+        XCTAssertTrue(mappings.contains { $0.input == "f10" && $0.action.outputString == "mute" }, "F10 should map to mute")
+        XCTAssertTrue(mappings.contains { $0.input == "f12" && $0.action.outputString == "volu" }, "F12 should map to volume up")
     }
 
     func testFunctionKeyMappingsFunctionMode() {
@@ -181,7 +181,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         for i in 1 ... 12 {
             let key = "f\(i)"
             XCTAssertTrue(
-                mappings.contains { $0.input == key && $0.output == key },
+                mappings.contains { $0.input == key && $0.action.outputString == key },
                 "\(key.uppercased()) should pass through as \(key)"
             )
         }
@@ -285,12 +285,12 @@ final class RuleCollectionsManagerTests: XCTestCase {
         }
 
         // Create first custom rule mapping caps -> esc
-        let rule1 = CustomRule(input: "caps", output: "esc", isEnabled: true)
+        let rule1 = CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
         let saved1 = await manager.saveCustomRule(rule1)
         XCTAssertTrue(saved1, "First rule should save successfully")
 
         // Create second custom rule with same input (conflict!)
-        let rule2 = CustomRule(input: "caps", output: "tab", isEnabled: true)
+        let rule2 = CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: true)
         let saved2 = await manager.saveCustomRule(rule2)
 
         // Should resolve via conflict handler and still save
@@ -304,7 +304,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         // Both rules should exist, but the original should be disabled
         XCTAssertEqual(manager.customRules.count, 2, "Both rules should be saved")
         XCTAssertFalse(
-            manager.customRules.contains { $0.input == "caps" && $0.output == "esc" && $0.isEnabled },
+            manager.customRules.contains { $0.input == "caps" && $0.action.outputString == "esc" && $0.isEnabled },
             "Original conflicting rule should be disabled"
         )
     }
@@ -325,7 +325,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertTrue(manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled })
 
         // Create custom rule with same input (caps)
-        let rule = CustomRule(input: "caps", output: "esc", isEnabled: true)
+        let rule = CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
         let saved = await manager.saveCustomRule(rule)
 
         // Should resolve via conflict handler and still save
@@ -357,7 +357,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
             name: "Quick Launcher",
             summary: "Launcher layer mappings",
             category: .productivity,
-            mappings: [KeyMapping(input: "a", output: "b")],
+            mappings: [KeyMapping(input: "a", action: .keystroke(key: "b"))],
             isEnabled: true,
             targetLayer: .custom("launcher")
         )
@@ -366,7 +366,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
 
         let systemActionRule = CustomRule(
             input: "a",
-            output: #"(push-msg "system:spotlight")"#,
+            action: .systemAction(id: "spotlight"),
             isEnabled: true,
             targetLayer: .custom("launcher")
         )
@@ -396,14 +396,14 @@ final class RuleCollectionsManagerTests: XCTestCase {
         }
 
         // Create two rules with same input, both initially disabled
-        var rule1 = CustomRule(input: "caps", output: "esc", isEnabled: false)
-        var rule2 = CustomRule(input: "caps", output: "tab", isEnabled: false)
+        var rule1 = CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: false)
+        var rule2 = CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: false)
 
         // Save both (no conflict since both disabled)
         await manager.saveCustomRule(rule1)
         await manager.saveCustomRule(rule2)
-        rule1 = try XCTUnwrap(manager.customRules.first { $0.output == "esc" })
-        rule2 = try XCTUnwrap(manager.customRules.first { $0.output == "tab" })
+        rule1 = try XCTUnwrap(manager.customRules.first { $0.action.outputString == "esc" })
+        rule2 = try XCTUnwrap(manager.customRules.first { $0.action.outputString == "tab" })
 
         // Enable first - no warning
         await manager.toggleCustomRule(id: rule1.id, isEnabled: true)
@@ -428,8 +428,8 @@ final class RuleCollectionsManagerTests: XCTestCase {
         manager.onWarning = { warningReceived = $0 }
 
         // Create two rules with different inputs
-        let rule1 = CustomRule(input: "caps", output: "esc", isEnabled: true)
-        let rule2 = CustomRule(input: "tab", output: "ret", isEnabled: true)
+        let rule1 = CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
+        let rule2 = CustomRule(input: "tab", action: .keystroke(key: "ret"), isEnabled: true)
 
         await manager.saveCustomRule(rule1)
         await manager.saveCustomRule(rule2)
@@ -448,11 +448,11 @@ final class RuleCollectionsManagerTests: XCTestCase {
         manager.onWarning = { warningReceived = $0 }
 
         // Create disabled rule
-        let rule1 = CustomRule(input: "caps", output: "esc", isEnabled: false)
+        let rule1 = CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: false)
         await manager.saveCustomRule(rule1)
 
         // Create enabled rule with same input - should NOT conflict (first is disabled)
-        let rule2 = CustomRule(input: "caps", output: "tab", isEnabled: true)
+        let rule2 = CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: true)
         await manager.saveCustomRule(rule2)
 
         XCTAssertNil(warningReceived, "Disabled rules should not trigger conflict warnings")
@@ -470,10 +470,10 @@ final class RuleCollectionsManagerTests: XCTestCase {
         }
 
         // Create conflicting rules
-        let rule1 = CustomRule(input: "caps", output: "esc", isEnabled: true)
+        let rule1 = CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
         await manager.saveCustomRule(rule1)
 
-        let rule2 = CustomRule(input: "caps", output: "tab", isEnabled: true)
+        let rule2 = CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: true)
         await manager.saveCustomRule(rule2)
 
         // Conflict context should contain the key name
@@ -493,7 +493,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
             name: "Nav",
             summary: "Navigation layer",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "left")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
             isEnabled: true,
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
@@ -503,7 +503,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
             name: "Delete Enh",
             summary: "Delete tweaks",
             category: .navigation,
-            mappings: [KeyMapping(input: "d", output: "del")],
+            mappings: [KeyMapping(input: "d", action: .keystroke(key: "del"))],
             isEnabled: false,
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
@@ -570,7 +570,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
             name: "Existing",
             summary: "Existing conflicting rule",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "left")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
             isEnabled: true,
             targetLayer: .navigation
         )
@@ -580,7 +580,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
             name: "Replacement",
             summary: "Replacement conflicting rule",
             category: .navigation,
-            mappings: [KeyMapping(input: "h", output: "right")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "right"))],
             isEnabled: true,
             targetLayer: .navigation
         )
@@ -605,10 +605,10 @@ final class RuleCollectionsManagerTests: XCTestCase {
 
         manager.onConflictResolution = { _ in .keepNew }
 
-        var conflictingCustomRule = CustomRule(input: "caps", output: "esc", isEnabled: true)
+        var conflictingCustomRule = CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
         let initialRuleSaved = await manager.saveCustomRule(conflictingCustomRule)
         XCTAssertTrue(initialRuleSaved)
-        conflictingCustomRule = try XCTUnwrap(manager.customRules.first { $0.input == "caps" && $0.output == "esc" })
+        conflictingCustomRule = try XCTUnwrap(manager.customRules.first { $0.input == "caps" && $0.action.outputString == "esc" })
 
         await manager.toggleCollection(id: RuleCollectionIdentifier.capsLockRemap, isEnabled: true)
 
@@ -654,10 +654,10 @@ final class RuleCollectionsManagerTests: XCTestCase {
             "Collection should start enabled"
         )
 
-        var replacementRule = CustomRule(input: "caps", output: "tab", isEnabled: false)
+        var replacementRule = CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: false)
         let replacementRuleSaved = await manager.saveCustomRule(replacementRule)
         XCTAssertTrue(replacementRuleSaved)
-        replacementRule = try XCTUnwrap(manager.customRules.first { $0.input == "caps" && $0.output == "tab" })
+        replacementRule = try XCTUnwrap(manager.customRules.first { $0.input == "caps" && $0.action.outputString == "tab" })
 
         await manager.toggleCustomRule(id: replacementRule.id, isEnabled: true)
 
@@ -684,7 +684,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
             name: "Window Nav",
             summary: "Window navigation",
             category: .custom,
-            mappings: [KeyMapping(input: "h", output: "left")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
             isEnabled: true,
             targetLayer: .custom("window")
         )
@@ -694,7 +694,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
             name: "Vim Nav",
             summary: "Vim navigation",
             category: .navigation,
-            mappings: [KeyMapping(input: "j", output: "down")],
+            mappings: [KeyMapping(input: "j", action: .keystroke(key: "down"))],
             isEnabled: true,
             targetLayer: .custom("vim")
         )
@@ -704,7 +704,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
             name: "Base Nav",
             summary: "Base layer nav",
             category: .custom,
-            mappings: [KeyMapping(input: "k", output: "up")],
+            mappings: [KeyMapping(input: "k", action: .keystroke(key: "up"))],
             isEnabled: true,
             targetLayer: .base
         )
@@ -712,9 +712,9 @@ final class RuleCollectionsManagerTests: XCTestCase {
         await manager.replaceCollections([windowCollection, vimCollection, baseCollection])
 
         // Create custom rules on window layer
-        let windowRule1 = CustomRule(input: "a", output: "b", isEnabled: true, targetLayer: .custom("window"))
-        let windowRule2 = CustomRule(input: "c", output: "d", isEnabled: true, targetLayer: .custom("window"))
-        let vimRule = CustomRule(input: "e", output: "f", isEnabled: true, targetLayer: .custom("vim"))
+        let windowRule1 = CustomRule(input: "a", action: .keystroke(key: "b"), isEnabled: true, targetLayer: .custom("window"))
+        let windowRule2 = CustomRule(input: "c", action: .keystroke(key: "d"), isEnabled: true, targetLayer: .custom("window"))
+        let vimRule = CustomRule(input: "e", action: .keystroke(key: "f"), isEnabled: true, targetLayer: .custom("vim"))
 
         await manager.saveCustomRule(windowRule1)
         await manager.saveCustomRule(windowRule2)
@@ -736,7 +736,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         // Verify custom rules targeting window layer are removed
         XCTAssertEqual(manager.customRules.count, 1)
         XCTAssertFalse(manager.customRules.contains { $0.targetLayer.kanataName == "window" })
-        XCTAssertTrue(manager.customRules.contains { $0.input == "e" && $0.output == "f" })
+        XCTAssertTrue(manager.customRules.contains { $0.input == "e" && $0.action.outputString == "f" })
     }
 
     @MainActor
@@ -745,7 +745,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         defer { TestEnvironment.forceTestMode = false }
 
         // Create a custom rule on a custom layer
-        let customRule = CustomRule(input: "a", output: "b", isEnabled: true, targetLayer: .custom("test"))
+        let customRule = CustomRule(input: "a", action: .keystroke(key: "b"), isEnabled: true, targetLayer: .custom("test"))
         await manager.saveCustomRule(customRule)
 
         XCTAssertEqual(manager.customRules.count, 1)
@@ -773,7 +773,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
             name: "Test",
             summary: "Test collection",
             category: .custom,
-            mappings: [KeyMapping(input: "h", output: "left")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
             isEnabled: true,
             targetLayer: .custom("window")
         )
@@ -798,7 +798,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
             name: "Window",
             summary: "Window layer",
             category: .custom,
-            mappings: [KeyMapping(input: "h", output: "left")],
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
             isEnabled: true,
             targetLayer: .custom("window")
         )
@@ -808,7 +808,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
             name: "Vim",
             summary: "Vim layer",
             category: .custom,
-            mappings: [KeyMapping(input: "j", output: "down")],
+            mappings: [KeyMapping(input: "j", action: .keystroke(key: "down"))],
             isEnabled: true,
             targetLayer: .custom("vim")
         )

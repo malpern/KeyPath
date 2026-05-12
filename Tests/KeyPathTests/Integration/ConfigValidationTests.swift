@@ -133,7 +133,7 @@ final class ConfigValidationTests: XCTestCase {
 
     @MainActor
     func testSimpleRemapCustomRuleConfigIsValid() async throws {
-        let rule = CustomRule(input: "a", output: "b")
+        let rule = CustomRule(input: "a", action: .keystroke(key: "b"))
         let ruleCollections = [rule].compactMap { $0.asRuleCollection() }
         var collections = RuleCollectionCatalog().defaultCollections()
         collections.append(contentsOf: ruleCollections)

@@ -17,7 +17,7 @@ class ConfigurationServiceTests: XCTestCase {
     // MARK: - Configuration Generation Tests
 
     func testGenerateFromMappings_SingleMapping() {
-        let mappings = [KeyMapping(input: "caps", output: "esc")]
+        let mappings = [KeyMapping(input: "caps", action: .keystroke(key: "esc"))]
         let config = KanataConfiguration.generateFromMappings(mappings)
 
         XCTAssertTrue(config.contains("(defcfg"), "Config should contain defcfg section")
@@ -46,9 +46,9 @@ class ConfigurationServiceTests: XCTestCase {
 
     func testGenerateFromMappings_MultipleMappings() {
         let mappings = [
-            KeyMapping(input: "caps", output: "esc"),
-            KeyMapping(input: "a", output: "b"),
-            KeyMapping(input: "c", output: "d")
+            KeyMapping(input: "caps", action: .keystroke(key: "esc")),
+            KeyMapping(input: "a", action: .keystroke(key: "b")),
+            KeyMapping(input: "c", action: .keystroke(key: "d"))
         ]
         let config = KanataConfiguration.generateFromMappings(mappings)
 
@@ -83,8 +83,8 @@ class ConfigurationServiceTests: XCTestCase {
 
     func testGenerateFromMappings_UsesSingleDefsrcAndDeflayer() {
         let mappings = [
-            KeyMapping(input: "caps", output: "esc"),
-            KeyMapping(input: "a", output: "b")
+            KeyMapping(input: "caps", action: .keystroke(key: "esc")),
+            KeyMapping(input: "a", action: .keystroke(key: "b"))
         ]
 
         let config = KanataConfiguration.generateFromMappings(mappings)
@@ -110,7 +110,7 @@ class ConfigurationServiceTests: XCTestCase {
             name: "Custom",
             summary: "User mappings",
             category: .custom,
-            mappings: [KeyMapping(input: "caps", output: "esc")],
+            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "esc"))],
             isEnabled: true,
             isSystemDefault: false
         )
@@ -120,8 +120,8 @@ class ConfigurationServiceTests: XCTestCase {
             summary: "Preserves brightness, volume, and media control keys (F1-F12).",
             category: .system,
             mappings: [
-                KeyMapping(input: "f1", output: "brdn"),
-                KeyMapping(input: "f2", output: "brup")
+                KeyMapping(input: "f1", action: .keystroke(key: "brdn")),
+                KeyMapping(input: "f2", action: .keystroke(key: "brup"))
             ],
             isEnabled: false,
             isSystemDefault: true
@@ -153,8 +153,8 @@ class ConfigurationServiceTests: XCTestCase {
             summary: "Arrow keys on home row",
             category: .navigation,
             mappings: [
-                KeyMapping(input: "h", output: "left"),
-                KeyMapping(input: "j", output: "down")
+                KeyMapping(input: "h", action: .keystroke(key: "left")),
+                KeyMapping(input: "j", action: .keystroke(key: "down"))
             ],
             isEnabled: true,
             isSystemDefault: false,
@@ -210,9 +210,9 @@ class ConfigurationServiceTests: XCTestCase {
 
         XCTAssertEqual(config.keyMappings.count, 3, "Should parse 3 mappings")
         XCTAssertEqual(config.keyMappings[0].input, "caps")
-        XCTAssertEqual(config.keyMappings[0].output, "esc")
+        XCTAssertEqual(config.keyMappings[0].action.outputString, "esc")
         XCTAssertEqual(config.keyMappings[1].input, "a")
-        XCTAssertEqual(config.keyMappings[1].output, "x")
+        XCTAssertEqual(config.keyMappings[1].action.outputString, "x")
     }
 
     func testParseConfigurationFromString_WithComments() throws {
@@ -237,7 +237,7 @@ class ConfigurationServiceTests: XCTestCase {
 
         XCTAssertEqual(config.keyMappings.count, 1, "Should parse 1 mapping, ignoring comments")
         XCTAssertEqual(config.keyMappings[0].input, "caps")
-        XCTAssertEqual(config.keyMappings[0].output, "esc")
+        XCTAssertEqual(config.keyMappings[0].action.outputString, "esc")
     }
 
     func testParseConfigurationFromString_Deduplication() throws {
@@ -260,7 +260,7 @@ class ConfigurationServiceTests: XCTestCase {
         // Should deduplicate caps, keeping the last mapping
         XCTAssertEqual(config.keyMappings.count, 2, "Should deduplicate duplicate keys")
         let capsMapping = config.keyMappings.first { $0.input == "caps" }
-        XCTAssertEqual(capsMapping?.output, "ctrl", "Should keep last mapping for caps")
+        XCTAssertEqual(capsMapping?.action.outputString, "ctrl", "Should keep last mapping for caps")
     }
 
     func testParseConfigurationFromString_DefchordsOutputs() throws {
@@ -286,8 +286,8 @@ class ConfigurationServiceTests: XCTestCase {
         let config = try configService.parseConfigurationFromString(configContent)
 
         XCTAssertEqual(config.keyMappings.count, 2, "Should parse 2 mappings")
-        XCTAssertEqual(config.keyMappings[0].output, "(chord base A)")
-        XCTAssertEqual(config.keyMappings[1].output, "(chord base R)")
+        XCTAssertEqual(config.keyMappings[0].action.outputString, "(chord base A)")
+        XCTAssertEqual(config.keyMappings[1].action.outputString, "(chord base R)")
 
         XCTAssertEqual(config.chordGroups.count, 1, "Should parse one chord group")
         let group = config.chordGroups.first
@@ -299,7 +299,7 @@ class ConfigurationServiceTests: XCTestCase {
     // MARK: - Configuration Saving Tests
 
     func testSaveConfiguration_WithKeyMappings() async throws {
-        let mappings = [KeyMapping(input: "caps", output: "esc")]
+        let mappings = [KeyMapping(input: "caps", action: .keystroke(key: "esc"))]
 
         try await configService.saveConfiguration(keyMappings: mappings)
 
@@ -335,7 +335,7 @@ class ConfigurationServiceTests: XCTestCase {
             name: "Test",
             summary: "Enabled collection",
             category: .custom,
-            mappings: [KeyMapping(input: "caps", output: "esc")],
+            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "esc"))],
             isEnabled: true,
             isSystemDefault: false
         )
@@ -343,7 +343,7 @@ class ConfigurationServiceTests: XCTestCase {
             name: "Disabled",
             summary: "Should not appear",
             category: .experimental,
-            mappings: [KeyMapping(input: "x", output: "y")],
+            mappings: [KeyMapping(input: "x", action: .keystroke(key: "y"))],
             isEnabled: false,
             isSystemDefault: false
         )
@@ -367,7 +367,7 @@ class ConfigurationServiceTests: XCTestCase {
         let parsed = try configService.parseConfigurationFromString(savedContent)
         let capsMappings = parsed.keyMappings.filter { $0.input == "caps" }
         XCTAssertEqual(capsMappings.count, 1)
-        XCTAssertEqual(capsMappings.first?.output, "esc")
+        XCTAssertEqual(capsMappings.first?.action.outputString, "esc")
         XCTAssertTrue(
             parsed.keyMappings.allSatisfy { $0.input != "x" },
             "Disabled collection should not produce mappings"
@@ -379,14 +379,14 @@ class ConfigurationServiceTests: XCTestCase {
             name: "Preset",
             summary: "Preset summary",
             category: .system,
-            mappings: [KeyMapping(input: "f1", output: "brdn")],
+            mappings: [KeyMapping(input: "f1", action: .keystroke(key: "brdn"))],
             isEnabled: true,
             isSystemDefault: true
         )
         let customRules = [
-            CustomRule(title: "Caps Escape", input: "caps", output: "esc"),
+            CustomRule(title: "Caps Escape", input: "caps", action: .keystroke(key: "esc")),
             CustomRule(
-                title: "Space Layer", input: "space", output: "nav", isEnabled: false,
+                title: "Space Layer", input: "space", action: .keystroke(key: "nav"), isEnabled: false,
                 notes: "Disabled nav layer"
             )
         ]
@@ -499,7 +499,7 @@ class ConfigurationServiceTests: XCTestCase {
         (defsrc caps)
         (deflayer base esc)
         """
-        let mappings = [KeyMapping(input: "caps", output: "esc")]
+        let mappings = [KeyMapping(input: "caps", action: .keystroke(key: "esc"))]
 
         let backupPath = try await configService.backupFailedConfigAndApplySafe(
             failedConfig: original, mappings: mappings
@@ -687,7 +687,7 @@ class ConfigurationServiceTests: XCTestCase {
     func testGeneratedConfigWithTextMacro() {
         // Test that a mapping with text output generates correct macro in config
         let mappings = [
-            KeyMapping(input: "1", output: "123")
+            KeyMapping(input: "1", action: .keystroke(key: "123"))
         ]
 
         let config = KanataConfiguration.generateFromMappings(mappings)
@@ -701,9 +701,9 @@ class ConfigurationServiceTests: XCTestCase {
     func testGeneratedConfigHasNoInvalidParentheses() {
         // REGRESSION TEST: Ensure generated configs never have (esc) or other invalid single-key wrapping
         let mappings = [
-            KeyMapping(input: "caps", output: "escape"),
-            KeyMapping(input: "tab", output: "backspace"),
-            KeyMapping(input: "a", output: "delete")
+            KeyMapping(input: "caps", action: .keystroke(key: "escape")),
+            KeyMapping(input: "tab", action: .keystroke(key: "backspace")),
+            KeyMapping(input: "a", action: .keystroke(key: "delete"))
         ]
 
         let config = KanataConfiguration.generateFromMappings(mappings)
@@ -735,7 +735,7 @@ class ConfigurationServiceTests: XCTestCase {
           invalid-option
         )
         """
-        let mappings = [KeyMapping(input: "caps", output: "esc")]
+        let mappings = [KeyMapping(input: "caps", action: .keystroke(key: "esc"))]
 
         let backupPath = try await configService.backupFailedConfigAndApplySafe(
             failedConfig: failedConfig,
@@ -764,7 +764,7 @@ class ConfigurationServiceTests: XCTestCase {
         (deflayer base esc)
         """
         let errors = ["missing defcfg section"]
-        let mappings = [KeyMapping(input: "caps", output: "esc")]
+        let mappings = [KeyMapping(input: "caps", action: .keystroke(key: "esc"))]
 
         let repairedConfig = try await configService.repairConfiguration(
             config: brokenConfig,
@@ -793,8 +793,8 @@ class ConfigurationServiceTests: XCTestCase {
         """
         let errors = ["mismatch in defsrc and deflayer lengths"]
         let mappings = [
-            KeyMapping(input: "caps", output: "esc"),
-            KeyMapping(input: "a", output: "x")
+            KeyMapping(input: "caps", action: .keystroke(key: "esc")),
+            KeyMapping(input: "a", action: .keystroke(key: "x"))
         ]
 
         let repairedConfig = try await configService.repairConfiguration(
@@ -820,7 +820,7 @@ class ConfigurationServiceTests: XCTestCase {
             summary: "Arrow keys with fork support",
             category: .navigation,
             mappings: [
-                KeyMapping(input: "g", output: "M-up", shiftedOutput: "M-down")
+                KeyMapping(input: "g", action: .keystroke(key: "M-up"), shiftedOutput: "M-down")
             ],
             isEnabled: true,
             isSystemDefault: false,
@@ -848,7 +848,7 @@ class ConfigurationServiceTests: XCTestCase {
             summary: "Page navigation with ctrl",
             category: .navigation,
             mappings: [
-                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn")
+                KeyMapping(input: "d", action: .keystroke(key: "A-bspc"), ctrlOutput: "pgdn")
             ],
             isEnabled: true,
             isSystemDefault: false,
@@ -874,7 +874,7 @@ class ConfigurationServiceTests: XCTestCase {
             summary: "Line operations with macro",
             category: .navigation,
             mappings: [
-                KeyMapping(input: "o", output: "M-right ret", shiftedOutput: "up M-right ret")
+                KeyMapping(input: "o", action: .keystroke(key: "M-right ret"), shiftedOutput: "up M-right ret")
             ],
             isEnabled: true,
             isSystemDefault: false,
@@ -903,7 +903,7 @@ class ConfigurationServiceTests: XCTestCase {
             summary: "Vim-style navigation",
             category: .navigation,
             mappings: [
-                KeyMapping(input: "h", output: "left")
+                KeyMapping(input: "h", action: .keystroke(key: "left"))
             ],
             isEnabled: true,
             isSystemDefault: false,
@@ -968,7 +968,7 @@ class ConfigurationServiceTests: XCTestCase {
             summary: "Append with lowercase modifier",
             category: .navigation,
             mappings: [
-                KeyMapping(input: "a", output: "right", shiftedOutput: "m-right")
+                KeyMapping(input: "a", action: .keystroke(key: "right"), shiftedOutput: "m-right")
             ],
             isEnabled: true,
             isSystemDefault: false,
@@ -993,7 +993,7 @@ class ConfigurationServiceTests: XCTestCase {
             summary: "Both Shifts toggles Caps Lock",
             category: .productivity,
             mappings: [
-                KeyMapping(input: "lsft rsft", output: "caps", description: "Both Shifts → Caps Lock")
+                KeyMapping(input: "lsft rsft", action: .keystroke(key: "caps"), description: "Both Shifts → Caps Lock")
             ],
             isEnabled: true, // MUST be enabled
             isSystemDefault: false
@@ -1028,7 +1028,7 @@ class ConfigurationServiceTests: XCTestCase {
             name: "Custom",
             summary: "User mappings",
             category: .custom,
-            mappings: [KeyMapping(input: "q", output: "(chord base A)")],
+            mappings: [KeyMapping(input: "q", action: .rawKanata("(chord base A)"))],
             isEnabled: true,
             isSystemDefault: false
         )
@@ -1057,7 +1057,7 @@ class ConfigurationServiceTests: XCTestCase {
             summary: "Both Shifts toggles Caps Lock",
             category: .productivity,
             mappings: [
-                KeyMapping(input: "lsft rsft", output: "caps")
+                KeyMapping(input: "lsft rsft", action: .keystroke(key: "caps"))
             ],
             isEnabled: false, // DISABLED
             isSystemDefault: false
@@ -1084,7 +1084,7 @@ class ConfigurationServiceTests: XCTestCase {
             name: "Regular",
             summary: "Regular mapping",
             category: .custom,
-            mappings: [KeyMapping(input: "caps", output: "esc")],
+            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "esc"))],
             isEnabled: true
         )
 
@@ -1093,7 +1093,7 @@ class ConfigurationServiceTests: XCTestCase {
             name: "Backup Caps Lock",
             summary: "Both Shifts toggles Caps Lock",
             category: .productivity,
-            mappings: [KeyMapping(input: "lsft rsft", output: "caps")],
+            mappings: [KeyMapping(input: "lsft rsft", action: .keystroke(key: "caps"))],
             isEnabled: true
         )
 
@@ -1116,9 +1116,9 @@ class ConfigurationServiceTests: XCTestCase {
             summary: "layout",
             category: .custom,
             mappings: [
-                KeyMapping(input: "q", output: "q"),
-                KeyMapping(input: "p", output: "p"),
-                KeyMapping(input: "space", output: "space")
+                KeyMapping(input: "q", action: .keystroke(key: "q")),
+                KeyMapping(input: "p", action: .keystroke(key: "p")),
+                KeyMapping(input: "space", action: .keystroke(key: "space"))
             ],
             isEnabled: true
         )
@@ -1191,7 +1191,7 @@ class ConfigurationServiceTests: XCTestCase {
             name: "Backup Caps Lock",
             summary: "Old summary",
             category: .productivity,
-            mappings: [KeyMapping(input: "old", output: "old")],
+            mappings: [KeyMapping(input: "old", action: .keystroke(key: "old"))],
             isEnabled: true // User enabled this
         )
 
@@ -1391,8 +1391,8 @@ class ConfigurationServiceTests: XCTestCase {
 
     func testRoundTrip_GenerateParseGenerate() throws {
         let originalMappings = [
-            KeyMapping(input: "caps", output: "esc"),
-            KeyMapping(input: "a", output: "b")
+            KeyMapping(input: "caps", action: .keystroke(key: "esc")),
+            KeyMapping(input: "a", action: .keystroke(key: "b"))
         ]
 
         // Generate config
@@ -1405,7 +1405,7 @@ class ConfigurationServiceTests: XCTestCase {
         for original in originalMappings {
             let found = parsed.keyMappings.first { $0.input == original.input }
             XCTAssertNotNil(found, "Should find mapping for \(original.input)")
-            XCTAssertEqual(found?.output, original.output, "Output should match for \(original.input)")
+            XCTAssertEqual(found?.action.outputString, original.action.outputString, "Output should match for \(original.input)")
         }
         XCTAssertGreaterThanOrEqual(
             parsed.keyMappings.count, originalMappings.count,
@@ -1433,7 +1433,7 @@ class ConfigurationServiceTests: XCTestCase {
             name: "Disabled",
             summary: "All disabled",
             category: .custom,
-            mappings: [KeyMapping(input: "a", output: "b")],
+            mappings: [KeyMapping(input: "a", action: .keystroke(key: "b"))],
             isEnabled: false
         )
 
@@ -1447,7 +1447,7 @@ class ConfigurationServiceTests: XCTestCase {
 
     /// Test that saveConfiguration succeeds with valid content
     func testSaveConfiguration_ValidContentSucceeds() async throws {
-        let mappings = [KeyMapping(input: "caps", output: "esc")]
+        let mappings = [KeyMapping(input: "caps", action: .keystroke(key: "esc"))]
 
         // Should not throw
         try await configService.saveConfiguration(keyMappings: mappings)

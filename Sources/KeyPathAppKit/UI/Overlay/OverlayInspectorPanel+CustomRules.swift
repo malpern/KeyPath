@@ -251,7 +251,7 @@ extension OverlayInspectorPanel {
             let userInfo: [String: Any] = [
                 "keyCode": keyCode,
                 "inputKey": override.inputKey,
-                "outputKey": override.outputAction,
+                "outputKey": override.action.outputString,
                 "appBundleId": keymap.mapping.bundleIdentifier,
                 "appDisplayName": keymap.mapping.displayName
             ]
@@ -289,7 +289,7 @@ extension OverlayInspectorPanel {
             var userInfo: [String: Any] = [
                 "keyCode": keyCode,
                 "inputKey": rule.input,
-                "outputKey": rule.output
+                "outputKey": rule.action.outputString
                 // No appBundleId means global/everywhere
             ]
             if let shiftedOutput = rule.shiftedOutput {

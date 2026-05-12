@@ -111,7 +111,7 @@ final class ConfigGoldenFileTests: XCTestCase {
 
     @MainActor
     func testSimpleCustomRule_Golden() {
-        let rule = CustomRule(input: "a", output: "b")
+        let rule = CustomRule(input: "a", action: .keystroke(key: "b"))
         let ruleCollections = [rule].compactMap { $0.asRuleCollection() }
         var collections = RuleCollectionCatalog().defaultCollections()
         collections.append(contentsOf: ruleCollections)
@@ -121,7 +121,7 @@ final class ConfigGoldenFileTests: XCTestCase {
 
     @MainActor
     func testCustomRuleWithShiftedOutput_Golden() {
-        let rule = CustomRule(input: "1", output: "2", shiftedOutput: "at")
+        let rule = CustomRule(input: "1", action: .keystroke(key: "2"), shiftedOutput: "at")
         let ruleCollections = [rule].compactMap { $0.asRuleCollection() }
         var collections = RuleCollectionCatalog().defaultCollections()
         collections.append(contentsOf: ruleCollections)

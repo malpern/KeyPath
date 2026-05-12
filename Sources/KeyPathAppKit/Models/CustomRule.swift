@@ -5,7 +5,7 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
     public let id: UUID
     public var title: String
     public var input: String
-    public var output: String
+    public var action: KeyAction
     /// Optional alternate output when shift is held for this input.
     public var shiftedOutput: String?
     public var isEnabled: Bool
@@ -27,7 +27,7 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
         id: UUID = UUID(),
         title: String = "",
         input: String,
-        output: String,
+        action: KeyAction,
         shiftedOutput: String? = nil,
         isEnabled: Bool = true,
         notes: String? = nil,
@@ -40,7 +40,7 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
         self.id = id
         self.title = title
         self.input = input
-        self.output = output
+        self.action = action
         self.shiftedOutput = shiftedOutput
         self.isEnabled = isEnabled
         self.notes = notes
@@ -56,7 +56,7 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
 
 extension CustomRule: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, title, input, output, shiftedOutput, isEnabled, notes, createdAt, behavior, targetLayer, deviceOverrides, packSource
+        case id, title, input, action, shiftedOutput, isEnabled, notes, createdAt, behavior, targetLayer, deviceOverrides, packSource
     }
 
     public init(from decoder: Decoder) throws {
@@ -64,13 +64,12 @@ extension CustomRule: Codable {
         id = try container.decode(UUID.self, forKey: .id)
         title = try container.decode(String.self, forKey: .title)
         input = try container.decode(String.self, forKey: .input)
-        output = try container.decode(String.self, forKey: .output)
+        action = try container.decode(KeyAction.self, forKey: .action)
         shiftedOutput = try container.decodeIfPresent(String.self, forKey: .shiftedOutput)
         isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
         notes = try container.decodeIfPresent(String.self, forKey: .notes)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         behavior = try container.decodeIfPresent(MappingBehavior.self, forKey: .behavior)
-        // Default to .base for legacy JSON without targetLayer
         targetLayer = try container.decodeIfPresent(RuleCollectionLayer.self, forKey: .targetLayer) ?? .base
         deviceOverrides = try container.decodeIfPresent([DeviceKeyOverride].self, forKey: .deviceOverrides)
         packSource = try container.decodeIfPresent(String.self, forKey: .packSource)
@@ -81,7 +80,7 @@ extension CustomRule: Codable {
         try container.encode(id, forKey: .id)
         try container.encode(title, forKey: .title)
         try container.encode(input, forKey: .input)
-        try container.encode(output, forKey: .output)
+        try container.encode(action, forKey: .action)
         try container.encodeIfPresent(shiftedOutput, forKey: .shiftedOutput)
         try container.encode(isEnabled, forKey: .isEnabled)
         try container.encodeIfPresent(notes, forKey: .notes)
@@ -96,7 +95,7 @@ extension CustomRule: Codable {
 public extension CustomRule {
     var displayTitle: String {
         title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? "\(input) → \(output)"
+            ? "\(input) → \(action.displayName)"
             : title
     }
 
@@ -106,11 +105,11 @@ public extension CustomRule {
         {
             return trimmedNotes
         }
-        return "Maps \(input) to \(output)"
+        return "Maps \(input) to \(action.displayName)"
     }
 
     func asKeyMapping() -> KeyMapping {
-        KeyMapping(id: id, input: input, output: output, shiftedOutput: shiftedOutput, behavior: behavior, deviceOverrides: deviceOverrides)
+        KeyMapping(id: id, input: input, action: action, shiftedOutput: shiftedOutput, behavior: behavior, deviceOverrides: deviceOverrides)
     }
 
     func asRuleCollection() -> RuleCollection {

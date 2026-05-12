@@ -94,7 +94,7 @@ enum RuleCollectionDeduplicator {
             let mappingKey = MappingKey(
                 layer: collection.targetLayer,
                 input: normalizedInput,
-                output: KanataKeyConverter.convertToKanataSequence(mapping.output),
+                output: KanataKeyConverter.convertToKanataSequence(mapping.action.kanataOutput),
                 shiftedOutput: mapping.shiftedOutput.map { KanataKeyConverter.convertToKanataSequence($0) },
                 ctrlOutput: mapping.ctrlOutput.map { KanataKeyConverter.convertToKanataSequence($0) }
             )

@@ -26,7 +26,7 @@ class ContentViewDebounceTests: XCTestCase {
         let finalInput = "caps"
         let finalOutput = "ctrl"
 
-        let mapping = KeyMapping(input: finalInput, output: finalOutput)
+        let mapping = KeyMapping(input: finalInput, action: .keystroke(key: finalOutput))
         let config = KanataConfiguration.generateFromMappings([mapping])
         XCTAssertTrue(config.contains(finalInput), "Configuration should contain final input mapping")
         // Output "ctrl" is converted to "lctl" in Kanata format
@@ -72,7 +72,7 @@ class ContentViewDebounceTests: XCTestCase {
         // Test saving a simple configuration
         // This would normally call manager.saveConfiguration(input:output:)
         // For now, we test the configuration generation
-        let mapping = KeyMapping(input: "caps", output: "esc")
+        let mapping = KeyMapping(input: "caps", action: .keystroke(key: "esc"))
         let config = KanataConfiguration.generateFromMappings([mapping])
 
         XCTAssertTrue(config.contains("caps"))
@@ -92,7 +92,7 @@ class ContentViewDebounceTests: XCTestCase {
 
                 // In a real test, this would call the debounced save function
                 // For now, we test the configuration generation under concurrent access
-                let mapping = KeyMapping(input: "key\(taskId)", output: "output\(taskId)")
+                let mapping = KeyMapping(input: "key\(taskId)", action: .keystroke(key: "output\(taskId)"))
                 let config = KanataConfiguration.generateFromMappings([mapping])
 
                 XCTAssertTrue(config.contains("key\(taskId)"))
@@ -130,7 +130,7 @@ class Phase1LoggingTests: XCTestCase {
         _ = RuntimeCoordinator()
 
         // Test that we can generate a config and logging reflects the operation
-        let mapping = KeyMapping(input: "f1", output: "f13")
+        let mapping = KeyMapping(input: "f1", action: .keystroke(key: "f13"))
         let config = KanataConfiguration.generateFromMappings([mapping])
 
         // Verify the actual config generation worked (tests business logic)
