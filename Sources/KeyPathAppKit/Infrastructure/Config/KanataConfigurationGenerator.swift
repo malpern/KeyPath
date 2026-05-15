@@ -100,9 +100,9 @@ public struct KanataConfiguration: Sendable {
         var defcfgLines = [
             "  process-unmapped-keys yes",
             "  danger-enable-cmd yes",
+            "  managed-repeat yes",
         ]
         if let krc = keyRepeatConfig, krc.isEnabled {
-            defcfgLines.append("  managed-repeat yes")
             defcfgLines.append("  managed-repeat-delay \(krc.globalDelayMs)")
             defcfgLines.append("  managed-repeat-interval \(krc.globalIntervalMs)")
         }
