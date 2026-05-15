@@ -108,8 +108,16 @@ final class RemapEndToEndTests: XCTestCase {
 
     private static var simulatorCandidatePaths: [String] {
         let cwd = FileManager.default.currentDirectoryPath
+        let sourceFile = URL(fileURLWithPath: #filePath)
+        let projectRoot = sourceFile
+            .deletingLastPathComponent() // Services/
+            .deletingLastPathComponent() // KeyPathTests/
+            .deletingLastPathComponent() // Tests/
+            .deletingLastPathComponent() // KeyPath project root
+            .path
         return [
             "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-simulator",
+            "\(projectRoot)/build/kanata-simulator",
             "\(cwd)/dist/KeyPath.app/Contents/Library/KeyPath/kanata-simulator",
             "\(cwd)/build/kanata-simulator",
         ]
