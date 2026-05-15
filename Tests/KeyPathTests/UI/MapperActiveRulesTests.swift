@@ -5,10 +5,10 @@ import XCTest
 @MainActor
 final class MapperActiveRulesTests: XCTestCase {
 
-    func testDefaultEnabledCollections_CountIs4() {
+    func testDefaultEnabledCollections_CountIs5() {
         let defaults = RuleCollectionCatalog().defaultCollections()
         let enabledCount = defaults.filter(\.isEnabled).count
-        XCTAssertEqual(enabledCount, 4, "Should have 4 default-enabled collections")
+        XCTAssertEqual(enabledCount, 5, "Should have 5 default-enabled collections")
     }
 
     func testDefaultEnabledCollections_IncludesExpectedPacks() {
