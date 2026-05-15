@@ -575,7 +575,6 @@ public enum PackRegistry {
         iconSymbol: "keyboard.macwindow",
         quickSettings: [],
         bindings: [],
-        associatedCollectionID: RuleCollectionIdentifier.kindaVim,
         visualOnly: true,
         suggestedForKeys: [
             "h", "j", "k", "l",

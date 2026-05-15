@@ -414,11 +414,11 @@ final class RuleCollectionConfigurationTests: XCTestCase {
         XCTAssertTrue(folderMappings.isEmpty, "Default config should not include folder mappings")
 
         // Spot-check a known default
-        let safariMapping = appMappings.first { $0.key == "s" }
-        XCTAssertNotNil(safariMapping)
-        if case let .launchApp(name, bundleId) = safariMapping?.action {
-            XCTAssertEqual(name, "Safari")
-            XCTAssertEqual(bundleId, "com.apple.Safari")
+        let calendarMapping = appMappings.first { $0.key == "a" }
+        XCTAssertNotNil(calendarMapping)
+        if case let .launchApp(name, bundleId) = calendarMapping?.action {
+            XCTAssertEqual(name, "Calendar")
+            XCTAssertEqual(bundleId, "com.apple.iCal")
         }
     }
 
