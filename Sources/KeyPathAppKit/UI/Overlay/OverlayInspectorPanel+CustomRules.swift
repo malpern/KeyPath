@@ -131,7 +131,7 @@ extension OverlayInspectorPanel {
                     ForEach(packs) { pack in
                         Button {
                             if let vm = kanataViewModel {
-                                PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: vm)
+                                PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: vm, fromOverlay: true)
                             }
                         } label: {
                             Text(pack.name)

@@ -1,4 +1,5 @@
 import AppKit
+import KeyPathCore
 import SwiftUI
 
 @MainActor
@@ -8,7 +9,7 @@ final class PackDetailWindowController: NSObject {
     private var window: NSWindow?
     private var willCloseObserver: NSObjectProtocol?
     private var currentPackID: String?
-    private var openedFromOverlay = false
+    private(set) var openedFromOverlay = false
 
     func showWindow(pack: Pack, kanataManager: KanataViewModel, fromOverlay: Bool = false) {
         if let existingWindow = window, existingWindow.isVisible {
@@ -17,7 +18,8 @@ final class PackDetailWindowController: NSObject {
                 return
             }
             // Different pack — replace content in the same window
-            let content = PackDetailView(pack: pack)
+            self.openedFromOverlay = fromOverlay
+            let content = PackDetailView(pack: pack, showBackToRules: fromOverlay)
                 .environment(kanataManager)
             existingWindow.contentView = NSHostingView(rootView: content)
             existingWindow.title = pack.name
@@ -26,19 +28,21 @@ final class PackDetailWindowController: NSObject {
             return
         }
 
-        let content = PackDetailView(pack: pack)
+        let content = PackDetailView(pack: pack, showBackToRules: fromOverlay)
             .environment(kanataManager)
 
         let hosting = NSHostingView(rootView: content)
-        let width = Self.windowWidth(for: pack)
+        let width = pack.preferredDetailWidth
 
         let newWindow = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: width, height: 640),
-            styleMask: [.titled, .closable, .miniaturizable],
+            styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         newWindow.title = pack.name
+        newWindow.titlebarAppearsTransparent = true
+        newWindow.titleVisibility = .hidden
         newWindow.contentView = hosting
         newWindow.isReleasedWhenClosed = false
         newWindow.setFrameAutosaveName("KeyPathPackDetailWindow")
@@ -78,35 +82,13 @@ final class PackDetailWindowController: NSObject {
         self.currentPackID = pack.id
     }
 
-    private static func windowWidth(for pack: Pack) -> CGFloat {
-        // Wide: packs with multi-column binding tables
-        let widePacks: Set<String> = [
-            "com.keypath.pack.vim-navigation",
-            "com.keypath.pack.window-snapping",
-            "com.keypath.pack.mission-control",
-            "com.keypath.pack.numpad-layer",
-            "com.keypath.pack.symbol-layer",
-            "com.keypath.pack.fun-layer",
-        ]
-        if widePacks.contains(pack.id) { return 760 }
-
-        // Medium: packs with sliders, grids, or multi-key editors
-        if pack.id == "com.keypath.pack.home-row-mods" { return 860 }
-
-        if pack.id == "com.keypath.pack.quick-launcher" { return 960 }
-
-        if pack.id == "com.keypath.pack.caps-lock-to-escape" { return 760 }
-
-        let mediumPacks: Set<String> = [
-            "com.keypath.pack.auto-shift-symbols",
-        ]
-        if mediumPacks.contains(pack.id) { return 640 }
-
-        // Narrow: simple pickers and toggles
-        return 560
-    }
+    var hasWindow: Bool { window != nil }
 
     func closeWindow() {
+        let wasFromOverlay = openedFromOverlay
         window?.close()
+        if wasFromOverlay {
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        }
     }
 }

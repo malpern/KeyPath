@@ -19,8 +19,14 @@ import SwiftUI
 
 struct PackDetailView: View {
     let pack: Pack
+    let showBackToRules: Bool
     @Environment(\.dismiss) var dismiss
     @Environment(KanataViewModel.self) var kanataManager
+
+    init(pack: Pack, showBackToRules: Bool = false) {
+        self.pack = pack
+        self.showBackToRules = showBackToRules
+    }
 
     @State var isInstalled = false
     @State var isWorking = false
@@ -55,6 +61,9 @@ struct PackDetailView: View {
     /// Local state for the embedded Quick Launcher editor.
     @State var launcherConfig: LauncherGridConfig = .defaultConfig
 
+    /// Local state for the embedded Key Repeat Control editor.
+    @State var keyRepeatConfig: KeyRepeatControlConfig = .init()
+
     /// Help sheet presentation (Home Row Mods only — mirrors the Rules tab's
     /// `?` button that opens the HRM markdown help).
     @State var showingHomeRowModsHelp = false
@@ -75,7 +84,14 @@ struct PackDetailView: View {
                 .padding(.bottom, 20)
             }
         }
-        .frame(minWidth: 480, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
+        .frame(
+            minWidth: pack.preferredDetailWidth,
+            idealWidth: pack.preferredDetailWidth,
+            maxWidth: .infinity,
+            minHeight: 500,
+            idealHeight: 640,
+            maxHeight: .infinity
+        )
         .task {
             await refreshInstallState()
             loadDefaultQuickSettings()
@@ -109,20 +125,38 @@ struct PackDetailView: View {
             // in the overlay inspector) — it gives users a way to jump to
             // the full list instead of just dismissing the sheet.
             HStack {
-                Button(action: { PackDetailWindowController.shared.closeWindow() }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 10, weight: .semibold))
-                        Text("All Rules")
-                            .font(.system(size: 12, weight: .medium))
+                if showBackToRules {
+                    Button {
+                        PackDetailWindowController.shared.closeWindow()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text("All Rules")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 4)
+                        .padding(.trailing, 8)
+                        .contentShape(Rectangle())
                     }
-                    .foregroundStyle(.secondary)
+                    .buttonStyle(.borderless)
+                    .focusable(false)
+                    .accessibilityLabel("Close and return to rules")
+                    .accessibilityIdentifier("pack-detail-close")
                 }
-                .buttonStyle(.plain)
-                .focusable(false)
-                .accessibilityLabel("Close and return to rules")
-                .accessibilityIdentifier("pack-detail-close")
                 Spacer()
+                if showBackToRules {
+                    Button(action: { PackDetailWindowController.shared.closeWindow() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .focusable(false)
+                    .accessibilityLabel("Close")
+                    .accessibilityIdentifier("pack-detail-dismiss")
+                }
             }
 
             HStack(alignment: .center, spacing: 16) {
@@ -312,6 +346,15 @@ struct PackDetailView: View {
     var associatedLauncherCollection: RuleCollection? {
         guard let collection = liveAssociatedCollection,
               case .launcherGrid = collection.configuration
+        else { return nil }
+        return collection
+    }
+
+    /// Collection backing a key repeat control pack. Matches the
+    /// `.keyRepeatControl` configuration case.
+    var associatedKeyRepeatCollection: RuleCollection? {
+        guard let collection = liveAssociatedCollection,
+              case .keyRepeatControl = collection.configuration
         else { return nil }
         return collection
     }

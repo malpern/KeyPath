@@ -151,18 +151,20 @@ extension OverlayKeycapView {
                     }
                 } else {
                     // Default: action in center, key letter in top-left (except arrows)
+                    let hasActionSymbol = sfSymbolForAction(layerKeyInfo?.displayLabel ?? "") != nil
+                        || LabelMetadata.sfSymbol(forOutputLabel: layerKeyInfo?.displayLabel ?? "") != nil
                     ZStack(alignment: .topLeading) {
-                        // Centered action content
-                        layerActionContent
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                        // Key letter in top-left corner (skip for arrow keys to avoid dual arrows)
+                        // Key letter behind (dimmed when an icon overlays it)
                         if !isArrowKey {
                             Text(layerKeyLabel.uppercased())
                                 .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
-                                .foregroundStyle(Color.white.opacity(0.7))
+                                .foregroundStyle(Color.white.opacity(hasActionSymbol ? 0.25 : 0.7))
                                 .padding(3 * scale)
                         }
+
+                        // Centered action content on top
+                        layerActionContent
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
             }
@@ -268,16 +270,18 @@ extension OverlayKeycapView {
                 // But skip if it's a modifier/special key
                 if !skipSymbolConversion, let actionSymbol = sfSymbolForAction(info.displayLabel) {
                     Image(systemName: actionSymbol)
-                        .font(.system(size: 14 * scale, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(0.9))
-                        .help(info.displayLabel) // Tooltip on hover
+                        .font(.system(size: 14 * scale, weight: .semibold))
+                        .foregroundStyle(Color.white)
+                        .shadow(color: .black.opacity(0.3), radius: 1, y: 0.5)
+                        .help(info.displayLabel)
                 }
                 // Check for SF symbol (media keys, system actions)
                 else if !skipSymbolConversion, let sfSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel) {
                     Image(systemName: sfSymbol)
-                        .font(.system(size: 14 * scale, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(0.9))
-                        .help(info.displayLabel) // Tooltip on hover
+                        .font(.system(size: 14 * scale, weight: .semibold))
+                        .foregroundStyle(Color.white)
+                        .shadow(color: .black.opacity(0.3), radius: 1, y: 0.5)
+                        .help(info.displayLabel)
                 } else {
                     // No SF Symbol - use dynamic text with wrapping
                     dynamicTextLabel(info.displayLabel)

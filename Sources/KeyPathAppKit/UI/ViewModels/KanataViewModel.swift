@@ -400,6 +400,14 @@ class KanataViewModel {
         }
     }
 
+    func updateKeyRepeatControlConfig(collectionId: UUID, config: KeyRepeatControlConfig) async {
+        let wasNewlyEnabled = await manager.updateKeyRepeatControlConfig(collectionId: collectionId, config: config)
+        if wasNewlyEnabled {
+            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
+            showToast("Turned on \(name)", type: .success)
+        }
+    }
+
     /// Update the leader key for all collections that use momentary activation
     func updateLeaderKey(_ newKey: String) async {
         await manager.updateLeaderKey(newKey)

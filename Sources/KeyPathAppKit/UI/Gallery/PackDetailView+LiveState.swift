@@ -37,6 +37,9 @@ extension PackDetailView {
             if let liveLauncher = liveLauncherConfig() {
                 launcherConfig = liveLauncher
             }
+            if let liveKeyRepeat = liveKeyRepeatControlConfig() {
+                keyRepeatConfig = liveKeyRepeat
+            }
         }
     }
 
@@ -57,6 +60,13 @@ extension PackDetailView {
     func liveLauncherConfig() -> LauncherGridConfig? {
         guard let collection = associatedLauncherCollection,
               case let .launcherGrid(cfg) = collection.configuration
+        else { return nil }
+        return cfg
+    }
+
+    func liveKeyRepeatControlConfig() -> KeyRepeatControlConfig? {
+        guard let collection = associatedKeyRepeatCollection,
+              case let .keyRepeatControl(cfg) = collection.configuration
         else { return nil }
         return cfg
     }

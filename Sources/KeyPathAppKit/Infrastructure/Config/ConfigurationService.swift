@@ -311,6 +311,34 @@ public final class ConfigurationService: FileConfigurationProviding {
         AppLogger.shared.log("✅ [ConfigService] Configuration saved with \(mappings.count) mappings")
     }
 
+    /// Strip managed-repeat directives that the runtime supports but `kanata --check` doesn't.
+    static func stripManagedRepeatForValidation(_ config: String) -> String {
+        var lines = config.components(separatedBy: "\n")
+
+        // Remove managed-repeat* lines from defcfg
+        lines = lines.filter { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            return !trimmed.hasPrefix("managed-repeat")
+        }
+
+        // Remove (defrepeat ...) block
+        var result: [String] = []
+        var inDefrepeat = false
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("(defrepeat") {
+                inDefrepeat = true
+                continue
+            }
+            if inDefrepeat {
+                if trimmed == ")" { inDefrepeat = false }
+                continue
+            }
+            result.append(line)
+        }
+        return result.joined(separator: "\n")
+    }
+
     /// Save configuration with key mappings (legacy helper)
     public func saveConfiguration(keyMappings: [KeyMapping]) async throws {
         let collections = [RuleCollection].collection(

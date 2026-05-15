@@ -170,6 +170,15 @@ final class RuleCollectionsCoordinator {
         return wasNewlyEnabled
     }
 
+    /// Update key repeat control configuration
+    @discardableResult
+    func updateKeyRepeatControlConfig(id: UUID, config: KeyRepeatControlConfig) async -> Bool {
+        let wasNewlyEnabled = await ruleCollectionsManager.updateKeyRepeatControlConfig(id: id, config: config)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+        return wasNewlyEnabled
+    }
+
     /// Update the leader key for all collections that use momentary activation
     func updateLeaderKey(_ newKey: String) async {
         await ruleCollectionsManager.updateLeaderKey(newKey)

@@ -88,6 +88,11 @@ extension RuntimeCoordinator {
         await ruleCollectionsCoordinator.updateAutoShiftSymbolsConfig(id: collectionId, config: config)
     }
 
+    @discardableResult
+    func updateKeyRepeatControlConfig(collectionId: UUID, config: KeyRepeatControlConfig) async -> Bool {
+        await ruleCollectionsCoordinator.updateKeyRepeatControlConfig(id: collectionId, config: config)
+    }
+
     func updateLeaderKey(_ newKey: String) async {
         await ruleCollectionsCoordinator.updateLeaderKey(newKey)
     }

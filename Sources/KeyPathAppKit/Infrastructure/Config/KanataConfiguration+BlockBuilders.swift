@@ -488,6 +488,8 @@ extension KanataConfiguration {
             generateLauncherGridMappings(from: config)
         case let .autoShiftSymbols(config):
             generateAutoShiftSymbolsMappings(from: config)
+        case .keyRepeatControl:
+            []
         case .list, .table, .singleKeyPicker:
             collection.mappings
         }

@@ -611,6 +611,33 @@ extension RuleCollectionsManager {
         return wasNewlyEnabled
     }
 
+    /// Update key repeat control configuration
+    /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
+    @discardableResult
+    func updateKeyRepeatControlConfig(id: UUID, config: KeyRepeatControlConfig) async -> Bool {
+        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
+            let catalog = RuleCollectionCatalog()
+            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
+                catalogCollection.configuration.updateKeyRepeatControlConfig(config)
+                catalogCollection.isEnabled = true
+                ruleCollections.append(catalogCollection)
+                dedupeRuleCollectionsInPlace()
+                refreshLayerIndicatorState()
+                await regenerateConfigFromCollections()
+                return true
+            }
+            return false
+        }
+
+        let wasNewlyEnabled = false
+        ruleCollections[index].configuration.updateKeyRepeatControlConfig(config)
+
+        dedupeRuleCollectionsInPlace()
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+        return wasNewlyEnabled
+    }
+
     /// Pre-cache icons for launcher mappings (called when config changes)
     func warmLauncherIconCache(for config: LauncherGridConfig) async {
         let enabledMappings = config.mappings.filter(\.isEnabled)

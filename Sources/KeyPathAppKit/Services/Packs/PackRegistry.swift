@@ -23,6 +23,7 @@ public enum PackRegistry {
         funLayer,
         launcher,
         leaderKey,
+        keyRepeatControl,
         kindaVim
     ]
 
@@ -104,7 +105,7 @@ public enum PackRegistry {
         id: "com.keypath.pack.home-row-mods",
         version: "1.0.0",
         name: "Home Row Mods",
-        tagline: "Tap for letters, hold for modifiers or layers",
+        tagline: "Every shortcut under your fingers — no reaching for modifier keys",
         shortDescription:
             "Tap home row keys normally. Hold them for ⌘ ⇧ ⌥ ⌃ — every shortcut stays under your fingers. Adjust the hold timing to match your typing speed.",
         longDescription: "",
@@ -156,7 +157,7 @@ public enum PackRegistry {
         id: "com.keypath.pack.escape-remap",
         version: "1.0.0",
         name: "Escape Remap",
-        tagline: "Remap the Escape key",
+        tagline: "Move Escape to a closer key like Caps Lock or Backtick",
         shortDescription:
             "Remap Escape to something you'll use more — Caps Lock, Backtick, or Tab. Pairs naturally with Caps Lock Remap so both keys stay useful.",
         longDescription: "",
@@ -175,7 +176,7 @@ public enum PackRegistry {
         id: "com.keypath.pack.delete-enhancement",
         version: "1.0.0",
         name: "Delete Enhancement",
-        tagline: "Leader + Delete for enhanced delete actions",
+        tagline: "Forward-delete, delete word, and delete line without reaching",
         shortDescription:
             "Hold your Leader key + Delete for forward delete, delete word, or delete to line start. Regular Delete still works normally.\n\nRequires Vim Navigation or another Leader pack.",
         longDescription: "",
@@ -201,7 +202,7 @@ public enum PackRegistry {
         id: "com.keypath.pack.backup-caps-lock",
         version: "1.0.0",
         name: "Backup Caps Lock",
-        tagline: "Alternative way to access Caps Lock",
+        tagline: "Press both Shift keys together to toggle Caps Lock",
         shortDescription:
             "Get Caps Lock back by pressing both Shift keys together. Useful when Caps Lock Remap gives that key a new job.",
         longDescription: "",
@@ -326,7 +327,7 @@ public enum PackRegistry {
         id: "com.keypath.pack.auto-shift-symbols",
         version: "1.0.0",
         name: "Auto Shift Symbols",
-        tagline: "Hold a symbol key for its shifted version",
+        tagline: "Type shifted symbols without pressing Shift — just hold the key",
         shortDescription:
             "Hold any symbol key slightly longer to type its shifted variant — no Shift key needed. Tap for the symbol, hold for the shifted version.",
         longDescription: "",
@@ -528,7 +529,24 @@ public enum PackRegistry {
         ]
     )
 
-    // MARK: - Pack 15: KindaVim (visual-only companion)
+    // MARK: - Pack 15: Fast Navigation (Key Repeat Control)
+
+    public static let keyRepeatControl = Pack(
+        id: "com.keypath.pack.key-repeat-control",
+        version: "1.0.0",
+        name: "Fast Navigation",
+        tagline: "Arrow keys and delete at 3x speed",
+        shortDescription:
+            "Your arrow keys move through text at the same sluggish speed as every other key. Fast Navigation makes them 3× faster — jump through code, scroll spreadsheets, edit text at the speed your brain actually works.\n\nDelete gets faster too. Regular typing stays steady so you don't get accidental repeats.",
+        longDescription: "",
+        category: "Navigation",
+        iconSymbol: "hare",
+        quickSettings: [],
+        bindings: [],
+        associatedCollectionID: RuleCollectionIdentifier.keyRepeatControl
+    )
+
+    // MARK: - Pack 16: KindaVim (visual-only companion)
 
     /// Visual-only companion pack for the third-party
     /// [KindaVim](https://kindavim.app) app. KindaVim handles all the Vim
@@ -548,8 +566,8 @@ public enum PackRegistry {
     public static let kindaVim = Pack(
         id: "com.keypath.pack.kindavim",
         version: "1.0.0",
-        name: "KindaVim Mode Display",
-        tagline: "Show KindaVim mode in the overlay (no remapping)",
+        name: "KindaVim",
+        tagline: "Vim-style navigation for any macOS app via KindaVim.app",
         shortDescription:
             "Shows your KindaVim mode (Normal, Insert, Visual) in the overlay header. The overlay adapts — Vim hints in Normal mode, clean keyboard in Insert.\n\nDisplay only — no key remapping. Requires KindaVim.app.",
         longDescription: "",
@@ -557,7 +575,12 @@ public enum PackRegistry {
         iconSymbol: "keyboard.macwindow",
         quickSettings: [],
         bindings: [],
-        associatedCollectionID: nil,
-        visualOnly: true
+        associatedCollectionID: RuleCollectionIdentifier.kindaVim,
+        visualOnly: true,
+        suggestedForKeys: [
+            "h", "j", "k", "l",
+            "i", "esc",
+            "w", "b", "d", "y", "p", "u", "v",
+        ]
     )
 }

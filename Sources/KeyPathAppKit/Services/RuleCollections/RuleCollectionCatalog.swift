@@ -68,6 +68,7 @@ struct RuleCollectionCatalog {
             symbolLayer,
             funLayer,
             autoShiftSymbols,
+            keyRepeatControl,
             launcher
         ]
     }
@@ -946,6 +947,24 @@ struct RuleCollectionCatalog {
             targetLayer: .base,
             activationHint: "\(config.enabledKeys.count) keys \u{00B7} \(config.timeoutMs)ms hold",
             configuration: .autoShiftSymbols(config)
+        )
+    }
+
+    // MARK: - Key Repeat Control
+
+    private var keyRepeatControl: RuleCollection {
+        let config = KeyRepeatControlConfig()
+        return RuleCollection(
+            id: RuleCollectionIdentifier.keyRepeatControl,
+            name: "Fast Navigation",
+            summary: "Arrow keys and delete repeat 3× faster. Regular keys stay steady.",
+            category: .system,
+            mappings: [],
+            isEnabled: true,
+            isSystemDefault: true,
+            icon: "hare",
+            tags: ["fast", "navigation", "arrows", "repeat", "speed"],
+            configuration: .keyRepeatControl(config)
         )
     }
 

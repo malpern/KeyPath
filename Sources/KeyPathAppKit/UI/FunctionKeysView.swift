@@ -220,23 +220,25 @@ private struct DisplayModeToggle: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Custom segmented control with icons
-            IconSegmentedControl(
-                selection: $showMediaKeys,
-                segments: [
-                    (true, "sun.max", "Media Keys"),
-                    (false, "function", "Function Keys")
-                ]
-            )
-            .padding(.horizontal, 4)
+            HStack(spacing: 8) {
+                SettingsOptionCard(
+                    icon: "sun.max",
+                    title: "Media Keys",
+                    subtitle: "Brightness, volume, media",
+                    isSelected: showMediaKeys
+                ) {
+                    showMediaKeys = true
+                }
 
-            // Description
-            Text(showMediaKeys
-                ? "Shows brightness, volume, and media controls (default Mac behavior)"
-                : "Shows F1-F12 for apps that use function keys")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .padding(.horizontal, 6)
+                SettingsOptionCard(
+                    icon: "function",
+                    title: "Function Keys",
+                    subtitle: "F1–F12 for apps",
+                    isSelected: !showMediaKeys
+                ) {
+                    showMediaKeys = false
+                }
+            }
         }
         .padding(.vertical, 4)
     }

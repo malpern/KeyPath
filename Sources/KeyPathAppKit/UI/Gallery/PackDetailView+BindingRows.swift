@@ -114,6 +114,16 @@ extension PackDetailView {
                 )
                 .id(selectedLayerPresetId ?? "")
             }
+        } else if let keyRepeatCollection = associatedKeyRepeatCollection {
+            embeddedEditor {
+                KeyRepeatControlView(
+                    config: keyRepeatConfig,
+                    onConfigChanged: { newConfig in
+                        Task { await applyKeyRepeatEdit(newConfig, collectionID: keyRepeatCollection.id) }
+                    }
+                )
+                .id(keyRepeatCollection.id)
+            }
         } else if let launcherCollection = associatedLauncherCollection {
             // Quick Launcher — keyboard visualization + drawer of mappings,
             // activation-mode picker. Same view Rules tab uses; edits flow

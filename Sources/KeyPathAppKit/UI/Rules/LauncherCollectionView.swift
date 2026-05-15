@@ -202,6 +202,8 @@ struct LauncherMappingEditor: View {
     @State private var folderName: String
     @State private var scriptPath: String
     @State private var scriptName: String
+    @State private var keystrokeKey: String
+    @State private var selectedSystemAction: SystemActionInfo?
     @State private var isEnabled: Bool
     @State private var customIconPath: String
     @State private var userDescription: String
@@ -216,6 +218,8 @@ struct LauncherMappingEditor: View {
         case website = "Website"
         case folder = "Folder"
         case script = "Script"
+        case keystroke = "Key"
+        case systemAction = "System"
 
         var requiresScriptExecution: Bool {
             self == .script
@@ -227,6 +231,8 @@ struct LauncherMappingEditor: View {
             case .website: "globe"
             case .folder: "folder.fill"
             case .script: "terminal.fill"
+            case .keystroke: "keyboard"
+            case .systemAction: "gearshape"
             }
         }
     }
@@ -259,6 +265,8 @@ struct LauncherMappingEditor: View {
                 _folderName = State(initialValue: "")
                 _scriptPath = State(initialValue: "")
                 _scriptName = State(initialValue: "")
+                _keystrokeKey = State(initialValue: "")
+                _selectedSystemAction = State(initialValue: nil)
             case let .openURL(urlString):
                 _targetType = State(initialValue: .website)
                 _appName = State(initialValue: "")
@@ -268,6 +276,8 @@ struct LauncherMappingEditor: View {
                 _folderName = State(initialValue: "")
                 _scriptPath = State(initialValue: "")
                 _scriptName = State(initialValue: "")
+                _keystrokeKey = State(initialValue: "")
+                _selectedSystemAction = State(initialValue: nil)
             case let .openFolder(path, name):
                 _targetType = State(initialValue: .folder)
                 _appName = State(initialValue: "")
@@ -277,6 +287,8 @@ struct LauncherMappingEditor: View {
                 _folderName = State(initialValue: name ?? "")
                 _scriptPath = State(initialValue: "")
                 _scriptName = State(initialValue: "")
+                _keystrokeKey = State(initialValue: "")
+                _selectedSystemAction = State(initialValue: nil)
             case let .runScript(path, name):
                 _targetType = State(initialValue: .script)
                 _appName = State(initialValue: "")
@@ -286,6 +298,30 @@ struct LauncherMappingEditor: View {
                 _folderName = State(initialValue: "")
                 _scriptPath = State(initialValue: path)
                 _scriptName = State(initialValue: name ?? "")
+                _keystrokeKey = State(initialValue: "")
+                _selectedSystemAction = State(initialValue: nil)
+            case let .keystroke(key):
+                _targetType = State(initialValue: .keystroke)
+                _appName = State(initialValue: "")
+                _bundleId = State(initialValue: "")
+                _url = State(initialValue: "")
+                _folderPath = State(initialValue: "")
+                _folderName = State(initialValue: "")
+                _scriptPath = State(initialValue: "")
+                _scriptName = State(initialValue: "")
+                _keystrokeKey = State(initialValue: key)
+                _selectedSystemAction = State(initialValue: nil)
+            case let .systemAction(id):
+                _targetType = State(initialValue: .systemAction)
+                _appName = State(initialValue: "")
+                _bundleId = State(initialValue: "")
+                _url = State(initialValue: "")
+                _folderPath = State(initialValue: "")
+                _folderName = State(initialValue: "")
+                _scriptPath = State(initialValue: "")
+                _scriptName = State(initialValue: "")
+                _keystrokeKey = State(initialValue: "")
+                _selectedSystemAction = State(initialValue: SystemActionInfo.allActions.first { $0.id == id })
             default:
                 _targetType = State(initialValue: .app)
                 _appName = State(initialValue: "")
@@ -295,6 +331,8 @@ struct LauncherMappingEditor: View {
                 _folderName = State(initialValue: "")
                 _scriptPath = State(initialValue: "")
                 _scriptName = State(initialValue: "")
+                _keystrokeKey = State(initialValue: "")
+                _selectedSystemAction = State(initialValue: nil)
             }
         } else {
             _key = State(initialValue: "")
@@ -306,6 +344,8 @@ struct LauncherMappingEditor: View {
             _folderName = State(initialValue: "")
             _scriptPath = State(initialValue: "")
             _scriptName = State(initialValue: "")
+            _keystrokeKey = State(initialValue: "")
+            _selectedSystemAction = State(initialValue: nil)
             _isEnabled = State(initialValue: true)
             _customIconPath = State(initialValue: "")
             _userDescription = State(initialValue: "")
@@ -622,41 +662,59 @@ struct LauncherMappingEditor: View {
                 }
             }
 
-            // Description (shown in overlay sidebar)
-            formRow("Description") {
-                TextField("What this shortcut does (optional)", text: $userDescription)
+        case .keystroke:
+            formRow("Key") {
+                TextField("e.g., esc, f5, mute", text: $keystrokeKey)
                     .textFieldStyle(.roundedBorder)
-                    .accessibilityIdentifier("launcher-editor-description-field")
+                    .accessibilityIdentifier("launcher-editor-keystroke-field")
             }
+        case .systemAction:
+            formRow("Action") {
+                Picker("", selection: $selectedSystemAction) {
+                    Text("Choose...").tag(nil as SystemActionInfo?)
+                    ForEach(SystemActionInfo.allActions) { action in
+                        Label(action.name, systemImage: action.sfSymbol).tag(action as SystemActionInfo?)
+                    }
+                }
+                .labelsHidden()
+                .accessibilityIdentifier("launcher-editor-system-action-picker")
+            }
+        }
 
-            // Custom icon (available for all target types)
-            formRow("Icon") {
-                HStack(spacing: 8) {
-                    if !customIconPath.isEmpty,
-                       let img = NSImage(contentsOfFile: (customIconPath as NSString).expandingTildeInPath)
-                    {
-                        Image(nsImage: img)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 20, height: 20)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
+        // Description (shown in overlay sidebar)
+        formRow("Description") {
+            TextField("What this shortcut does (optional)", text: $userDescription)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("launcher-editor-description-field")
+        }
+
+        // Custom icon (available for all target types)
+        formRow("Icon") {
+            HStack(spacing: 8) {
+                if !customIconPath.isEmpty,
+                   let img = NSImage(contentsOfFile: (customIconPath as NSString).expandingTildeInPath)
+                {
+                    Image(nsImage: img)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 20, height: 20)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                Button(customIconPath.isEmpty ? "Choose..." : "Change...") {
+                    browseForIcon()
+                }
+                .controlSize(.small)
+                .accessibilityIdentifier("launcher-editor-icon-browse")
+                if !customIconPath.isEmpty {
+                    Button {
+                        customIconPath = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
                     }
-                    Button(customIconPath.isEmpty ? "Choose..." : "Change...") {
-                        browseForIcon()
-                    }
-                    .controlSize(.small)
-                    .accessibilityIdentifier("launcher-editor-icon-browse")
-                    if !customIconPath.isEmpty {
-                        Button {
-                            customIconPath = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .help("Remove custom icon")
-                        .accessibilityIdentifier("launcher-editor-icon-clear")
-                    }
+                    .buttonStyle(.plain)
+                    .help("Remove custom icon")
+                    .accessibilityIdentifier("launcher-editor-icon-clear")
                 }
             }
         }
@@ -691,6 +749,8 @@ struct LauncherMappingEditor: View {
         case .website: url
         case .folder: folderName.isEmpty ? (folderPath as NSString).lastPathComponent : folderName
         case .script: scriptName.isEmpty ? (scriptPath as NSString).lastPathComponent : scriptName
+        case .keystroke: keystrokeKey.isEmpty ? "Key" : keystrokeKey.uppercased()
+        case .systemAction: selectedSystemAction?.name ?? "System Action"
         }
     }
 
@@ -711,6 +771,12 @@ struct LauncherMappingEditor: View {
             icon = AppIconResolver.icon(for: mapping.action)
         case let .openURL(urlString):
             icon = await services.faviconFetcher.fetchFavicon(for: urlString)
+        case .keystroke:
+            icon = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "Key")
+        case let .systemAction(id):
+            if let info = SystemActionInfo.allActions.first(where: { $0.id == id }) {
+                icon = NSImage(systemSymbolName: info.sfSymbol, accessibilityDescription: info.name)
+            }
         default:
             break
         }
@@ -745,6 +811,10 @@ struct LauncherMappingEditor: View {
         case .script:
             if scriptPath.isEmpty { return "Script path is required" }
             if !isScriptExecutionEnabled { return "Script execution is disabled in Settings" }
+        case .keystroke:
+            if keystrokeKey.trimmingCharacters(in: .whitespaces).isEmpty { return "Key name is required" }
+        case .systemAction:
+            if selectedSystemAction == nil { return "Choose a system action" }
         }
 
         return nil
@@ -822,6 +892,10 @@ struct LauncherMappingEditor: View {
             .openFolder(path: folderPath, name: folderName.isEmpty ? nil : folderName)
         case .script:
             .runScript(path: scriptPath, name: scriptName.isEmpty ? nil : scriptName)
+        case .keystroke:
+            .keystroke(key: keystrokeKey.trimmingCharacters(in: .whitespaces).lowercased())
+        case .systemAction:
+            .systemAction(id: selectedSystemAction?.id ?? "")
         }
 
         let result = LauncherMapping(

@@ -93,10 +93,19 @@ public struct KanataConfiguration: Sendable {
         let enabledNames = enabledCollections.map(\.name).joined(separator: ", ")
 
         let macosDeviceTargeting = renderMacOSDeviceTargetingForDefcfg()
+        let keyRepeatConfig = enabledCollections
+            .compactMap(\.configuration.keyRepeatControlConfig)
+            .first
+
         var defcfgLines = [
             "  process-unmapped-keys yes",
-            "  danger-enable-cmd yes"
+            "  danger-enable-cmd yes",
         ]
+        if let krc = keyRepeatConfig, krc.isEnabled {
+            defcfgLines.append("  managed-repeat yes")
+            defcfgLines.append("  managed-repeat-delay \(krc.globalDelayMs)")
+            defcfgLines.append("  managed-repeat-interval \(krc.globalIntervalMs)")
+        }
         if requirePriorIdleMs > 0 {
             defcfgLines.append("  tap-hold-require-prior-idle \(requirePriorIdleMs)")
         }
@@ -173,11 +182,22 @@ public struct KanataConfiguration: Sendable {
             ""
         }
 
+        let defrepeatBlock: String = {
+            guard let krc = keyRepeatConfig, krc.isEnabled, !krc.perKeyOverrides.isEmpty else {
+                return ""
+            }
+            let entries = krc.perKeyOverrides
+                .map { "  (\($0.key)  \($0.delayMs) \($0.intervalMs))" }
+                .joined(separator: "\n")
+            return "(defrepeat\n\(entries)\n)"
+        }()
+
         return [
             header,
             safetyNotes,
             appIncludeBlock,
             defvarBlock,
+            defrepeatBlock,
             defhandsBlock,
             sourceBlock,
             aliasBlock, // Must come before layers that reference aliases (e.g., @kp-ac-spc)

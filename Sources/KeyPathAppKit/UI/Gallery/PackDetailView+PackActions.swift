@@ -207,6 +207,18 @@ extension PackDetailView {
         await kanataManager.updateCollectionLayerPreset(collectionID, presetId: presetId)
     }
 
+    /// Mirror of `applyHomeRowEdit` for the Key Repeat Control pack.
+    func applyKeyRepeatEdit(_ newConfig: KeyRepeatControlConfig, collectionID: UUID) async {
+        keyRepeatConfig = newConfig
+        if !isInstalled {
+            await install(skipFinalReload: true)
+        }
+        await kanataManager.updateKeyRepeatControlConfig(
+            collectionId: collectionID,
+            config: newConfig
+        )
+    }
+
     /// Mirror of `applyHomeRowEdit` for the Quick Launcher pack. Persists
     /// activation-mode + key mappings via the same VM hook Rules uses.
     func applyLauncherEdit(_ newConfig: LauncherGridConfig, collectionID: UUID) async {

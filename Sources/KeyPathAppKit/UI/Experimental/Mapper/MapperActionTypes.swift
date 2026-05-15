@@ -61,7 +61,7 @@ public struct AppConditionInfo: Equatable, Identifiable {
 // MARK: - System Action Info
 
 /// Info about a selected system action or media key
-public struct SystemActionInfo: Equatable, Identifiable, Sendable {
+public struct SystemActionInfo: Equatable, Hashable, Identifiable, Sendable {
     /// The action identifier (e.g., "dnd", "spotlight", "pp" for play/pause)
     public let id: String
     /// Human-readable name

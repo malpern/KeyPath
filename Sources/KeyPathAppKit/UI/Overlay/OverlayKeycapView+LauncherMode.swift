@@ -16,19 +16,20 @@ extension OverlayKeycapView {
     var launcherModeContent: some View {
         let labelFontSize = lerp(from: 11, to: 8, progress: launcherTransition) * scale
         let labelOpacity = lerp(from: 0.85, to: 0.55, progress: launcherTransition)
-        let labelOffsetX = lerp(from: 0, to: -10, progress: launcherTransition) * scale
+        let labelOffsetX = lerp(from: 0, to: 10, progress: launcherTransition) * scale
         let labelOffsetY = lerp(from: 0, to: -10, progress: launcherTransition) * scale
         let fadeFactor = 1 - fadeAmount * 0.7
 
         if let mapping = launcherMapping {
-            ZStack {
+            ZStack(alignment: .topTrailing) {
+                // Icon centered
                 if iconVisible {
                     if let icon = launcherAppIcon {
                         ZStack(alignment: .bottomTrailing) {
                             Image(nsImage: icon)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .frame(width: 20 * scale, height: 20 * scale)
+                                .frame(width: 22 * scale, height: 22 * scale)
                                 .clipShape(RoundedRectangle(cornerRadius: 4 * scale))
 
                             if !mapping.action.isLaunchApp {
@@ -37,21 +38,29 @@ extension OverlayKeycapView {
                         }
                         .scaleEffect(iconVisible ? 1.0 : 0.3)
                         .opacity((iconVisible ? 1.0 : 0) * fadeFactor)
-                        .offset(x: 2 * scale)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
                         Image(systemName: mapping.action.isLaunchApp ? "app.fill" : "globe")
                             .font(.system(size: 14 * scale))
                             .foregroundStyle(foregroundColor.opacity(0.6))
                             .scaleEffect(iconVisible ? 1.0 : 0.3)
                             .opacity((iconVisible ? 1.0 : 0) * fadeFactor)
-                            .offset(x: 2 * scale)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
 
-                Text(launcherKeyLabel.uppercased())
-                    .font(.system(size: labelFontSize, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(labelOpacity * fadeFactor))
-                    .offset(x: labelOffsetX, y: labelOffsetY)
+                // Letter pinned to top-right
+                if iconVisible {
+                    Text(launcherKeyLabel.uppercased())
+                        .font(.system(size: 7 * scale, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.5 * fadeFactor))
+                        .padding(2.5 * scale)
+                } else {
+                    Text(launcherKeyLabel.uppercased())
+                        .font(.system(size: labelFontSize, weight: .medium, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(labelOpacity * fadeFactor))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .help(mapping.tooltip)

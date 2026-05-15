@@ -52,6 +52,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
     /// Auto Shift Symbols: hold symbol keys slightly longer for shifted output
     case autoShiftSymbols(AutoShiftSymbolsConfig)
 
+    /// Key Repeat Control: kanata-managed key repeat with per-key overrides
+    case keyRepeatControl(KeyRepeatControlConfig)
+
     // MARK: - Convenience Accessors
 
     /// The display style enum value (for compatibility with existing UI code)
@@ -68,6 +71,7 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case .layerPresetPicker: .layerPresetPicker
         case .launcherGrid: .launcherGrid
         case .autoShiftSymbols: .autoShiftSymbols
+        case .keyRepeatControl: .keyRepeatControl
         }
     }
 
@@ -122,6 +126,12 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
     /// Extract auto shift symbols config if this is a `.autoShiftSymbols` case
     public var autoShiftSymbolsConfig: AutoShiftSymbolsConfig? {
         if case let .autoShiftSymbols(config) = self { return config }
+        return nil
+    }
+
+    /// Extract key repeat control config if this is a `.keyRepeatControl` case
+    public var keyRepeatControlConfig: KeyRepeatControlConfig? {
+        if case let .keyRepeatControl(config) = self { return config }
         return nil
     }
 
@@ -205,6 +215,13 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         }
     }
 
+    /// Update the key repeat control config
+    public mutating func updateKeyRepeatControlConfig(_ newConfig: KeyRepeatControlConfig) {
+        if case .keyRepeatControl = self {
+            self = .keyRepeatControl(newConfig)
+        }
+    }
+
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {
@@ -223,6 +240,7 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case layerPresetPicker
         case launcherGrid
         case autoShiftSymbols
+        case keyRepeatControl
     }
 
     public init(from decoder: Decoder) throws {
@@ -261,6 +279,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case .autoShiftSymbols:
             let config = try AutoShiftSymbolsConfig(from: decoder)
             self = .autoShiftSymbols(config)
+        case .keyRepeatControl:
+            let config = try KeyRepeatControlConfig(from: decoder)
+            self = .keyRepeatControl(config)
         }
     }
 
@@ -298,6 +319,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
             try config.encode(to: encoder)
         case let .autoShiftSymbols(config):
             try container.encode(ConfigType.autoShiftSymbols, forKey: .type)
+            try config.encode(to: encoder)
+        case let .keyRepeatControl(config):
+            try container.encode(ConfigType.keyRepeatControl, forKey: .type)
             try config.encode(to: encoder)
         }
     }
@@ -573,50 +597,31 @@ public struct LauncherGridConfig: Codable, Equatable, Sendable {
     }
 
     /// Default app and website mappings
-    /// Home row prioritized for most-used apps and sites
+    /// Minimal set — additional suggestions come from activity tracking and browser history
     public static var defaultMappings: [LauncherMapping] {
-        // Home row - most used (asdfghjkl)
         let homeRowMappings: [LauncherMapping] = [
             LauncherMapping(key: "a", action: .launchApp(name: "Calendar", bundleId: "com.apple.iCal")),
-            LauncherMapping(key: "s", action: .launchApp(name: "Safari", bundleId: "com.apple.Safari")),
-            LauncherMapping(key: "d", action: .launchApp(name: "Terminal", bundleId: "com.apple.Terminal")),
             LauncherMapping(key: "f", action: .launchApp(name: "Finder", bundleId: "com.apple.finder")),
-            LauncherMapping(key: "g", action: .openURL("chatgpt.com")),
             LauncherMapping(key: "h", action: .openURL("youtube.com")),
             LauncherMapping(key: "j", action: .openURL("x.com")),
             LauncherMapping(key: "k", action: .launchApp(name: "Messages", bundleId: "com.apple.MobileSMS")),
-            LauncherMapping(key: "l", action: .openURL("linkedin.com"))
+            LauncherMapping(key: "l", action: .openURL("linkedin.com")),
         ]
 
-        // Top row (qwertyuiop)
         let topRowMappings: [LauncherMapping] = [
-            LauncherMapping(key: "e", action: .launchApp(name: "Mail", bundleId: "com.apple.mail")),
             LauncherMapping(key: "r", action: .openURL("reddit.com")),
-            LauncherMapping(key: "u", action: .launchApp(name: "Music", bundleId: "com.apple.Music")),
-            LauncherMapping(key: "i", action: .openURL("claude.ai")),
-            LauncherMapping(key: "o", action: .launchApp(name: "Obsidian", bundleId: "md.obsidian")),
-            LauncherMapping(key: "p", action: .launchApp(name: "Photos", bundleId: "com.apple.Photos"))
         ]
 
-        // Bottom row (zxcvbnm)
         let bottomRowMappings: [LauncherMapping] = [
             LauncherMapping(key: "z", action: .launchApp(name: "Zoom", bundleId: "us.zoom.xos")),
             LauncherMapping(key: "x", action: .launchApp(name: "Slack", bundleId: "com.tinyspeck.slackmacgap")),
             LauncherMapping(key: "c", action: .launchApp(name: "Discord", bundleId: "com.hnc.Discord")),
-            LauncherMapping(key: "v", action: .launchApp(name: "VS Code", bundleId: "com.microsoft.VSCode")),
-            LauncherMapping(key: "n", action: .launchApp(name: "Notes", bundleId: "com.apple.Notes"))
         ]
 
-        // Number row (websites + folders + scripts)
         let numberRowMappings: [LauncherMapping] = [
             LauncherMapping(key: "1", action: .openURL("github.com")),
             LauncherMapping(key: "2", action: .openURL("google.com")),
-            LauncherMapping(key: "3", action: .openURL("notion.so")),
-            LauncherMapping(key: "4", action: .openURL("stackoverflow.com"))
         ]
-
-        // Note: Script examples are not included by default since script execution requires
-        // explicit user opt-in via Settings > Security. Users can add scripts manually.
 
         return homeRowMappings + topRowMappings + bottomRowMappings + numberRowMappings
     }
@@ -669,5 +674,137 @@ public struct AutoShiftSymbolsConfig: Codable, Equatable, Sendable {
         self.timeoutMs = timeoutMs
         self.protectFastTyping = protectFastTyping
         self.enabledKeys = enabledKeys ?? Set(AutoShiftSymbolsConfig.allSymbolKeys)
+    }
+}
+
+// MARK: - Key Repeat Control Configuration
+
+/// A per-key repeat rate override within the managed-repeat system.
+public struct KeyRepeatOverride: Codable, Equatable, Sendable, Identifiable {
+    public var id: String { key }
+    public let key: String
+    public var delayMs: Int
+    public var intervalMs: Int
+
+    public init(key: String, delayMs: Int, intervalMs: Int) {
+        self.key = key
+        self.delayMs = delayMs
+        self.intervalMs = intervalMs
+    }
+
+    /// Display label for UI (e.g. "bspc" → "⌫ Delete")
+    public static let displayLabels: [String: String] = [
+        "bspc": "⌫ Delete",
+        "del": "⌦ Fwd Delete",
+        "left": "← Left",
+        "right": "→ Right",
+        "up": "↑ Up",
+        "down": "↓ Down",
+    ]
+
+    public var displayLabel: String {
+        Self.displayLabels[key] ?? key
+    }
+}
+
+/// Configuration for kanata-managed key repeat (defcfg managed-repeat + defrepeat).
+///
+/// When enabled, kanata takes over key repeat from the OS, eliminating the macOS
+/// bug that causes duplicated characters under CPU load. Per-key overrides let
+/// users set faster repeat for arrows/delete and slower repeat for alphas.
+public struct KeyRepeatControlConfig: Codable, Equatable, Sendable {
+    public var isEnabled: Bool
+    public var globalDelayMs: Int
+    public var globalIntervalMs: Int
+    public var perKeyOverrides: [KeyRepeatOverride]
+
+    public static let defaultGlobalDelayMs = 500
+    public static let defaultGlobalIntervalMs = 30
+
+    public static let defaultPerKeyOverrides: [KeyRepeatOverride] = [
+        KeyRepeatOverride(key: "left", delayMs: 150, intervalMs: 20),
+        KeyRepeatOverride(key: "right", delayMs: 150, intervalMs: 20),
+        KeyRepeatOverride(key: "up", delayMs: 150, intervalMs: 20),
+        KeyRepeatOverride(key: "down", delayMs: 150, intervalMs: 20),
+        KeyRepeatOverride(key: "bspc", delayMs: 210, intervalMs: 20),
+        KeyRepeatOverride(key: "del", delayMs: 210, intervalMs: 20),
+    ]
+
+    public init(
+        isEnabled: Bool = true,
+        globalDelayMs: Int = KeyRepeatControlConfig.defaultGlobalDelayMs,
+        globalIntervalMs: Int = KeyRepeatControlConfig.defaultGlobalIntervalMs,
+        perKeyOverrides: [KeyRepeatOverride] = KeyRepeatControlConfig.defaultPerKeyOverrides
+    ) {
+        self.isEnabled = isEnabled
+        self.globalDelayMs = globalDelayMs
+        self.globalIntervalMs = globalIntervalMs
+        self.perKeyOverrides = perKeyOverrides
+    }
+
+    /// Human-readable repeat speed (keys per second) from interval in ms
+    public static func keysPerSecond(fromIntervalMs ms: Int) -> String {
+        guard ms > 0 else { return "—" }
+        let kps = 1000.0 / Double(ms)
+        if kps >= 10 { return "\(Int(kps))/sec" }
+        return String(format: "%.1f/sec", kps)
+    }
+
+    /// Named presets for common configurations
+    public enum Preset: String, CaseIterable, Identifiable {
+        case balanced
+        case fastNavigation
+        case careful
+
+        public var id: String { rawValue }
+
+        public var label: String {
+            switch self {
+            case .balanced: "Balanced"
+            case .fastNavigation: "Fast Navigation"
+            case .careful: "Careful"
+            }
+        }
+
+        public var description: String {
+            switch self {
+            case .balanced: "Default"
+            case .fastNavigation: "Max speed"
+            case .careful: "Prevent accidents"
+            }
+        }
+
+        public var config: KeyRepeatControlConfig {
+            switch self {
+            case .balanced:
+                KeyRepeatControlConfig()
+            case .fastNavigation:
+                KeyRepeatControlConfig(
+                    globalDelayMs: 300,
+                    globalIntervalMs: 20,
+                    perKeyOverrides: [
+                        KeyRepeatOverride(key: "left", delayMs: 120, intervalMs: 15),
+                        KeyRepeatOverride(key: "right", delayMs: 120, intervalMs: 15),
+                        KeyRepeatOverride(key: "up", delayMs: 120, intervalMs: 15),
+                        KeyRepeatOverride(key: "down", delayMs: 120, intervalMs: 15),
+                        KeyRepeatOverride(key: "bspc", delayMs: 150, intervalMs: 15),
+                        KeyRepeatOverride(key: "del", delayMs: 150, intervalMs: 15),
+                    ]
+                )
+            case .careful:
+                KeyRepeatControlConfig(
+                    globalDelayMs: 700,
+                    globalIntervalMs: 40,
+                    perKeyOverrides: [
+                        KeyRepeatOverride(key: "left", delayMs: 300, intervalMs: 25),
+                        KeyRepeatOverride(key: "right", delayMs: 300, intervalMs: 25),
+                        KeyRepeatOverride(key: "up", delayMs: 300, intervalMs: 25),
+                        KeyRepeatOverride(key: "down", delayMs: 300, intervalMs: 25),
+                        KeyRepeatOverride(key: "bspc", delayMs: 400, intervalMs: 30),
+                        KeyRepeatOverride(key: "del", delayMs: 400, intervalMs: 30),
+                    ]
+                )
+            }
+        }
     }
 }

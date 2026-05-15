@@ -115,6 +115,25 @@ public struct Pack: Identifiable, Equatable, Sendable {
     public var affectedKeys: [String] {
         Array(Set(bindings.map(\.input)))
     }
+
+    /// Preferred width for Pack Detail presentation (window or sheet).
+    public var preferredDetailWidth: CGFloat {
+        let widePacks: Set<String> = [
+            "com.keypath.pack.vim-navigation",
+            "com.keypath.pack.window-snapping",
+            "com.keypath.pack.mission-control",
+            "com.keypath.pack.numpad-layer",
+            "com.keypath.pack.symbol-layer",
+            "com.keypath.pack.fun-layer",
+            "com.keypath.pack.caps-lock-to-escape",
+        ]
+        if widePacks.contains(id) { return 760 }
+        if id == "com.keypath.pack.home-row-mods" { return 860 }
+        if id == "com.keypath.pack.quick-launcher" { return 960 }
+        if id == "com.keypath.pack.auto-shift-symbols" { return 640 }
+        if id == "com.keypath.pack.key-repeat-control" { return 640 }
+        return 560
+    }
 }
 
 /// A quick setting a user can adjust on Pack Detail without opening a full

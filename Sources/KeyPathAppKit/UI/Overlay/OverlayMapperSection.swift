@@ -38,6 +38,8 @@ struct OverlayMapperSection: View {
     @State var selectedLayerOutput: String?
     /// Selected tap count (1 = single, 2 = double, 3 = triple)
     @State var selectedTapCount: Int = 1
+    /// Cached set of installed pack IDs (for green dot on visual-only packs)
+    @State private var installedPackIDs: Set<String> = []
 
     /// Current behavior slot being edited (tap is default)
     @State var selectedBehaviorSlot: BehaviorSlot = .tap
@@ -55,39 +57,35 @@ struct OverlayMapperSection: View {
     @State var inputKeycapBounce = false
 
     var body: some View {
-        ZStack(alignment: .top) {
-            bodyView
+        bodyView
+            .overlay {
+                if isSystemActionPickerOpen || isAppConditionPickerOpen || isHoldVariantPopoverOpen {
+                    GeometryReader { _ in
+                        ZStack(alignment: .top) {
+                            Color.black.opacity(0.001)
+                                .onTapGesture { dismissAllPopovers() }
 
-            if isSystemActionPickerOpen {
-                ZStack {
-                    Color.clear
-                    systemActionPopover
-                        .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
-                }
-                .transition(.opacity)
-                .zIndex(999)
-            }
+                            if isSystemActionPickerOpen {
+                                systemActionPopover
+                                    .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
+                            }
 
-            if isAppConditionPickerOpen {
-                ZStack {
-                    Color.clear
-                    appConditionPopover
-                        .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
-                }
-                .transition(.opacity)
-                .zIndex(999)
-            }
+                            if isAppConditionPickerOpen {
+                                appConditionPopover
+                                    .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
+                            }
 
-            if isHoldVariantPopoverOpen {
-                ZStack {
-                    Color.clear
-                    holdVariantPopover
-                        .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
+                            if isHoldVariantPopoverOpen {
+                                holdVariantPopover
+                                    .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .transition(.opacity)
+                    .zIndex(999)
                 }
-                .transition(.opacity)
-                .zIndex(999)
             }
-        }
         .onChange(of: anyPopoverOpen) { _, isOpen in
             if isOpen {
                 installPopoverDismissMonitor()
@@ -106,15 +104,10 @@ struct OverlayMapperSection: View {
 
     private func installPopoverDismissMonitor() {
         removePopoverDismissMonitor()
-        popoverDismissMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { event in
-            if event.type == .keyDown, event.keyCode == 53 {
+        popoverDismissMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
+            if event.keyCode == 53 {
                 dismissAllPopovers()
                 return nil
-            }
-            if event.type == .leftMouseDown || event.type == .rightMouseDown {
-                DispatchQueue.main.async {
-                    dismissAllPopovers()
-                }
             }
             return event
         }
@@ -143,6 +136,10 @@ struct OverlayMapperSection: View {
         }
 
         let withAppear = base.onAppear {
+            Task {
+                let records = await InstalledPackTracker.shared.allInstalled()
+                installedPackIDs = Set(records.map(\.packID))
+            }
             guard !shouldShowHealthGate, let kanataViewModel else { return }
             viewModel.configure(kanataManager: kanataViewModel.underlyingManager)
             viewModel.setLayer(kanataViewModel.currentLayerName)
@@ -171,7 +168,16 @@ struct OverlayMapperSection: View {
             updateConfiguredBehaviorSlots()
         }
 
-        let withDisappear = withAppear.onDisappear {
+        let withPackChanges = withAppear.onReceive(
+            NotificationCenter.default.publisher(for: .installedPacksChanged)
+        ) { _ in
+            Task {
+                let records = await InstalledPackTracker.shared.allInstalled()
+                installedPackIDs = Set(records.map(\.packID))
+            }
+        }
+
+        let withDisappear = withPackChanges.onDisappear {
             viewModel.stopKeyCapture()
         }
 
@@ -789,12 +795,27 @@ struct OverlayMapperSection: View {
         guard let keyCode = viewModel.inputKeyCode else { return [] }
         let kanataKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
         guard !kanataKey.isEmpty else { return [] }
-        return PackRegistry.packsTargeting(kanataKey: kanataKey)
+        var packs = PackRegistry.packsTargeting(kanataKey: kanataKey)
+        if !packs.contains(where: { $0.id == PackRegistry.launcher.id }),
+           let launcherConfig = kanataViewModel?.ruleCollections
+               .first(where: { $0.id == RuleCollectionIdentifier.launcher })?
+               .configuration.launcherGridConfig,
+           launcherConfig.mappings.contains(where: {
+               LauncherGridConfig.normalizeKey($0.key) == LauncherGridConfig.normalizeKey(kanataKey)
+           })
+        {
+            packs.append(PackRegistry.launcher)
+        }
+        return packs
     }
 
     private func isPackEnabled(_ pack: Pack) -> Bool {
-        guard let collectionID = pack.associatedCollectionID else { return false }
-        return kanataViewModel?.ruleCollections.first(where: { $0.id == collectionID })?.isEnabled == true
+        if let collectionID = pack.associatedCollectionID {
+            if kanataViewModel?.ruleCollections.first(where: { $0.id == collectionID })?.isEnabled == true {
+                return true
+            }
+        }
+        return installedPackIDs.contains(pack.id)
     }
 
     @ViewBuilder
@@ -832,7 +853,7 @@ struct OverlayMapperSection: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help(enabled ? "\(pack.name) is active — tap to configure" : pack.tagline)
+                    .help(enabled ? "\(pack.name) is active — \(pack.tagline)" : pack.tagline)
                     .accessibilityIdentifier("overlay-pack-suggestion-\(pack.id)")
                 }
             }
