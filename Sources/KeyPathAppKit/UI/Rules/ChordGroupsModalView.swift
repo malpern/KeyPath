@@ -548,161 +548,198 @@ struct ChordEditorDialog: View {
         _description = State(initialValue: chord.description ?? "")
     }
 
-    private let commonOutputs = [
-        ("esc", "Escape"),
-        ("enter", "Enter"),
-        ("tab", "Tab"),
-        ("bspc", "Backspace"),
-        ("del", "Delete"),
-        ("up", "Up Arrow"),
-        ("down", "Down Arrow"),
-        ("left", "Left Arrow"),
-        ("right", "Right Arrow"),
-        ("C-c", "Copy (Ctrl+C)"),
-        ("C-v", "Paste (Ctrl+V)"),
-        ("C-x", "Cut (Ctrl+X)"),
-        ("C-z", "Undo (Ctrl+Z)")
+    private static let keycapText = Color(red: 0.88, green: 0.93, blue: 1.0)
+    private static let keycapBg = Color(white: 0.12)
+
+    private let quickOutputs: [(key: String, label: String, icon: String)] = [
+        ("esc", "Esc", "escape"),
+        ("enter", "Return", "return"),
+        ("bspc", "Delete", "delete.backward"),
+        ("tab", "Tab", "arrow.right.to.line"),
+        ("up", "↑", "arrow.up"),
+        ("down", "↓", "arrow.down"),
+        ("left", "←", "arrow.left"),
+        ("right", "→", "arrow.right"),
+        ("C-z", "Undo", "arrow.uturn.backward"),
+        ("C-x", "Cut", "scissors"),
+        ("C-c", "Copy", "doc.on.doc"),
+        ("C-v", "Paste", "doc.on.clipboard"),
     ]
+
+    private var isValid: Bool {
+        let validKeys = keys.filter { !$0.isEmpty }
+        return validKeys.count >= 2 && !output.isEmpty
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Edit Chord")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Spacer()
-                Button(action: onCancel) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+            // Hero: live keycap preview
+            keycapPreview
+                .padding(.top, 24)
+                .padding(.bottom, 16)
+
+            // Form
+            VStack(spacing: 16) {
+                // Keys field
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Keys")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 70, alignment: .trailing)
+
+                    TextField("s d", text: Binding(
+                        get: { keys.joined(separator: " ") },
+                        set: { keys = $0.split(separator: " ").map(String.init) }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 13, design: .monospaced))
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("chord-groups-edit-close-button")
-                .accessibilityLabel("Close chord editor")
-            }
-            .padding()
 
-            Divider()
+                // Output field + quick picks
+                HStack(alignment: .top) {
+                    Text("Output")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 70, alignment: .trailing)
+                        .padding(.top, 4)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Keys selection
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Keys")
-                            .font(.headline)
-
-                        TextField("Keys (space-separated)", text: Binding(
-                            get: { keys.joined(separator: " ") },
-                            set: { keys = $0.split(separator: " ").map(String.init) }
-                        ))
-                        .textFieldStyle(.roundedBorder)
-
-                        Text("Enter 2-4 keys separated by spaces (e.g., 's d' or 'j k l')")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    // Output
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Output")
-                            .font(.headline)
-
-                        TextField("Kanata output", text: $output)
+                        TextField("esc", text: $output)
                             .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 13, design: .monospaced))
 
-                        Text("Common outputs:")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120))], spacing: 8) {
-                            ForEach(commonOutputs, id: \.0) { outputKey, label in
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 64))], spacing: 4) {
+                            ForEach(quickOutputs, id: \.key) { item in
                                 Button {
-                                    output = outputKey
+                                    output = item.key
                                 } label: {
-                                    Text(label)
-                                        .font(.caption)
-                                        .frame(maxWidth: .infinity)
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .accessibilityIdentifier("chord-groups-common-output-\(outputKey)")
-                                .accessibilityLabel("Set output to \(label)")
-                            }
-                        }
-                    }
-
-                    // Description
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Description (optional)")
-                            .font(.headline)
-
-                        TextField("What does this chord do?", text: $description)
-                            .textFieldStyle(.roundedBorder)
-                    }
-
-                    // Preview
-                    if !keys.isEmpty, !output.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Preview")
-                                .font(.headline)
-
-                            HStack(spacing: 12) {
-                                HStack(spacing: 4) {
-                                    ForEach(keys, id: \.self) { key in
-                                        Text(key.uppercased())
-                                            .font(.system(.caption, design: .monospaced))
-                                            .fontWeight(.semibold)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(Color.accentColor.opacity(0.2))
-                                            .clipShape(.rect(cornerRadius: 4))
+                                    HStack(spacing: 3) {
+                                        Image(systemName: item.icon)
+                                            .font(.system(size: 9))
+                                        Text(item.label)
+                                            .font(.system(size: 10))
                                     }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 4)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                            .fill(output == item.key ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.05))
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                            .strokeBorder(output == item.key ? Color.accentColor.opacity(0.4) : Color.clear, lineWidth: 1)
+                                    )
                                 }
-
-                                Image(systemName: "arrow.right")
-                                    .foregroundColor(.secondary)
-
-                                Text(output)
-                                    .font(.system(.subheadline, design: .monospaced))
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier("chord-quick-output-\(item.key)")
                             }
-                            .padding(8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color(nsColor: .controlBackgroundColor))
-                            .clipShape(.rect(cornerRadius: 8))
                         }
                     }
                 }
-                .padding()
-            }
 
-            Divider()
+                // Description
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Note")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 70, alignment: .trailing)
+
+                    TextField("Optional description", text: $description)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 13))
+                }
+            }
+            .padding(.horizontal, 24)
+
+            Spacer()
 
             // Actions
             HStack {
                 Button("Cancel", action: onCancel)
                     .keyboardShortcut(.escape, modifiers: [])
-                    .accessibilityIdentifier("chord-groups-edit-cancel-button")
-                    .accessibilityLabel("Cancel chord changes")
+                    .accessibilityIdentifier("chord-editor-cancel")
 
                 Spacer()
 
                 Button("Save") {
                     let updated = ChordDefinition(
                         id: chord.id,
-                        keys: keys,
+                        keys: keys.filter { !$0.isEmpty },
                         output: output,
-                        description: description.isEmpty ? nil : description
+                        description: description.isEmpty ? nil : description,
+                        isEnabled: chord.isEnabled
                     )
                     onSave(updated)
                 }
                 .keyboardShortcut(.return, modifiers: .command)
                 .buttonStyle(.borderedProminent)
-                .disabled(keys.count < 2 || output.isEmpty)
-                .accessibilityIdentifier("chord-groups-edit-save-button")
-                .accessibilityLabel("Save chord")
+                .disabled(!isValid)
+                .accessibilityIdentifier("chord-editor-save")
             }
-            .padding()
+            .padding(20)
         }
-        .frame(width: 500, height: 600)
+        .frame(width: 420, height: 400)
+    }
+
+    // MARK: - Keycap Preview
+
+    private var keycapPreview: some View {
+        HStack(spacing: 10) {
+            // Input keycaps
+            HStack(spacing: 4) {
+                let displayKeys = keys.filter { !$0.isEmpty }
+                if displayKeys.isEmpty {
+                    placeholderKeycap("?")
+                    placeholderKeycap("?")
+                } else {
+                    ForEach(displayKeys, id: \.self) { key in
+                        keycap(key.uppercased())
+                    }
+                }
+            }
+
+            Image(systemName: "arrow.right")
+                .font(.title3.weight(.medium))
+                .foregroundStyle(.secondary)
+
+            // Output keycap
+            if output.isEmpty {
+                placeholderKeycap("?")
+            } else {
+                keycap(output)
+            }
+        }
+    }
+
+    private func keycap(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 16, weight: .semibold, design: .monospaced))
+            .foregroundStyle(Self.keycapText)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Self.keycapBg)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Color.secondary.opacity(0.2), lineWidth: 0.5)
+            )
+    }
+
+    private func placeholderKeycap(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 16, weight: .semibold, design: .monospaced))
+            .foregroundStyle(.secondary.opacity(0.4))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Self.keycapBg.opacity(0.3))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Color.secondary.opacity(0.1), lineWidth: 0.5)
+            )
     }
 }
