@@ -246,6 +246,7 @@ To publish a new release, run:
 5. GitHub Release with zip + DMG attached
 6. Appcast.xml update (Sparkle auto-update feed)
 7. gh-pages download link update (marketing site always points to latest DMG)
+8. Homebrew cask update (`malpern/tap/keypath` — version + SHA256)
 
 **⚠️ Releases MUST be notarized.** Never use `SKIP_NOTARIZE=1` or `--skip-notarize` for release builds. Unnotarized apps trigger macOS Gatekeeper warnings that erode user trust. `SKIP_NOTARIZE` is only for local dev iteration (`dd`/`df` shortcuts).
 
@@ -256,6 +257,8 @@ To publish a new release, run:
 **Sparkle auto-update:** Existing users get notified within 24 hours. The appcast is served from `raw.githubusercontent.com/malpern/KeyPath/master/appcast.xml`. All releases currently omit `sparkle:channel` so all users see them (no stable/beta split yet).
 
 **Marketing site:** The download button on keypath-app.com links to the DMG. The release script updates this automatically via a gh-pages worktree commit. Never hardcode a version-specific download URL in index.md manually.
+
+**Homebrew cask:** Users can install via `brew install --cask malpern/tap/keypath`. The cask lives in `github.com/malpern/homebrew-tap/Casks/keypath.rb`. The release script updates the version and SHA256 automatically.
 
 ## Linear Workspace Management
 

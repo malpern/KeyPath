@@ -228,11 +228,33 @@ else
 fi
 git worktree remove "$GHPAGES_WORKTREE" 2>/dev/null || true
 
+echo "🍺 Updating Homebrew cask..."
+HOMEBREW_TAP="/opt/homebrew/Library/Taps/malpern/homebrew-tap"
+if [ -d "$HOMEBREW_TAP" ]; then
+    DMG_SHA256=$(shasum -a 256 "$SPARKLE_DMG" | awk '{print $1}')
+    CASK_FILE="$HOMEBREW_TAP/Casks/keypath.rb"
+    if [ -f "$CASK_FILE" ]; then
+        sed -i '' "s|version \".*\"|version \"${VERSION}\"|" "$CASK_FILE"
+        sed -i '' "s|sha256 \".*\"|sha256 \"${DMG_SHA256}\"|" "$CASK_FILE"
+        cd "$HOMEBREW_TAP"
+        git add Casks/keypath.rb
+        git commit -m "chore: update keypath cask to v${VERSION}"
+        git push
+        echo "   ✅ Homebrew cask updated to v${VERSION}"
+        cd "$REPO_ROOT"
+    else
+        echo "   ⚠️  Cask file not found at $CASK_FILE — update manually"
+    fi
+else
+    echo "   ⚠️  Homebrew tap not found — run: brew tap malpern/tap"
+fi
+
 echo ""
 echo "🎉 Release v${VERSION} published!"
 echo "   • GitHub Release: https://github.com/malpern/KeyPath/releases/tag/v${VERSION}"
 echo "   • Sparkle update will reach users within 24 hours"
 echo "   • Website download link updated"
+echo "   • Homebrew cask updated"
 echo ""
 echo "📋 Remaining manual steps:"
 echo "   1. Write release notes on the GitHub Release page"
