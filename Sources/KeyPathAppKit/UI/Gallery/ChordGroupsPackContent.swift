@@ -75,6 +75,7 @@ struct ChordGroupsPackContent: View {
                             ensureConfigPopulated()
                             config.groups[groupIndex].chords[chordIndex].isEnabled.toggle()
                             onConfigChanged(config)
+                            SoundManager.shared.playTinkSound()
                         },
                         onEdit: {
                             ensureConfigPopulated()
@@ -187,14 +188,21 @@ private struct ChordRuleRow: View {
     private static let keycapBgColor = Color(white: 0.12)
 
     var body: some View {
-        Button(action: onEdit) {
+        HStack(spacing: 0) {
+            // Checkbox — separate button to avoid gesture conflict
+            Button(action: onToggle) {
+                Image(systemName: chord.isEnabled ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 14))
+                    .foregroundStyle(chord.isEnabled ? Color.accentColor : Color.secondary.opacity(0.4))
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            // Rest of the row — tapping opens editor
+            Button(action: onEdit) {
             ZStack(alignment: .trailing) {
                 HStack(spacing: 8) {
-                    // Checkbox
-                    Image(systemName: chord.isEnabled ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 14))
-                        .foregroundStyle(chord.isEnabled ? Color.accentColor : Color.secondary.opacity(0.4))
-                        .onTapGesture(perform: onToggle)
 
                     // Key chips
                     HStack(spacing: 3) {
@@ -261,6 +269,7 @@ private struct ChordRuleRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        }
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
