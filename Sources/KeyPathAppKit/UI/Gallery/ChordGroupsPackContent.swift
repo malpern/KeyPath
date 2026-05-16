@@ -7,24 +7,23 @@ struct ChordGroupsPackContent: View {
     @State private var editingChord: (groupIndex: Int, chordIndex: Int)?
     @State private var addingChordToGroup: Int?
 
+    private var displayConfig: ChordGroupsConfig {
+        config.groups.isEmpty ? .benVallackPreset : config
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            if config.groups.isEmpty {
-                emptyState
-            } else {
-                ForEach(Array(config.groups.enumerated()), id: \.element.id) { groupIndex, group in
-                    chordGroupSection(group: group, groupIndex: groupIndex)
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(Array(displayConfig.groups.enumerated()), id: \.element.id) { groupIndex, group in
+                groupSection(group: group, groupIndex: groupIndex)
             }
 
-            addGroupButton
-
-            howItWorks
+            addGroupRow
         }
         .sheet(item: editingChordBinding) { item in
             ChordEditorDialog(
                 chord: item.chord,
                 onSave: { updated in
+                    ensureConfigPopulated()
                     config.groups[item.groupIndex].chords[item.chordIndex] = updated
                     onConfigChanged(config)
                     editingChord = nil
@@ -34,13 +33,9 @@ struct ChordGroupsPackContent: View {
         }
         .sheet(item: addingChordBinding) { item in
             ChordEditorDialog(
-                chord: ChordDefinition(
-                    id: UUID(),
-                    keys: ["", ""],
-                    output: "",
-                    description: nil
-                ),
+                chord: ChordDefinition(id: UUID(), keys: ["", ""], output: ""),
                 onSave: { newChord in
+                    ensureConfigPopulated()
                     config.groups[item.groupIndex].chords.append(newChord)
                     onConfigChanged(config)
                     addingChordToGroup = nil
@@ -50,190 +45,109 @@ struct ChordGroupsPackContent: View {
         }
     }
 
-    // MARK: - Empty State
-
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "keyboard.badge.ellipsis")
-                .font(.system(size: 36))
-                .foregroundStyle(.secondary)
-
-            Text("No chord groups configured")
-                .font(.headline)
-
-            Text("Get started with pre-built navigation and editing chords, or create your own.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-
-            Button {
-                config = ChordGroupsConfig.benVallackPreset
-                onConfigChanged(config)
-            } label: {
-                Label("Load Starter Chords", systemImage: "wand.and.stars")
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.regular)
-            .accessibilityIdentifier("chord-pack-load-presets")
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
-    }
-
     // MARK: - Group Section
 
-    private func chordGroupSection(group: ChordGroup, groupIndex: Int) -> some View {
+    private func groupSection(group: ChordGroup, groupIndex: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            groupHeader(group: group, groupIndex: groupIndex)
-
-            VStack(spacing: 1) {
-                ForEach(Array(group.chords.enumerated()), id: \.element.id) { chordIndex, chord in
-                    chordRow(chord: chord, groupIndex: groupIndex, chordIndex: chordIndex)
-                }
-
-                addChordButton(groupIndex: groupIndex)
+            HStack(spacing: 6) {
+                Image(systemName: group.category.icon)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                Text(group.name)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(group.timeout)ms")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.tertiary)
             }
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.3))
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        }
-    }
+            .padding(.bottom, 4)
 
-    private func groupHeader(group: ChordGroup, groupIndex: Int) -> some View {
-        HStack {
-            Image(systemName: group.category.icon)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+            VStack(spacing: 0) {
+                ForEach(Array(group.chords.enumerated()), id: \.element.id) { chordIndex, chord in
+                    chordRow(chord: chord, groupIndex: groupIndex, chordIndex: chordIndex, isEnabled: !config.groups.isEmpty)
 
-            Text(group.name)
-                .font(.system(size: 13, weight: .semibold))
-
-            Spacer()
-
-            Menu {
-                ForEach(ChordSpeed.allCases, id: \.self) { speed in
-                    Button {
-                        config.groups[groupIndex].timeout = speed.milliseconds
-                        onConfigChanged(config)
-                    } label: {
-                        HStack {
-                            Text(speed.rawValue)
-                            if speed.milliseconds == group.timeout {
-                                Image(systemName: "checkmark")
-                            }
-                        }
+                    if chordIndex < group.chords.count - 1 {
+                        Divider().padding(.leading, 32)
                     }
                 }
-            } label: {
-                Text("\(group.timeout)ms")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.primary.opacity(0.06))
-                    .clipShape(Capsule())
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .accessibilityIdentifier("chord-pack-group-\(groupIndex)-timeout")
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
-            Button(role: .destructive) {
-                config.groups.remove(at: groupIndex)
-                onConfigChanged(config)
+            Button {
+                addingChordToGroup = groupIndex
             } label: {
-                Image(systemName: "trash")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 9, weight: .semibold))
+                    Text("Add chord")
+                        .font(.system(size: 11))
+                }
+                .foregroundStyle(Color.accentColor)
+                .padding(.top, 4)
             }
             .buttonStyle(.plain)
-            .accessibilityIdentifier("chord-pack-group-\(groupIndex)-delete")
+            .accessibilityIdentifier("chord-pack-add-chord-\(groupIndex)")
         }
-        .padding(.horizontal, 4)
-        .padding(.bottom, 6)
     }
 
     // MARK: - Chord Row
 
-    private func chordRow(chord: ChordDefinition, groupIndex: Int, chordIndex: Int) -> some View {
+    private func chordRow(chord: ChordDefinition, groupIndex: Int, chordIndex: Int, isEnabled: Bool) -> some View {
         HStack(spacing: 8) {
+            // Toggle
+            Image(systemName: isEnabled ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 14))
+                .foregroundStyle(isEnabled ? Color.accentColor : Color.secondary.opacity(0.4))
+                .onTapGesture {
+                    toggleChordEnabled(groupIndex: groupIndex, chordIndex: chordIndex, currentlyEnabled: isEnabled)
+                }
+
             // Key pills
-            HStack(spacing: 3) {
+            HStack(spacing: 2) {
                 ForEach(chord.keys, id: \.self) { key in
                     Text(key.uppercased())
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(Color.accentColor.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.accentColor.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
                 }
             }
 
             Image(systemName: "arrow.right")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 8))
+                .foregroundStyle(.quaternary)
 
             Text(chord.output)
-                .font(.system(size: 12, design: .monospaced))
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(.primary)
 
             if let desc = chord.description, !desc.isEmpty {
-                Text("·")
-                    .foregroundStyle(.tertiary)
                 Text(desc)
-                    .font(.system(size: 11))
+                    .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
             Spacer()
-
-            // Ergonomic score
-            Image(systemName: chord.ergonomicScore.icon)
-                .font(.system(size: 10))
-                .foregroundStyle(ergonomicColor(chord.ergonomicScore))
-
-            // Delete
-            Button {
-                config.groups[groupIndex].chords.remove(at: chordIndex)
-                onConfigChanged(config)
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("chord-pack-chord-delete-\(groupIndex)-\(chordIndex)")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
         .contentShape(Rectangle())
         .onTapGesture {
+            ensureConfigPopulated()
             editingChord = (groupIndex, chordIndex)
         }
-        .accessibilityIdentifier("chord-pack-chord-row-\(groupIndex)-\(chordIndex)")
-    }
-
-    private func addChordButton(groupIndex: Int) -> some View {
-        Button {
-            addingChordToGroup = groupIndex
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "plus")
-                    .font(.system(size: 10, weight: .semibold))
-                Text("Add chord")
-                    .font(.system(size: 12))
-                Spacer()
-            }
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("chord-pack-add-chord-\(groupIndex)")
+        .accessibilityIdentifier("chord-pack-row-\(groupIndex)-\(chordIndex)")
     }
 
     // MARK: - Add Group
 
-    private var addGroupButton: some View {
+    private var addGroupRow: some View {
         Button {
+            ensureConfigPopulated()
             let newGroup = ChordGroup(
                 id: UUID(),
                 name: "Custom-\(config.groups.count + 1)",
@@ -244,11 +158,11 @@ struct ChordGroupsPackContent: View {
             config.groups.append(newGroup)
             onConfigChanged(config)
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "plus.circle")
-                    .font(.system(size: 12))
-                Text("Add Group")
-                    .font(.system(size: 12, weight: .medium))
+            HStack(spacing: 4) {
+                Image(systemName: "plus")
+                    .font(.system(size: 9, weight: .semibold))
+                Text("Add group")
+                    .font(.system(size: 11))
             }
             .foregroundStyle(Color.accentColor)
         }
@@ -256,29 +170,22 @@ struct ChordGroupsPackContent: View {
         .accessibilityIdentifier("chord-pack-add-group")
     }
 
-    // MARK: - How It Works
+    // MARK: - Helpers
 
-    private var howItWorks: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Divider()
-            Text("How Chords Work")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
-            Text("Press two or more keys simultaneously (within the timeout window) to trigger a single action. Faster than shortcuts because your fingers never leave home row.")
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
+    private func ensureConfigPopulated() {
+        if config.groups.isEmpty {
+            config = .benVallackPreset
         }
     }
 
-    // MARK: - Helpers
-
-    private func ergonomicColor(_ score: ErgonomicScore) -> Color {
-        switch score {
-        case .excellent: .green
-        case .good: .blue
-        case .moderate: .yellow
-        case .fair: .orange
-        case .poor: .red
+    private func toggleChordEnabled(groupIndex: Int, chordIndex: Int, currentlyEnabled: Bool) {
+        if currentlyEnabled {
+            ensureConfigPopulated()
+            config.groups[groupIndex].chords.remove(at: chordIndex)
+            onConfigChanged(config)
+        } else {
+            ensureConfigPopulated()
+            onConfigChanged(config)
         }
     }
 
@@ -287,38 +194,32 @@ struct ChordGroupsPackContent: View {
     private var editingChordBinding: Binding<ChordEditItem?> {
         Binding(
             get: {
-                guard let editing = editingChord,
-                      editing.groupIndex < config.groups.count,
-                      editing.chordIndex < config.groups[editing.groupIndex].chords.count
+                guard let editing = editingChord else { return nil }
+                let src = displayConfig
+                guard editing.groupIndex < src.groups.count,
+                      editing.chordIndex < src.groups[editing.groupIndex].chords.count
                 else { return nil }
                 return ChordEditItem(
                     groupIndex: editing.groupIndex,
                     chordIndex: editing.chordIndex,
-                    chord: config.groups[editing.groupIndex].chords[editing.chordIndex]
+                    chord: src.groups[editing.groupIndex].chords[editing.chordIndex]
                 )
             },
-            set: { newValue in
-                if newValue == nil { editingChord = nil }
-            }
+            set: { if $0 == nil { editingChord = nil } }
         )
     }
 
     private var addingChordBinding: Binding<ChordAddItem?> {
         Binding(
             get: {
-                guard let groupIndex = addingChordToGroup,
-                      groupIndex < config.groups.count
+                guard let gi = addingChordToGroup, gi < displayConfig.groups.count
                 else { return nil }
-                return ChordAddItem(groupIndex: groupIndex)
+                return ChordAddItem(groupIndex: gi)
             },
-            set: { newValue in
-                if newValue == nil { addingChordToGroup = nil }
-            }
+            set: { if $0 == nil { addingChordToGroup = nil } }
         )
     }
 }
-
-// MARK: - Sheet Item Types
 
 private struct ChordEditItem: Identifiable {
     let groupIndex: Int

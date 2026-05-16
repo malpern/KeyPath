@@ -321,7 +321,8 @@ extension KanataConfiguration {
         ]
 
         for group in chordGroups {
-            lines.append("(defchords \(group.name) \(group.timeoutToken))")
+            guard !group.chords.isEmpty else { continue }
+            lines.append("(defchords \(group.name) \(group.timeoutToken)")
             for chord in group.chords {
                 let keys = chord.keys.joined(separator: " ")
                 lines.append("  (\(keys)) \(chord.action)")
@@ -369,8 +370,9 @@ extension KanataConfiguration {
         ]
 
         for group in config.groups {
+            guard !group.chords.isEmpty else { continue }
             // Generate defchords block with timeout
-            lines.append("(defchords \(group.name) \(group.timeout))")
+            lines.append("(defchords \(group.name) \(group.timeout)")
 
             // Add fallback definitions for single keys (they pass through)
             let participatingKeys = group.participatingKeys.sorted()
