@@ -384,7 +384,7 @@ extension KanataConfiguration {
             // Add chord definitions (enabled only)
             for chord in enabledChords {
                 let keys = chord.keys.joined(separator: " ")
-                lines.append("  (\(keys)) \(chord.output)")
+                lines.append("  (\(keys)) \(chord.action.kanataOutput)")
             }
 
             lines.append(")")

@@ -33,8 +33,8 @@ final class ChordGroupsIntegrationTests: XCTestCase {
             name: "Navigation",
             timeout: 250,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc"),
-                ChordDefinition(id: UUID(), keys: ["d", "f"], output: "enter")
+                ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc")),
+                ChordDefinition(id: UUID(), keys: ["d", "f"], action: .keystroke(key: "enter"))
             ]
         )
         let config = ChordGroupsConfig(groups: [group])
@@ -107,7 +107,7 @@ final class ChordGroupsIntegrationTests: XCTestCase {
             name: "TestGroup",
             timeout: 300,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["a", "b"], output: "esc")
+                ChordDefinition(id: UUID(), keys: ["a", "b"], action: .keystroke(key: "esc"))
             ]
         )
         let config = ChordGroupsConfig(groups: [group])
@@ -139,7 +139,7 @@ final class ChordGroupsIntegrationTests: XCTestCase {
             name: "Navigation",
             timeout: 250,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["j", "k"], output: "up")
+                ChordDefinition(id: UUID(), keys: ["j", "k"], action: .keystroke(key: "up"))
             ]
         )
         let edit = ChordGroup(
@@ -147,7 +147,7 @@ final class ChordGroupsIntegrationTests: XCTestCase {
             name: "Editing",
             timeout: 300,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["a", "s"], output: "bspc")
+                ChordDefinition(id: UUID(), keys: ["a", "s"], action: .keystroke(key: "bspc"))
             ]
         )
         let config = ChordGroupsConfig(groups: [nav, edit])
@@ -182,7 +182,7 @@ final class ChordGroupsIntegrationTests: XCTestCase {
             name: "Navigation",
             timeout: 250,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")
+                ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))
             ]
         )
         let config = ChordGroupsConfig(groups: [group])
@@ -223,7 +223,7 @@ final class ChordGroupsIntegrationTests: XCTestCase {
             name: "UIGroup",
             timeout: 300,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")
+                ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))
             ]
         )
         let uiConfig = ChordGroupsConfig(groups: [uiGroup])
@@ -262,8 +262,8 @@ final class ChordGroupsIntegrationTests: XCTestCase {
             name: "Symbols",
             timeout: 200,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["o", "p"], output: "(macro { } left)"),
-                ChordDefinition(id: UUID(), keys: ["i", "o"], output: "(macro [ ] left)")
+                ChordDefinition(id: UUID(), keys: ["o", "p"], action: .rawKanata("(macro { } left)")),
+                ChordDefinition(id: UUID(), keys: ["i", "o"], action: .rawKanata("(macro [ ] left)"))
             ]
         )
         let config = ChordGroupsConfig(groups: [group])
@@ -292,7 +292,7 @@ final class ChordGroupsIntegrationTests: XCTestCase {
             name: "Advanced",
             timeout: 400,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["a", "s", "d"], output: "C-z")
+                ChordDefinition(id: UUID(), keys: ["a", "s", "d"], action: .rawKanata("C-z"))
             ]
         )
         let config = ChordGroupsConfig(groups: [group])
@@ -329,7 +329,7 @@ final class ChordGroupsIntegrationTests: XCTestCase {
             name: "a",
             timeout: 300,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["a", "b"], output: "esc")
+                ChordDefinition(id: UUID(), keys: ["a", "b"], action: .keystroke(key: "esc"))
             ]
         )
         let config = ChordGroupsConfig(groups: [group])
@@ -413,8 +413,8 @@ final class ChordGroupsIntegrationTests: XCTestCase {
 
     func testCrossGroupConflictGeneration() {
         // Verify first group wins behavior in generated config
-        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")
-        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "bspc")
+        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))
+        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "bspc"))
 
         let group1 = ChordGroup(id: UUID(), name: "Navigation", timeout: 250, chords: [chord1])
         let group2 = ChordGroup(id: UUID(), name: "Editing", timeout: 300, chords: [chord2])

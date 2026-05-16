@@ -38,7 +38,7 @@ struct ChordGroupsPackContent: View {
         }
         .sheet(item: addingChordBinding) { item in
             ChordEditorDialog(
-                chord: ChordDefinition(id: UUID(), keys: ["", ""], output: ""),
+                chord: ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc")),
                 onSave: { newChord in
                     ensureConfigPopulated()
                     config.groups[item.groupIndex].chords.append(newChord)
@@ -220,7 +220,7 @@ private struct ChordRuleRow: View {
                         .foregroundStyle(.secondary)
 
                     // Output chip
-                    outputKeycap(for: chord.output, enabled: chord.isEnabled)
+                    outputKeycap(for: chord.action, enabled: chord.isEnabled)
 
                     Spacer(minLength: 0)
                 }
@@ -269,17 +269,16 @@ private struct ChordRuleRow: View {
     }
 
     @ViewBuilder
-    private func outputKeycap(for output: String, enabled: Bool) -> some View {
-        let resolved = Self.resolveOutput(output)
+    private func outputKeycap(for action: KeyAction, enabled: Bool) -> some View {
         let textOpacity: Double = enabled ? 1.0 : 0.4
         let bgOpacity: Double = enabled ? 1.0 : 0.4
 
         HStack(spacing: 4) {
-            if let icon = resolved.icon {
+            if let info = action.commonDisplayInfo, let icon = info.icon {
                 Image(systemName: icon)
                     .font(.system(size: 12, weight: .semibold))
             }
-            Text(resolved.label)
+            Text(action.commonDisplayInfo?.label ?? action.displayName)
                 .font(.body.weight(.semibold))
         }
         .foregroundStyle(Self.keycapTextColor.opacity(textOpacity))
@@ -293,37 +292,6 @@ private struct ChordRuleRow: View {
             RoundedRectangle(cornerRadius: 6)
                 .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 0.5)
         )
-    }
-
-    private static func resolveOutput(_ output: String) -> (label: String, icon: String?) {
-        let lower = output.lowercased()
-        switch lower {
-        case "c-x": return ("Cut", "scissors")
-        case "c-c": return ("Copy", "doc.on.doc")
-        case "c-v": return ("Paste", "doc.on.clipboard")
-        case "c-z": return ("Undo", "arrow.uturn.backward")
-        case "c-y", "c-s-z": return ("Redo", "arrow.uturn.forward")
-        case "c-a": return ("Select All", "selection.pin.in.out")
-        case "c-s": return ("Save", "square.and.arrow.down")
-        case "esc": return ("Esc", "escape")
-        case "enter", "ret": return ("Return", "return")
-        case "bspc": return ("Backspace", "delete.backward")
-        case "del": return ("Delete", "delete.forward")
-        case "tab": return ("Tab", "arrow.right.to.line")
-        case "spc": return ("Space", nil)
-        case "up": return ("↑", "arrow.up")
-        case "down": return ("↓", "arrow.down")
-        case "left": return ("←", "arrow.left")
-        case "right": return ("→", "arrow.right")
-        case "pp": return ("Play/Pause", "playpause")
-        case "next": return ("Next", "forward")
-        case "prev": return ("Previous", "backward")
-        default:
-            if let systemAction = SystemActionInfo.find(byOutput: output) {
-                return (systemAction.name, systemAction.sfSymbol)
-            }
-            return (output.capitalized.replacingOccurrences(of: "_", with: " "), nil)
-        }
     }
 }
 

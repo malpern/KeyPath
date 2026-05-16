@@ -359,7 +359,7 @@ struct InlineChordRowView: View {
                 .font(.caption2)
                 .foregroundColor(.secondary)
 
-            Text(chord.output)
+            Text(chord.action.displayName)
                 .font(.caption.monospaced())
 
             if let description = chord.description, !description.isEmpty {

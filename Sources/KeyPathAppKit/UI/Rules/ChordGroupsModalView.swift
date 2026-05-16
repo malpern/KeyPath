@@ -400,7 +400,7 @@ struct ChordGroupsModalView: View {
         let newChord = ChordDefinition(
             id: UUID(),
             keys: ["s", "d"],
-            output: "esc",
+            action: .keystroke(key: "esc"),
             description: nil
         )
 
@@ -478,7 +478,7 @@ private struct ChordRowView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            Text(chord.output)
+            Text(chord.action.displayName)
                 .font(.system(.subheadline, design: .monospaced))
                 .foregroundColor(.primary)
 
@@ -545,7 +545,7 @@ struct ChordEditorDialog: View {
         self.onSave = onSave
         self.onCancel = onCancel
         _keys = State(initialValue: chord.keys)
-        _output = State(initialValue: chord.output)
+        _output = State(initialValue: chord.action.kanataOutput)
         _description = State(initialValue: chord.description ?? "")
     }
 
@@ -696,10 +696,17 @@ struct ChordEditorDialog: View {
                 Spacer()
 
                 Button("Save") {
+                    let action: KeyAction = if quickOutputs.contains(where: { $0.key == output }) {
+                        .keystroke(key: output)
+                    } else if output.contains("-") || output.contains("(") {
+                        .rawKanata(output)
+                    } else {
+                        .keystroke(key: output)
+                    }
                     let updated = ChordDefinition(
                         id: chord.id,
                         keys: keys.filter { !$0.isEmpty },
-                        output: output,
+                        action: action,
                         description: description.isEmpty ? nil : description,
                         isEnabled: chord.isEnabled
                     )

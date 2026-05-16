@@ -125,7 +125,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         let chord = ChordDefinition(
             id: UUID(),
             keys: ["s"], // Minimum: 1 key
-            output: "esc"
+            action: .keystroke(key: "esc")
         )
 
         XCTAssertEqual(chord.keys.count, 1)
@@ -138,7 +138,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         let chord = ChordDefinition(
             id: UUID(),
             keys: ["s", "d"], // All unique
-            output: "esc"
+            action: .keystroke(key: "esc")
         )
 
         XCTAssertEqual(chord.keys.count, 2)
@@ -159,7 +159,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         let chord = ChordDefinition(
             id: UUID(),
             keys: ["s", "d"], // No empty strings
-            output: "esc"
+            action: .keystroke(key: "esc")
         )
 
         XCTAssertEqual(chord.keys.count, 2)
@@ -174,10 +174,10 @@ final class ChordGroupsValidationTests: XCTestCase {
         let chord = ChordDefinition(
             id: UUID(),
             keys: ["s", "d"],
-            output: "a" // Minimum: single character
+            action: .keystroke(key: "a") // Minimum: single character
         )
 
-        XCTAssertFalse(chord.output.isEmpty)
+        XCTAssertFalse(chord.action.kanataOutput.isEmpty)
     }
 
     func testOutputWithUnbalancedParentheses() {
@@ -188,7 +188,7 @@ final class ChordGroupsValidationTests: XCTestCase {
             let chord = ChordDefinition(
                 id: UUID(),
                 keys: ["s", "d"],
-                output: output
+                action: .rawKanata(output)
             )
 
             XCTAssertFalse(chord.hasValidOutputSyntax, "Output '\(output)' should be invalid (unbalanced parens)")
@@ -203,7 +203,7 @@ final class ChordGroupsValidationTests: XCTestCase {
             let chord = ChordDefinition(
                 id: UUID(),
                 keys: ["s", "d"],
-                output: output
+                action: .rawKanata(output)
             )
 
             XCTAssertTrue(chord.hasValidOutputSyntax, "Output '\(output)' should be valid (balanced parens)")
@@ -224,10 +224,10 @@ final class ChordGroupsValidationTests: XCTestCase {
             let chord = ChordDefinition(
                 id: UUID(),
                 keys: ["s", "d"],
-                output: output
+                action: .rawKanata(output)
             )
 
-            XCTAssertEqual(chord.output, output, "Valid complex output '\(output)' should work")
+            XCTAssertEqual(chord.action.kanataOutput, output, "Valid complex output '\(output)' should work")
         }
     }
 
@@ -235,8 +235,8 @@ final class ChordGroupsValidationTests: XCTestCase {
 
     func testCrossGroupKeyConflictsSameKeys() throws {
         // Two groups using the same participating keys
-        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")
-        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "bspc")
+        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))
+        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "bspc"))
 
         let group1 = ChordGroup(
             id: UUID(),
@@ -277,8 +277,8 @@ final class ChordGroupsValidationTests: XCTestCase {
             name: "Nav",
             timeout: 250,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc"),
-                ChordDefinition(id: UUID(), keys: ["d", "f"], output: "enter")
+                ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc")),
+                ChordDefinition(id: UUID(), keys: ["d", "f"], action: .keystroke(key: "enter"))
             ]
         )
 
@@ -287,8 +287,8 @@ final class ChordGroupsValidationTests: XCTestCase {
             name: "Edit",
             timeout: 300,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["a", "s"], output: "bspc"),
-                ChordDefinition(id: UUID(), keys: ["f", "g"], output: "del")
+                ChordDefinition(id: UUID(), keys: ["a", "s"], action: .keystroke(key: "bspc")),
+                ChordDefinition(id: UUID(), keys: ["f", "g"], action: .keystroke(key: "del"))
             ]
         )
 
@@ -306,8 +306,8 @@ final class ChordGroupsValidationTests: XCTestCase {
 
     func testOverlappingChordPrefixes() {
         // "sd" and "sdf" overlap - shorter chord is a prefix of longer chord
-        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")
-        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d", "f"], output: "C-x")
+        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))
+        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d", "f"], action: .rawKanata("C-x"))
 
         let group = ChordGroup(
             id: UUID(),
@@ -331,8 +331,8 @@ final class ChordGroupsValidationTests: XCTestCase {
 
     func testOverlappingChordSuffixes() {
         // "df" and "sdf" overlap - shorter is suffix
-        let chord1 = ChordDefinition(id: UUID(), keys: ["d", "f"], output: "enter")
-        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d", "f"], output: "C-x")
+        let chord1 = ChordDefinition(id: UUID(), keys: ["d", "f"], action: .keystroke(key: "enter"))
+        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d", "f"], action: .rawKanata("C-x"))
 
         let group = ChordGroup(
             id: UUID(),
@@ -355,8 +355,8 @@ final class ChordGroupsValidationTests: XCTestCase {
     func testSingleKeyVsMultiKeyOverlap() {
         // FIXED: Single key + multi-key should NOT conflict
         // This is valid in Kanata - single key acts as fallback
-        let chord1 = ChordDefinition(id: UUID(), keys: ["s"], output: "s") // Single key passthrough
-        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc") // Multi-key chord
+        let chord1 = ChordDefinition(id: UUID(), keys: ["s"], action: .keystroke(key: "s")) // Single key passthrough
+        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc")) // Multi-key chord
 
         let group = ChordGroup(
             id: UUID(),
@@ -384,18 +384,18 @@ final class ChordGroupsValidationTests: XCTestCase {
     func testErgonomicScoreEmptyKeys() {
         // FIXED: Empty keys now causes precondition failure
         // Test minimum valid instead: single key
-        let chord = ChordDefinition(id: UUID(), keys: ["s"], output: "esc")
+        let chord = ChordDefinition(id: UUID(), keys: ["s"], action: .keystroke(key: "esc"))
         XCTAssertEqual(chord.ergonomicScore, .poor, "Single key should have poor ergonomic score")
     }
 
     func testErgonomicScoreSingleKey() {
-        let chord = ChordDefinition(id: UUID(), keys: ["s"], output: "esc")
+        let chord = ChordDefinition(id: UUID(), keys: ["s"], action: .keystroke(key: "esc"))
         XCTAssertEqual(chord.ergonomicScore, .poor, "Single key should have poor score")
     }
 
     func testErgonomicScoreNonHomeRowAdjacent() {
         // Adjacent keys but not on home row
-        let chord = ChordDefinition(id: UUID(), keys: ["q", "w"], output: "esc")
+        let chord = ChordDefinition(id: UUID(), keys: ["q", "w"], action: .keystroke(key: "esc"))
         // Currently checks home row first, so this won't be "excellent"
         XCTAssertEqual(chord.ergonomicScore, .moderate, "Adjacent non-home-row is moderate")
     }
@@ -404,19 +404,19 @@ final class ChordGroupsValidationTests: XCTestCase {
 
     func testAdjacentKeysThreeInRow() {
         // Test three adjacent keys
-        let chord = ChordDefinition(id: UUID(), keys: ["s", "d", "f"], output: "C-x")
+        let chord = ChordDefinition(id: UUID(), keys: ["s", "d", "f"], action: .rawKanata("C-x"))
         XCTAssertEqual(chord.ergonomicScore, .excellent, "Three adjacent home row keys")
     }
 
     func testNonAdjacentKeysWithGap() {
         // s and f have d between them (gap of 1)
-        let chord = ChordDefinition(id: UUID(), keys: ["s", "f"], output: "esc")
+        let chord = ChordDefinition(id: UUID(), keys: ["s", "f"], action: .keystroke(key: "esc"))
         XCTAssertEqual(chord.ergonomicScore, .good, "Non-adjacent home row keys")
     }
 
     func testNonAdjacentKeysLargeGap() {
         // s and k have large gap
-        let chord = ChordDefinition(id: UUID(), keys: ["s", "k"], output: "esc")
+        let chord = ChordDefinition(id: UUID(), keys: ["s", "k"], action: .keystroke(key: "esc"))
         // Not adjacent, not same hand (s is left, k is right)
         XCTAssertEqual(chord.ergonomicScore, .fair, "Large gap cross-hand")
     }
@@ -442,7 +442,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         let chord = ChordDefinition(
             id: UUID(),
             keys: ["你", "好"], // Chinese characters
-            output: "esc"
+            action: .keystroke(key: "esc")
         )
 
         XCTAssertEqual(chord.keys, ["你", "好"], "Unicode keys currently allowed")
@@ -453,17 +453,17 @@ final class ChordGroupsValidationTests: XCTestCase {
         let chord = ChordDefinition(
             id: UUID(),
             keys: ["s", "d"],
-            output: "(macro 你好)" // Chinese in macro
+            action: .rawKanata("(macro 你好)") // Chinese in macro
         )
 
-        XCTAssertEqual(chord.output, "(macro 你好)", "Unicode output currently allowed")
+        XCTAssertEqual(chord.action.kanataOutput, "(macro 你好)", "Unicode output currently allowed")
     }
 
     // MARK: - Conflict Description Formatting
 
     func testConflictDescriptionWithSpecialCharacters() {
-        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d", "f"], output: "(macro a)")
-        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d", "f"], output: "(macro b)")
+        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d", "f"], action: .rawKanata("(macro a)"))
+        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d", "f"], action: .rawKanata("(macro b)"))
 
         let conflict = ChordConflict(chord1: chord1, chord2: chord2, type: .sameKeys)
 
@@ -491,9 +491,9 @@ final class ChordGroupsValidationTests: XCTestCase {
     // MARK: - Multiple Conflicts Same Group
 
     func testMultipleConflictsInSameGroup() {
-        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")
-        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "enter")
-        let chord3 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "bspc")
+        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))
+        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "enter"))
+        let chord3 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "bspc"))
 
         let group = ChordGroup(
             id: UUID(),

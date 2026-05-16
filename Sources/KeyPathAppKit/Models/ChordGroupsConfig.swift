@@ -113,10 +113,10 @@ public struct ChordGroupsConfig: Codable, Equatable, Sendable {
             name: "Navigation",
             timeout: 250, // Fast - for experienced users
             chords: [
-                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0001-000000000001")!, keys: ["s", "d"], output: "esc", description: "Quick escape from modes"),
-                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0001-000000000002")!, keys: ["d", "f"], output: "enter", description: "Submit/confirm action"),
-                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0001-000000000003")!, keys: ["j", "k"], output: "up", description: "Move up one line"),
-                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0001-000000000004")!, keys: ["k", "l"], output: "down", description: "Move down one line")
+                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0001-000000000001")!, keys: ["s", "d"], action: .keystroke(key: "esc"), description: "Quick escape from modes"),
+                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0001-000000000002")!, keys: ["d", "f"], action: .keystroke(key: "enter"), description: "Submit/confirm action"),
+                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0001-000000000003")!, keys: ["j", "k"], action: .keystroke(key: "up"), description: "Move up one line"),
+                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0001-000000000004")!, keys: ["k", "l"], action: .keystroke(key: "down"), description: "Move down one line")
             ],
             description: "Ben Vallack's home row navigation chords",
             category: .navigation
@@ -127,9 +127,9 @@ public struct ChordGroupsConfig: Codable, Equatable, Sendable {
             name: "Editing",
             timeout: 400, // Moderate - aligns with editing category
             chords: [
-                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0002-000000000001")!, keys: ["a", "s"], output: "bspc", description: "Backspace - delete previous character"),
-                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0002-000000000002")!, keys: ["s", "d", "f"], output: "C-x", description: "Cut selection"),
-                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0002-000000000003")!, keys: ["e", "r"], output: "C-z", description: "Undo last action")
+                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0002-000000000001")!, keys: ["a", "s"], action: .keystroke(key: "bspc"), description: "Backspace - delete previous character"),
+                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0002-000000000002")!, keys: ["s", "d", "f"], action: .rawKanata("C-x"), description: "Cut selection"),
+                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0002-000000000003")!, keys: ["e", "r"], action: .rawKanata("C-z"), description: "Undo last action")
             ],
             description: "Common editing operations",
             category: .editing
@@ -230,29 +230,28 @@ public struct ChordGroup: Codable, Equatable, Sendable, Identifiable {
     }
 }
 
-/// A single chord definition (key combination → output).
+/// A single chord definition (key combination → action).
 public struct ChordDefinition: Codable, Equatable, Sendable, Identifiable {
     public let id: UUID
     public var keys: [String]
-    public var output: String
+    public var action: KeyAction
     public var description: String?
     public var isEnabled: Bool
 
     public init(
         id: UUID,
         keys: [String],
-        output: String,
+        action: KeyAction,
         description: String? = nil,
         isEnabled: Bool = true
     ) {
         precondition(!keys.isEmpty, "ChordDefinition must have at least one key")
         precondition(keys.allSatisfy { !$0.isEmpty }, "ChordDefinition keys cannot be empty strings")
         precondition(Set(keys).count == keys.count, "ChordDefinition keys must be unique")
-        precondition(!output.isEmpty, "ChordDefinition output cannot be empty")
 
         self.id = id
         self.keys = keys
-        self.output = output
+        self.action = action
         self.description = description
         self.isEnabled = isEnabled
     }
@@ -282,7 +281,7 @@ public struct ChordDefinition: Codable, Equatable, Sendable, Identifiable {
     /// ChordDefinition(output: "esc)").hasValidOutputSyntax // false (extra closing)
     /// ```
     public var hasValidOutputSyntax: Bool {
-        hasBalancedParentheses(output)
+        hasBalancedParentheses(action.kanataOutput)
     }
 
     private func hasBalancedParentheses(_ string: String) -> Bool {
@@ -481,7 +480,7 @@ public struct ChordConflict: Identifiable, Sendable {
 
         switch type {
         case .sameKeys:
-            return "\(keys1) maps to both '\(chord1.output)' and '\(chord2.output)'"
+            return "\(keys1) maps to both '\(chord1.action.kanataOutput)' and '\(chord2.action.kanataOutput)'"
         case .overlapping:
             return "\(keys1) overlaps with \(keys2)"
         case .timeout:

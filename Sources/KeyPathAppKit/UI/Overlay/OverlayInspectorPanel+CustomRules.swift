@@ -353,38 +353,7 @@ extension OverlayInspectorPanel {
 
                     ForEach(chordConfig.groups) { group in
                         ForEach(group.chords) { chord in
-                            HStack(spacing: 6) {
-                                HStack(spacing: 2) {
-                                    ForEach(chord.keys, id: \.self) { key in
-                                        Text(key.uppercased())
-                                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                                            .padding(.horizontal, 4)
-                                            .padding(.vertical, 2)
-                                            .background(Color.accentColor.opacity(0.15))
-                                            .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-                                    }
-                                }
-
-                                Image(systemName: "arrow.right")
-                                    .font(.system(size: 8))
-                                    .foregroundStyle(.tertiary)
-
-                                Text(chord.output)
-                                    .font(.system(size: 10, design: .monospaced))
-
-                                if let desc = chord.description, !desc.isEmpty {
-                                    Text(desc)
-                                        .font(.system(size: 9))
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-
-                                Spacer()
-                            }
-                            .padding(.vertical, 3)
-                            .padding(.horizontal, 8)
-                            .background(Color(nsColor: .controlBackgroundColor).opacity(0.3))
-                            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                            activeChordRow(chord: chord)
                         }
                     }
                 }
@@ -395,5 +364,40 @@ extension OverlayInspectorPanel {
                 )
             }
         }
+    }
+
+    private func activeChordRow(chord: ChordDefinition) -> some View {
+        HStack(spacing: 6) {
+            HStack(spacing: 2) {
+                ForEach(chord.keys, id: \.self) { key in
+                    Text(key.uppercased())
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(Color.accentColor.opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+                }
+            }
+
+            Image(systemName: "arrow.right")
+                .font(.system(size: 8))
+                .foregroundStyle(.tertiary)
+
+            Text(chord.action.displayName)
+                .font(.system(size: 10, design: .monospaced))
+
+            if let desc = chord.description, !desc.isEmpty {
+                Text(desc)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+        }
+        .padding(.vertical, 3)
+        .padding(.horizontal, 8)
+        .background(Color(nsColor: .controlBackgroundColor).opacity(0.3))
+        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 }

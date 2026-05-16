@@ -27,12 +27,12 @@ final class ChordGroupsConfigTests: XCTestCase {
         // Check that SD→Esc chord exists
         let sdChord = navGroup?.chords.first { Set($0.keys) == Set(["s", "d"]) }
         XCTAssertNotNil(sdChord, "SD→Esc chord should exist")
-        XCTAssertEqual(sdChord?.output, "esc")
+        XCTAssertEqual(sdChord?.action.kanataOutput, "esc")
 
         // Check that DF→Enter chord exists
         let dfChord = navGroup?.chords.first { Set($0.keys) == Set(["d", "f"]) }
         XCTAssertNotNil(dfChord, "DF→Enter chord should exist")
-        XCTAssertEqual(dfChord?.output, "enter")
+        XCTAssertEqual(dfChord?.action.kanataOutput, "enter")
 
         // Check editing group
         let editGroup = config.groups.first { $0.name == "Editing" }
@@ -72,9 +72,9 @@ final class ChordGroupsConfigTests: XCTestCase {
             name: "Test",
             timeout: 300,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc"),
-                ChordDefinition(id: UUID(), keys: ["d", "f"], output: "enter"),
-                ChordDefinition(id: UUID(), keys: ["j", "k"], output: "up")
+                ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc")),
+                ChordDefinition(id: UUID(), keys: ["d", "f"], action: .keystroke(key: "enter")),
+                ChordDefinition(id: UUID(), keys: ["j", "k"], action: .keystroke(key: "up"))
             ]
         )
 
@@ -88,8 +88,8 @@ final class ChordGroupsConfigTests: XCTestCase {
             name: "Test",
             timeout: 300,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc"),
-                ChordDefinition(id: UUID(), keys: ["d", "f"], output: "enter")
+                ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc")),
+                ChordDefinition(id: UUID(), keys: ["d", "f"], action: .keystroke(key: "enter"))
             ]
         )
 
@@ -102,8 +102,8 @@ final class ChordGroupsConfigTests: XCTestCase {
             name: "Test",
             timeout: 300,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc"),
-                ChordDefinition(id: UUID(), keys: ["s", "d"], output: "enter") // Same keys!
+                ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc")),
+                ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "enter")) // Same keys!
             ]
         )
 
@@ -113,8 +113,8 @@ final class ChordGroupsConfigTests: XCTestCase {
     // MARK: - Conflict Detection
 
     func testDetectConflictSameKeys() {
-        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")
-        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "enter")
+        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))
+        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "enter"))
 
         let group = ChordGroup(
             id: UUID(),
@@ -130,8 +130,8 @@ final class ChordGroupsConfigTests: XCTestCase {
 
     func testDetectConflictDifferentKeyOrder() {
         // ["s", "d"] and ["d", "s"] should be treated as the same keys
-        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")
-        let chord2 = ChordDefinition(id: UUID(), keys: ["d", "s"], output: "enter")
+        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))
+        let chord2 = ChordDefinition(id: UUID(), keys: ["d", "s"], action: .keystroke(key: "enter"))
 
         let group = ChordGroup(
             id: UUID(),
@@ -150,9 +150,9 @@ final class ChordGroupsConfigTests: XCTestCase {
             name: "Test",
             timeout: 300,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc"),
-                ChordDefinition(id: UUID(), keys: ["d", "f"], output: "enter"),
-                ChordDefinition(id: UUID(), keys: ["j", "k"], output: "up")
+                ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc")),
+                ChordDefinition(id: UUID(), keys: ["d", "f"], action: .keystroke(key: "enter")),
+                ChordDefinition(id: UUID(), keys: ["j", "k"], action: .keystroke(key: "up"))
             ]
         )
 
@@ -163,43 +163,43 @@ final class ChordGroupsConfigTests: XCTestCase {
     // MARK: - Chord Definition
 
     func testChordDefinitionRecommendedCombo() {
-        let twoKeys = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")
+        let twoKeys = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))
         XCTAssertTrue(twoKeys.isRecommendedCombo, "2 keys is recommended")
 
-        let threeKeys = ChordDefinition(id: UUID(), keys: ["s", "d", "f"], output: "C-x")
+        let threeKeys = ChordDefinition(id: UUID(), keys: ["s", "d", "f"], action: .rawKanata("C-x"))
         XCTAssertTrue(threeKeys.isRecommendedCombo, "3 keys is recommended")
 
-        let fourKeys = ChordDefinition(id: UUID(), keys: ["a", "s", "d", "f"], output: "C-c")
+        let fourKeys = ChordDefinition(id: UUID(), keys: ["a", "s", "d", "f"], action: .rawKanata("C-c"))
         XCTAssertTrue(fourKeys.isRecommendedCombo, "4 keys is recommended")
     }
 
     func testChordDefinitionNotRecommendedCombo() {
-        let oneKey = ChordDefinition(id: UUID(), keys: ["s"], output: "esc")
+        let oneKey = ChordDefinition(id: UUID(), keys: ["s"], action: .keystroke(key: "esc"))
         XCTAssertFalse(oneKey.isRecommendedCombo, "1 key is not recommended (defeats purpose)")
 
-        let fiveKeys = ChordDefinition(id: UUID(), keys: ["a", "s", "d", "f", "g"], output: "C-c")
+        let fiveKeys = ChordDefinition(id: UUID(), keys: ["a", "s", "d", "f", "g"], action: .rawKanata("C-c"))
         XCTAssertFalse(fiveKeys.isRecommendedCombo, "5 keys is not recommended (too difficult)")
     }
 
     func testChordDefinitionErgonomicScore() {
         // Excellent: Adjacent home row keys
-        let adjacentHomeRow = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")
+        let adjacentHomeRow = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))
         XCTAssertEqual(adjacentHomeRow.ergonomicScore, .excellent)
 
         // Good: Same hand, home row, but not adjacent
-        let sameHandHomeRow = ChordDefinition(id: UUID(), keys: ["s", "f"], output: "esc")
+        let sameHandHomeRow = ChordDefinition(id: UUID(), keys: ["s", "f"], action: .keystroke(key: "esc"))
         XCTAssertEqual(sameHandHomeRow.ergonomicScore, .good)
 
         // Moderate: Same hand, not home row
-        let sameHandNotHomeRow = ChordDefinition(id: UUID(), keys: ["q", "w"], output: "esc")
+        let sameHandNotHomeRow = ChordDefinition(id: UUID(), keys: ["q", "w"], action: .keystroke(key: "esc"))
         XCTAssertEqual(sameHandNotHomeRow.ergonomicScore, .moderate)
 
         // Fair: Cross-hand
-        let crossHand = ChordDefinition(id: UUID(), keys: ["a", "j"], output: "esc")
+        let crossHand = ChordDefinition(id: UUID(), keys: ["a", "j"], action: .keystroke(key: "esc"))
         XCTAssertEqual(crossHand.ergonomicScore, .fair)
 
         // Poor: Single key
-        let singleKey = ChordDefinition(id: UUID(), keys: ["s"], output: "esc")
+        let singleKey = ChordDefinition(id: UUID(), keys: ["s"], action: .keystroke(key: "esc"))
         XCTAssertEqual(singleKey.ergonomicScore, .poor)
     }
 
@@ -259,7 +259,7 @@ final class ChordGroupsConfigTests: XCTestCase {
             name: "Test",
             timeout: 300,
             chords: [
-                ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc", description: "Quick escape")
+                ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"), description: "Quick escape")
             ],
             description: "Test group",
             category: .navigation
@@ -278,7 +278,7 @@ final class ChordGroupsConfigTests: XCTestCase {
         let original = ChordDefinition(
             id: UUID(),
             keys: ["s", "d"],
-            output: "esc",
+            action: .keystroke(key: "esc"),
             description: "Quick escape"
         )
 
@@ -312,8 +312,8 @@ final class ChordGroupsConfigTests: XCTestCase {
     // MARK: - Chord Conflict
 
     func testChordConflictDescription() {
-        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")
-        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "enter")
+        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))
+        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "enter"))
 
         let conflict = ChordConflict(chord1: chord1, chord2: chord2, type: .sameKeys)
 

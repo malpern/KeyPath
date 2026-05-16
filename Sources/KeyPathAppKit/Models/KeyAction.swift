@@ -106,6 +106,75 @@ public extension KeyAction {
     }
 }
 
+// MARK: - Display Info with Icons
+
+public extension KeyAction {
+    struct DisplayInfo {
+        public let label: String
+        public let icon: String?
+    }
+
+    var commonDisplayInfo: DisplayInfo? {
+        switch self {
+        case let .keystroke(key):
+            return Self.resolveKeystroke(key)
+        case let .launchApp(name, _):
+            return DisplayInfo(label: name, icon: "app.fill")
+        case .openURL:
+            return DisplayInfo(label: displayName, icon: "link")
+        case let .openFolder(_, name):
+            return DisplayInfo(label: name ?? "Folder", icon: "folder.fill")
+        case let .runScript(_, name):
+            return DisplayInfo(label: name ?? "Script", icon: "terminal.fill")
+        case let .systemAction(id):
+            if let action = SystemActionInfo.find(byOutput: id) {
+                return DisplayInfo(label: action.name, icon: action.sfSymbol)
+            }
+            return DisplayInfo(label: id, icon: "gearshape")
+        case let .activateLayer(name):
+            return DisplayInfo(label: name, icon: "square.stack.3d.up")
+        case let .rawKanata(expr):
+            return Self.resolveRawKanata(expr)
+        }
+    }
+
+    private static func resolveKeystroke(_ key: String) -> DisplayInfo? {
+        switch key.lowercased() {
+        case "esc": return DisplayInfo(label: "Esc", icon: "escape")
+        case "enter", "ret": return DisplayInfo(label: "Return", icon: "return")
+        case "bspc": return DisplayInfo(label: "Backspace", icon: "delete.backward")
+        case "del": return DisplayInfo(label: "Delete", icon: "delete.forward")
+        case "tab": return DisplayInfo(label: "Tab", icon: "arrow.right.to.line")
+        case "spc": return DisplayInfo(label: "Space", icon: nil)
+        case "up": return DisplayInfo(label: "↑", icon: "arrow.up")
+        case "down": return DisplayInfo(label: "↓", icon: "arrow.down")
+        case "left": return DisplayInfo(label: "←", icon: "arrow.left")
+        case "right": return DisplayInfo(label: "→", icon: "arrow.right")
+        case "pp": return DisplayInfo(label: "Play/Pause", icon: "playpause")
+        case "next": return DisplayInfo(label: "Next", icon: "forward")
+        case "prev": return DisplayInfo(label: "Previous", icon: "backward")
+        default: return nil
+        }
+    }
+
+    private static func resolveRawKanata(_ expr: String) -> DisplayInfo? {
+        switch expr.lowercased() {
+        case "c-x": return DisplayInfo(label: "Cut", icon: "scissors")
+        case "c-c": return DisplayInfo(label: "Copy", icon: "doc.on.doc")
+        case "c-v": return DisplayInfo(label: "Paste", icon: "doc.on.clipboard")
+        case "c-z": return DisplayInfo(label: "Undo", icon: "arrow.uturn.backward")
+        case "c-y", "c-s-z": return DisplayInfo(label: "Redo", icon: "arrow.uturn.forward")
+        case "c-a": return DisplayInfo(label: "Select All", icon: "selection.pin.in.out")
+        case "c-s": return DisplayInfo(label: "Save", icon: "square.and.arrow.down")
+        default:
+            if let action = SystemActionInfo.find(byOutput: expr) {
+                return DisplayInfo(label: action.name, icon: action.sfSymbol)
+            }
+            return nil
+        }
+    }
+}
+
 // MARK: - Type Checks
 
 public extension KeyAction {
