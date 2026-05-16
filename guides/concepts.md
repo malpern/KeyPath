@@ -213,7 +213,7 @@ Start with a simple remap. Get comfortable. Then add the next idea when you're r
 - **[Launching Apps]({{ '/guides/action-uri/' | relative_url }})** — Launch apps, URLs, and folders from your keyboard
 - **[Alternative Layouts]({{ '/guides/alternative-layouts/' | relative_url }})** — Colemak, Dvorak, Workman, and other keymaps
 - **[Keyboard Layouts]({{ '/guides/keyboard-layouts/' | relative_url }})** — Physical keyboard support (ANSI, split, ergonomic)
-- **[Back to Docs](https://keypath-app.com)** — See all available guides
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)** — See all available guides
 
 ## External resources
 

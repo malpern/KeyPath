@@ -3,7 +3,7 @@ layout: default
 title: "Action URI Reference"
 description: "Technical deep-link reference for integrating KeyPath with Raycast, Alfred, and scripts"
 theme: parchment
-header_image: header-action-uri.png
+header_image: header-action-uri-reference.png
 permalink: /guides/action-uri-reference/
 ---
 
@@ -162,7 +162,7 @@ If an action fails (e.g., app not found), KeyPath logs the error but doesn't cra
 - **[Launching Apps]({{ '/guides/action-uri/' | relative_url }})** — Set up app launching through KeyPath's UI
 - **[Windows & App Shortcuts]({{ '/guides/window-management/' | relative_url }})** — App-specific keymaps and window snapping
 - **[From Kanata]({{ '/migration/kanata-users/' | relative_url }})** — Using Action URIs in your Kanata config
-- **[Back to Docs](https://keypath-app.com)** — See all available guides
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)** — See all available guides
 
 ## External resources
 

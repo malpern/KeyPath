@@ -92,11 +92,13 @@ The overlay vanishes back to its normal state the instant KindaVim flips to Inse
 
 - **[Keyboard Concepts]({{ '/guides/concepts/' | relative_url }})** — Layers, modifiers, and dual-role keys explained
 - **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — Combine KindaVim with home row modifiers
+- **[Neovim in the Terminal]({{ '/guides/neovim-terminal/' | relative_url }})** — Lighter alternative: Leader-layer shortcuts with a HUD reference card
 - **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — Tap-hold for the rare key you want to remap *outside* of vim mode
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)**
 
 ## External Resources
 
 - **[KindaVim website ↗](https://kindavim.app)** — The official KindaVim app, by [godbout ↗](https://github.com/godbout). Download, documentation, and updates.
 - **[KindaVim docs ↗](https://docs.kindavim.app)** — Full command reference, including which commands are supported by the Accessibility vs. Keyboard strategies.
-- **[KindaVim on GitHub ↗](https://github.com/godbout/kindaVim.theElegantWay)** — Source code, releases, and issue tracker.
+- **[KindaVim on GitHub ↗](https://github.com/godbout/kindaVim.theapp)** — Source code, releases, and issue tracker.
 - **[Vim Cheat Sheet ↗](https://vim.rtorr.com/)** — Quick reference for all Vim commands.

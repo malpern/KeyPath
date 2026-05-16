@@ -42,6 +42,16 @@ theme: parchment
 <li><a href="{{ '/guides/action-uri/' | relative_url }}">Launching Apps</a></li>
 <li><a href="{{ '/guides/alternative-layouts/' | relative_url }}">Alternative Layouts</a></li>
 <li><a href="{{ '/guides/keyboard-layouts/' | relative_url }}">Works With Your Keyboard</a></li>
+<li><a href="{{ '/guides/quick-launcher/' | relative_url }}">Quick Launcher</a></li>
+<li><a href="{{ '/guides/chords/' | relative_url }}">Chords</a></li>
+<li><a href="{{ '/guides/auto-shift/' | relative_url }}">Auto-Shift Symbols</a></li>
+<li><a href="{{ '/guides/simple-packs/' | relative_url }}">Quick Tweaks</a></li>
+<li><a href="{{ '/guides/vim-navigation/' | relative_url }}">Vim Navigation</a></li>
+<li><a href="{{ '/guides/leader-key/' | relative_url }}">Leader Key</a></li>
+<li><a href="{{ '/guides/numpad-layer/' | relative_url }}">Numpad Layer</a></li>
+<li><a href="{{ '/guides/symbol-layer/' | relative_url }}">Symbol Layer</a></li>
+<li><a href="{{ '/guides/fun-layer/' | relative_url }}">Function Layer</a></li>
+<li><a href="{{ '/guides/key-repeat-control/' | relative_url }}">Fast Navigation</a></li>
 <li><a href="{{ '/guides/neovim-terminal/' | relative_url }}">Neovim in the Terminal</a></li>
 <li><a href="{{ '/guides/kindavim/' | relative_url }}">KindaVim</a></li>
 </ul>

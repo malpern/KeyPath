@@ -121,12 +121,12 @@ Screenshot — Rule editor with hold behavior options:
 
 ### Home Row Modifiers
 
-Map your home row keys to modifiers when held:
+Map your home row keys to modifiers when held (Mac-optimized CAGS layout):
 
 ```
-a → a (tap) / Left Control (hold)
-s → s (tap) / Left Shift (hold)
-d → d (tap) / Left Alt (hold)
+a → a (tap) / Left Shift (hold)
+s → s (tap) / Left Control (hold)
+d → d (tap) / Left Option (hold)
 f → f (tap) / Left Command (hold)
 ```
 
@@ -231,7 +231,7 @@ For power users, you can edit the generated Kanata config directly to fine-tune 
 - **[Launching Apps]({{ '/guides/action-uri/' | relative_url }})** — Trigger actions from your keyboard config
 - **[Alternative Layouts]({{ '/guides/alternative-layouts/' | relative_url }})** — Tap-hold works with any layout
 - **[Switching from Karabiner?]({{ '/migration/karabiner-users/' | relative_url }})** — See how Karabiner's `to_if_alone` maps to Kanata tap-hold
-- **[Back to Docs](https://keypath-app.com/docs)**
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)**
 
 ## External resources
 

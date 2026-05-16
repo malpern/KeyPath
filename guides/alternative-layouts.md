@@ -249,7 +249,7 @@ KeyPath doesn't change your operating system's input method — it works alongsi
 - **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — Modifiers on the home row, compatible with any layout
 - **[What You Can Build]({{ '/guides/use-cases/' | relative_url }})** — All KeyPath features at a glance
 - **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — Fine-tune dual-role key behavior
-- **[Back to Docs](https://keypath-app.com/docs)**
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)**
 
 ## External resources
 

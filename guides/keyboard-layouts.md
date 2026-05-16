@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Works With Your Keyboard"
-description: "12 physical keyboard layouts from MacBook to Kinesis Advantage 360"
+description: "15 physical keyboard layouts from MacBook to Kinesis Advantage 360"
 theme: parchment
 header_image: header-keyboard-layouts.png
 permalink: /guides/keyboard-layouts/
@@ -203,7 +203,7 @@ Split keyboards benefit especially from KeyPath's features:
 - **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — Modifiers on the home row — especially powerful on split boards
 - **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — Fine-tune layer-switching keys
 - **[What You Can Build]({{ '/guides/use-cases/' | relative_url }})** — All KeyPath features at a glance
-- **[Back to Docs](https://keypath-app.com/docs)**
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)**
 
 ## External resources
 

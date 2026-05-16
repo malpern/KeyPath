@@ -46,7 +46,7 @@ Want to see what's possible before you start? Check out [What You Can Build]({{ 
 
 ## Before You Start
 
-- **macOS 14 (Sonoma) or later** is required
+- **macOS 15 (Sequoia) or later** is required
 - If you're running **Karabiner-Elements**, quit it first — it conflicts with KeyPath
 
 > ⚠️ **Watch out:** Karabiner-Elements grabs the same low-level keyboard APIs that KeyPath needs. Quit it from the menu bar icon before continuing. You can always switch back later — see [From Karabiner-Elements]({{ '/migration/karabiner-users/' | relative_url }}).
@@ -300,3 +300,4 @@ You're set up! Here are the best places to go from here:
 - [Apple: Control access to Input Monitoring on Mac](https://support.apple.com/guide/mac-help/control-access-to-input-monitoring-on-mac-mchl4cedafb6/mac) ↗
 - [Apple: Allow Accessibility apps to access your Mac](https://support.apple.com/guide/mac-help/allow-accessibility-apps-to-access-your-mac-mh43185/mac) ↗
 - [Karabiner-Elements: Uninstalling](https://karabiner-elements.pqrs.org/docs/manual/uninstall/) ↗
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)**
