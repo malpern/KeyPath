@@ -13,6 +13,11 @@ struct ChordGroupsPackContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            Text("Press two adjacent keys at the same time to trigger an action — no modifier keys needed.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 2)
+
             ForEach(Array(displayConfig.groups.enumerated()), id: \.element.id) { groupIndex, group in
                 groupSection(group: group, groupIndex: groupIndex)
             }
