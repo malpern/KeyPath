@@ -36,6 +36,12 @@ extension HelpTopic {
         HelpTopic(id: "chords", title: "Press Two Keys at Once", icon: "hand.point.up.braille", resource: "chords", group: .features),
         HelpTopic(id: "auto-shift", title: "Symbols Without Shift", icon: "character.textbox", resource: "auto-shift", group: .features),
         HelpTopic(id: "simple-packs", title: "Quick Tweaks", icon: "checkmark.circle", resource: "simple-packs", group: .features),
+        HelpTopic(id: "vim-navigation", title: "Navigate Like a Keyboard Ninja", icon: "arrow.up.and.down.and.arrow.left.and.right", resource: "vim-navigation", group: .features),
+        HelpTopic(id: "leader-key", title: "Choose Your Leader Key", icon: "hand.point.up.left", resource: "leader-key", group: .features),
+        HelpTopic(id: "numpad-layer", title: "A Numpad Under Your Hand", icon: "number.square", resource: "numpad-layer", group: .features),
+        HelpTopic(id: "symbol-layer", title: "Programming Symbols Instantly", icon: "textformat.abc.dottedunderline", resource: "symbol-layer", group: .features),
+        HelpTopic(id: "fun-layer", title: "F-Keys and Media Controls", icon: "f.cursive", resource: "fun-layer", group: .features),
+        HelpTopic(id: "key-repeat-control", title: "Arrow Keys at Full Speed", icon: "hare", resource: "key-repeat-control", group: .features),
         HelpTopic(id: "kindavim", title: "Full Vim Modes", icon: "v.square", resource: "kindavim", group: .features),
         HelpTopic(id: "neovim-terminal", title: "Neovim in the Terminal", icon: "terminal", resource: "neovim-terminal", group: .features),
         // Reference

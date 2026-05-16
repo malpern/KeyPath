@@ -76,6 +76,12 @@ REGISTRY=(
     "chords|features|guides|Press Two Keys at Once|Chords|Press two adjacent keys simultaneously to produce Escape, Enter, Backspace, or any other key without leaving the home row"
     "auto-shift|features|guides|Symbols Without Shift|Auto-Shift Symbols|Hold a symbol key slightly longer to get the shifted version — no Shift key needed"
     "simple-packs|features|guides|Quick Tweaks|Quick Tweaks|Simple on/off packs: Escape remap, delete enhancement, backup Caps Lock, and Mission Control shortcuts"
+    "vim-navigation|features|guides|Navigate Like a Keyboard Ninja|Vim Navigation|Hold Space for hjkl arrows, copy/paste, undo, search, and line jumps — all without leaving the home row"
+    "leader-key|features|guides|Choose Your Leader Key|Leader Key|Pick which key activates all your layers — Space, Caps Lock, Tab, or Backtick. One change updates everything."
+    "numpad-layer|features|guides|A Numpad Under Your Hand|Numpad Layer|Right hand becomes a numpad, left hand gets operators. Two-step activation through the Leader key."
+    "symbol-layer|features|guides|Programming Symbols Instantly|Symbol Layer|Brackets, pipes, and operators all under your home row. Three preset layouts for different coding styles."
+    "fun-layer|features|guides|F-Keys and Media Controls|Function Layer|F1-F12 on your right hand, play/pause/volume/brightness on your left. Two-step Leader activation."
+    "key-repeat-control|features|guides|Arrow Keys at Full Speed|Fast Navigation|Arrow keys and delete repeat 3x faster while regular typing stays steady — no accidental repeats."
     "neovim-terminal|features|guides|Neovim in the Terminal|Neovim in the Terminal|Bring Neovim navigation muscle memory to every macOS app with a Leader-layer HUD reference"
     "kindavim|features|guides|KindaVim|KindaVim|Use KindaVim for real Vim modes system-wide; KeyPath layers a live mode badge, hjkl hint overlay, and mastery insights on top"
 
