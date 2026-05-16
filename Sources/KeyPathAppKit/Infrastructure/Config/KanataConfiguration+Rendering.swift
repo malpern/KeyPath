@@ -370,7 +370,8 @@ extension KanataConfiguration {
         ]
 
         for group in config.groups {
-            guard !group.chords.isEmpty else { continue }
+            let enabledChords = group.chords.filter(\.isEnabled)
+            guard !enabledChords.isEmpty else { continue }
             // Generate defchords block with timeout
             lines.append("(defchords \(group.name) \(group.timeout)")
 
@@ -380,8 +381,8 @@ extension KanataConfiguration {
                 lines.append("  (\(key)) \(key)")
             }
 
-            // Add chord definitions
-            for chord in group.chords {
+            // Add chord definitions (enabled only)
+            for chord in enabledChords {
                 let keys = chord.keys.joined(separator: " ")
                 lines.append("  (\(keys)) \(chord.output)")
             }

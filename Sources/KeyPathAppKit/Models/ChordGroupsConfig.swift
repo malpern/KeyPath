@@ -180,9 +180,9 @@ public struct ChordGroup: Codable, Equatable, Sendable, Identifiable {
         self.category = category
     }
 
-    /// All keys that participate in this chord group.
+    /// All keys that participate in this chord group (enabled chords only).
     public var participatingKeys: Set<String> {
-        Set(chords.flatMap(\.keys))
+        Set(chords.filter(\.isEnabled).flatMap(\.keys))
     }
 
     /// Whether this group has no conflicts.
@@ -236,25 +236,25 @@ public struct ChordDefinition: Codable, Equatable, Sendable, Identifiable {
     public var keys: [String]
     public var output: String
     public var description: String?
+    public var isEnabled: Bool
 
     public init(
         id: UUID,
         keys: [String],
         output: String,
-        description: String? = nil
+        description: String? = nil,
+        isEnabled: Bool = true
     ) {
-        // Validation for keys
         precondition(!keys.isEmpty, "ChordDefinition must have at least one key")
         precondition(keys.allSatisfy { !$0.isEmpty }, "ChordDefinition keys cannot be empty strings")
         precondition(Set(keys).count == keys.count, "ChordDefinition keys must be unique")
-
-        // Validation for output
         precondition(!output.isEmpty, "ChordDefinition output cannot be empty")
 
         self.id = id
         self.keys = keys
         self.output = output
         self.description = description
+        self.isEnabled = isEnabled
     }
 
     /// Whether this is a recommended chord combo (2-4 keys).

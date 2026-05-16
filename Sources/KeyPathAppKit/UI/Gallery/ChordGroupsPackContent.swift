@@ -70,7 +70,7 @@ struct ChordGroupsPackContent: View {
 
             VStack(spacing: 0) {
                 ForEach(Array(group.chords.enumerated()), id: \.element.id) { chordIndex, chord in
-                    chordRow(chord: chord, groupIndex: groupIndex, chordIndex: chordIndex, isEnabled: !config.groups.isEmpty)
+                    chordRow(chord: chord, groupIndex: groupIndex, chordIndex: chordIndex)
 
                     if chordIndex < group.chords.count - 1 {
                         Divider().padding(.leading, 32)
@@ -99,24 +99,24 @@ struct ChordGroupsPackContent: View {
 
     // MARK: - Chord Row
 
-    private func chordRow(chord: ChordDefinition, groupIndex: Int, chordIndex: Int, isEnabled: Bool) -> some View {
+    private func chordRow(chord: ChordDefinition, groupIndex: Int, chordIndex: Int) -> some View {
         HStack(spacing: 8) {
-            // Toggle
-            Image(systemName: isEnabled ? "checkmark.circle.fill" : "circle")
+            Image(systemName: chord.isEnabled ? "checkmark.circle.fill" : "circle")
                 .font(.system(size: 14))
-                .foregroundStyle(isEnabled ? Color.accentColor : Color.secondary.opacity(0.4))
+                .foregroundStyle(chord.isEnabled ? Color.accentColor : Color.secondary.opacity(0.4))
                 .onTapGesture {
-                    toggleChordEnabled(groupIndex: groupIndex, chordIndex: chordIndex, currentlyEnabled: isEnabled)
+                    ensureConfigPopulated()
+                    config.groups[groupIndex].chords[chordIndex].isEnabled.toggle()
+                    onConfigChanged(config)
                 }
 
-            // Key pills
             HStack(spacing: 2) {
                 ForEach(chord.keys, id: \.self) { key in
                     Text(key.uppercased())
                         .font(.system(size: 10, weight: .semibold, design: .monospaced))
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
-                        .background(Color.accentColor.opacity(0.12))
+                        .background(Color.accentColor.opacity(chord.isEnabled ? 0.12 : 0.05))
                         .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
                 }
             }
@@ -127,7 +127,6 @@ struct ChordGroupsPackContent: View {
 
             Text(chord.output)
                 .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(.primary)
 
             if let desc = chord.description, !desc.isEmpty {
                 Text(desc)
@@ -138,6 +137,7 @@ struct ChordGroupsPackContent: View {
 
             Spacer()
         }
+        .foregroundStyle(chord.isEnabled ? .primary : .tertiary)
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .contentShape(Rectangle())
@@ -183,16 +183,6 @@ struct ChordGroupsPackContent: View {
         }
     }
 
-    private func toggleChordEnabled(groupIndex: Int, chordIndex: Int, currentlyEnabled: Bool) {
-        if currentlyEnabled {
-            ensureConfigPopulated()
-            config.groups[groupIndex].chords.remove(at: chordIndex)
-            onConfigChanged(config)
-        } else {
-            ensureConfigPopulated()
-            onConfigChanged(config)
-        }
-    }
 
     // MARK: - Sheet Bindings
 
