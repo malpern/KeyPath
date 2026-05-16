@@ -18,10 +18,10 @@ content_class: content-full kanata-landing
       <p class="kanata-landing-subtitle hero-animate hero-animate-3">Remap keys, launch apps, tile windows, and automate workflows — all without leaving the home row.</p>
 
       <div class="kanata-landing-actions hero-animate hero-animate-4">
-        <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download for macOS <span class="button-badge">Free</span></a>
+        <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases">Download for macOS <span class="button-badge">Free</span></a>
       </div>
 
-      <p class="kanata-landing-requirements hero-animate hero-animate-5">Requires macOS 15+ (Sequoia) · Apple Silicon</p>
+      <p class="kanata-landing-requirements hero-animate hero-animate-5">Pre-release · Requires macOS 15+ (Sequoia) · Apple Silicon or Intel</p>
     </div>
 
     <!-- App screenshot -->
@@ -67,6 +67,22 @@ content_class: content-full kanata-landing
       </div>
     </div>
   </section>
+
+  <!-- HEADLINE FEATURES -->
+  <section class="kanata-landing-section">
+    <div class="kanata-landing-feature-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; max-width: 900px; margin: 0 auto;">
+      <div>
+        <h3 style="margin-top: 0;">Reliable Key Repeat</h3>
+        <p>KeyPath ships a patched Kanata engine with <code>managed-repeat</code> — kanata controls key repeat timing directly, bypassing macOS's native repeat system. No more double-triggering, stuck repeats, or inconsistent rates. <a href="https://github.com/jtroo/kanata/pull/2070">Submitted upstream</a>.</p>
+      </div>
+      <div>
+        <h3 style="margin-top: 0;">Fast Navigation</h3>
+        <p>Hold Caps Lock for instant cursor navigation from the home row — HJKL for arrows, U/D for Page Up/Down, W/B for word jumps. Works everywhere in macOS. Built on <code>tap-hold-opposite-hand</code> and <code>require-prior-idle</code>, both <a href="https://github.com/jtroo/kanata/pull/1955">contributed to kanata</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="kanata-landing-divider" aria-hidden="true"></div>
 
   <!-- VIRTUAL KEYBOARD HERO -->
   <section class="keyboard-hero-section">
@@ -271,8 +287,8 @@ content_class: content-full kanata-landing
   <!-- BUILD YOUR OWN RULES - Full Screen -->
   <section class="rules-fullscreen">
     <div class="rules-fullscreen-content">
-      <h2 class="rules-fullscreen-title">Pre-built rules included</h2>
-      <p class="rules-fullscreen-subtitle">Enable popular keyboard power moves with one click</p>
+      <h2 class="rules-fullscreen-title">10 packs included</h2>
+      <p class="rules-fullscreen-subtitle">Pre-built keyboard enhancements — enable any of them with one click</p>
 
       <div class="rules-chips-grid">
         <div class="rule-chip-large">
@@ -332,6 +348,46 @@ content_class: content-full kanata-landing
           <div class="rule-chip-text">
             <span class="rule-chip-name">Symbol Layer</span>
             <span class="rule-chip-desc">Access symbols without Shift</span>
+          </div>
+        </div>
+
+        <div class="rule-chip-large">
+          <div class="rule-chip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3v18l7-5 7 5V3z"/></svg>
+          </div>
+          <div class="rule-chip-text">
+            <span class="rule-chip-name">Mission Control</span>
+            <span class="rule-chip-desc">Spaces and Exposé from home row</span>
+          </div>
+        </div>
+
+        <div class="rule-chip-large">
+          <div class="rule-chip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V4M4 12l8-8 8 8"/></svg>
+          </div>
+          <div class="rule-chip-text">
+            <span class="rule-chip-name">Auto Shift</span>
+            <span class="rule-chip-desc">Hold any key briefly for its shifted symbol</span>
+          </div>
+        </div>
+
+        <div class="rule-chip-large">
+          <div class="rule-chip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+          </div>
+          <div class="rule-chip-text">
+            <span class="rule-chip-name">Numpad Layer</span>
+            <span class="rule-chip-desc">Number pad under your right hand</span>
+          </div>
+        </div>
+
+        <div class="rule-chip-large">
+          <div class="rule-chip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+          </div>
+          <div class="rule-chip-text">
+            <span class="rule-chip-name">Leader Key</span>
+            <span class="rule-chip-desc">Choose which key activates your layers</span>
           </div>
         </div>
       </div>
@@ -1358,7 +1414,7 @@ content_class: content-full kanata-landing
     <h2 class="mt-0">Ready?</h2>
     <p>Download KeyPath and start customizing your keyboard.</p>
     <div class="kanata-landing-actions">
-      <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download <span class="button-badge">Free</span></a>
+      <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases">Download <span class="button-badge">Free</span></a>
       <a class="button button-secondary" href="{{ site.github_url }}/discussions">Ask a question</a>
     </div>
   </section>
