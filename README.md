@@ -78,7 +78,7 @@ Keep your config. Keep your workflow. Just add a native Mac app on top.
 - **Edit anywhere** — changes hot-reload instantly via TCP
 - **One line added** — `(include keypath-apps.kbd)` enables app integration features
 
-Copy your config to `~/.config/keypath/keypath.kbd` and run the setup wizard. See the [migration guide](docs/migration/kanata-users.md) for details.
+Copy your config to `~/.config/keypath/keypath.kbd` and run the setup wizard.
 
 ---
 
@@ -157,7 +157,7 @@ sudo ./Scripts/uninstall.sh
 
 ## Documentation
 
-- [Architecture overview](ARCHITECTURE.md)
+- [Architecture overview](https://malpern.github.io/KeyPath/architecture/)
 - [Tap-hold & tap-dance guide](docs/TAP_HOLD_TAP_DANCE.md)
 - [FAQ](docs/FAQ.md)
 - [Debugging guide](docs/DEBUGGING_KANATA.md)
