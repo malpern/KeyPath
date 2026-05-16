@@ -220,19 +220,7 @@ private struct ChordRuleRow: View {
                         .foregroundStyle(.secondary)
 
                     // Output chip
-                    Text(chord.output.capitalized.replacingOccurrences(of: "_", with: " "))
-                        .font(.body.monospaced().weight(.semibold))
-                        .foregroundStyle(chord.isEnabled ? Self.keycapTextColor : Self.keycapTextColor.opacity(0.4))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(chord.isEnabled ? Self.keycapBgColor : Self.keycapBgColor.opacity(0.4))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 0.5)
-                        )
+                    outputKeycap(for: chord.output, enabled: chord.isEnabled)
 
                     Spacer(minLength: 0)
                 }
@@ -277,6 +265,64 @@ private struct ChordRuleRow: View {
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
             }
+        }
+    }
+
+    @ViewBuilder
+    private func outputKeycap(for output: String, enabled: Bool) -> some View {
+        let resolved = Self.resolveOutput(output)
+        let textOpacity: Double = enabled ? 1.0 : 0.4
+        let bgOpacity: Double = enabled ? 1.0 : 0.4
+
+        HStack(spacing: 4) {
+            if let icon = resolved.icon {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            Text(resolved.label)
+                .font(.body.weight(.semibold))
+        }
+        .foregroundStyle(Self.keycapTextColor.opacity(textOpacity))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Self.keycapBgColor.opacity(bgOpacity))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 0.5)
+        )
+    }
+
+    private static func resolveOutput(_ output: String) -> (label: String, icon: String?) {
+        let lower = output.lowercased()
+        switch lower {
+        case "c-x": return ("Cut", "scissors")
+        case "c-c": return ("Copy", "doc.on.doc")
+        case "c-v": return ("Paste", "doc.on.clipboard")
+        case "c-z": return ("Undo", "arrow.uturn.backward")
+        case "c-y", "c-s-z": return ("Redo", "arrow.uturn.forward")
+        case "c-a": return ("Select All", "selection.pin.in.out")
+        case "c-s": return ("Save", "square.and.arrow.down")
+        case "esc": return ("Esc", "escape")
+        case "enter", "ret": return ("Return", "return")
+        case "bspc": return ("Backspace", "delete.backward")
+        case "del": return ("Delete", "delete.forward")
+        case "tab": return ("Tab", "arrow.right.to.line")
+        case "spc": return ("Space", nil)
+        case "up": return ("↑", "arrow.up")
+        case "down": return ("↓", "arrow.down")
+        case "left": return ("←", "arrow.left")
+        case "right": return ("→", "arrow.right")
+        case "pp": return ("Play/Pause", "playpause")
+        case "next": return ("Next", "forward")
+        case "prev": return ("Previous", "backward")
+        default:
+            if let systemAction = SystemActionInfo.find(byOutput: output) {
+                return (systemAction.name, systemAction.sfSymbol)
+            }
+            return (output.capitalized.replacingOccurrences(of: "_", with: " "), nil)
         }
     }
 }
