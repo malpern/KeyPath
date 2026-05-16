@@ -240,12 +240,14 @@ To publish a new release, run:
 
 **The script automates:**
 1. Version bump in Info.plist (CFBundleVersion + CFBundleShortVersionString)
-2. Full build, code sign, and Sparkle EdDSA signing
-3. DMG creation (drag-to-Applications installer)
+2. Full build, code sign, **notarize**, and Sparkle EdDSA signing
+3. Styled DMG creation (branded background, drag-to-Applications)
 4. Git tag creation
 5. GitHub Release with zip + DMG attached
 6. Appcast.xml update (Sparkle auto-update feed)
 7. gh-pages download link update (marketing site always points to latest DMG)
+
+**⚠️ Releases MUST be notarized.** Never use `SKIP_NOTARIZE=1` or `--skip-notarize` for release builds. Unnotarized apps trigger macOS Gatekeeper warnings that erode user trust. `SKIP_NOTARIZE` is only for local dev iteration (`dd`/`df` shortcuts).
 
 **After the script finishes, you must:**
 1. Write release notes on the GitHub Release page
