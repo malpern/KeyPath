@@ -18,7 +18,7 @@ content_class: content-full kanata-landing
       <p class="kanata-landing-subtitle hero-animate hero-animate-3">Remap keys, launch apps, tile windows, and automate workflows — all without leaving the home row.</p>
 
       <div class="kanata-landing-actions hero-animate hero-animate-4">
-        <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases">Download for macOS <span class="button-badge">Free</span></a>
+        <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0-beta3/KeyPath-1.0.0-beta3.dmg">Download for macOS <span class="button-badge">Free</span></a>
       </div>
 
       <p class="kanata-landing-requirements hero-animate hero-animate-5">Pre-release · Requires macOS 15+ (Sequoia) · Apple Silicon or Intel</p>
@@ -73,11 +73,11 @@ content_class: content-full kanata-landing
     <div class="kanata-landing-feature-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; max-width: 900px; margin: 0 auto;">
       <div>
         <h3 style="margin-top: 0;">Reliable Key Repeat</h3>
-        <p>KeyPath ships a patched Kanata engine with <code>managed-repeat</code> — kanata controls key repeat timing directly, bypassing macOS's native repeat system. No more double-triggering, stuck repeats, or inconsistent rates. <a href="https://github.com/jtroo/kanata/pull/2070">Submitted upstream</a>.</p>
+        <p>Other keyboard remappers on macOS suffer from double-triggering and stuck keys. KeyPath fixes this at the engine level — key repeat is smooth, consistent, and just works.</p>
       </div>
       <div>
-        <h3 style="margin-top: 0;">Fast Navigation</h3>
-        <p>Hold Caps Lock for instant cursor navigation from the home row — HJKL for arrows, U/D for Page Up/Down, W/B for word jumps. Works everywhere in macOS. Built on <code>tap-hold-opposite-hand</code> and <code>require-prior-idle</code>, both <a href="https://github.com/jtroo/kanata/pull/1955">contributed to kanata</a>.</p>
+        <h3 style="margin-top: 0;">Navigate Without Arrow Keys</h3>
+        <p>Hold Caps Lock and use H/J/K/L for arrow keys, U/D for Page Up/Down, W/B for word jumps. Works everywhere — text editors, browsers, Spotlight, file dialogs. Your fingers never leave home row.</p>
       </div>
     </div>
   </section>
@@ -1414,7 +1414,7 @@ content_class: content-full kanata-landing
     <h2 class="mt-0">Ready?</h2>
     <p>Download KeyPath and start customizing your keyboard.</p>
     <div class="kanata-landing-actions">
-      <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases">Download <span class="button-badge">Free</span></a>
+      <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0-beta3/KeyPath-1.0.0-beta3.dmg">Download <span class="button-badge">Free</span></a>
       <a class="button button-secondary" href="{{ site.github_url }}/discussions">Ask a question</a>
     </div>
   </section>
