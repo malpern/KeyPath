@@ -34,9 +34,54 @@
                 sparkle:edSignature="eLCNwIGoc4wVcwMOHwaf5Ruuju48F7cUgMsD8FqJp50yy/XJ+rSM/iQYMUHxarwEDwaITKsSg0VB1nOKjSNaAA=="
                 length="102087728"
                 type="application/octet-stream"/>
-            <sparkle:releaseNotesLink>
-                https://github.com/malpern/KeyPath/releases/tag/v1.0.0-beta3
-            </sparkle:releaseNotesLink>
+            <description><![CDATA[
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px; line-height: 1.5; color: #333; }
+                    h2 { font-size: 16px; margin-top: 16px; margin-bottom: 4px; }
+                    h3 { font-size: 14px; margin-top: 12px; margin-bottom: 4px; color: #555; }
+                    ul { padding-left: 20px; }
+                    li { margin-bottom: 4px; }
+                    code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+                    .highlight { color: #D97706; font-weight: 600; }
+                </style>
+                <h2>🎉 Beta 3 — Massive Update</h2>
+                <p>411 commits of new features, reliability fixes, and polish. <strong>Keys that do more.</strong></p>
+
+                <h3>⌨️ Key Repeat Finally Works</h3>
+                <p>No more double-triggering, stuck repeats, or inconsistent rates. KeyPath's patched Kanata engine takes full control of key repeat timing on macOS. It just works now.</p>
+
+                <h3>🏃 Fast Navigation</h3>
+                <p>Hold Caps Lock → HJKL for arrows, U/D for Page Up/Down, W/B for word jumps. Works everywhere in macOS. Your fingers never leave home row.</p>
+
+                <h3>📦 10 Packs Ship</h3>
+                <ul>
+                    <li>Home Row Mods — tap A/S/D/F for letters, hold for Ctrl/Alt/Cmd/Shift</li>
+                    <li>Caps Lock → Escape + Hyper</li>
+                    <li>Vim Navigation, Window Snapping, Mission Control</li>
+                    <li>Auto Shift, Symbol Layer, Numpad Layer, Fun Layer</li>
+                    <li>Quick Launcher, Leader Key</li>
+                </ul>
+
+                <h3>🎯 Caps Lock LED + Cursor Badge</h3>
+                <p>Physical keyboard LED lights up correctly. The macOS Sonoma cursor badge is back. Overlay shows a green LED dot on the caps lock key.</p>
+
+                <h3>🖥️ International Keyboards</h3>
+                <p>Per-device key mappings, QMK imports with locale support, dynamic floating labels for all keyboard layouts.</p>
+
+                <h3>🔧 Under the Hood</h3>
+                <ul>
+                    <li>Reverted to reliable LaunchDaemon runtime (Mode B removed)</li>
+                    <li>VirtualHID safety net with emergency stop</li>
+                    <li>Installation wizard simplified — 4 redundant subsystems deleted</li>
+                    <li>413 tests, all passing in under 5 seconds</li>
+                    <li>27 pull requests contributed upstream to Kanata (20 merged)</li>
+                </ul>
+
+                <h3>🍺 Install via Homebrew</h3>
+                <p><code>brew install --cask malpern/tap/keypath</code></p>
+
+                <p><a href="https://github.com/malpern/KeyPath/releases/tag/v1.0.0-beta3">Full release notes →</a></p>
+            ]]></description>
         </item>
 
         <item>
