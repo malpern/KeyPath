@@ -538,6 +538,7 @@ struct ChordEditorDialog: View {
     @State private var keys: [String]
     @State private var output: String
     @State private var description: String
+    @State private var newKeyInput: String = ""
 
     init(chord: ChordDefinition, onSave: @escaping (ChordDefinition) -> Void, onCancel: @escaping () -> Void) {
         self.chord = chord
@@ -580,19 +581,52 @@ struct ChordEditorDialog: View {
 
             // Form
             VStack(spacing: 16) {
-                // Keys field
-                HStack(alignment: .firstTextBaseline) {
+                // Keys
+                HStack(alignment: .center) {
                     Text("Keys")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 70, alignment: .trailing)
 
-                    TextField("s d", text: Binding(
-                        get: { keys.joined(separator: " ") },
-                        set: { keys = $0.split(separator: " ").map(String.init) }
-                    ))
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 13, design: .monospaced))
+                    HStack(spacing: 4) {
+                        ForEach(Array(keys.enumerated()), id: \.offset) { index, key in
+                            if !key.isEmpty {
+                                Button {
+                                    keys.remove(at: index)
+                                } label: {
+                                    HStack(spacing: 3) {
+                                        Text(key.uppercased())
+                                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                        Image(systemName: "xmark")
+                                            .font(.system(size: 8, weight: .bold))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 5)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                            .fill(Color.primary.opacity(0.08))
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+
+                        if keys.filter({ !$0.isEmpty }).count < 4 {
+                            TextField("key", text: $newKeyInput)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(size: 12, design: .monospaced))
+                                .frame(width: 60)
+                                .onSubmit {
+                                    let trimmed = newKeyInput.trimmingCharacters(in: .whitespaces).lowercased()
+                                    if !trimmed.isEmpty {
+                                        keys = keys.filter { !$0.isEmpty }
+                                        keys.append(trimmed)
+                                        newKeyInput = ""
+                                    }
+                                }
+                        }
+                    }
                 }
 
                 // Output field + quick picks
