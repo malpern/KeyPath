@@ -536,64 +536,81 @@ struct ChordEditorDialog: View {
     let onCancel: () -> Void
 
     @State private var keys: [String]
-    @State private var output: String
+    @State private var selectedAction: KeyAction
     @State private var description: String
     @State private var newKeyInput: String = ""
+    @State private var outputMode: OutputMode
+    @State private var customOutput: String = ""
+
+    enum OutputMode: String, CaseIterable {
+        case keystroke = "Keystroke"
+        case systemAction = "System"
+        case appLaunch = "App"
+        case custom = "Custom"
+    }
 
     init(chord: ChordDefinition, onSave: @escaping (ChordDefinition) -> Void, onCancel: @escaping () -> Void) {
         self.chord = chord
         self.onSave = onSave
         self.onCancel = onCancel
         _keys = State(initialValue: chord.keys)
-        _output = State(initialValue: chord.action.kanataOutput)
+        _selectedAction = State(initialValue: chord.action)
         _description = State(initialValue: chord.description ?? "")
+        _outputMode = State(initialValue: Self.modeFor(chord.action))
+        _customOutput = State(initialValue: {
+            if case .rawKanata(let expr) = chord.action { return expr }
+            return ""
+        }())
+    }
+
+    private static func modeFor(_ action: KeyAction) -> OutputMode {
+        switch action {
+        case .keystroke: .keystroke
+        case .launchApp: .appLaunch
+        case .systemAction: .systemAction
+        case .rawKanata: .custom
+        default: .keystroke
+        }
     }
 
     private static let keycapText = Color(red: 0.88, green: 0.93, blue: 1.0)
     private static let keycapBg = Color(white: 0.12)
 
-    private let quickOutputs: [(key: String, label: String, icon: String)] = [
+    private let keystrokeOptions: [(key: String, label: String, icon: String)] = [
         ("esc", "Esc", "escape"),
         ("enter", "Return", "return"),
-        ("bspc", "Delete", "delete.backward"),
+        ("bspc", "Backspace", "delete.backward"),
+        ("del", "Delete", "delete.forward"),
         ("tab", "Tab", "arrow.right.to.line"),
+        ("spc", "Space", "space"),
         ("up", "↑", "arrow.up"),
         ("down", "↓", "arrow.down"),
         ("left", "←", "arrow.left"),
         ("right", "→", "arrow.right"),
-        ("C-z", "Undo", "arrow.uturn.backward"),
-        ("C-x", "Cut", "scissors"),
-        ("C-c", "Copy", "doc.on.doc"),
-        ("C-v", "Paste", "doc.on.clipboard"),
     ]
 
     private var isValid: Bool {
-        let validKeys = keys.filter { !$0.isEmpty }
-        return validKeys.count >= 2 && !output.isEmpty
+        keys.filter({ !$0.isEmpty }).count >= 2
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Hero: live keycap preview
             keycapPreview
                 .padding(.top, 24)
                 .padding(.bottom, 16)
 
-            // Form
-            VStack(spacing: 16) {
+            VStack(spacing: 14) {
                 // Keys
                 HStack(alignment: .center) {
                     Text("Keys")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
-                        .frame(width: 70, alignment: .trailing)
+                        .frame(width: 56, alignment: .trailing)
 
                     HStack(spacing: 4) {
                         ForEach(Array(keys.enumerated()), id: \.offset) { index, key in
                             if !key.isEmpty {
-                                Button {
-                                    keys.remove(at: index)
-                                } label: {
+                                Button { keys.remove(at: index) } label: {
                                     HStack(spacing: 3) {
                                         Text(key.uppercased())
                                             .font(.system(size: 12, weight: .semibold, design: .monospaced))
@@ -603,15 +620,11 @@ struct ChordEditorDialog: View {
                                     }
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 5)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                            .fill(Color.primary.opacity(0.08))
-                                    )
+                                    .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color.primary.opacity(0.08)))
                                 }
                                 .buttonStyle(.plain)
                             }
                         }
-
                         if keys.filter({ !$0.isEmpty }).count < 4 {
                             TextField("key", text: $newKeyInput)
                                 .textFieldStyle(.roundedBorder)
@@ -629,54 +642,33 @@ struct ChordEditorDialog: View {
                     }
                 }
 
-                // Output field + quick picks
+                // Output type picker
                 HStack(alignment: .top) {
-                    Text("Output")
+                    Text("Action")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
-                        .frame(width: 70, alignment: .trailing)
+                        .frame(width: 56, alignment: .trailing)
                         .padding(.top, 4)
 
                     VStack(alignment: .leading, spacing: 8) {
-                        TextField("esc", text: $output)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.system(size: 13, design: .monospaced))
-
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 64))], spacing: 4) {
-                            ForEach(quickOutputs, id: \.key) { item in
-                                Button {
-                                    output = item.key
-                                } label: {
-                                    HStack(spacing: 3) {
-                                        Image(systemName: item.icon)
-                                            .font(.system(size: 9))
-                                        Text(item.label)
-                                            .font(.system(size: 10))
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 4)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                            .fill(output == item.key ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.05))
-                                    )
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                            .strokeBorder(output == item.key ? Color.accentColor.opacity(0.4) : Color.clear, lineWidth: 1)
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityIdentifier("chord-quick-output-\(item.key)")
+                        Picker("", selection: $outputMode) {
+                            ForEach(OutputMode.allCases, id: \.self) { mode in
+                                Text(mode.rawValue).tag(mode)
                             }
                         }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+
+                        outputContent
                     }
                 }
 
-                // Description
+                // Note
                 HStack(alignment: .firstTextBaseline) {
                     Text("Note")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
-                        .frame(width: 70, alignment: .trailing)
+                        .frame(width: 56, alignment: .trailing)
 
                     TextField("Optional description", text: $description)
                         .textFieldStyle(.roundedBorder)
@@ -687,26 +679,16 @@ struct ChordEditorDialog: View {
 
             Spacer()
 
-            // Actions
             HStack {
                 Button("Cancel", action: onCancel)
                     .keyboardShortcut(.escape, modifiers: [])
                     .accessibilityIdentifier("chord-editor-cancel")
-
                 Spacer()
-
                 Button("Save") {
-                    let action: KeyAction = if quickOutputs.contains(where: { $0.key == output }) {
-                        .keystroke(key: output)
-                    } else if output.contains("-") || output.contains("(") {
-                        .rawKanata(output)
-                    } else {
-                        .keystroke(key: output)
-                    }
                     let updated = ChordDefinition(
                         id: chord.id,
                         keys: keys.filter { !$0.isEmpty },
-                        action: action,
+                        action: selectedAction,
                         description: description.isEmpty ? nil : description,
                         isEnabled: chord.isEnabled
                     )
@@ -719,7 +701,127 @@ struct ChordEditorDialog: View {
             }
             .padding(20)
         }
-        .frame(width: 420, height: 400)
+        .frame(width: 440, height: 460)
+    }
+
+    // MARK: - Output Content (switches on mode)
+
+    @ViewBuilder
+    private var outputContent: some View {
+        switch outputMode {
+        case .keystroke:
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 72))], spacing: 4) {
+                ForEach(keystrokeOptions, id: \.key) { item in
+                    Button { selectedAction = .keystroke(key: item.key) } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: item.icon)
+                                .font(.system(size: 9))
+                            Text(item.label)
+                                .font(.system(size: 10))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                .fill(isSelected(item.key) ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.05))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                .strokeBorder(isSelected(item.key) ? Color.accentColor.opacity(0.4) : Color.clear, lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+        case .systemAction:
+            let groups = systemActionGroups
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(groups, id: \.title) { group in
+                    Text(group.title)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 90))], spacing: 4) {
+                        ForEach(group.actions) { action in
+                            Button {
+                                selectedAction = .systemAction(id: action.id)
+                            } label: {
+                                HStack(spacing: 3) {
+                                    Image(systemName: action.sfSymbol)
+                                        .font(.system(size: 9))
+                                    Text(action.name)
+                                        .font(.system(size: 10))
+                                        .lineLimit(1)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                        .fill(isSystemActionSelected(action.id) ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.05))
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+
+        case .appLaunch:
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Enter app name or bundle ID:")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                TextField("Safari", text: Binding(
+                    get: {
+                        if case .launchApp(let name, _) = selectedAction { return name }
+                        return ""
+                    },
+                    set: { selectedAction = .launchApp(name: $0, bundleId: nil) }
+                ))
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 13))
+            }
+
+        case .custom:
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Kanata expression:")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                TextField("C-x", text: $customOutput)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 13, design: .monospaced))
+                    .onChange(of: customOutput) { _, newValue in
+                        if !newValue.isEmpty {
+                            selectedAction = .rawKanata(newValue)
+                        }
+                    }
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func isSelected(_ key: String) -> Bool {
+        if case .keystroke(let k) = selectedAction { return k == key }
+        return false
+    }
+
+    private func isSystemActionSelected(_ id: String) -> Bool {
+        if case .systemAction(let sid) = selectedAction { return sid == id }
+        return false
+    }
+
+    private struct ActionGroup {
+        let title: String
+        let actions: [SystemActionInfo]
+    }
+
+    private var systemActionGroups: [ActionGroup] {
+        let all = SystemActionInfo.allActions
+        return [
+            ActionGroup(title: "System", actions: all.filter { !$0.isMediaKey }),
+            ActionGroup(title: "Media", actions: all.filter { $0.isMediaKey }),
+        ]
     }
 
     // MARK: - Keycap Preview
@@ -744,11 +846,7 @@ struct ChordEditorDialog: View {
                 .foregroundStyle(.secondary)
 
             // Output keycap
-            if output.isEmpty {
-                placeholderKeycap("?")
-            } else {
-                keycap(output)
-            }
+            keycap(selectedAction.commonDisplayInfo?.label ?? selectedAction.displayName)
         }
     }
 
