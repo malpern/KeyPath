@@ -31,8 +31,8 @@
             <pubDate>Fri, 16 May 2026 07:21:00 -0700</pubDate>
             <enclosure
                 url="https://github.com/malpern/KeyPath/releases/download/v1.0.0-beta3/KeyPath-1.0.0-beta3.zip"
-                sparkle:edSignature="rEyRU5FlZzu6scb0Y6mor9GASvgEa4r6eqOL2vtinlPUfiO9FxsJGJv6+cO7v1Hk0yHjNURNGBbgvArZXNjvCg=="
-                length="102019311"
+                sparkle:edSignature="3NJ0jZaV+YE+9Sg1LYihHNwK9C4bZbPru0h0WkKXkqr4w8qRKS+EMpauMmtUjDuhYeTt5AjxD3g8tUBd92EXAA=="
+                length="102059104"
                 type="application/octet-stream"/>
             <sparkle:releaseNotesLink>
                 https://github.com/malpern/KeyPath/releases/tag/v1.0.0-beta3
