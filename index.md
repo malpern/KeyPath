@@ -69,53 +69,6 @@ content_class: content-full kanata-landing
   </section>
   -->
 
-  <!-- HEADLINE FEATURES -->
-  <section class="kanata-landing-section">
-    <div class="kanata-landing-feature-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; max-width: 900px; margin: 0 auto;">
-      <div>
-        <h3 style="margin-top: 0;">Reliable Key Repeat</h3>
-        <p>Other keyboard remappers on macOS suffer from double-triggering and stuck keys. KeyPath fixes this at the engine level — key repeat is smooth, consistent, and just works.</p>
-      </div>
-      <div>
-        <h3 style="margin-top: 0;">Navigate Without Arrow Keys</h3>
-        <p>Hold Caps Lock and use H/J/K/L for arrow keys, U/D for Page Up/Down, W/B for word jumps. Works everywhere — text editors, browsers, Spotlight, file dialogs. Your fingers never leave home row.</p>
-      </div>
-    </div>
-  </section>
-
-  <div class="kanata-landing-divider" aria-hidden="true"></div>
-
-  <!-- APP SCREENSHOTS -->
-  <section class="kanata-landing-section">
-    <h2 class="mt-0" style="text-align: center;">See it in action</h2>
-    <p style="text-align: center; color: #999; margin-bottom: 2rem;">A live keyboard overlay shows your mappings, layers, and key states in real time.</p>
-
-    <div style="max-width: 1000px; margin: 0 auto;">
-      <div style="margin-bottom: 2rem;">
-        <img src="{{ '/images/screenshots/vim-nav-layer.png' | relative_url }}" alt="KeyPath overlay showing Vim navigation layer with HJKL arrow keys highlighted in orange" style="width: 100%; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);" loading="lazy" />
-        <p style="text-align: center; color: #777; font-size: 0.85rem; margin-top: 0.5rem;">Vim navigation layer — HJKL becomes arrow keys when you hold the activator</p>
-      </div>
-
-      <div style="margin-bottom: 2rem;">
-        <img src="{{ '/images/screenshots/overlay-with-mapper.png' | relative_url }}" alt="KeyPath overlay with mapper drawer open showing key remap configuration" style="width: 100%; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);" loading="lazy" />
-        <p style="text-align: center; color: #777; font-size: 0.85rem; margin-top: 0.5rem;">Click any key to remap it — the mapper drawer shows input, output, and active rules</p>
-      </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
-        <div>
-          <img src="{{ '/images/screenshots/custom-rules-tab.png' | relative_url }}" alt="Custom rules tab showing tap-hold configuration" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);" loading="lazy" />
-          <p style="text-align: center; color: #777; font-size: 0.8rem; margin-top: 0.5rem;">Custom rules editor</p>
-        </div>
-        <div>
-          <img src="{{ '/images/screenshots/keymap-picker.png' | relative_url }}" alt="Keymap picker showing alternative keyboard layouts" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);" loading="lazy" />
-          <p style="text-align: center; color: #777; font-size: 0.8rem; margin-top: 0.5rem;">Switch keyboard layouts instantly</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <div class="kanata-landing-divider" aria-hidden="true"></div>
-
   <!-- VIRTUAL KEYBOARD HERO -->
   <section class="keyboard-hero-section">
     <div class="keyboard-hero-wrapper">
