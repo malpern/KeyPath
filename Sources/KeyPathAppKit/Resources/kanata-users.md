@@ -181,7 +181,7 @@ KeyPath doesn't parse your Kanata config — it uses TCP and a simulator to unde
 1. **Check TCP is enabled** - KeyPath needs TCP for validation
 2. **Verify include path** - `keypath-apps.kbd` must be in the same directory
 3. **Check logs** - `tail -f /var/log/com.keypath.kanata.stdout.log`
-4. **Run setup wizard** - File → Run Setup Wizard to check for issues
+4. **Run setup wizard** - File → Install wizard... to check for issues
 
 ### KeyPath Overwrites My Config?
 
@@ -244,9 +244,9 @@ ln -s ~/.config/kanata/my-config.kbd ~/.config/keypath/keypath.kbd
 
 ## Getting Help
 
-- **[FAQ](https://keypath-app.com/faq)** — Common questions about KeyPath
+- **[FAQ](https://malpern.github.io/KeyPath/docs)** — Common questions about KeyPath
 - **[GitHub Issues](https://github.com/malpern/KeyPath/issues)** — Report bugs or ask questions
 - **[Privacy & Permissions](help:privacy)** — What KeyPath accesses and why
 - **[Kanata documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc)** — Full Kanata config reference ↗
 - **[Kanata GitHub](https://github.com/jtroo/kanata)** — Kanata source code and discussions ↗
-- **[Back to Docs](https://keypath-app.com/docs)**
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)**

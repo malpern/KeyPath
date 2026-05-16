@@ -110,6 +110,20 @@ final class EasyViewSnapshotTests: ScreenshotTestCase {
         )
     }
 
+    func testHomeRowTimingFastTyping() {
+        var config = MockFactories.homeRowModsConfig()
+        config.timing.requirePriorIdleMs = 150
+        let view = HomeRowTimingSection(
+            config: .constant(config),
+            onConfigChanged: { _ in }
+        )
+        assertScreenshot(
+            of: view,
+            size: SnapshotSize.panel,
+            named: "hrm-fast-typing"
+        )
+    }
+
     // MARK: - LauncherDrawerView
 
     func testLauncherDrawer() {

@@ -194,7 +194,7 @@ Split keyboards benefit especially from KeyPath's features:
 - **[Shortcuts Without Reaching](help:home-row-mods)** — Modifiers on the home row — especially powerful on split boards
 - **[One Key, Multiple Actions](help:tap-hold)** — Fine-tune layer-switching keys
 - **[What You Can Build](help:use-cases)** — All KeyPath features at a glance
-- **[Back to Docs](https://keypath-app.com/docs)**
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)**
 
 ## External resources
 

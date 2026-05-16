@@ -32,6 +32,10 @@ extension HelpTopic {
         HelpTopic(id: "action-uri", title: "Launching Apps", icon: "link", resource: "action-uri", group: .features),
         HelpTopic(id: "alternative-layouts", title: "Alternative Layouts", icon: "textformat", resource: "alternative-layouts", group: .features),
         HelpTopic(id: "keyboard-layouts", title: "Your Keyboard", icon: "keyboard.badge.ellipsis", resource: "keyboard-layouts", group: .features),
+        HelpTopic(id: "quick-launcher", title: "Launch Anything Instantly", icon: "bolt", resource: "quick-launcher", group: .features),
+        HelpTopic(id: "chords", title: "Press Two Keys at Once", icon: "hand.point.up.braille", resource: "chords", group: .features),
+        HelpTopic(id: "auto-shift", title: "Symbols Without Shift", icon: "character.textbox", resource: "auto-shift", group: .features),
+        HelpTopic(id: "simple-packs", title: "Quick Tweaks", icon: "checkmark.circle", resource: "simple-packs", group: .features),
         HelpTopic(id: "kindavim", title: "Full Vim Modes", icon: "v.square", resource: "kindavim", group: .features),
         HelpTopic(id: "neovim-terminal", title: "Neovim in the Terminal", icon: "terminal", resource: "neovim-terminal", group: .features),
         // Reference

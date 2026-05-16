@@ -71,7 +71,11 @@ REGISTRY=(
     "window-management|features|guides|Windows & App Shortcuts|Windows & App Shortcuts|App-specific keymaps and window management with KeyPath"
     "action-uri|features|guides|Launching Apps & Workflows|Launching Apps|Launch apps, URLs, and folders from your keyboard with a single keystroke"
     "alternative-layouts|features|guides|Alternative Layouts|Alternative Layouts|Colemak, Dvorak, Workman, and more — KeyPath supports 8 keymaps with a live overlay"
-    "keyboard-layouts|features|guides|Works With Your Keyboard|Works With Your Keyboard|12 physical keyboard layouts from MacBook to Kinesis Advantage 360"
+    "keyboard-layouts|features|guides|Works With Your Keyboard|Works With Your Keyboard|15 physical keyboard layouts from MacBook to Kinesis Advantage 360"
+    "quick-launcher|features|guides|Launch Anything Instantly|Quick Launcher|Hold one key and press a letter to launch any app, URL, or folder instantly"
+    "chords|features|guides|Press Two Keys at Once|Chords|Press two adjacent keys simultaneously to produce Escape, Enter, Backspace, or any other key without leaving the home row"
+    "auto-shift|features|guides|Symbols Without Shift|Auto-Shift Symbols|Hold a symbol key slightly longer to get the shifted version — no Shift key needed"
+    "simple-packs|features|guides|Quick Tweaks|Quick Tweaks|Simple on/off packs: Escape remap, delete enhancement, backup Caps Lock, and Mission Control shortcuts"
     "neovim-terminal|features|guides|Neovim in the Terminal|Neovim in the Terminal|Bring Neovim navigation muscle memory to every macOS app with a Leader-layer HUD reference"
     "kindavim|features|guides|KindaVim|KindaVim|Use KindaVim for real Vim modes system-wide; KeyPath layers a live mode badge, hjkl hint overlay, and mastery insights on top"
 

@@ -133,13 +133,14 @@ open "keypath://window/snap/left"
 
 ## Next Steps
 
+- **[Launch Anything Instantly](help:quick-launcher)** — A simpler one-key-to-app launcher
 - **[Launching Apps & Workflows](help:action-uri)** — Full reference for all URI actions including window snapping
 - **[What You Can Build](help:use-cases)** — See window tiling as part of a complete setup
 - **[Keyboard Concepts](help:concepts)** — Background on layers and modifiers
 - **[One Key, Multiple Actions](help:tap-hold)** — Configure the keys that trigger your window actions
 - **[Shortcuts Without Reaching](help:home-row-mods)** — Combine window management with home row modifiers
 - **[Switching from Karabiner?](help:karabiner-users)** — Map your existing Karabiner window rules to KeyPath
-- **[Back to Docs](https://keypath-app.com)** — See all available guides
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)** — See all available guides
 
 ## External resources
 

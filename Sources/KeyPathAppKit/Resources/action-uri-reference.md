@@ -1,4 +1,4 @@
-![Action URI Reference](header-action-uri.png)
+![Action URI Reference](header-action-uri-reference.png)
 
 # Action URI Reference
 
@@ -154,7 +154,7 @@ If an action fails (e.g., app not found), KeyPath logs the error but doesn't cra
 - **[Launching Apps](help:action-uri)** — Set up app launching through KeyPath's UI
 - **[Windows & App Shortcuts](help:window-management)** — App-specific keymaps and window snapping
 - **[From Kanata](help:kanata-users)** — Using Action URIs in your Kanata config
-- **[Back to Docs](https://keypath-app.com)** — See all available guides
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)** — See all available guides
 
 ## External resources
 

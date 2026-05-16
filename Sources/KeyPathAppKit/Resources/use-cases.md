@@ -166,15 +166,20 @@ Start with one idea, get comfortable, then add the next. There's no rush.
 - **[Keyboard Concepts](help:concepts)** — The fundamentals: layers, modifiers, and dual-role keys
 - **[Shortcuts Without Reaching](help:home-row-mods)** — Deep dive on home row modifiers
 - **[One Key, Multiple Actions](help:tap-hold)** — Fine-tune dual-role key behavior
+- **[Launch Anything Instantly](help:quick-launcher)** — Hold one key, press a letter, app opens
+- **[Press Two Keys at Once](help:chords)** — Escape, Enter, and Backspace without leaving home row
+- **[Symbols Without Shift](help:auto-shift)** — Hold symbol keys longer for the shifted version
 - **[Launching Apps & Workflows](help:action-uri)** — Bind any key to launch apps, URLs, and more
 - **[Window Management](help:window-management)** — App-specific shortcuts and window tiling
 - **[Alternative Layouts](help:alternative-layouts)** — Colemak, Dvorak, Workman, and more
 - **[Keyboard Layouts](help:keyboard-layouts)** — Physical keyboard support (ANSI, split, ergonomic)
+- **[KindaVim Integration](help:kindavim)** — Full Vim modes system-wide
+- **[Neovim in the Terminal](help:neovim-terminal)** — Vim navigation shortcuts with a HUD reference card
 - **[Privacy & Permissions](help:privacy)** — What KeyPath accesses and why
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)**
 
 ## External resources
 
 - **[Kanata configuration reference](https://github.com/jtroo/kanata/blob/main/docs/config.adoc)** — Full docs for the engine behind these features
 - **[Raycast](https://www.raycast.com/)** — Pairs well with KeyPath for app launching
 - **[Alfred](https://www.alfredapp.com/)** — Another launcher that integrates with KeyPath
-- **[Back to Docs](https://keypath-app.com/docs)**

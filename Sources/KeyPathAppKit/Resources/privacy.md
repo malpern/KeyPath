@@ -238,7 +238,7 @@ KeyPath installs the [Karabiner VirtualHIDDevice driver](https://github.com/pqrs
 
 ### What about keyboard analytics or AI features?
 
-Keyboard usage analytics and AI-assisted configuration are available in **KeyPath Insights**, a separate companion app. They are not part of KeyPath itself. KeyPath remaps your keyboard — that's the whole app.
+Keyboard usage analytics are available in **Activity Insights**, a built-in plugin that ships with KeyPath. It tracks typing patterns and usage statistics locally on your Mac — nothing is sent anywhere. You can enable or disable it in Settings. KeyPath's core mission is keyboard remapping; Insights is an optional layer on top.
 
 ---
 
@@ -259,10 +259,10 @@ Keyboard usage analytics and AI-assisted configuration are available in **KeyPat
 
 We take this seriously. If you have questions about KeyPath's privacy practices or find something in the source code that doesn't match what's described here, please [open an issue on GitHub](https://github.com/malpern/KeyPath/issues).
 
-- **[FAQ](https://keypath-app.com/faq)** — More questions and answers about KeyPath
-- **[Installation](https://keypath-app.com/getting-started/installation)** — Setup wizard and permission walkthrough
+- **[FAQ](https://malpern.github.io/KeyPath/docs)** — More questions and answers about KeyPath
+- **[Installation](help:installation)** — Setup wizard and permission walkthrough
 - **[GitHub Issues](https://github.com/malpern/KeyPath/issues)** — Report bugs or ask questions
-- **[Back to Docs](https://keypath-app.com/docs)**
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)**
 
 ## External references
 

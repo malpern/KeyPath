@@ -144,7 +144,7 @@ cp ~/.config/karabiner/karabiner.json ~/Desktop/karabiner-backup.json
 
 ### 2. Install KeyPath
 
-Follow the [Installation guide](https://keypath-app.com/getting-started/installation). KeyPath's wizard handles permissions and driver setup.
+Follow the [Installation guide](help:installation). KeyPath's wizard handles permissions and driver setup.
 
 ### 3. Quit Karabiner
 
@@ -166,7 +166,7 @@ Start with the basics — remaps you use most — and build up:
 2. **Home row mods** — Enable the pre-built rule (much easier than the Karabiner JSON version)
 3. **Custom rules** — Recreate your most-used modifications one at a time
 
-See [Your First Mapping](https://keypath-app.com/getting-started/first-mapping) for a walkthrough.
+See [Your First Mapping](help:use-cases) for a walkthrough.
 
 ### 5. Fine-tune
 
@@ -225,4 +225,4 @@ We're exploring a tool that would let you paste your Karabiner JSON and see the 
 - **[Privacy & Permissions](help:privacy)** — How KeyPath's permission model compares
 - **[Karabiner-Elements](https://karabiner-elements.pqrs.org/)** — Karabiner's official site ↗
 - **[Complex Modifications](https://ke-complex-modifications.pqrs.org/)** — Karabiner's community rule library ↗
-- **[Back to Docs](https://keypath-app.com/docs)**
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)**

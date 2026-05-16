@@ -224,7 +224,7 @@ Enable these in the **Rules** tab to get started immediately, then customize fro
 - **[One Key, Multiple Actions](help:tap-hold)** — How the Hyper key's tap-hold behavior works
 - **[Keyboard Concepts](help:concepts)** — Background on layers and modifiers
 - **[Action URI Reference](help:action-uri-reference)** — Technical deep link reference for integrating with Raycast, Alfred, and scripts
-- **[Back to Docs](https://keypath-app.com)** — See all available guides
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)** — See all available guides
 
 ## External resources
 

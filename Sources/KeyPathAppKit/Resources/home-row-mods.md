@@ -141,16 +141,7 @@ This uses Kanata's native `tap-hold-opposite-hand` with a global hand definition
 
 When you're typing quickly, the last thing you want is for "fd" to become Ctrl+D. Fast typing protection solves this: keys pressed shortly after your last keystroke produce the letter immediately — no hold detection, no waiting state.
 
-<!--
-TODO: regenerate-screenshots.sh hasn't produced hrm-fast-typing.png yet,
-so the directive below is commented out. The publish-to-web script
-silently drops references whose PNG is missing, which knocks the
-screenshot-count parity check out of alignment and fails the publish
-workflow. Re-enable this directive once the PNG is committed under
-`Sources/KeyPathAppKit/Resources/hrm-fast-typing.png`.
-
-screenshot: id="hrm-fast-typing" method="snapshot" view="HomeRowTimingSection" state="prior-idle:visible"
--->
+<!-- screenshot: id="hrm-fast-typing" method="snapshot" view="HomeRowTimingSection" state="prior-idle:visible" -->
 Screenshot — Fast typing protection in rule settings:
 ```
   ┌─────────────────────────────────────────────────────┐
@@ -221,7 +212,7 @@ Shift is the most frequently used modifier during normal typing (capital letters
 - **[Alternative Layouts](help:alternative-layouts)** — HRM works with any layout — see what's supported
 - **[Keyboard Layouts](help:keyboard-layouts)** — Split keyboards and HRM are a natural match
 - **[Switching from Karabiner?](help:karabiner-users)** — See how KeyPath's HRM compares to Karabiner's approach
-- **[Back to Docs](https://keypath-app.com/docs)**
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)**
 
 ### External references
 

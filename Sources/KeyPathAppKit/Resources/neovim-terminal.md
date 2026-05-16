@@ -64,8 +64,15 @@ These shortcuts work in any macOS app while holding the Leader key:
 ## Tips
 
 - The Neovim-specific categories (LSP, Telescope, etc.) on the right column are reference-only — they describe commands that work inside Neovim, not shortcuts that KeyPath sends. They're there so you have one place to look.
-- If you use both Neovim and regular macOS apps, this collection is for you. For deeper KindaVim modal editing integration, see [Full Vim Modes](help:kindavim).
+- If you use both Neovim and regular macOS apps, this collection is for you. For deeper KindaVim modal editing integration, see [KindaVim Integration](help:kindavim).
 - The Leader key defaults to Space. Change it in the **Leader Key** collection in the Rules tab.
+
+## Next Steps
+
+- **[KindaVim Integration](help:kindavim)** — Full modal editing (Normal/Insert/Visual) system-wide
+- **[Press Two Keys at Once](help:chords)** — Chords complement vim navigation
+- **[What You Can Build](help:use-cases)** — See vim navigation as part of a complete keyboard workflow
+- **[Back to Docs](https://malpern.github.io/KeyPath/docs)**
 
 ## Resources
 
