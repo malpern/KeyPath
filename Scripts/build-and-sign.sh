@@ -123,20 +123,35 @@ create_sparkle_archive() {
 </item>
 EOF
 
-    # Create DMG with Applications symlink for drag-to-install
+    # Create styled DMG with background image and icon positioning
     local DMG_NAME="KeyPath-${VERSION}.dmg"
+    local DMG_BG="${SCRIPT_DIR}/../dev-tools/dmg/dmg-background@2x.png"
     echo "💿 Creating DMG installer..."
-    local DMG_STAGING="${DIST_DIR}/dmg-staging"
-    rm -rf "$DMG_STAGING"
-    mkdir -p "$DMG_STAGING"
-    cp -R "${DIST_DIR}/${APP_NAME}.app" "$DMG_STAGING/"
-    ln -s /Applications "$DMG_STAGING/Applications"
-    hdiutil create \
-        -volname "KeyPath" \
-        -srcfolder "$DMG_STAGING" \
-        -ov -format UDZO \
-        "${SPARKLE_DIR}/${DMG_NAME}" >/dev/null 2>&1
-    rm -rf "$DMG_STAGING"
+    rm -f "${SPARKLE_DIR}/${DMG_NAME}"
+    if command -v create-dmg >/dev/null 2>&1 && [ -f "$DMG_BG" ]; then
+        create-dmg \
+            --volname "KeyPath" \
+            --background "$DMG_BG" \
+            --window-pos 200 120 \
+            --window-size 660 400 \
+            --icon-size 128 \
+            --icon "${APP_NAME}.app" 175 200 \
+            --hide-extension "${APP_NAME}.app" \
+            --app-drop-link 485 200 \
+            --no-internet-enable \
+            "${SPARKLE_DIR}/${DMG_NAME}" \
+            "${DIST_DIR}/${APP_NAME}.app" >/dev/null 2>&1
+    else
+        # Fallback: plain DMG without styling
+        local DMG_STAGING="${DIST_DIR}/dmg-staging"
+        rm -rf "$DMG_STAGING"
+        mkdir -p "$DMG_STAGING"
+        cp -R "${DIST_DIR}/${APP_NAME}.app" "$DMG_STAGING/"
+        ln -s /Applications "$DMG_STAGING/Applications"
+        hdiutil create -volname "KeyPath" -srcfolder "$DMG_STAGING" \
+            -ov -format UDZO "${SPARKLE_DIR}/${DMG_NAME}" >/dev/null 2>&1
+        rm -rf "$DMG_STAGING"
+    fi
     echo "   ✅ DMG created: ${SPARKLE_DIR}/${DMG_NAME}"
 
     echo ""
