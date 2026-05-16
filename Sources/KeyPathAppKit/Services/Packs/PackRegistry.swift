@@ -24,6 +24,7 @@ public enum PackRegistry {
         launcher,
         leaderKey,
         keyRepeatControl,
+        chordGroups,
         kindaVim
     ]
 
@@ -563,6 +564,32 @@ public enum PackRegistry {
     /// Mutually exclusive with Vim Navigation (and Neovim Terminal once
     /// that ships) — they target the same workflow with different
     /// implementations.
+    // MARK: - Pack: Chord Groups
+
+    public static let chordGroups = Pack(
+        id: "com.keypath.pack.chord-groups",
+        version: "1.0.0",
+        name: "Chord Groups",
+        tagline: "Press two keys at once for instant actions",
+        shortDescription:
+            "Multi-key chords let you trigger actions by pressing adjacent keys simultaneously — no modifier keys needed. Includes Ben Vallack's home row navigation and editing presets.",
+        longDescription: "",
+        category: "Productivity",
+        iconSymbol: "keyboard.badge.ellipsis",
+        quickSettings: [],
+        bindings: [
+            PackBindingTemplate(input: "s+d", output: "esc", title: "S+D → Escape"),
+            PackBindingTemplate(input: "d+f", output: "enter", title: "D+F → Enter"),
+            PackBindingTemplate(input: "j+k", output: "up", title: "J+K → Up"),
+            PackBindingTemplate(input: "k+l", output: "down", title: "K+L → Down"),
+            PackBindingTemplate(input: "a+s", output: "bspc", title: "A+S → Backspace"),
+            PackBindingTemplate(input: "e+r", output: "C-z", title: "E+R → Undo"),
+        ],
+        associatedCollectionID: RuleCollectionIdentifier.chordGroups
+    )
+
+    // MARK: - Pack: KindaVim
+
     public static let kindaVim = Pack(
         id: "com.keypath.pack.kindavim",
         version: "1.0.0",

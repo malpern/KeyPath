@@ -64,6 +64,9 @@ struct PackDetailView: View {
     /// Local state for the embedded Key Repeat Control editor.
     @State var keyRepeatConfig: KeyRepeatControlConfig = .init()
 
+    /// Local state for the embedded Chord Groups editor.
+    @State var chordGroupsConfig: ChordGroupsConfig = .init()
+
     /// Help sheet presentation (Home Row Mods only — mirrors the Rules tab's
     /// `?` button that opens the HRM markdown help).
     @State var showingHomeRowModsHelp = false
@@ -355,6 +358,15 @@ struct PackDetailView: View {
     var associatedKeyRepeatCollection: RuleCollection? {
         guard let collection = liveAssociatedCollection,
               case .keyRepeatControl = collection.configuration
+        else { return nil }
+        return collection
+    }
+
+    /// Collection backing a chord groups pack. Matches the
+    /// `.chordGroups` configuration case.
+    var associatedChordGroupsCollection: RuleCollection? {
+        guard let collection = liveAssociatedCollection,
+              case .chordGroups = collection.configuration
         else { return nil }
         return collection
     }

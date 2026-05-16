@@ -228,4 +228,14 @@ extension PackDetailView {
         }
         await kanataManager.updateLauncherConfig(collectionID, config: newConfig)
     }
+
+    /// Mirror of `applyHomeRowEdit` for Chord Groups. Persists
+    /// chord definitions and group settings.
+    func applyChordGroupsEdit(_ newConfig: ChordGroupsConfig, collectionID: UUID) async {
+        chordGroupsConfig = newConfig
+        if !isInstalled {
+            await install(skipFinalReload: true)
+        }
+        await kanataManager.updateChordGroupsConfig(collectionId: collectionID, config: newConfig)
+    }
 }

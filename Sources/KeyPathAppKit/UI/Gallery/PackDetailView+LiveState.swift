@@ -40,6 +40,9 @@ extension PackDetailView {
             if let liveKeyRepeat = liveKeyRepeatControlConfig() {
                 keyRepeatConfig = liveKeyRepeat
             }
+            if let liveChordGroups = liveChordGroupsConfig() {
+                chordGroupsConfig = liveChordGroups
+            }
         }
     }
 
@@ -67,6 +70,13 @@ extension PackDetailView {
     func liveKeyRepeatControlConfig() -> KeyRepeatControlConfig? {
         guard let collection = associatedKeyRepeatCollection,
               case let .keyRepeatControl(cfg) = collection.configuration
+        else { return nil }
+        return cfg
+    }
+
+    func liveChordGroupsConfig() -> ChordGroupsConfig? {
+        guard let collection = associatedChordGroupsCollection,
+              case let .chordGroups(cfg) = collection.configuration
         else { return nil }
         return cfg
     }

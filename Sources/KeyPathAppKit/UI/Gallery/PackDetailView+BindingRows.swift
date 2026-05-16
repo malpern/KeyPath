@@ -136,6 +136,16 @@ extension PackDetailView {
                     }
                 )
             }
+        } else if let chordGroupsCollection = associatedChordGroupsCollection {
+            embeddedEditor {
+                ChordGroupsPackContent(
+                    config: $chordGroupsConfig,
+                    onConfigChanged: { newConfig in
+                        Task { await applyChordGroupsEdit(newConfig, collectionID: chordGroupsCollection.id) }
+                    }
+                )
+                .id(chordGroupsCollection.id)
+            }
         } else if let collection = liveAssociatedCollection,
                   collection.id == RuleCollectionIdentifier.windowSnapping {
             // Window Snapping has a custom visual editor in Rules — convention

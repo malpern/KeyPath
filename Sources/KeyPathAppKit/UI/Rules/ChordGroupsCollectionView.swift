@@ -337,7 +337,7 @@ struct ChordGroupsCollectionView: View {
 
 // MARK: - Inline Chord Row View
 
-private struct InlineChordRowView: View {
+struct InlineChordRowView: View {
     let chord: ChordDefinition
 
     var body: some View {
@@ -385,7 +385,7 @@ private struct InlineChordRowView: View {
         .clipShape(.rect(cornerRadius: 6))
     }
 
-    private func ergonomicColor(_ score: ErgonomicScore) -> Color {
+    func ergonomicColor(_ score: ErgonomicScore) -> Color {
         switch score {
         case .excellent: .green
         case .good: .blue

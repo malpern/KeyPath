@@ -530,7 +530,7 @@ private struct ChordRowView: View {
 
 // MARK: - Chord Editor Dialog
 
-private struct ChordEditorDialog: View {
+struct ChordEditorDialog: View {
     let chord: ChordDefinition
     let onSave: (ChordDefinition) -> Void
     let onCancel: () -> Void
