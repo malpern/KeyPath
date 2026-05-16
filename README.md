@@ -3,10 +3,10 @@
 <div align="center">
 
   <a href="https://keypath-app.com">
-    <img src="https://malpern.github.io/KeyPath/images/keypath-hero-nobg.png" alt="KeyPath — Turn your keyboard into a command center" width="800"/>
+    <img src="https://malpern.github.io/KeyPath/images/keypath-hero-nobg.png" alt="KeyPath — Keys that do more" width="800"/>
   </a>
 
-  ### Turn your keyboard into a command center
+  ### Keys that do more.
 
   Remap keys, launch apps, tile windows, and automate workflows — all without leaving the home row.
 

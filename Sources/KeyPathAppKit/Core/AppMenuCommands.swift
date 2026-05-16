@@ -207,7 +207,7 @@ struct AppMenuCommands: Commands {
 
     private func showAboutPanel() {
         let info = BuildInfo.current()
-        var detailLines = ["Build \(info.build) \u{2022} \(info.git) \u{2022} \(info.date)"]
+        var detailLines = ["Keys that do more.", "", "Build \(info.build) \u{2022} \(info.git) \u{2022} \(info.date)"]
         if let kanataVersion = info.kanataVersion {
             detailLines.append("Kanata \(kanataVersion)")
         }
