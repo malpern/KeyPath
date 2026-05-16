@@ -12,7 +12,8 @@ struct HelpTopic: Identifiable, Hashable {
 
 enum HelpTopicGroup: String, CaseIterable {
     case gettingStarted = "Getting Started"
-    case features = "Features"
+    case coreFeatures = "Core Features"
+    case featureGuides = "Feature Guides"
     case reference = "Reference"
     case switchingTools = "Switching Tools"
 }
@@ -25,25 +26,26 @@ extension HelpTopic {
         HelpTopic(id: "installation", title: "Installation Guide", icon: "shippingbox", resource: "installation", group: .gettingStarted),
         HelpTopic(id: "concepts", title: "Keyboard Concepts", icon: "keyboard", resource: "concepts", group: .gettingStarted),
         HelpTopic(id: "use-cases", title: "What You Can Build", icon: "hammer", resource: "use-cases", group: .gettingStarted),
-        // Features
-        HelpTopic(id: "home-row-mods", title: "Shortcuts Without Reaching", icon: "hand.raised", resource: "home-row-mods", group: .features),
-        HelpTopic(id: "tap-hold", title: "One Key, Multiple Actions", icon: "hand.tap", resource: "tap-hold", group: .features),
-        HelpTopic(id: "window-management", title: "Windows & App Shortcuts", icon: "macwindow.on.rectangle", resource: "window-management", group: .features),
-        HelpTopic(id: "action-uri", title: "Launching Apps", icon: "link", resource: "action-uri", group: .features),
-        HelpTopic(id: "alternative-layouts", title: "Alternative Layouts", icon: "textformat", resource: "alternative-layouts", group: .features),
-        HelpTopic(id: "keyboard-layouts", title: "Your Keyboard", icon: "keyboard.badge.ellipsis", resource: "keyboard-layouts", group: .features),
-        HelpTopic(id: "quick-launcher", title: "Launch Anything Instantly", icon: "bolt", resource: "quick-launcher", group: .features),
-        HelpTopic(id: "chords", title: "Press Two Keys at Once", icon: "hand.point.up.braille", resource: "chords", group: .features),
-        HelpTopic(id: "auto-shift", title: "Symbols Without Shift", icon: "character.textbox", resource: "auto-shift", group: .features),
-        HelpTopic(id: "simple-packs", title: "Quick Tweaks", icon: "checkmark.circle", resource: "simple-packs", group: .features),
-        HelpTopic(id: "vim-navigation", title: "Navigate Like a Keyboard Ninja", icon: "arrow.up.and.down.and.arrow.left.and.right", resource: "vim-navigation", group: .features),
-        HelpTopic(id: "leader-key", title: "Choose Your Leader Key", icon: "hand.point.up.left", resource: "leader-key", group: .features),
-        HelpTopic(id: "numpad-layer", title: "A Numpad Under Your Hand", icon: "number.square", resource: "numpad-layer", group: .features),
-        HelpTopic(id: "symbol-layer", title: "Programming Symbols Instantly", icon: "textformat.abc.dottedunderline", resource: "symbol-layer", group: .features),
-        HelpTopic(id: "fun-layer", title: "F-Keys and Media Controls", icon: "f.cursive", resource: "fun-layer", group: .features),
-        HelpTopic(id: "key-repeat-control", title: "Arrow Keys at Full Speed", icon: "hare", resource: "key-repeat-control", group: .features),
-        HelpTopic(id: "kindavim", title: "Full Vim Modes", icon: "v.square", resource: "kindavim", group: .features),
-        HelpTopic(id: "neovim-terminal", title: "Neovim in the Terminal", icon: "terminal", resource: "neovim-terminal", group: .features),
+        // Core Features
+        HelpTopic(id: "home-row-mods", title: "Shortcuts Without Reaching", icon: "hand.raised", resource: "home-row-mods", group: .coreFeatures),
+        HelpTopic(id: "vim-navigation", title: "Navigate Like a Keyboard Ninja", icon: "arrow.up.and.down.and.arrow.left.and.right", resource: "vim-navigation", group: .coreFeatures),
+        HelpTopic(id: "leader-key", title: "Choose Your Leader Key", icon: "hand.point.up.left", resource: "leader-key", group: .coreFeatures),
+        HelpTopic(id: "tap-hold", title: "One Key, Multiple Actions", icon: "hand.tap", resource: "tap-hold", group: .coreFeatures),
+        HelpTopic(id: "simple-packs", title: "Quick Tweaks", icon: "checkmark.circle", resource: "simple-packs", group: .coreFeatures),
+        HelpTopic(id: "key-repeat-control", title: "Arrow Keys at Full Speed", icon: "hare", resource: "key-repeat-control", group: .coreFeatures),
+        // Feature Guides
+        HelpTopic(id: "numpad-layer", title: "A Numpad Under Your Hand", icon: "number.square", resource: "numpad-layer", group: .featureGuides),
+        HelpTopic(id: "symbol-layer", title: "Programming Symbols Instantly", icon: "textformat.abc.dottedunderline", resource: "symbol-layer", group: .featureGuides),
+        HelpTopic(id: "fun-layer", title: "F-Keys and Media Controls", icon: "f.cursive", resource: "fun-layer", group: .featureGuides),
+        HelpTopic(id: "window-management", title: "Windows & App Shortcuts", icon: "macwindow.on.rectangle", resource: "window-management", group: .featureGuides),
+        HelpTopic(id: "quick-launcher", title: "Launch Anything Instantly", icon: "bolt", resource: "quick-launcher", group: .featureGuides),
+        HelpTopic(id: "action-uri", title: "Launching Apps", icon: "link", resource: "action-uri", group: .featureGuides),
+        HelpTopic(id: "chords", title: "Press Two Keys at Once", icon: "hand.point.up.braille", resource: "chords", group: .featureGuides),
+        HelpTopic(id: "auto-shift", title: "Symbols Without Shift", icon: "character.textbox", resource: "auto-shift", group: .featureGuides),
+        HelpTopic(id: "alternative-layouts", title: "Alternative Layouts", icon: "textformat", resource: "alternative-layouts", group: .featureGuides),
+        HelpTopic(id: "keyboard-layouts", title: "Your Keyboard", icon: "keyboard.badge.ellipsis", resource: "keyboard-layouts", group: .featureGuides),
+        HelpTopic(id: "kindavim", title: "Full Vim Modes", icon: "v.square", resource: "kindavim", group: .featureGuides),
+        HelpTopic(id: "neovim-terminal", title: "Neovim in the Terminal", icon: "terminal", resource: "neovim-terminal", group: .featureGuides),
         // Reference
         HelpTopic(id: "action-uri-reference", title: "Action URI Reference", icon: "curlybraces", resource: "action-uri-reference", group: .reference),
         HelpTopic(id: "privacy", title: "Privacy & Permissions", icon: "lock.shield", resource: "privacy", group: .reference),

@@ -65,25 +65,27 @@ REGISTRY=(
     "concepts|getting-started|guides|Keyboard Concepts for Mac Users|Keyboard Concepts|Layers, tap-hold, modifiers, and more — explained for people who've never gone beyond System Settings"
     "use-cases|getting-started|guides|What You Can Build|What You Can Build|Concrete examples of what KeyPath can do — from simple remaps to full keyboard workflows"
 
-    # Features
-    "home-row-mods|features|guides|Shortcuts Without Reaching|Shortcuts Without Reaching|Turn your home row keys into modifiers — the most popular advanced keyboard technique"
-    "tap-hold|features|guides|One Key, Multiple Actions|One Key, Multiple Actions|Advanced key behaviors with tap-hold and tap-dance support"
-    "window-management|features|guides|Windows & App Shortcuts|Windows & App Shortcuts|App-specific keymaps and window management with KeyPath"
-    "action-uri|features|guides|Launching Apps & Workflows|Launching Apps|Launch apps, URLs, and folders from your keyboard with a single keystroke"
-    "alternative-layouts|features|guides|Alternative Layouts|Alternative Layouts|Colemak, Dvorak, Workman, and more — KeyPath supports 8 keymaps with a live overlay"
-    "keyboard-layouts|features|guides|Works With Your Keyboard|Works With Your Keyboard|15 physical keyboard layouts from MacBook to Kinesis Advantage 360"
-    "quick-launcher|features|guides|Launch Anything Instantly|Quick Launcher|Hold one key and press a letter to launch any app, URL, or folder instantly"
-    "chords|features|guides|Press Two Keys at Once|Chords|Press two adjacent keys simultaneously to produce Escape, Enter, Backspace, or any other key without leaving the home row"
-    "auto-shift|features|guides|Symbols Without Shift|Auto-Shift Symbols|Hold a symbol key slightly longer to get the shifted version — no Shift key needed"
-    "simple-packs|features|guides|Quick Tweaks|Quick Tweaks|Simple on/off packs: Escape remap, delete enhancement, backup Caps Lock, and Mission Control shortcuts"
-    "vim-navigation|features|guides|Navigate Like a Keyboard Ninja|Vim Navigation|Hold Space for hjkl arrows, copy/paste, undo, search, and line jumps — all without leaving the home row"
-    "leader-key|features|guides|Choose Your Leader Key|Leader Key|Pick which key activates all your layers — Space, Caps Lock, Tab, or Backtick. One change updates everything."
-    "numpad-layer|features|guides|A Numpad Under Your Hand|Numpad Layer|Right hand becomes a numpad, left hand gets operators. Two-step activation through the Leader key."
-    "symbol-layer|features|guides|Programming Symbols Instantly|Symbol Layer|Brackets, pipes, and operators all under your home row. Three preset layouts for different coding styles."
-    "fun-layer|features|guides|F-Keys and Media Controls|Function Layer|F1-F12 on your right hand, play/pause/volume/brightness on your left. Two-step Leader activation."
-    "key-repeat-control|features|guides|Arrow Keys at Full Speed|Fast Navigation|Arrow keys and delete repeat 3x faster while regular typing stays steady — no accidental repeats."
-    "neovim-terminal|features|guides|Neovim in the Terminal|Neovim in the Terminal|Bring Neovim navigation muscle memory to every macOS app with a Leader-layer HUD reference"
-    "kindavim|features|guides|KindaVim|KindaVim|Use KindaVim for real Vim modes system-wide; KeyPath layers a live mode badge, hjkl hint overlay, and mastery insights on top"
+    # Core Features
+    "home-row-mods|core-features|guides|Shortcuts Without Reaching|Shortcuts Without Reaching|Turn your home row keys into modifiers — the most popular advanced keyboard technique"
+    "vim-navigation|core-features|guides|Navigate Like a Keyboard Ninja|Vim Navigation|Hold Space for hjkl arrows, copy/paste, undo, search, and line jumps — all without leaving the home row"
+    "leader-key|core-features|guides|Choose Your Leader Key|Leader Key|Pick which key activates all your layers — Space, Caps Lock, Tab, or Backtick. One change updates everything."
+    "tap-hold|core-features|guides|One Key, Multiple Actions|One Key, Multiple Actions|Advanced key behaviors with tap-hold and tap-dance support"
+    "simple-packs|core-features|guides|Quick Tweaks|Quick Tweaks|Simple on/off packs: Escape remap, delete enhancement, backup Caps Lock, and Mission Control shortcuts"
+    "key-repeat-control|core-features|guides|Arrow Keys at Full Speed|Fast Navigation|Arrow keys and delete repeat 3x faster while regular typing stays steady — no accidental repeats."
+
+    # Feature Guides
+    "numpad-layer|feature-guides|guides|A Numpad Under Your Hand|Numpad Layer|Right hand becomes a numpad, left hand gets operators. Two-step activation through the Leader key."
+    "symbol-layer|feature-guides|guides|Programming Symbols Instantly|Symbol Layer|Brackets, pipes, and operators all under your home row. Three preset layouts for different coding styles."
+    "fun-layer|feature-guides|guides|F-Keys and Media Controls|Function Layer|F1-F12 on your right hand, play/pause/volume/brightness on your left. Two-step Leader activation."
+    "window-management|feature-guides|guides|Windows & App Shortcuts|Windows & App Shortcuts|App-specific keymaps and window management with KeyPath"
+    "quick-launcher|feature-guides|guides|Launch Anything Instantly|Quick Launcher|Hold one key and press a letter to launch any app, URL, or folder instantly"
+    "action-uri|feature-guides|guides|Launching Apps & Workflows|Launching Apps|Launch apps, URLs, and folders from your keyboard with a single keystroke"
+    "chords|feature-guides|guides|Press Two Keys at Once|Chords|Press two adjacent keys simultaneously to produce Escape, Enter, Backspace, or any other key without leaving the home row"
+    "auto-shift|feature-guides|guides|Symbols Without Shift|Auto-Shift Symbols|Hold a symbol key slightly longer to get the shifted version — no Shift key needed"
+    "alternative-layouts|feature-guides|guides|Alternative Layouts|Alternative Layouts|Colemak, Dvorak, Workman, and more — KeyPath supports 8 keymaps with a live overlay"
+    "keyboard-layouts|feature-guides|guides|Works With Your Keyboard|Works With Your Keyboard|15 physical keyboard layouts from MacBook to Kinesis Advantage 360"
+    "kindavim|feature-guides|guides|KindaVim|KindaVim|Use KindaVim for real Vim modes system-wide; KeyPath layers a live mode badge, hjkl hint overlay, and mastery insights on top"
+    "neovim-terminal|feature-guides|guides|Neovim in the Terminal|Neovim in the Terminal|Bring Neovim navigation muscle memory to every macOS app with a Leader-layer HUD reference"
 
     # Reference
     "action-uri-reference|reference|guides|Action URI Reference|Action URI Reference|Technical deep-link reference for integrating KeyPath with Raycast, Alfred, and scripts"
@@ -99,12 +101,13 @@ REGISTRY=(
 # ─────────────────────────────────────────────────────────────────────
 
 typeset -a GROUP_ORDER
-GROUP_ORDER=(getting-started features reference switching)
+GROUP_ORDER=(getting-started core-features feature-guides reference switching)
 
 typeset -A GROUP_TITLES
 GROUP_TITLES=(
     [getting-started]="Getting Started"
-    [features]="Features"
+    [core-features]="Core Features"
+    [feature-guides]="Feature Guides"
     [reference]="Reference"
     [switching]="Switching Tools"
 )
@@ -112,7 +115,8 @@ GROUP_TITLES=(
 typeset -A GROUP_CARD_TITLES
 GROUP_CARD_TITLES=(
     [getting-started]="Getting Started"
-    [features]="Features"
+    [core-features]="Core Features"
+    [feature-guides]="Feature Guides"
     [reference]="Reference"
     [switching]="Switching Tools"
 )
@@ -120,7 +124,8 @@ GROUP_CARD_TITLES=(
 typeset -A GROUP_DESCRIPTIONS
 GROUP_DESCRIPTIONS=(
     [getting-started]="Install KeyPath and get your keyboard remapping in two minutes flat."
-    [features]="Deep dives on every KeyPath feature — home row mods, tap-hold, app launching, window tiling, and more."
+    [core-features]="The essential features most people start with — home row mods, navigation layers, tap-hold, and quick tweaks."
+    [feature-guides]="Deep dives on every KeyPath feature — layer packs, app launching, window tiling, chords, and more."
     [reference]="Technical references, privacy details, and troubleshooting."
     [switching]="Coming from Karabiner-Elements, Kanata, or another remapper? We've got migration guides for you."
 )
