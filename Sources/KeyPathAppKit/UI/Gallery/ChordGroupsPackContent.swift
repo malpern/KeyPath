@@ -53,7 +53,7 @@ struct ChordGroupsPackContent: View {
     // MARK: - Group Section
 
     private func groupSection(group: ChordGroup, groupIndex: Int) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: group.category.icon)
                     .font(.system(size: 10))
@@ -66,19 +66,31 @@ struct ChordGroupsPackContent: View {
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(.tertiary)
             }
-            .padding(.bottom, 4)
 
-            VStack(spacing: 0) {
+            VStack(spacing: 6) {
                 ForEach(Array(group.chords.enumerated()), id: \.element.id) { chordIndex, chord in
-                    chordRow(chord: chord, groupIndex: groupIndex, chordIndex: chordIndex)
-
-                    if chordIndex < group.chords.count - 1 {
-                        Divider().padding(.leading, 32)
-                    }
+                    ChordRuleRow(
+                        chord: chord,
+                        onToggle: {
+                            ensureConfigPopulated()
+                            config.groups[groupIndex].chords[chordIndex].isEnabled.toggle()
+                            onConfigChanged(config)
+                        },
+                        onEdit: {
+                            ensureConfigPopulated()
+                            editingChord = (groupIndex, chordIndex)
+                        },
+                        onDelete: {
+                            ensureConfigPopulated()
+                            config.groups[groupIndex].chords.remove(at: chordIndex)
+                            onConfigChanged(config)
+                        }
+                    )
                 }
             }
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .padding(8)
+            .background(Color(NSColor.controlBackgroundColor).opacity(0.8))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
             Button {
                 addingChordToGroup = groupIndex
@@ -90,62 +102,10 @@ struct ChordGroupsPackContent: View {
                         .font(.system(size: 11))
                 }
                 .foregroundStyle(Color.accentColor)
-                .padding(.top, 4)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("chord-pack-add-chord-\(groupIndex)")
         }
-    }
-
-    // MARK: - Chord Row
-
-    private func chordRow(chord: ChordDefinition, groupIndex: Int, chordIndex: Int) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: chord.isEnabled ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 14))
-                .foregroundStyle(chord.isEnabled ? Color.accentColor : Color.secondary.opacity(0.4))
-                .onTapGesture {
-                    ensureConfigPopulated()
-                    config.groups[groupIndex].chords[chordIndex].isEnabled.toggle()
-                    onConfigChanged(config)
-                }
-
-            HStack(spacing: 2) {
-                ForEach(chord.keys, id: \.self) { key in
-                    Text(key.uppercased())
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Color.accentColor.opacity(chord.isEnabled ? 0.12 : 0.05))
-                        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-                }
-            }
-
-            Image(systemName: "arrow.right")
-                .font(.system(size: 8))
-                .foregroundStyle(.quaternary)
-
-            Text(chord.output)
-                .font(.system(size: 11, design: .monospaced))
-
-            if let desc = chord.description, !desc.isEmpty {
-                Text(desc)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-        }
-        .foregroundStyle(chord.isEnabled ? .primary : .tertiary)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            ensureConfigPopulated()
-            editingChord = (groupIndex, chordIndex)
-        }
-        .accessibilityIdentifier("chord-pack-row-\(groupIndex)-\(chordIndex)")
     }
 
     // MARK: - Add Group
@@ -183,9 +143,6 @@ struct ChordGroupsPackContent: View {
         }
     }
 
-
-    // MARK: - Sheet Bindings
-
     private var editingChordBinding: Binding<ChordEditItem?> {
         Binding(
             get: {
@@ -215,6 +172,116 @@ struct ChordGroupsPackContent: View {
         )
     }
 }
+
+// MARK: - Chord Rule Row (matches GlobalRulesCard style)
+
+private struct ChordRuleRow: View {
+    let chord: ChordDefinition
+    let onToggle: () -> Void
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    @State private var isHovered = false
+
+    private static let keycapTextColor = Color(red: 0.88, green: 0.93, blue: 1.0)
+    private static let keycapBgColor = Color(white: 0.12)
+
+    var body: some View {
+        Button(action: onEdit) {
+            ZStack(alignment: .trailing) {
+                HStack(spacing: 8) {
+                    // Checkbox
+                    Image(systemName: chord.isEnabled ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 14))
+                        .foregroundStyle(chord.isEnabled ? Color.accentColor : Color.secondary.opacity(0.4))
+                        .onTapGesture(perform: onToggle)
+
+                    // Key chips
+                    HStack(spacing: 3) {
+                        ForEach(chord.keys, id: \.self) { key in
+                            Text(key.uppercased())
+                                .font(.body.monospaced().weight(.semibold))
+                                .foregroundStyle(chord.isEnabled ? Self.keycapTextColor : Self.keycapTextColor.opacity(0.4))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(chord.isEnabled ? Self.keycapBgColor : Self.keycapBgColor.opacity(0.4))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 0.5)
+                                )
+                        }
+                    }
+
+                    Image(systemName: "arrow.right")
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.secondary)
+
+                    // Output chip
+                    Text(chord.output.capitalized.replacingOccurrences(of: "_", with: " "))
+                        .font(.body.monospaced().weight(.semibold))
+                        .foregroundStyle(chord.isEnabled ? Self.keycapTextColor : Self.keycapTextColor.opacity(0.4))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(chord.isEnabled ? Self.keycapBgColor : Self.keycapBgColor.opacity(0.4))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 0.5)
+                        )
+
+                    Spacer(minLength: 0)
+                }
+
+                // Hover action buttons
+                if isHovered {
+                    HStack(spacing: 2) {
+                        Button(action: onEdit) {
+                            Image(systemName: "pencil")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 24, height: 24)
+                                .background(Circle().fill(Color.accentColor))
+                        }
+                        .buttonStyle(.plain)
+
+                        Button(action: onDelete) {
+                            Image(systemName: "trash")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 24, height: 24)
+                                .background(Circle().fill(Color.red.opacity(0.85)))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.trailing, 4)
+                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                }
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+            .background(isHovered ? Color.accentColor.opacity(0.15) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Color.accentColor.opacity(isHovered ? 0.4 : 0), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+    }
+}
+
+// MARK: - Sheet Items
 
 private struct ChordEditItem: Identifiable {
     let groupIndex: Int
