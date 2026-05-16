@@ -91,6 +91,10 @@ extension OverlayInspectorPanel {
                 }
                 .padding(.top, 8)
 
+                // Active chord groups
+                activeChordsCard
+                    .padding(.top, 12)
+
                 // Active rules + merchandising
                 activeRulesFooter
                     .padding(.horizontal, 8)
@@ -301,5 +305,95 @@ extension OverlayInspectorPanel {
                 userInfo: userInfo
             )
         })
+    }
+
+    // MARK: - Active Chords Card
+
+    private var activeChordGroups: ChordGroupsConfig? {
+        guard let vm = kanataViewModel else { return nil }
+        let collection = vm.ruleCollections.first {
+            $0.id == RuleCollectionIdentifier.chordGroups && $0.isEnabled
+        }
+        guard let collection else { return nil }
+        return collection.configuration.chordGroupsConfig
+    }
+
+    @ViewBuilder
+    var activeChordsCard: some View {
+        if let chordConfig = activeChordGroups, !chordConfig.groups.isEmpty {
+            let totalChords = chordConfig.groups.reduce(0) { $0 + $1.chords.count }
+            if totalChords > 0 {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "keyboard.badge.ellipsis")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Text("Active Chords")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                            .tracking(0.5)
+                        Spacer()
+                        Button {
+                            if let vm = kanataViewModel {
+                                PackDetailWindowController.shared.showWindow(
+                                    pack: PackRegistry.chordGroups,
+                                    kanataManager: vm,
+                                    fromOverlay: true
+                                )
+                            }
+                        } label: {
+                            Text("Edit")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(Color.accentColor)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("active-chords-edit-button")
+                    }
+
+                    ForEach(chordConfig.groups) { group in
+                        ForEach(group.chords) { chord in
+                            HStack(spacing: 6) {
+                                HStack(spacing: 2) {
+                                    ForEach(chord.keys, id: \.self) { key in
+                                        Text(key.uppercased())
+                                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                            .padding(.horizontal, 4)
+                                            .padding(.vertical, 2)
+                                            .background(Color.accentColor.opacity(0.15))
+                                            .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+                                    }
+                                }
+
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 8))
+                                    .foregroundStyle(.tertiary)
+
+                                Text(chord.output)
+                                    .font(.system(size: 10, design: .monospaced))
+
+                                if let desc = chord.description, !desc.isEmpty {
+                                    Text(desc)
+                                        .font(.system(size: 9))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+
+                                Spacer()
+                            }
+                            .padding(.vertical, 3)
+                            .padding(.horizontal, 8)
+                            .background(Color(nsColor: .controlBackgroundColor).opacity(0.3))
+                            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                        }
+                    }
+                }
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor))
+                )
+            }
+        }
     }
 }
