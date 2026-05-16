@@ -127,7 +127,7 @@ The problem: they're all in the corners. Every shortcut forces your fingers off 
               Tap for letters, hold for modifiers
 ```
 
-![Home row mods — modifiers on the home row](concepts-home-row-mods.png)
+![Home row mods — modifiers on the home row](header-home-row-mods.png)
 
 Hold F + press C = ⌘C (Copy). Hold A + press Tab = ⇧Tab. Your hands never move.
 
