@@ -69,6 +69,8 @@ struct OverlayKeyboardView: View {
 
     /// Track caps lock state from system
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
+    /// Global monitor for flagsChanged events (detects caps lock toggled by kanata/IOKit)
+    @State private var flagsChangedMonitor: Any?
 
     /// Note: keycapFrames removed - we now calculate frames directly from layout
     /// Whether initial render is complete (enables animation for subsequent changes)
@@ -312,6 +314,24 @@ struct OverlayKeyboardView: View {
             // Update caps lock state when any key changes (captures toggle)
             isCapsLockOn = NSEvent.modifierFlags.contains(.capsLock)
         }
+        .onChange(of: isCapsLockOn) { _, newValue in
+            // Kanata toggles caps lock via IOHIDSetModifierLockState which updates
+            // the system state but never produces a flagsChanged CGEvent. Without
+            // that event, macOS won't show the cursor badge. Post a synthetic one
+            // at the session level (bypasses kanata's HID tap so it won't be swallowed).
+            guard let event = CGEvent(
+                keyboardEventSource: nil,
+                virtualKey: 0x39,
+                keyDown: true
+            ) else { return }
+            event.type = .flagsChanged
+            if newValue {
+                event.flags.insert(.maskAlphaShift)
+            } else {
+                event.flags.remove(.maskAlphaShift)
+            }
+            event.post(tap: .cgSessionEventTap)
+        }
         .onChange(of: keymap.id) { oldValue, newValue in
             guard oldValue != newValue else { return }
             previousKeymapId = newValue
@@ -347,6 +367,20 @@ struct OverlayKeyboardView: View {
             // but subsequent keymap changes animate properly (deferred to next run loop tick)
             Task { @MainActor in
                 initialRenderComplete = true
+            }
+            // Monitor flagsChanged globally so caps lock LED updates even when
+            // kanata toggles it via IOHIDSetModifierLockState (no CGEvent tap hit)
+            flagsChangedMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { _ in
+                let capsLock = NSEvent.modifierFlags.contains(.capsLock)
+                if capsLock != isCapsLockOn {
+                    isCapsLockOn = capsLock
+                }
+            }
+        }
+        .onDisappear {
+            if let monitor = flagsChangedMonitor {
+                NSEvent.removeMonitor(monitor)
+                flagsChangedMonitor = nil
             }
         }
     }
