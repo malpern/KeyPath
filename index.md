@@ -14,7 +14,7 @@ content_class: content-full kanata-landing
 
     <div class="kanata-landing-hero-content">
       <h1 class="kanata-landing-title hero-animate hero-animate-1">KeyPath</h1>
-      <p class="kanata-landing-tagline hero-animate hero-animate-2">Turn your keyboard into a command center</p>
+      <p class="kanata-landing-tagline hero-animate hero-animate-2">Keys that do more.</p>
       <p class="kanata-landing-subtitle hero-animate hero-animate-3">Remap keys, launch apps, tile windows, and automate workflows — all without leaving the home row.</p>
 
       <div class="kanata-landing-actions hero-animate hero-animate-4">
