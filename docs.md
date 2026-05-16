@@ -83,3 +83,27 @@ theme: parchment
 </div>
 
 </div>
+
+<hr class="docs-divider">
+
+<h2 class="docs-section-heading">Developer Documentation</h2>
+<p class="docs-section-subtitle">Contributing to KeyPath or building integrations? These interactive architecture guides cover the internals.</p>
+
+<div class="docs-grid">
+
+<div class="docs-card">
+<h3><a href="{{ '/architecture/' | relative_url }}">Architecture Guides</a></h3>
+<p>Interactive visual walkthroughs of KeyPath's internal systems, data flows, and design decisions.</p>
+<ul class="docs-card-links">
+<li><a href="{{ '/architecture/wizard-architecture.html' | relative_url }}">Installation Wizard</a></li>
+<li><a href="{{ '/architecture/overlay-architecture.html' | relative_url }}">Live Keyboard Overlay</a></li>
+<li><a href="{{ '/architecture/runtime-architecture.html' | relative_url }}">Runtime & Service Lifecycle</a></li>
+<li><a href="{{ '/architecture/permissions-architecture.html' | relative_url }}">PermissionOracle</a></li>
+<li><a href="{{ '/architecture/rules-architecture.html' | relative_url }}">Rule Collections & Config</a></li>
+<li><a href="{{ '/architecture/xpc-architecture.html' | relative_url }}">Privileged Helper & XPC</a></li>
+<li><a href="{{ '/architecture/layouts-architecture.html' | relative_url }}">Keyboard Layouts</a></li>
+<li><a href="{{ '/architecture/kindavim-architecture.html' | relative_url }}">KindaVim Integration</a></li>
+</ul>
+</div>
+
+</div>
