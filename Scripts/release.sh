@@ -150,31 +150,90 @@ if [ ! -f "$SPARKLE_ZIP" ]; then
     exit 1
 fi
 
+SPARKLE_DMG="dist/sparkle/KeyPath-${VERSION}.dmg"
+APPCAST_ENTRY="dist/sparkle/KeyPath-${VERSION}.zip.appcast-entry.xml"
+
 echo ""
 echo "✅ Release build complete!"
 echo ""
-echo "📦 Artifacts created:"
-echo "   • dist/KeyPath.app (installed to /Applications)"
-echo "   • dist/sparkle/KeyPath-${VERSION}.zip (for GitHub Release)"
-echo "   • dist/sparkle/KeyPath-${VERSION}.zip.sig (EdDSA signature)"
-echo "   • dist/sparkle/KeyPath-${VERSION}.appcast-entry.xml"
+echo "📦 Artifacts:"
+echo "   • dist/KeyPath.app"
+echo "   • $SPARKLE_ZIP"
+echo "   • $SPARKLE_DMG"
+echo "   • $APPCAST_ENTRY"
 echo ""
-echo "📋 Next steps:"
+
+# --- Automated release steps ---
+
+echo "🏷️  Creating git tag v${VERSION}..."
+git tag -f "v${VERSION}"
+
+echo "📤 Creating GitHub Release..."
+gh release create "v${VERSION}" \
+    "$SPARKLE_ZIP" \
+    "$SPARKLE_DMG" \
+    --title "KeyPath ${VERSION}" \
+    --prerelease \
+    --notes "See [release notes](https://github.com/malpern/KeyPath/releases/tag/v${VERSION}) for details."
+
+echo "📝 Updating appcast.xml..."
+if [ -f "$APPCAST_ENTRY" ]; then
+    # Insert the new entry after the "Releases go here" comment
+    ENTRY_CONTENT=$(cat "$APPCAST_ENTRY" | grep -v "^<!--" | sed 's/^/        /')
+    # Use python for reliable XML insertion (sed struggles with multiline)
+    python3 -c "
+import sys
+appcast = open('appcast.xml').read()
+entry = open('$APPCAST_ENTRY').read()
+# Strip the comment line from the entry
+lines = [l for l in entry.splitlines() if not l.strip().startswith('<!--')]
+entry_clean = '\n'.join(lines)
+# Indent each line with 8 spaces for XML formatting
+indented = '\n'.join('        ' + l.lstrip() if l.strip() else '' for l in entry_clean.splitlines())
+marker = '<!-- Releases go here (newest first) -->'
+if marker in appcast:
+    appcast = appcast.replace(marker, marker + '\n\n' + indented.rstrip())
+    open('appcast.xml', 'w').write(appcast)
+    print('   ✅ Appcast updated')
+else:
+    print('   ⚠️  Could not find marker in appcast.xml — update manually')
+    sys.exit(1)
+"
+    git add appcast.xml
+    git commit -m "chore: update appcast for v${VERSION}"
+else
+    echo "   ⚠️  Appcast entry not found at $APPCAST_ENTRY — update manually"
+fi
+
+echo "🌐 Updating gh-pages download link..."
+GHPAGES_WORKTREE=$(mktemp -d)
+git worktree add "$GHPAGES_WORKTREE" gh-pages 2>/dev/null
+
+DMG_URL="https://github.com/malpern/KeyPath/releases/download/v${VERSION}/KeyPath-${VERSION}.dmg"
+if [ -f "$GHPAGES_WORKTREE/index.md" ]; then
+    # Replace any existing DMG download link with the new version
+    sed -i '' "s|https://github.com/malpern/KeyPath/releases/download/[^\"]*\.dmg|${DMG_URL}|g" "$GHPAGES_WORKTREE/index.md"
+    cd "$GHPAGES_WORKTREE"
+    git add index.md
+    if git diff --cached --quiet; then
+        echo "   ℹ️  Download link already current"
+    else
+        git commit -m "chore: update download link to v${VERSION}"
+        git push origin gh-pages --no-verify
+        echo "   ✅ gh-pages download link updated"
+    fi
+    cd "$REPO_ROOT"
+else
+    echo "   ⚠️  index.md not found on gh-pages — update manually"
+fi
+git worktree remove "$GHPAGES_WORKTREE" 2>/dev/null || true
+
 echo ""
-echo "   1. Commit the version bump (if any):"
-echo "      git add -A && git commit -m 'chore: release v${VERSION}'"
+echo "🎉 Release v${VERSION} published!"
+echo "   • GitHub Release: https://github.com/malpern/KeyPath/releases/tag/v${VERSION}"
+echo "   • Sparkle update will reach users within 24 hours"
+echo "   • Website download link updated"
 echo ""
-echo "   2. Create and push the tag:"
-echo "      git tag v${VERSION}"
-echo "      git push origin main --tags"
-echo ""
-echo "   3. Create GitHub Release:"
-echo "      gh release create v${VERSION} '$SPARKLE_ZIP' --title 'KeyPath ${VERSION}' --notes 'Release notes here'"
-echo ""
-echo "   4. Update appcast.xml:"
-echo "      - Copy contents of dist/sparkle/KeyPath-${VERSION}.appcast-entry.xml"
-echo "      - Paste into appcast.xml (newest release first)"
-echo "      - git add appcast.xml && git commit -m 'chore: update appcast for v${VERSION}'"
-echo "      - git push"
-echo ""
-echo "🎉 Done! Users will see the update within 24 hours (or immediately if they check manually)."
+echo "📋 Remaining manual steps:"
+echo "   1. Write release notes on the GitHub Release page"
+echo "   2. Push the appcast commit: git push"

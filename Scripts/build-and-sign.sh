@@ -123,16 +123,28 @@ create_sparkle_archive() {
 </item>
 EOF
 
+    # Create DMG with Applications symlink for drag-to-install
+    local DMG_NAME="KeyPath-${VERSION}.dmg"
+    echo "💿 Creating DMG installer..."
+    local DMG_STAGING="${DIST_DIR}/dmg-staging"
+    rm -rf "$DMG_STAGING"
+    mkdir -p "$DMG_STAGING"
+    cp -R "${DIST_DIR}/${APP_NAME}.app" "$DMG_STAGING/"
+    ln -s /Applications "$DMG_STAGING/Applications"
+    hdiutil create \
+        -volname "KeyPath" \
+        -srcfolder "$DMG_STAGING" \
+        -ov -format UDZO \
+        "${SPARKLE_DIR}/${DMG_NAME}" >/dev/null 2>&1
+    rm -rf "$DMG_STAGING"
+    echo "   ✅ DMG created: ${SPARKLE_DIR}/${DMG_NAME}"
+
     echo ""
     echo "✅ Sparkle archive created:"
     echo "   📦 Archive: ${SPARKLE_DIR}/${ARCHIVE_NAME}"
     echo "   🔐 Signature: ${SPARKLE_DIR}/${ARCHIVE_NAME}.sig"
     echo "   📝 Appcast entry: ${SPARKLE_DIR}/${ARCHIVE_NAME}.appcast-entry.xml"
-    echo ""
-    echo "📋 Next steps for release:"
-    echo "   1. Upload ${ARCHIVE_NAME} to GitHub Releases as v${VERSION}"
-    echo "   2. Copy appcast entry to appcast.xml"
-    echo "   3. Commit and push appcast.xml"
+    echo "   💿 DMG: ${SPARKLE_DIR}/${DMG_NAME}"
 }
 
 echo "🦀 Building bundled kanata..."
