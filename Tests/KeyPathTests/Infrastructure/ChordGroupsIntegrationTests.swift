@@ -372,9 +372,8 @@ final class ChordGroupsIntegrationTests: XCTestCase {
 
         let output = KanataConfiguration.generateFromCollections(collections)
 
-        // Should generate empty defchords block (or handle gracefully)
-        // participatingKeys will be empty, so no fallbacks
-        XCTAssertTrue(output.contains("(defchords Empty 300"))
+        // Groups with no chords are skipped — no defchords block generated
+        XCTAssertFalse(output.contains("(defchords Empty"))
     }
 
     // MARK: - Output Format Validation
