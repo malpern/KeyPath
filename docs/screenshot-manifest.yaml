@@ -30,13 +30,6 @@ screenshots:
   # installation.md (6 screenshots)
   # ---------------------------------------------------------------------------
 
-  - id: install-overlay-base
-    file: installation.md
-    method: snapshot
-    view: LiveKeyboardOverlayView
-    state: "service:running,layer:base"
-    description: "The KeyPath overlay showing the active base layer layout"
-
   - id: install-auth-prompt
     file: installation.md
     method: manual
@@ -130,17 +123,6 @@ screenshots:
     description: "Rule editor with hold behavior options (Basic, Trigger early, Quick tap)"
 
   # ---------------------------------------------------------------------------
-  # use-cases.md (1 screenshot)
-  # ---------------------------------------------------------------------------
-
-  - id: use-cases-launchers-tab
-    file: use-cases.md
-    method: snapshot
-    view: OverlayLaunchersSection
-    state: "shortcuts:3-items"
-    description: "Compact launchers tab with 3 items (Safari, Terminal, github.com)"
-
-  # ---------------------------------------------------------------------------
   # home-row-mods.md (3 screenshots)
   # ---------------------------------------------------------------------------
 
@@ -197,17 +179,6 @@ screenshots:
     view: OverlayInspectorPanel
     state: "tab:customRules,rules:app-specific,apps:safari+terminal"
     description: "Custom Rules tab with global and app-specific rule cards for Safari and Terminal"
-
-  # ---------------------------------------------------------------------------
-  # concepts.md (1 screenshot)
-  # ---------------------------------------------------------------------------
-
-  - id: concepts-new-rule-dialog
-    file: concepts.md
-    method: snapshot
-    view: CustomRulesInlineEditor
-    state: "start:caps_lock,finish:escape,hold:disabled"
-    description: "Simple remap dialog: Caps Lock to Escape, no hold behavior"
 
   # ---------------------------------------------------------------------------
   # alternative-layouts.md (2 screenshots)
