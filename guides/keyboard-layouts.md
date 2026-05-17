@@ -18,7 +18,7 @@ Whether you type on a MacBook, a full-size desktop keyboard, or a 34-key split e
 
 Your keyboard's physical layout determines which keys exist, where they are, and how KeyPath's overlay and remapping rules map onto them. A rule configured for a full-size keyboard might reference keys that don't exist on a 40% board. KeyPath handles this by tailoring the overlay and rule display to your selected physical layout.
 
-![Keyboard sizes — 100%, 60%, and 40%](diagram-keyboard-sizes.png)
+![Keyboard sizes — 100%, 60%, and 40%]({{ '/images/help/diagram-keyboard-sizes.png' | relative_url }})
 
 ---
 
@@ -46,7 +46,7 @@ Traditional staggered-row keyboards in various sizes. These are what most people
 
 Split keyboards place each hand on its own half, allowing a natural shoulder-width typing position. Most use columnar (non-staggered) key columns, which align better with how fingers naturally move.
 
-![Staggered vs columnar key arrangement](diagram-staggered-vs-columnar.png)
+![Staggered vs columnar key arrangement]({{ '/images/help/diagram-staggered-vs-columnar.png' | relative_url }})
 
 | Layout | Keys | Description |
 |--------|------|-------------|
@@ -56,7 +56,7 @@ Split keyboards place each hand on its own half, allowing a natural shoulder-wid
 | **Sofle** | 58 | 4x6 split with encoder knobs and an extra row — more keys for easier transition |
 | **Kinesis Advantage 360** | 76 | Premium split ergonomic with sculpted keywells that cup your hands |
 
-![Kinesis Advantage 360 — split ergonomic with sculpted keywells](diagram-kinesis-360.png)
+![Kinesis Advantage 360 — split ergonomic with sculpted keywells]({{ '/images/help/diagram-kinesis-360.png' | relative_url }})
 
 ---
 

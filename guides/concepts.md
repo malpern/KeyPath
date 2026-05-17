@@ -116,7 +116,7 @@ The problem: they're all in the corners. Every shortcut forces your fingers off 
 
 **Home row mods** fix this using the same tap-hold idea — your home row letter keys double as modifiers when held:
 
-![Home row mods — tap for letters, hold for modifiers](diagram-hrm-keycaps.png)
+![Home row mods — tap for letters, hold for modifiers]({{ '/images/help/diagram-hrm-keycaps.png' | relative_url }})
 
 Hold F + press C = ⌘C (Copy). Hold A + press Tab = ⇧Tab. Your hands never move.
 
