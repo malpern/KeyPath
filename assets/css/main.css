@@ -8262,6 +8262,7 @@ a.button:active {
 .article-header-image {
     margin: 0 0 1rem 0;
     width: 100%;
+    overflow: hidden;
 }
 
 /* Header banners display at natural aspect ratio — no cropping. */
