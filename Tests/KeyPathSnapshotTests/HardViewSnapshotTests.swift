@@ -137,13 +137,15 @@ final class HardViewSnapshotTests: ScreenshotTestCase {
     // MARK: - Pack Detail Views
 
     func testPackDetailHomeRowMods() {
+        let pack = PackRegistry.homeRowMods
         let vm = MockFactories.kanataViewModel()
-        let view = PackDetailView(pack: PackRegistry.homeRowMods)
+        let w = pack.preferredDetailWidth
+        let view = PackDetailView(pack: pack)
             .environment(vm)
-            .frame(width: 800, height: 700)
+            .frame(width: w, height: 640)
         assertScreenshot(
             of: view,
-            size: CGSize(width: 800, height: 700),
+            size: CGSize(width: w, height: 640),
             named: "pack-detail-home-row-mods",
             precision: 0.98,
             perceptualPrecision: 0.98,
@@ -152,13 +154,15 @@ final class HardViewSnapshotTests: ScreenshotTestCase {
     }
 
     func testPackDetailVimNavigation() {
+        let pack = PackRegistry.vimNavigation
         let vm = MockFactories.kanataViewModel()
-        let view = PackDetailView(pack: PackRegistry.vimNavigation)
+        let w = pack.preferredDetailWidth
+        let view = PackDetailView(pack: pack)
             .environment(vm)
-            .frame(width: 800, height: 700)
+            .frame(width: w, height: 640)
         assertScreenshot(
             of: view,
-            size: CGSize(width: 800, height: 700),
+            size: CGSize(width: w, height: 640),
             named: "pack-detail-vim-navigation",
             precision: 0.98,
             perceptualPrecision: 0.98,
@@ -167,13 +171,15 @@ final class HardViewSnapshotTests: ScreenshotTestCase {
     }
 
     func testPackDetailCapsLockRemap() {
+        let pack = PackRegistry.capsLockToEscape
         let vm = MockFactories.kanataViewModel()
-        let view = PackDetailView(pack: PackRegistry.capsLockToEscape)
+        let w = pack.preferredDetailWidth
+        let view = PackDetailView(pack: pack)
             .environment(vm)
-            .frame(width: 800, height: 700)
+            .frame(width: w, height: 640)
         assertScreenshot(
             of: view,
-            size: CGSize(width: 800, height: 700),
+            size: CGSize(width: w, height: 640),
             named: "pack-detail-caps-lock-remap",
             precision: 0.98,
             perceptualPrecision: 0.98,
@@ -185,7 +191,7 @@ final class HardViewSnapshotTests: ScreenshotTestCase {
         let vm = MockFactories.kanataViewModel()
         let view = RulesTabView()
             .environment(vm)
-            .frame(width: 800, height: 700)
+            .frame(width: 680, height: 700)
         assertScreenshot(
             of: view,
             size: CGSize(width: 800, height: 700),
