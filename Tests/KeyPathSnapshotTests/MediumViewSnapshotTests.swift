@@ -134,6 +134,48 @@ final class MediumViewSnapshotTests: ScreenshotTestCase {
         )
     }
 
+    // MARK: - Pack Config Views
+
+    func testKeyRepeatControlView() {
+        let config = KeyRepeatControlConfig()
+        let view = KeyRepeatControlView(config: config, onConfigChanged: { _ in })
+        assertScreenshot(
+            of: view,
+            size: SnapshotSize.inspector,
+            named: "key-repeat-control-default"
+        )
+    }
+
+    func testSingleKeyPickerLeaderKey() {
+        let catalog = RuleCollectionCatalog()
+        let collections = catalog.defaultCollections()
+        guard let leaderCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.leaderKey }) else {
+            XCTFail("Leader Key collection not found in catalog")
+            return
+        }
+        let view = SingleKeyPickerContent(collection: leaderCollection, onSelectOutput: { _ in })
+        assertScreenshot(
+            of: view,
+            size: SnapshotSize.card,
+            named: "leader-key-picker"
+        )
+    }
+
+    func testLayerPresetPickerSymbol() {
+        let catalog = RuleCollectionCatalog()
+        let collections = catalog.defaultCollections()
+        guard let symbolCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.symbolLayer }) else {
+            XCTFail("Symbol Layer collection not found in catalog")
+            return
+        }
+        let view = LayerPresetPickerContent(collection: symbolCollection, onSelectPreset: { _ in })
+        assertScreenshot(
+            of: view,
+            size: SnapshotSize.card,
+            named: "symbol-layer-preset-picker"
+        )
+    }
+
     func testOverlayDragHeaderCollapsed() {
         let view = OverlayDragHeader(
             isDark: false,
