@@ -819,8 +819,9 @@ struct ChordEditorDialog: View {
     private var systemActionGroups: [ActionGroup] {
         let all = SystemActionInfo.allActions
         return [
-            ActionGroup(title: "System", actions: all.filter { !$0.isMediaKey }),
-            ActionGroup(title: "Media", actions: all.filter { $0.isMediaKey }),
+            ActionGroup(title: "System", actions: all.filter(\.isSystemAction)),
+            ActionGroup(title: "Media", actions: all.filter(\.isMediaKey)),
+            ActionGroup(title: "Editing", actions: all.filter(\.isEditingShortcut)),
         ]
     }
 

@@ -147,31 +147,75 @@ final class SystemActionInfoTests: XCTestCase {
     }
 
     func testKanataOutput_directKeycode() {
-        let action = SystemActionInfo(id: "play-pause", name: "Play/Pause", sfSymbol: "playpause", kanataKeycode: "pp")
+        let action = SystemActionInfo(
+            id: "play-pause",
+            name: "Play/Pause",
+            sfSymbol: "playpause",
+            output: .hidKeycode("pp", simulatorName: "MediaPlayPause")
+        )
         XCTAssertEqual(action.kanataOutput, "pp")
     }
 
-    // MARK: - isMediaKey
-
-    func testIsMediaKey_withKeycode() {
-        let mediaAction = SystemActionInfo.find(byOutput: "pp")
-        XCTAssertTrue(mediaAction?.isMediaKey ?? false)
+    func testKanataOutput_modifierCombo() {
+        let action = SystemActionInfo(
+            id: "cut",
+            name: "Cut",
+            sfSymbol: "scissors",
+            output: .modifierCombo("C-x")
+        )
+        XCTAssertEqual(action.kanataOutput, "C-x")
     }
 
-    func testIsMediaKey_withoutKeycode() {
+    // MARK: - Output Type Classification
+
+    func testIsMediaKey_trueForHidKeycodeAction() {
+        let mediaAction = SystemActionInfo.find(byOutput: "pp")
+        XCTAssertTrue(mediaAction?.isMediaKey ?? false)
+        XCTAssertFalse(mediaAction?.isSystemAction ?? true)
+        XCTAssertFalse(mediaAction?.isEditingShortcut ?? true)
+    }
+
+    func testIsSystemAction_trueForPushMessageAction() {
         let systemAction = SystemActionInfo.find(byOutput: "spotlight")
+        XCTAssertTrue(systemAction?.isSystemAction ?? false)
         XCTAssertFalse(systemAction?.isMediaKey ?? true)
+        XCTAssertFalse(systemAction?.isEditingShortcut ?? true)
+    }
+
+    func testIsEditingShortcut_trueForModifierComboAction() {
+        let editingAction = SystemActionInfo.find(byOutput: "cut")
+        XCTAssertTrue(editingAction?.isEditingShortcut ?? false)
+        XCTAssertFalse(editingAction?.isMediaKey ?? true)
+        XCTAssertFalse(editingAction?.isSystemAction ?? true)
+    }
+
+    func testEditingShortcut_kanataKeycodeIsNil() {
+        // Modifier combos must not leak into kanataKeycode — that field is
+        // reserved for HID keycodes like "pp" or "mute".
+        let cut = SystemActionInfo.find(byOutput: "cut")
+        XCTAssertNil(cut?.kanataKeycode)
+        XCTAssertNil(cut?.simulatorName)
+    }
+
+    func testFindByModifierCombo_cut() {
+        let result = SystemActionInfo.find(byOutput: "C-x")
+        XCTAssertEqual(result?.id, "cut")
+    }
+
+    func testFindByModifierCombo_redo() {
+        let result = SystemActionInfo.find(byOutput: "C-S-z")
+        XCTAssertEqual(result?.id, "redo")
     }
 
     // MARK: - All Actions Coverage
 
     func testAllActions_containsExpectedCount() {
-        // 7 push-msg actions + 8 media keys = 15 total
-        XCTAssertEqual(SystemActionInfo.allActions.count, 15)
+        // 7 push-msg + 8 media keys + 8 editing shortcuts = 23 total
+        XCTAssertEqual(SystemActionInfo.allActions.count, 23)
     }
 
     func testAllActions_pushMsgActions() {
-        let pushMsgActions = SystemActionInfo.allActions.filter { !$0.isMediaKey }
+        let pushMsgActions = SystemActionInfo.allActions.filter(\.isSystemAction)
         XCTAssertEqual(pushMsgActions.count, 7)
 
         let ids = Set(pushMsgActions.map(\.id))
@@ -197,5 +241,28 @@ final class SystemActionInfoTests: XCTestCase {
         XCTAssertTrue(ids.contains("volume-down"))
         XCTAssertTrue(ids.contains("brightness-up"))
         XCTAssertTrue(ids.contains("brightness-down"))
+    }
+
+    func testAllActions_editingShortcuts() {
+        let editing = SystemActionInfo.allActions.filter(\.isEditingShortcut)
+        XCTAssertEqual(editing.count, 8)
+
+        let ids = Set(editing.map(\.id))
+        XCTAssertTrue(ids.contains("cut"))
+        XCTAssertTrue(ids.contains("copy"))
+        XCTAssertTrue(ids.contains("paste"))
+        XCTAssertTrue(ids.contains("undo"))
+        XCTAssertTrue(ids.contains("redo"))
+        XCTAssertTrue(ids.contains("select-all"))
+        XCTAssertTrue(ids.contains("save"))
+        XCTAssertTrue(ids.contains("find"))
+    }
+
+    func testAllActions_categoriesArePartition() {
+        // Every action belongs to exactly one category.
+        for action in SystemActionInfo.allActions {
+            let flags = [action.isSystemAction, action.isMediaKey, action.isEditingShortcut]
+            XCTAssertEqual(flags.filter { $0 }.count, 1, "Action \(action.id) must be in exactly one category")
+        }
     }
 }
