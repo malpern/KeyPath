@@ -198,11 +198,6 @@ public enum KanataBehaviorRenderer {
         return action.kanataOutput
     }
 
-    /// Legacy: parse a string and convert to Kanata syntax. For UI boundary use.
-    static func convertActionFromString(_ action: String, hyperLinkedLayerInfos: [HyperLinkedLayerInfo]) -> String {
-        convertAction(parseActionString(action), hyperLinkedLayerInfos: hyperLinkedLayerInfos)
-    }
-
     /// Parse a string action into a typed KeyAction.
     /// Used by convertAction as the single parsing entry point.
     static func parseActionString(_ action: String) -> KeyAction {

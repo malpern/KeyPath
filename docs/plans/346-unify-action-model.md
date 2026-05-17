@@ -1,6 +1,6 @@
 # Implementation Plan: Unify Action Data Model (#346)
 
-## Status: Phase 3 complete — ready for Phase 4
+## Status: COMPLETE — Phases 1-3 shipped, 4-5 deferred (no concrete need)
 
 No users yet — no migration/backward-compat needed. We can change types directly.
 
@@ -63,49 +63,24 @@ Added `FakeKeyAction` enum (tap/press/release/toggle).
 
 Fork rendering is string-level; promoting would round-trip through the type system. See PR #351 for rationale.
 
-### Phase 4 — Unify ActionDispatcher
+### Phase 4 — Unify ActionDispatcher (DEFERRED)
 
-Add `dispatch(_ action: KeyAction)` that switches on the enum and calls handler logic directly. Existing URI-based `dispatch` stays for external callers.
+Would add `dispatch(_ action: KeyAction)` for internal callers. Deferred because:
+- Internal callers are just 4 sites, all `dispatch(message: "layer:base")` — no pain point
+- ActionDispatcher's primary traffic is external (kanata daemon push-msg, deep links) — naturally URI-based
+- Handler methods mix URI parsing with execution logic (security checks, subprocess mgmt, plugin events) — refactoring for modest benefit
 
-#### Caller analysis
+**Revisit when:** internal code needs to programmatically dispatch actions (e.g., "test this rule" button, action chaining).
 
-**Internal callers (can switch to typed dispatch):**
-- `ContextHUDController.swift:256` — `dispatch(message: "layer:base")` → `dispatch(.activateLayer(name: "base"))`
-- `LiveKeyboardOverlayController+KeyClickHandling.swift:42,63` — same layer:base pattern
-- `LiveKeyboardOverlayController+LayerState.swift:83` — same layer:base pattern
-- `LiveKeyboardOverlayController+KeyClickHandling.swift:62` — `dispatch(message: message)` where `message` comes from push-msg parsing; needs investigation
+### Phase 5 — Rename (DEFERRED)
 
-**External callers (must stay URI-routed):**
-- `DeepLinkRouter.swift:26` — external `keypath://` deep links from other apps
-- `RuleCollectionsManager+EventMonitoring.swift:197,212` — push-msg from kanata daemon via TCP
-
-#### Implementation approach
-
-Each existing `handleX(_ uri:)` method mixes URI param extraction with actual logic. To support typed dispatch:
-1. Extract core logic from handlers into standalone methods (e.g., `launchApp(identifier:)`, `moveWindow(position:)`)
-2. `dispatch(_ action: KeyAction)` calls these directly via enum switch
-3. `dispatch(_ uri:)` continues parsing URIs and calling the same extracted methods
-4. Internal callers switch from `dispatch(message:)` to `dispatch(_ action:)`
-
-#### Decision needed
-
-**Is this worth doing now?** The internal callers are almost all `dispatch(message: "layer:base")` — a narrow use case. The real value of typed dispatch would come when internal code constructs actions programmatically (e.g., dispatching a `.launchApp` from a button click). If no such use case exists yet, Phase 4 could be deferred.
-
-Files:
-- `Sources/KeyPathAppKit/Services/ActionDispatcher.swift` — main refactor
-- `Sources/KeyPathAppKit/UI/ContextHUD/ContextHUDController.swift` — caller update
-- `Sources/KeyPathAppKit/UI/Overlay/LiveKeyboardOverlayController+KeyClickHandling.swift` — caller update
-- `Sources/KeyPathAppKit/UI/Overlay/LiveKeyboardOverlayController+LayerState.swift` — caller update
-
-### Phase 5 — Rename + cleanup
-
-- Global rename `KeyAction` → `Action` (or `MappingAction` — decide then)
-- Remove dead code, update docs
+`KeyAction` is more descriptive than `Action` or `MappingAction`. No rename needed.
 
 ## Critical Path
 
 ```
-Phase 1 ✅ → Phase 2 ✅ → Phase 3 ✅ → Phase 4 (decide scope) → Phase 5
+Phase 1 ✅ → Phase 2 ✅ → Phase 3 ✅ → cleanup ✅ → DONE
+                                        (Phases 4-5 deferred)
 ```
 
 ## Safety Net
