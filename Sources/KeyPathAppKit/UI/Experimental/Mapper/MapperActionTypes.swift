@@ -60,43 +60,84 @@ public struct AppConditionInfo: Equatable, Identifiable {
 
 // MARK: - System Action Info
 
-/// Info about a selected system action or media key
+/// How a `SystemActionInfo` produces its kanata output string.
+///
+/// Distinguishing the three output mechanisms avoids overloading `kanataKeycode`
+/// with values it was never meant to hold (e.g., modifier combos like `C-x`),
+/// and lets callers classify actions without relying on which fields are nil.
+public enum ActionOutputType: Equatable, Hashable, Sendable {
+    /// Push-message system action — emitted as `(push-msg "system:<id>")`.
+    case pushMessage
+    /// Direct HID keycode (media keys). `simulatorName` is the canonical
+    /// keyberon `KeyCode` enum case returned by the kanata simulator
+    /// (e.g., `MediaPlayPause`), used for round-trip lookups.
+    case hidKeycode(String, simulatorName: String?)
+    /// Modifier-combo shortcut (e.g., `C-x`, `C-S-z`) — emitted verbatim.
+    case modifierCombo(String)
+}
+
+/// Info about a selected system action, media key, or editing shortcut.
 public struct SystemActionInfo: Equatable, Hashable, Identifiable, Sendable {
-    /// The action identifier (e.g., "dnd", "spotlight", "pp" for play/pause)
+    /// The action identifier (e.g., "dnd", "spotlight", "play-pause")
     public let id: String
     /// Human-readable name
     public let name: String
     /// SF Symbol icon name
     public let sfSymbol: String
-    /// If non-nil, this is a direct keycode output (e.g., "pp", "prev", "next")
-    /// If nil, this is a push-msg system action
-    public let kanataKeycode: String?
-    /// Canonical name returned by kanata simulator (e.g., "MediaTrackPrevious", "MediaPlayPause")
-    public let simulatorName: String?
+    /// How this action produces its kanata output string.
+    public let output: ActionOutputType
 
-    public init(id: String, name: String, sfSymbol: String, kanataKeycode: String? = nil, simulatorName: String? = nil) {
+    public init(id: String, name: String, sfSymbol: String, output: ActionOutputType = .pushMessage) {
         self.id = id
         self.name = name
         self.sfSymbol = sfSymbol
-        self.kanataKeycode = kanataKeycode
-        self.simulatorName = simulatorName
+        self.output = output
     }
 
     /// The kanata output string for this action
     public var kanataOutput: String {
-        if let keycode = kanataKeycode {
+        switch output {
+        case .pushMessage:
+            return "(push-msg \"system:\(id)\")"
+        case .hidKeycode(let keycode, _):
             return keycode
+        case .modifierCombo(let combo):
+            return combo
         }
-        return "(push-msg \"system:\(id)\")"
     }
 
-    /// Whether this is a media key (direct keycode) vs push-msg action
+    /// True if this action is a push-message system action (Spotlight, DnD, etc.).
+    public var isSystemAction: Bool {
+        if case .pushMessage = output { return true }
+        return false
+    }
+
+    /// True if this action is a direct HID media key (Play/Pause, Mute, etc.).
     public var isMediaKey: Bool {
-        kanataKeycode != nil
+        if case .hidKeycode = output { return true }
+        return false
     }
 
-    /// All available system actions and media keys
-    /// SF Symbols match macOS function key icons (non-filled variants)
+    /// True if this action is a modifier-combo editing shortcut (Cut, Copy, etc.).
+    public var isEditingShortcut: Bool {
+        if case .modifierCombo = output { return true }
+        return false
+    }
+
+    /// The HID keycode for media-key actions (e.g., `pp`, `mute`). Nil otherwise.
+    public var kanataKeycode: String? {
+        if case .hidKeycode(let keycode, _) = output { return keycode }
+        return nil
+    }
+
+    /// Canonical simulator name for media keys (e.g., `MediaPlayPause`). Nil otherwise.
+    public var simulatorName: String? {
+        if case .hidKeycode(_, let name) = output { return name }
+        return nil
+    }
+
+    /// All available system actions, media keys, and editing shortcuts.
+    /// SF Symbols match macOS function key icons (non-filled variants).
     public static let allActions: [SystemActionInfo] = [
         // Push-msg system actions
         SystemActionInfo(id: "spotlight", name: "Spotlight", sfSymbol: "magnifyingglass"),
@@ -106,28 +147,36 @@ public struct SystemActionInfo: Equatable, Hashable, Identifiable, Sendable {
         SystemActionInfo(id: "notification-center", name: "Notification Center", sfSymbol: "bell"),
         SystemActionInfo(id: "dictation", name: "Dictation", sfSymbol: "mic"),
         SystemActionInfo(id: "siri", name: "Siri", sfSymbol: "waveform.circle"),
-        // Media keys (direct keycodes)
-        // simulatorName is the canonical name returned by kanata simulator (from keyberon KeyCode enum)
-        SystemActionInfo(id: "play-pause", name: "Play/Pause", sfSymbol: "playpause", kanataKeycode: "pp", simulatorName: "MediaPlayPause"),
-        SystemActionInfo(id: "next-track", name: "Next Track", sfSymbol: "forward", kanataKeycode: "next", simulatorName: "MediaNextSong"),
-        SystemActionInfo(id: "prev-track", name: "Previous Track", sfSymbol: "backward", kanataKeycode: "prev", simulatorName: "MediaPreviousSong"),
-        SystemActionInfo(id: "mute", name: "Mute", sfSymbol: "speaker.slash", kanataKeycode: "mute", simulatorName: "Mute"),
-        SystemActionInfo(id: "volume-up", name: "Volume Up", sfSymbol: "speaker.wave.3", kanataKeycode: "volu", simulatorName: "VolUp"),
-        SystemActionInfo(id: "volume-down", name: "Volume Down", sfSymbol: "speaker.wave.1", kanataKeycode: "voldwn", simulatorName: "VolDown"),
-        SystemActionInfo(id: "brightness-up", name: "Brightness Up", sfSymbol: "sun.max", kanataKeycode: "brup", simulatorName: "BrightnessUp"),
-        SystemActionInfo(id: "brightness-down", name: "Brightness Down", sfSymbol: "sun.min", kanataKeycode: "brdown", simulatorName: "BrightnessDown"),
+        // Media keys (direct HID keycodes)
+        SystemActionInfo(id: "play-pause", name: "Play/Pause", sfSymbol: "playpause",
+                         output: .hidKeycode("pp", simulatorName: "MediaPlayPause")),
+        SystemActionInfo(id: "next-track", name: "Next Track", sfSymbol: "forward",
+                         output: .hidKeycode("next", simulatorName: "MediaNextSong")),
+        SystemActionInfo(id: "prev-track", name: "Previous Track", sfSymbol: "backward",
+                         output: .hidKeycode("prev", simulatorName: "MediaPreviousSong")),
+        SystemActionInfo(id: "mute", name: "Mute", sfSymbol: "speaker.slash",
+                         output: .hidKeycode("mute", simulatorName: "Mute")),
+        SystemActionInfo(id: "volume-up", name: "Volume Up", sfSymbol: "speaker.wave.3",
+                         output: .hidKeycode("volu", simulatorName: "VolUp")),
+        SystemActionInfo(id: "volume-down", name: "Volume Down", sfSymbol: "speaker.wave.1",
+                         output: .hidKeycode("voldwn", simulatorName: "VolDown")),
+        SystemActionInfo(id: "brightness-up", name: "Brightness Up", sfSymbol: "sun.max",
+                         output: .hidKeycode("brup", simulatorName: "BrightnessUp")),
+        SystemActionInfo(id: "brightness-down", name: "Brightness Down", sfSymbol: "sun.min",
+                         output: .hidKeycode("brdown", simulatorName: "BrightnessDown")),
         // Editing shortcuts (modifier combos exposed as named actions)
-        SystemActionInfo(id: "cut", name: "Cut", sfSymbol: "scissors", kanataKeycode: "C-x"),
-        SystemActionInfo(id: "copy", name: "Copy", sfSymbol: "doc.on.doc", kanataKeycode: "C-c"),
-        SystemActionInfo(id: "paste", name: "Paste", sfSymbol: "doc.on.clipboard", kanataKeycode: "C-v"),
-        SystemActionInfo(id: "undo", name: "Undo", sfSymbol: "arrow.uturn.backward", kanataKeycode: "C-z"),
-        SystemActionInfo(id: "redo", name: "Redo", sfSymbol: "arrow.uturn.forward", kanataKeycode: "C-S-z"),
-        SystemActionInfo(id: "select-all", name: "Select All", sfSymbol: "selection.pin.in.out", kanataKeycode: "C-a"),
-        SystemActionInfo(id: "save", name: "Save", sfSymbol: "square.and.arrow.down", kanataKeycode: "C-s"),
-        SystemActionInfo(id: "find", name: "Find", sfSymbol: "magnifyingglass", kanataKeycode: "C-f"),
+        SystemActionInfo(id: "cut", name: "Cut", sfSymbol: "scissors", output: .modifierCombo("C-x")),
+        SystemActionInfo(id: "copy", name: "Copy", sfSymbol: "doc.on.doc", output: .modifierCombo("C-c")),
+        SystemActionInfo(id: "paste", name: "Paste", sfSymbol: "doc.on.clipboard", output: .modifierCombo("C-v")),
+        SystemActionInfo(id: "undo", name: "Undo", sfSymbol: "arrow.uturn.backward", output: .modifierCombo("C-z")),
+        SystemActionInfo(id: "redo", name: "Redo", sfSymbol: "arrow.uturn.forward", output: .modifierCombo("C-S-z")),
+        SystemActionInfo(id: "select-all", name: "Select All", sfSymbol: "selection.pin.in.out", output: .modifierCombo("C-a")),
+        SystemActionInfo(id: "save", name: "Save", sfSymbol: "square.and.arrow.down", output: .modifierCombo("C-s")),
+        SystemActionInfo(id: "find", name: "Find", sfSymbol: "magnifyingglass", output: .modifierCombo("C-f")),
     ]
 
-    /// Look up a SystemActionInfo by its kanata output (keycode, display name, or simulator name)
+    /// Look up a SystemActionInfo by its kanata output (id, display name, keycode,
+    /// simulator name, modifier combo, or raw `(push-msg "system:...")` string).
     public static func find(byOutput output: String) -> SystemActionInfo? {
         let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
         let lower = trimmed.lowercased()
@@ -161,13 +210,17 @@ public struct SystemActionInfo: Equatable, Hashable, Identifiable, Sendable {
             return action
         }
 
-        // Check by kanata keycode (for direct key outputs like "pp", "next").
-        if let action = allActions.first(where: { $0.kanataKeycode?.lowercased() == lower }) {
-            return action
-        }
-
-        // Check by simulator canonical name (e.g., "MediaPreviousSong", "MediaPlayPause").
-        if let action = allActions.first(where: { $0.simulatorName?.lowercased() == lower }) {
+        // Check by output payload: HID keycode, simulator name, or modifier combo.
+        if let action = allActions.first(where: { action in
+            switch action.output {
+            case .pushMessage:
+                return false
+            case .hidKeycode(let keycode, let simulator):
+                return keycode.lowercased() == lower || simulator?.lowercased() == lower
+            case .modifierCombo(let combo):
+                return combo.lowercased() == lower
+            }
+        }) {
             return action
         }
 

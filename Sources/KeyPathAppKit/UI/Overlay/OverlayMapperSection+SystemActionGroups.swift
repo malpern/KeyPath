@@ -20,13 +20,12 @@ extension OverlayMapperSection {
 
     private var systemActionGroups: [SystemActionGroup] {
         let all = SystemActionInfo.allActions
+        // Editing and System classifications come from the action's output type;
+        // media keys are still sub-grouped by domain (playback/volume/display)
+        // which doesn't correspond to a property on the model.
         return [
-            SystemActionGroup(title: "Editing", actions: all.filter {
-                ["cut", "copy", "paste", "undo", "redo", "select-all", "save", "find"].contains($0.id)
-            }),
-            SystemActionGroup(title: "System", actions: all.filter {
-                ["spotlight", "mission-control", "launchpad", "dnd", "notification-center", "dictation", "siri"].contains($0.id)
-            }),
+            SystemActionGroup(title: "Editing", actions: all.filter(\.isEditingShortcut)),
+            SystemActionGroup(title: "System", actions: all.filter(\.isSystemAction)),
             SystemActionGroup(title: "Playback", actions: all.filter {
                 ["play-pause", "next-track", "prev-track"].contains($0.id)
             }),
