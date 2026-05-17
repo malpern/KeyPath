@@ -1,6 +1,6 @@
 # CI & Build Optimization — Phased Plan
 
-**Status:** Phase 2 complete
+**Status:** Phases 1, 2, 5 complete. Phases 3, 4 skipped/deferred.
 **Created:** 2026-05-17
 **Prereq:** Self-hosted Mac Mini runner is live (PR #360, merged)
 **PR:** #361 (Phases 1+2)
@@ -32,27 +32,19 @@
 
 **Decision:** High setup cost (keychain/signing/notarization export) for a workflow that runs a few times a month. ROI improves when release cadence picks up. Revisit when Phase 5 is done.
 
-## Phase 5: Polish & Monitoring (ongoing)
+## Phase 5: Polish & Monitoring ✅
 
-### 5a. Build cache warming
-**Impact:** PR builds are incremental (just the diff), further reducing build time.
-**Change:** Add a workflow that runs `swift build` on every push to master, keeping the Mini's `.build` cache warm.
-**Risk:** Low.
+### 5a. Build cache warming ✅
+**Done:** Added `cache-warm.yml` — runs `swift build` on push to master, keeping `.build` cache warm for PR jobs.
 
-### 5b. Disk cleanup cron
-**Impact:** Prevent `.build` artifacts from filling the Mini's disk.
-**Change:** Weekly cron job to prune old `.build` directories and runner work directories.
-**Risk:** Low.
+### 5b. Disk cleanup cron ✅
+**Done:** Weekly LaunchAgent (`com.keypath.runner-cleanup`) on Mini prunes `.build` dirs older than 7 days and test artifacts older than 3 days. Runs Sundays at 3am.
 
-### 5c. Runner health monitoring
-**Impact:** Know when the Mini goes offline before a PR gets stuck.
-**Change:** Simple scheduled workflow that pings the runner and alerts (Slack/email) if offline.
-**Risk:** Low.
+### 5c. Runner health monitoring ✅
+**Done:** Added `runner-health.yml` — scheduled every 6 hours, reports hostname, uptime, disk, Swift version, Kanata version. Also manually triggerable.
 
-### 5d. Move publish-dry-run to Mini
-**Impact:** Skip zsh/Python install on every run.
-**Change:** Switch `publish-dry-run.yml` to `runs-on: [self-hosted, macOS, keypath]`.
-**Risk:** Low — the Mini already has Python and zsh.
+### 5d. Remove obsolete publish pipeline ✅
+**Done:** Deleted `publish-help-docs.yml`, `publish-dry-run.yml`, and `check-publish-deps.sh`. The entire pipeline was broken (referenced deleted scripts) and obsolete (help content is edited directly on gh-pages). Cleaned up stale paths-ignore entry in `ci.yml`.
 
 ## Decision Log
 
@@ -65,3 +57,4 @@
 | 2026-05-17 | publish-dry-run.yml broken (pre-existing) | References `publish-help-to-web.sh` deleted in 2da6b5f62 — needs separate fix |
 | 2026-05-17 | Skip Phase 3 (remote builds) | Incremental builds too fast (~15s) to justify rsync overhead + signing complexity |
 | 2026-05-17 | Defer Phase 4 (release on Mini) | High setup cost for infrequent releases — revisit when cadence picks up |
+| 2026-05-17 | Phase 5 shipped (PR #361) | Removed broken publish pipeline, added cache warming + health checks + disk cleanup |
