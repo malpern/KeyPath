@@ -59,6 +59,37 @@ struct KeyActionTests {
             #expect(KeyAction.systemAction(id: "spotlight").kanataOutput == "(push-msg \"system:spotlight\")")
         }
 
+        @Test("hyper produces multi modifier expression")
+        func hyper() {
+            #expect(KeyAction.hyper.kanataOutput == "(multi lctl lmet lalt lsft)")
+        }
+
+        @Test("meh produces multi modifier expression without Cmd")
+        func meh() {
+            #expect(KeyAction.meh.kanataOutput == "(multi lctl lalt lsft)")
+        }
+
+        @Test("notify produces push-msg with parameters")
+        func notify() {
+            let withBody = KeyAction.notify(title: "Done", body: "Build complete", sound: true)
+            #expect(withBody.kanataOutput == "(push-msg \"notify?title=Done&body=Build complete&sound=1\")")
+
+            let noBody = KeyAction.notify(title: "Done", body: nil, sound: false)
+            #expect(noBody.kanataOutput == "(push-msg \"notify?title=Done\")")
+        }
+
+        @Test("windowAction produces push-msg with position")
+        func windowAction() {
+            #expect(KeyAction.windowAction(position: "left").kanataOutput == "(push-msg \"window:left\")")
+            #expect(KeyAction.windowAction(position: "maximize").kanataOutput == "(push-msg \"window:maximize\")")
+        }
+
+        @Test("fakeKey produces on-press-fakekey expression")
+        func fakeKey() {
+            #expect(KeyAction.fakeKey(name: "vk-nav", action: .tap).kanataOutput == "(on-press-fakekey vk-nav tap)")
+            #expect(KeyAction.fakeKey(name: "vk-toggle", action: .toggle).kanataOutput == "(on-press-fakekey vk-toggle toggle)")
+        }
+
         @Test("activateLayer produces layer-switch expression")
         func activateLayer() {
             #expect(KeyAction.activateLayer(name: "nav").kanataOutput == "(layer-switch nav)")
@@ -114,9 +145,34 @@ struct KeyActionTests {
             #expect(KeyAction.runScript(path: "/usr/local/bin/deploy.sh", name: nil).displayName == "deploy")
         }
 
+        @Test("hyper shows Hyper")
+        func hyper() {
+            #expect(KeyAction.hyper.displayName == "Hyper")
+        }
+
+        @Test("meh shows Meh")
+        func meh() {
+            #expect(KeyAction.meh.displayName == "Meh")
+        }
+
         @Test("systemAction shows the id")
         func systemAction() {
             #expect(KeyAction.systemAction(id: "mission-control").displayName == "mission-control")
+        }
+
+        @Test("notify shows the title")
+        func notify() {
+            #expect(KeyAction.notify(title: "Build Done", body: nil, sound: false).displayName == "Build Done")
+        }
+
+        @Test("windowAction shows the position")
+        func windowAction() {
+            #expect(KeyAction.windowAction(position: "maximize").displayName == "maximize")
+        }
+
+        @Test("fakeKey shows the key name")
+        func fakeKey() {
+            #expect(KeyAction.fakeKey(name: "vk-nav", action: .tap).displayName == "vk-nav")
         }
 
         @Test("activateLayer shows the layer name")
