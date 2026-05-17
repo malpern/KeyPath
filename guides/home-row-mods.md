@@ -347,23 +347,23 @@ KeyPath provides a slider to adjust the tap-hold threshold:
 
 When you press a home row key, KeyPath watches how long you hold it. A quick tap produces the letter. A long press activates the modifier. The timing threshold is adjustable — see [Typing Feel](#typing-feel) below.
 
-<div id="demo-taphold" class="hrm-demo" style="border-radius:12px; padding:24px 20px; margin:1rem 0; text-align:center;">
-  <div class="demo-keys" style="display:flex; justify-content:center; gap:32px; align-items:flex-start;">
-    <div style="text-align:center;">
+<div id="demo-taphold" class="hrm-demo" style="border-radius:12px; padding:28px 20px 20px; margin:1rem 0; text-align:center;">
+  <div style="display:flex; justify-content:center; align-items:center; gap:40px;">
+    <div style="text-align:center; width:90px;">
       <div class="hrm-key demo-key" id="th-f" style="margin:0 auto;">F</div>
-      <div id="th-hint" class="demo-hint" style="margin-top:10px; font-family:Georgia,serif; font-size:14px; color:#a89878; min-height:20px;"></div>
+      <div id="th-hint" style="margin-top:12px; font-family:Georgia,serif; font-size:14px; height:20px; transition:opacity 0.3s; opacity:0;">&nbsp;</div>
     </div>
-    <div style="text-align:center; min-width:60px;">
-      <svg id="th-watch" class="demo-watch" width="44" height="48" viewBox="0 0 44 48" style="opacity:0; transition:opacity 0.15s;">
+    <div style="text-align:center; width:56px;">
+      <svg id="th-watch" width="44" height="48" viewBox="0 0 44 48" style="transition:opacity 0.3s; opacity:0;">
         <rect x="18" y="0" width="8" height="8" rx="3" fill="#a5906d"/>
         <circle cx="22" cy="28" r="18" fill="#faf6f0" stroke="#a5906d" stroke-width="2.5" id="th-ring"/>
-        <line id="th-hand" x1="22" y1="28" x2="22" y2="14" stroke="#a5906d" stroke-width="2.5" stroke-linecap="round" style="transform-origin:22px 28px;"/>
+        <line id="th-hand" x1="22" y1="28" x2="22" y2="14" stroke="#a5906d" stroke-width="2.5" stroke-linecap="round" style="transform-origin:22px 28px; transition:transform 0.25s linear;"/>
         <circle cx="22" cy="28" r="3" fill="#a5906d"/>
       </svg>
     </div>
-    <div style="text-align:center; min-width:80px; display:flex; flex-direction:column; justify-content:center; min-height:80px;">
-      <div id="th-result-sym" style="font-family:-apple-system,system-ui,sans-serif; font-size:36px; font-weight:600; opacity:0; transition:opacity 0.2s;"></div>
-      <div id="th-result-lbl" style="font-family:Georgia,serif; font-size:13px; margin-top:2px; opacity:0; transition:opacity 0.2s;"></div>
+    <div style="text-align:center; width:120px;">
+      <div id="th-result-sym" style="font-family:-apple-system,system-ui,sans-serif; font-size:36px; font-weight:600; height:44px; line-height:44px; transition:opacity 0.3s; opacity:0;">&nbsp;</div>
+      <div id="th-result-lbl" style="font-family:Georgia,serif; font-size:13px; height:18px; transition:opacity 0.3s; opacity:0;">&nbsp;</div>
     </div>
   </div>
 </div>
@@ -372,37 +372,37 @@ When you press a home row key, KeyPath watches how long you hold it. A quick tap
 
 Waiting for the full timeout on every keypress would make typing feel sluggish. KeyPath has a faster way: it watches which hand presses the next key. If you press a key on the **other hand** while holding F, it resolves immediately as a modifier — no need to wait for the timer.
 
-<div id="demo-opposite" class="hrm-demo" style="border-radius:12px; padding:24px 20px; margin:1rem 0; text-align:center;">
-  <div class="demo-keys" style="display:flex; justify-content:center; gap:16px; align-items:flex-start;">
-    <div style="text-align:center;">
-      <div style="font-family:Georgia,serif; font-size:12px; color:#a89878; margin-bottom:8px;">left hand</div>
-      <div style="display:flex; gap:6px;">
+<div id="demo-opposite" class="hrm-demo" style="border-radius:12px; padding:28px 20px 20px; margin:1rem 0; text-align:center;">
+  <div style="display:flex; justify-content:center; align-items:center; gap:24px;">
+    <div style="text-align:center; width:170px;">
+      <div style="font-family:Georgia,serif; font-size:13px; color:#a89878; margin-bottom:10px;">left hand</div>
+      <div style="display:flex; gap:6px; justify-content:center;">
         <div class="hrm-key demo-key" id="oh-d">D</div>
         <div class="hrm-key demo-key" id="oh-f">F</div>
       </div>
-      <div id="oh-hint-left" class="demo-hint" style="margin-top:10px; font-family:Georgia,serif; font-size:13px; color:#a89878; min-height:18px;"></div>
+      <div id="oh-hint-left" style="margin-top:12px; font-family:Georgia,serif; font-size:13px; height:18px; transition:opacity 0.3s; opacity:0;">&nbsp;</div>
     </div>
-    <div style="text-align:center; min-width:56px; display:flex; flex-direction:column; align-items:center; justify-content:center; padding-top:20px;">
-      <svg id="oh-watch" class="demo-watch" width="44" height="48" viewBox="0 0 44 48" style="opacity:0; transition:opacity 0.15s;">
+    <div style="text-align:center; width:70px;">
+      <svg id="oh-watch" width="44" height="48" viewBox="0 0 44 48" style="transition:opacity 0.3s; opacity:0;">
         <rect x="18" y="0" width="8" height="8" rx="3" fill="#a5906d"/>
         <circle cx="22" cy="28" r="18" fill="#faf6f0" stroke="#a5906d" stroke-width="2.5" id="oh-ring"/>
-        <line id="oh-hand" x1="22" y1="28" x2="22" y2="14" stroke="#a5906d" stroke-width="2.5" stroke-linecap="round" style="transform-origin:22px 28px;"/>
+        <line id="oh-hand" x1="22" y1="28" x2="22" y2="14" stroke="#a5906d" stroke-width="2.5" stroke-linecap="round" style="transform-origin:22px 28px; transition:transform 0.25s linear;"/>
         <circle cx="22" cy="28" r="3" fill="#a5906d"/>
       </svg>
-      <div id="oh-status" style="font-family:Georgia,serif; font-size:13px; font-weight:600; min-height:18px; margin-top:8px;"></div>
+      <div id="oh-status" style="font-family:Georgia,serif; font-size:12px; font-weight:600; height:18px; margin-top:8px; transition:opacity 0.3s; opacity:0;">&nbsp;</div>
     </div>
-    <div style="text-align:center;">
-      <div style="font-family:Georgia,serif; font-size:12px; color:#a89878; margin-bottom:8px;">right hand</div>
-      <div style="display:flex; gap:6px;" id="oh-right-keys">
+    <div style="text-align:center; width:170px;">
+      <div style="font-family:Georgia,serif; font-size:13px; color:#a89878; margin-bottom:10px;">right hand</div>
+      <div style="display:flex; gap:6px; justify-content:center;">
         <div class="hrm-key demo-key" id="oh-j">J</div>
         <div class="hrm-key demo-key" id="oh-k">K</div>
       </div>
-      <div id="oh-hint-right" class="demo-hint" style="margin-top:10px; font-family:Georgia,serif; font-size:13px; color:#a89878; min-height:18px;"></div>
+      <div id="oh-hint-right" style="margin-top:12px; font-family:Georgia,serif; font-size:13px; height:18px; transition:opacity 0.3s; opacity:0;">&nbsp;</div>
     </div>
   </div>
-  <div style="margin-top:14px; min-height:50px;">
-    <div id="oh-result-sym" style="font-family:-apple-system,system-ui,sans-serif; font-size:36px; font-weight:600; opacity:0; transition:opacity 0.2s;"></div>
-    <div id="oh-result-lbl" style="font-family:Georgia,serif; font-size:13px; margin-top:2px; opacity:0; transition:opacity 0.2s;"></div>
+  <div style="margin-top:16px; height:60px;">
+    <div id="oh-result-sym" style="font-family:-apple-system,system-ui,sans-serif; font-size:36px; font-weight:600; height:44px; line-height:44px; transition:opacity 0.3s; opacity:0;">&nbsp;</div>
+    <div id="oh-result-lbl" style="font-family:Georgia,serif; font-size:13px; height:16px; transition:opacity 0.3s; opacity:0;">&nbsp;</div>
   </div>
 </div>
 
@@ -415,18 +415,19 @@ Waiting for the full timeout on every keypress would make typing feel sluggish. 
   display:flex; align-items:center; justify-content:center;
   font-family:-apple-system,system-ui,Helvetica,sans-serif;
   font-size:28px; font-weight:500; color:#50402e;
-  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  pointer-events:none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease, border-color 0.3s ease, color 0.3s ease, opacity 0.3s ease;
   box-shadow: 0 3px 0 #c8b99e, 0 4px 8px rgba(100,80,50,0.08);
 }
 .demo-key.pressed {
   transform: translateY(3px);
   box-shadow: 0 1px 0 #c8b99e;
-  background: #f0e8dc;
+  background: #ede5d8;
   border-color: #a89478;
 }
 .demo-key.tap-resolved {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 #c8b99e;
+  transform: translateY(1px);
+  box-shadow: 0 2px 0 #c8b99e;
   background: #eaf5eb;
   border-color: #7bbe7f;
   color: #3a8a3e;
@@ -439,14 +440,22 @@ Waiting for the full timeout on every keypress would make typing feel sluggish. 
   color: #4a76a8;
 }
 .demo-key.faded {
-  opacity: 0.4;
+  opacity: 0.35;
 }
 </style>
 
 <script>
 (function() {
+  // Helper: set text + fade in via opacity (no layout shift)
+  function setText(el, text, color) {
+    el.textContent = text;
+    if (color) el.style.color = color;
+    el.style.opacity = '1';
+  }
+  function hideEl(el) { el.style.opacity = '0'; }
+
   // === DEMO 1: Tap vs Hold ===
-  var thKey = document.getElementById('th-f');
+  var thF = document.getElementById('th-f');
   var thWatch = document.getElementById('th-watch');
   var thHand = document.getElementById('th-hand');
   var thRing = document.getElementById('th-ring');
@@ -455,71 +464,65 @@ Waiting for the full timeout on every keypress would make typing feel sluggish. 
   var thLbl = document.getElementById('th-result-lbl');
 
   function thReset() {
-    thKey.className = 'hrm-key demo-key';
-    thKey.textContent = 'F';
+    thF.className = 'hrm-key demo-key'; thF.textContent = 'F';
     thWatch.style.opacity = '0';
-    thHand.style.transform = 'rotate(0deg)';
-    thHand.style.stroke = '#a5906d';
-    thRing.style.stroke = '#a5906d';
-    thHint.textContent = '';
-    thSym.style.opacity = '0';
-    thLbl.style.opacity = '0';
+    thHand.style.transition = 'none'; thHand.style.transform = 'rotate(0deg)';
+    void thHand.offsetWidth;
+    thHand.style.transition = 'transform 0.3s linear';
+    thHand.style.stroke = '#a5906d'; thRing.style.stroke = '#a5906d';
+    hideEl(thHint); hideEl(thSym); hideEl(thLbl);
   }
 
-  function thShow(sym, lbl, color) {
-    thSym.style.color = color;
-    thSym.textContent = sym;
-    thSym.style.opacity = '1';
-    thLbl.style.color = color;
-    thLbl.textContent = lbl;
-    thLbl.style.opacity = '1';
-  }
-
-  var thTimeline = [
-    // Tap scenario
-    { t:0, fn: function() { thReset(); }},
-    { t:600, fn: function() {
-      thKey.classList.add('pressed');
-      thHint.textContent = 'tap';
-      thHint.style.color = '#5078a8';
+  var thSteps = [
+    // === Tap scenario ===
+    { t:0,    fn: thReset },
+    { t:1200, fn: function() {
+      thF.classList.add('pressed');
+      setText(thHint, 'tap', '#5078a8');
       thWatch.style.opacity = '1';
     }},
-    { t:900, fn: function() {
-      // Quick release
-      thKey.classList.remove('pressed');
-      thKey.classList.add('tap-resolved');
-      thRing.style.stroke = '#50a854';
-      thHand.style.stroke = '#50a854';
+    { t:1700, fn: function() {
       thHand.style.transform = 'rotate(40deg)';
-      thWatch.style.opacity = '0';
-      thHint.textContent = '';
-      thShow('f', 'the letter', '#3a8a3e');
     }},
-    { t:3200, fn: function() { thReset(); }},
-    // Hold scenario
-    { t:3800, fn: function() {
-      thKey.classList.add('pressed');
-      thHint.textContent = 'hold';
-      thHint.style.color = '#b98d32';
+    { t:2000, fn: function() {
+      thF.classList.remove('pressed');
+      thF.classList.add('tap-resolved');
+      thRing.style.stroke = '#50a854'; thHand.style.stroke = '#50a854';
+      hideEl(thHint);
+      setText(thSym, 'f', '#3a8a3e');
+      setText(thLbl, 'the letter', '#3a8a3e');
+    }},
+    { t:4800, fn: function() {
+      hideEl(thSym); hideEl(thLbl);
+      thWatch.style.opacity = '0';
+    }},
+    { t:5400, fn: thReset },
+    // === Hold scenario ===
+    { t:6200, fn: function() {
+      thF.classList.add('pressed');
+      setText(thHint, 'hold', '#b98d32');
       thWatch.style.opacity = '1';
     }},
-    { t:4000, fn: function() { thHand.style.transform = 'rotate(60deg)'; }},
-    { t:4200, fn: function() { thHand.style.transform = 'rotate(120deg)'; }},
-    { t:4400, fn: function() { thHand.style.transform = 'rotate(180deg)'; }},
-    { t:4600, fn: function() { thHand.style.transform = 'rotate(240deg)'; }},
-    { t:4800, fn: function() { thHand.style.transform = 'rotate(300deg)'; }},
-    { t:5000, fn: function() {
+    { t:6800,  fn: function() { thHand.style.transform = 'rotate(72deg)'; }},
+    { t:7400,  fn: function() { thHand.style.transform = 'rotate(144deg)'; }},
+    { t:8000,  fn: function() { thHand.style.transform = 'rotate(216deg)'; }},
+    { t:8600,  fn: function() { thHand.style.transform = 'rotate(288deg)'; }},
+    { t:9200,  fn: function() {
       thHand.style.transform = 'rotate(360deg)';
-      thKey.classList.remove('pressed');
-      thKey.classList.add('hold-resolved');
-      thRing.style.stroke = '#4a76a8';
-      thHand.style.stroke = '#4a76a8';
-      thHint.textContent = '';
-      thShow('⌘', 'Command modifier', '#4a76a8');
+      thF.classList.remove('pressed');
+      thF.classList.add('hold-resolved');
+      thRing.style.stroke = '#4a76a8'; thHand.style.stroke = '#4a76a8';
+      hideEl(thHint);
+      setText(thSym, '⌘', '#4a76a8');
+      setText(thLbl, 'Command modifier', '#4a76a8');
     }},
-    { t:7500, fn: function() { thReset(); }},
+    { t:12200, fn: function() {
+      hideEl(thSym); hideEl(thLbl);
+      thWatch.style.opacity = '0';
+    }},
+    { t:12800, fn: thReset },
   ];
-  var TH_LOOP = 8200;
+  var TH_LOOP = 14000;
 
   // === DEMO 2: Opposite Hand ===
   var ohD = document.getElementById('oh-d');
@@ -538,151 +541,112 @@ Waiting for the full timeout on every keypress would make typing feel sluggish. 
   function ohReset() {
     [ohD, ohF, ohJ, ohK].forEach(function(k) { k.className = 'hrm-key demo-key'; });
     ohWatch.style.opacity = '0';
-    ohHand.style.transform = 'rotate(0deg)';
-    ohHand.style.stroke = '#a5906d';
-    ohRing.style.stroke = '#a5906d';
-    ohRing.style.fill = '#faf6f0';
-    ohHintL.textContent = '';
-    ohHintR.textContent = '';
-    ohStatus.textContent = '';
-    ohSym.style.opacity = '0';
-    ohLbl.style.opacity = '0';
+    ohHand.style.transition = 'none'; ohHand.style.transform = 'rotate(0deg)';
+    void ohHand.offsetWidth;
+    ohHand.style.transition = 'transform 0.3s linear';
+    ohHand.style.stroke = '#a5906d'; ohRing.style.stroke = '#a5906d'; ohRing.style.fill = '#faf6f0';
+    hideEl(ohHintL); hideEl(ohHintR); hideEl(ohStatus);
+    hideEl(ohSym); hideEl(ohLbl);
   }
 
-  function ohShow(sym, lbl, color) {
-    ohSym.style.color = color;
-    ohSym.textContent = sym;
-    ohSym.style.opacity = '1';
-    ohLbl.style.color = color;
-    ohLbl.textContent = lbl;
-    ohLbl.style.opacity = '1';
-  }
-
-  var ohTimeline = [
-    // Scenario 1: F held + J (other hand) → ⌘J
-    { t:0, fn: function() { ohReset(); }},
-    { t:600, fn: function() {
+  var ohSteps = [
+    // === Scenario 1: F held + J (other hand) → ⌘J ===
+    { t:0,    fn: ohReset },
+    { t:1200, fn: function() {
       ohF.classList.add('pressed');
-      ohHintL.textContent = 'hold';
-      ohHintL.style.color = '#b98d32';
+      setText(ohHintL, 'hold', '#b98d32');
       ohWatch.style.opacity = '1';
-      ohStatus.textContent = 'waiting...';
-      ohStatus.style.color = '#b98d32';
+      setText(ohStatus, 'waiting...', '#b98d32');
     }},
-    { t:900, fn: function() { ohHand.style.transform = 'rotate(50deg)'; }},
-    { t:1200, fn: function() { ohHand.style.transform = 'rotate(100deg)'; }},
-    // J pressed — short circuit!
-    { t:1500, fn: function() {
+    { t:1800, fn: function() { ohHand.style.transform = 'rotate(60deg)'; }},
+    { t:2400, fn: function() { ohHand.style.transform = 'rotate(120deg)'; }},
+    // J pressed — short circuit
+    { t:3000, fn: function() {
       ohJ.classList.add('pressed');
-      ohHintR.textContent = 'tap';
-      ohHintR.style.color = '#5078a8';
-      ohHand.style.transform = 'rotate(120deg)';
+      setText(ohHintR, 'tap', '#5078a8');
     }},
-    { t:1700, fn: function() {
-      // Flash resolve
-      ohRing.style.stroke = '#4a76a8';
-      ohRing.style.fill = '#dae8f5';
+    { t:3500, fn: function() {
+      ohRing.style.stroke = '#4a76a8'; ohRing.style.fill = '#dae8f5';
       ohHand.style.stroke = '#4a76a8';
-      ohStatus.textContent = 'other hand — instant!';
-      ohStatus.style.color = '#4a76a8';
+      setText(ohStatus, 'other hand — instant!', '#4a76a8');
     }},
-    { t:1900, fn: function() {
+    { t:3900, fn: function() {
       ohRing.style.fill = '#faf6f0';
-      ohF.classList.remove('pressed');
-      ohF.classList.add('hold-resolved');
-      ohJ.classList.remove('pressed');
-      ohJ.classList.add('tap-resolved');
-      ohHintL.textContent = '';
-      ohHintR.textContent = '';
-      ohShow('⌘J', 'Command + J', '#4a76a8');
+      ohF.classList.remove('pressed'); ohF.classList.add('hold-resolved');
+      ohJ.classList.remove('pressed'); ohJ.classList.add('tap-resolved');
+      hideEl(ohHintL); hideEl(ohHintR);
+      setText(ohSym, '⌘J', '#4a76a8');
+      setText(ohLbl, 'Command + J', '#4a76a8');
     }},
-    { t:4400, fn: function() { ohReset(); }},
-    // Scenario 2: F held + D (same hand) → fd
-    { t:5000, fn: function() {
+    { t:6800, fn: function() {
+      hideEl(ohSym); hideEl(ohLbl); hideEl(ohStatus);
+      ohWatch.style.opacity = '0';
+    }},
+    { t:7400, fn: ohReset },
+    // === Scenario 2: F held + D (same hand) → fd ===
+    { t:8400, fn: function() {
       ohF.classList.add('pressed');
-      ohHintL.textContent = 'hold';
-      ohHintL.style.color = '#b98d32';
+      setText(ohHintL, 'hold', '#b98d32');
       ohWatch.style.opacity = '1';
-      ohStatus.textContent = 'waiting...';
-      ohStatus.style.color = '#b98d32';
+      setText(ohStatus, 'waiting...', '#b98d32');
     }},
-    { t:5300, fn: function() { ohHand.style.transform = 'rotate(40deg)'; }},
-    { t:5600, fn: function() { ohHand.style.transform = 'rotate(80deg)'; }},
+    { t:9000, fn: function() { ohHand.style.transform = 'rotate(50deg)'; }},
+    { t:9600, fn: function() { ohHand.style.transform = 'rotate(100deg)'; }},
     // D pressed — same hand
-    { t:5800, fn: function() {
+    { t:10200, fn: function() {
       ohD.classList.add('pressed');
-      ohHintL.textContent = 'tap + tap';
-      ohHintL.style.color = '#5078a8';
+      setText(ohHintL, 'tap + tap', '#5078a8');
     }},
-    { t:6000, fn: function() {
-      ohRing.style.stroke = '#50a854';
-      ohRing.style.fill = '#e2f2e3';
+    { t:10700, fn: function() {
+      ohRing.style.stroke = '#50a854'; ohRing.style.fill = '#e2f2e3';
       ohHand.style.stroke = '#50a854';
-      ohStatus.textContent = 'same hand — letters!';
-      ohStatus.style.color = '#3a8a3e';
+      setText(ohStatus, 'same hand — letters!', '#3a8a3e');
     }},
-    { t:6200, fn: function() {
+    { t:11100, fn: function() {
       ohRing.style.fill = '#faf6f0';
-      ohF.classList.remove('pressed');
-      ohF.classList.add('tap-resolved');
-      ohD.classList.remove('pressed');
-      ohD.classList.add('tap-resolved');
-      ohJ.classList.add('faded');
-      ohK.classList.add('faded');
-      ohHintL.textContent = '';
-      ohShow('fd', 'just the letters', '#3a8a3e');
+      ohF.classList.remove('pressed'); ohF.classList.add('tap-resolved');
+      ohD.classList.remove('pressed'); ohD.classList.add('tap-resolved');
+      ohJ.classList.add('faded'); ohK.classList.add('faded');
+      hideEl(ohHintL);
+      setText(ohSym, 'fd', '#3a8a3e');
+      setText(ohLbl, 'just the letters', '#3a8a3e');
     }},
-    { t:8700, fn: function() { ohReset(); }},
+    { t:14000, fn: function() {
+      hideEl(ohSym); hideEl(ohLbl); hideEl(ohStatus);
+      ohWatch.style.opacity = '0';
+    }},
+    { t:14600, fn: ohReset },
   ];
-  var OH_LOOP = 9400;
+  var OH_LOOP = 16000;
 
   // Auto-play with IntersectionObserver
-  function runTimeline(timeline, loopMs, container) {
-    var timers = [];
-    var visible = false;
-    var running = false;
-
+  function runTimeline(steps, loopMs, container) {
+    var timers = [], running = false;
     function start() {
       if (running) return;
       running = true;
-      function loop() {
-        timers.forEach(clearTimeout);
-        timers = [];
-        timeline.forEach(function(step) {
-          timers.push(setTimeout(step.fn, step.t));
-        });
+      (function loop() {
+        timers.forEach(clearTimeout); timers = [];
+        steps.forEach(function(s) { timers.push(setTimeout(s.fn, s.t)); });
         timers.push(setTimeout(loop, loopMs));
-      }
-      loop();
+      })();
     }
-
     function stop() {
       running = false;
-      timers.forEach(clearTimeout);
-      timers = [];
+      timers.forEach(clearTimeout); timers = [];
     }
-
     if (window.IntersectionObserver) {
-      var obs = new IntersectionObserver(function(entries) {
-        visible = entries[0].isIntersecting;
-        if (visible) start(); else stop();
-      }, { threshold: 0.3 });
-      obs.observe(container);
-    } else {
-      start();
-    }
+      new IntersectionObserver(function(e) {
+        if (e[0].isIntersecting) start(); else stop();
+      }, { threshold: 0.3 }).observe(container);
+    } else { start(); }
   }
 
-  // Smooth the stopwatch hands with CSS transition
-  [thHand, ohHand].forEach(function(h) {
-    h.style.transition = 'transform 0.18s linear';
-  });
-  [thRing, ohRing].forEach(function(r) {
-    r.style.transition = 'stroke 0.15s, fill 0.15s';
-  });
+  // Transition setup for stopwatch rings
+  [thRing, ohRing].forEach(function(r) { r.style.transition = 'stroke 0.25s, fill 0.25s'; });
 
-  runTimeline(thTimeline, TH_LOOP, document.getElementById('demo-taphold'));
-  runTimeline(ohTimeline, OH_LOOP, document.getElementById('demo-opposite'));
+  runTimeline(thSteps, TH_LOOP, document.getElementById('demo-taphold'));
+  runTimeline(ohSteps, OH_LOOP, document.getElementById('demo-opposite'));
 })();
 </script>
 
