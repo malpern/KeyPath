@@ -32,7 +32,7 @@ final class CommandStructureTests: XCTestCase {
 
     func testLayerHasExpectedVerbs() {
         let names = subcommandNames(of: Layer.self)
-        XCTAssertEqual(Set(names), ["list", "switch"])
+        XCTAssertEqual(Set(names), ["list", "create", "delete", "rename", "switch"])
     }
 
     func testServiceHasExpectedVerbs() {

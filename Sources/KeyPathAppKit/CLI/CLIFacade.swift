@@ -255,6 +255,70 @@ public struct CLIFacade: Sendable {
         return true
     }
 
+    // MARK: - Layer CRUD
+
+    /// Get all layers defined by rule collections (unique targetLayer values).
+    public func listDefinedLayers() async -> [String] {
+        let collections = await RuleCollectionStore.shared.loadCollections()
+        var layers = Set<String>()
+        layers.insert("base")
+        for collection in collections {
+            layers.insert(collection.targetLayer.kanataName)
+        }
+        return layers.sorted()
+    }
+
+    /// Create a layer by creating an empty collection targeting it.
+    public func createLayer(name: String) async throws -> CLIRuleCollection {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        let layer: RuleCollectionLayer = switch name.lowercased() {
+        case "base": .base
+        case "nav", "navigation": .navigation
+        default: .custom(name)
+        }
+        let collection = RuleCollection(
+            name: "\(name) Layer",
+            summary: "Rules for the \(name) layer",
+            category: .layers,
+            mappings: [],
+            targetLayer: layer
+        )
+        collections.append(collection)
+        try await RuleCollectionStore.shared.saveCollections(collections)
+        return CLIRuleCollection(from: collection)
+    }
+
+    /// Delete all collections targeting a layer. Returns count of deleted collections.
+    public func deleteLayer(name: String) async throws -> Int {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        let targetName = Self.parseLayer(name).kanataName
+        let before = collections.count
+        collections.removeAll { $0.targetLayer.kanataName == targetName }
+        let removed = before - collections.count
+        if removed > 0 {
+            try await RuleCollectionStore.shared.saveCollections(collections)
+        }
+        return removed
+    }
+
+    /// Rename a layer by updating all collections that target it.
+    public func renameLayer(oldName: String, newName: String) async throws -> Int {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        let oldLayerName = Self.parseLayer(oldName).kanataName
+        let newLayer = Self.parseLayer(newName)
+        var updated = 0
+        for i in collections.indices {
+            if collections[i].targetLayer.kanataName == oldLayerName {
+                collections[i].targetLayer = newLayer
+                updated += 1
+            }
+        }
+        if updated > 0 {
+            try await RuleCollectionStore.shared.saveCollections(collections)
+        }
+        return updated
+    }
+
     // MARK: - Service Lifecycle
 
     /// Start the Kanata service via launchctl kickstart.
