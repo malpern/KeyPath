@@ -63,7 +63,7 @@ let package = Package(
         ),
         .executable(
             name: "keypath-cli",
-            targets: ["KeyPathCLI"]
+            targets: ["KeyPathCLIMain"]
         ),
         .library(
             name: "KeyPathInsights",
@@ -242,14 +242,23 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ]
         ),
-        // Standalone CLI binary
-        .executableTarget(
+        // CLI library (testable)
+        .target(
             name: "KeyPathCLI",
             dependencies: [
                 "KeyPathAppKit",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ],
             path: "Sources/KeyPathCLI",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        // CLI binary entry point
+        .executableTarget(
+            name: "KeyPathCLIMain",
+            dependencies: ["KeyPathCLI"],
+            path: "Sources/KeyPathCLIMain",
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
@@ -274,6 +283,7 @@ let package = Package(
             name: "KeyPathTests",
             dependencies: [
                 "KeyPathAppKit",
+                "KeyPathCLI",
                 "KeyPathCore",
                 "KeyPathPermissions",
                 "KeyPathDaemonLifecycle",

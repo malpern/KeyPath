@@ -2,25 +2,26 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-@main
-struct KeyPathCLI: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "keypath-cli",
-        abstract: "KeyPath keyboard configuration CLI",
+public struct KeyPathCLI: AsyncParsableCommand {
+    public init() {}
+
+    public static let configuration = CommandConfiguration(
+        commandName: "keypath",
+        abstract: "KeyPath keyboard remapping — configure, query, control",
         version: CLIVersion.current,
         subcommands: [
-            Status.self,
-            Remap.self,
-            Rules.self,
+            // Plumbing (noun-verb)
+            Rule.self,
+            Collection.self,
             Layer.self,
-            Apply.self,
+            Service.self,
             Config.self,
-            TCP.self,
-            Install.self,
-            Repair.self,
-            Uninstall.self,
-            Inspect.self,
+            System.self,
+            Help.self,
             Completions.self,
+            // Porcelain shortcuts
+            StatusShortcut.self,
+            RemapShortcut.self,
         ]
     )
 }
