@@ -2,6 +2,7 @@
   'use strict';
 
   var searchIndex = null;
+  var selectedIndex = -1;
   var input = document.getElementById('docs-search-input');
   var resultsContainer = document.getElementById('docs-search-results');
   if (!input || !resultsContainer) return;
@@ -64,7 +65,32 @@
     return (start > 0 ? '...' : '') + snippet.trim() + (end < body.length ? '...' : '');
   }
 
+  function getResultLinks() {
+    return resultsContainer.querySelectorAll('.docs-search-result');
+  }
+
+  function updateSelection(newIndex) {
+    var links = getResultLinks();
+    if (links.length === 0) return;
+
+    // Remove previous highlight
+    if (selectedIndex >= 0 && selectedIndex < links.length) {
+      links[selectedIndex].classList.remove('docs-search-result-active');
+    }
+
+    // Clamp index
+    if (newIndex < 0) newIndex = 0;
+    if (newIndex >= links.length) newIndex = links.length - 1;
+    selectedIndex = newIndex;
+
+    // Apply highlight and scroll into view
+    links[selectedIndex].classList.add('docs-search-result-active');
+    links[selectedIndex].scrollIntoView({ block: 'nearest' });
+  }
+
   function render(results, query) {
+    selectedIndex = -1;
+
     if (results.length === 0) {
       resultsContainer.innerHTML = '<div class="docs-search-empty">No results found</div>';
       resultsContainer.hidden = false;
@@ -99,6 +125,7 @@
     var query = input.value.trim();
     if (!query) {
       resultsContainer.hidden = true;
+      selectedIndex = -1;
       return;
     }
     debounceTimer = setTimeout(function() {
@@ -107,10 +134,32 @@
     }, 150);
   });
 
+  // Arrow keys and Enter in the search input
+  input.addEventListener('keydown', function(e) {
+    var links = getResultLinks();
+    if (links.length === 0 || resultsContainer.hidden) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      updateSelection(selectedIndex + 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      updateSelection(selectedIndex - 1);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedIndex >= 0 && selectedIndex < links.length) {
+        links[selectedIndex].click();
+      } else if (links.length > 0) {
+        links[0].click();
+      }
+    }
+  });
+
   // Close results on click outside
   document.addEventListener('click', function(e) {
     if (!input.contains(e.target) && !resultsContainer.contains(e.target)) {
       resultsContainer.hidden = true;
+      selectedIndex = -1;
     }
   });
 
@@ -130,6 +179,7 @@
     if (e.key === 'Escape' && document.activeElement === input) {
       input.blur();
       resultsContainer.hidden = true;
+      selectedIndex = -1;
     }
   });
 })();

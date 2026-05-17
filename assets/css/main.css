@@ -255,7 +255,8 @@ a:hover {
     border-bottom: none;
 }
 
-.docs-search-result:hover {
+.docs-search-result:hover,
+.docs-search-result-active {
     background: var(--color-background-secondary);
 }
 
