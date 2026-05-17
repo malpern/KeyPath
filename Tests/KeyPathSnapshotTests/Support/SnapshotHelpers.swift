@@ -188,6 +188,7 @@ class ScreenshotTestCase: XCTestCase {
 
     /// Assert a documentation screenshot with consistent dark mode styling.
     /// Wraps the view in 20px padding + windowBackgroundColor, renders in dark mode.
+    /// The view is sized to fit its content vertically (fixedSize) within the given width.
     func assertDocScreenshot(
         of view: some View,
         size: CGSize,
@@ -199,7 +200,9 @@ class ScreenshotTestCase: XCTestCase {
         line: UInt = #line
     ) {
         let wrapped = view
+            .fixedSize(horizontal: false, vertical: true)
             .padding(20)
+            .frame(maxWidth: size.width)
             .background(Color(nsColor: .windowBackgroundColor))
         assertScreenshot(
             of: wrapped,
