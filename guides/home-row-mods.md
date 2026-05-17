@@ -22,17 +22,17 @@ If you're new to keyboard customization, read [Keyboard Concepts]({{ '/guides/co
 
 Every home row key gets a second job — tap for the letter, hold for a modifier. The layout is mirrored so both hands get the same modifiers:
 
-<div style="display:flex; gap:24px; align-items:center; flex-wrap:wrap; margin:1.2rem 0;">
-  <div style="flex:1; min-width:280px;">
-    <img src="{{ '/images/help/diagram-home-row-layout.png' | relative_url }}" alt="Home row mod layout — tap for letter, hold for modifier" style="width:100%; border-radius:10px;">
-  </div>
-  <div id="hrm-interactive" style="flex:1; min-width:320px; border-radius:16px; padding:24px 16px 20px; user-select:none; -webkit-user-select:none;">
+![Home row mod layout — tap for letter, hold for modifier]({{ '/images/help/diagram-home-row-layout.png' | relative_url }})
+
+The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (Copy). Hold A + press Tab = ⇧Tab (Shift-Tab). No reaching, no contortion.
+
+<div id="hrm-interactive" style="border-radius:16px; padding:32px 20px 24px; margin:1.5rem 0; user-select:none; -webkit-user-select:none;">
   <p id="hrm-prompt" style="text-align:center; margin:0 0 24px; font-family:Georgia,serif; font-size:16px; color:#a08e74; letter-spacing:0.01em;">
     <span style="opacity:0.7;">Try it</span> — click and release quickly, or click and hold
   </p>
-  <div style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap;">
-    <div style="display:flex; flex-direction:column; align-items:center; gap:10px;">
-      <span style="font-family:Georgia,serif; font-size:14px; color:#a89878;">left hand</span>
+  <div style="display:flex; justify-content:center; align-items:flex-start; gap:32px;">
+    <div style="text-align:center;">
+      <div style="font-family:Georgia,serif; font-size:14px; color:#a89878; margin-bottom:10px;">left hand</div>
       <div style="display:flex; gap:8px;">
         <div class="hrm-key" data-letter="A" data-mod="⇧" data-modname="Shift"></div>
         <div class="hrm-key" data-letter="S" data-mod="⌃" data-modname="Control"></div>
@@ -40,9 +40,8 @@ Every home row key gets a second job — tap for the letter, hold for a modifier
         <div class="hrm-key" data-letter="F" data-mod="⌘" data-modname="Command"></div>
       </div>
     </div>
-    <div style="width:32px; flex-shrink:0;"></div>
-    <div style="display:flex; flex-direction:column; align-items:center; gap:10px;">
-      <span style="font-family:Georgia,serif; font-size:14px; color:#a89878;">right hand</span>
+    <div style="text-align:center;">
+      <div style="font-family:Georgia,serif; font-size:14px; color:#a89878; margin-bottom:10px;">right hand</div>
       <div style="display:flex; gap:8px;">
         <div class="hrm-key" data-letter="J" data-mod="⌘" data-modname="Command"></div>
         <div class="hrm-key" data-letter="K" data-mod="⌥" data-modname="Option"></div>
@@ -259,9 +258,6 @@ Every home row key gets a second job — tap for the letter, hold for a modifier
   });
 })();
 </script>
-</div>
-
-The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (Copy). Hold A + press Tab = ⇧Tab (Shift-Tab). No reaching, no contortion.
 
 ---
 
