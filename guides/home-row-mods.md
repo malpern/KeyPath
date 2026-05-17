@@ -31,18 +31,24 @@ The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (
     <span style="opacity:0.7;">Try it</span> — click and release quickly, or click and hold
   </p>
   <div style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap;">
-    <div style="display:flex; gap:8px;">
-      <div class="hrm-key" data-letter="A" data-mod="⇧" data-modname="Shift"></div>
-      <div class="hrm-key" data-letter="S" data-mod="⌃" data-modname="Control"></div>
-      <div class="hrm-key" data-letter="D" data-mod="⌥" data-modname="Option"></div>
-      <div class="hrm-key" data-letter="F" data-mod="⌘" data-modname="Command"></div>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:10px;">
+      <span style="font-family:Georgia,serif; font-size:14px; color:#a89878;">left hand</span>
+      <div style="display:flex; gap:8px;">
+        <div class="hrm-key" data-letter="A" data-mod="⇧" data-modname="Shift"></div>
+        <div class="hrm-key" data-letter="S" data-mod="⌃" data-modname="Control"></div>
+        <div class="hrm-key" data-letter="D" data-mod="⌥" data-modname="Option"></div>
+        <div class="hrm-key" data-letter="F" data-mod="⌘" data-modname="Command"></div>
+      </div>
     </div>
     <div style="width:32px; flex-shrink:0;"></div>
-    <div style="display:flex; gap:8px;">
-      <div class="hrm-key" data-letter="J" data-mod="⌘" data-modname="Command"></div>
-      <div class="hrm-key" data-letter="K" data-mod="⌥" data-modname="Option"></div>
-      <div class="hrm-key" data-letter="L" data-mod="⌃" data-modname="Control"></div>
-      <div class="hrm-key" data-letter=";" data-mod="⇧" data-modname="Shift"></div>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:10px;">
+      <span style="font-family:Georgia,serif; font-size:14px; color:#a89878;">right hand</span>
+      <div style="display:flex; gap:8px;">
+        <div class="hrm-key" data-letter="J" data-mod="⌘" data-modname="Command"></div>
+        <div class="hrm-key" data-letter="K" data-mod="⌥" data-modname="Option"></div>
+        <div class="hrm-key" data-letter="L" data-mod="⌃" data-modname="Control"></div>
+        <div class="hrm-key" data-letter=";" data-mod="⇧" data-modname="Shift"></div>
+      </div>
     </div>
   </div>
   <div id="hrm-result" style="text-align:center; margin-top:24px; min-height:80px; display:flex; flex-direction:column; align-items:center;">
