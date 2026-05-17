@@ -74,15 +74,15 @@ KeyPath provides a slider to adjust the tap-hold threshold:
 
 Hold actions (modifiers or layers) only activate when you press a key with the **other hand**. Same-hand typing always produces letters — no accidental modifiers during fast rolls.
 
-**MP4 (smooth crossfades):**
-
 <video autoplay loop muted playsinline style="max-width: 100%; border-radius: 10px;">
   <source src="{{ '/images/help/diagram-opposite-hand.mp4' | relative_url }}" type="video/mp4">
 </video>
 
-**GIF (hard cuts):**
+When you press a home row key, KeyPath doesn't know yet whether you want the letter or the modifier. It watches what happens next to decide:
 
-![Opposite-hand activation]({{ '/images/help/diagram-opposite-hand-animated.gif' | relative_url }})
+<video autoplay loop muted playsinline style="max-width: 100%; border-radius: 10px;">
+  <source src="{{ '/images/help/diagram-ambiguity.mp4' | relative_url }}" type="video/mp4">
+</video>
 
 This is enabled by default (**On Press**). The picker offers three modes:
 
