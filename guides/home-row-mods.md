@@ -96,6 +96,7 @@ The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (
 .hrm-key:hover {
   animation: none !important;
   transform: translateY(-2px);
+  background: #f9f3ea;
   box-shadow: 0 6px 0 #c8b99e, 0 8px 16px rgba(100,80,50,0.12);
   border-color: #a89478;
 }
