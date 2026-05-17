@@ -28,20 +28,7 @@ Stop reaching for the Dock or Spotlight. Hold one key, press a letter, and your 
 
 One key hold + one letter = instant access to anything on your Mac. No mouse, no Cmd+Space, no typing a name.
 
-
-![Screenshot]({{ '/images/help/use-cases-launchers-tab.png' | relative_url }})
-Screenshot — Launchers tab in the inspector panel:
-```
-  ┌─────────────────────────────────────┐
-  │  Launchers                          │
-  │                                     │
-  │  🧭 [ S ] Safari                    │
-  │  💻 [ T ] Terminal                   │
-  │  🌐 [ 1 ] github.com                │
-  │                                     │
-  │  [ + Add Shortcut ]      [ ··· ]    │
-  └─────────────────────────────────────┘
-```
+![Screenshot — KeyPath with the Rules panel open](full-window-rules-tab.png)
 
 **How to set it up:** Open the **Launchers** tab, click **Add Shortcut**, choose your key and target. See the [Launching Apps guide]({{ '/guides/action-uri/' | relative_url }}) for the full walkthrough.
 
@@ -51,14 +38,7 @@ Screenshot — Launchers tab in the inspector panel:
 
 Every keyboard shortcut requires a modifier — Command, Shift, Control, Option. Normally those keys are in the corners, forcing your hands off the home row. Home row mods put them right under your fingertips:
 
-```
-  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐     ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐
-  │  A  │ │  S  │ │  D  │ │  F  │     │  J  │ │  K  │ │  L  │ │  ;  │
-  │ ⇧   │ │ ⌃   │ │ ⌥   │ │ ⌘   │     │ ⌘   │ │ ⌥   │ │ ⌃   │ │ ⇧   │
-  └─────┘ └─────┘ └─────┘ └─────┘     └─────┘ └─────┘ └─────┘ └─────┘
-
-  Tap = letter  ·  Hold = modifier  ·  No reaching
-```
+![Screenshot — Home Row Mods pack detail](pack-detail-home-row-mods.png)
 
 Hold F + press C = Copy. Hold A + press Tab = Shift+Tab. Your hands never move.
 
