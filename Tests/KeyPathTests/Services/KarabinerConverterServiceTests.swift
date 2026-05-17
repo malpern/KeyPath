@@ -272,8 +272,8 @@ final class KarabinerConverterServiceTests: XCTestCase {
         XCTAssertEqual(mapping.input, "caps")
 
         if case let .dualRole(behavior) = mapping.behavior {
-            XCTAssertEqual(behavior.tapAction, "esc")
-            XCTAssertEqual(behavior.holdAction, "lctl")
+            XCTAssertEqual(behavior.tapAction, .keystroke(key: "esc"))
+            XCTAssertEqual(behavior.holdAction, .keystroke(key: "lctl"))
         } else {
             XCTFail("Expected dual role behavior")
         }
@@ -311,7 +311,7 @@ final class KarabinerConverterServiceTests: XCTestCase {
         if case let .chord(behavior) = mapping.behavior {
             XCTAssertTrue(behavior.keys.contains("j"))
             XCTAssertTrue(behavior.keys.contains("k"))
-            XCTAssertEqual(behavior.output, "esc")
+            XCTAssertEqual(behavior.output, .keystroke(key: "esc"))
         } else {
             XCTFail("Expected chord behavior")
         }

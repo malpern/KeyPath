@@ -19,15 +19,15 @@ public struct CLIFacade: Sendable {
     private static func describeBehavior(_ behavior: MappingBehavior) -> String {
         switch behavior {
         case let .dualRole(d):
-            "tap-hold: tap=\(d.tapAction), hold=\(d.holdAction), timeout=\(d.tapTimeout)ms"
+            "tap-hold: tap=\(d.tapActionString), hold=\(d.holdActionString), timeout=\(d.tapTimeout)ms"
         case .tapOrTapDance(.tap):
             "tap"
         case let .tapOrTapDance(.tapDance(td)):
-            "tap-dance: \(td.steps.map(\.action).joined(separator: ", "))"
+            "tap-dance: \(td.steps.map(\.actionString).joined(separator: ", "))"
         case let .macro(m):
             "macro: \(m.text ?? m.outputs.joined(separator: " "))"
         case let .chord(c):
-            "chord: \(c.keys.joined(separator: "+")) → \(c.output)"
+            "chord: \(c.keys.joined(separator: "+")) → \(c.outputString)"
         }
     }
 
@@ -53,8 +53,8 @@ public struct CLIFacade: Sendable {
             input: input,
             action: .keystroke(key: tap),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: tap,
-                holdAction: hold,
+                tapAction: .keystroke(key: tap),
+                holdAction: .keystroke(key: hold),
                 tapTimeout: timeout
             ))
         )

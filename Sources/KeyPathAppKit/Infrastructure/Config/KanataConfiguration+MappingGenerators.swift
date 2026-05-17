@@ -29,8 +29,8 @@ extension KanataConfiguration {
 
             // Create dual-role behavior: tap = letter, hold = modifier
             let behavior = DualRoleBehavior(
-                tapAction: key,
-                holdAction: holdAction,
+                tapAction: .keystroke(key: key),
+                holdAction: KanataBehaviorRenderer.parseActionString(holdAction),
                 tapTimeout: tapTimeout,
                 holdTimeout: holdTimeout,
                 activateHoldOnOtherKey: !config.oppositeHandActivation,
@@ -71,8 +71,8 @@ extension KanataConfiguration {
 
             // Create dual-role behavior: tap = letter, hold = layer activation
             let behavior = DualRoleBehavior(
-                tapAction: key,
-                holdAction: holdAction,
+                tapAction: .keystroke(key: key),
+                holdAction: KanataBehaviorRenderer.parseActionString(holdAction),
                 tapTimeout: tapTimeout,
                 holdTimeout: holdTimeout,
                 activateHoldOnOtherKey: !config.oppositeHandActivation,
@@ -128,8 +128,8 @@ extension KanataConfiguration {
 
         // Create dual-role behavior: tap = tapOutput, hold = holdOutput
         let behavior = DualRoleBehavior(
-            tapAction: tapOutput,
-            holdAction: holdOutput,
+            tapAction: KanataBehaviorRenderer.parseActionString(tapOutput),
+            holdAction: KanataBehaviorRenderer.parseActionString(holdOutput),
             tapTimeout: 200,
             holdTimeout: 200,
             activateHoldOnOtherKey: true,
@@ -165,8 +165,8 @@ extension KanataConfiguration {
 
         for key in AutoShiftSymbolsConfig.allSymbolKeys where config.enabledKeys.contains(key) {
             let behavior = DualRoleBehavior(
-                tapAction: key,
-                holdAction: "S-\(key)",
+                tapAction: KanataBehaviorRenderer.parseActionString(key),
+                holdAction: KanataBehaviorRenderer.parseActionString("S-\(key)"),
                 tapTimeout: config.timeoutMs,
                 holdTimeout: config.timeoutMs,
                 activateHoldOnOtherKey: false,

@@ -128,8 +128,8 @@ struct ConvertActionSnapshotTests {
             input: "a",
             action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "escape",
-                holdAction: "lctl"
+                tapAction: KanataBehaviorRenderer.parseActionString("escape"),
+                holdAction: .keystroke(key: "lctl")
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
@@ -142,8 +142,8 @@ struct ConvertActionSnapshotTests {
             input: "caps",
             action: .keystroke(key: "caps"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "esc",
-                holdAction: "hyper"
+                tapAction: .keystroke(key: "esc"),
+                holdAction: .hyper
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
@@ -160,9 +160,9 @@ struct ConvertActionSnapshotTests {
             behavior: .tapOrTapDance(.tapDance(TapDanceBehavior(
                 windowMs: 200,
                 steps: [
-                    TapDanceStep(label: "Single", action: "a"),
-                    TapDanceStep(label: "Double", action: "escape"),
-                    TapDanceStep(label: "Triple", action: "hyper"),
+                    TapDanceStep(label: "Single", action: .keystroke(key: "a")),
+                    TapDanceStep(label: "Double", action: KanataBehaviorRenderer.parseActionString("escape")),
+                    TapDanceStep(label: "Triple", action: .hyper),
                 ]
             )))
         )
@@ -174,14 +174,14 @@ struct ConvertActionSnapshotTests {
 
     @Test("Chord output goes through convertAction")
     func chordOutput() {
-        let chord = ChordBehavior(keys: ["j", "k"], output: "escape", timeout: 200)
+        let chord = ChordBehavior(keys: ["j", "k"], output: KanataBehaviorRenderer.parseActionString("escape"), timeout: 200)
         let result = KanataBehaviorRenderer.renderChordDefinition(chord)
         #expect(result.contains(" esc"))
     }
 
     @Test("Chord output with hyper keyword")
     func chordHyperOutput() {
-        let chord = ChordBehavior(keys: ["j", "k"], output: "hyper", timeout: 200)
+        let chord = ChordBehavior(keys: ["j", "k"], output: .hyper, timeout: 200)
         let result = KanataBehaviorRenderer.renderChordDefinition(chord)
         #expect(result.contains("(multi lctl lmet lalt lsft)"))
     }
@@ -210,8 +210,8 @@ struct ConvertActionSnapshotTests {
             input: "x",
             action: .keystroke(key: "x"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "x",
-                holdAction: holdAction
+                tapAction: .keystroke(key: "x"),
+                holdAction: KanataBehaviorRenderer.parseActionString(holdAction)
             ))
         )
         return KanataBehaviorRenderer.render(mapping, hyperLinkedLayerInfos: hyperLinkedLayerInfos)

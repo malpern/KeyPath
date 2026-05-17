@@ -18,8 +18,8 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             return XCTFail("Expected dualRole behavior")
         }
 
-        XCTAssertEqual(behavior.tapAction, "a")
-        XCTAssertEqual(behavior.holdAction, "lmet")
+        XCTAssertEqual(behavior.tapAction, .keystroke(key: "a"))
+        XCTAssertEqual(behavior.holdAction, .keystroke(key: "lmet"))
     }
 
     func testLayersModeGeneratesLayerHoldAction() {
@@ -38,8 +38,8 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             return XCTFail("Expected dualRole behavior")
         }
 
-        XCTAssertEqual(behavior.tapAction, "a")
-        XCTAssertEqual(behavior.holdAction, "(layer-toggle nav)")
+        XCTAssertEqual(behavior.tapAction, .keystroke(key: "a"))
+        XCTAssertEqual(behavior.holdAction, .rawKanata("(layer-toggle nav)"))
     }
 
     // MARK: - Opposite-Hand Activation
@@ -117,7 +117,7 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             return XCTFail("Expected dualRole behavior")
         }
 
-        XCTAssertEqual(behavior.holdAction, "(layer-while-held nav)")
+        XCTAssertEqual(behavior.holdAction, .rawKanata("(layer-while-held nav)"))
         XCTAssertTrue(behavior.useOppositeHand)
     }
 

@@ -28,8 +28,8 @@ struct KanataBehaviorRendererTests {
             input: "a",
             action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "a",
-                holdAction: "lctl"
+                tapAction: .keystroke(key: "a"),
+                holdAction: .keystroke(key: "lctl")
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
@@ -42,8 +42,8 @@ struct KanataBehaviorRendererTests {
             input: "s",
             action: .keystroke(key: "s"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "s",
-                holdAction: "lalt",
+                tapAction: .keystroke(key: "s"),
+                holdAction: .keystroke(key: "lalt"),
                 tapTimeout: 180,
                 holdTimeout: 250
             ))
@@ -58,8 +58,8 @@ struct KanataBehaviorRendererTests {
             input: "f",
             action: .keystroke(key: "f"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "f",
-                holdAction: "lmet",
+                tapAction: .keystroke(key: "f"),
+                holdAction: .keystroke(key: "lmet"),
                 activateHoldOnOtherKey: true
             ))
         )
@@ -73,8 +73,8 @@ struct KanataBehaviorRendererTests {
             input: "j",
             action: .keystroke(key: "j"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "j",
-                holdAction: "rsft",
+                tapAction: .keystroke(key: "j"),
+                holdAction: .keystroke(key: "rsft"),
                 quickTap: true
             ))
         )
@@ -100,8 +100,8 @@ struct KanataBehaviorRendererTests {
             input: "a",
             action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "a",
-                holdAction: "lctl",
+                tapAction: .keystroke(key: "a"),
+                holdAction: .keystroke(key: "lctl"),
                 activateHoldOnOtherKey: true,
                 quickTap: true
             ))
@@ -117,8 +117,8 @@ struct KanataBehaviorRendererTests {
             input: "a",
             action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "a",
-                holdAction: "lctl",
+                tapAction: .keystroke(key: "a"),
+                holdAction: .keystroke(key: "lctl"),
                 customTapKeys: ["s", "d", "f"]
             ))
         )
@@ -132,8 +132,8 @@ struct KanataBehaviorRendererTests {
             input: "a",
             action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "a",
-                holdAction: "lctl",
+                tapAction: .keystroke(key: "a"),
+                holdAction: .keystroke(key: "lctl"),
                 activateHoldOnOtherKey: true,
                 customTapKeys: ["s", "d", "f"]
             ))
@@ -192,8 +192,8 @@ struct KanataBehaviorRendererTests {
             input: "caps",
             action: .keystroke(key: "caps"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "esc",
-                holdAction: "lctl",
+                tapAction: .keystroke(key: "esc"),
+                holdAction: .keystroke(key: "lctl"),
                 activateHoldOnOtherKey: true,
                 customTapKeys: []
             ))
@@ -226,9 +226,9 @@ struct KanataBehaviorRendererTests {
             behavior: .tapOrTapDance(.tapDance(TapDanceBehavior(
                 windowMs: 150,
                 steps: [
-                    TapDanceStep(label: "Single", action: "spc"),
-                    TapDanceStep(label: "Double", action: "ret"),
-                    TapDanceStep(label: "Triple", action: "tab")
+                    TapDanceStep(label: "Single", action: .keystroke(key: "spc")),
+                    TapDanceStep(label: "Double", action: .keystroke(key: "ret")),
+                    TapDanceStep(label: "Triple", action: .keystroke(key: "tab"))
                 ]
             )))
         )
@@ -290,8 +290,8 @@ struct KanataBehaviorRendererTests {
             input: "caps",
             action: .keystroke(key: "caps"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "escape",
-                holdAction: "command"
+                tapAction: KanataBehaviorRenderer.parseActionString("escape"),
+                holdAction: KanataBehaviorRenderer.parseActionString("command")
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
@@ -352,8 +352,8 @@ struct KanataBehaviorRendererTests {
             input: "caps",
             action: .keystroke(key: "caps"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "esc",
-                holdAction: "hyper"
+                tapAction: .keystroke(key: "esc"),
+                holdAction: .hyper
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
@@ -366,8 +366,8 @@ struct KanataBehaviorRendererTests {
             input: "caps",
             action: .keystroke(key: "caps"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "esc",
-                holdAction: "meh"
+                tapAction: .keystroke(key: "esc"),
+                holdAction: .meh
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
@@ -380,8 +380,8 @@ struct KanataBehaviorRendererTests {
             input: "caps",
             action: .keystroke(key: "caps"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "esc",
-                holdAction: "HYPER"
+                tapAction: .keystroke(key: "esc"),
+                holdAction: .hyper
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
@@ -396,8 +396,8 @@ struct KanataBehaviorRendererTests {
             input: "a",
             action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "a",
-                holdAction: "lctl lmet"
+                tapAction: .keystroke(key: "a"),
+                holdAction: KanataBehaviorRenderer.parseActionString("lctl lmet")
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
@@ -412,8 +412,8 @@ struct KanataBehaviorRendererTests {
             behavior: .tapOrTapDance(.tapDance(TapDanceBehavior(
                 windowMs: 200,
                 steps: [
-                    TapDanceStep(label: "Single", action: "a"),
-                    TapDanceStep(label: "Double", action: "lctl a")
+                    TapDanceStep(label: "Single", action: .keystroke(key: "a")),
+                    TapDanceStep(label: "Double", action: KanataBehaviorRenderer.parseActionString("lctl a"))
                 ]
             )))
         )
@@ -429,8 +429,8 @@ struct KanataBehaviorRendererTests {
             behavior: .tapOrTapDance(.tapDance(TapDanceBehavior(
                 windowMs: 200,
                 steps: [
-                    TapDanceStep(label: "Single", action: "esc"),
-                    TapDanceStep(label: "Double", action: "hyper")
+                    TapDanceStep(label: "Single", action: .keystroke(key: "esc")),
+                    TapDanceStep(label: "Double", action: .hyper)
                 ]
             )))
         )
@@ -446,8 +446,8 @@ struct KanataBehaviorRendererTests {
             input: "a",
             action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "a",
-                holdAction: "(layer-while-held nav)",
+                tapAction: .keystroke(key: "a"),
+                holdAction: .rawKanata("(layer-while-held nav)"),
                 activateHoldOnOtherKey: true
             ))
         )
@@ -461,8 +461,8 @@ struct KanataBehaviorRendererTests {
             input: "a",
             action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "a",
-                holdAction: "(layer-toggle nav)",
+                tapAction: .keystroke(key: "a"),
+                holdAction: .rawKanata("(layer-toggle nav)"),
                 activateHoldOnOtherKey: true
             ))
         )
@@ -476,8 +476,8 @@ struct KanataBehaviorRendererTests {
             input: "s",
             action: .keystroke(key: "s"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "s",
-                holdAction: "(layer-while-held sym)",
+                tapAction: .keystroke(key: "s"),
+                holdAction: .rawKanata("(layer-while-held sym)"),
                 activateHoldOnOtherKey: true
             ))
         )
@@ -493,8 +493,8 @@ struct KanataBehaviorRendererTests {
             input: "a",
             action: .keystroke(key: "a"),
             behavior: .dualRole(DualRoleBehavior(
-                tapAction: "(one-shot-press 5000 (layer-while-held nav))",
-                holdAction: "lctl"
+                tapAction: .rawKanata("(one-shot-press 5000 (layer-while-held nav))"),
+                holdAction: .keystroke(key: "lctl")
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)

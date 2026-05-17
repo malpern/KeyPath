@@ -117,7 +117,7 @@ extension PackDetailView {
             return nil
         }
         if case let .dualRole(dr) = rule.behavior {
-            return (tap: dr.tapAction, hold: dr.holdAction)
+            return (tap: dr.tapActionString, hold: dr.holdActionString)
         }
         return (tap: rule.action.outputString, hold: nil)
     }

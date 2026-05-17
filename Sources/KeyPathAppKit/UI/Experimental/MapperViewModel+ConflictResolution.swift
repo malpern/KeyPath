@@ -646,8 +646,8 @@ extension MapperViewModel {
             AppLogger.shared.log("💾 [MapperViewModel] Adding macro behavior")
         } else if !holdAction.isEmpty {
             let dualRole = DualRoleBehavior(
-                tapAction: outputKanata,
-                holdAction: holdAction,
+                tapAction: KanataBehaviorRenderer.parseActionString(outputKanata),
+                holdAction: KanataBehaviorRenderer.parseActionString(holdAction),
                 tapTimeout: tapTimeout,
                 holdTimeout: holdTimeout,
                 activateHoldOnOtherKey: holdBehavior == .triggerEarly,
@@ -657,29 +657,26 @@ extension MapperViewModel {
             customRule.behavior = .dualRole(dualRole)
             AppLogger.shared.log("💾 [MapperViewModel] Adding dualRole behavior: tap='\(outputKanata)', hold='\(holdAction)'")
         } else if !doubleTapAction.isEmpty || tapDanceSteps.contains(where: { !$0.action.isEmpty }) {
-            // Build tap-dance steps: single tap + double tap + any additional steps
             var steps = [
-                TapDanceStep(label: "Single tap", action: outputKanata),
-                TapDanceStep(label: "Double tap", action: doubleTapAction)
+                TapDanceStep(label: "Single tap", action: KanataBehaviorRenderer.parseActionString(outputKanata)),
+                TapDanceStep(label: "Double tap", action: KanataBehaviorRenderer.parseActionString(doubleTapAction)),
             ]
-            // Add any additional tap-dance steps (triple tap, etc.)
             for step in advancedBehavior.tapDanceSteps where !step.action.isEmpty {
-                steps.append(TapDanceStep(label: step.label, action: step.action))
+                steps.append(TapDanceStep(label: step.label, action: KanataBehaviorRenderer.parseActionString(step.action)))
             }
             let tapDance = TapDanceBehavior(windowMs: tapTimeout, steps: steps)
             customRule.behavior = .tapOrTapDance(.tapDance(tapDance))
             AppLogger.shared.log("💾 [MapperViewModel] Adding tapDance behavior: \(steps.count) steps")
         } else if advancedBehavior.hasValidCombo {
-            // Build chord from input key + combo keys
             var allKeys = [inputKanata]
             allKeys.append(contentsOf: advancedBehavior.comboKeys)
             let chord = ChordBehavior(
                 keys: allKeys,
-                output: advancedBehavior.comboOutput,
+                output: KanataBehaviorRenderer.parseActionString(advancedBehavior.comboOutput),
                 timeout: advancedBehavior.comboTimeout
             )
             customRule.behavior = .chord(chord)
-            AppLogger.shared.log("💾 [MapperViewModel] Adding chord behavior: keys=\(allKeys), output='\(chord.output)'")
+            AppLogger.shared.log("💾 [MapperViewModel] Adding chord behavior: keys=\(allKeys), output='\(chord.outputString)'")
         }
 
         // Apply device condition: scoped output goes into deviceOverrides,

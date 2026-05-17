@@ -114,8 +114,8 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
     func testDeviceOverrideWithDualRole_RendersTapHold() {
         let behavior = MappingBehavior.dualRole(DualRoleBehavior(
-            tapAction: "a",
-            holdAction: "lctl"
+            tapAction: .keystroke(key: "a"),
+            holdAction: .keystroke(key: "lctl")
         ))
         let overrides = [
             DeviceKeyOverride(deviceHash: "0xAAAA0000", output: "a", behavior: behavior),
@@ -161,7 +161,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
             DeviceKeyOverride(
                 deviceHash: "0xAAAA0000",
                 output: "esc",
-                behavior: .dualRole(DualRoleBehavior(tapAction: "esc", holdAction: "lctl"))
+                behavior: .dualRole(DualRoleBehavior(tapAction: .keystroke(key: "esc"), holdAction: .keystroke(key: "lctl")))
             ),
             DeviceKeyOverride(deviceHash: "0xBBBB1111", output: "caps"),
         ]

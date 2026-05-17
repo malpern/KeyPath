@@ -9,8 +9,8 @@ struct MappingBehaviorTests {
     @Test("DualRoleBehavior encodes and decodes")
     func dualRoleRoundTrip() throws {
         let behavior = DualRoleBehavior(
-            tapAction: "a",
-            holdAction: "lctl",
+            tapAction: .keystroke(key: "a"),
+            holdAction: .keystroke(key: "lctl"),
             tapTimeout: 180,
             holdTimeout: 220,
             activateHoldOnOtherKey: true,
@@ -20,8 +20,8 @@ struct MappingBehaviorTests {
         let data = try JSONEncoder().encode(behavior)
         let decoded = try JSONDecoder().decode(DualRoleBehavior.self, from: data)
 
-        #expect(decoded.tapAction == "a")
-        #expect(decoded.holdAction == "lctl")
+        #expect(decoded.tapAction == .keystroke(key: "a"))
+        #expect(decoded.holdAction == .keystroke(key: "lctl"))
         #expect(decoded.tapTimeout == 180)
         #expect(decoded.holdTimeout == 220)
         #expect(decoded.activateHoldOnOtherKey == true)
@@ -30,7 +30,7 @@ struct MappingBehaviorTests {
 
     @Test("DualRoleBehavior defaults")
     func dualRoleDefaults() {
-        let behavior = DualRoleBehavior(tapAction: "j", holdAction: "lsft")
+        let behavior = DualRoleBehavior(tapAction: .keystroke(key: "j"), holdAction: .keystroke(key: "lsft"))
 
         #expect(behavior.tapTimeout == 200)
         #expect(behavior.holdTimeout == 200)
@@ -42,8 +42,8 @@ struct MappingBehaviorTests {
     func homeRowModFactory() {
         let hrm = DualRoleBehavior.homeRowMod(letter: "f", modifier: "lmet")
 
-        #expect(hrm.tapAction == "f")
-        #expect(hrm.holdAction == "lmet")
+        #expect(hrm.tapAction == .keystroke(key: "f"))
+        #expect(hrm.holdAction == .keystroke(key: "lmet"))
         #expect(hrm.activateHoldOnOtherKey == true)
         #expect(hrm.quickTap == false) // Only activateHoldOnOtherKey is set for home-row mods
     }
@@ -55,8 +55,8 @@ struct MappingBehaviorTests {
         let behavior = TapDanceBehavior(
             windowMs: 180,
             steps: [
-                TapDanceStep(label: "Single tap", action: "esc"),
-                TapDanceStep(label: "Double tap", action: "caps")
+                TapDanceStep(label: "Single tap", action: .keystroke(key: "esc")),
+                TapDanceStep(label: "Double tap", action: .keystroke(key: "caps"))
             ]
         )
 
@@ -65,8 +65,8 @@ struct MappingBehaviorTests {
 
         #expect(decoded.windowMs == 180)
         #expect(decoded.steps.count == 2)
-        #expect(decoded.steps[0].action == "esc")
-        #expect(decoded.steps[1].action == "caps")
+        #expect(decoded.steps[0].action == .keystroke(key: "esc"))
+        #expect(decoded.steps[1].action == .keystroke(key: "caps"))
     }
 
     @Test("twoStep factory")
@@ -75,8 +75,8 @@ struct MappingBehaviorTests {
 
         #expect(td.windowMs == 150)
         #expect(td.steps.count == 2)
-        #expect(td.steps[0].action == "a")
-        #expect(td.steps[1].action == "b")
+        #expect(td.steps[0].action == .keystroke(key: "a"))
+        #expect(td.steps[1].action == .keystroke(key: "b"))
     }
 
     // MARK: - MacroBehavior
@@ -113,15 +113,15 @@ struct MappingBehaviorTests {
     @Test("MappingBehavior dualRole case round-trips")
     func mappingBehaviorDualRole() throws {
         let behavior = MappingBehavior.dualRole(
-            DualRoleBehavior(tapAction: "s", holdAction: "lalt")
+            DualRoleBehavior(tapAction: .keystroke(key: "s"), holdAction: .keystroke(key: "lalt"))
         )
 
         let data = try JSONEncoder().encode(behavior)
         let decoded = try JSONDecoder().decode(MappingBehavior.self, from: data)
 
         if case let .dualRole(dr) = decoded {
-            #expect(dr.tapAction == "s")
-            #expect(dr.holdAction == "lalt")
+            #expect(dr.tapAction == .keystroke(key: "s"))
+            #expect(dr.holdAction == .keystroke(key: "lalt"))
         } else {
             Issue.record("Expected dualRole case")
         }
@@ -166,8 +166,8 @@ struct MappingBehaviorTests {
             "tapDance": {
                 "windowMs": 180,
                 "steps": [
-                    { "label": "Single tap", "action": "esc" },
-                    { "label": "Double tap", "action": "caps" }
+                    { "label": "Single tap", "action": { "keystroke": { "key": "esc" } } },
+                    { "label": "Double tap", "action": { "keystroke": { "key": "caps" } } }
                 ]
             }
         }
@@ -219,7 +219,7 @@ struct MappingBehaviorTests {
         #expect(decoded.behavior != nil)
 
         if case let .dualRole(dr) = decoded.behavior {
-            #expect(dr.holdAction == "lctl")
+            #expect(dr.holdAction == .keystroke(key: "lctl"))
         } else {
             Issue.record("Expected dualRole behavior")
         }
@@ -243,8 +243,8 @@ struct MappingBehaviorTests {
         #expect(decoded.behavior != nil)
 
         if case let .dualRole(dr) = decoded.behavior {
-            #expect(dr.tapAction == "a")
-            #expect(dr.holdAction == "lctl")
+            #expect(dr.tapAction == .keystroke(key: "a"))
+            #expect(dr.holdAction == .keystroke(key: "lctl"))
         } else {
             Issue.record("Expected dualRole behavior")
         }
@@ -253,7 +253,7 @@ struct MappingBehaviorTests {
     @Test("CustomRule.asKeyMapping passes behavior through")
     func customRuleAsKeyMapping() {
         let behavior = MappingBehavior.dualRole(
-            DualRoleBehavior(tapAction: "s", holdAction: "lalt")
+            DualRoleBehavior(tapAction: .keystroke(key: "s"), holdAction: .keystroke(key: "lalt"))
         )
         let rule = CustomRule(
             input: "s",
@@ -291,14 +291,14 @@ struct MappingBehaviorTests {
 
     @Test("DualRoleBehavior.isValid returns true for valid config")
     func dualRoleValidation() {
-        let valid = DualRoleBehavior(tapAction: "a", holdAction: "lctl")
+        let valid = DualRoleBehavior(tapAction: .keystroke(key: "a"), holdAction: .keystroke(key: "lctl"))
         #expect(valid.isValid == true)
     }
 
     @Test("DualRoleBehavior.isValid returns false when tapAction mutated to empty")
     func dualRoleInvalidTapAction() {
-        var behavior = DualRoleBehavior(tapAction: "a", holdAction: "lctl")
-        behavior.tapAction = ""
+        var behavior = DualRoleBehavior(tapAction: .keystroke(key: "a"), holdAction: .keystroke(key: "lctl"))
+        behavior.tapAction = .empty
         #expect(behavior.isValid == false)
     }
 
@@ -319,7 +319,7 @@ struct MappingBehaviorTests {
     @Test("TapDanceBehavior.isValid returns false when all actions empty")
     func tapDanceEmptyActions() {
         var behavior = TapDanceBehavior.twoStep(singleTap: "a", doubleTap: "b")
-        behavior.steps = [TapDanceStep(label: "Single", action: "")]
+        behavior.steps = [TapDanceStep(label: "Single", action: .empty)]
         #expect(behavior.isValid == false)
     }
 
@@ -329,7 +329,7 @@ struct MappingBehaviorTests {
     func chordRoundTrip() throws {
         let behavior = ChordBehavior(
             keys: ["j", "k"],
-            output: "esc",
+            output: .keystroke(key: "esc"),
             timeout: 250,
             description: "Navigation escape"
         )
@@ -338,14 +338,14 @@ struct MappingBehaviorTests {
         let decoded = try JSONDecoder().decode(ChordBehavior.self, from: data)
 
         #expect(decoded.keys == ["j", "k"])
-        #expect(decoded.output == "esc")
+        #expect(decoded.output == .keystroke(key: "esc"))
         #expect(decoded.timeout == 250)
         #expect(decoded.description == "Navigation escape")
     }
 
     @Test("ChordBehavior defaults")
     func chordDefaults() {
-        let behavior = ChordBehavior(keys: ["s", "d"], output: "enter")
+        let behavior = ChordBehavior(keys: ["s", "d"], output: .keystroke(key: "enter"))
 
         #expect(behavior.timeout == 200)
         #expect(behavior.description == nil)
@@ -353,48 +353,48 @@ struct MappingBehaviorTests {
 
     @Test("ChordBehavior.twoKey factory")
     func chordTwoKeyFactory() {
-        let chord = ChordBehavior.twoKey("j", "k", output: "esc", description: "Quick escape")
+        let chord = ChordBehavior.twoKey("j", "k", output: .keystroke(key: "esc"), description: "Quick escape")
 
         #expect(chord.keys == ["j", "k"])
-        #expect(chord.output == "esc")
+        #expect(chord.output == .keystroke(key: "esc"))
         #expect(chord.timeout == 200) // default
         #expect(chord.description == "Quick escape")
     }
 
     @Test("ChordBehavior.threeKey factory")
     func chordThreeKeyFactory() {
-        let chord = ChordBehavior.threeKey("s", "d", "f", output: "C-x", description: "Cut")
+        let chord = ChordBehavior.threeKey("s", "d", "f", output: .keystroke(key: "C-x"), description: "Cut")
 
         #expect(chord.keys == ["s", "d", "f"])
-        #expect(chord.output == "C-x")
+        #expect(chord.output == .keystroke(key: "C-x"))
         #expect(chord.timeout == 200) // default
         #expect(chord.description == "Cut")
     }
 
     @Test("ChordBehavior.isValid returns true for valid config")
     func chordValidation() {
-        let valid = ChordBehavior(keys: ["j", "k"], output: "esc")
+        let valid = ChordBehavior(keys: ["j", "k"], output: .keystroke(key: "esc"))
         #expect(valid.isValid == true)
     }
 
     @Test("ChordBehavior.isValid returns false when keys mutated to single")
     func chordInvalidSingleKey() {
-        var behavior = ChordBehavior(keys: ["j", "k"], output: "esc")
+        var behavior = ChordBehavior(keys: ["j", "k"], output: .keystroke(key: "esc"))
         behavior.keys = ["j"]
         #expect(behavior.isValid == false)
     }
 
     @Test("ChordBehavior.isValid returns false when output mutated to empty")
     func chordInvalidEmptyOutput() {
-        var behavior = ChordBehavior(keys: ["j", "k"], output: "esc")
-        behavior.output = ""
+        var behavior = ChordBehavior(keys: ["j", "k"], output: .keystroke(key: "esc"))
+        behavior.output = .empty
         #expect(behavior.isValid == false)
     }
 
     @Test("ChordBehavior.groupName generates consistent name")
     func chordGroupName() {
-        let chord1 = ChordBehavior(keys: ["j", "k"], output: "esc")
-        let chord2 = ChordBehavior(keys: ["k", "j"], output: "esc") // reversed order
+        let chord1 = ChordBehavior(keys: ["j", "k"], output: .keystroke(key: "esc"))
+        let chord2 = ChordBehavior(keys: ["k", "j"], output: .keystroke(key: "esc")) // reversed order
 
         // Group names should be same regardless of key order (sorted)
         #expect(chord1.groupName == chord2.groupName)
@@ -403,14 +403,14 @@ struct MappingBehaviorTests {
 
     @Test("ChordBehavior timeout clamped to minimum 50ms")
     func chordTimeoutClamped() {
-        let chord = ChordBehavior(keys: ["a", "b"], output: "x", timeout: 10)
+        let chord = ChordBehavior(keys: ["a", "b"], output: .keystroke(key: "x"), timeout: 10)
         #expect(chord.timeout == 50) // clamped to 50
     }
 
     @Test("MappingBehavior chord case round-trips")
     func mappingBehaviorChord() throws {
         let behavior = MappingBehavior.chord(
-            ChordBehavior(keys: ["j", "k"], output: "esc", timeout: 200)
+            ChordBehavior(keys: ["j", "k"], output: .keystroke(key: "esc"), timeout: 200)
         )
 
         let data = try JSONEncoder().encode(behavior)
@@ -418,7 +418,7 @@ struct MappingBehaviorTests {
 
         if case let .chord(ch) = decoded {
             #expect(ch.keys == ["j", "k"])
-            #expect(ch.output == "esc")
+            #expect(ch.output == .keystroke(key: "esc"))
         } else {
             Issue.record("Expected chord case")
         }
@@ -429,7 +429,7 @@ struct MappingBehaviorTests {
         let mapping = KeyMapping(
             input: "j",
             action: .keystroke(key: "_"), // placeholder - chord doesn't use individual output
-            behavior: .chord(ChordBehavior.twoKey("j", "k", output: "esc"))
+            behavior: .chord(ChordBehavior.twoKey("j", "k", output: .keystroke(key: "esc")))
         )
 
         let data = try JSONEncoder().encode(mapping)
@@ -440,7 +440,7 @@ struct MappingBehaviorTests {
 
         if case let .chord(ch) = decoded.behavior {
             #expect(ch.keys == ["j", "k"])
-            #expect(ch.output == "esc")
+            #expect(ch.output == .keystroke(key: "esc"))
         } else {
             Issue.record("Expected chord behavior")
         }
@@ -452,7 +452,7 @@ struct MappingBehaviorTests {
             title: "J+K Escape",
             input: "j",
             action: .keystroke(key: "_"),
-            behavior: .chord(ChordBehavior.twoKey("j", "k", output: "esc"))
+            behavior: .chord(ChordBehavior.twoKey("j", "k", output: .keystroke(key: "esc")))
         )
 
         let data = try JSONEncoder().encode(rule)
@@ -463,7 +463,7 @@ struct MappingBehaviorTests {
 
         if case let .chord(ch) = decoded.behavior {
             #expect(ch.keys == ["j", "k"])
-            #expect(ch.output == "esc")
+            #expect(ch.output == .keystroke(key: "esc"))
         } else {
             Issue.record("Expected chord behavior")
         }

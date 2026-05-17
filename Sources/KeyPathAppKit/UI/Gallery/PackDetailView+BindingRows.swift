@@ -217,8 +217,8 @@ extension PackDetailView {
                 RuleBehaviorSummaryView(
                     behavior: .dualRole(
                         DualRoleBehavior(
-                            tapAction: template.output,
-                            holdAction: hold
+                            tapAction: KanataBehaviorRenderer.parseActionString(template.output),
+                            holdAction: KanataBehaviorRenderer.parseActionString(hold)
                         )
                     )
                 )

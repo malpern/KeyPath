@@ -99,58 +99,22 @@ public enum TapOrTapDanceBehavior: Codable, Equatable, Sendable {
 /// 6. `quickTap` → `tap-hold-release`
 /// 7. Otherwise → `tap-hold` (basic)
 public struct DualRoleBehavior: Codable, Equatable, Sendable {
-    /// Action when tapped (e.g., "a", "esc", or a macro string).
-    public var tapAction: String
-
-    /// Action when held (e.g., "lctl", "lmet", or layer switch).
-    public var holdAction: String
-
-    /// Milliseconds before a press is considered a hold. Default 200. Must be > 0.
+    public var tapAction: KeyAction
+    public var holdAction: KeyAction
     public var tapTimeout: Int
-
-    /// Milliseconds for the hold to fully activate. Default 200. Must be > 0.
     public var holdTimeout: Int
-
-    /// If true, any other key press while waiting triggers the hold action early.
-    /// Maps to Kanata's `tap-hold-press` variant.
     public var activateHoldOnOtherKey: Bool
-
-    /// If true, releasing before timeout still triggers tap even if another key was pressed.
-    /// Maps to Kanata's `tap-hold-release` variant (quick-tap / permissive-hold behavior).
     public var quickTap: Bool
-
-    /// List of keys that trigger early tap when pressed.
-    /// Maps to Kanata's `tap-hold-release-keys` variant (legacy).
-    /// Only used when `customTapKeys` is non-empty and other flags are false.
     public var customTapKeys: [String]
-
-    /// If true, uses Kanata's `tap-hold-opposite-hand` variant (press-time).
-    /// Requires a global `defhands` block to define left/right hand keys.
     public var useOppositeHand: Bool
-
-    /// If true, uses Kanata's `tap-hold-opposite-hand-release` variant (release-time).
-    /// More forgiving than `useOppositeHand` — waits for the interrupting key's full
-    /// press+release before committing to hold. Requires `defhands`.
     public var useOppositeHandRelease: Bool
-
-    /// If true, uses Kanata's `tap-hold-release-order` variant.
-    /// Purely release-order based — no timeout latency. If another key is pressed and
-    /// released while held, resolves as hold; if released first, resolves as tap.
-    /// Uses a single timeout (`tapTimeout` as buffer-ms).
     public var useReleaseOrder: Bool
-
-    /// Per-action override for `tap-hold-require-prior-idle`.
-    /// When set, appends `(require-prior-idle N)` to the tap-hold expression.
-    /// Use `0` to disable idle detection for this specific action.
-    /// When `nil`, the global defcfg value applies.
     public var requirePriorIdleOverrideMs: Int?
 
-    // Custom decoder for backward compatibility: older saved rules may not
-    // contain useOppositeHandRelease, useReleaseOrder, or requirePriorIdleOverrideMs.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        tapAction = try container.decode(String.self, forKey: .tapAction)
-        holdAction = try container.decode(String.self, forKey: .holdAction)
+        tapAction = try container.decode(KeyAction.self, forKey: .tapAction)
+        holdAction = try container.decode(KeyAction.self, forKey: .holdAction)
         tapTimeout = try container.decodeIfPresent(Int.self, forKey: .tapTimeout) ?? 200
         holdTimeout = try container.decodeIfPresent(Int.self, forKey: .holdTimeout) ?? 200
         activateHoldOnOtherKey = try container.decodeIfPresent(Bool.self, forKey: .activateHoldOnOtherKey) ?? false
@@ -170,8 +134,8 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
     }
 
     public init(
-        tapAction: String,
-        holdAction: String,
+        tapAction: KeyAction,
+        holdAction: KeyAction,
         tapTimeout: Int = 200,
         holdTimeout: Int = 200,
         activateHoldOnOtherKey: Bool = false,
@@ -184,7 +148,6 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
     ) {
         self.tapAction = tapAction
         self.holdAction = holdAction
-        // Clamp to minimum of 1ms to prevent invalid configs
         self.tapTimeout = max(1, tapTimeout)
         self.holdTimeout = max(1, holdTimeout)
         self.activateHoldOnOtherKey = activateHoldOnOtherKey
@@ -196,10 +159,12 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
         self.requirePriorIdleOverrideMs = requirePriorIdleOverrideMs
     }
 
-    /// Returns true if the configuration is valid for rendering.
     public var isValid: Bool {
         !tapAction.isEmpty && !holdAction.isEmpty && tapTimeout > 0 && holdTimeout > 0
     }
+
+    public var tapActionString: String { tapAction.outputString }
+    public var holdActionString: String { holdAction.outputString }
 }
 
 // MARK: - Tap Dance
@@ -214,12 +179,10 @@ public struct TapDanceBehavior: Codable, Equatable, Sendable {
     public var steps: [TapDanceStep]
 
     public init(windowMs: Int = 200, steps: [TapDanceStep]) {
-        // Clamp to minimum of 1ms to prevent invalid configs
         self.windowMs = max(1, windowMs)
         self.steps = steps
     }
 
-    /// Returns true if the configuration is valid for rendering.
     public var isValid: Bool {
         windowMs > 0 && steps.contains { !$0.action.isEmpty }
     }
@@ -227,16 +190,15 @@ public struct TapDanceBehavior: Codable, Equatable, Sendable {
 
 /// A single step in a tap-dance sequence.
 public struct TapDanceStep: Codable, Equatable, Sendable {
-    /// Human-readable label (e.g., "Single tap", "Double tap").
     public var label: String
+    public var action: KeyAction
 
-    /// The action to perform (key name, macro, etc.).
-    public var action: String
-
-    public init(label: String, action: String) {
+    public init(label: String, action: KeyAction) {
         self.label = label
         self.action = action
     }
+
+    public var actionString: String { action.outputString }
 }
 
 // MARK: - Macro Behavior
@@ -248,17 +210,9 @@ public struct MacroBehavior: Codable, Equatable, Sendable {
         case keys
     }
 
-    /// Keys to output in sequence (e.g., ["M-c", "v"])
     public var outputs: [String]
-
-    /// Optional text string (alternative to outputs array).
-    /// When set, expands to individual character keys.
     public var text: String?
-
-    /// User-facing description for the macro.
     public var description: String?
-
-    /// Which editor source is active.
     public var source: Source
 
     public init(
@@ -277,12 +231,10 @@ public struct MacroBehavior: Codable, Equatable, Sendable {
         }
     }
 
-    /// Returns true if the configuration is valid for rendering.
     public var isValid: Bool {
         validationErrors.isEmpty
     }
 
-    /// Returns the effective output keys (from text or outputs array).
     public var effectiveOutputs: [String] {
         switch source {
         case .text:
@@ -329,28 +281,25 @@ public struct MacroBehavior: Codable, Equatable, Sendable {
 // MARK: - Convenience Factories
 
 public extension DualRoleBehavior {
-    /// Create a home-row mod behavior (letter on tap, modifier on hold).
-    /// Uses `tap-hold-press` variant (hold activates immediately on other key press).
     static func homeRowMod(letter: String, modifier: String) -> DualRoleBehavior {
         DualRoleBehavior(
-            tapAction: letter,
-            holdAction: modifier,
+            tapAction: .keystroke(key: letter),
+            holdAction: .keystroke(key: modifier),
             tapTimeout: 200,
             holdTimeout: 200,
-            activateHoldOnOtherKey: true, // Best for home-row mods
+            activateHoldOnOtherKey: true,
             quickTap: false
         )
     }
 }
 
 public extension TapDanceBehavior {
-    /// Create a simple two-step tap-dance (single tap, double tap).
     static func twoStep(singleTap: String, doubleTap: String, windowMs: Int = 200) -> TapDanceBehavior {
         TapDanceBehavior(
             windowMs: windowMs,
             steps: [
-                TapDanceStep(label: "Single tap", action: singleTap),
-                TapDanceStep(label: "Double tap", action: doubleTap)
+                TapDanceStep(label: "Single tap", action: KanataBehaviorRenderer.parseActionString(singleTap)),
+                TapDanceStep(label: "Double tap", action: KanataBehaviorRenderer.parseActionString(doubleTap)),
             ]
         )
     }
@@ -363,44 +312,32 @@ public extension TapDanceBehavior {
 /// Chords allow combinations like j+k → Esc or s+d → Backspace.
 /// Uses Kanata's `defchords` syntax for implementation.
 public struct ChordBehavior: Codable, Equatable, Sendable {
-    /// All keys in the chord (e.g., ["j", "k"]).
-    /// Order doesn't matter - any order triggers the chord.
     public var keys: [String]
-
-    /// Action when chord is triggered (e.g., "esc", "bspc", "C-x").
-    public var output: String
-
-    /// Time window (ms) for chord detection. Default 200. Must be > 0.
-    /// Larger values make chords easier to trigger but may cause misfires.
+    public var output: KeyAction
     public var timeout: Int
-
-    /// Optional human-readable description of the chord's purpose.
     public var description: String?
 
     public init(
         keys: [String],
-        output: String,
+        output: KeyAction,
         timeout: Int = 200,
         description: String? = nil
     ) {
-        // Validation: need at least 2 keys for a chord
         precondition(keys.count >= 2, "ChordBehavior requires at least 2 keys")
         precondition(!output.isEmpty, "ChordBehavior output cannot be empty")
 
         self.keys = keys
         self.output = output
-        // Clamp to minimum of 50ms to prevent unrealistic values
         self.timeout = max(50, timeout)
         self.description = description
     }
 
-    /// Returns true if the configuration is valid for rendering.
     public var isValid: Bool {
         keys.count >= 2 && !output.isEmpty && timeout >= 50
     }
 
-    /// A unique group name for this chord (used in Kanata defchords).
-    /// Generated from the sorted keys to ensure consistency.
+    public var outputString: String { output.outputString }
+
     public var groupName: String {
         "kp-chord-" + keys.sorted().joined(separator: "-")
     }
@@ -409,13 +346,11 @@ public struct ChordBehavior: Codable, Equatable, Sendable {
 // MARK: - Chord Convenience Factories
 
 public extension ChordBehavior {
-    /// Create a simple two-key chord.
-    static func twoKey(_ key1: String, _ key2: String, output: String, description: String? = nil) -> ChordBehavior {
+    static func twoKey(_ key1: String, _ key2: String, output: KeyAction, description: String? = nil) -> ChordBehavior {
         ChordBehavior(keys: [key1, key2], output: output, description: description)
     }
 
-    /// Create a three-key chord.
-    static func threeKey(_ key1: String, _ key2: String, _ key3: String, output: String, description: String? = nil) -> ChordBehavior {
+    static func threeKey(_ key1: String, _ key2: String, _ key3: String, output: KeyAction, description: String? = nil) -> ChordBehavior {
         ChordBehavior(keys: [key1, key2, key3], output: output, description: description)
     }
 }

@@ -29,8 +29,8 @@ struct KanataBehaviorParserTests {
             return
         }
 
-        #expect(dr.tapAction == "a")
-        #expect(dr.holdAction == "lctl")
+        #expect(dr.tapAction == .keystroke(key: "a"))
+        #expect(dr.holdAction == .keystroke(key: "lctl"))
         #expect(dr.tapTimeout == 200)
         #expect(dr.holdTimeout == 200)
         #expect(dr.activateHoldOnOtherKey == false)
@@ -59,8 +59,8 @@ struct KanataBehaviorParserTests {
             return
         }
 
-        #expect(dr.tapAction == "f")
-        #expect(dr.holdAction == "lmet")
+        #expect(dr.tapAction == .keystroke(key: "f"))
+        #expect(dr.holdAction == .keystroke(key: "lmet"))
         #expect(dr.activateHoldOnOtherKey == true)
         #expect(dr.quickTap == false)
     }
@@ -74,8 +74,8 @@ struct KanataBehaviorParserTests {
             return
         }
 
-        #expect(dr.tapAction == "j")
-        #expect(dr.holdAction == "rsft")
+        #expect(dr.tapAction == .keystroke(key: "j"))
+        #expect(dr.holdAction == .keystroke(key: "rsft"))
         #expect(dr.activateHoldOnOtherKey == false)
         #expect(dr.quickTap == true)
     }
@@ -89,8 +89,8 @@ struct KanataBehaviorParserTests {
             return
         }
 
-        #expect(dr.tapAction == "a")
-        #expect(dr.holdAction == "lctl")
+        #expect(dr.tapAction == .keystroke(key: "a"))
+        #expect(dr.holdAction == .keystroke(key: "lctl"))
         #expect(dr.activateHoldOnOtherKey == false)
         #expect(dr.quickTap == false)
         #expect(dr.customTapKeys == ["s", "d", "f"])
@@ -99,8 +99,8 @@ struct KanataBehaviorParserTests {
     @Test("Custom tap keys round-trips through render and parse")
     func customTapKeysRoundTrip() {
         let original = DualRoleBehavior(
-            tapAction: "a",
-            holdAction: "lctl",
+            tapAction: .keystroke(key: "a"),
+            holdAction: .keystroke(key: "lctl"),
             customTapKeys: ["s", "d", "f"]
         )
         let mapping = KeyMapping(input: "a", action: .keystroke(key: "a"), behavior: .dualRole(original))
@@ -132,9 +132,9 @@ struct KanataBehaviorParserTests {
 
         #expect(td.windowMs == 200)
         #expect(td.steps.count == 2)
-        #expect(td.steps[0].action == "esc")
+        #expect(td.steps[0].action == .keystroke(key: "esc"))
         #expect(td.steps[0].label == "Single Tap")
-        #expect(td.steps[1].action == "caps")
+        #expect(td.steps[1].action == .keystroke(key: "caps"))
         #expect(td.steps[1].label == "Double Tap")
     }
 
@@ -151,7 +151,7 @@ struct KanataBehaviorParserTests {
 
         #expect(td.windowMs == 150)
         #expect(td.steps.count == 3)
-        #expect(td.steps[2].action == "tab")
+        #expect(td.steps[2].action == .keystroke(key: "tab"))
         #expect(td.steps[2].label == "Triple Tap")
     }
 
@@ -172,8 +172,8 @@ struct KanataBehaviorParserTests {
     @Test("Dual-role round-trips through render and parse")
     func dualRoleRoundTrip() {
         let original = DualRoleBehavior(
-            tapAction: "a",
-            holdAction: "lctl",
+            tapAction: .keystroke(key: "a"),
+            holdAction: .keystroke(key: "lctl"),
             tapTimeout: 180,
             holdTimeout: 220
         )
@@ -234,8 +234,8 @@ struct KanataBehaviorParserTests {
             return
         }
 
-        #expect(dr.tapAction == "esc")
-        #expect(dr.holdAction == "(multi lctl lmet lalt lsft)")
+        #expect(dr.tapAction == .keystroke(key: "esc"))
+        #expect(dr.holdAction == .rawKanata("(multi lctl lmet lalt lsft)"))
         #expect(dr.tapTimeout == 200)
         #expect(dr.holdTimeout == 200)
     }
@@ -253,16 +253,16 @@ struct KanataBehaviorParserTests {
 
         #expect(td.windowMs == 200)
         #expect(td.steps.count == 2)
-        #expect(td.steps[0].action == "esc")
-        #expect(td.steps[1].action == "(multi lctl lmet lalt lsft)")
+        #expect(td.steps[0].action == .keystroke(key: "esc"))
+        #expect(td.steps[1].action == .rawKanata("(multi lctl lmet lalt lsft)"))
     }
 
     @Test("Hyper round-trips through render and parse")
     func hyperRoundTrip() {
         // Render hyper
         let original = DualRoleBehavior(
-            tapAction: "esc",
-            holdAction: "hyper"
+            tapAction: .keystroke(key: "esc"),
+            holdAction: .hyper
         )
         let mapping = KeyMapping(input: "caps", action: .keystroke(key: "caps"), behavior: .dualRole(original))
         let rendered = KanataBehaviorRenderer.render(mapping)
@@ -279,7 +279,7 @@ struct KanataBehaviorParserTests {
         }
 
         // Hold action is stored as the expanded form
-        #expect(dr.tapAction == "esc")
-        #expect(dr.holdAction == "(multi lctl lmet lalt lsft)")
+        #expect(dr.tapAction == .keystroke(key: "esc"))
+        #expect(dr.holdAction == .rawKanata("(multi lctl lmet lalt lsft)"))
     }
 }

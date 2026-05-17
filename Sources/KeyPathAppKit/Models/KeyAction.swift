@@ -310,6 +310,17 @@ public extension KeyAction {
     }
 }
 
+// MARK: - Empty State
+
+public extension KeyAction {
+    static let empty: KeyAction = .keystroke(key: "")
+
+    var isEmpty: Bool {
+        if case let .keystroke(key) = self { return key.isEmpty }
+        return false
+    }
+}
+
 // MARK: - Convenience Factories
 
 public extension KeyAction {

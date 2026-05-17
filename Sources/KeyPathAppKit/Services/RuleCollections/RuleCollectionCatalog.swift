@@ -432,12 +432,12 @@ struct RuleCollectionCatalog {
                 // Mapping will be generated based on selectedTapOutput and selectedHoldOutput
                 KeyMapping(
                     input: "caps",
-                    action: .keystroke(key: "hyper"),
+                    action: .hyper,
                     description: "Tap: Hyper, Hold: Hyper",
                     behavior: .dualRole(
                         DualRoleBehavior(
-                            tapAction: "hyper",
-                            holdAction: "hyper",
+                            tapAction: .hyper,
+                            holdAction: .hyper,
                             tapTimeout: 200,
                             holdTimeout: 200,
                             activateHoldOnOtherKey: false,

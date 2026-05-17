@@ -29,8 +29,8 @@ final class CustomRuleDeviceOverrideTests: XCTestCase {
 
     func testDeviceOverrideWithBehavior() {
         let dualRole = DualRoleBehavior(
-            tapAction: "b",
-            holdAction: "lctl",
+            tapAction: .keystroke(key: "b"),
+            holdAction: .keystroke(key: "lctl"),
             tapTimeout: 200,
             holdTimeout: 200
         )
@@ -43,7 +43,7 @@ final class CustomRuleDeviceOverrideTests: XCTestCase {
 
         XCTAssertNotNil(mapping.deviceOverrides?.first?.behavior)
         if case .dualRole(let loaded) = mapping.deviceOverrides?.first?.behavior {
-            XCTAssertEqual(loaded.holdAction, "lctl")
+            XCTAssertEqual(loaded.holdAction, .keystroke(key: "lctl"))
         } else {
             XCTFail("Expected dualRole behavior")
         }
@@ -100,8 +100,8 @@ final class CustomRuleDeviceOverrideTests: XCTestCase {
     func testCodableRoundTripWithBehaviorOverride() throws {
         let fixedDate = Date(timeIntervalSinceReferenceDate: 2000)
         let dualRole = DualRoleBehavior(
-            tapAction: "b",
-            holdAction: "lctl",
+            tapAction: .keystroke(key: "b"),
+            holdAction: .keystroke(key: "lctl"),
             tapTimeout: 200,
             holdTimeout: 200
         )
@@ -124,7 +124,7 @@ final class CustomRuleDeviceOverrideTests: XCTestCase {
         XCTAssertEqual(decoded, original)
         XCTAssertEqual(decoded.deviceOverrides?.count, 1)
         if case .dualRole(let loaded) = decoded.deviceOverrides?.first?.behavior {
-            XCTAssertEqual(loaded.holdAction, "lctl")
+            XCTAssertEqual(loaded.holdAction, .keystroke(key: "lctl"))
         } else {
             XCTFail("Expected dualRole behavior after round-trip")
         }

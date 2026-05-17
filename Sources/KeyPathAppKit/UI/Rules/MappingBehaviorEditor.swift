@@ -61,7 +61,7 @@ struct MappingBehaviorEditor: View {
                     }
                     // Initialize tap-dance with at least one step if empty
                     if tapDanceSteps.isEmpty {
-                        tapDanceSteps = [TapDanceStep(label: "Single tap", action: output)]
+                        tapDanceSteps = [TapDanceStep(label: "Single tap", action: KanataBehaviorRenderer.parseActionString(output))]
                     }
                     syncBehaviorFromState()
                 }
@@ -248,9 +248,9 @@ struct MappingBehaviorEditor: View {
                                 .foregroundColor(.secondary)
                                 .font(.caption)
                             TextField("action", text: Binding(
-                                get: { tapDanceSteps[index].action },
+                                get: { tapDanceSteps[index].actionString },
                                 set: { newValue in
-                                    tapDanceSteps[index].action = newValue
+                                    tapDanceSteps[index].action = KanataBehaviorRenderer.parseActionString(newValue)
                                     syncBehaviorFromState()
                                 }
                             ))
@@ -273,7 +273,7 @@ struct MappingBehaviorEditor: View {
                         Button {
                             let labels = ["Single tap", "Double tap", "Triple tap", "Quad tap", "Quint tap"]
                             let nextLabel = labels[min(tapDanceSteps.count, labels.count - 1)]
-                            tapDanceSteps.append(TapDanceStep(label: nextLabel, action: ""))
+                            tapDanceSteps.append(TapDanceStep(label: nextLabel, action: .empty))
                         } label: {
                             Label("Add Step", systemImage: "plus.circle")
                                 .font(.caption)
@@ -328,8 +328,8 @@ struct MappingBehaviorEditor: View {
         switch behavior {
         case let .dualRole(dr):
             behaviorType = .dualRole
-            tapAction = dr.tapAction
-            holdAction = dr.holdAction
+            tapAction = dr.tapActionString
+            holdAction = dr.holdActionString
             tapTimeout = dr.tapTimeout
             holdTimeout = dr.holdTimeout
             activateHoldOnOtherKey = dr.activateHoldOnOtherKey
@@ -370,8 +370,8 @@ struct MappingBehaviorEditor: View {
                 return
             }
             behavior = .dualRole(DualRoleBehavior(
-                tapAction: tapAction,
-                holdAction: holdAction,
+                tapAction: KanataBehaviorRenderer.parseActionString(tapAction),
+                holdAction: KanataBehaviorRenderer.parseActionString(holdAction),
                 tapTimeout: tapTimeout,
                 holdTimeout: holdTimeout,
                 activateHoldOnOtherKey: activateHoldOnOtherKey,
@@ -414,8 +414,8 @@ struct MappingBehaviorEditor: View {
         @State var output = "esc"
         @State var behavior: MappingBehavior? = .dualRole(
             DualRoleBehavior(
-                tapAction: "esc",
-                holdAction: "lctl",
+                tapAction: .keystroke(key: "esc"),
+                holdAction: .keystroke(key: "lctl"),
                 tapTimeout: 180,
                 holdTimeout: 180
             )
@@ -438,8 +438,8 @@ struct MappingBehaviorEditor: View {
                 TapDanceBehavior(
                     windowMs: 220,
                     steps: [
-                        TapDanceStep(label: "Single", action: "a"),
-                        TapDanceStep(label: "Double", action: "esc")
+                        TapDanceStep(label: "Single", action: .keystroke(key: "a")),
+                        TapDanceStep(label: "Double", action: .keystroke(key: "esc")),
                     ]
                 )
             )

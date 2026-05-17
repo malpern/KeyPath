@@ -15,7 +15,7 @@ struct RuleBehaviorSummaryView: View {
         HStack(spacing: 6) {
             switch behavior {
             case let .dualRole(dr):
-                behaviorItem(icon: "hand.point.up.left", label: "Hold", key: dr.holdAction)
+                behaviorItem(icon: "hand.point.up.left", label: "Hold", key: dr.holdActionString)
 
             case let .tapOrTapDance(tapBehavior):
                 if case let .tapDance(td) = tapBehavior {
@@ -42,7 +42,7 @@ struct RuleBehaviorSummaryView: View {
                 behaviorItem(
                     icon: "rectangle.on.rectangle",
                     label: "Combo",
-                    key: ch.keys.joined(separator: "+") + " → " + ch.output
+                    key: ch.keys.joined(separator: "+") + " → " + ch.outputString
                 )
             }
         }
@@ -73,7 +73,7 @@ struct RuleBehaviorSummaryView: View {
             guard !step.action.isEmpty else { continue }
             let labelIndex = index - 1
             let label = labelIndex < tapLabels.count ? tapLabels[labelIndex] : "\(index + 1)× Tap"
-            items.append((icon: "hand.tap", label: label, key: step.action))
+            items.append((icon: "hand.tap", label: label, key: step.actionString))
         }
         return items
     }

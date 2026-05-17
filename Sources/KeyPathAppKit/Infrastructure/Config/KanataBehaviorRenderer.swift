@@ -190,20 +190,17 @@ public enum KanataBehaviorRenderer {
 
     // MARK: - Action Conversion
 
-    /// Convert an action string to Kanata syntax.
-    /// Handles special keywords (hyper, meh) and multi-key combinations.
-    /// This is the bridge between string-typed behavior fields and kanata output.
-    /// It parses the string into a KeyAction, then renders via kanataOutput —
-    /// except for hyper with linked layers, which needs renderer context.
-    private static func convertAction(_ action: String, hyperLinkedLayerInfos: [HyperLinkedLayerInfo]) -> String {
-        let parsed = parseActionString(action)
-
-        // Hyper with linked layers needs renderer-level context (layer infos)
-        if case .hyper = parsed, !hyperLinkedLayerInfos.isEmpty {
+    /// Convert a KeyAction to Kanata syntax, handling hyper with linked layers.
+    static func convertAction(_ action: KeyAction, hyperLinkedLayerInfos: [HyperLinkedLayerInfo]) -> String {
+        if case .hyper = action, !hyperLinkedLayerInfos.isEmpty {
             return renderHyperWithLayers(hyperLinkedLayerInfos)
         }
+        return action.kanataOutput
+    }
 
-        return parsed.kanataOutput
+    /// Legacy: parse a string and convert to Kanata syntax. For UI boundary use.
+    static func convertActionFromString(_ action: String, hyperLinkedLayerInfos: [HyperLinkedLayerInfo]) -> String {
+        convertAction(parseActionString(action), hyperLinkedLayerInfos: hyperLinkedLayerInfos)
     }
 
     /// Parse a string action into a typed KeyAction.

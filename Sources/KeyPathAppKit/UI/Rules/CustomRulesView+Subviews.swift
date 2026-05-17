@@ -434,7 +434,7 @@ struct CustomRuleRow: View {
         HStack(spacing: 6) {
             switch behavior {
             case let .dualRole(dr):
-                behaviorItem(icon: "hand.point.up.left", label: "Hold", key: dr.holdAction)
+                behaviorItem(icon: "hand.point.up.left", label: "Hold", key: dr.holdActionString)
 
             case let .tapOrTapDance(tapBehavior):
                 if case let .tapDance(td) = tapBehavior {
@@ -462,7 +462,7 @@ struct CustomRuleRow: View {
                 behaviorItem(
                     icon: "rectangle.on.rectangle",
                     label: "Combo",
-                    key: ch.keys.joined(separator: "+") + " → " + ch.output
+                    key: ch.keys.joined(separator: "+") + " → " + ch.outputString
                 )
             }
         }
@@ -486,7 +486,7 @@ struct CustomRuleRow: View {
             let label = labelIndex < tapLabels.count ? tapLabels[labelIndex] : "\(index + 1)× Tap"
             let icon = labelIndex < tapIcons.count ? tapIcons[labelIndex] : "hand.tap"
 
-            behaviorItems.append((icon, label, step.action))
+            behaviorItems.append((icon, label, step.actionString))
         }
 
         return behaviorItems
