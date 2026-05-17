@@ -57,7 +57,7 @@ public extension View {
 
 // MARK: - Internal Entry
 
-struct WindowAnchoredPopoverEntry: Identifiable, Equatable {
+struct WindowAnchoredPopoverEntry: Identifiable, Equatable, @unchecked Sendable {
     let id: UUID
     let anchor: Anchor<CGRect>
     let edge: WindowAnchoredPopoverEdge
