@@ -133,4 +133,93 @@ final class HardViewSnapshotTests: ScreenshotTestCase {
             perceptualPrecision: 0.98
         )
     }
+
+    // MARK: - Pack Detail Views
+
+    func testPackDetailHomeRowMods() {
+        let vm = MockFactories.kanataViewModel()
+        let view = PackDetailView(pack: PackRegistry.homeRowMods)
+            .environment(vm)
+            .frame(width: 720, height: 700)
+        assertScreenshot(
+            of: view,
+            size: CGSize(width: 720, height: 700),
+            named: "pack-detail-home-row-mods",
+            precision: 0.98,
+            perceptualPrecision: 0.98
+        )
+    }
+
+    func testPackDetailVimNavigation() {
+        let vm = MockFactories.kanataViewModel()
+        let view = PackDetailView(pack: PackRegistry.vimNavigation)
+            .environment(vm)
+            .frame(width: 720, height: 700)
+        assertScreenshot(
+            of: view,
+            size: CGSize(width: 720, height: 700),
+            named: "pack-detail-vim-navigation",
+            precision: 0.98,
+            perceptualPrecision: 0.98
+        )
+    }
+
+    func testPackDetailCapsLockRemap() {
+        let vm = MockFactories.kanataViewModel()
+        let view = PackDetailView(pack: PackRegistry.capsLockToEscape)
+            .environment(vm)
+            .frame(width: 720, height: 700)
+        assertScreenshot(
+            of: view,
+            size: CGSize(width: 720, height: 700),
+            named: "pack-detail-caps-lock-remap",
+            precision: 0.98,
+            perceptualPrecision: 0.98
+        )
+    }
+
+    func testRulesTabView() {
+        let vm = MockFactories.kanataViewModel()
+        let view = RulesTabView()
+            .environment(vm)
+            .frame(width: 720, height: 700)
+        assertScreenshot(
+            of: view,
+            size: CGSize(width: 720, height: 700),
+            named: "settings-rules-tab",
+            precision: 0.98,
+            perceptualPrecision: 0.98
+        )
+    }
+
+    // MARK: - Full Window Composites (Keyboard + Inspector)
+
+    func testFullWindowWithRulesTab() {
+        let keyboardVM = MockFactories.keyboardVisualizationViewModel()
+        let uiState = MockFactories.overlayUIState(healthState: .healthy)
+        let inspector = MockFactories.inspectorPanel(
+            selectedSection: .customRules,
+            hasCustomRules: true
+        )
+        let view = HStack(spacing: 0) {
+            LiveKeyboardOverlayView(
+                viewModel: keyboardVM,
+                uiState: uiState,
+                inspectorWidth: 0,
+                isMapperAvailable: true,
+                kanataViewModel: nil
+            )
+            Divider()
+            inspector
+                .frame(width: 420)
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+        assertScreenshot(
+            of: view,
+            size: CGSize(width: 1400, height: 800),
+            named: "full-window-rules-tab",
+            precision: 0.98,
+            perceptualPrecision: 0.98
+        )
+    }
 }
