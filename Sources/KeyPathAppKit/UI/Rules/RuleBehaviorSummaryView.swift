@@ -42,7 +42,7 @@ struct RuleBehaviorSummaryView: View {
                 behaviorItem(
                     icon: "rectangle.on.rectangle",
                     label: "Combo",
-                    key: ch.keys.joined(separator: "+") + " → " + ch.outputString
+                    key: ch.keys.joined(separator: "+") + " → " + ch.output.displayName
                 )
             }
         }

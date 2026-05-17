@@ -42,7 +42,7 @@ struct OverlayDialogsModifier: ViewModifier {
                 },
                 message: {
                     if let pending = pendingDeleteRule {
-                        Text("Delete \(pending.override.inputKey) → \(pending.override.action.outputString) for \(pending.keymap.mapping.displayName)?")
+                        Text("Delete \(pending.override.inputKey) → \(pending.override.action.displayName) for \(pending.keymap.mapping.displayName)?")
                     }
                 }
             )

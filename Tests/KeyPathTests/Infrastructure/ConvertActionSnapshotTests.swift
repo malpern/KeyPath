@@ -200,6 +200,94 @@ struct ConvertActionSnapshotTests {
         #expect(result.contains(" M-c)"))
     }
 
+    // MARK: - Structured Action Round-Trip
+
+    @Test("parseActionString reconstructs launchApp from kanata output")
+    func roundTripLaunchApp() {
+        let original = KeyAction.launchApp(name: "com.apple.Safari", bundleId: "com.apple.Safari")
+        let parsed = KanataBehaviorRenderer.parseActionString(original.kanataOutput)
+        #expect(parsed.kanataOutput == original.kanataOutput)
+        if case .launchApp = parsed {} else {
+            Issue.record("Expected .launchApp, got \(parsed)")
+        }
+    }
+
+    @Test("parseActionString reconstructs openURL from kanata output")
+    func roundTripOpenURL() {
+        let original = KeyAction.openURL("https://example.com/path?q=1")
+        let parsed = KanataBehaviorRenderer.parseActionString(original.kanataOutput)
+        #expect(parsed.kanataOutput == original.kanataOutput)
+        if case .openURL = parsed {} else {
+            Issue.record("Expected .openURL, got \(parsed)")
+        }
+    }
+
+    @Test("parseActionString reconstructs windowAction from kanata output")
+    func roundTripWindowAction() {
+        let original = KeyAction.windowAction(position: "left-half")
+        let parsed = KanataBehaviorRenderer.parseActionString(original.kanataOutput)
+        #expect(parsed.kanataOutput == original.kanataOutput)
+        if case .windowAction = parsed {} else {
+            Issue.record("Expected .windowAction, got \(parsed)")
+        }
+    }
+
+    @Test("parseActionString reconstructs systemAction from kanata output")
+    func roundTripSystemAction() {
+        let original = KeyAction.systemAction(id: "mission-control")
+        let parsed = KanataBehaviorRenderer.parseActionString(original.kanataOutput)
+        #expect(parsed.kanataOutput == original.kanataOutput)
+        if case .systemAction = parsed {} else {
+            Issue.record("Expected .systemAction, got \(parsed)")
+        }
+    }
+
+    @Test("parseActionString reconstructs notify from kanata output")
+    func roundTripNotify() {
+        let original = KeyAction.notify(title: "Hello", body: "World", sound: true)
+        let parsed = KanataBehaviorRenderer.parseActionString(original.kanataOutput)
+        #expect(parsed.kanataOutput == original.kanataOutput)
+        if case .notify = parsed {} else {
+            Issue.record("Expected .notify, got \(parsed)")
+        }
+    }
+
+    @Test("parseActionString reconstructs fakeKey from kanata output")
+    func roundTripFakeKey() {
+        let original = KeyAction.fakeKey(name: "kp-layer-vim-enter", action: .tap)
+        let parsed = KanataBehaviorRenderer.parseActionString(original.kanataOutput)
+        #expect(parsed.kanataOutput == original.kanataOutput)
+        if case .fakeKey = parsed {} else {
+            Issue.record("Expected .fakeKey, got \(parsed)")
+        }
+    }
+
+    @Test("parseActionString reconstructs activateLayer from kanata output")
+    func roundTripActivateLayer() {
+        let original = KeyAction.activateLayer(name: "vim")
+        let parsed = KanataBehaviorRenderer.parseActionString(original.kanataOutput)
+        #expect(parsed.kanataOutput == original.kanataOutput)
+        if case .activateLayer = parsed {} else {
+            Issue.record("Expected .activateLayer, got \(parsed)")
+        }
+    }
+
+    @Test("parseActionString reconstructs hyper from S-expression")
+    func roundTripHyperSexpr() {
+        let parsed = KanataBehaviorRenderer.parseActionString("(multi lctl lmet lalt lsft)")
+        if case .hyper = parsed {} else {
+            Issue.record("Expected .hyper, got \(parsed)")
+        }
+    }
+
+    @Test("parseActionString reconstructs meh from S-expression")
+    func roundTripMehSexpr() {
+        let parsed = KanataBehaviorRenderer.parseActionString("(multi lctl lalt lsft)")
+        if case .meh = parsed {} else {
+            Issue.record("Expected .meh, got \(parsed)")
+        }
+    }
+
     // MARK: - Helpers
 
     private func renderHold(

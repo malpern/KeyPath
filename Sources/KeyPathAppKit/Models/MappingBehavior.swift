@@ -323,9 +323,6 @@ public struct ChordBehavior: Codable, Equatable, Sendable {
         timeout: Int = 200,
         description: String? = nil
     ) {
-        precondition(keys.count >= 2, "ChordBehavior requires at least 2 keys")
-        precondition(!output.isEmpty, "ChordBehavior output cannot be empty")
-
         self.keys = keys
         self.output = output
         self.timeout = max(50, timeout)

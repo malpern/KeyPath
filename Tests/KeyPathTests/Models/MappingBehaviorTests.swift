@@ -391,6 +391,18 @@ struct MappingBehaviorTests {
         #expect(behavior.isValid == false)
     }
 
+    @Test("ChordBehavior constructed with empty output does not crash")
+    func chordEmptyOutputConstruction() {
+        let chord = ChordBehavior(keys: ["j", "k"], output: .empty)
+        #expect(chord.isValid == false)
+    }
+
+    @Test("ChordBehavior constructed with single key does not crash")
+    func chordSingleKeyConstruction() {
+        let chord = ChordBehavior(keys: ["j"], output: .keystroke(key: "esc"))
+        #expect(chord.isValid == false)
+    }
+
     @Test("ChordBehavior.groupName generates consistent name")
     func chordGroupName() {
         let chord1 = ChordBehavior(keys: ["j", "k"], output: .keystroke(key: "esc"))

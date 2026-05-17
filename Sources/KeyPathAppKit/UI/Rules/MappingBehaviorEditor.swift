@@ -365,13 +365,15 @@ struct MappingBehaviorEditor: View {
 
         switch behaviorType {
         case .dualRole:
-            guard !tapAction.isEmpty, !holdAction.isEmpty else {
+            let trimmedTap = tapAction.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedHold = holdAction.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedTap.isEmpty, !trimmedHold.isEmpty else {
                 behavior = nil
                 return
             }
             behavior = .dualRole(DualRoleBehavior(
-                tapAction: KanataBehaviorRenderer.parseActionString(tapAction),
-                holdAction: KanataBehaviorRenderer.parseActionString(holdAction),
+                tapAction: KanataBehaviorRenderer.parseActionString(trimmedTap),
+                holdAction: KanataBehaviorRenderer.parseActionString(trimmedHold),
                 tapTimeout: tapTimeout,
                 holdTimeout: holdTimeout,
                 activateHoldOnOtherKey: activateHoldOnOtherKey,

@@ -235,7 +235,7 @@ struct KanataBehaviorParserTests {
         }
 
         #expect(dr.tapAction == .keystroke(key: "esc"))
-        #expect(dr.holdAction == .rawKanata("(multi lctl lmet lalt lsft)"))
+        #expect(dr.holdAction == .hyper)
         #expect(dr.tapTimeout == 200)
         #expect(dr.holdTimeout == 200)
     }
@@ -254,7 +254,7 @@ struct KanataBehaviorParserTests {
         #expect(td.windowMs == 200)
         #expect(td.steps.count == 2)
         #expect(td.steps[0].action == .keystroke(key: "esc"))
-        #expect(td.steps[1].action == .rawKanata("(multi lctl lmet lalt lsft)"))
+        #expect(td.steps[1].action == .hyper)
     }
 
     @Test("Hyper round-trips through render and parse")
@@ -278,8 +278,8 @@ struct KanataBehaviorParserTests {
             return
         }
 
-        // Hold action is stored as the expanded form
+        // Hyper is now reconstructed from its S-expression
         #expect(dr.tapAction == .keystroke(key: "esc"))
-        #expect(dr.holdAction == .rawKanata("(multi lctl lmet lalt lsft)"))
+        #expect(dr.holdAction == .hyper)
     }
 }

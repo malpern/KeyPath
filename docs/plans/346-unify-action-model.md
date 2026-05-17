@@ -1,6 +1,6 @@
 # Implementation Plan: Unify Action Data Model (#346)
 
-## Status: Phase 1 complete, early Phase 2 complete
+## Status: Phase 2 complete — ready for Phase 3
 
 No users yet — no migration/backward-compat needed. We can change types directly.
 
@@ -16,6 +16,7 @@ No users yet — no migration/backward-compat needed. We can change types direct
 | `convertAction` refactor strategy? | Parse string → `KeyAction` → `.kanataOutput` (single source of truth) |
 | Hyper with linked layers? | Stays in renderer (`renderHyperWithLayers`) since it depends on context |
 | Final rename target? | TBD — `Action` is generic, consider `MappingAction` or keep `KeyAction` |
+| UI layer strings? | **Keep as `String`** — AdvancedBehaviorManager/MappingBehaviorEditor are presentation boundaries for TextField bindings. Shared model is fully typed; no new capability from pushing KeyAction into view state. |
 
 ## Phases
 
@@ -26,28 +27,28 @@ Added: `.hyper`, `.meh`, `.notify(title:body:sound:)`, `.windowAction(position:)
 Implemented `kanataOutput`, `displayName`, `autoDescription`, `commonDisplayInfo`, type checks.
 Added `FakeKeyAction` enum (tap/press/release/toggle).
 
-### Phase 2 — Replace string action fields in behaviors
+### Phase 2 — Replace string action fields in behaviors ✅ DONE
 
-**Early Phase 2 (convertAction refactor) ✅ DONE:**
+**Early Phase 2 (convertAction refactor):**
 - `convertAction` now parses string → `KeyAction` → `.kanataOutput`
 - `parseActionString()` exposed as public static method
-- All 494 tests pass with identical output (proving behavioral equivalence)
 
-**Remaining Phase 2 (next session):**
-- Change `DualRoleBehavior.tapAction/holdAction` from `String` → `KeyAction`
-- Change `TapDanceStep.action` from `String` → `KeyAction`
-- Change `ChordBehavior.output` from `String` → `KeyAction`
-- Update `KanataBehaviorRenderer.convertAction` to accept `KeyAction` directly
-- Update all UI editors (mapper, behavior editor, context HUD)
-- Update config generators (home-row mods, chord groups)
-- ~230 call sites (mechanical, safe with existing test coverage)
+**Full Phase 2 (behavior model types):**
+- `DualRoleBehavior.tapAction/holdAction`: `String` → `KeyAction`
+- `TapDanceStep.action`: `String` → `KeyAction`
+- `ChordBehavior.output`: `String` → `KeyAction`
+- `KanataBehaviorRenderer.convertAction` accepts `KeyAction` directly
+- Added `convertActionFromString` for legacy UI boundary use
+- Added `KeyAction.empty` / `.isEmpty` for unconfigured state
+- Added `.tapActionString` / `.holdActionString` / `.actionString` / `.outputString` bridge accessors
+- 30 source files, 11 test files updated (~144 call sites)
+- All 494 tests pass with identical kanata config output
 
-Key files:
-- `Sources/KeyPathAppKit/Models/MappingBehavior.swift`
-- `Sources/KeyPathAppKit/Infrastructure/Config/KanataBehaviorRenderer.swift`
-- `Sources/KeyPathAppKit/UI/Experimental/MapperViewModel.swift`
-- `Sources/KeyPathAppKit/UI/Experimental/MappingBehaviorEditor.swift`
-- `Sources/KeyPathAppKit/Infrastructure/Config/KanataConfiguration+MappingGenerators.swift`
+**UI layer left as String (by design):**
+- `AdvancedBehaviorManager.holdAction`, `.doubleTapAction`, `.comboOutput`, `.tapDanceSteps` stay `String`
+- `MappingBehaviorEditor` `@State` vars stay `String`
+- Conversion at boundary: `.outputString` when reading, `parseActionString()` when writing
+- These are TextField binding concerns, not shared model — no capability gap
 
 ### Phase 3 — Remaining string fields
 
@@ -77,7 +78,7 @@ Key file:
 ## Critical Path
 
 ```
-Phase 1 ✅ → Phase 2 (in progress) → Phase 3 + Phase 4 (parallel) → Phase 5
+Phase 1 ✅ → Phase 2 ✅ → Phase 3 + Phase 4 (parallel) → Phase 5
 ```
 
 ## Safety Net
@@ -87,7 +88,7 @@ Phase 1 ✅ → Phase 2 (in progress) → Phase 3 + Phase 4 (parallel) → Phase
 - `ConvertActionSnapshotTests` — every convertAction input pattern
 - `BehaviorRenderingGoldenTests` — exact string output for all behavior variants
 
-**Verification strategy for Phase 2:** After changing types, all golden tests must pass unchanged. If any test breaks, the refactor changed observable config output.
+**Verification strategy:** After changing types, all golden tests must pass unchanged. If any test breaks, the refactor changed observable config output. This held through Phase 2 — all 494 tests passed after the migration.
 
 ## Simplifications (no users)
 
@@ -99,6 +100,5 @@ Phase 1 ✅ → Phase 2 (in progress) → Phase 3 + Phase 4 (parallel) → Phase
 ## Notes
 
 - `MacroBehavior.outputs` stays `[String]` — macro steps are keystroke sequences, not general actions
-- UI editors currently use `@State` strings for tap/hold — will need conversion to `KeyAction` bindings
-- `parseActionString()` can be used at UI boundaries to convert user-entered strings to `KeyAction`
+- `parseActionString()` normalizes keys via `KanataKeyConverter` at construction time, so model holds already-normalized values
 - The renderer's `renderHyperWithLayers()` produces context-dependent output that can't live in `KeyAction.kanataOutput` (needs layer infos from the config generator context)

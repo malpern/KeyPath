@@ -332,7 +332,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             // Show up to 5 mappings
             for override in keymap.overrides.prefix(5) {
                 let mappingItem = NSMenuItem(
-                    title: "  \(override.inputKey) → \(KeyDisplayFormatter.format(override.action.outputString))",
+                    title: "  \(override.inputKey) → \(KeyDisplayFormatter.format(override.action.displayName))",
                     action: #selector(handleAppMappingClick),
                     keyEquivalent: ""
                 )

@@ -208,8 +208,11 @@ public enum KanataBehaviorRenderer {
     static func parseActionString(_ action: String) -> KeyAction {
         let stripped = action.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Already a Kanata S-expression — pass through as rawKanata
+        // S-expressions: try structured parsing before falling back to rawKanata
         if stripped.hasPrefix("("), stripped.hasSuffix(")") {
+            if let structured = parseStructuredAction(stripped) {
+                return structured
+            }
             return .rawKanata(stripped)
         }
 
@@ -238,6 +241,104 @@ public enum KanataBehaviorRenderer {
         return .keystroke(key: converted)
     }
 
+    /// Attempt to parse a Kanata S-expression into a structured KeyAction case.
+    /// Returns nil if the expression doesn't match any known structured pattern.
+    private static func parseStructuredAction(_ expr: String) -> KeyAction? {
+        if let pushMsg = extractPushMsgValue(expr) {
+            return parsePushMsg(pushMsg)
+        }
+
+        if expr == "(multi lctl lmet lalt lsft)" {
+            return .hyper
+        }
+        if expr == "(multi lctl lalt lsft)" {
+            return .meh
+        }
+
+        if let fakeKey = parseFakeKeyExpr(expr) {
+            return fakeKey
+        }
+
+        if let layerName = parseLayerSwitchExpr(expr) {
+            return .activateLayer(name: layerName)
+        }
+
+        return nil
+    }
+
+    /// Extract the quoted value from `(push-msg "VALUE")`.
+    private static func extractPushMsgValue(_ expr: String) -> String? {
+        let prefix = "(push-msg \""
+        let suffix = "\")"
+        guard expr.hasPrefix(prefix), expr.hasSuffix(suffix) else { return nil }
+        let start = expr.index(expr.startIndex, offsetBy: prefix.count)
+        let end = expr.index(expr.endIndex, offsetBy: -suffix.count)
+        guard start < end else { return nil }
+        return String(expr[start ..< end])
+    }
+
+    /// Parse a push-msg payload into the appropriate KeyAction.
+    private static func parsePushMsg(_ value: String) -> KeyAction? {
+        if let id = value.stripPrefix("launch:") {
+            return .launchApp(name: id, bundleId: id)
+        }
+        if let encoded = value.stripPrefix("open:") {
+            return .openURL(URLMappingFormatter.decodeFromPushMessage(encoded))
+        }
+        if let path = value.stripPrefix("folder:") {
+            return .openFolder(path: path, name: nil)
+        }
+        if let path = value.stripPrefix("script:") {
+            return .runScript(path: path, name: nil)
+        }
+        if let id = value.stripPrefix("system:") {
+            return .systemAction(id: id)
+        }
+        if let params = value.stripPrefix("notify?") {
+            return parseNotifyParams(params)
+        }
+        if let position = value.stripPrefix("window:") {
+            return .windowAction(position: position)
+        }
+        return nil
+    }
+
+    /// Parse `title=X&body=Y&sound=1` into a `.notify` action.
+    private static func parseNotifyParams(_ params: String) -> KeyAction? {
+        var title = ""
+        var body: String?
+        var sound = false
+        for part in params.components(separatedBy: "&") {
+            if let val = part.stripPrefix("title=") {
+                title = val
+            } else if let val = part.stripPrefix("body=") {
+                body = val
+            } else if part == "sound=1" {
+                sound = true
+            }
+        }
+        guard !title.isEmpty else { return nil }
+        return .notify(title: title, body: body, sound: sound)
+    }
+
+    /// Parse `(on-press-fakekey NAME ACTION)` into a `.fakeKey` action.
+    private static func parseFakeKeyExpr(_ expr: String) -> KeyAction? {
+        let prefix = "(on-press-fakekey "
+        guard expr.hasPrefix(prefix), expr.hasSuffix(")") else { return nil }
+        let body = String(expr.dropFirst(prefix.count).dropLast())
+        let parts = body.split(separator: " ", maxSplits: 1)
+        guard parts.count == 2, let action = FakeKeyAction(rawValue: String(parts[1])) else { return nil }
+        return .fakeKey(name: String(parts[0]), action: action)
+    }
+
+    /// Parse `(layer-switch NAME)` into an `.activateLayer` action.
+    private static func parseLayerSwitchExpr(_ expr: String) -> String? {
+        let prefix = "(layer-switch "
+        guard expr.hasPrefix(prefix), expr.hasSuffix(")") else { return nil }
+        let name = String(expr.dropFirst(prefix.count).dropLast())
+        return name.isEmpty ? nil : name
+    }
+
     /// Render hyper with linked layer activations (context-dependent output).
     private static func renderHyperWithLayers(_ hyperLinkedLayerInfos: [HyperLinkedLayerInfo]) -> String {
         var components = ["lctl", "lmet", "lalt", "lsft"]
@@ -255,5 +356,12 @@ public enum KanataBehaviorRenderer {
             }
         }
         return "(multi \(components.joined(separator: " ")))"
+    }
+}
+
+private extension String {
+    func stripPrefix(_ prefix: String) -> String? {
+        guard hasPrefix(prefix) else { return nil }
+        return String(dropFirst(prefix.count))
     }
 }

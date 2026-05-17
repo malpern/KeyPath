@@ -115,7 +115,7 @@ struct CustomRulesView: View {
             }
         } message: {
             if let pending = pendingDeleteAppRule {
-                Text("Delete \(pending.override.inputKey) → \(pending.override.action.outputString) from \(pending.keymap.mapping.displayName)?")
+                Text("Delete \(pending.override.inputKey) → \(pending.override.action.displayName) from \(pending.keymap.mapping.displayName)?")
             }
         }
         .settingsBackground()

@@ -119,7 +119,7 @@ extension PackDetailView {
         if case let .dualRole(dr) = rule.behavior {
             return (tap: dr.tapActionString, hold: dr.holdActionString)
         }
-        return (tap: rule.action.outputString, hold: nil)
+        return (tap: rule.action.displayName, hold: nil)
     }
 
     /// Read the current persisted Home Row Mods config so the embedded

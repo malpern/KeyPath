@@ -370,7 +370,7 @@ struct CustomRuleRow: View {
                         } else if let layerName = layerSwitchIdentifier {
                             LayerSwitchChip(layerName: layerName)
                         } else {
-                            KeyCapChip(text: rule.action.outputString)
+                            KeyCapChip(text: rule.action.displayName)
                         }
 
                         // Behavior summary on same line
@@ -462,7 +462,7 @@ struct CustomRuleRow: View {
                 behaviorItem(
                     icon: "rectangle.on.rectangle",
                     label: "Combo",
-                    key: ch.keys.joined(separator: "+") + " → " + ch.outputString
+                    key: ch.keys.joined(separator: "+") + " → " + ch.output.displayName
                 )
             }
         }
