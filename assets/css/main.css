@@ -8270,7 +8270,9 @@ a.button:active {
 .parchment-theme .content .article-header-image .article-header-img {
     width: 100%;
     max-width: none;
-    height: auto;
+    height: clamp(120px, 25vw, 280px);
+    object-fit: cover;
+    object-position: center 72%;
     display: block;
     margin: 0;
     mix-blend-mode: multiply;
