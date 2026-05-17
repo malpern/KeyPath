@@ -560,8 +560,8 @@ struct KarabinerConverterService: Sendable {
         let holdTimeout = manipulator.parameters?.basicToIfHeldDownThresholdMilliseconds ?? 500
 
         let behavior = MappingBehavior.dualRole(DualRoleBehavior(
-            tapAction: tapAction,
-            holdAction: holdAction,
+            tapAction: KanataBehaviorRenderer.parseActionString(tapAction),
+            holdAction: KanataBehaviorRenderer.parseActionString(holdAction),
             tapTimeout: tapTimeout,
             holdTimeout: holdTimeout,
             activateHoldOnOtherKey: true
@@ -640,7 +640,7 @@ struct KarabinerConverterService: Sendable {
 
         let behavior = MappingBehavior.chord(ChordBehavior(
             keys: chordKeys,
-            output: output,
+            output: KanataBehaviorRenderer.parseActionString(output),
             timeout: max(50, timeout),
             description: rule
         ))

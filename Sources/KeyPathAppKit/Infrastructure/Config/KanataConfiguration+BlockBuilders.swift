@@ -289,7 +289,7 @@ extension KanataConfiguration {
                     let aliasName = behaviorAliasName(for: mapping, layer: collection.targetLayer)
                     let behaviorComment: String? = switch behavior {
                     case let .dualRole(dr):
-                        "tap: \(dr.tapAction)  hold: \(dr.holdAction)"
+                        "tap: \(dr.tapActionString)  hold: \(dr.holdActionString)"
                     default:
                         nil
                     }

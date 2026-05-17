@@ -103,24 +103,21 @@ ALIAS DEFINITIONS (defalias)
       (one-shot-press 65000 (layer-while-held nav))))  ;; tap: spc  hold: Navigation layer
 
   ;; --- Tap-Hold Behaviors ---
-  beh_base_caps (tap-hold-press $tap-timeout $hold-timeout esc
+  beh_base_caps (tap-hold-press $tap-timeout $hold-timeout
   (multi
       lctl
       lmet
       lalt
       lsft
-      (layer-while-held launcher)
-      (on-press-fakekey kp-layer-launcher-enter tap)
-      (on-release-fakekey kp-layer-launcher-exit tap)
-    ))  ;; tap: esc  hold: hyper
-  beh_base_; (tap-hold-opposite-hand 150 ; rsft)  ;; tap: ;  hold: rsft
-  beh_base_a (tap-hold-opposite-hand 150 a lsft)  ;; tap: a  hold: lsft
-  beh_base_d (tap-hold-opposite-hand 150 d lalt)  ;; tap: d  hold: lalt
-  beh_base_f (tap-hold-opposite-hand 150 f lmet)  ;; tap: f  hold: lmet
-  beh_base_j (tap-hold-opposite-hand 150 j rmet)  ;; tap: j  hold: rmet
-  beh_base_k (tap-hold-opposite-hand 150 k ralt)  ;; tap: k  hold: ralt
-  beh_base_l (tap-hold-opposite-hand 150 l rctl)  ;; tap: l  hold: rctl
-  beh_base_s (tap-hold-opposite-hand 150 s lctl)  ;; tap: s  hold: lctl
+    )(multi lctl lmet lalt lsft (layer-while-held launcher) (on-press-fakekey kp-layer-launcher-enter tap) (on-release-fakekey kp-layer-launcher-exit tap)))  ;; tap: hyper  hold: hyper
+  beh_base_; (tap-hold-opposite-hand 150 ; rsft)  ;; tap: keystroke(key: ";")  hold: keystroke(key: "rsft")
+  beh_base_a (tap-hold-opposite-hand 150 a lsft)  ;; tap: keystroke(key: "a")  hold: keystroke(key: "lsft")
+  beh_base_d (tap-hold-opposite-hand 150 d lalt)  ;; tap: keystroke(key: "d")  hold: keystroke(key: "lalt")
+  beh_base_f (tap-hold-opposite-hand 150 f lmet)  ;; tap: keystroke(key: "f")  hold: keystroke(key: "lmet")
+  beh_base_j (tap-hold-opposite-hand 150 j rmet)  ;; tap: keystroke(key: "j")  hold: keystroke(key: "rmet")
+  beh_base_k (tap-hold-opposite-hand 150 k ralt)  ;; tap: keystroke(key: "k")  hold: keystroke(key: "ralt")
+  beh_base_l (tap-hold-opposite-hand 150 l rctl)  ;; tap: keystroke(key: "l")  hold: keystroke(key: "rctl")
+  beh_base_s (tap-hold-opposite-hand 150 s lctl)  ;; tap: keystroke(key: "s")  hold: keystroke(key: "lctl")
 
   ;; --- Modifier Forks ---
   fork_nav_a (fork right (multi lmet right) (lsft rsft))

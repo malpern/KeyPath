@@ -248,15 +248,15 @@ public final class PackInstaller {
             return nil
         }()
 
-        let newTap = tap ?? existingDual?.tapAction ?? rule.action.outputString
-        let newHold = hold ?? existingDual?.holdAction
+        let newTap = tap ?? existingDual?.tapActionString ?? rule.action.outputString
+        let newHold = hold ?? existingDual?.holdActionString
 
         if let newHold, !newHold.isEmpty {
             rule.action = .keystroke(key: newTap)
             rule.behavior = .dualRole(
                 DualRoleBehavior(
-                    tapAction: newTap,
-                    holdAction: newHold,
+                    tapAction: KanataBehaviorRenderer.parseActionString(newTap),
+                    holdAction: KanataBehaviorRenderer.parseActionString(newHold),
                     tapTimeout: existingDual?.tapTimeout ?? 200,
                     holdTimeout: existingDual?.holdTimeout ?? 200,
                     activateHoldOnOtherKey: existingDual?.activateHoldOnOtherKey ?? true,
@@ -321,8 +321,8 @@ public final class PackInstaller {
             let behavior: MappingBehavior? = template.holdOutput.map { holdOutput in
                 .dualRole(
                     DualRoleBehavior(
-                        tapAction: template.output,
-                        holdAction: holdOutput,
+                        tapAction: KanataBehaviorRenderer.parseActionString(template.output),
+                        holdAction: KanataBehaviorRenderer.parseActionString(holdOutput),
                         tapTimeout: holdMs,
                         holdTimeout: holdMs,
                         activateHoldOnOtherKey: true,

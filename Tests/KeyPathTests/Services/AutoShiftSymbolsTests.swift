@@ -102,8 +102,8 @@ struct AutoShiftMappingGenerationTests {
             return
         }
 
-        #expect(behavior.tapAction == "dot")
-        #expect(behavior.holdAction == "S-dot")
+        #expect(behavior.tapAction == .keystroke(key: "."))
+        #expect(behavior.holdAction == .keystroke(key: "S-."))
         #expect(behavior.tapTimeout == 200)
         #expect(behavior.holdTimeout == 200)
         #expect(behavior.activateHoldOnOtherKey == false)

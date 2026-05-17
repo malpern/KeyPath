@@ -221,7 +221,7 @@ private extension RuleCollectionRow {
                         .font(.callout)
                         .foregroundColor(.secondary)
 
-                    Text(mapping.action.outputString)
+                    Text(mapping.action.displayName)
                         .font(.callout.monospaced().weight(.medium))
                         .foregroundColor(.primary)
                         .padding(.horizontal, 8)
@@ -294,7 +294,7 @@ private struct MappingTableView: View {
             ForEach(collection.mappings) { mapping in
                 HStack(spacing: 0) {
                     keyCell(prettyKeyName(mapping.input), width: 80)
-                    actionCell(mapping.description ?? formatOutput(mapping.action.outputString), width: 120)
+                    actionCell(mapping.description ?? formatOutput(mapping.action.displayName), width: 120)
                     if hasShiftVariants {
                         modifierCell(mapping.shiftedOutput.map { formatOutput($0) }, width: 100, color: .orange)
                     }

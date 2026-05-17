@@ -176,7 +176,7 @@ extension PackDetailView {
                     }
                     MappingTableContent(
                         mappings: collection.mappings.map {
-                            ($0.input, $0.action.outputString, $0.shiftedOutput, $0.ctrlOutput,
+                            ($0.input, $0.action.displayName, $0.shiftedOutput, $0.ctrlOutput,
                              $0.description, $0.sectionBreak, isInstalled, $0.id, nil)
                         }
                     )
@@ -217,8 +217,8 @@ extension PackDetailView {
                 RuleBehaviorSummaryView(
                     behavior: .dualRole(
                         DualRoleBehavior(
-                            tapAction: template.output,
-                            holdAction: hold
+                            tapAction: KanataBehaviorRenderer.parseActionString(template.output),
+                            holdAction: KanataBehaviorRenderer.parseActionString(hold)
                         )
                     )
                 )

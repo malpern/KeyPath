@@ -61,7 +61,7 @@ struct AppRuleRowCompact: View {
                         } else if let layerName = layerSwitchIdentifier {
                             RulesSummaryLayerSwitchChip(layerName: layerName)
                         } else {
-                            Text(prettyKeyName(override.action.outputString))
+                            Text(prettyKeyName(override.action.displayName))
                                 .font(.body.monospaced().weight(.semibold))
                                 .foregroundColor(KeycapStyle.textColor)
                                 .modifier(KeycapStyle())

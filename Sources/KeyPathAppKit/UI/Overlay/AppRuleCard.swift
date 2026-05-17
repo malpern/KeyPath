@@ -77,7 +77,7 @@ struct AppRuleCard: View {
                     .foregroundStyle(.secondary)
 
                 // Output key chip
-                KeyChip(text: override.action.outputString)
+                KeyChip(text: override.action.displayName)
 
                 Spacer(minLength: 4)
 
@@ -92,7 +92,7 @@ struct AppRuleCard: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("edit-rule-\(override.id)")
-                    .accessibilityLabel("Edit rule \(override.inputKey) to \(override.action.outputString)")
+                    .accessibilityLabel("Edit rule \(override.inputKey) to \(override.action.displayName)")
 
                     Button { onDelete(override) } label: {
                         Image(systemName: "trash")
@@ -103,7 +103,7 @@ struct AppRuleCard: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("delete-rule-\(override.id)")
-                    .accessibilityLabel("Delete rule \(override.inputKey) to \(override.action.outputString)")
+                    .accessibilityLabel("Delete rule \(override.inputKey) to \(override.action.displayName)")
                 }
             }
             .padding(.vertical, 4)
@@ -215,10 +215,10 @@ struct GlobalRulesCard: View {
                             .foregroundStyle(.secondary)
 
                         // Output - show layer chip for layer switches, otherwise regular key chip
-                        if let layerName = LayerInfo.extractLayerName(from: rule.action.outputString) {
+                        if let layerName = LayerInfo.extractLayerName(from: rule.action.kanataOutput) {
                             DrawerLayerChip(layerName: layerName)
                         } else {
-                            GlobalKeyChip(text: rule.action.outputString)
+                            GlobalKeyChip(text: rule.action.displayName)
                         }
 
                         Spacer(minLength: 0)
@@ -244,7 +244,7 @@ struct GlobalRulesCard: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("edit-global-rule-\(rule.id)")
-                        .accessibilityLabel("Edit rule \(rule.input) to \(rule.action.outputString)")
+                        .accessibilityLabel("Edit rule \(rule.input) to \(rule.action.displayName)")
 
                         Button { onDelete(rule) } label: {
                             Image(systemName: "trash")
@@ -258,7 +258,7 @@ struct GlobalRulesCard: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("delete-global-rule-\(rule.id)")
-                        .accessibilityLabel("Delete rule \(rule.input) to \(rule.action.outputString)")
+                        .accessibilityLabel("Delete rule \(rule.input) to \(rule.action.displayName)")
                     }
                     .padding(.trailing, 4)
                     .transition(.opacity.combined(with: .scale(scale: 0.8)))

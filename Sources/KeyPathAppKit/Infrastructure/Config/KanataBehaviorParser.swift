@@ -115,8 +115,8 @@ public enum KanataBehaviorParser {
         }
 
         return DualRoleBehavior(
-            tapAction: tapAction,
-            holdAction: holdAction,
+            tapAction: KanataBehaviorRenderer.parseActionString(tapAction),
+            holdAction: KanataBehaviorRenderer.parseActionString(holdAction),
             tapTimeout: tapTimeout,
             holdTimeout: holdTimeout,
             activateHoldOnOtherKey: activateHoldOnOtherKey,
@@ -190,7 +190,7 @@ public enum KanataBehaviorParser {
         let steps = actions.enumerated().map { index, action in
             TapDanceStep(
                 label: index < labels.count ? labels[index] : "Tap \(index + 1)",
-                action: action
+                action: KanataBehaviorRenderer.parseActionString(action)
             )
         }
 

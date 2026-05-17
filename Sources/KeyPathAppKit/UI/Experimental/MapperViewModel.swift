@@ -429,7 +429,7 @@ class MapperViewModel {
 
         switch behavior {
         case let .dualRole(dualRole):
-            advancedBehavior.holdAction = dualRole.holdAction
+            advancedBehavior.holdAction = dualRole.holdActionString
             advancedBehavior.tapTimeout = dualRole.tapTimeout
             advancedBehavior.holdTimeout = dualRole.holdTimeout
 
@@ -458,12 +458,12 @@ class MapperViewModel {
                 // Load tap-dance steps
                 // First step (index 0) is single tap - already loaded in outputLabel
                 if tapDance.steps.count > 1 {
-                    advancedBehavior.doubleTapAction = tapDance.steps[1].action
+                    advancedBehavior.doubleTapAction = tapDance.steps[1].actionString
                 }
                 // Load additional steps into tapDanceSteps array (triple tap, quad tap, etc.)
                 if tapDance.steps.count > 2 {
                     advancedBehavior.tapDanceSteps = tapDance.steps.dropFirst(2).map { step in
-                        (label: step.label, action: step.action, isRecording: false)
+                        (label: step.label, action: step.actionString, isRecording: false)
                     }
                 }
 
@@ -477,10 +477,10 @@ class MapperViewModel {
         case let .chord(chord):
             // Load chord: remove the input key from the keys list (it's implicit)
             advancedBehavior.comboKeys = chord.keys.filter { $0.lowercased() != inputKey.lowercased() }
-            advancedBehavior.comboOutput = chord.output
+            advancedBehavior.comboOutput = chord.outputString
             advancedBehavior.comboTimeout = chord.timeout
 
-            AppLogger.shared.log("📖 [MapperViewModel] Loaded chord behavior for '\(inputKey)': keys=\(chord.keys), output='\(chord.output)'")
+            AppLogger.shared.log("📖 [MapperViewModel] Loaded chord behavior for '\(inputKey)': keys=\(chord.keys), output='\(chord.outputString)'")
         }
     }
 

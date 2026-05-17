@@ -7,6 +7,12 @@ public enum KeyAction: Codable, Equatable, Sendable, Hashable {
     /// Emit a different key (simple remap)
     case keystroke(key: String)
 
+    /// Hyper modifier combo (Cmd+Ctrl+Alt+Shift)
+    case hyper
+
+    /// Meh modifier combo (Ctrl+Alt+Shift, no Cmd)
+    case meh
+
     /// Launch an application
     case launchApp(name: String, bundleId: String?)
 
@@ -22,11 +28,28 @@ public enum KeyAction: Codable, Equatable, Sendable, Hashable {
     /// Trigger a system action (Mission Control, volume, brightness, etc.)
     case systemAction(id: String)
 
+    /// Show a user notification
+    case notify(title: String, body: String?, sound: Bool)
+
+    /// Window management action (left half, maximize, etc.)
+    case windowAction(position: String)
+
+    /// Trigger a Kanata virtual/fake key
+    case fakeKey(name: String, action: FakeKeyAction)
+
     /// Switch to or activate a layer
     case activateLayer(name: String)
 
     /// Raw kanata expression (escape hatch for power users and internal use)
     case rawKanata(String)
+}
+
+/// Actions that can be performed on a Kanata fake/virtual key
+public enum FakeKeyAction: String, Codable, Equatable, Sendable, Hashable {
+    case tap
+    case press
+    case release
+    case toggle
 }
 
 // MARK: - Kanata Output
@@ -38,6 +61,10 @@ public extension KeyAction {
         switch self {
         case let .keystroke(key):
             return key
+        case .hyper:
+            return "(multi lctl lmet lalt lsft)"
+        case .meh:
+            return "(multi lctl lalt lsft)"
         case let .launchApp(name, bundleId):
             let identifier = bundleId?.isEmpty == false ? bundleId! : name
             return "(push-msg \"launch:\(identifier)\")"
@@ -50,6 +77,15 @@ public extension KeyAction {
             return "(push-msg \"script:\(path)\")"
         case let .systemAction(id):
             return "(push-msg \"system:\(id)\")"
+        case let .notify(title, body, sound):
+            var params = "title=\(title)"
+            if let body { params += "&body=\(body)" }
+            if sound { params += "&sound=1" }
+            return "(push-msg \"notify?\(params)\")"
+        case let .windowAction(position):
+            return "(push-msg \"window:\(position)\")"
+        case let .fakeKey(name, action):
+            return "(on-press-fakekey \(name) \(action.rawValue))"
         case let .activateLayer(name):
             return "(layer-switch \(name))"
         case let .rawKanata(expr):
@@ -66,6 +102,10 @@ public extension KeyAction {
         switch self {
         case let .keystroke(key):
             return key
+        case .hyper:
+            return "Hyper"
+        case .meh:
+            return "Meh"
         case let .launchApp(name, _):
             return name
         case let .openURL(urlString):
@@ -76,6 +116,12 @@ public extension KeyAction {
             return name ?? URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
         case let .systemAction(id):
             return id
+        case let .notify(title, _, _):
+            return title
+        case let .windowAction(position):
+            return position
+        case let .fakeKey(name, _):
+            return name
         case let .activateLayer(name):
             return name
         case let .rawKanata(expr):
@@ -88,6 +134,10 @@ public extension KeyAction {
         switch self {
         case let .keystroke(key):
             return "Remap to \(key)"
+        case .hyper:
+            return "Hyper (Cmd+Ctrl+Alt+Shift)"
+        case .meh:
+            return "Meh (Ctrl+Alt+Shift)"
         case let .launchApp(name, _):
             return "Open \(name)"
         case let .openURL(urlString):
@@ -98,6 +148,12 @@ public extension KeyAction {
             return "Run \(name ?? "script")"
         case let .systemAction(id):
             return "System: \(id)"
+        case let .notify(title, _, _):
+            return "Notify: \(title)"
+        case let .windowAction(position):
+            return "Window: \(position)"
+        case let .fakeKey(name, action):
+            return "FakeKey: \(name) (\(action.rawValue))"
         case let .activateLayer(name):
             return "Activate \(name) layer"
         case let .rawKanata(expr):
@@ -118,6 +174,10 @@ public extension KeyAction {
         switch self {
         case let .keystroke(key):
             return Self.resolveKeystroke(key)
+        case .hyper:
+            return DisplayInfo(label: "Hyper", icon: "star.fill")
+        case .meh:
+            return DisplayInfo(label: "Meh", icon: "star")
         case let .launchApp(name, _):
             return DisplayInfo(label: name, icon: "app.fill")
         case .openURL:
@@ -131,6 +191,12 @@ public extension KeyAction {
                 return DisplayInfo(label: action.name, icon: action.sfSymbol)
             }
             return DisplayInfo(label: id, icon: "gearshape")
+        case let .notify(title, _, _):
+            return DisplayInfo(label: title, icon: "bell.fill")
+        case let .windowAction(position):
+            return DisplayInfo(label: position, icon: "macwindow")
+        case let .fakeKey(name, _):
+            return DisplayInfo(label: name, icon: "key")
         case let .activateLayer(name):
             return DisplayInfo(label: name, icon: "square.stack.3d.up")
         case let .rawKanata(expr):
@@ -183,6 +249,16 @@ public extension KeyAction {
         return false
     }
 
+    var isHyper: Bool {
+        if case .hyper = self { return true }
+        return false
+    }
+
+    var isMeh: Bool {
+        if case .meh = self { return true }
+        return false
+    }
+
     var isLaunchApp: Bool {
         if case .launchApp = self { return true }
         return false
@@ -205,6 +281,21 @@ public extension KeyAction {
 
     var isSystemAction: Bool {
         if case .systemAction = self { return true }
+        return false
+    }
+
+    var isNotify: Bool {
+        if case .notify = self { return true }
+        return false
+    }
+
+    var isWindowAction: Bool {
+        if case .windowAction = self { return true }
+        return false
+    }
+
+    var isFakeKey: Bool {
+        if case .fakeKey = self { return true }
         return false
     }
 
@@ -262,6 +353,10 @@ public extension KeyAction {
         switch self {
         case let .keystroke(key):
             return key
+        case .hyper:
+            return "hyper"
+        case .meh:
+            return "meh"
         default:
             return kanataOutput
         }

@@ -19,7 +19,7 @@ final class PackConfigPipelineTests: XCTestCase {
         let aMapping = mappings.first { $0.input == "a" }
         XCTAssertNotNil(aMapping)
         if case let .dualRole(behavior) = aMapping?.behavior {
-            XCTAssertEqual(behavior.tapAction, "a")
+            XCTAssertEqual(behavior.tapAction, .keystroke(key: "a"))
             XCTAssertFalse(behavior.holdAction.isEmpty,
                            "A should have a hold action in CAGS layout")
         } else {
@@ -38,7 +38,7 @@ final class PackConfigPipelineTests: XCTestCase {
 
         let aMapping = mappings.first { $0.input == "a" }
         if case let .dualRole(behavior) = aMapping?.behavior {
-            XCTAssertTrue(behavior.holdAction.contains("nav"),
+            XCTAssertTrue(behavior.holdActionString.contains("nav"),
                           "A should hold to layer 'nav' in layer mode")
         } else {
             XCTFail("A mapping should have dualRole behavior")
