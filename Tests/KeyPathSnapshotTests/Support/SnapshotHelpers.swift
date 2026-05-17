@@ -22,6 +22,21 @@ enum SnapshotSize {
     static let grid = CGSize(width: 750, height: 1050)
 }
 
+/// Standard sizes for documentation screenshots. All include consistent
+/// 20px padding via `assertDocScreenshot`.
+enum DocSize {
+    /// Settings subpanel (sliders, toggles, pickers) — 650×320
+    static let subpanel = CGSize(width: 650, height: 320)
+    /// Taller subpanel (per-finger sliders, expanded settings) — 650×500
+    static let subpanelTall = CGSize(width: 650, height: 500)
+    /// Pack detail dialog — use pack.preferredDetailWidth × 800
+    static func packDetail(width: CGFloat) -> CGSize { CGSize(width: width, height: 800) }
+    /// Settings tab (Rules, General, etc.) — 680×700
+    static let settingsTab = CGSize(width: 680, height: 700)
+    /// Full overlay + inspector composite — 1400×800
+    static let fullWindow = CGSize(width: 1400, height: 800)
+}
+
 // MARK: - Isolated UserDefaults
 
 /// Creates an isolated UserDefaults suite for @AppStorage testing.
@@ -169,6 +184,34 @@ class ScreenshotTestCase: XCTestCase {
             Foundation.UserDefaults().removeObject(forKey: key)
         }
         super.tearDown()
+    }
+
+    /// Assert a documentation screenshot with consistent dark mode styling.
+    /// Wraps the view in 20px padding + windowBackgroundColor, renders in dark mode.
+    func assertDocScreenshot(
+        of view: some View,
+        size: CGSize,
+        named name: String,
+        precision: Float = 0.98,
+        perceptualPrecision: Float = 0.98,
+        file: StaticString = #filePath,
+        testName: String = #function,
+        line: UInt = #line
+    ) {
+        let wrapped = view
+            .padding(20)
+            .background(Color(nsColor: .windowBackgroundColor))
+        assertScreenshot(
+            of: wrapped,
+            size: size,
+            named: name,
+            precision: precision,
+            perceptualPrecision: perceptualPrecision,
+            colorScheme: .dark,
+            file: file,
+            testName: testName,
+            line: line
+        )
     }
 
     /// Assert snapshot with standard configuration.
