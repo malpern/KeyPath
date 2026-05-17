@@ -90,10 +90,11 @@ final class EasyViewSnapshotTests: ScreenshotTestCase {
             config: .constant(config),
             onConfigChanged: { _ in }
         )
+        .padding(16)
         .background(Color(nsColor: .windowBackgroundColor))
         assertScreenshot(
             of: view,
-            size: SnapshotSize.panel,
+            size: CGSize(width: 650, height: 320),
             named: "hrm-typing-feel-slider",
             colorScheme: .dark
         )
@@ -105,10 +106,11 @@ final class EasyViewSnapshotTests: ScreenshotTestCase {
             config: .constant(config),
             onConfigChanged: { _ in }
         )
+        .padding(16)
         .background(Color(nsColor: .windowBackgroundColor))
         assertScreenshot(
             of: view,
-            size: CGSize(width: 600, height: 750),
+            size: CGSize(width: 650, height: 500),
             named: "hrm-per-finger-sliders",
             colorScheme: .dark
         )
@@ -121,10 +123,11 @@ final class EasyViewSnapshotTests: ScreenshotTestCase {
             config: .constant(config),
             onConfigChanged: { _ in }
         )
+        .padding(16)
         .background(Color(nsColor: .windowBackgroundColor))
         assertScreenshot(
             of: view,
-            size: SnapshotSize.panel,
+            size: CGSize(width: 650, height: 320),
             named: "hrm-fast-typing",
             colorScheme: .dark
         )
