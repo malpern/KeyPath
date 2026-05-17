@@ -55,19 +55,6 @@ Once you've enabled home row mods, you can fine-tune how they feel. Open the rul
 KeyPath provides a slider to adjust the tap-hold threshold:
 
 <!-- screenshot: id="hrm-typing-feel-slider" method="snapshot" view="HomeRowTimingSection" state="slider:200ms" -->
-Screenshot — Typing Feel slider in rule settings:
-```
-  ┌─────────────────────────────────────────────────────┐
-  │  Typing Feel                                        │
-  │                                                     │
-  │  More Letters ────────●──────────── More Modifiers   │
-  │                       ↑                             │
-  │                     200 ms                          │
-  │                                                     │
-  │  Tap timeout:  [ 200 ms ]                           │
-  │  Hold timeout: [ 200 ms ]                           │
-  └─────────────────────────────────────────────────────┘
-```
 
 - Slide toward **"More Letters"** for a longer tap window (fewer accidental modifiers)
 - Slide toward **"More Modifiers"** for quicker modifier activation
@@ -77,20 +64,6 @@ Screenshot — Typing Feel slider in rule settings:
 Pinkies are slower than index fingers. KeyPath lets you add extra tolerance for slower fingers to prevent accidental holds:
 
 <!-- screenshot: id="hrm-per-finger-sliders" method="snapshot" view="HomeRowTimingSection" state="per-finger:visible" -->
-Screenshot — Per-finger sensitivity sliders:
-```
-  ┌─────────────────────────────────────────────────────┐
-  │  Per-Finger Tolerance                               │
-  │                                                     │
-  │  Pinky   ████████████████████░  +40 ms              │
-  │  Ring    █████████████░░░░░░░░  +25 ms              │
-  │  Middle  █████████░░░░░░░░░░░░  +15 ms              │
-  │  Index   ██████░░░░░░░░░░░░░░░  +0 ms               │
-  │                                                     │
-  │  Slower fingers get more time before                │
-  │  the hold activates.                                │
-  └─────────────────────────────────────────────────────┘
-```
 
 ### Quick tap
 
@@ -117,19 +90,6 @@ This uses Kanata's native `tap-hold-opposite-hand` with a global hand definition
 When you're typing quickly, the last thing you want is for "fd" to become Ctrl+D. Fast typing protection solves this: keys pressed shortly after your last keystroke produce the letter immediately — no hold detection, no waiting state.
 
 <!-- screenshot: id="hrm-fast-typing" method="snapshot" view="HomeRowTimingSection" state="prior-idle:visible" -->
-Screenshot — Fast typing protection in rule settings:
-```
-  ┌─────────────────────────────────────────────────────┐
-  │  [x] Fast typing protection                        │
-  │                                                     │
-  │  Strict ──────────●──────────── Forgiving           │
-  │                    ↑                                │
-  │                  150 ms                             │
-  │                                                     │
-  │  Keys pressed within 150ms of your last keystroke   │
-  │  skip hold detection entirely.                      │
-  └─────────────────────────────────────────────────────┘
-```
 
 This is enabled by default at 150ms. Adjust the slider to match your typing speed — faster typists may want a lower value (strict), while slower typists can use a higher value (forgiving).
 
