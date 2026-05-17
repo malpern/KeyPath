@@ -17,11 +17,18 @@ public struct KeyPathCLI: AsyncParsableCommand {
             Service.self,
             Config.self,
             System.self,
+            Export.self,
+            ImportCollection.self,
             Help.self,
             Completions.self,
-            // Porcelain shortcuts
+            // Porcelain shortcuts (hidden from --help)
             StatusShortcut.self,
             RemapShortcut.self,
+            StartShortcut.self,
+            StopShortcut.self,
+            RestartShortcut.self,
+            LogsShortcut.self,
+            UnmapShortcut.self,
         ]
     )
 }

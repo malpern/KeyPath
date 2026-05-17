@@ -9,7 +9,7 @@ final class CommandStructureTests: XCTestCase {
 
     func testRootHasExpectedSubcommands() {
         let names = subcommandNames(of: KeyPathCLI.self)
-        for expected in ["rule", "collection", "layer", "service", "config", "system", "help-topics", "completions"] {
+        for expected in ["rule", "collection", "layer", "service", "config", "system", "export", "import", "help-topics", "completions"] {
             XCTAssertTrue(names.contains(expected), "Missing subcommand: \(expected). Found: \(names)")
         }
     }
@@ -18,6 +18,11 @@ final class CommandStructureTests: XCTestCase {
         let names = subcommandNames(of: KeyPathCLI.self)
         XCTAssertTrue(names.contains("status"), "Missing porcelain shortcut: status")
         XCTAssertTrue(names.contains("remap"), "Missing porcelain shortcut: remap")
+        XCTAssertTrue(names.contains("start"), "Missing porcelain shortcut: start")
+        XCTAssertTrue(names.contains("stop"), "Missing porcelain shortcut: stop")
+        XCTAssertTrue(names.contains("restart"), "Missing porcelain shortcut: restart")
+        XCTAssertTrue(names.contains("logs"), "Missing porcelain shortcut: logs")
+        XCTAssertTrue(names.contains("unmap"), "Missing porcelain shortcut: unmap")
     }
 
     func testRuleHasExpectedVerbs() {

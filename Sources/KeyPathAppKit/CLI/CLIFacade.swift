@@ -255,6 +255,49 @@ public struct CLIFacade: Sendable {
         return true
     }
 
+    // MARK: - Export / Import
+
+    /// Export a single collection as portable JSON.
+    public func exportCollection(nameOrId: String) async throws -> CLIExportedCollection? {
+        let collections = await RuleCollectionStore.shared.loadCollections()
+        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
+            return nil
+        }
+        return CLIExportedCollection(from: collections[index])
+    }
+
+    /// Export all collections as portable JSON.
+    public func exportAllCollections() async -> [CLIExportedCollection] {
+        let collections = await RuleCollectionStore.shared.loadCollections()
+        return collections.map { CLIExportedCollection(from: $0) }
+    }
+
+    /// Import a collection from portable JSON. Returns the imported collection info.
+    public func importCollection(_ exported: CLIExportedCollection, onConflict: CLIConflictStrategy = .fail) async throws -> CLIRuleCollection {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        let existingIndex = collections.firstIndex(where: { $0.name == exported.name })
+
+        if let existingIndex {
+            switch onConflict {
+            case .fail:
+                throw AmbiguousCollectionMatch(
+                    query: exported.name,
+                    matches: [.init(name: collections[existingIndex].name, id: collections[existingIndex].id.uuidString)],
+                    hint: "Use --on-conflict=replace to overwrite or --on-conflict=skip to no-op"
+                )
+            case .skip:
+                return CLIRuleCollection(from: collections[existingIndex])
+            case .replace:
+                collections.remove(at: existingIndex)
+            }
+        }
+
+        let collection = exported.toRuleCollection()
+        collections.append(collection)
+        try await RuleCollectionStore.shared.saveCollections(collections)
+        return CLIRuleCollection(from: collection)
+    }
+
     // MARK: - Layer CRUD
 
     /// Get all layers defined by rule collections (unique targetLayer values).
@@ -887,6 +930,61 @@ public enum CLIConflictStrategy: String, Sendable {
 public struct CLIConflictError: Error, CustomStringConvertible {
     public let input: String
     public var description: String { "Rule already exists for '\(input)'" }
+}
+
+// MARK: - Export/Import Types
+
+public struct CLIExportedCollection: Codable, Sendable {
+    public let name: String
+    public let summary: String
+    public let category: String
+    public let isEnabled: Bool
+    public let targetLayer: String
+    public let mappings: [CLIExportedMapping]
+
+    public init(from collection: RuleCollection) {
+        name = collection.name
+        summary = collection.summary
+        category = collection.category.rawValue
+        isEnabled = collection.isEnabled
+        targetLayer = collection.targetLayer.kanataName
+        mappings = collection.mappings.map { CLIExportedMapping(from: $0) }
+    }
+
+    public func toRuleCollection() -> RuleCollection {
+        let cat = RuleCollectionCategory(rawValue: category) ?? .custom
+        let layer: RuleCollectionLayer = switch targetLayer {
+        case "base": .base
+        case "nav": .navigation
+        default: .custom(targetLayer)
+        }
+        return RuleCollection(
+            name: name,
+            summary: summary,
+            category: cat,
+            mappings: mappings.map { $0.toKeyMapping() },
+            isEnabled: isEnabled,
+            targetLayer: layer
+        )
+    }
+}
+
+public struct CLIExportedMapping: Codable, Sendable {
+    public let input: String
+    public let action: KeyAction
+    public let shiftedOutput: String?
+    public let behavior: MappingBehavior?
+
+    public init(from mapping: KeyMapping) {
+        input = mapping.input
+        action = mapping.action
+        shiftedOutput = mapping.shiftedOutput
+        behavior = mapping.behavior
+    }
+
+    public func toKeyMapping() -> KeyMapping {
+        KeyMapping(input: input, action: action, shiftedOutput: shiftedOutput, behavior: behavior)
+    }
 }
 
 // MARK: - Stderr Helper
