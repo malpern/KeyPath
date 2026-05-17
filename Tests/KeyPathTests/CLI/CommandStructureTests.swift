@@ -27,7 +27,7 @@ final class CommandStructureTests: XCTestCase {
 
     func testCollectionHasExpectedVerbs() {
         let names = subcommandNames(of: Collection.self)
-        XCTAssertEqual(Set(names), ["list", "enable", "disable", "show"])
+        XCTAssertEqual(Set(names), ["list", "create", "enable", "disable", "show", "rename", "delete", "duplicate", "reorder"])
     }
 
     func testLayerHasExpectedVerbs() {
@@ -37,7 +37,7 @@ final class CommandStructureTests: XCTestCase {
 
     func testServiceHasExpectedVerbs() {
         let names = subcommandNames(of: Service.self)
-        XCTAssertEqual(Set(names), ["status", "reload"])
+        XCTAssertEqual(Set(names), ["status", "start", "stop", "restart", "reload", "logs"])
     }
 
     func testConfigHasExpectedVerbs() {

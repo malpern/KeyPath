@@ -6,9 +6,14 @@ struct Collection: AsyncParsableCommand {
         abstract: "Manage rule collections",
         subcommands: [
             CollectionList.self,
+            CollectionCreate.self,
             CollectionEnable.self,
             CollectionDisable.self,
             CollectionShow.self,
+            CollectionRename.self,
+            CollectionDelete.self,
+            CollectionDuplicate.self,
+            CollectionReorder.self,
         ]
     )
 }
