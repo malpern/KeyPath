@@ -144,7 +144,7 @@ jobs:
 
   code-quality:
     runs-on: [self-hosted, macOS, keypath]
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
     - name: Checkout code
