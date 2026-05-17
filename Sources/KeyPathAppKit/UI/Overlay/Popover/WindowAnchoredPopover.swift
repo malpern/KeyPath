@@ -62,6 +62,11 @@ struct WindowAnchoredPopoverEntry: Identifiable, Equatable {
     let anchor: Anchor<CGRect>
     let edge: WindowAnchoredPopoverEdge
     let gap: CGFloat
+    /// Type-erased so any caller can attach arbitrary popover content
+    /// without bubbling a generic parameter all the way to the host.
+    /// The trade-off is that SwiftUI can't diff inside the popover
+    /// subtree across `entries` updates — acceptable for picker-style
+    /// content; revisit if the host renders large dynamic trees.
     let content: AnyView
     let dismiss: () -> Void
 
@@ -144,9 +149,20 @@ private struct WindowAnchoredPopoverHostModifier: ViewModifier {
 
     @ViewBuilder
     private func hostOverlay(entries: [WindowAnchoredPopoverEntry]) -> some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .topLeading) {
-                if !entries.isEmpty {
+        // When no popover is open the host contributes nothing to the view
+        // tree at all (no GeometryReader, no overlay layer). This keeps
+        // `.windowAnchoredPopoverHost()` invisible to snapshot tests and
+        // hit-testing when idle.
+        if entries.isEmpty {
+            Color.clear
+                .frame(width: 0, height: 0)
+                .hidden()
+                .allowsHitTesting(false)
+                .onChange(of: entries) { _, _ in removeEscMonitor() }
+                .onDisappear { removeEscMonitor() }
+        } else {
+            GeometryReader { proxy in
+                ZStack(alignment: .topLeading) {
                     // 0.001 opacity makes this layer invisible while still
                     // hit-testable, so taps outside the popover dismiss it
                     // without darkening the underlying UI.
@@ -156,34 +172,39 @@ private struct WindowAnchoredPopoverHostModifier: ViewModifier {
                             for entry in entries { entry.dismiss() }
                         }
                         .accessibilityIdentifier("window-anchored-popover-dismiss-backdrop")
+                        .accessibilityLabel("Dismiss popover")
+                        .accessibilityAddTraits(.isButton)
                         .transition(.identity)
-                }
 
-                ForEach(entries) { entry in
-                    WindowAnchoredPopoverContent(
-                        entry: entry,
-                        triggerFrame: proxy[entry.anchor],
-                        hostSize: proxy.size
-                    )
-                    .transition(.opacity)
+                    ForEach(entries) { entry in
+                        WindowAnchoredPopoverContent(
+                            entry: entry,
+                            triggerFrame: proxy[entry.anchor],
+                            hostSize: proxy.size
+                        )
+                        .transition(.opacity)
+                    }
+                }
+                .animation(.easeOut(duration: 0.12), value: entries)
+            }
+            .onChange(of: entries) { _, newEntries in
+                if newEntries.isEmpty {
+                    removeEscMonitor()
+                } else {
+                    installEscMonitor(dismissAll: { for entry in newEntries { entry.dismiss() } })
                 }
             }
-            .animation(.easeOut(duration: 0.12), value: entries)
-        }
-        .allowsHitTesting(!entries.isEmpty)
-        .onChange(of: entries) { _, newEntries in
-            if newEntries.isEmpty {
-                removeEscMonitor()
-            } else {
-                installEscMonitor(dismissAll: { for entry in newEntries { entry.dismiss() } })
+            .onAppear {
+                installEscMonitor(dismissAll: { for entry in entries { entry.dismiss() } })
             }
+            .onDisappear { removeEscMonitor() }
         }
-        .onDisappear { removeEscMonitor() }
     }
 
     private func installEscMonitor(dismissAll: @escaping () -> Void) {
         removeEscMonitor()
         escMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
+            // 53 = kVK_Escape (no Carbon import needed for this single constant)
             guard event.keyCode == 53 else { return event }
             dismissAll()
             return nil
