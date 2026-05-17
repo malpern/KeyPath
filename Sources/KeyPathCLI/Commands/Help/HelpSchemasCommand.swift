@@ -30,8 +30,8 @@ struct HelpSchemas: AsyncParsableCommand {
                     lines.append(#"  {"keystroke":{"key":"esc"}}"#)
                     lines.append(#"  {"hyper":{}}"#)
                     lines.append(#"  {"launchApp":{"name":"Safari","bundleId":"com.apple.Safari"}}"#)
-                    lines.append(#"  {"openURL":"https://example.com"}"#)
-                    lines.append(#"  {"rawKanata":"(multi lctl c)"}"#)
+                    lines.append(#"  {"openURL":{"_0":"https://example.com"}}"#)
+                    lines.append(#"  {"rawKanata":{"_0":"(multi lctl c)"}}"#)
                     return lines.joined(separator: "\n")
                 }
             case "behavior":
@@ -44,7 +44,7 @@ struct HelpSchemas: AsyncParsableCommand {
                     lines.append("")
                     lines.append("JSON examples:")
                     lines.append(#"  {"dualRole":{"tapAction":{"keystroke":{"key":"a"}},"holdAction":{"keystroke":{"key":"lctl"}},"tapTimeout":200,"holdTimeout":200,"activateHoldOnOtherKey":true}}"#)
-                    lines.append(#"  {"macro":{"text":"hello","source":"text"}}"#)
+                    lines.append(#"  {"macro":{"text":"hello","outputs":[],"source":"text"}}"#)
                     lines.append(#"  {"chord":{"keys":["j","k"],"output":{"keystroke":{"key":"esc"}},"timeout":200}}"#)
                     return lines.joined(separator: "\n")
                 }
