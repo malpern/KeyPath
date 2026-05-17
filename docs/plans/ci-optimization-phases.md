@@ -1,44 +1,28 @@
 # CI & Build Optimization — Phased Plan
 
-**Status:** Planning
+**Status:** Phase 2 complete
 **Created:** 2026-05-17
 **Prereq:** Self-hosted Mac Mini runner is live (PR #360, merged)
+**PR:** #361 (Phases 1+2)
 
-## Phase 1: Quick Wins (same day)
+## Phase 1: Quick Wins ✅
 
-Highest impact, lowest effort. Each can be a single PR.
+### 1a. Lighten the pre-push hook ✅
+**Done:** Replaced `swift test` (~80s) with `swift build` (~8s) in `.git/hooks/pre-push`.
 
-### 1a. Lighten the pre-push hook
-**Impact:** Save ~80s on every push. Eliminate `--no-verify` workarounds.
-**Change:** Replace full `swift test` with `swift build` (catches compile errors only). CI on the Mini is the real safety net now.
-**Risk:** Low — CI catches test failures within 2 minutes of push.
-**Test:** Push a commit with a deliberate compile error (should block), push a passing commit (should be fast).
+### 1b. Remove no-op CI steps ✅
+**Done:** Removed 3 stub scripts and their CI steps from `ci.yml`. Also cleaned up `publish-dry-run.yml` references.
 
-### 1b. Remove no-op CI steps
-**Impact:** Cleaner logs, fewer steps, slightly faster runs.
-**Change:** Remove `check-help-parity.sh`, `validate-screenshot-manifest.sh`, and `test-help-publish-regressions.sh` from `ci.yml` (all are stubs that echo and exit 0).
-**Risk:** None — they do nothing today.
-**Test:** CI passes without them.
+### 1c. Fix the flaky ActionDispatcher test ✅
+**Done:** Root cause was `TestEnvironment.isRunningTests` not detecting `swiftpm-testing-helper` (Swift Testing runner process). Also removed `#if DEBUG` guard from `diagnosticActionsEnabled` since SPM doesn't define `DEBUG`.
 
-### 1c. Fix the flaky ActionDispatcher test
-**Impact:** Unblocks the pre-push hook from false positives.
-**Change:** Investigate test ordering dependency in `ActionDispatcherTests` — "Dispatches repair helper action" passes in full suite but fails in isolation.
-**Risk:** Low.
-**Test:** `swift test --filter ActionDispatcherTests` passes consistently.
+## Phase 2: Parallel CI ✅
 
-## Phase 2: Parallel CI (1-2 days)
+### 2a. Register a second runner on the Mini ✅
+**Done:** `keypath-mini-2` installed at `~/actions-runner-2` with LaunchAgent. Both runners online with labels `self-hosted,macOS,ARM64,keypath`. Verified: `build-and-test` (2m7s) and `code-quality` (11s) run in parallel on separate runners.
 
-### 2a. Register a second runner on the Mini
-**Impact:** `build-and-test` and `code-quality` run simultaneously. Wall time drops from ~2.5min to ~2min.
-**Change:** Install a second runner agent in `~/actions-runner-2` with a different name and the same labels. Each gets its own `_work` directory.
-**Risk:** Medium — two concurrent Swift builds could compete for CPU/RAM. The Mini has plenty of both, but worth monitoring.
-**Test:** Open a PR and verify both jobs start immediately and complete without errors.
-
-### 2b. Add concurrency control to ci.yml
-**Impact:** Prevents queued-up stale CI runs on rapid pushes to a PR.
-**Change:** Add `concurrency: group: ci-${{ github.event.pull_request.number }}, cancel-in-progress: true` to the workflow.
-**Risk:** None.
-**Test:** Push twice quickly to a PR, verify the first run is cancelled.
+### 2b. Add concurrency control to ci.yml ✅
+**Done:** Added `concurrency: group: ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress: true`. Verified: stale runs get cancelled on rapid pushes.
 
 ## Phase 3: Remote Builds (3-5 days)
 
@@ -104,3 +88,5 @@ Highest impact, lowest effort. Each can be a single PR.
 | 2026-05-17 | Self-hosted runner on Mac Mini | Cost, speed, warm caches |
 | 2026-05-17 | Changed-files-only lint | SwiftLint was 5+ min on full codebase |
 | 2026-05-17 | Fork approval for all external contributors | Security with self-hosted runner on public repo |
+| 2026-05-17 | Phase 1+2 shipped (PR #361) | Pre-push hook 80s→8s, no-op steps removed, flaky test fixed, parallel runners, concurrency control |
+| 2026-05-17 | publish-dry-run.yml broken (pre-existing) | References `publish-help-to-web.sh` deleted in 2da6b5f62 — needs separate fix |
