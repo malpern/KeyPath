@@ -74,13 +74,7 @@ KeyPath provides a slider to adjust the tap-hold threshold:
 
 Hold actions (modifiers or layers) only activate when you press a key with the **other hand**. Same-hand typing always produces letters — no accidental modifiers during fast rolls.
 
-**Option A — Animated GIF:**
-
-![Opposite-hand activation animated]({{ '/images/help/diagram-opposite-hand-animated.gif' | relative_url }})
-
-**Option B — Static (OpenAI watercolor):**
-
-![Opposite-hand activation static]({{ '/images/help/diagram-opposite-hand-static.png' | relative_url }})
+![Opposite-hand activation — same hand types letters, cross hand activates modifiers]({{ '/images/help/diagram-opposite-hand-animated.gif' | relative_url }})
 
 This is enabled by default (**On Press**). The picker offers three modes:
 
