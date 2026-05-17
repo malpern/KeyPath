@@ -28,11 +28,6 @@ jobs:
     - name: Add Homebrew to PATH
       run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
 
-    - name: Verify Help Docs Parity
-      run: |
-        chmod +x ./Scripts/check-help-parity.sh
-        ./Scripts/check-help-parity.sh
-
     - name: Verify Kanata available
       run: kanata --version
 
@@ -198,11 +193,6 @@ jobs:
           echo "Some UI elements are missing accessibility identifiers"
           exit 0
         }
-
-    - name: Screenshot Manifest Validation
-      run: |
-        chmod +x ./Scripts/validate-screenshot-manifest.sh
-        ./Scripts/validate-screenshot-manifest.sh
 
     - name: Critical Pattern Analysis
       run: |

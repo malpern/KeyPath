@@ -37,11 +37,9 @@ public final class ActionDispatcher {
     ]
 
     private static var diagnosticActionsEnabled: Bool {
-        #if DEBUG
-            if TestEnvironment.isRunningTests {
-                return true
-            }
-        #endif
+        if TestEnvironment.isRunningTests {
+            return true
+        }
         return ProcessInfo.processInfo.environment["KEYPATH_ENABLE_DIAGNOSTIC_ACTIONS"] == "1"
     }
 
@@ -388,10 +386,6 @@ public final class ActionDispatcher {
             return .failed("system", NSError(domain: "ActionDispatcher", code: 5, userInfo: [
                 NSLocalizedDescriptionKey: message
             ]))
-        }
-
-        if TestEnvironment.isRunningTests, Self.diagnosticSystemActions.contains(action.lowercased()) {
-            return .success
         }
 
         switch action.lowercased() {
