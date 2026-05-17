@@ -90,14 +90,7 @@ final class EasyViewSnapshotTests: ScreenshotTestCase {
             config: .constant(config),
             onConfigChanged: { _ in }
         )
-        .padding(16)
-        .background(Color(nsColor: .windowBackgroundColor))
-        assertScreenshot(
-            of: view,
-            size: CGSize(width: 650, height: 320),
-            named: "hrm-typing-feel-slider",
-            colorScheme: .dark
-        )
+        assertDocScreenshot(of: view, size: DocSize.subpanel, named: "hrm-typing-feel-slider")
     }
 
     func testHomeRowTimingPerFinger() {
@@ -106,14 +99,7 @@ final class EasyViewSnapshotTests: ScreenshotTestCase {
             config: .constant(config),
             onConfigChanged: { _ in }
         )
-        .padding(16)
-        .background(Color(nsColor: .windowBackgroundColor))
-        assertScreenshot(
-            of: view,
-            size: CGSize(width: 650, height: 500),
-            named: "hrm-per-finger-sliders",
-            colorScheme: .dark
-        )
+        assertDocScreenshot(of: view, size: DocSize.subpanelTall, named: "hrm-per-finger-sliders")
     }
 
     func testHomeRowTimingFastTyping() {
@@ -123,14 +109,7 @@ final class EasyViewSnapshotTests: ScreenshotTestCase {
             config: .constant(config),
             onConfigChanged: { _ in }
         )
-        .padding(16)
-        .background(Color(nsColor: .windowBackgroundColor))
-        assertScreenshot(
-            of: view,
-            size: CGSize(width: 650, height: 320),
-            named: "hrm-fast-typing",
-            colorScheme: .dark
-        )
+        assertDocScreenshot(of: view, size: DocSize.subpanel, named: "hrm-fast-typing")
     }
 
     // MARK: - LauncherDrawerView

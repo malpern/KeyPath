@@ -140,46 +140,33 @@ final class HardViewSnapshotTests: ScreenshotTestCase {
         let vm = MockFactories.kanataViewModel()
         return PackDetailView(pack: pack)
             .environment(vm)
-            .background(Color(nsColor: .windowBackgroundColor))
             .frame(width: pack.preferredDetailWidth, height: 800)
     }
 
     func testPackDetailHomeRowMods() {
         let pack = PackRegistry.homeRowMods
-        let view = packDetailView(pack: pack)
-        assertScreenshot(
-            of: view,
-            size: CGSize(width: pack.preferredDetailWidth, height: 800),
-            named: "pack-detail-home-row-mods",
-            precision: 0.98,
-            perceptualPrecision: 0.98,
-            colorScheme: .dark
+        assertDocScreenshot(
+            of: packDetailView(pack: pack),
+            size: DocSize.packDetail(width: pack.preferredDetailWidth),
+            named: "pack-detail-home-row-mods"
         )
     }
 
     func testPackDetailVimNavigation() {
         let pack = PackRegistry.vimNavigation
-        let view = packDetailView(pack: pack)
-        assertScreenshot(
-            of: view,
-            size: CGSize(width: pack.preferredDetailWidth, height: 800),
-            named: "pack-detail-vim-navigation",
-            precision: 0.98,
-            perceptualPrecision: 0.98,
-            colorScheme: .dark
+        assertDocScreenshot(
+            of: packDetailView(pack: pack),
+            size: DocSize.packDetail(width: pack.preferredDetailWidth),
+            named: "pack-detail-vim-navigation"
         )
     }
 
     func testPackDetailCapsLockRemap() {
         let pack = PackRegistry.capsLockToEscape
-        let view = packDetailView(pack: pack)
-        assertScreenshot(
-            of: view,
-            size: CGSize(width: pack.preferredDetailWidth, height: 800),
-            named: "pack-detail-caps-lock-remap",
-            precision: 0.98,
-            perceptualPrecision: 0.98,
-            colorScheme: .dark
+        assertDocScreenshot(
+            of: packDetailView(pack: pack),
+            size: DocSize.packDetail(width: pack.preferredDetailWidth),
+            named: "pack-detail-caps-lock-remap"
         )
     }
 
@@ -187,16 +174,8 @@ final class HardViewSnapshotTests: ScreenshotTestCase {
         let vm = MockFactories.kanataViewModel()
         let view = RulesTabView()
             .environment(vm)
-            .background(Color(nsColor: .windowBackgroundColor))
             .frame(width: 680, height: 700)
-        assertScreenshot(
-            of: view,
-            size: CGSize(width: 800, height: 700),
-            named: "settings-rules-tab",
-            precision: 0.98,
-            perceptualPrecision: 0.98,
-            colorScheme: .dark
-        )
+        assertDocScreenshot(of: view, size: DocSize.settingsTab, named: "settings-rules-tab")
     }
 
     // MARK: - Full Window Composites (Keyboard + Inspector)
@@ -220,14 +199,6 @@ final class HardViewSnapshotTests: ScreenshotTestCase {
             inspector
                 .frame(width: 420)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
-        assertScreenshot(
-            of: view,
-            size: CGSize(width: 1400, height: 800),
-            named: "full-window-rules-tab",
-            precision: 0.98,
-            perceptualPrecision: 0.98,
-            colorScheme: .dark
-        )
+        assertDocScreenshot(of: view, size: DocSize.fullWindow, named: "full-window-rules-tab")
     }
 }
