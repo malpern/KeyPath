@@ -166,12 +166,12 @@ final class SystemActionInfoTests: XCTestCase {
     // MARK: - All Actions Coverage
 
     func testAllActions_containsExpectedCount() {
-        // 7 push-msg actions + 8 media keys = 15 total
-        XCTAssertEqual(SystemActionInfo.allActions.count, 15)
+        // 7 push-msg actions + 8 media keys + 8 editing shortcuts = 23 total
+        XCTAssertEqual(SystemActionInfo.allActions.count, 23)
     }
 
     func testAllActions_pushMsgActions() {
-        let pushMsgActions = SystemActionInfo.allActions.filter { !$0.isMediaKey }
+        let pushMsgActions = SystemActionInfo.allActions.filter { !$0.isMediaKey && !$0.isEditingShortcut }
         XCTAssertEqual(pushMsgActions.count, 7)
 
         let ids = Set(pushMsgActions.map(\.id))

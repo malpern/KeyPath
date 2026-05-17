@@ -90,9 +90,18 @@ public struct SystemActionInfo: Equatable, Hashable, Identifiable, Sendable {
         return "(push-msg \"system:\(id)\")"
     }
 
-    /// Whether this is a media key (direct keycode) vs push-msg action
+    private static let editingShortcutIDs: Set<String> = [
+        "cut", "copy", "paste", "undo", "redo", "select-all", "save", "find"
+    ]
+
+    /// Whether this is a media key (direct keycode like pp, next, mute)
     public var isMediaKey: Bool {
-        kanataKeycode != nil
+        kanataKeycode != nil && !Self.editingShortcutIDs.contains(id)
+    }
+
+    /// Whether this is an editing shortcut (modifier combo like C-x, C-c)
+    public var isEditingShortcut: Bool {
+        Self.editingShortcutIDs.contains(id)
     }
 
     /// All available system actions and media keys
