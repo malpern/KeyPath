@@ -16,9 +16,8 @@ struct RuleShow: AsyncParsableCommand {
     mutating func run() async throws {
         let ctx = globals.outputContext
         let facade = await MainActor.run { CLIFacade() }
-        let rules = await facade.loadCustomRules()
 
-        guard let rule = rules.first(where: { $0.input == input }) else {
+        guard let rule = await facade.showRule(input: input) else {
             let error = CLIError.notFound("Rule", query: input, listCommand: "keypath rule list")
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode
@@ -27,10 +26,27 @@ struct RuleShow: AsyncParsableCommand {
         CLIOutput.write(rule, context: ctx) {
             var lines = [
                 "Input: \(rule.input)",
-                "Output: \(rule.output)",
+                "Action: \(rule.action.displayName)",
+                "Layer: \(rule.targetLayer)",
+                "Enabled: \(rule.isEnabled)",
             ]
             if let behavior = rule.behavior {
-                lines.append("Behavior: \(behavior)")
+                lines.append("Behavior: \(behavior.cliSchemaName)")
+            }
+            if let shifted = rule.shiftedOutput {
+                lines.append("Shifted: \(shifted)")
+            }
+            if let title = rule.title {
+                lines.append("Title: \(title)")
+            }
+            if let notes = rule.notes {
+                lines.append("Notes: \(notes)")
+            }
+            if let overrides = rule.deviceOverrides, !overrides.isEmpty {
+                lines.append("Device overrides: \(overrides.count)")
+                for override_ in overrides {
+                    lines.append("  \(override_.deviceHash) → \(override_.action.displayName)")
+                }
             }
             return lines.joined(separator: "\n")
         }

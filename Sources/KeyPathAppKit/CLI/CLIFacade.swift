@@ -63,6 +63,69 @@ public struct CLIFacade: Sendable {
         return hadExisting
     }
 
+    /// Add a rule with full KeyAction and optional MappingBehavior. Supports all 13 action variants.
+    public func addRule(
+        input: String,
+        action: KeyAction,
+        behavior: MappingBehavior? = nil,
+        shiftedOutput: String? = nil,
+        title: String? = nil,
+        notes: String? = nil,
+        targetLayer: String? = nil,
+        deviceOverrides: [DeviceKeyOverride]? = nil,
+        onConflict: CLIConflictStrategy = .fail
+    ) async throws -> RuleAddResult {
+        var rules = await CustomRulesStore.shared.loadRules()
+        let existingIndex = rules.firstIndex(where: { $0.input == input })
+
+        if existingIndex != nil {
+            switch onConflict {
+            case .fail:
+                throw CLIConflictError(input: input)
+            case .skip:
+                return .skipped
+            case .replace:
+                rules.removeAll { $0.input == input }
+            }
+        }
+
+        let layer: RuleCollectionLayer = if let targetLayer {
+            Self.parseLayer(targetLayer)
+        } else {
+            .base
+        }
+
+        let rule = CustomRule(
+            title: title ?? "",
+            input: input,
+            action: action,
+            shiftedOutput: shiftedOutput,
+            notes: notes,
+            behavior: behavior,
+            targetLayer: layer,
+            deviceOverrides: deviceOverrides
+        )
+        rules.append(rule)
+        try await CustomRulesStore.shared.saveRules(rules)
+
+        let detail = CLIRuleDetail(from: rule)
+        return existingIndex != nil ? .replaced(detail) : .created(detail)
+    }
+
+    /// List all custom rules with full detail.
+    public func listRules(enabledOnly: Bool = false) async -> [CLIRuleDetail] {
+        let rules = await CustomRulesStore.shared.loadRules()
+        let filtered = enabledOnly ? rules.filter(\.isEnabled) : rules
+        return filtered.map { CLIRuleDetail(from: $0) }
+    }
+
+    /// Show a single rule by input key. Returns nil if not found.
+    public func showRule(input: String) async -> CLIRuleDetail? {
+        let rules = await CustomRulesStore.shared.loadRules()
+        guard let rule = rules.first(where: { $0.input == input }) else { return nil }
+        return CLIRuleDetail(from: rule)
+    }
+
     public func removeRemap(input: String) async throws -> Bool {
         var rules = await CustomRulesStore.shared.loadRules()
         let before = rules.count
@@ -70,6 +133,14 @@ public struct CLIFacade: Sendable {
         if rules.count == before { return false }
         try await CustomRulesStore.shared.saveRules(rules)
         return true
+    }
+
+    private static func parseLayer(_ name: String) -> RuleCollectionLayer {
+        switch name.lowercased() {
+        case "base": .base
+        case "nav", "navigation": .navigation
+        default: .custom(name)
+        }
     }
 
     // MARK: - Rule Collections
@@ -108,6 +179,226 @@ public struct CLIFacade: Sendable {
             return nil
         }
         return CLIRuleCollection(from: collections[index])
+    }
+
+    /// Create a new empty collection.
+    public func createCollection(name: String, category: String?, summary: String?) async throws -> CLIRuleCollection {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        let cat: RuleCollectionCategory = if let category {
+            RuleCollectionCategory(rawValue: category) ?? .custom
+        } else {
+            .custom
+        }
+        let collection = RuleCollection(
+            name: name,
+            summary: summary ?? "",
+            category: cat,
+            mappings: []
+        )
+        collections.append(collection)
+        try await RuleCollectionStore.shared.saveCollections(collections)
+        return CLIRuleCollection(from: collection)
+    }
+
+    /// Rename a collection. Returns the old name, or nil if not found.
+    public func renameCollection(nameOrId: String, newName: String) async throws -> String? {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
+            return nil
+        }
+        let oldName = collections[index].name
+        collections[index].name = newName
+        try await RuleCollectionStore.shared.saveCollections(collections)
+        return oldName
+    }
+
+    /// Delete a collection. Returns true if deleted, false if not found.
+    public func deleteCollection(nameOrId: String) async throws -> Bool {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
+            return false
+        }
+        collections.remove(at: index)
+        try await RuleCollectionStore.shared.saveCollections(collections)
+        return true
+    }
+
+    /// Duplicate a collection with an optional new name.
+    public func duplicateCollection(nameOrId: String, newName: String?) async throws -> CLIRuleCollection? {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
+            return nil
+        }
+        var duplicate = collections[index]
+        duplicate = RuleCollection(
+            name: newName ?? "\(duplicate.name) (Copy)",
+            summary: duplicate.summary,
+            category: duplicate.category,
+            mappings: duplicate.mappings,
+            isEnabled: false
+        )
+        collections.insert(duplicate, at: index + 1)
+        try await RuleCollectionStore.shared.saveCollections(collections)
+        return CLIRuleCollection(from: duplicate)
+    }
+
+    /// Reorder a collection to a new position (0-indexed).
+    public func reorderCollection(nameOrId: String, position: Int) async throws -> Bool {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
+            return false
+        }
+        let collection = collections.remove(at: index)
+        let targetIndex = min(max(0, position), collections.count)
+        collections.insert(collection, at: targetIndex)
+        try await RuleCollectionStore.shared.saveCollections(collections)
+        return true
+    }
+
+    // MARK: - Export / Import
+
+    /// Export a single collection as portable JSON.
+    public func exportCollection(nameOrId: String) async throws -> CLIExportedCollection? {
+        let collections = await RuleCollectionStore.shared.loadCollections()
+        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
+            return nil
+        }
+        return CLIExportedCollection(from: collections[index])
+    }
+
+    /// Export all collections as portable JSON.
+    public func exportAllCollections() async -> [CLIExportedCollection] {
+        let collections = await RuleCollectionStore.shared.loadCollections()
+        return collections.map { CLIExportedCollection(from: $0) }
+    }
+
+    /// Import a collection from portable JSON. Returns the imported collection info.
+    public func importCollection(_ exported: CLIExportedCollection, onConflict: CLIConflictStrategy = .fail) async throws -> CLIRuleCollection {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        let existingIndex = collections.firstIndex(where: { $0.name == exported.name })
+
+        if let existingIndex {
+            switch onConflict {
+            case .fail:
+                throw AmbiguousCollectionMatch(
+                    query: exported.name,
+                    matches: [.init(name: collections[existingIndex].name, id: collections[existingIndex].id.uuidString)],
+                    hint: "Use --on-conflict=replace to overwrite or --on-conflict=skip to no-op"
+                )
+            case .skip:
+                return CLIRuleCollection(from: collections[existingIndex])
+            case .replace:
+                collections.remove(at: existingIndex)
+            }
+        }
+
+        let collection = exported.toRuleCollection()
+        collections.append(collection)
+        try await RuleCollectionStore.shared.saveCollections(collections)
+        return CLIRuleCollection(from: collection)
+    }
+
+    // MARK: - Layer CRUD
+
+    /// Get all layers defined by rule collections (unique targetLayer values).
+    public func listDefinedLayers() async -> [String] {
+        let collections = await RuleCollectionStore.shared.loadCollections()
+        var layers = Set<String>()
+        layers.insert("base")
+        for collection in collections {
+            layers.insert(collection.targetLayer.kanataName)
+        }
+        return layers.sorted()
+    }
+
+    /// Create a layer by creating an empty collection targeting it.
+    public func createLayer(name: String) async throws -> CLIRuleCollection {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        let layer: RuleCollectionLayer = switch name.lowercased() {
+        case "base": .base
+        case "nav", "navigation": .navigation
+        default: .custom(name)
+        }
+        let collection = RuleCollection(
+            name: "\(name) Layer",
+            summary: "Rules for the \(name) layer",
+            category: .layers,
+            mappings: [],
+            targetLayer: layer
+        )
+        collections.append(collection)
+        try await RuleCollectionStore.shared.saveCollections(collections)
+        return CLIRuleCollection(from: collection)
+    }
+
+    /// Delete all collections targeting a layer. Returns count of deleted collections.
+    public func deleteLayer(name: String) async throws -> Int {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        let targetName = Self.parseLayer(name).kanataName
+        let before = collections.count
+        collections.removeAll { $0.targetLayer.kanataName == targetName }
+        let removed = before - collections.count
+        if removed > 0 {
+            try await RuleCollectionStore.shared.saveCollections(collections)
+        }
+        return removed
+    }
+
+    /// Rename a layer by updating all collections that target it.
+    public func renameLayer(oldName: String, newName: String) async throws -> Int {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        let oldLayerName = Self.parseLayer(oldName).kanataName
+        let newLayer = Self.parseLayer(newName)
+        var updated = 0
+        for i in collections.indices {
+            if collections[i].targetLayer.kanataName == oldLayerName {
+                collections[i].targetLayer = newLayer
+                updated += 1
+            }
+        }
+        if updated > 0 {
+            try await RuleCollectionStore.shared.saveCollections(collections)
+        }
+        return updated
+    }
+
+    // MARK: - Service Lifecycle
+
+    /// Start the Kanata service via launchctl kickstart.
+    public func startService() async -> Bool {
+        do {
+            try await SubprocessRunner.shared.launchctl("kickstart", ["system/com.keypath.kanata"])
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Stop the Kanata service via launchctl kill.
+    public func stopService() async -> Bool {
+        do {
+            try await SubprocessRunner.shared.launchctl("kill", ["SIGTERM", "system/com.keypath.kanata"])
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Restart the Kanata service (stop + start).
+    public func restartService() async -> Bool {
+        _ = await stopService()
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        return await startService()
+    }
+
+    /// Read the last N lines from the debug log.
+    public func serviceLogs(lines: Int = 50) -> [String] {
+        let logPath = NSString("~/Library/Logs/KeyPath/keypath-debug.log").expandingTildeInPath
+        guard let content = try? String(contentsOfFile: logPath, encoding: .utf8) else {
+            return []
+        }
+        let allLines = content.components(separatedBy: .newlines)
+        return Array(allLines.suffix(lines))
     }
 
     // MARK: - Configuration
@@ -499,6 +790,201 @@ public struct CLIInspectResult: Codable, Sendable {
     public let planStatus: String
     public let blockedBy: String?
     public let plannedRecipes: [String]
+}
+
+// MARK: - Phase 1A Rule Detail Types
+
+public struct CLIRuleDetail: Codable, Sendable {
+    public let input: String
+    public let action: KeyAction
+    public let behavior: MappingBehavior?
+    public let shiftedOutput: String?
+    public let title: String?
+    public let notes: String?
+    public let targetLayer: String
+    public let deviceOverrides: [CLIDeviceOverride]?
+    public let isEnabled: Bool
+    public let createdAt: Date
+
+    public init(from rule: CustomRule) {
+        input = rule.input
+        action = rule.action
+        behavior = rule.behavior
+        shiftedOutput = rule.shiftedOutput
+        title = rule.title.isEmpty ? nil : rule.title
+        notes = rule.notes
+        targetLayer = rule.targetLayer.kanataName
+        deviceOverrides = rule.deviceOverrides?.map { CLIDeviceOverride(from: $0) }
+        isEnabled = rule.isEnabled
+        createdAt = rule.createdAt
+    }
+
+    public static func dryRunPreview(
+        input: String,
+        action: KeyAction?,
+        behavior: MappingBehavior?,
+        shiftedOutput: String?,
+        title: String?,
+        notes: String?,
+        targetLayer: String?
+    ) -> CLIRuleDetail {
+        CLIRuleDetail(
+            input: input,
+            action: action ?? .empty,
+            behavior: behavior,
+            shiftedOutput: shiftedOutput,
+            title: title,
+            notes: notes,
+            targetLayer: targetLayer ?? "base",
+            deviceOverrides: nil,
+            isEnabled: true,
+            createdAt: Date()
+        )
+    }
+
+    public init(
+        input: String,
+        action: KeyAction,
+        behavior: MappingBehavior?,
+        shiftedOutput: String?,
+        title: String?,
+        notes: String?,
+        targetLayer: String,
+        deviceOverrides: [CLIDeviceOverride]?,
+        isEnabled: Bool,
+        createdAt: Date
+    ) {
+        self.input = input
+        self.action = action
+        self.behavior = behavior
+        self.shiftedOutput = shiftedOutput
+        self.title = title
+        self.notes = notes
+        self.targetLayer = targetLayer
+        self.deviceOverrides = deviceOverrides
+        self.isEnabled = isEnabled
+        self.createdAt = createdAt
+    }
+}
+
+public struct CLIDeviceOverride: Codable, Sendable {
+    public let deviceHash: String
+    public let action: KeyAction
+    public let behavior: MappingBehavior?
+
+    public init(from override: DeviceKeyOverride) {
+        deviceHash = override.deviceHash
+        action = override.output
+        behavior = override.behavior
+    }
+}
+
+public enum RuleAddResult: Codable, Sendable {
+    case created(CLIRuleDetail)
+    case replaced(CLIRuleDetail)
+    case skipped
+
+    private enum CodingKeys: String, CodingKey {
+        case status
+        case rule
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let status = try container.decode(String.self, forKey: .status)
+        switch status {
+        case "created":
+            let rule = try container.decode(CLIRuleDetail.self, forKey: .rule)
+            self = .created(rule)
+        case "replaced":
+            let rule = try container.decode(CLIRuleDetail.self, forKey: .rule)
+            self = .replaced(rule)
+        case "skipped":
+            self = .skipped
+        default:
+            throw DecodingError.dataCorruptedError(forKey: .status, in: container, debugDescription: "Unknown status: \(status)")
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .created(rule):
+            try container.encode("created", forKey: .status)
+            try container.encode(rule, forKey: .rule)
+        case let .replaced(rule):
+            try container.encode("replaced", forKey: .status)
+            try container.encode(rule, forKey: .rule)
+        case .skipped:
+            try container.encode("skipped", forKey: .status)
+        }
+    }
+}
+
+public enum CLIConflictStrategy: String, Sendable {
+    case fail
+    case replace
+    case skip
+}
+
+public struct CLIConflictError: Error, CustomStringConvertible {
+    public let input: String
+    public var description: String { "Rule already exists for '\(input)'" }
+}
+
+// MARK: - Export/Import Types
+
+public struct CLIExportedCollection: Codable, Sendable {
+    public let name: String
+    public let summary: String
+    public let category: String
+    public let isEnabled: Bool
+    public let targetLayer: String
+    public let mappings: [CLIExportedMapping]
+
+    public init(from collection: RuleCollection) {
+        name = collection.name
+        summary = collection.summary
+        category = collection.category.rawValue
+        isEnabled = collection.isEnabled
+        targetLayer = collection.targetLayer.kanataName
+        mappings = collection.mappings.map { CLIExportedMapping(from: $0) }
+    }
+
+    public func toRuleCollection() -> RuleCollection {
+        let cat = RuleCollectionCategory(rawValue: category) ?? .custom
+        let layer: RuleCollectionLayer = switch targetLayer {
+        case "base": .base
+        case "nav": .navigation
+        default: .custom(targetLayer)
+        }
+        return RuleCollection(
+            name: name,
+            summary: summary,
+            category: cat,
+            mappings: mappings.map { $0.toKeyMapping() },
+            isEnabled: isEnabled,
+            targetLayer: layer
+        )
+    }
+}
+
+public struct CLIExportedMapping: Codable, Sendable {
+    public let input: String
+    public let action: KeyAction
+    public let shiftedOutput: String?
+    public let behavior: MappingBehavior?
+
+    public init(from mapping: KeyMapping) {
+        input = mapping.input
+        action = mapping.action
+        shiftedOutput = mapping.shiftedOutput
+        behavior = mapping.behavior
+    }
+
+    public func toKeyMapping() -> KeyMapping {
+        KeyMapping(input: input, action: action, shiftedOutput: shiftedOutput, behavior: behavior)
+    }
 }
 
 // MARK: - Stderr Helper

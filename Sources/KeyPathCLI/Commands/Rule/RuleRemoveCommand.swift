@@ -20,6 +20,20 @@ struct RuleRemove: AsyncParsableCommand {
         let ctx = globals.outputContext
         let facade = await MainActor.run { CLIFacade() }
 
+        if globals.dryRun {
+            let rule = await facade.showRule(input: input)
+            if let rule {
+                CLIOutput.write(["wouldRemove": input, "exists": "true"], context: ctx) {
+                    "Would remove rule: \(rule.input) → \(rule.action.displayName)"
+                }
+            } else {
+                let error = CLIError.notFound("Rule", query: input, listCommand: "keypath rule list")
+                CLIOutput.writeError(error, context: ctx)
+                throw error.code.exitCode
+            }
+            return
+        }
+
         let removed = try await facade.removeRemap(input: input)
         if !removed {
             let error = CLIError.notFound("Rule", query: input, listCommand: "keypath rule list")

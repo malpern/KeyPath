@@ -6,7 +6,11 @@ struct Service: AsyncParsableCommand {
         abstract: "Check status and control the Kanata service",
         subcommands: [
             ServiceStatus.self,
+            ServiceStart.self,
+            ServiceStop.self,
+            ServiceRestart.self,
             ServiceReload.self,
+            ServiceLogs.self,
         ]
     )
 }

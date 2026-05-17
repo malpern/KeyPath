@@ -2,7 +2,23 @@
 
 **Parent issue:** #347 (CLI parity)  
 **Depends on:** Phase 0 (PR #356, merged 2026-05-17)  
-**Status:** Planning
+**PR:** #359 (in progress)  
+**Status:** Phase 1 mostly complete, starting Phase 2
+
+### Progress
+
+| Sub-phase | Status | Tests | Notes |
+|-----------|--------|-------|-------|
+| 1A. Rule CRUD | ✅ Done | 43 | Full --action/--behavior JSON, --dry-run, --on-conflict |
+| 1B. Collection CRUD | ✅ Done | 7 | create/rename/delete/duplicate/reorder |
+| 1C. Layer CRUD | ✅ Done | 7 | create/delete/rename via targetLayer |
+| 1D. Service Lifecycle | ✅ Done | 3 | start/stop/restart/logs via launchctl |
+| 1E. Keyboard/Device | ⏳ Deferred | — | Needs HID device access; hard to unit test |
+| 1F. Simulate | ⏳ Deferred | — | Needs kanata-simulator binary |
+| 1G. Schemas | ✅ Done | 6 | rule + collection schemas with JSON examples |
+| 2A. Porcelain | 🔜 Next | — | |
+| 2C. Export/Import | 🔜 Next | — | |
+| **Total passing** | | **143** | All CLI tests green |
 
 ---
 
@@ -374,16 +390,16 @@ Each schema output should be valid enough for an agent to construct commands wit
 
 ### Phase 1 Acceptance Criteria
 
-- [ ] `swift build` compiles cleanly
-- [ ] `swift test --filter CLI` passes (~97+ tests: 52 existing + ~45 new)
-- [ ] `keypath-cli rule add caps --action '{"hyper":{}}'` works end-to-end
-- [ ] `keypath-cli rule add caps esc --dry-run` shows what would happen without persisting
-- [ ] `keypath-cli rule add caps esc --on-conflict=fail` exits 4 when rule exists
-- [ ] `keypath-cli collection create "My Rules"` creates collection
-- [ ] `keypath-cli service start/stop/restart` controls the daemon
-- [ ] `keypath-cli simulate "caps:press caps:release"` returns structured events
-- [ ] `keypath-cli keyboard devices --json` lists HID devices
-- [ ] All new commands respect `--json`, `--dry-run`, `--on-conflict` where applicable
+- [x] `swift build` compiles cleanly
+- [x] `swift test --filter CLI` passes (143 tests, 0 failures)
+- [x] `keypath-cli rule add caps --action '{"hyper":{}}'` works end-to-end
+- [x] `keypath-cli rule add caps esc --dry-run` shows what would happen without persisting
+- [x] `keypath-cli rule add caps esc --on-conflict=fail` exits 4 when rule exists
+- [x] `keypath-cli collection create "My Rules"` creates collection
+- [x] `keypath-cli service start/stop/restart` controls the daemon
+- [ ] `keypath-cli simulate "caps:press caps:release"` returns structured events (deferred: needs binary)
+- [ ] `keypath-cli keyboard devices --json` lists HID devices (deferred: needs HID access)
+- [x] All new commands respect `--json`, `--dry-run`, `--on-conflict` where applicable
 
 ---
 
