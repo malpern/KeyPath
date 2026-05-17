@@ -21,7 +21,7 @@
 # Last updated: 2026-02-19
 
 # =============================================================================
-# SCREENSHOTS (25 total — from embedded <!-- screenshot: --> tags)
+# SCREENSHOTS (23 total — from embedded <!-- screenshot: --> tags)
 # =============================================================================
 
 screenshots:
@@ -29,13 +29,6 @@ screenshots:
   # ---------------------------------------------------------------------------
   # installation.md (6 screenshots)
   # ---------------------------------------------------------------------------
-
-  - id: install-overlay-base
-    file: installation.md
-    method: snapshot
-    view: LiveKeyboardOverlayView
-    state: "service:running,layer:base"
-    description: "The KeyPath overlay showing the active base layer layout"
 
   - id: install-auth-prompt
     file: installation.md
@@ -130,17 +123,6 @@ screenshots:
     description: "Rule editor with hold behavior options (Basic, Trigger early, Quick tap)"
 
   # ---------------------------------------------------------------------------
-  # use-cases.md (1 screenshot)
-  # ---------------------------------------------------------------------------
-
-  - id: use-cases-launchers-tab
-    file: use-cases.md
-    method: snapshot
-    view: OverlayLaunchersSection
-    state: "shortcuts:3-items"
-    description: "Compact launchers tab with 3 items (Safari, Terminal, github.com)"
-
-  # ---------------------------------------------------------------------------
   # home-row-mods.md (3 screenshots)
   # ---------------------------------------------------------------------------
 
@@ -163,18 +145,7 @@ screenshots:
     method: snapshot
     view: HomeRowTimingSection
     state: "prior-idle:visible"
-    description: "Prior-idle protection so fast typing never triggers hold accidentally"
-
-  # ---------------------------------------------------------------------------
-  # chords.md (1 screenshot)
-  # ---------------------------------------------------------------------------
-
-  - id: chords-collection-view
-    file: chords.md
-    method: snapshot
-    view: ChordGroupsCollectionView
-    state: "groups:2,chords:5,activeGroup:navigation"
-    description: "Chord groups collection with 2 groups and 5 chords, navigation group active"
+    description: "Fast typing protection toggle showing prior-idle detection"
 
   # ---------------------------------------------------------------------------
   # auto-shift.md (1 screenshot)
@@ -185,7 +156,18 @@ screenshots:
     method: snapshot
     view: AutoShiftCollectionView
     state: "timeout:180,protectFastTyping:on,allKeys:enabled"
-    description: "Auto-shift configuration with 180ms timeout, fast-typing protection on, all keys enabled"
+    description: "Auto-shift configuration showing timeout, fast typing protection, and key selection"
+
+  # ---------------------------------------------------------------------------
+  # chords.md (1 screenshot)
+  # ---------------------------------------------------------------------------
+
+  - id: chords-collection-view
+    file: chords.md
+    method: snapshot
+    view: ChordGroupsCollectionView
+    state: "groups:2,chords:5,activeGroup:navigation"
+    description: "Chord groups view showing navigation group with 5 chords"
 
   # ---------------------------------------------------------------------------
   # window-management.md (1 screenshot)
@@ -197,17 +179,6 @@ screenshots:
     view: OverlayInspectorPanel
     state: "tab:customRules,rules:app-specific,apps:safari+terminal"
     description: "Custom Rules tab with global and app-specific rule cards for Safari and Terminal"
-
-  # ---------------------------------------------------------------------------
-  # concepts.md (1 screenshot)
-  # ---------------------------------------------------------------------------
-
-  - id: concepts-new-rule-dialog
-    file: concepts.md
-    method: snapshot
-    view: CustomRulesInlineEditor
-    state: "start:caps_lock,finish:escape,hold:disabled"
-    description: "Simple remap dialog: Caps Lock to Escape, no hold behavior"
 
   # ---------------------------------------------------------------------------
   # alternative-layouts.md (2 screenshots)
@@ -369,8 +340,8 @@ illustrations:
 # SUMMARY
 # =============================================================================
 #
-# Screenshots: 25 total
-#   - snapshot:  21 (SwiftUI snapshot tests)
+# Screenshots: 23 total
+#   - snapshot:  19 (SwiftUI snapshot tests)
 #   - peekaboo:   3 (System Settings UI automation)
 #   - manual:     1 (macOS auth dialog)
 #
