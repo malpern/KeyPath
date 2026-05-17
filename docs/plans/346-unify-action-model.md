@@ -1,6 +1,6 @@
 # Implementation Plan: Unify Action Data Model (#346)
 
-## Status: Phase 2 complete — ready for Phase 3
+## Status: Phase 2 complete — resolve merge conflicts, then Phase 3a
 
 No users yet — no migration/backward-compat needed. We can change types directly.
 
@@ -11,7 +11,7 @@ No users yet — no migration/backward-compat needed. We can change types direct
 | Rename or extend `KeyAction`? | Extend it, rename to `Action` at the end (Phase 5) |
 | Multi-key/S-expression strings? | `.keystroke(key:)` for single keys, `.rawKanata(_)` for S-expressions |
 | `MacroBehavior.outputs: [String]`? | **Leave as `[String]`** — macro steps are always keystrokes/chars |
-| `shiftedOutput` / `ctrlOutput`? | Promote to `KeyAction?` in Phase 3 (always simple keystrokes in practice) |
+| `shiftedOutput` / `ctrlOutput`? | **Keep as `String?`** — always simple keystrokes; fork rendering is string-level (see Phase 3b rationale) |
 | Hyper/Meh: first-class cases? | **Yes** — `.hyper` and `.meh` are dedicated enum cases |
 | `convertAction` refactor strategy? | Parse string → `KeyAction` → `.kanataOutput` (single source of truth) |
 | Hyper with linked layers? | Stays in renderer (`renderHyperWithLayers`) since it depends on context |
@@ -52,13 +52,36 @@ Added `FakeKeyAction` enum (tap/press/release/toggle).
 
 ### Phase 3 — Remaining string fields
 
-- `KeyMapping.shiftedOutput/ctrlOutput` → `KeyAction?`
-- `DeviceKeyOverride.output` → `KeyAction`
-- Update fork rendering and device-switch config generator
+**Prerequisite:** Resolve merge conflicts (`UU` state) in `KeyAction.swift`, `MappingBehavior.swift`, and `SnapshotHelpers.swift` before starting.
 
-Key files:
-- `Sources/KeyPathAppKit/Models/KeyMapping.swift`
-- `Sources/KeyPathAppKit/Infrastructure/Config/KanataConfiguration+DeviceSwitch.swift`
+#### 3a — `DeviceKeyOverride.output`: `String` → `KeyAction`
+
+Straightforward. Callers already have a `KeyAction` and convert to string via `.kanataOutput` to construct overrides — they'd just pass the typed value directly.
+
+Files:
+- `Sources/KeyPathAppKit/Models/KeyMapping.swift` — struct definition + Codable
+- `Sources/KeyPathAppKit/Models/CustomRule.swift` — `[DeviceKeyOverride]?` flows through
+- `Sources/KeyPathAppKit/Infrastructure/Config/KanataConfiguration+DeviceSwitch.swift` — replace `convertToKanataSequence(override.output)` with `override.output.kanataOutput`; remove synthetic `.keystroke(key: override.output)` (already a `KeyAction`)
+- `Sources/KeyPathAppKit/UI/Experimental/MapperViewModel+LayerManagement.swift` — 5 sites constructing `DeviceKeyOverride(... output: action.kanataOutput ...)` → pass `action` directly
+- `Sources/KeyPathAppKit/UI/Experimental/MapperViewModel+ConflictResolution.swift` — override construction
+- `Sources/KeyPathAppKit/UI/Previews/PreviewFixtures.swift` — literal `"lctl"` → `.keystroke(key: "lctl")`
+- `Tests/KeyPathTests/Models/CustomRuleDeviceOverrideTests.swift` — test fixtures
+
+**Decision:** Use full `KeyAction` (not a narrower type). Device overrides already carry `behavior: MappingBehavior?`, so the output can semantically be any action. Keeps the model uniform with `KeyMapping.action`.
+
+#### 3b — `shiftedOutput`/`ctrlOutput`: **keep as `String?`** (revised)
+
+These are always simple keystroke strings (`"M-down"`, `"at"`, `"pgup"`). The fork rendering pipeline (`buildForkDefinition` → `convertToForkAction` → `normalizeForkOutput` → `convertSingleKeyToForkFormat`) is fundamentally string-level — it splits tokens, detects modifier prefixes, and reformats for fork syntax. Promoting to `KeyAction` would mean:
+
+1. The model stores `.keystroke(key: "M-down")`
+2. Fork rendering calls `.kanataOutput` to get `"M-down"` back
+3. Then re-parses the string for fork-specific formatting
+
+That's round-tripping through the type system with no safety benefit. The UI layer (`MapperViewModel`) also works with these as raw strings throughout its recording/preset/save pipeline (~20 call sites for `shiftedOutput` alone).
+
+**Alternative considered:** `KeyAction?` with fork renderer pattern-matching on enum cases. Rejected because fork formatting is a kanata syntax concern (modifier prefixes must become `(multi ...)` inside fork), not domain modeling.
+
+**No code changes needed for 3b.** These fields stay as-is.
 
 ### Phase 4 — Unify ActionDispatcher
 
@@ -78,7 +101,8 @@ Key file:
 ## Critical Path
 
 ```
-Phase 1 ✅ → Phase 2 ✅ → Phase 3 + Phase 4 (parallel) → Phase 5
+Phase 1 ✅ → Phase 2 ✅ → resolve merges → Phase 3a + Phase 4 (parallel) → Phase 5
+                                            (3b: no-op, kept as String)
 ```
 
 ## Safety Net
