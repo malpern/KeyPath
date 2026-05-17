@@ -24,40 +24,13 @@
 ### 2b. Add concurrency control to ci.yml ✅
 **Done:** Added `concurrency: group: ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress: true`. Verified: stale runs get cancelled on rapid pushes.
 
-## Phase 3: Remote Builds (3-5 days)
+## Phase 3: Remote Builds — SKIPPED
 
-### 3a. Remote `quick-deploy` via SSH
-**Impact:** Offload builds to the Mini. Laptop stays cool, builds are fast on dedicated hardware.
-**Change:** Create `Scripts/remote-deploy.sh` that:
-1. `rsync`s the repo to the Mini
-2. SSHs in and runs `quick-deploy.sh`
-3. `rsync`s the built `.app` back to local `/Applications`
-**Risk:** Medium — requires syncing the full repo, handling `.build` caches, and dealing with code signing identity on the Mini.
-**Prereqs:** Signing identity and developer certificates installed on the Mini.
-**Test:** Run `remote-deploy.sh` and verify the app launches locally.
+**Decision:** Not worth it. Incremental local builds (~15s) are fast enough that rsync overhead (~5-10s each way) eats most of the gain. Also breaks Poltergeist's ~2s auto-deploy loop and adds code-signing complexity. Same reasoning as skipping remote tests.
 
-### 3b. Add "dd" / "df" remote variants
-**Impact:** Same `dd`/`df` shortcuts but builds happen on the Mini.
-**Change:** Add `dr` (deploy remote) shortcut that calls `remote-deploy.sh`.
-**Risk:** Low once 3a works.
-**Test:** Type `dr`, verify app deploys to local `/Applications`.
+## Phase 4: Release Builds on Mini — DEFERRED
 
-## Phase 4: Release Builds on Mini (1 week)
-
-### 4a. Set up signing & notarization on the Mini
-**Impact:** Release builds no longer block your laptop for 5-10 minutes.
-**Change:**
-1. Export signing identity and install on Mini's keychain
-2. Set up notarization credentials (`xcrun notarytool store-credentials`)
-3. Install Sparkle EdDSA key for appcast signing
-**Risk:** High — code signing and notarization are fiddly. Test thoroughly before relying on it.
-**Test:** Run `./build.sh` on Mini via SSH, verify the output is properly signed and notarized.
-
-### 4b. CI-triggered release builds
-**Impact:** Push a tag, Mini builds and publishes the release automatically.
-**Change:** Add a `release.yml` workflow triggered on version tags that runs `release.sh` on the Mini.
-**Risk:** High — automated releases need guardrails (dry-run first, confirmation step).
-**Test:** Dry-run with `--dry-run` flag, then a real beta release.
+**Decision:** High setup cost (keychain/signing/notarization export) for a workflow that runs a few times a month. ROI improves when release cadence picks up. Revisit when Phase 5 is done.
 
 ## Phase 5: Polish & Monitoring (ongoing)
 
@@ -90,3 +63,5 @@
 | 2026-05-17 | Fork approval for all external contributors | Security with self-hosted runner on public repo |
 | 2026-05-17 | Phase 1+2 shipped (PR #361) | Pre-push hook 80s→8s, no-op steps removed, flaky test fixed, parallel runners, concurrency control |
 | 2026-05-17 | publish-dry-run.yml broken (pre-existing) | References `publish-help-to-web.sh` deleted in 2da6b5f62 — needs separate fix |
+| 2026-05-17 | Skip Phase 3 (remote builds) | Incremental builds too fast (~15s) to justify rsync overhead + signing complexity |
+| 2026-05-17 | Defer Phase 4 (release on Mini) | High setup cost for infrequent releases — revisit when cadence picks up |
