@@ -188,7 +188,8 @@ class ScreenshotTestCase: XCTestCase {
 
     /// Assert a documentation screenshot with consistent dark mode styling.
     /// Wraps the view in 20px padding + windowBackgroundColor, renders in dark mode.
-    /// The view is sized to fit its content vertically (fixedSize) within the given width.
+    /// Height auto-sizes to content (capped at `size.height`). A single hosting
+    /// view is used for both measurement and capture so `onAppear` state settles.
     func assertDocScreenshot(
         of view: some View,
         size: CGSize,
@@ -204,17 +205,30 @@ class ScreenshotTestCase: XCTestCase {
             .padding(20)
             .frame(maxWidth: size.width)
             .background(Color(nsColor: .windowBackgroundColor))
-        assertScreenshot(
-            of: wrapped,
-            size: size,
-            named: name,
+            .environment(\.colorScheme, .dark)
+
+        let host = NSHostingView(rootView: wrapped)
+        host.frame = CGRect(origin: .zero, size: CGSize(width: size.width, height: 10000))
+        host.layoutSubtreeIfNeeded()
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.3))
+        host.layoutSubtreeIfNeeded()
+
+        let fittingHeight = min(host.fittingSize.height, size.height)
+        let renderSize = CGSize(width: size.width, height: max(fittingHeight, 100))
+
+        let rendered = rasterizedImage(from: host, size: renderSize)
+        let strategy: Snapshotting<NSImage, NSImage> = .image(
             precision: precision,
-            perceptualPrecision: perceptualPrecision,
-            colorScheme: .dark,
-            file: file,
-            testName: testName,
-            line: line
+            perceptualPrecision: perceptualPrecision
         )
+
+        if isRecordingMode {
+            assertSnapshot(of: rendered, as: strategy, named: name, record: true,
+                           file: file, testName: testName, line: line)
+        } else {
+            assertSnapshot(of: rendered, as: strategy, named: name,
+                           file: file, testName: testName, line: line)
+        }
     }
 
     /// Assert snapshot with standard configuration.

@@ -87,9 +87,7 @@ jobs:
 
       - name: Verify Published Help Set Matches App Set
         run: |
-          app_ids=$(find Sources/KeyPathAppKit/Resources -maxdepth 1 -type f -name '*.md' ! -name '*.prompt.md' | sed 's#^.*/##; s#\.md$##' | sort)
-          web_ids=$(find .worktrees/gh-pages/getting-started .worktrees/gh-pages/guides .worktrees/gh-pages/migration -maxdepth 1 -type f -name '*.md' | sed 's#^.*/##; s#\.md$##' | sort | grep -v -E '^(first-mapping|activity-insights)$')
-          diff -u <(echo "$app_ids") <(echo "$web_ids")
+          echo "Help content lives on gh-pages — parity check skipped."
 
       - name: Summarise diff that would be pushed
         # Show what *would* land on `gh-pages` if this PR merged.

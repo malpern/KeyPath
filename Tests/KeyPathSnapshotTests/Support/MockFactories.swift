@@ -169,11 +169,16 @@ enum MockFactories {
 
     static func homeRowModsConfig(
         showAdvanced: Bool = false,
-        showPerFinger: Bool = false
+        showRawValues: Bool = false,
+        perFingerOffsets: Bool = false
     ) -> HomeRowModsConfig {
         var config = HomeRowModsConfig()
         config.showAdvanced = showAdvanced
-        config.showExpertTiming = showPerFinger
+        config.showExpertTiming = showRawValues
+        if perFingerOffsets {
+            config.timing.tapOffsets = ["a": 20, ";": 20]
+            config.timing.holdOffsets = ["a": 15, ";": 15]
+        }
         return config
     }
 

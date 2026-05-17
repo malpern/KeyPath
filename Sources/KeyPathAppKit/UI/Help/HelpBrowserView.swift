@@ -8,6 +8,12 @@ struct HelpTopic: Identifiable, Hashable {
     let icon: String
     let resource: String
     let group: HelpTopicGroup
+
+    static let baseURL = "https://malpern.github.io/KeyPath"
+
+    var webURL: URL {
+        URL(string: "\(Self.baseURL)/guides/\(resource)/")!
+    }
 }
 
 enum HelpTopicGroup: String, CaseIterable {
@@ -72,20 +78,13 @@ struct HelpBrowserView: View {
 
     // MARK: - Search Filtering
 
-    /// Topics filtered by the current search text. Matches against title, group name, and markdown body content.
+    /// Topics filtered by the current search text. Matches against title and group name.
     private var filteredTopics: [HelpTopic] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else { return HelpTopic.allTopics }
         return HelpTopic.allTopics.filter { topic in
-            if topic.title.lowercased().contains(query) { return true }
-            if topic.group.rawValue.lowercased().contains(query) { return true }
-            // Search markdown body content from bundle resource
-            if let url = Bundle.main.url(forResource: topic.resource, withExtension: "md"),
-               let content = try? String(contentsOf: url, encoding: .utf8),
-               content.lowercased().contains(query) {
-                return true
-            }
-            return false
+            topic.title.lowercased().contains(query)
+                || topic.group.rawValue.lowercased().contains(query)
         }
     }
 
@@ -263,9 +262,8 @@ struct HelpBrowserView: View {
 
                 Divider()
 
-                MarkdownWebView(
-                    resource: topic.resource,
-                    colorScheme: colorScheme,
+                WebHelpView(
+                    url: topic.webURL,
                     onHelpLinkClicked: { resource in
                         if let linked = HelpTopic.topic(forResource: resource) {
                             withAnimation(.easeInOut(duration: 0.2)) {

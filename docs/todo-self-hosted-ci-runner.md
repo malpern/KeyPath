@@ -37,15 +37,31 @@ A persistent Mac Mini cuts CI wall time to ~2-3min and enables the full test sui
 - [x] `build-and-test`: Removed Kanata install step, replaced with version check
 - [x] `build-and-test`: Timeout 20min → 10min
 - [x] `code-quality`: Removed SwiftLint/SwiftFormat install step
-- [x] `code-quality`: Timeout 8min → 5min
+- [x] `code-quality`: SwiftLint/SwiftFormat now only lint changed files (not entire codebase)
 
 ### Security
-- [x] Fork PR approval required for outside contributors (GitHub Actions settings)
+- [x] Fork PR approval set to "Require approval for all external contributors"
 - [x] Zero existing forks on the repo
 - [ ] Consider: runner runs as `clawd` (admin user) — could create a dedicated non-admin CI user
+
+## Expected Improvement
+
+| Metric | GitHub-hosted | Self-hosted Mini |
+|--------|--------------|-----------------|
+| Queue time | 30-120s | 0s |
+| SwiftPM resolve | 60-90s | 0s (cached) |
+| Build | ~4 min | ~2 min |
+| Total | 8-10 min | 2-3 min |
+
+## Workflows
+
+| Workflow | Runner | Notes |
+|----------|--------|-------|
+| KeyPath CI | `self-hosted, macOS, keypath` | Main build + test |
+| Claude Code Review | `ubuntu-latest` | No Swift, stays on GitHub |
 
 ## Still TODO
 
 - [ ] Consider enabling event tap tests (remove `SKIP_EVENT_TAP_TESTS=1`) — requires granting Accessibility permission to the runner process in System Settings
 - [ ] Set up a cron job to clean old `.build` artifacts weekly
-- [ ] Monitor: first real CI run to validate everything works end-to-end
+- [ ] Configure Energy Saver to prevent Mac Mini from sleeping

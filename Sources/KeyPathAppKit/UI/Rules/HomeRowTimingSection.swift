@@ -17,7 +17,7 @@ struct HomeRowTimingSection: View {
 
     @Environment(\.services) private var services
     @State private var sliderDebounceTask: Task<Void, Never>?
-    @State private var showPerFinger: Bool = false
+    @State private var showPerFinger: Bool
     private var hrmObservability = HrmObservabilityService.shared
 
     init(
@@ -28,6 +28,8 @@ struct HomeRowTimingSection: View {
         _config = config
         self.showsHrmInsights = showsHrmInsights
         self.onConfigChanged = onConfigChanged
+        let timing = config.wrappedValue.timing
+        _showPerFinger = State(initialValue: !timing.tapOffsets.isEmpty || !timing.holdOffsets.isEmpty)
     }
 
     private var feelSliderPosition: Double? {
