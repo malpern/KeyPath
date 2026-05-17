@@ -20,22 +20,11 @@ If you're new to keyboard customization, read [Keyboard Concepts]({{ '/guides/co
 
 ## What are home row mods?
 
-Every home row key gets a second job:
+Every home row key gets a second job — tap for the letter, hold for a modifier. The layout is mirrored so both hands get the same modifiers:
 
-| Key | Tap | Hold |
-|---|---|---|
-| A | a | Shift (⇧) |
-| S | s | Control (⌃) |
-| D | d | Option (⌥) |
-| F | f | Command (⌘) |
-| J | j | Command (⌘) |
-| K | k | Option (⌥) |
-| L | l | Control (⌃) |
-| ; | ; | Shift (⇧) |
+![Home row mod layout — tap for letter, hold for modifier]({{ '/images/help/diagram-home-row-layout.png' | relative_url }})
 
-This is the **CAGS** layout (Command on index, Alt/Option on middle, Control on ring, Shift on pinky) — mirrored on both hands.
-
-The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (Copy). Hold A + press tab = ⇧Tab (Shift-Tab). No reaching, no contortion.
+The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (Copy). Hold A + press Tab = ⇧Tab (Shift-Tab). No reaching, no contortion.
 
 ---
 
