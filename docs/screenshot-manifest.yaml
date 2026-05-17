@@ -21,7 +21,7 @@
 # Last updated: 2026-02-19
 
 # =============================================================================
-# SCREENSHOTS (23 total — from embedded <!-- screenshot: --> tags)
+# SCREENSHOTS (25 total — from embedded <!-- screenshot: --> tags)
 # =============================================================================
 
 screenshots:
@@ -158,11 +158,34 @@ screenshots:
     state: "per-finger:visible"
     description: "Per-finger sensitivity sliders (pinky +40ms, ring +25ms, etc.)"
 
-  # TODO: hrm-fast-typing entry removed temporarily so the validator
-  # stays balanced with the commented-out directive in
-  # home-row-mods.md. Re-add an entry pointing at HomeRowTimingSection
-  # with the prior-idle state once regenerate-screenshots.sh produces
-  # the PNG (see TODO comment in the source markdown).
+  - id: hrm-fast-typing
+    file: home-row-mods.md
+    method: snapshot
+    view: HomeRowTimingSection
+    state: "prior-idle:visible"
+    description: "Prior-idle protection so fast typing never triggers hold accidentally"
+
+  # ---------------------------------------------------------------------------
+  # chords.md (1 screenshot)
+  # ---------------------------------------------------------------------------
+
+  - id: chords-collection-view
+    file: chords.md
+    method: snapshot
+    view: ChordGroupsCollectionView
+    state: "groups:2,chords:5,activeGroup:navigation"
+    description: "Chord groups collection with 2 groups and 5 chords, navigation group active"
+
+  # ---------------------------------------------------------------------------
+  # auto-shift.md (1 screenshot)
+  # ---------------------------------------------------------------------------
+
+  - id: auto-shift-config
+    file: auto-shift.md
+    method: snapshot
+    view: AutoShiftCollectionView
+    state: "timeout:180,protectFastTyping:on,allKeys:enabled"
+    description: "Auto-shift configuration with 180ms timeout, fast-typing protection on, all keys enabled"
 
   # ---------------------------------------------------------------------------
   # window-management.md (1 screenshot)
@@ -346,8 +369,8 @@ illustrations:
 # SUMMARY
 # =============================================================================
 #
-# Screenshots: 23 total
-#   - snapshot:  19 (SwiftUI snapshot tests)
+# Screenshots: 25 total
+#   - snapshot:  21 (SwiftUI snapshot tests)
 #   - peekaboo:   3 (System Settings UI automation)
 #   - manual:     1 (macOS auth dialog)
 #
