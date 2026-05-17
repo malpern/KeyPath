@@ -115,7 +115,16 @@ public struct SystemActionInfo: Equatable, Hashable, Identifiable, Sendable {
         SystemActionInfo(id: "volume-up", name: "Volume Up", sfSymbol: "speaker.wave.3", kanataKeycode: "volu", simulatorName: "VolUp"),
         SystemActionInfo(id: "volume-down", name: "Volume Down", sfSymbol: "speaker.wave.1", kanataKeycode: "voldwn", simulatorName: "VolDown"),
         SystemActionInfo(id: "brightness-up", name: "Brightness Up", sfSymbol: "sun.max", kanataKeycode: "brup", simulatorName: "BrightnessUp"),
-        SystemActionInfo(id: "brightness-down", name: "Brightness Down", sfSymbol: "sun.min", kanataKeycode: "brdown", simulatorName: "BrightnessDown")
+        SystemActionInfo(id: "brightness-down", name: "Brightness Down", sfSymbol: "sun.min", kanataKeycode: "brdown", simulatorName: "BrightnessDown"),
+        // Editing shortcuts (modifier combos exposed as named actions)
+        SystemActionInfo(id: "cut", name: "Cut", sfSymbol: "scissors", kanataKeycode: "C-x"),
+        SystemActionInfo(id: "copy", name: "Copy", sfSymbol: "doc.on.doc", kanataKeycode: "C-c"),
+        SystemActionInfo(id: "paste", name: "Paste", sfSymbol: "doc.on.clipboard", kanataKeycode: "C-v"),
+        SystemActionInfo(id: "undo", name: "Undo", sfSymbol: "arrow.uturn.backward", kanataKeycode: "C-z"),
+        SystemActionInfo(id: "redo", name: "Redo", sfSymbol: "arrow.uturn.forward", kanataKeycode: "C-S-z"),
+        SystemActionInfo(id: "select-all", name: "Select All", sfSymbol: "selection.pin.in.out", kanataKeycode: "C-a"),
+        SystemActionInfo(id: "save", name: "Save", sfSymbol: "square.and.arrow.down", kanataKeycode: "C-s"),
+        SystemActionInfo(id: "find", name: "Find", sfSymbol: "magnifyingglass", kanataKeycode: "C-f"),
     ]
 
     /// Look up a SystemActionInfo by its kanata output (keycode, display name, or simulator name)

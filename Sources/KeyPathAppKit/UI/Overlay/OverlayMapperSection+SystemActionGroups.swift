@@ -21,6 +21,9 @@ extension OverlayMapperSection {
     private var systemActionGroups: [SystemActionGroup] {
         let all = SystemActionInfo.allActions
         return [
+            SystemActionGroup(title: "Editing", actions: all.filter {
+                ["cut", "copy", "paste", "undo", "redo", "select-all", "save", "find"].contains($0.id)
+            }),
             SystemActionGroup(title: "System", actions: all.filter {
                 ["spotlight", "mission-control", "launchpad", "dnd", "notification-center", "dictation", "siri"].contains($0.id)
             }),
@@ -32,7 +35,7 @@ extension OverlayMapperSection {
             }),
             SystemActionGroup(title: "Display", actions: all.filter {
                 ["brightness-up", "brightness-down"].contains($0.id)
-            })
+            }),
         ]
     }
 
@@ -97,6 +100,7 @@ extension OverlayMapperSection {
                 }
                 .buttonStyle(LayerPickerItemButtonStyle())
                 .focusable(false)
+                .accessibilityIdentifier("overlay-mapper-output-keystroke")
 
                 PopoverListDivider()
 
@@ -137,6 +141,7 @@ extension OverlayMapperSection {
                 }
                 .buttonStyle(LayerPickerItemButtonStyle())
                 .focusable(false)
+                .accessibilityIdentifier("overlay-mapper-output-system-action")
 
                 // Collapsible system actions grid
                 if isSystemActionsExpanded {
@@ -196,6 +201,7 @@ extension OverlayMapperSection {
                 }
                 .buttonStyle(LayerPickerItemButtonStyle())
                 .focusable(false)
+                .accessibilityIdentifier("overlay-mapper-output-launch-app")
 
                 // Collapsible known apps list
                 if isLaunchAppsExpanded {
@@ -347,6 +353,7 @@ extension OverlayMapperSection {
                 }
                 .buttonStyle(LayerPickerItemButtonStyle())
                 .focusable(false)
+                .accessibilityIdentifier("overlay-mapper-output-go-to-layer")
 
                 // Collapsible layers list
                 if isLayersExpanded {
@@ -365,7 +372,7 @@ extension OverlayMapperSection {
             )
         }
         .scrollBounceBehavior(.basedOnSize)
-        .frame(width: 320, height: popoverHeight, alignment: .top)
+        .frame(width: 280, height: popoverHeight, alignment: .top)
         .pickerPopoverChrome()
         .animation(.easeInOut(duration: 0.25), value: popoverHeight)
         .animation(.easeInOut(duration: 0.25), value: isSystemActionsExpanded)
