@@ -28,12 +28,14 @@
       var doc = searchIndex[i];
       var titleLower = normalize(doc.title);
       var descLower = normalize(doc.description);
+      var keywordsLower = normalize(doc.keywords || '');
       var bodyLower = normalize(doc.body);
       var score = 0;
 
       for (var t = 0; t < terms.length; t++) {
         var term = terms[t];
         if (titleLower.indexOf(term) !== -1) score += 10;
+        if (keywordsLower.indexOf(term) !== -1) score += 8;
         if (descLower.indexOf(term) !== -1) score += 5;
         if (bodyLower.indexOf(term) !== -1) score += 1;
       }
