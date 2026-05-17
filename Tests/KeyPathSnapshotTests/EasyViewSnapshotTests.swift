@@ -85,7 +85,8 @@ final class EasyViewSnapshotTests: ScreenshotTestCase {
     // MARK: - HomeRowTimingSection
 
     func testHomeRowTimingSlider() {
-        let config = MockFactories.homeRowModsConfig()
+        var config = MockFactories.homeRowModsConfig()
+        config.timing.requirePriorIdleMs = 0
         let view = HomeRowTimingSection(
             config: .constant(config),
             onConfigChanged: { _ in }
@@ -94,7 +95,7 @@ final class EasyViewSnapshotTests: ScreenshotTestCase {
     }
 
     func testHomeRowTimingPerFinger() {
-        let config = MockFactories.homeRowModsConfig(showAdvanced: true, showPerFinger: true)
+        let config = MockFactories.homeRowModsConfig(perFingerOffsets: true)
         let view = HomeRowTimingSection(
             config: .constant(config),
             onConfigChanged: { _ in }
@@ -104,7 +105,7 @@ final class EasyViewSnapshotTests: ScreenshotTestCase {
 
     func testHomeRowTimingFastTyping() {
         var config = MockFactories.homeRowModsConfig()
-        config.timing.requirePriorIdleMs = 150
+        config.timing.requirePriorIdleMs = 200
         let view = HomeRowTimingSection(
             config: .constant(config),
             onConfigChanged: { _ in }
