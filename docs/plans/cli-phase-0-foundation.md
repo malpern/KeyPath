@@ -2,7 +2,15 @@
 
 **Issue:** #347 (CLI parity)  
 **Blocker:** #346 (action model unification) — DONE  
-**Status:** Phase 0 design locked, ready for implementation
+**Status:** ✅ IMPLEMENTED — merged in PR #356 (2026-05-17)
+
+### Implementation Notes
+
+- Binary product kept as `keypath-cli` (not `keypath`) to avoid case-insensitive FS collision with the `KeyPath` app binary. `commandName` is `keypath`.
+- `KeyPathCLI` split into library + `KeyPathCLIMain` entry point for testability.
+- `help` subcommand renamed to `help-topics` (ArgumentParser reserves `help`).
+- `--dry-run` and `--on-conflict` flags declared but not enforced — enforcement is Phase 1 scope.
+- 41 new tests (52 total CLI tests), full suite 505 tests green.
 
 ## Context
 
