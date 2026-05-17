@@ -1,6 +1,6 @@
 # Implementation Plan: Unify Action Data Model (#346)
 
-## Status: Phase 2 complete — resolve merge conflicts, then Phase 3a
+## Status: COMPLETE — Phases 1-3 shipped, 4-5 deferred (no concrete need)
 
 No users yet — no migration/backward-compat needed. We can change types directly.
 
@@ -50,59 +50,37 @@ Added `FakeKeyAction` enum (tap/press/release/toggle).
 - Conversion at boundary: `.outputString` when reading, `parseActionString()` when writing
 - These are TextField binding concerns, not shared model — no capability gap
 
-### Phase 3 — Remaining string fields
+### Phase 3 — Remaining string fields ✅ DONE
 
-**Prerequisite:** Resolve merge conflicts (`UU` state) in `KeyAction.swift`, `MappingBehavior.swift`, and `SnapshotHelpers.swift` before starting.
+#### 3a — `DeviceKeyOverride.output`: `String` → `KeyAction` ✅
 
-#### 3a — `DeviceKeyOverride.output`: `String` → `KeyAction`
+- `DeviceKeyOverride.output` changed from `String` to `KeyAction`
+- Device-switch renderer uses `override.output.kanataOutput` and passes typed action directly for synthetic mappings
+- All MapperViewModel construction sites capture `customRule.action` before overwriting with identity — eliminating the string round-trip
+- 7 files changed, all 505 tests pass with identical config output (PR #352)
 
-Straightforward. Callers already have a `KeyAction` and convert to string via `.kanataOutput` to construct overrides — they'd just pass the typed value directly.
+#### 3b — `shiftedOutput`/`ctrlOutput`: kept as `String?` (no-op) ✅
 
-Files:
-- `Sources/KeyPathAppKit/Models/KeyMapping.swift` — struct definition + Codable
-- `Sources/KeyPathAppKit/Models/CustomRule.swift` — `[DeviceKeyOverride]?` flows through
-- `Sources/KeyPathAppKit/Infrastructure/Config/KanataConfiguration+DeviceSwitch.swift` — replace `convertToKanataSequence(override.output)` with `override.output.kanataOutput`; remove synthetic `.keystroke(key: override.output)` (already a `KeyAction`)
-- `Sources/KeyPathAppKit/UI/Experimental/MapperViewModel+LayerManagement.swift` — 5 sites constructing `DeviceKeyOverride(... output: action.kanataOutput ...)` → pass `action` directly
-- `Sources/KeyPathAppKit/UI/Experimental/MapperViewModel+ConflictResolution.swift` — override construction
-- `Sources/KeyPathAppKit/UI/Previews/PreviewFixtures.swift` — literal `"lctl"` → `.keystroke(key: "lctl")`
-- `Tests/KeyPathTests/Models/CustomRuleDeviceOverrideTests.swift` — test fixtures
+Fork rendering is string-level; promoting would round-trip through the type system. See PR #351 for rationale.
 
-**Decision:** Use full `KeyAction` (not a narrower type). Device overrides already carry `behavior: MappingBehavior?`, so the output can semantically be any action. Keeps the model uniform with `KeyMapping.action`.
+### Phase 4 — Unify ActionDispatcher (DEFERRED)
 
-#### 3b — `shiftedOutput`/`ctrlOutput`: **keep as `String?`** (revised)
+Would add `dispatch(_ action: KeyAction)` for internal callers. Deferred because:
+- Internal callers are just 4 sites, all `dispatch(message: "layer:base")` — no pain point
+- ActionDispatcher's primary traffic is external (kanata daemon push-msg, deep links) — naturally URI-based
+- Handler methods mix URI parsing with execution logic (security checks, subprocess mgmt, plugin events) — refactoring for modest benefit
 
-These are always simple keystroke strings (`"M-down"`, `"at"`, `"pgup"`). The fork rendering pipeline (`buildForkDefinition` → `convertToForkAction` → `normalizeForkOutput` → `convertSingleKeyToForkFormat`) is fundamentally string-level — it splits tokens, detects modifier prefixes, and reformats for fork syntax. Promoting to `KeyAction` would mean:
+**Revisit when:** internal code needs to programmatically dispatch actions (e.g., "test this rule" button, action chaining).
 
-1. The model stores `.keystroke(key: "M-down")`
-2. Fork rendering calls `.kanataOutput` to get `"M-down"` back
-3. Then re-parses the string for fork-specific formatting
+### Phase 5 — Rename (DEFERRED)
 
-That's round-tripping through the type system with no safety benefit. The UI layer (`MapperViewModel`) also works with these as raw strings throughout its recording/preset/save pipeline (~20 call sites for `shiftedOutput` alone).
-
-**Alternative considered:** `KeyAction?` with fork renderer pattern-matching on enum cases. Rejected because fork formatting is a kanata syntax concern (modifier prefixes must become `(multi ...)` inside fork), not domain modeling.
-
-**No code changes needed for 3b.** These fields stay as-is.
-
-### Phase 4 — Unify ActionDispatcher
-
-- Add `dispatch(_ action: KeyAction)` that switches on the enum directly
-- URI parsing becomes a thin fallback for external/kanata-originated messages
-- Internal callers pass typed values
-- Clarification: push-msg-originated actions (from kanata daemon) remain URI-routed
-
-Key file:
-- `Sources/KeyPathAppKit/Services/ActionDispatcher.swift`
-
-### Phase 5 — Rename + cleanup
-
-- Global rename `KeyAction` → `Action` (or `MappingAction` — decide then)
-- Remove dead code, update docs
+`KeyAction` is more descriptive than `Action` or `MappingAction`. No rename needed.
 
 ## Critical Path
 
 ```
-Phase 1 ✅ → Phase 2 ✅ → resolve merges → Phase 3a + Phase 4 (parallel) → Phase 5
-                                            (3b: no-op, kept as String)
+Phase 1 ✅ → Phase 2 ✅ → Phase 3 ✅ → cleanup ✅ → DONE
+                                        (Phases 4-5 deferred)
 ```
 
 ## Safety Net
@@ -112,7 +90,7 @@ Phase 1 ✅ → Phase 2 ✅ → resolve merges → Phase 3a + Phase 4 (parallel)
 - `ConvertActionSnapshotTests` — every convertAction input pattern
 - `BehaviorRenderingGoldenTests` — exact string output for all behavior variants
 
-**Verification strategy:** After changing types, all golden tests must pass unchanged. If any test breaks, the refactor changed observable config output. This held through Phase 2 — all 494 tests passed after the migration.
+**Verification strategy:** After changing types, all golden tests must pass unchanged. If any test breaks, the refactor changed observable config output. This held through Phases 2 and 3 — all 505 tests passed after each migration.
 
 ## Simplifications (no users)
 
