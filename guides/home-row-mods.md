@@ -26,144 +26,223 @@ Every home row key gets a second job — tap for the letter, hold for a modifier
 
 The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (Copy). Hold A + press Tab = ⇧Tab (Shift-Tab). No reaching, no contortion.
 
-<div id="hrm-interactive" style="background: rgba(139,109,75,0.04); border-radius: 16px; padding: 28px 20px 20px; margin: 1.5rem 0; user-select: none; -webkit-user-select: none;">
-  <p style="text-align: center; margin: 0 0 20px; font-family: Georgia, serif; font-size: 15px; color: #9a8a72; letter-spacing: 0.02em;">tap or hold a key to see what it does</p>
-  <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap;">
-    <div style="display: flex; gap: 6px;" id="hrm-left">
+<div id="hrm-interactive" style="border-radius: 16px; padding: 32px 20px 24px; margin: 1.5rem 0; user-select: none; -webkit-user-select: none;">
+  <p id="hrm-prompt" style="text-align:center; margin:0 0 24px; font-family:Georgia,serif; font-size:16px; color:#a08e74; letter-spacing:0.01em;">
+    <span style="opacity:0.7;">Try it</span> — click and release quickly, or click and hold
+  </p>
+  <div style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap;">
+    <div style="display:flex; gap:8px;">
       <div class="hrm-key" data-letter="A" data-mod="⇧" data-modname="Shift"></div>
       <div class="hrm-key" data-letter="S" data-mod="⌃" data-modname="Control"></div>
       <div class="hrm-key" data-letter="D" data-mod="⌥" data-modname="Option"></div>
       <div class="hrm-key" data-letter="F" data-mod="⌘" data-modname="Command"></div>
     </div>
-    <div style="width: 28px; flex-shrink: 0;"></div>
-    <div style="display: flex; gap: 6px;" id="hrm-right">
+    <div style="width:32px; flex-shrink:0;"></div>
+    <div style="display:flex; gap:8px;">
       <div class="hrm-key" data-letter="J" data-mod="⌘" data-modname="Command"></div>
       <div class="hrm-key" data-letter="K" data-mod="⌥" data-modname="Option"></div>
       <div class="hrm-key" data-letter="L" data-mod="⌃" data-modname="Control"></div>
       <div class="hrm-key" data-letter=";" data-mod="⇧" data-modname="Shift"></div>
     </div>
   </div>
-  <div id="hrm-result" style="text-align: center; margin-top: 18px; min-height: 48px; transition: opacity 0.25s;">
-    <span id="hrm-result-icon" style="font-size: 32px; font-family: -apple-system, system-ui, sans-serif; display: block;"></span>
-    <span id="hrm-result-text" style="font-size: 14px; font-family: Georgia, serif; color: #9a8a72; display: block; margin-top: 2px;"></span>
+  <div id="hrm-result" style="text-align:center; margin-top:24px; min-height:80px; display:flex; flex-direction:column; align-items:center;">
+    <svg id="hrm-stopwatch" width="44" height="44" viewBox="0 0 44 44" style="opacity:0; transition:opacity 0.15s; margin-bottom:6px;">
+      <circle cx="22" cy="24" r="18" fill="#faf6f0" stroke="#a5906d" stroke-width="2"/>
+      <rect x="20" y="2" width="4" height="8" rx="2" fill="#a5906d"/>
+      <line id="hrm-watch-hand" x1="22" y1="24" x2="22" y2="10" stroke="#a5906d" stroke-width="2" stroke-linecap="round" transform-origin="22 24"/>
+      <circle cx="22" cy="24" r="2.5" fill="#a5906d"/>
+    </svg>
+    <div id="hrm-result-symbol" style="font-size:36px; font-family:-apple-system,system-ui,sans-serif; font-weight:600; line-height:1.2; opacity:0; transition:opacity 0.2s;"></div>
+    <div id="hrm-result-label" style="font-size:15px; font-family:Georgia,serif; margin-top:4px; opacity:0; transition:opacity 0.2s;"></div>
   </div>
 </div>
 
 <style>
 .hrm-key {
-  width: 72px; height: 72px;
-  background: #f5ede2;
-  border: 2px solid #a5906d;
-  border-radius: 10px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  cursor: pointer;
-  position: relative;
-  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
-  box-shadow: 0 3px 0 #c8b99e, 0 4px 8px rgba(100,80,50,0.10);
-  animation: hrm-breathe 3s ease-in-out infinite;
+  width:80px; height:80px;
+  background:#f5ede2;
+  border:2px solid #bfad92;
+  border-radius:11px;
+  cursor:pointer;
+  position:relative;
+  display:flex; align-items:center; justify-content:center;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 4px 0 #c8b99e, 0 5px 10px rgba(100,80,50,0.08);
 }
 .hrm-key::before {
   content: attr(data-letter);
-  font-family: Helvetica, Arial, sans-serif;
-  font-size: 28px; font-weight: 500;
-  color: #4f3e2c;
-  transition: color 0.15s, transform 0.15s;
+  font-family: -apple-system, system-ui, Helvetica, Arial, sans-serif;
+  font-size: 32px;
+  font-weight: 500;
+  color: #50402e;
+  transition: opacity 0.2s, transform 0.2s;
 }
-.hrm-key::after {
-  content: attr(data-mod);
-  font-family: -apple-system, system-ui, sans-serif;
-  font-size: 13px;
-  color: transparent;
-  position: absolute; bottom: 6px;
-  transition: color 0.2s, transform 0.2s;
+/* Gentle nudge animation — one key at a time, staggered */
+.hrm-key:nth-child(1) { animation: hrm-nudge 4s ease-in-out 0.0s infinite; }
+.hrm-key:nth-child(2) { animation: hrm-nudge 4s ease-in-out 0.5s infinite; }
+.hrm-key:nth-child(3) { animation: hrm-nudge 4s ease-in-out 1.0s infinite; }
+.hrm-key:nth-child(4) { animation: hrm-nudge 4s ease-in-out 1.5s infinite; }
+@keyframes hrm-nudge {
+  0%, 85%, 100% { transform: translateY(0); }
+  90% { transform: translateY(-3px); }
+  95% { transform: translateY(0); }
 }
+/* Hover: warm lift, letter stays fully visible */
 .hrm-key:hover {
-  animation: none;
-  box-shadow: 0 3px 0 #c8b99e, 0 4px 12px rgba(100,80,50,0.18);
+  animation: none !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #c8b99e, 0 8px 16px rgba(100,80,50,0.12);
+  border-color: #a89478;
 }
+/* Tap: press down, green tint, letter pops */
 .hrm-key.tapped {
-  animation: none;
-  transform: translateY(2px);
+  animation: none !important;
+  transform: translateY(3px);
   box-shadow: 0 1px 0 #c8b99e;
-  background: #e8f5e9;
-  border-color: #6aad6e;
+  background: #eaf5eb;
+  border-color: #7bbe7f;
 }
 .hrm-key.tapped::before {
-  color: #3d8b40;
-  transform: scale(1.15);
+  color: #3a8a3e;
+  transform: scale(1.12);
+}
+/* Hold: press deep, blue tint, letter fades, modifier appears */
+.hrm-key.holding {
+  animation: none !important;
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #c8b99e;
+  background: #f5ede2;
+  border-color: #bfad92;
+}
+.hrm-key.holding::before {
+  opacity: 0.35;
 }
 .hrm-key.held {
-  animation: none;
-  transform: translateY(3px);
-  box-shadow: 0 0 0 #c8b99e;
-  background: #e3eef8;
-  border-color: #5a8ab5;
+  animation: none !important;
+  transform: translateY(4px);
+  box-shadow: 0 0 0 transparent;
+  background: #e6eef7;
+  border-color: #7ba3cc;
 }
 .hrm-key.held::before {
-  color: #999;
-  transform: scale(0.85);
+  opacity: 0;
 }
-.hrm-key.held::after {
+.hrm-key .hrm-mod-overlay {
+  position: absolute;
+  font-family: -apple-system, system-ui, sans-serif;
+  font-size: 28px;
   color: #4a76a8;
-  font-size: 22px;
-  transform: scale(1.1);
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
 }
-@keyframes hrm-breathe {
-  0%, 100% { box-shadow: 0 3px 0 #c8b99e, 0 4px 8px rgba(100,80,50,0.10); }
-  50% { box-shadow: 0 3px 0 #c8b99e, 0 4px 14px rgba(100,80,50,0.18); }
+.hrm-key.held .hrm-mod-overlay {
+  opacity: 1;
+  transform: scale(1);
 }
 </style>
 
 <script>
 (function() {
-  const HOLD_MS = 300;
-  document.querySelectorAll('.hrm-key').forEach(key => {
-    let timer = null, isHeld = false, startTime = 0;
-    const letter = key.dataset.letter;
-    const mod = key.dataset.mod;
-    const modname = key.dataset.modname;
-    const icon = document.getElementById('hrm-result-icon');
-    const text = document.getElementById('hrm-result-text');
+  var HOLD_MS = 350;
+  // Add modifier overlay span inside each key
+  document.querySelectorAll('.hrm-key').forEach(function(key) {
+    var overlay = document.createElement('span');
+    overlay.className = 'hrm-mod-overlay';
+    overlay.textContent = key.dataset.mod;
+    key.appendChild(overlay);
+  });
+
+  document.querySelectorAll('.hrm-key').forEach(function(key) {
+    var timer = null, holdTimer = null, isHeld = false;
+    var letter = key.dataset.letter;
+    var mod = key.dataset.mod;
+    var modname = key.dataset.modname;
+    var sym = document.getElementById('hrm-result-symbol');
+    var lbl = document.getElementById('hrm-result-label');
+    var prompt = document.getElementById('hrm-prompt');
+    var watch = document.getElementById('hrm-stopwatch');
+    var hand = document.getElementById('hrm-watch-hand');
+    var watchCircle = watch.querySelector('circle');
+    var spinFrame = null, spinStart = 0;
 
     function showResult(symbol, label, color) {
-      icon.style.color = color;
-      icon.textContent = symbol;
-      text.textContent = label;
+      sym.style.color = color;
+      sym.textContent = symbol;
+      sym.style.opacity = '1';
+      lbl.style.color = color;
+      lbl.textContent = label;
+      lbl.style.opacity = '1';
+      prompt.style.opacity = '0.3';
     }
 
-    function clearResult() {
-      icon.textContent = '';
-      text.textContent = '';
+    function fadeResult() {
+      sym.style.opacity = '0';
+      lbl.style.opacity = '0';
+      watch.style.opacity = '0';
+      hand.style.transform = 'rotate(0deg)';
+      hand.style.stroke = '#a5906d';
+      watchCircle.style.stroke = '#a5906d';
+      setTimeout(function() { prompt.style.opacity = '1'; }, 400);
+    }
+
+    function startSpin() {
+      watch.style.opacity = '1';
+      spinStart = Date.now();
+      function spin() {
+        var elapsed = Date.now() - spinStart;
+        var deg = (elapsed / HOLD_MS) * 360;
+        hand.style.transform = 'rotate(' + Math.min(deg, 360) + 'deg)';
+        if (elapsed < HOLD_MS) spinFrame = requestAnimationFrame(spin);
+      }
+      spinFrame = requestAnimationFrame(spin);
+    }
+
+    function stopSpin(color) {
+      cancelAnimationFrame(spinFrame);
+      if (color) {
+        hand.style.stroke = color;
+        watchCircle.style.stroke = color;
+      }
     }
 
     function onDown(e) {
       e.preventDefault();
-      startTime = Date.now();
       isHeld = false;
-      key.classList.remove('tapped', 'held');
-      clearResult();
-      timer = setTimeout(() => {
+      key.classList.remove('tapped', 'held', 'holding');
+      fadeResult();
+      key.classList.add('holding');
+      startSpin();
+      timer = setTimeout(function() {
         isHeld = true;
+        key.classList.remove('holding');
         key.classList.add('held');
-        showResult(mod, modname + ' modifier', '#4a76a8');
+        stopSpin('#4a76a8');
+        showResult(mod + ' ' + modname, 'Hold ' + letter + ' = ' + modname + ' modifier', '#4a76a8');
       }, HOLD_MS);
     }
 
     function onUp(e) {
       e.preventDefault();
       clearTimeout(timer);
+      stopSpin(null);
+      key.classList.remove('holding');
       if (!isHeld) {
+        watch.style.opacity = '0';
         key.classList.add('tapped');
-        showResult(letter.toLowerCase(), 'the letter ' + letter.toLowerCase(), '#3d8b40');
+        showResult(letter.toLowerCase(), 'Tap ' + letter + ' = the letter ' + letter.toLowerCase(), '#3a8a3e');
       }
-      setTimeout(() => {
+      holdTimer = setTimeout(function() {
         key.classList.remove('tapped', 'held');
-      }, 800);
+        fadeResult();
+      }, 1400);
     }
 
     function onLeave() {
       clearTimeout(timer);
-      key.classList.remove('tapped', 'held');
+      clearTimeout(holdTimer);
+      key.classList.remove('tapped', 'held', 'holding');
     }
 
     key.addEventListener('mousedown', onDown);
