@@ -22,32 +22,7 @@ If you're new to keyboard customization, read [Keyboard Concepts]({{ '/guides/co
 
 Every home row key gets a second job — tap for the letter, hold for a modifier. The layout is mirrored so both hands get the same modifiers:
 
-<div style="display: flex; gap: 2rem; flex-wrap: wrap; justify-content: center;" markdown="1">
-<div markdown="1">
-
-**Left hand**
-
-| Key | Tap | Hold |
-|-----|-----|------|
-| A | a | Shift ⇧ |
-| S | s | Control ⌃ |
-| D | d | Option ⌥ |
-| F | f | Command ⌘ |
-
-</div>
-<div markdown="1">
-
-**Right hand**
-
-| Key | Tap | Hold |
-|-----|-----|------|
-| J | j | Command ⌘ |
-| K | k | Option ⌥ |
-| L | l | Control ⌃ |
-| ; | ; | Shift ⇧ |
-
-</div>
-</div>
+![Home row mod layout — tap for letter, hold for modifier]({{ '/images/help/diagram-home-row-layout.png' | relative_url }})
 
 The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (Copy). Hold A + press Tab = ⇧Tab (Shift-Tab). No reaching, no contortion.
 
