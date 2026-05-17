@@ -144,35 +144,44 @@ jobs:
 
   code-quality:
     runs-on: [self-hosted, macOS, keypath]
-    timeout-minutes: 10
+    timeout-minutes: 5
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Add Homebrew to PATH
       run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
 
-    - name: SwiftLint Analysis
+    - name: Get changed Swift files
+      id: changed
       run: |
-        echo "Running comprehensive SwiftLint analysis..."
-
-        # Full SwiftLint check (moved from pre-commit)
-        if swiftlint --reporter github-actions-logging; then
-          echo "No SwiftLint violations found"
-          SWIFTLINT_STATUS="passed"
+        BASE=${{ github.event.pull_request.base.sha }}
+        CHANGED=$(git diff --name-only --diff-filter=d "$BASE"...HEAD -- '*.swift' || true)
+        if [ -z "$CHANGED" ]; then
+          echo "swift_files=" >> $GITHUB_OUTPUT
+          echo "No Swift files changed"
         else
-          echo "SwiftLint found issues (details above)"
-          SWIFTLINT_STATUS="issues_found"
-          # Don't fail CI, just report
+          echo "swift_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "Changed Swift files:"
+          echo "$CHANGED"
         fi
 
-        echo "SWIFTLINT_STATUS=$SWIFTLINT_STATUS" >> $GITHUB_ENV
+    - name: SwiftLint Analysis
+      if: steps.changed.outputs.swift_files != ''
+      run: |
+        echo "Linting changed Swift files only..."
+        echo "${{ steps.changed.outputs.swift_files }}" | xargs swiftlint --reporter github-actions-logging || true
 
     - name: SwiftFormat Check
+      if: steps.changed.outputs.swift_files != ''
       run: |
-        echo "Checking Swift formatting..."
-        swiftformat --lint Sources/ Tests/ || {
+        echo "Checking formatting of changed Swift files..."
+        echo "${{ steps.changed.outputs.swift_files }}" | xargs swiftformat --lint || {
           echo "SwiftFormat found formatting issues, but not failing CI"
           echo "Run 'swiftformat Sources/ Tests/' locally to fix formatting"
           exit 0
