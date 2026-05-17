@@ -142,6 +142,8 @@ typeset -A LINK_MAP
 typeset -A NAV_TITLES
 # GROUP_ITEMS[group] = "resource1 resource2 ..."  (space-separated, preserves order)
 typeset -A GROUP_ITEMS
+# GROUPS[resource] = "group-id"
+typeset -A GROUPS
 
 for entry in "${REGISTRY[@]}"; do
     local id="${entry%%|*}";       local rest="${entry#*|}"
@@ -155,6 +157,7 @@ for entry in "${REGISTRY[@]}"; do
     LINK_MAP[$id]="/${web_dir}/${id}/"
     NAV_TITLES[$id]="$nav_title"
     GROUP_ITEMS[$group]="${GROUP_ITEMS[$group]:+${GROUP_ITEMS[$group]} }${id}"
+    GROUPS[$id]="$group"
 done
 
 echo "=== Publishing help docs: app → gh-pages website ==="
@@ -505,6 +508,63 @@ DEVDOCS
 }
 
 # ─────────────────────────────────────────────────────────────────────
+# Generate search index: search-index.json
+# ─────────────────────────────────────────────────────────────────────
+
+generate_search_index() {
+    local out="$GHPAGES/search-index.json"
+    echo -n '[' > "$out"
+    local first=true
+
+    for resource in "${(@k)DOCS}"; do
+        local src_path="$SRC/${resource}.md"
+        [[ ! -f "$src_path" ]] && continue
+
+        local entry="${DOCS[$resource]}"
+        local web_dir="${entry%%:*}"
+        local rest="${entry#*:}"
+        local title="${rest%%:*}"
+        rest="${rest#*:}"
+        local description="${rest%%:*}"
+
+        local group_id="${GROUPS[$resource]}"
+        local group_title="${GROUP_TITLES[$group_id]:-$group_id}"
+
+        local url="/${web_dir}/"
+
+        # Read body, strip markdown formatting and header image line.
+        # Use LC_ALL=C to avoid "illegal byte sequence" on macOS.
+        local body
+        body=$(LC_ALL=C sed '1{/^!\[[^]]*\](header-.*\.png)$/d;}' "$src_path" | \
+               LC_ALL=C sed 's/^#* *//' | \
+               LC_ALL=C sed 's/!\[[^]]*\]([^)]*)//g' | \
+               LC_ALL=C sed -E 's/\[([^]]*)\]\([^)]*\)/\1/g' | \
+               tr '\n' ' ' | \
+               LC_ALL=C sed -E 's/[[:space:]]+/ /g' | \
+               cut -c 1-2000)
+
+        # JSON-escape: backslash, double-quote, control chars
+        title=$(printf '%s' "$title" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read())[1:-1])")
+        description=$(printf '%s' "$description" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read())[1:-1])")
+        group_title=$(printf '%s' "$group_title" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read())[1:-1])")
+        body=$(printf '%s' "$body" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read())[1:-1])")
+
+        if [[ "$first" == "true" ]]; then
+            first=false
+        else
+            echo -n ',' >> "$out"
+        fi
+
+        cat >> "$out" << ENTRY
+{"title":"${title}","description":"${description}","group":"${group_title}","url":"${url}","body":"${body}"}
+ENTRY
+    done
+
+    echo ']' >> "$out"
+    echo "  Generated: search-index.json"
+}
+
+# ─────────────────────────────────────────────────────────────────────
 # Main: transform all registered documents, copy images, generate nav
 # ─────────────────────────────────────────────────────────────────────
 
@@ -558,6 +618,7 @@ echo "--- Generating navigation ---"
 generate_sidebar
 generate_docs_index
 generate_legacy_redirects
+generate_search_index
 
 echo ""
 echo "=== Done: $synced docs published, $skipped skipped ==="

@@ -64,10 +64,34 @@ extension HelpTopic {
 struct HelpBrowserView: View {
     @State private var selectedTopic: HelpTopic?
     @State private var cardsAppeared = false
+    @State private var searchText = ""
     @Environment(\.colorScheme) private var colorScheme
 
     /// Optional initial topic to select on appear.
     var initialTopic: HelpTopic?
+
+    // MARK: - Search Filtering
+
+    /// Topics filtered by the current search text. Matches against title, group name, and markdown body content.
+    private var filteredTopics: [HelpTopic] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return HelpTopic.allTopics }
+        return HelpTopic.allTopics.filter { topic in
+            if topic.title.lowercased().contains(query) { return true }
+            if topic.group.rawValue.lowercased().contains(query) { return true }
+            // Search markdown body content from bundle resource
+            if let url = Bundle.main.url(forResource: topic.resource, withExtension: "md"),
+               let content = try? String(contentsOf: url, encoding: .utf8),
+               content.lowercased().contains(query) {
+                return true
+            }
+            return false
+        }
+    }
+
+    private var isSearching: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     // MARK: Navigation
 
@@ -140,19 +164,29 @@ struct HelpBrowserView: View {
             .padding(.vertical, 4)
             .accessibilityIdentifier("help-home-button")
 
-            ForEach(HelpTopicGroup.allCases, id: \.self) { group in
-                let topics = HelpTopic.allTopics.filter { $0.group == group }
-                if !topics.isEmpty {
-                    Section(group.rawValue) {
-                        ForEach(topics) { topic in
-                            Label(topic.title, systemImage: topic.icon)
-                                .tag(topic)
+            if isSearching {
+                // Flat filtered list when searching
+                ForEach(filteredTopics) { topic in
+                    Label(topic.title, systemImage: topic.icon)
+                        .tag(topic)
+                }
+            } else {
+                // Grouped list when not searching
+                ForEach(HelpTopicGroup.allCases, id: \.self) { group in
+                    let topics = HelpTopic.allTopics.filter { $0.group == group }
+                    if !topics.isEmpty {
+                        Section(group.rawValue) {
+                            ForEach(topics) { topic in
+                                Label(topic.title, systemImage: topic.icon)
+                                    .tag(topic)
+                            }
                         }
                     }
                 }
             }
         }
         .listStyle(.sidebar)
+        .searchable(text: $searchText, prompt: "Search help articles")
         .tint(Color(nsColor: .init(red: 0.55, green: 0.42, blue: 0.30, alpha: 1.0)))
         .safeAreaInset(edge: .bottom) {
             footerLinks
