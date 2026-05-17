@@ -160,61 +160,81 @@ The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (
     key.appendChild(overlay);
   });
 
+  // Map physical keyboard keys to interactive key elements
+  var keyMap = {};
+  document.querySelectorAll('.hrm-key').forEach(function(key) {
+    keyMap[key.dataset.letter.toLowerCase()] = key;
+  });
+
+  // Track visibility with IntersectionObserver
+  var isVisible = false;
+  var container = document.getElementById('hrm-interactive');
+  if (window.IntersectionObserver) {
+    var observer = new IntersectionObserver(function(entries) {
+      isVisible = entries[0].isIntersecting;
+    }, { threshold: 0.5 });
+    observer.observe(container);
+  } else {
+    isVisible = true;
+  }
+
+  // Shared UI references
+  var sym = document.getElementById('hrm-result-symbol');
+  var lbl = document.getElementById('hrm-result-label');
+  var prompt = document.getElementById('hrm-prompt');
+  var watch = document.getElementById('hrm-stopwatch');
+  var watchHand = document.getElementById('hrm-watch-hand');
+  var watchCircle = watch.querySelector('circle');
+  var spinFrame = null, spinStart = 0;
+
+  function showResult(symbol, label, color) {
+    sym.style.color = color;
+    sym.textContent = symbol;
+    sym.style.opacity = '1';
+    lbl.style.color = color;
+    lbl.textContent = label;
+    lbl.style.opacity = '1';
+    prompt.style.opacity = '0.3';
+  }
+
+  function fadeResult() {
+    sym.style.opacity = '0';
+    lbl.style.opacity = '0';
+    watch.style.opacity = '0';
+    watchHand.style.transform = 'rotate(0deg)';
+    watchHand.style.stroke = '#a5906d';
+    watchCircle.style.stroke = '#a5906d';
+    setTimeout(function() { prompt.style.opacity = '1'; }, 400);
+  }
+
+  function startSpin() {
+    watch.style.opacity = '1';
+    spinStart = Date.now();
+    function spin() {
+      var elapsed = Date.now() - spinStart;
+      var deg = (elapsed / HOLD_MS) * 360;
+      watchHand.style.transform = 'rotate(' + Math.min(deg, 360) + 'deg)';
+      if (elapsed < HOLD_MS) spinFrame = requestAnimationFrame(spin);
+    }
+    spinFrame = requestAnimationFrame(spin);
+  }
+
+  function stopSpin(color) {
+    cancelAnimationFrame(spinFrame);
+    if (color) {
+      watchHand.style.stroke = color;
+      watchCircle.style.stroke = color;
+    }
+  }
+
+  // Per-key state
   document.querySelectorAll('.hrm-key').forEach(function(key) {
     var timer = null, holdTimer = null, isHeld = false;
     var letter = key.dataset.letter;
     var mod = key.dataset.mod;
     var modname = key.dataset.modname;
-    var sym = document.getElementById('hrm-result-symbol');
-    var lbl = document.getElementById('hrm-result-label');
-    var prompt = document.getElementById('hrm-prompt');
-    var watch = document.getElementById('hrm-stopwatch');
-    var hand = document.getElementById('hrm-watch-hand');
-    var watchCircle = watch.querySelector('circle');
-    var spinFrame = null, spinStart = 0;
 
-    function showResult(symbol, label, color) {
-      sym.style.color = color;
-      sym.textContent = symbol;
-      sym.style.opacity = '1';
-      lbl.style.color = color;
-      lbl.textContent = label;
-      lbl.style.opacity = '1';
-      prompt.style.opacity = '0.3';
-    }
-
-    function fadeResult() {
-      sym.style.opacity = '0';
-      lbl.style.opacity = '0';
-      watch.style.opacity = '0';
-      hand.style.transform = 'rotate(0deg)';
-      hand.style.stroke = '#a5906d';
-      watchCircle.style.stroke = '#a5906d';
-      setTimeout(function() { prompt.style.opacity = '1'; }, 400);
-    }
-
-    function startSpin() {
-      watch.style.opacity = '1';
-      spinStart = Date.now();
-      function spin() {
-        var elapsed = Date.now() - spinStart;
-        var deg = (elapsed / HOLD_MS) * 360;
-        hand.style.transform = 'rotate(' + Math.min(deg, 360) + 'deg)';
-        if (elapsed < HOLD_MS) spinFrame = requestAnimationFrame(spin);
-      }
-      spinFrame = requestAnimationFrame(spin);
-    }
-
-    function stopSpin(color) {
-      cancelAnimationFrame(spinFrame);
-      if (color) {
-        hand.style.stroke = color;
-        watchCircle.style.stroke = color;
-      }
-    }
-
-    function onDown(e) {
-      e.preventDefault();
+    function triggerDown() {
       isHeld = false;
       key.classList.remove('tapped', 'held', 'holding');
       fadeResult();
@@ -229,8 +249,7 @@ The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (
       }, HOLD_MS);
     }
 
-    function onUp(e) {
-      e.preventDefault();
+    function triggerUp() {
       clearTimeout(timer);
       stopSpin(null);
       key.classList.remove('holding');
@@ -245,17 +264,46 @@ The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (
       }, 1400);
     }
 
+    function onDown(e) { e.preventDefault(); triggerDown(); }
+    function onUp(e) { e.preventDefault(); triggerUp(); }
     function onLeave() {
       clearTimeout(timer);
       clearTimeout(holdTimer);
       key.classList.remove('tapped', 'held', 'holding');
     }
 
+    // Store trigger functions for keyboard access
+    key._triggerDown = triggerDown;
+    key._triggerUp = triggerUp;
+
     key.addEventListener('mousedown', onDown);
     key.addEventListener('mouseup', onUp);
     key.addEventListener('mouseleave', onLeave);
     key.addEventListener('touchstart', onDown, {passive: false});
     key.addEventListener('touchend', onUp, {passive: false});
+  });
+
+  // Keyboard event handling — only when interactive demo is in view
+  var activeKeys = {};
+  document.addEventListener('keydown', function(e) {
+    if (!isVisible) return;
+    var k = e.key.toLowerCase();
+    if (k === ';') k = ';';
+    var el = keyMap[k];
+    if (!el || activeKeys[k]) return;
+    activeKeys[k] = true;
+    e.preventDefault();
+    el._triggerDown();
+  });
+  document.addEventListener('keyup', function(e) {
+    if (!isVisible) return;
+    var k = e.key.toLowerCase();
+    if (k === ';') k = ';';
+    var el = keyMap[k];
+    if (!el || !activeKeys[k]) return;
+    delete activeKeys[k];
+    e.preventDefault();
+    el._triggerUp();
   });
 })();
 </script>
