@@ -197,9 +197,8 @@ private struct ChordRuleRow: View {
             // Rest of the row — tapping opens editor
             Button(action: onEdit) {
             ZStack(alignment: .trailing) {
-                HStack(spacing: 8) {
-
-                    // Key chips
+                HStack {
+                    // Input keys — left aligned
                     HStack(spacing: 3) {
                         ForEach(chord.keys, id: \.self) { key in
                             Text(key.uppercased())
@@ -218,14 +217,17 @@ private struct ChordRuleRow: View {
                         }
                     }
 
+                    Spacer()
+
+                    // Arrow — centered
                     Image(systemName: "arrow.right")
                         .font(.body.weight(.medium))
                         .foregroundStyle(.secondary)
 
-                    // Output chip
-                    outputKeycap(for: chord.action, enabled: chord.isEnabled)
+                    Spacer()
 
-                    Spacer(minLength: 0)
+                    // Output — right aligned
+                    outputKeycap(for: chord.action, enabled: chord.isEnabled)
                 }
 
                 // Hover action buttons
