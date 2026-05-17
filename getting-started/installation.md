@@ -23,7 +23,7 @@ Once setup is complete, KeyPath gives you:
 - **Window tiling** — Snap windows to halves, thirds, or corners with a key combo
 - **Home row shortcuts** — Your modifier keys live under your fingertips, not in the corner
 
-![Screenshot — The KeyPath overlay with rules panel](full-window-rules-tab.png)
+![Screenshot — The KeyPath overlay with rules panel]({{ '/images/help/full-window-rules-tab.png' | relative_url }})
 
 Want to see what's possible before you start? Check out [What You Can Build]({{ '/guides/use-cases/' | relative_url }}).
 

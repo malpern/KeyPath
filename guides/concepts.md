@@ -35,7 +35,7 @@ The fix: **make Caps Lock send Escape instead.**
 
 This is a **remap** — making one key behave as another. It's the simplest thing you can do, and it takes about ten seconds in KeyPath.
 
-![Screenshot — The Caps Lock Remap pack detail in KeyPath](pack-detail-caps-lock-remap.png)
+![Screenshot — The Caps Lock Remap pack detail in KeyPath]({{ '/images/help/pack-detail-caps-lock-remap.png' | relative_url }})
 
 That's it. One key remapped. No config files, no JSON, no terminal commands. But this is just the beginning — once you see how easy it is, you'll want to do more.
 

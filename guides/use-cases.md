@@ -28,7 +28,7 @@ Stop reaching for the Dock or Spotlight. Hold one key, press a letter, and your 
 
 One key hold + one letter = instant access to anything on your Mac. No mouse, no Cmd+Space, no typing a name.
 
-![Screenshot — KeyPath with the Rules panel open](full-window-rules-tab.png)
+![Screenshot — KeyPath with the Rules panel open]({{ '/images/help/full-window-rules-tab.png' | relative_url }})
 
 **How to set it up:** Open the **Launchers** tab, click **Add Shortcut**, choose your key and target. See the [Launching Apps guide]({{ '/guides/action-uri/' | relative_url }}) for the full walkthrough.
 
@@ -38,7 +38,7 @@ One key hold + one letter = instant access to anything on your Mac. No mouse, no
 
 Every keyboard shortcut requires a modifier — Command, Shift, Control, Option. Normally those keys are in the corners, forcing your hands off the home row. Home row mods put them right under your fingertips:
 
-![Screenshot — Home Row Mods pack detail](pack-detail-home-row-mods.png)
+![Screenshot — Home Row Mods pack detail]({{ '/images/help/pack-detail-home-row-mods.png' | relative_url }})
 
 Hold F + press C = Copy. Hold A + press Tab = Shift+Tab. Your hands never move.
 

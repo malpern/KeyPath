@@ -58,7 +58,7 @@ The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (
 
 The defaults use the CAGS layout shown above. Practice for a few days — occasional misfires during fast typing are normal at first and improve as you adjust.
 
-![Screenshot — Home Row Mods pack detail in KeyPath](pack-detail-home-row-mods.png)
+![Screenshot — Home Row Mods pack detail in KeyPath]({{ '/images/help/pack-detail-home-row-mods.png' | relative_url }})
 
 **Tip:** Start by using home row mods only for shortcuts you already know (⌘C, ⌘V, ⌘Z). Once those feel natural, expand to new shortcuts.
 
