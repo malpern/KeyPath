@@ -70,18 +70,20 @@ KeyPath provides a slider to adjust the tap-hold threshold:
 
 *Start with defaults, then adjust one parameter at a time.*
 
-### Opposite-hand activation
+### How tap-hold works
 
-Hold actions (modifiers or layers) only activate when you press a key with the **other hand**. Same-hand typing always produces letters — no accidental modifiers during fast rolls.
+When you press a home row key, KeyPath watches how long you hold it. A quick tap produces the letter. A long press activates the modifier. The timing threshold is adjustable — see [Typing Feel](#typing-feel) below.
 
 <video autoplay loop muted playsinline style="max-width: 100%; border-radius: 10px;">
-  <source src="{{ '/images/help/diagram-opposite-hand.mp4' | relative_url }}" type="video/mp4">
+  <source src="{{ '/images/help/video-tap-hold.mp4' | relative_url }}" type="video/mp4">
 </video>
 
-When you press a home row key, KeyPath doesn't know yet whether you want the letter or the modifier. It watches what happens next to decide:
+### Opposite-hand activation
+
+Waiting for the full timeout on every keypress would make typing feel sluggish. KeyPath has a faster way: it watches which hand presses the next key. If you press a key on the **other hand** while holding F, it resolves immediately as a modifier — no need to wait for the timer.
 
 <video autoplay loop muted playsinline style="max-width: 100%; border-radius: 10px;">
-  <source src="{{ '/images/help/diagram-ambiguity.mp4' | relative_url }}" type="video/mp4">
+  <source src="{{ '/images/help/video-opposite-hand.mp4' | relative_url }}" type="video/mp4">
 </video>
 
 This is enabled by default (**On Press**). The picker offers three modes:
