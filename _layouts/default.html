@@ -7,6 +7,7 @@
     
     <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
     <meta name="description" content="{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}">
+    <meta name="baseurl" content="{{ site.baseurl }}">
     
     {% if site.github and site.github.build_revision %}
         {% assign css_version = site.github.build_revision %}
@@ -58,5 +59,6 @@
     {% include footer.html %}
     
     <script src="{{ '/assets/js/main.js' | relative_url }}?v={{ css_version }}"></script>
+    <script src="{{ '/assets/js/docs-search.js' | relative_url }}?v={{ css_version }}" defer></script>
 </body>
 </html>
