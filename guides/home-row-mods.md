@@ -64,19 +64,6 @@ KeyPath provides a slider to adjust the tap-hold threshold:
 
 
 ![Screenshot]({{ '/images/help/hrm-typing-feel-slider.png' | relative_url }})
-Screenshot — Typing Feel slider in rule settings:
-```
-  ┌─────────────────────────────────────────────────────┐
-  │  Typing Feel                                        │
-  │                                                     │
-  │  More Letters ────────●──────────── More Modifiers   │
-  │                       ↑                             │
-  │                     200 ms                          │
-  │                                                     │
-  │  Tap timeout:  [ 200 ms ]                           │
-  │  Hold timeout: [ 200 ms ]                           │
-  └─────────────────────────────────────────────────────┘
-```
 
 - Slide toward **"More Letters"** for a longer tap window (fewer accidental modifiers)
 - Slide toward **"More Modifiers"** for quicker modifier activation
@@ -87,20 +74,6 @@ Pinkies are slower than index fingers. KeyPath lets you add extra tolerance for 
 
 
 ![Screenshot]({{ '/images/help/hrm-per-finger-sliders.png' | relative_url }})
-Screenshot — Per-finger sensitivity sliders:
-```
-  ┌─────────────────────────────────────────────────────┐
-  │  Per-Finger Tolerance                               │
-  │                                                     │
-  │  Pinky   ████████████████████░  +40 ms              │
-  │  Ring    █████████████░░░░░░░░  +25 ms              │
-  │  Middle  █████████░░░░░░░░░░░░  +15 ms              │
-  │  Index   ██████░░░░░░░░░░░░░░░  +0 ms               │
-  │                                                     │
-  │  Slower fingers get more time before                │
-  │  the hold activates.                                │
-  └─────────────────────────────────────────────────────┘
-```
 
 ### Quick tap
 
@@ -128,19 +101,6 @@ When you're typing quickly, the last thing you want is for "fd" to become Ctrl+D
 
 
 ![Screenshot]({{ '/images/help/hrm-fast-typing.png' | relative_url }})
-Screenshot — Fast typing protection in rule settings:
-```
-  ┌─────────────────────────────────────────────────────┐
-  │  [x] Fast typing protection                        │
-  │                                                     │
-  │  Strict ──────────●──────────── Forgiving           │
-  │                    ↑                                │
-  │                  150 ms                             │
-  │                                                     │
-  │  Keys pressed within 150ms of your last keystroke   │
-  │  skip hold detection entirely.                      │
-  └─────────────────────────────────────────────────────┘
-```
 
 This is enabled by default at 150ms. Adjust the slider to match your typing speed — faster typists may want a lower value (strict), while slower typists can use a higher value (forgiving).
 
