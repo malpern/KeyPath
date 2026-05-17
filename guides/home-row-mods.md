@@ -12,11 +12,7 @@ permalink: /guides/home-row-mods/
 
 Every keyboard shortcut on your Mac requires a modifier — Command, Shift, Control, Option. Those keys are tucked into the bottom corners of your keyboard, forcing your fingers off the home row dozens of times an hour. Over a full workday, that's thousands of small reaches that slow you down and strain your hands.
 
-Home row mods fix this by putting modifiers right under your fingertips:
-
-![Home row mods — tap for letters, hold for modifiers]({{ '/images/help/diagram-hrm-keycaps.png' | relative_url }})
-
-Tap a key normally and you get the letter. Hold it briefly and it becomes a modifier. Your hands never move — every shortcut is one fluid motion from the home row.
+Home row mods fix this by putting modifiers right under your fingertips. Tap a key normally and you get the letter. Hold it briefly and it becomes a modifier. Your hands never move — every shortcut is one fluid motion from the home row.
 
 If you're new to keyboard customization, read [Keyboard Concepts]({{ '/guides/concepts/' | relative_url }}) first for background on dual-role keys and layers.
 
