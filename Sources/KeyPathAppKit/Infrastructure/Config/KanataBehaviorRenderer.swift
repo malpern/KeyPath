@@ -192,62 +192,71 @@ public enum KanataBehaviorRenderer {
 
     /// Convert an action string to Kanata syntax.
     /// Handles special keywords (hyper, meh) and multi-key combinations.
+    /// This is the bridge between string-typed behavior fields and kanata output.
+    /// It parses the string into a KeyAction, then renders via kanataOutput —
+    /// except for hyper with linked layers, which needs renderer context.
     private static func convertAction(_ action: String, hyperLinkedLayerInfos: [HyperLinkedLayerInfo]) -> String {
+        let parsed = parseActionString(action)
+
+        // Hyper with linked layers needs renderer-level context (layer infos)
+        if case .hyper = parsed, !hyperLinkedLayerInfos.isEmpty {
+            return renderHyperWithLayers(hyperLinkedLayerInfos)
+        }
+
+        return parsed.kanataOutput
+    }
+
+    /// Parse a string action into a typed KeyAction.
+    /// Used by convertAction as the single parsing entry point.
+    static func parseActionString(_ action: String) -> KeyAction {
         let stripped = action.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Already a Kanata S-expression (e.g., "(layer-while-held nav)") — pass through unchanged
+        // Already a Kanata S-expression — pass through as rawKanata
         if stripped.hasPrefix("("), stripped.hasSuffix(")") {
-            return stripped
+            return .rawKanata(stripped)
         }
 
-        let trimmed = stripped.lowercased()
+        let lowercased = stripped.lowercased()
 
-        // Special keyword: "hyper" = Cmd+Ctrl+Alt+Shift
-        // If hyperLinkedLayerInfos is set, also activate those layers during hyper hold/tap
-        if trimmed == "hyper" {
-            if hyperLinkedLayerInfos.isEmpty {
-                return "(multi lctl lmet lalt lsft)"
-            } else {
-                // Include layer activation and fake key notifications for each linked layer
-                var components = ["lctl", "lmet", "lalt", "lsft"]
-                for layerInfo in hyperLinkedLayerInfos {
-                    let layerName = layerInfo.layerName
-                    switch layerInfo.triggerMode {
-                    case .hold:
-                        // Hold mode: layer stays active while hyper is held
-                        components.append("(layer-while-held \(layerName))")
-                        components.append("(on-press-fakekey kp-layer-\(layerName)-enter tap)")
-                        components.append("(on-release-fakekey kp-layer-\(layerName)-exit tap)")
-                    case .tap:
-                        // Tap mode: one-shot layer that deactivates after next key press
-                        // Using one-shot-press with 5 second timeout (deactivates on any key or timeout).
-                        // Ensure fakekey/modifier presses don't consume the one-shot activation.
-                        components.append("(on-press-fakekey kp-layer-\(layerName)-enter tap)")
-                        components.append("(one-shot-pause-processing 10)")
-                        components.append("(one-shot-press 5000 (layer-while-held \(layerName)))")
-                    }
-                }
-                return "(multi \(components.joined(separator: " ")))"
-            }
+        if lowercased == "hyper" {
+            return .hyper
         }
 
-        // Special keyword: "meh" = Ctrl+Alt+Shift (no Cmd)
-        if trimmed == "meh" {
-            return "(multi lctl lalt lsft)"
+        if lowercased == "meh" {
+            return .meh
         }
 
         // Check for space-separated tokens (multi-key action)
-        let tokens = action.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tokens = stripped
             .components(separatedBy: .whitespaces)
             .filter { !$0.isEmpty }
 
         if tokens.count > 1 {
-            // Multiple keys - wrap in (multi ...)
             let kanataKeys = tokens.map { KanataKeyConverter.convertToKanataKey($0) }
-            return "(multi \(kanataKeys.joined(separator: " ")))"
+            return .rawKanata("(multi \(kanataKeys.joined(separator: " ")))")
         }
 
-        // Single key - use standard conversion
-        return KanataKeyConverter.convertToKanataKey(action)
+        // Single key — normalize through KanataKeyConverter
+        let converted = KanataKeyConverter.convertToKanataKey(stripped)
+        return .keystroke(key: converted)
+    }
+
+    /// Render hyper with linked layer activations (context-dependent output).
+    private static func renderHyperWithLayers(_ hyperLinkedLayerInfos: [HyperLinkedLayerInfo]) -> String {
+        var components = ["lctl", "lmet", "lalt", "lsft"]
+        for layerInfo in hyperLinkedLayerInfos {
+            let layerName = layerInfo.layerName
+            switch layerInfo.triggerMode {
+            case .hold:
+                components.append("(layer-while-held \(layerName))")
+                components.append("(on-press-fakekey kp-layer-\(layerName)-enter tap)")
+                components.append("(on-release-fakekey kp-layer-\(layerName)-exit tap)")
+            case .tap:
+                components.append("(on-press-fakekey kp-layer-\(layerName)-enter tap)")
+                components.append("(one-shot-pause-processing 10)")
+                components.append("(one-shot-press 5000 (layer-while-held \(layerName)))")
+            }
+        }
+        return "(multi \(components.joined(separator: " ")))"
     }
 }
