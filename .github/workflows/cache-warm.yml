@@ -1,0 +1,23 @@
+name: Warm Build Cache
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'Sources/**'
+      - 'Package.swift'
+      - 'Package.resolved'
+
+jobs:
+  warm-cache:
+    runs-on: [self-hosted, macOS, keypath]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Add Homebrew to PATH
+        run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
+
+      - name: Build (warms .build cache for PR jobs)
+        run: swift build

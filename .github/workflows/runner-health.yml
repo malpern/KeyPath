@@ -1,0 +1,19 @@
+name: Runner Health Check
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: [self-hosted, macOS, keypath]
+    timeout-minutes: 2
+    steps:
+      - name: Runner is alive
+        run: |
+          echo "Runner: $(hostname)"
+          echo "Uptime: $(uptime)"
+          echo "Disk: $(df -h /Users | tail -1)"
+          echo "Swift: $(swift --version 2>&1 | head -1)"
+          echo "Kanata: $(kanata --version 2>&1 || echo 'not found')"

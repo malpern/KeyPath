@@ -6,7 +6,6 @@ on:
     paths-ignore:
       - 'docs/**'
       - '*.md'
-      - '.github/workflows/publish-help-docs.yml'
       - '.github/workflows/claude.yml'
       - '.github/workflows/claude-code-review.yml'
       - 'Sources/KeyPathAppKit/Resources/*.md'
