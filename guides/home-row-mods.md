@@ -22,8 +22,8 @@ If you're new to keyboard customization, read [Keyboard Concepts]({{ '/guides/co
 
 Every home row key gets a second job — tap for the letter, hold for a modifier. The layout is mirrored so both hands get the same modifiers:
 
-<div style="display: flex; gap: 2rem; flex-wrap: wrap; justify-content: center;">
-<div>
+<div style="display: flex; gap: 2rem; flex-wrap: wrap; justify-content: center;" markdown="1">
+<div markdown="1">
 
 **Left hand**
 
@@ -35,7 +35,7 @@ Every home row key gets a second job — tap for the letter, hold for a modifier
 | F | f | Command ⌘ |
 
 </div>
-<div>
+<div markdown="1">
 
 **Right hand**
 
