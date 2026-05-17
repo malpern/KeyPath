@@ -6,7 +6,7 @@ final class CustomRuleDeviceOverrideTests: XCTestCase {
 
     func testAsKeyMappingIncludesDeviceOverrides() {
         let overrides = [
-            DeviceKeyOverride(deviceHash: "0xABCD1234", output: "b", behavior: nil)
+            DeviceKeyOverride(deviceHash: "0xABCD1234", output: .keystroke(key: "b"), behavior: nil)
         ]
         let rule = CustomRule(input: "a", action: .keystroke(key: "a"), deviceOverrides: overrides)
 
@@ -16,7 +16,7 @@ final class CustomRuleDeviceOverrideTests: XCTestCase {
         XCTAssertEqual(mapping.action, .keystroke(key: "a"))
         XCTAssertEqual(mapping.deviceOverrides?.count, 1)
         XCTAssertEqual(mapping.deviceOverrides?.first?.deviceHash, "0xABCD1234")
-        XCTAssertEqual(mapping.deviceOverrides?.first?.output, "b")
+        XCTAssertEqual(mapping.deviceOverrides?.first?.output, .keystroke(key: "b"))
     }
 
     func testAsKeyMappingWithoutDeviceOverridesReturnsNil() {
@@ -35,7 +35,7 @@ final class CustomRuleDeviceOverrideTests: XCTestCase {
             holdTimeout: 200
         )
         let overrides = [
-            DeviceKeyOverride(deviceHash: "0xDEAD", output: "b", behavior: .dualRole(dualRole))
+            DeviceKeyOverride(deviceHash: "0xDEAD", output: .keystroke(key: "b"), behavior: .dualRole(dualRole))
         ]
         let rule = CustomRule(input: "a", action: .keystroke(key: "a"), deviceOverrides: overrides)
 
@@ -54,8 +54,8 @@ final class CustomRuleDeviceOverrideTests: XCTestCase {
     func testCodableRoundTripPreservesDeviceOverrides() throws {
         let fixedDate = Date(timeIntervalSinceReferenceDate: 1000)
         let overrides = [
-            DeviceKeyOverride(deviceHash: "0xABCD1234", output: "b", behavior: nil),
-            DeviceKeyOverride(deviceHash: "0xDEADBEEF", output: "c", behavior: nil)
+            DeviceKeyOverride(deviceHash: "0xABCD1234", output: .keystroke(key: "b"), behavior: nil),
+            DeviceKeyOverride(deviceHash: "0xDEADBEEF", output: .keystroke(key: "c"), behavior: nil)
         ]
         let original = CustomRule(
             id: UUID(),
@@ -73,9 +73,9 @@ final class CustomRuleDeviceOverrideTests: XCTestCase {
         XCTAssertEqual(decoded, original)
         XCTAssertEqual(decoded.deviceOverrides?.count, 2)
         XCTAssertEqual(decoded.deviceOverrides?[0].deviceHash, "0xABCD1234")
-        XCTAssertEqual(decoded.deviceOverrides?[0].output, "b")
+        XCTAssertEqual(decoded.deviceOverrides?[0].output, .keystroke(key: "b"))
         XCTAssertEqual(decoded.deviceOverrides?[1].deviceHash, "0xDEADBEEF")
-        XCTAssertEqual(decoded.deviceOverrides?[1].output, "c")
+        XCTAssertEqual(decoded.deviceOverrides?[1].output, .keystroke(key: "c"))
     }
 
     func testDecodeLegacyJSONWithoutDeviceOverridesDefaultsToNil() throws {
@@ -106,7 +106,7 @@ final class CustomRuleDeviceOverrideTests: XCTestCase {
             holdTimeout: 200
         )
         let overrides = [
-            DeviceKeyOverride(deviceHash: "0xCAFE", output: "b", behavior: .dualRole(dualRole))
+            DeviceKeyOverride(deviceHash: "0xCAFE", output: .keystroke(key: "b"), behavior: .dualRole(dualRole))
         ]
         let original = CustomRule(
             id: UUID(),
@@ -180,14 +180,17 @@ final class CustomRuleDeviceOverrideTests: XCTestCase {
 
     func testDeviceOverrideProducesDeviceSwitchConfig() {
         let overrides = [
-            DeviceKeyOverride(deviceHash: "0xABCD1234", output: "b", behavior: nil)
+            DeviceKeyOverride(deviceHash: "0xABCD1234", output: .keystroke(key: "b"), behavior: nil)
         ]
         let rule = CustomRule(input: "a", action: .keystroke(key: "a"), deviceOverrides: overrides)
         let mapping = rule.asKeyMapping()
 
         // The mapping should have the identity action as default and the override
         XCTAssertEqual(mapping.action, .keystroke(key: "a"))
-        XCTAssertEqual(mapping.deviceOverrides?.first?.output, "b")
+        XCTAssertEqual(mapping.deviceOverrides?.first?.output, .keystroke(key: "b"))
+
+        // The override output should produce valid kanata
+        XCTAssertEqual(mapping.deviceOverrides?.first?.output.kanataOutput, "b")
 
         // Verify config generation produces switch expression
         let device = ConnectedDevice(
@@ -223,7 +226,7 @@ final class CustomRuleDeviceOverrideTests: XCTestCase {
         // User mapped 'a' → 'b' only on the Kinesis
         // Default (Apple) stays identity: a → a
         let overrides = [
-            DeviceKeyOverride(deviceHash: "0xBBBB1111", output: "b", behavior: nil)
+            DeviceKeyOverride(deviceHash: "0xBBBB1111", output: .keystroke(key: "b"), behavior: nil)
         ]
         let rule = CustomRule(input: "a", action: .keystroke(key: "a"), deviceOverrides: overrides)
         let mapping = rule.asKeyMapping()

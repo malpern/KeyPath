@@ -682,14 +682,14 @@ extension MapperViewModel {
         // Apply device condition: scoped output goes into deviceOverrides,
         // default output becomes identity (pass-through for other devices)
         if let deviceCondition = selectedDeviceCondition {
+            let overrideAction = customRule.action
             customRule.deviceOverrides = [
                 DeviceKeyOverride(
                     deviceHash: deviceCondition.deviceHash,
-                    output: outputKanata,
+                    output: overrideAction,
                     behavior: customRule.behavior
                 )
             ]
-            // Default output becomes identity (pass-through for unmatched devices)
             customRule.action = .keystroke(key: inputKanata)
             customRule.behavior = nil
         }

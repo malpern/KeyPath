@@ -18,21 +18,21 @@
                 input: "caps",
                 action: .keystroke(key: "caps"),
                 isEnabled: true,
-                deviceOverrides: [DeviceKeyOverride(deviceHash: "0xDEADBEEF", output: "lctl")]
+                deviceOverrides: [DeviceKeyOverride(deviceHash: "0xDEADBEEF", output: .keystroke(key: "lctl"))]
             ),
             CustomRule(
                 title: "Kinesis: Tab → Hyper",
                 input: "tab",
                 action: .keystroke(key: "tab"),
                 isEnabled: true,
-                deviceOverrides: [DeviceKeyOverride(deviceHash: "0xDEADBEEF", output: "lmet")]
+                deviceOverrides: [DeviceKeyOverride(deviceHash: "0xDEADBEEF", output: .keystroke(key: "lmet"))]
             ),
             CustomRule(
                 title: "Moonlander: A → Ctrl",
                 input: "a",
                 action: .keystroke(key: "a"),
                 isEnabled: true,
-                deviceOverrides: [DeviceKeyOverride(deviceHash: "0xCAFEBABE", output: "lctl")]
+                deviceOverrides: [DeviceKeyOverride(deviceHash: "0xCAFEBABE", output: .keystroke(key: "lctl"))]
             ),
         ]
 
