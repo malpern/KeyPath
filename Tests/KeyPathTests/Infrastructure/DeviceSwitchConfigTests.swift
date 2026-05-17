@@ -26,7 +26,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
     func testKeyWithDeviceOverrides_EmitsSwitchExpression() {
         let overrides = [
-            DeviceKeyOverride(deviceHash: "0xAAAA0000", output: "x"),
+            DeviceKeyOverride(deviceHash: "0xAAAA0000", output: .keystroke(key: "x")),
         ]
 
         let result = KanataConfiguration.renderDeviceSwitchExpression(
@@ -43,7 +43,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
     func testDeviceOverrideWithUnknownHash_SkipsCase() {
         let overrides = [
-            DeviceKeyOverride(deviceHash: "0xDEADBEEF", output: "z"),
+            DeviceKeyOverride(deviceHash: "0xDEADBEEF", output: .keystroke(key: "z")),
         ]
 
         let result = KanataConfiguration.renderDeviceSwitchExpression(
@@ -60,8 +60,8 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
     func testMultipleDeviceOverrides_PreservesInputOrder() {
         let overrides = [
-            DeviceKeyOverride(deviceHash: "0xBBBB1111", output: "y"),
-            DeviceKeyOverride(deviceHash: "0xAAAA0000", output: "x"),
+            DeviceKeyOverride(deviceHash: "0xBBBB1111", output: .keystroke(key: "y")),
+            DeviceKeyOverride(deviceHash: "0xAAAA0000", output: .keystroke(key: "x")),
         ]
 
         let result = KanataConfiguration.renderDeviceSwitchExpression(
@@ -118,7 +118,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
             holdAction: .keystroke(key: "lctl")
         ))
         let overrides = [
-            DeviceKeyOverride(deviceHash: "0xAAAA0000", output: "a", behavior: behavior),
+            DeviceKeyOverride(deviceHash: "0xAAAA0000", output: .keystroke(key: "a"), behavior: behavior),
         ]
 
         let result = KanataConfiguration.renderDeviceSwitchExpression(
@@ -140,7 +140,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
             outputs: ["M-c", "v"]
         ))
         let overrides = [
-            DeviceKeyOverride(deviceHash: "0xBBBB1111", output: "a", behavior: behavior),
+            DeviceKeyOverride(deviceHash: "0xBBBB1111", output: .keystroke(key: "a"), behavior: behavior),
         ]
 
         let result = KanataConfiguration.renderDeviceSwitchExpression(
@@ -160,10 +160,10 @@ final class DeviceSwitchConfigTests: XCTestCase {
         let overrides = [
             DeviceKeyOverride(
                 deviceHash: "0xAAAA0000",
-                output: "esc",
+                output: .keystroke(key: "esc"),
                 behavior: .dualRole(DualRoleBehavior(tapAction: .keystroke(key: "esc"), holdAction: .keystroke(key: "lctl")))
             ),
-            DeviceKeyOverride(deviceHash: "0xBBBB1111", output: "caps"),
+            DeviceKeyOverride(deviceHash: "0xBBBB1111", output: .keystroke(key: "caps")),
         ]
 
         let result = KanataConfiguration.renderDeviceSwitchExpression(
@@ -180,8 +180,8 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
     func testAllOverridesUnresolvable_EmitsOnlyDefault() {
         let overrides = [
-            DeviceKeyOverride(deviceHash: "0xDEAD0001", output: "x"),
-            DeviceKeyOverride(deviceHash: "0xDEAD0002", output: "y"),
+            DeviceKeyOverride(deviceHash: "0xDEAD0001", output: .keystroke(key: "x")),
+            DeviceKeyOverride(deviceHash: "0xDEAD0002", output: .keystroke(key: "y")),
         ]
 
         let result = KanataConfiguration.renderDeviceSwitchExpression(
@@ -206,8 +206,8 @@ final class DeviceSwitchConfigTests: XCTestCase {
             input: "a",
             action: .keystroke(key: "b"),
             deviceOverrides: [
-                DeviceKeyOverride(deviceHash: "0xAAAA0000", output: "x"),
-                DeviceKeyOverride(deviceHash: "0xBBBB1111", output: "y"),
+                DeviceKeyOverride(deviceHash: "0xAAAA0000", output: .keystroke(key: "x")),
+                DeviceKeyOverride(deviceHash: "0xBBBB1111", output: .keystroke(key: "y")),
             ]
         )
 
@@ -239,7 +239,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
             input: "h",
             action: .keystroke(key: "left"),
             deviceOverrides: [
-                DeviceKeyOverride(deviceHash: "0xAAAA0000", output: "home"),
+                DeviceKeyOverride(deviceHash: "0xAAAA0000", output: .keystroke(key: "home")),
             ]
         )
 
@@ -307,7 +307,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
             input: "a",
             action: .keystroke(key: "b"),
             deviceOverrides: [
-                DeviceKeyOverride(deviceHash: "0xAAAA0000", output: "x"),
+                DeviceKeyOverride(deviceHash: "0xAAAA0000", output: .keystroke(key: "x")),
             ]
         )
 
@@ -336,7 +336,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
             input: "a",
             action: .keystroke(key: "b"),
             deviceOverrides: [
-                DeviceKeyOverride(deviceHash: "0xAAAA0000", output: "x"),
+                DeviceKeyOverride(deviceHash: "0xAAAA0000", output: .keystroke(key: "x")),
             ]
         )
 

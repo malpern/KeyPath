@@ -29,19 +29,14 @@ extension KanataConfiguration {
             guard let index = hashToIndex[override.deviceHash] else { continue }
             let output: String
             if let behavior = override.behavior {
-                // Render behavior using the behavior renderer.
-                // KanataBehaviorRenderer currently uses only output+behavior from the mapping,
-                // but we pass the real input key for correctness and future-proofing.
                 let syntheticMapping = KeyMapping(
                     input: inputKey,
-                    action: .keystroke(key: override.output),
+                    action: override.output,
                     behavior: behavior
                 )
-                // TODO: Thread real hyperLinkedLayerInfos through when per-device
-                // behavior overrides involving hyper layers are supported in the UI.
                 output = KanataBehaviorRenderer.render(syntheticMapping, hyperLinkedLayerInfos: [])
             } else {
-                output = KanataKeyConverter.convertToKanataSequence(override.output)
+                output = override.output.kanataOutput
             }
             cases.append("((device \(index))) \(output) break")
         }

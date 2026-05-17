@@ -163,8 +163,9 @@ extension MapperViewModel {
         customRule.targetLayer = targetLayer
 
         if let deviceCondition = selectedDeviceCondition {
+            let overrideAction = customRule.action
             customRule.deviceOverrides = [
-                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: app.kanataOutput, behavior: nil)
+                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: overrideAction, behavior: nil)
             ]
             customRule.action = .keystroke(key: inputKanata)
         }
@@ -232,8 +233,9 @@ extension MapperViewModel {
         customRule.targetLayer = targetLayer
 
         if let deviceCondition = selectedDeviceCondition {
+            let overrideAction = customRule.action
             customRule.deviceOverrides = [
-                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: action.kanataOutput, behavior: nil)
+                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: overrideAction, behavior: nil)
             ]
             customRule.action = .keystroke(key: inputKanata)
         }
@@ -333,8 +335,9 @@ extension MapperViewModel {
         customRule.targetLayer = targetLayer
 
         if let deviceCondition = selectedDeviceCondition {
+            let overrideAction = customRule.action
             customRule.deviceOverrides = [
-                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: outputKanata, behavior: nil)
+                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: overrideAction, behavior: nil)
             ]
             customRule.action = .keystroke(key: inputKanata)
         }
@@ -406,8 +409,9 @@ extension MapperViewModel {
         customRule.targetLayer = targetLayer
 
         if let deviceCondition = selectedDeviceCondition {
+            let overrideAction = customRule.action
             customRule.deviceOverrides = [
-                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: action.kanataOutput, behavior: nil)
+                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: overrideAction, behavior: nil)
             ]
             customRule.action = .keystroke(key: inputKanata)
         }
@@ -469,8 +473,9 @@ extension MapperViewModel {
         customRule.targetLayer = targetLayer
 
         if let deviceCondition = selectedDeviceCondition {
+            let overrideAction = customRule.action
             customRule.deviceOverrides = [
-                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: action.kanataOutput, behavior: nil)
+                DeviceKeyOverride(deviceHash: deviceCondition.deviceHash, output: overrideAction, behavior: nil)
             ]
             customRule.action = .keystroke(key: inputKanata)
         }

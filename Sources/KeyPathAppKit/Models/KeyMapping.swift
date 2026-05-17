@@ -7,11 +7,11 @@ public struct DeviceKeyOverride: Codable, Equatable, Sendable {
     /// Device hash from kanata --list (e.g., "0x1234ABCD")
     public let deviceHash: String
     /// Output action for this device (replaces the default output)
-    public let output: String
+    public let output: KeyAction
     /// Optional advanced behavior override for this device
     public let behavior: MappingBehavior?
 
-    public init(deviceHash: String, output: String, behavior: MappingBehavior? = nil) {
+    public init(deviceHash: String, output: KeyAction, behavior: MappingBehavior? = nil) {
         self.deviceHash = deviceHash
         self.output = output
         self.behavior = behavior
