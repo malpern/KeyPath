@@ -734,6 +734,11 @@ main .content-wrapper > section pre code,
 
 /* --- External link indicator --- */
 
+/* Suppress help-theme.css arrow on parchment pages (main.css adds its own) */
+.parchment-theme a[href^="http"]::after {
+    content: none !important;
+}
+
 main .content-wrapper > section a[href^="http"]:not([href*="keypath"]):not(.docs-cta-primary):not(.docs-cta-secondary):not(.docs-card h3 a):not(.nav-link):not(.header-nav a)::after,
 .content a[href^="http"]:not([href*="keypath"]):not(.docs-cta-primary):not(.docs-cta-secondary):not(.docs-card h3 a):not(.nav-link):not(.header-nav a)::after {
     content: ' ↗';
