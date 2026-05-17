@@ -15,8 +15,8 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: macos-latest
-    timeout-minutes: 20
+    runs-on: [self-hosted, macOS, keypath]
+    timeout-minutes: 10
     env:
       COVERAGE_BASELINE_PERCENT: "0.27"
       COVERAGE_TOLERANCE_PERCENT: "0.01"
@@ -25,52 +25,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Add Homebrew to PATH
+      run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
+
     - name: Verify Help Docs Parity
       run: |
         chmod +x ./Scripts/check-help-parity.sh
         ./Scripts/check-help-parity.sh
 
-    - name: Detect Xcode version
-      run: echo "XCODE_VERSION=$(xcodebuild -version | head -1 | awk '{print $2}')" >> $GITHUB_ENV
-
-    - name: Cache Swift packages
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.swiftpm
-        key: ${{ runner.os }}-swift-${{ hashFiles('Package.swift', 'Package.resolved') }}
-        restore-keys: |
-          ${{ runner.os }}-swift-
-
-    - name: Cache build artifacts
-      uses: actions/cache@v4
-      with:
-        path: |
-          .build
-        key: ${{ runner.os }}-xcode${{ env.XCODE_VERSION }}-build-${{ hashFiles('Package.swift', 'Package.resolved') }}-${{ hashFiles('Sources/**/*.swift', 'Tests/**/*.swift') }}
-        restore-keys: |
-          ${{ runner.os }}-xcode${{ env.XCODE_VERSION }}-build-${{ hashFiles('Package.swift', 'Package.resolved') }}-
-
-    - name: Cache Homebrew packages
-      id: cache-brew
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/Library/Caches/Homebrew
-          /usr/local/Cellar/kanata
-          /opt/homebrew/Cellar/kanata
-        # Bump v1 → v2 etc. when kanata updates on Homebrew
-        key: ${{ runner.os }}-brew-kanata-v1
-
-    - name: Install Kanata
-      run: |
-        # Cache may restore Cellar without symlinks; install or link as needed
-        if brew list kanata &>/dev/null; then
-          brew link --overwrite kanata
-        else
-          brew install kanata
-        fi
-        kanata --version
+    - name: Verify Kanata available
+      run: kanata --version
 
     - name: Lint WizardAutoFixer for forbidden subprocess usage
       run: |
@@ -106,9 +70,7 @@ jobs:
         ./Scripts/verify-kanata-plist.sh Sources/KeyPathApp/com.keypath.kanata.plist
 
     - name: Generate Coverage (single pass)
-      # Coverage instrumentation triggers a separate rebuild of the package.
-      # On current GitHub macOS runners that rebuild takes a bit over 5 minutes.
-      timeout-minutes: 8
+      timeout-minutes: 5
       run: |
         echo "Generating coverage with combined filter..."
         swift test --enable-code-coverage --filter 'KeyPathErrorTests|PermissionOracleTests'
@@ -181,44 +143,45 @@ jobs:
         fi
 
   code-quality:
-    runs-on: macos-latest
-    timeout-minutes: 8
+    runs-on: [self-hosted, macOS, keypath]
+    timeout-minutes: 5
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-    - name: Install Tools (optional)
+    - name: Add Homebrew to PATH
+      run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
+
+    - name: Get changed Swift files
+      id: changed
       run: |
-        if ! command -v swiftlint &> /dev/null; then
-          echo "Installing SwiftLint..."
-          brew install swiftlint
-        fi
-        if ! command -v swiftformat &> /dev/null; then
-          echo "Installing SwiftFormat..."
-          brew install swiftformat
+        BASE=${{ github.event.pull_request.base.sha }}
+        CHANGED=$(git diff --name-only --diff-filter=d "$BASE"...HEAD -- '*.swift' || true)
+        if [ -z "$CHANGED" ]; then
+          echo "swift_files=" >> $GITHUB_OUTPUT
+          echo "No Swift files changed"
+        else
+          echo "swift_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "Changed Swift files:"
+          echo "$CHANGED"
         fi
 
     - name: SwiftLint Analysis
+      if: steps.changed.outputs.swift_files != ''
       run: |
-        echo "Running comprehensive SwiftLint analysis..."
-
-        # Full SwiftLint check (moved from pre-commit)
-        if swiftlint --reporter github-actions-logging; then
-          echo "No SwiftLint violations found"
-          SWIFTLINT_STATUS="passed"
-        else
-          echo "SwiftLint found issues (details above)"
-          SWIFTLINT_STATUS="issues_found"
-          # Don't fail CI, just report
-        fi
-
-        echo "SWIFTLINT_STATUS=$SWIFTLINT_STATUS" >> $GITHUB_ENV
+        echo "Linting changed Swift files only..."
+        echo "${{ steps.changed.outputs.swift_files }}" | xargs swiftlint --reporter github-actions-logging || true
 
     - name: SwiftFormat Check
+      if: steps.changed.outputs.swift_files != ''
       run: |
-        echo "Checking Swift formatting..."
-        swiftformat --lint Sources/ Tests/ || {
+        echo "Checking formatting of changed Swift files..."
+        echo "${{ steps.changed.outputs.swift_files }}" | xargs swiftformat --lint || {
           echo "SwiftFormat found formatting issues, but not failing CI"
           echo "Run 'swiftformat Sources/ Tests/' locally to fix formatting"
           exit 0
