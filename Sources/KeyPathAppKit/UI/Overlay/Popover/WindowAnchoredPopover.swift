@@ -18,6 +18,18 @@ public extension View {
     /// Use this when the trigger lives inside a clipped container (e.g. a
     /// narrow sidebar) and the popover content needs to float over the rest
     /// of the window without being cropped by the trigger's parent.
+    ///
+    /// - Parameters:
+    ///   - isPresented: Controls visibility. Setting to `false` (e.g. via the
+    ///     host's tap-outside or ESC handling) dismisses the popover.
+    ///   - edge: The edge of the trigger the popover attaches to. Defaults to
+    ///     `.leading` (popover floats left of the trigger), which is the right
+    ///     choice for triggers in a right-side sidebar. The host auto-flips
+    ///     to the opposite edge if the popover would clip the host bounds.
+    ///   - gap: Space between the trigger edge and the popover edge.
+    ///   - content: The popover content. Built once when `isPresented`
+    ///     becomes `true` and cached until dismissal, so heavier content
+    ///     doesn't pay a rebuild cost on every layout pass.
     func windowAnchoredPopover<PopoverContent: View>(
         isPresented: Binding<Bool>,
         edge: WindowAnchoredPopoverEdge = .leading,
@@ -53,8 +65,14 @@ struct WindowAnchoredPopoverEntry: Identifiable, Equatable {
     let content: AnyView
     let dismiss: () -> Void
 
+    /// Identity-only equality. `anchor` is `Anchor<CGRect>` (not Equatable),
+    /// `content` is `AnyView` (untyped), and `dismiss` is a closure — none of
+    /// these can participate. Comparing only `id` also matches our semantic
+    /// intent: the host only needs to know when the *set of open popovers*
+    /// changes (so it can rebind the ESC monitor). Layout-driven anchor
+    /// movement should not retrigger that work.
     static func == (lhs: WindowAnchoredPopoverEntry, rhs: WindowAnchoredPopoverEntry) -> Bool {
-        lhs.id == rhs.id && lhs.edge == rhs.edge && lhs.gap == rhs.gap
+        lhs.id == rhs.id
     }
 }
 
@@ -74,25 +92,42 @@ private struct WindowAnchoredPopoverModifier<PopoverContent: View>: ViewModifier
     let gap: CGFloat
     let contentBuilder: () -> PopoverContent
 
+    /// Stable per trigger-site identity. SwiftUI preserves `@State` across
+    /// recompositions of the same view, so this UUID is generated once and
+    /// reused for every emitted entry from this modifier.
     @State private var id = UUID()
 
+    /// Cached popover content. Built once when `isPresented` flips to `true`
+    /// and held until dismissal, so the popover view tree is not
+    /// re-instantiated on every layout pass (which the surrounding
+    /// `anchorPreference` transform would otherwise trigger).
+    @State private var cachedContent: AnyView?
+
     func body(content: Content) -> some View {
-        content.anchorPreference(
-            key: WindowAnchoredPopoverPreferenceKey.self,
-            value: .bounds
-        ) { anchor in
-            guard isPresented else { return [] }
-            return [
-                WindowAnchoredPopoverEntry(
-                    id: id,
-                    anchor: anchor,
-                    edge: edge,
-                    gap: gap,
-                    content: AnyView(contentBuilder()),
-                    dismiss: { isPresented = false }
-                )
-            ]
-        }
+        content
+            .anchorPreference(
+                key: WindowAnchoredPopoverPreferenceKey.self,
+                value: .bounds
+            ) { anchor in
+                guard isPresented, let cachedContent else { return [] }
+                return [
+                    WindowAnchoredPopoverEntry(
+                        id: id,
+                        anchor: anchor,
+                        edge: edge,
+                        gap: gap,
+                        content: cachedContent,
+                        dismiss: { isPresented = false }
+                    )
+                ]
+            }
+            .onChange(of: isPresented) { _, isOpen in
+                if isOpen {
+                    cachedContent = AnyView(contentBuilder())
+                } else {
+                    cachedContent = nil
+                }
+            }
     }
 }
 
@@ -112,11 +147,15 @@ private struct WindowAnchoredPopoverHostModifier: ViewModifier {
         GeometryReader { proxy in
             ZStack(alignment: .topLeading) {
                 if !entries.isEmpty {
+                    // 0.001 opacity makes this layer invisible while still
+                    // hit-testable, so taps outside the popover dismiss it
+                    // without darkening the underlying UI.
                     Color.black.opacity(0.001)
                         .contentShape(Rectangle())
                         .onTapGesture {
                             for entry in entries { entry.dismiss() }
                         }
+                        .accessibilityIdentifier("window-anchored-popover-dismiss-backdrop")
                         .transition(.identity)
                 }
 
@@ -171,7 +210,11 @@ private struct WindowAnchoredPopoverContent: View {
     var body: some View {
         let isMeasured = measuredSize.width > 0 && measuredSize.height > 0
         let size = isMeasured ? measuredSize : fallbackSize
-        let edge = resolveEdge(size: size)
+        // Skip the flip on the unmeasured first frame so a stale
+        // `fallbackSize` can't move the popover to the wrong side
+        // (which would then need to animate back once measured).
+        // The view is opacity-0 in that frame anyway.
+        let edge = isMeasured ? resolveEdge(size: size) : entry.edge
         let center = position(for: edge, size: size)
 
         entry.content
