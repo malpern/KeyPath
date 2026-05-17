@@ -208,9 +208,8 @@ public struct WizardAccessibilityPage: View {
                                                 onNavigateToPage?(.summary)
                                                 return
                                             }
-                                            AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix clicked — opening System Settings and revealing kanata")
-                                            openAccessibilitySettings()
-                                            revealKanataInFinder()
+                                            AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix clicked — presenting drag-to-authorize overlay")
+                                            DragToAuthorizeController.shared.present(for: .accessibility)
                                         }
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
@@ -279,6 +278,7 @@ public struct WizardAccessibilityPage: View {
         .onDisappear {
             permissionPollingTask?.cancel()
             permissionPollingTask = nil
+            DragToAuthorizeController.shared.dismiss(animated: false)
         }
     }
 

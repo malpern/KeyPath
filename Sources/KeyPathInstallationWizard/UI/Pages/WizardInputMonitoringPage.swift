@@ -190,10 +190,8 @@ public struct WizardInputMonitoringPage: View {
                                                 onNavigateToPage?(.summary)
                                                 return
                                             }
-                                            AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Fix clicked — opening System Settings and revealing kanata")
-                                            openInputMonitoringPreferencesPanel()
-                                            revealKanataInFinder()
-                                            startPermissionPolling(for: .inputMonitoring)
+                                            AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Fix clicked — presenting drag-to-authorize overlay")
+                                            DragToAuthorizeController.shared.present(for: .inputMonitoring)
                                         }
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
@@ -259,6 +257,7 @@ public struct WizardInputMonitoringPage: View {
         .onDisappear {
             permissionPollingTask?.cancel()
             permissionPollingTask = nil
+            DragToAuthorizeController.shared.dismiss(animated: false)
         }
     }
 
