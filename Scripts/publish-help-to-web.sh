@@ -530,17 +530,17 @@ generate_search_index() {
         [[ ! -f "$src_path" ]] && continue
 
         local entry="${DOCS[$resource]}"
-        local web_dir="${entry%%:*}"
+        local web_path="${entry%%:*}"
         local rest="${entry#*:}"
         local title="${rest%%:*}"
         rest="${rest#*:}"
         local description="${rest%%:*}"
+        rest="${rest#*:}"
+        local url="${rest%%:*}"
 
         local group_id="${GROUPS[$resource]}"
         local group_title="${GROUP_TITLES[$group_id]:-$group_id}"
         local manual_keywords="${KEYWORDS[$resource]}"
-
-        local url="/${web_dir}/"
 
         # Auto-extract headings (H1-H3) as high-value search terms
         local headings
