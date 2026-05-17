@@ -27,18 +27,7 @@ The fix: **make Caps Lock send Escape instead.**
 
 This is a **remap** — making one key behave as another. It's the simplest thing you can do, and it takes about ten seconds in KeyPath.
 
-<!-- screenshot: id="concepts-new-rule-dialog" method="snapshot" view="CustomRulesInlineEditor" state="start:caps_lock,finish:escape,hold:disabled" -->
-Screenshot — Creating a simple remap in the Custom Rules tab:
-```
-  ┌─────────────────────────────────────────────────────┐
-  │  New Rule                                           │
-  │                                                     │
-  │  Start key:    [ caps_lock      ▾ ]                 │
-  │  Finish key:   [ escape         ▾ ]                 │
-  │                                                     │
-  │                              [ Cancel ]  [ Save ]   │
-  └─────────────────────────────────────────────────────┘
-```
+![Screenshot — The Caps Lock Remap pack detail in KeyPath](pack-detail-caps-lock-remap.png)
 
 That's it. One key remapped. No config files, no JSON, no terminal commands. But this is just the beginning — once you see how easy it is, you'll want to do more.
 

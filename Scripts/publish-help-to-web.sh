@@ -291,7 +291,7 @@ transform_file() {
 
     # 3. Convert inline concept images to website image paths
     #    ![Alt](concepts-foo.png) → ![Alt]({{ '/images/help/concepts-foo.png' | relative_url }})
-    content=$(echo "$content" | sed -E "s#!\[([^]]*)\]\(((concepts|decor|header|permissions)-[^)]+\.png)\)#![\1]({{ '/images/help/\2' | relative_url }})#g")
+    content=$(echo "$content" | sed -E "s#!\[([^]]*)\]\(((concepts|decor|header|permissions|pack-detail|full-window|settings)-[^)]+\.png)\)#![\1]({{ '/images/help/\2' | relative_url }})#g")
 
     # 4. Convert help: links to Jekyll relative_url links
     #    Write link map to temp file, then use perl to do all replacements

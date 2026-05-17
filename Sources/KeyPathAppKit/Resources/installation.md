@@ -15,21 +15,7 @@ Once setup is complete, KeyPath gives you:
 - **Window tiling** — Snap windows to halves, thirds, or corners with a key combo
 - **Home row shortcuts** — Your modifier keys live under your fingertips, not in the corner
 
-<!-- screenshot: id="install-overlay-base" method="snapshot" view="LiveKeyboardOverlayView" state="service:running,layer:base" -->
-Screenshot — The KeyPath overlay showing your active layout:
-```
-  ┌──────────────────────────────────────────────┐
-  │  ● KeyPath                    Base Layer      │
-  │                                               │
-  │  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐   │
-  │  │ Q │ W │ E │ R │ T │ Y │ U │ I │ O │ P │   │
-  │  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤   │
-  │  │ A │ S │ D │ F │ G │ H │ J │ K │ L │ ; │   │
-  │  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤   │
-  │  │ Z │ X │ C │ V │ B │ N │ M │ , │ . │ / │   │
-  │  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘   │
-  └──────────────────────────────────────────────┘
-```
+![Screenshot — The KeyPath overlay with rules panel](full-window-rules-tab.png)
 
 Want to see what's possible before you start? Check out [What You Can Build](help:use-cases).
 

@@ -218,3 +218,16 @@ struct OverlayDragHeaderParams {
     let healthIndicatorState: HealthIndicatorState
     let drawerButtonHighlighted: Bool
 }
+
+// MARK: - KanataViewModel (for Settings / Pack Detail snapshots)
+
+extension MockFactories {
+    @MainActor
+    static func kanataViewModel() -> KanataViewModel {
+        let coordinator = RuntimeCoordinator()
+        let vm = KanataViewModel(manager: coordinator)
+        let catalog = RuleCollectionCatalog()
+        vm.ruleCollections = catalog.defaultCollections()
+        return vm
+    }
+}
