@@ -55,9 +55,9 @@ final class CommandStructureTests: XCTestCase {
         XCTAssertEqual(Set(names), ["install", "repair", "uninstall", "inspect"])
     }
 
-    func testHelpTopicsHasSchemas() {
+    func testHelpTopicsHasExpectedVerbs() {
         let names = subcommandNames(of: Help.self)
-        XCTAssertTrue(names.contains("schemas"))
+        XCTAssertEqual(Set(names), ["schemas", "examples"])
     }
 
     func testCompletionsHasShells() {

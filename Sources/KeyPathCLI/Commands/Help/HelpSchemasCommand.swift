@@ -71,7 +71,7 @@ struct HelpSchemas: AsyncParsableCommand {
                     lines.append("")
                     lines.append("Flags:")
                     lines.append("  --dry-run             Preview without saving")
-                    lines.append("  --on-conflict <s>     fail|replace|skip (default: fail)")
+                    lines.append("  --on-conflict <s>     fail|replace|skip|merge (default: fail)")
                     lines.append("  --apply               Regenerate config after saving")
                     return lines.joined(separator: "\n")
                 }

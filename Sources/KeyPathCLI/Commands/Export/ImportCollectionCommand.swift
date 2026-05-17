@@ -45,7 +45,7 @@ struct ImportCollection: AsyncParsableCommand {
 
         let conflictStrategy: CLIConflictStrategy = switch globals.onConflict {
         case .fail: .fail
-        case .replace: .replace
+        case .replace, .merge: .replace
         case .skip: .skip
         }
 

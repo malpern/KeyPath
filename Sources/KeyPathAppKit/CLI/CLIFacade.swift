@@ -78,7 +78,7 @@ public struct CLIFacade: Sendable {
         var rules = await CustomRulesStore.shared.loadRules()
         let existingIndex = rules.firstIndex(where: { $0.input == input })
 
-        if existingIndex != nil {
+        if let existingIndex {
             switch onConflict {
             case .fail:
                 throw CLIConflictError(input: input)
@@ -86,6 +86,12 @@ public struct CLIFacade: Sendable {
                 return .skipped
             case .replace:
                 rules.removeAll { $0.input == input }
+            case .merge:
+                let existing = rules[existingIndex]
+                let merged = try Self.mergeRules(existing: existing, newAction: action, newBehavior: behavior)
+                rules[existingIndex] = merged
+                try await CustomRulesStore.shared.saveRules(rules)
+                return .merged(CLIRuleDetail(from: merged))
             }
         }
 
@@ -141,6 +147,61 @@ public struct CLIFacade: Sendable {
         case "nav", "navigation": .navigation
         default: .custom(name)
         }
+    }
+
+    static func mergeRules(existing: CustomRule, newAction: KeyAction, newBehavior: MappingBehavior?) throws -> CustomRule {
+        let existingIsSimple = existing.behavior == nil
+        let newIsSimple = newBehavior == nil
+
+        if existingIsSimple && newIsSimple {
+            throw CLIMergeError(
+                input: existing.input,
+                reason: "both rules are simple remaps with different outputs — ambiguous"
+            )
+        }
+
+        var merged = existing
+
+        if existingIsSimple, case let .dualRole(newDual) = newBehavior {
+            // Existing simple remap becomes tap, new hold action stays
+            merged.behavior = .dualRole(DualRoleBehavior(
+                tapAction: existing.action,
+                holdAction: newDual.holdAction,
+                tapTimeout: newDual.tapTimeout,
+                holdTimeout: newDual.holdTimeout,
+                activateHoldOnOtherKey: newDual.activateHoldOnOtherKey
+            ))
+            merged.action = existing.action
+            return merged
+        }
+
+        if case .dualRole(var existingDual) = existing.behavior, newIsSimple {
+            // Existing tap-hold keeps hold, new simple remap updates tap
+            existingDual.tapAction = newAction
+            merged.behavior = .dualRole(existingDual)
+            merged.action = newAction
+            return merged
+        }
+
+        if case let .dualRole(existingDual) = existing.behavior,
+           case let .dualRole(newDual) = newBehavior
+        {
+            // Both tap-hold: new values override
+            merged.behavior = .dualRole(DualRoleBehavior(
+                tapAction: newDual.tapAction,
+                holdAction: newDual.holdAction,
+                tapTimeout: newDual.tapTimeout,
+                holdTimeout: existingDual.holdTimeout,
+                activateHoldOnOtherKey: newDual.activateHoldOnOtherKey
+            ))
+            merged.action = newDual.tapAction
+            return merged
+        }
+
+        throw CLIMergeError(
+            input: existing.input,
+            reason: "incompatible behavior types cannot be merged"
+        )
     }
 
     // MARK: - Rule Collections
@@ -287,7 +348,7 @@ public struct CLIFacade: Sendable {
                 )
             case .skip:
                 return CLIRuleCollection(from: collections[existingIndex])
-            case .replace:
+            case .replace, .merge:
                 collections.remove(at: existingIndex)
             }
         }
@@ -882,6 +943,7 @@ public struct CLIDeviceOverride: Codable, Sendable {
 public enum RuleAddResult: Codable, Sendable {
     case created(CLIRuleDetail)
     case replaced(CLIRuleDetail)
+    case merged(CLIRuleDetail)
     case skipped
 
     private enum CodingKeys: String, CodingKey {
@@ -899,6 +961,9 @@ public enum RuleAddResult: Codable, Sendable {
         case "replaced":
             let rule = try container.decode(CLIRuleDetail.self, forKey: .rule)
             self = .replaced(rule)
+        case "merged":
+            let rule = try container.decode(CLIRuleDetail.self, forKey: .rule)
+            self = .merged(rule)
         case "skipped":
             self = .skipped
         default:
@@ -915,6 +980,9 @@ public enum RuleAddResult: Codable, Sendable {
         case let .replaced(rule):
             try container.encode("replaced", forKey: .status)
             try container.encode(rule, forKey: .rule)
+        case let .merged(rule):
+            try container.encode("merged", forKey: .status)
+            try container.encode(rule, forKey: .rule)
         case .skipped:
             try container.encode("skipped", forKey: .status)
         }
@@ -925,6 +993,13 @@ public enum CLIConflictStrategy: String, Sendable {
     case fail
     case replace
     case skip
+    case merge
+}
+
+public struct CLIMergeError: Error, CustomStringConvertible {
+    public let input: String
+    public let reason: String
+    public var description: String { "Cannot merge rules for '\(input)': \(reason)" }
 }
 
 public struct CLIConflictError: Error, CustomStringConvertible {

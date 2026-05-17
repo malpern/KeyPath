@@ -2,23 +2,27 @@
 
 **Parent issue:** #347 (CLI parity)  
 **Depends on:** Phase 0 (PR #356, merged 2026-05-17)  
-**PR:** #359 (in progress)  
-**Status:** Phase 1 mostly complete, starting Phase 2
+**PR:** #359 (squash-merged 2026-05-17)  
+**Status:** Only 2B (Karabiner Import) remains
 
 ### Progress
 
 | Sub-phase | Status | Tests | Notes |
 |-----------|--------|-------|-------|
-| 1A. Rule CRUD | ✅ Done | 43 | Full --action/--behavior JSON, --dry-run, --on-conflict |
-| 1B. Collection CRUD | ✅ Done | 7 | create/rename/delete/duplicate/reorder |
-| 1C. Layer CRUD | ✅ Done | 7 | create/delete/rename via targetLayer |
-| 1D. Service Lifecycle | ✅ Done | 3 | start/stop/restart/logs via launchctl |
+| 1A. Rule CRUD | ✅ Shipped | 43 | Full --action/--behavior JSON, --dry-run, --on-conflict |
+| 1B. Collection CRUD | ✅ Shipped | 7 | create/rename/delete/duplicate/reorder |
+| 1C. Layer CRUD | ✅ Shipped | 7 | create/delete/rename via targetLayer |
+| 1D. Service Lifecycle | ✅ Shipped | 3 | start/stop/restart/logs via launchctl |
 | 1E. Keyboard/Device | ⏳ Deferred | — | Needs HID device access; hard to unit test |
 | 1F. Simulate | ⏳ Deferred | — | Needs kanata-simulator binary |
-| 1G. Schemas | ✅ Done | 6 | rule + collection schemas with JSON examples |
-| 2A. Porcelain | 🔜 Next | — | |
-| 2C. Export/Import | 🔜 Next | — | |
-| **Total passing** | | **143** | All CLI tests green |
+| 1G. Schemas | ✅ Shipped | 6 | rule + collection schemas with JSON examples |
+| 2A. Porcelain | ✅ Shipped | 8 | start/stop/restart/logs/unmap/list shortcuts |
+| 2B. Karabiner Import | 🔜 Next | — | Only remaining item |
+| 2C. Export/Import | ✅ Shipped | 14 | export/import collection round-trip |
+| 2D. Conflict merge | ✅ Done | 6 | --on-conflict=merge: simple+tap-hold merge, error on ambiguous |
+| 2E. Help examples | ✅ Done | 5 | `help-topics examples [noun]` with 6 topic areas |
+| 2F. Snapshot tests | ✅ Done | 14 | Inline snapshots for all CLI output types |
+| **Total passing** | | **~176** | All tests green |
 
 ---
 
