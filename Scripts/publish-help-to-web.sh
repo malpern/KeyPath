@@ -60,40 +60,41 @@ SCREENSHOT_ALIASES=(
 # ─────────────────────────────────────────────────────────────────────
 
 REGISTRY=(
+    # Format: resource|group|web_dir|title|nav_title|description|keywords (keywords optional)
     # Getting Started
-    "installation|getting-started|getting-started|Setting Up KeyPath|Setting Up KeyPath|In two minutes your keyboard will launch apps, tile windows, and remap any key — all from the home row"
-    "concepts|getting-started|guides|Keyboard Concepts for Mac Users|Keyboard Concepts|Layers, tap-hold, modifiers, and more — explained for people who've never gone beyond System Settings"
-    "use-cases|getting-started|guides|What You Can Build|What You Can Build|Concrete examples of what KeyPath can do — from simple remaps to full keyboard workflows"
+    "installation|getting-started|getting-started|Setting Up KeyPath|Setting Up KeyPath|In two minutes your keyboard will launch apps, tile windows, and remap any key — all from the home row|install, setup, wizard, permissions, getting started, daemon, launchd"
+    "concepts|getting-started|guides|Keyboard Concepts for Mac Users|Keyboard Concepts|Layers, tap-hold, modifiers, and more — explained for people who've never gone beyond System Settings|layers, tap-hold, dual-role, modifiers, kanata, keyboard basics"
+    "use-cases|getting-started|guides|What You Can Build|What You Can Build|Concrete examples of what KeyPath can do — from simple remaps to full keyboard workflows|examples, workflows, ideas, inspiration, use cases"
 
     # Core Features
-    "home-row-mods|core-features|guides|Shortcuts Without Reaching|Shortcuts Without Reaching|Turn your home row keys into modifiers — the most popular advanced keyboard technique"
-    "vim-navigation|core-features|guides|Navigate Like a Keyboard Ninja|Vim Navigation|Hold Space for hjkl arrows, copy/paste, undo, search, and line jumps — all without leaving the home row"
-    "leader-key|core-features|guides|Choose Your Leader Key|Leader Key|Pick which key activates all your layers — Space, Caps Lock, Tab, or Backtick. One change updates everything."
-    "tap-hold|core-features|guides|One Key, Multiple Actions|One Key, Multiple Actions|Advanced key behaviors with tap-hold and tap-dance support"
-    "simple-packs|core-features|guides|Quick Tweaks|Quick Tweaks|Simple on/off packs: Escape remap, delete enhancement, backup Caps Lock, and Mission Control shortcuts"
-    "key-repeat-control|core-features|guides|Arrow Keys at Full Speed|Fast Navigation|Arrow keys and delete repeat 3x faster while regular typing stays steady — no accidental repeats."
+    "home-row-mods|core-features|guides|Shortcuts Without Reaching|Shortcuts Without Reaching|Turn your home row keys into modifiers — the most popular advanced keyboard technique|home row mods, HRM, CAGS, modifiers, dual-role, tap hold, ASDF JKL"
+    "vim-navigation|core-features|guides|Navigate Like a Keyboard Ninja|Vim Navigation|Hold Space for hjkl arrows, copy/paste, undo, search, and line jumps — all without leaving the home row|vim, hjkl, arrows, navigation, space bar, cursor, movement"
+    "leader-key|core-features|guides|Choose Your Leader Key|Leader Key|Pick which key activates all your layers — Space, Caps Lock, Tab, or Backtick. One change updates everything.|leader key, space, caps lock, tab, backtick, activator, layer trigger"
+    "tap-hold|core-features|guides|One Key, Multiple Actions|One Key, Multiple Actions|Advanced key behaviors with tap-hold and tap-dance support|tap-hold, tap-dance, dual-role, hold timeout, tap-hold-release, chordal hold"
+    "simple-packs|core-features|guides|Quick Tweaks|Quick Tweaks|Simple on/off packs: Escape remap, delete enhancement, backup Caps Lock, and Mission Control shortcuts|escape remap, delete enhancement, caps lock backup, mission control, simple"
+    "key-repeat-control|core-features|guides|Arrow Keys at Full Speed|Fast Navigation|Arrow keys and delete repeat 3x faster while regular typing stays steady — no accidental repeats.|key repeat, fast navigation, arrow speed, repeat rate, cursor speed"
 
     # Feature Guides
-    "numpad-layer|feature-guides|guides|A Numpad Under Your Hand|Numpad Layer|Right hand becomes a numpad, left hand gets operators. Two-step activation through the Leader key."
-    "symbol-layer|feature-guides|guides|Programming Symbols Instantly|Symbol Layer|Brackets, pipes, and operators all under your home row. Three preset layouts for different coding styles."
-    "fun-layer|feature-guides|guides|F-Keys and Media Controls|Function Layer|F1-F12 on your right hand, play/pause/volume/brightness on your left. Two-step Leader activation."
-    "window-management|feature-guides|guides|Windows & App Shortcuts|Windows & App Shortcuts|App-specific keymaps and window management with KeyPath"
-    "quick-launcher|feature-guides|guides|Launch Anything Instantly|Quick Launcher|Hold one key and press a letter to launch any app, URL, or folder instantly"
-    "action-uri|feature-guides|guides|Launching Apps & Workflows|Launching Apps|Launch apps, URLs, and folders from your keyboard with a single keystroke"
-    "chords|feature-guides|guides|Press Two Keys at Once|Chords|Press two adjacent keys simultaneously to produce Escape, Enter, Backspace, or any other key without leaving the home row"
-    "auto-shift|feature-guides|guides|Symbols Without Shift|Auto-Shift Symbols|Hold a symbol key slightly longer to get the shifted version — no Shift key needed"
-    "alternative-layouts|feature-guides|guides|Alternative Layouts|Alternative Layouts|Colemak, Dvorak, Workman, and more — KeyPath supports 8 keymaps with a live overlay"
-    "keyboard-layouts|feature-guides|guides|Works With Your Keyboard|Works With Your Keyboard|15 physical keyboard layouts from MacBook to Kinesis Advantage 360"
-    "kindavim|feature-guides|guides|KindaVim|KindaVim|Use KindaVim for real Vim modes system-wide; KeyPath layers a live mode badge, hjkl hint overlay, and mastery insights on top"
-    "neovim-terminal|feature-guides|guides|Neovim in the Terminal|Neovim in the Terminal|Bring Neovim navigation muscle memory to every macOS app with a Leader-layer HUD reference"
+    "numpad-layer|feature-guides|guides|A Numpad Under Your Hand|Numpad Layer|Right hand becomes a numpad, left hand gets operators. Two-step activation through the Leader key.|numpad, number pad, numbers, calculator, data entry, semicolon layer"
+    "symbol-layer|feature-guides|guides|Programming Symbols Instantly|Symbol Layer|Brackets, pipes, and operators all under your home row. Three preset layouts for different coding styles.|symbol layer, brackets, braces, operators, programming, coding symbols, presets"
+    "fun-layer|feature-guides|guides|F-Keys and Media Controls|Function Layer|F1-F12 on your right hand, play/pause/volume/brightness on your left. Two-step Leader activation.|function keys, F-keys, F1-F12, media, volume, brightness, play pause"
+    "window-management|feature-guides|guides|Windows & App Shortcuts|Windows & App Shortcuts|App-specific keymaps and window management with KeyPath|window management, tiling, snapping, window snap, split screen, app-specific"
+    "quick-launcher|feature-guides|guides|Launch Anything Instantly|Quick Launcher|Hold one key and press a letter to launch any app, URL, or folder instantly|launcher, app launcher, hyper key, quick launch, open apps"
+    "action-uri|feature-guides|guides|Launching Apps & Workflows|Launching Apps|Launch apps, URLs, and folders from your keyboard with a single keystroke|action URI, deep links, keypath://, URL scheme, automation, scripts"
+    "chords|feature-guides|guides|Press Two Keys at Once|Chords|Press two adjacent keys simultaneously to produce Escape, Enter, Backspace, or any other key without leaving the home row|chords, chord groups, simultaneous keys, combos, Ben Vallack"
+    "auto-shift|feature-guides|guides|Symbols Without Shift|Auto-Shift Symbols|Hold a symbol key slightly longer to get the shifted version — no Shift key needed|auto-shift, shifted symbols, hold for shift, symbol shortcut"
+    "alternative-layouts|feature-guides|guides|Alternative Layouts|Alternative Layouts|Colemak, Dvorak, Workman, and more — KeyPath supports 8 keymaps with a live overlay|colemak, dvorak, workman, QWERTY, keyboard layout, alternative layout"
+    "keyboard-layouts|feature-guides|guides|Works With Your Keyboard|Works With Your Keyboard|15 physical keyboard layouts from MacBook to Kinesis Advantage 360|keyboard layout, MacBook, ISO, JIS, ANSI, ergonomic, split keyboard, Kinesis"
+    "kindavim|feature-guides|guides|KindaVim|KindaVim|Use KindaVim for real Vim modes system-wide; KeyPath layers a live mode badge, hjkl hint overlay, and mastery insights on top|kindavim, vim modes, normal mode, visual mode, vim emulator, godbout"
+    "neovim-terminal|feature-guides|guides|Neovim in the Terminal|Neovim in the Terminal|Bring Neovim navigation muscle memory to every macOS app with a Leader-layer HUD reference|neovim, terminal, vim motions, word movement, w b e"
 
     # Reference
-    "action-uri-reference|reference|guides|Action URI Reference|Action URI Reference|Technical deep-link reference for integrating KeyPath with Raycast, Alfred, and scripts"
-    "privacy|reference|guides|Privacy & Permissions|Privacy & Permissions|Exactly what KeyPath accesses on your Mac, why, and what it does with your data"
+    "action-uri-reference|reference|guides|Action URI Reference|Action URI Reference|Technical deep-link reference for integrating KeyPath with Raycast, Alfred, and scripts|action URI, deep link, URL scheme, keypath://, Raycast, Alfred, Shortcuts"
+    "privacy|reference|guides|Privacy & Permissions|Privacy & Permissions|Exactly what KeyPath accesses on your Mac, why, and what it does with your data|privacy, permissions, input monitoring, accessibility, security, data"
 
     # Switching Tools
-    "karabiner-users|switching|migration|Switching from Karabiner-Elements|From Karabiner-Elements|A practical guide for Karabiner-Elements users migrating to KeyPath"
-    "kanata-users|switching|migration|Tips for Existing Kanata Users|From Kanata|Use your existing Kanata config.kbd in KeyPath"
+    "karabiner-users|switching|migration|Switching from Karabiner-Elements|From Karabiner-Elements|A practical guide for Karabiner-Elements users migrating to KeyPath|karabiner, karabiner-elements, migration, switching, complex modifications"
+    "kanata-users|switching|migration|Tips for Existing Kanata Users|From Kanata|Use your existing Kanata config.kbd in KeyPath|kanata, config.kbd, defcfg, deflayer, migration, switching"
 )
 
 # ─────────────────────────────────────────────────────────────────────
@@ -144,6 +145,8 @@ typeset -A NAV_TITLES
 typeset -A GROUP_ITEMS
 # GROUPS[resource] = "group-id"
 typeset -A GROUPS
+# KEYWORDS[resource] = "keyword1, keyword2, ..."
+typeset -A KEYWORDS
 
 for entry in "${REGISTRY[@]}"; do
     local id="${entry%%|*}";       local rest="${entry#*|}"
@@ -151,13 +154,19 @@ for entry in "${REGISTRY[@]}"; do
     local web_dir="${rest%%|*}";   rest="${rest#*|}"
     local title="${rest%%|*}";     rest="${rest#*|}"
     local nav_title="${rest%%|*}"; rest="${rest#*|}"
-    local description="$rest"
+    # Split remaining into description and optional keywords (7th field)
+    local description="${rest%%|*}"
+    local keywords=""
+    if [[ "$rest" == *"|"* ]]; then
+        keywords="${rest#*|}"
+    fi
 
     DOCS[$id]="${web_dir}/${id}.md:${title}:${description}:/${web_dir}/${id}/"
     LINK_MAP[$id]="/${web_dir}/${id}/"
     NAV_TITLES[$id]="$nav_title"
     GROUP_ITEMS[$group]="${GROUP_ITEMS[$group]:+${GROUP_ITEMS[$group]} }${id}"
     GROUPS[$id]="$group"
+    KEYWORDS[$id]="$keywords"
 done
 
 echo "=== Publishing help docs: app → gh-pages website ==="
@@ -529,8 +538,26 @@ generate_search_index() {
 
         local group_id="${GROUPS[$resource]}"
         local group_title="${GROUP_TITLES[$group_id]:-$group_id}"
+        local manual_keywords="${KEYWORDS[$resource]}"
 
         local url="/${web_dir}/"
+
+        # Auto-extract headings (H1-H3) as high-value search terms
+        local headings
+        headings=$(LC_ALL=C grep -E '^#{1,3} ' "$src_path" | \
+                   LC_ALL=C sed 's/^#* *//' | \
+                   tr '\n' ', ' | \
+                   sed 's/, $//')
+
+        # Combine manual keywords + auto-extracted headings
+        local all_keywords=""
+        if [[ -n "$manual_keywords" && -n "$headings" ]]; then
+            all_keywords="${manual_keywords}, ${headings}"
+        elif [[ -n "$manual_keywords" ]]; then
+            all_keywords="$manual_keywords"
+        else
+            all_keywords="$headings"
+        fi
 
         # Read body, strip markdown formatting and header image line.
         # Use LC_ALL=C to avoid "illegal byte sequence" on macOS.
@@ -547,6 +574,7 @@ generate_search_index() {
         title=$(printf '%s' "$title" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read())[1:-1])")
         description=$(printf '%s' "$description" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read())[1:-1])")
         group_title=$(printf '%s' "$group_title" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read())[1:-1])")
+        all_keywords=$(printf '%s' "$all_keywords" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read())[1:-1])")
         body=$(printf '%s' "$body" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read())[1:-1])")
 
         if [[ "$first" == "true" ]]; then
@@ -556,7 +584,7 @@ generate_search_index() {
         fi
 
         cat >> "$out" << ENTRY
-{"title":"${title}","description":"${description}","group":"${group_title}","url":"${url}","body":"${body}"}
+{"title":"${title}","description":"${description}","group":"${group_title}","url":"${url}","keywords":"${all_keywords}","body":"${body}"}
 ENTRY
     done
 
