@@ -75,6 +75,28 @@ When KindaVim is in Normal mode and the pack is on, KeyPath transforms the overl
 - **Tier styling** dims keys by how core they are: foundational keys at full strength, secondary keys faded, advanced (Page Up/Down, search) hidden behind a "Show all keys" toggle.
 - **Operator-pending mode** dims non-motion keys to ~15% so you can see at a glance which keys will accept the next motion.
 
+Screenshot — KeyPath overlay in KindaVim Normal mode:
+
+```
+┌─ KeyPath ──────────────────────── VIM: NORMAL ─── ● ──┐
+│                                                        │
+│  ┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐  │
+│  │ q ││ w ││ e ││ r ││ t ││ y ││ u ││ i ││ o ││ p │  │
+│  │   ││ w ││ e ││   ││ t ││ y ││ u ││ i ││ o ││ p │  │
+│  └───┘└───┘└───┘└───┘└───┘└───┘└───┘└───┘└───┘└───┘  │
+│  ┌───┐┌───┐┌───┐┌───┐┌───┐┌═══╗┌═══╗┌═══╗┌═══╗┌───┐  │
+│  │ a ││ s ││ d ││ f ││ g │║ ◀ ║║ ▼ ║║ ▲ ║║ ▶ ║│ ; │  │
+│  │   ││   ││ d ││ f ││ g │║ h ║║ j ║║ k ║║ l ║│   │  │
+│  └───┘└───┘└───┘└───┘└───┘╚═══╝╚═══╝╚═══╝╚═══╝└───┘  │
+│  ┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐       │
+│  │ z ││ x ││ c ││ v ││ b ││ n ││ m ││   ││   │       │
+│  │   ││ x ││ c ││   ││ b ││   ││   ││   ││   │       │
+│  └───┘└───┘└───┘└───┘└───┘└───┘└───┘└───┘└───┘       │
+└────────────────────────────────────────────────────────┘
+  ═══ hjkl arrows (accent color)    d/f/g = operators
+  w/e/b = word motions              x/c = delete/change
+```
+
 The overlay vanishes back to its normal state the instant KindaVim flips to Insert mode.
 
 ---
