@@ -33,7 +33,6 @@ struct OverlayMapperSection: View {
     @State var newLayerName = ""
     @State var isHoldVariantPopoverOpen = false
     @State var showMultiTapSlideOver = false
-    @State private var popoverDismissMonitor: Any?
     /// Currently selected layer for "Go to Layer" output
     @State var selectedLayerOutput: String?
     /// Selected tap count (1 = single, 2 = double, 3 = triple)
@@ -58,72 +57,6 @@ struct OverlayMapperSection: View {
 
     var body: some View {
         bodyView
-            .overlay {
-                if isSystemActionPickerOpen || isAppConditionPickerOpen || isHoldVariantPopoverOpen {
-                    GeometryReader { _ in
-                        ZStack(alignment: .top) {
-                            Color.black.opacity(0.001)
-                                .onTapGesture { dismissAllPopovers() }
-
-                            if isSystemActionPickerOpen {
-                                systemActionPopover
-                                    .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
-                            }
-
-                            if isAppConditionPickerOpen {
-                                appConditionPopover
-                                    .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
-                            }
-
-                            if isHoldVariantPopoverOpen {
-                                holdVariantPopover
-                                    .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                    .transition(.opacity)
-                    .zIndex(999)
-                }
-            }
-        .onChange(of: anyPopoverOpen) { _, isOpen in
-            if isOpen {
-                installPopoverDismissMonitor()
-            } else {
-                removePopoverDismissMonitor()
-            }
-        }
-        .onDisappear {
-            removePopoverDismissMonitor()
-        }
-    }
-
-    private var anyPopoverOpen: Bool {
-        isSystemActionPickerOpen || isAppConditionPickerOpen || isHoldVariantPopoverOpen
-    }
-
-    private func installPopoverDismissMonitor() {
-        removePopoverDismissMonitor()
-        popoverDismissMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
-            if event.keyCode == 53 {
-                dismissAllPopovers()
-                return nil
-            }
-            return event
-        }
-    }
-
-    private func removePopoverDismissMonitor() {
-        if let monitor = popoverDismissMonitor {
-            NSEvent.removeMonitor(monitor)
-            popoverDismissMonitor = nil
-        }
-    }
-
-    private func dismissAllPopovers() {
-        isSystemActionPickerOpen = false
-        isAppConditionPickerOpen = false
-        isHoldVariantPopoverOpen = false
     }
 
     private var bodyView: some View {
@@ -713,7 +646,9 @@ struct OverlayMapperSection: View {
             action: { isAppConditionPickerOpen = true }
         )
         .accessibilityIdentifier("overlay-mapper-app-condition")
-        // Popover rendered at OverlayMapperSection.body level to avoid clipping
+        .windowAnchoredPopover(isPresented: $isAppConditionPickerOpen) {
+            appConditionPopover
+        }
         .confirmationDialog("How many taps?", isPresented: $showTapCountPicker) {
             Button("Single Tap") { selectedTapCount = 1 }
             Button("Double Tap") { selectedTapCount = 2 }

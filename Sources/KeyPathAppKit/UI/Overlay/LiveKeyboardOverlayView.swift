@@ -407,6 +407,7 @@ struct LiveKeyboardOverlayView: View {
         .onReceive(NotificationCenter.default.publisher(for: .installedPacksChanged)) { _ in
             Task { await refreshKindaVimPackInstalled() }
         }
+        .windowAnchoredPopoverHost()
         .background(
             glassBackground(
                 cornerRadius: cornerRadius,
