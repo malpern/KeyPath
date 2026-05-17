@@ -194,7 +194,7 @@ struct KanataBehaviorParserTests {
 
     @Test("Tap-dance round-trips through render and parse")
     func tapDanceRoundTrip() {
-        let original = TapDanceBehavior.twoStep(singleTap: "esc", doubleTap: "caps", windowMs: 180)
+        let original = TapDanceBehavior.twoStepFromStrings(singleTap: "esc", doubleTap: "caps", windowMs: 180)
         let mapping = KeyMapping(input: "caps", action: .keystroke(key: "esc"), behavior: .tapOrTapDance(.tapDance(original)))
         let rendered = KanataBehaviorRenderer.render(mapping)
         let parsed = KanataBehaviorParser.parse(rendered)

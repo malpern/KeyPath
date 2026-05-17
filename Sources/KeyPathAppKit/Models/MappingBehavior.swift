@@ -99,8 +99,13 @@ public enum TapOrTapDanceBehavior: Codable, Equatable, Sendable {
 /// 6. `quickTap` → `tap-hold-release`
 /// 7. Otherwise → `tap-hold` (basic)
 public struct DualRoleBehavior: Codable, Equatable, Sendable {
+    /// Action when tapped (e.g., .keystroke(key: "a"), .keystroke(key: "esc")).
     public var tapAction: KeyAction
+
+    /// Action when held (e.g., .keystroke(key: "lctl"), .hyper, or layer switch).
     public var holdAction: KeyAction
+
+    /// Milliseconds before a press is considered a hold. Default 200. Must be > 0.
     public var tapTimeout: Int
     public var holdTimeout: Int
     public var activateHoldOnOtherKey: Bool
@@ -163,8 +168,15 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
         !tapAction.isEmpty && !holdAction.isEmpty && tapTimeout > 0 && holdTimeout > 0
     }
 
-    public var tapActionString: String { tapAction.outputString }
-    public var holdActionString: String { holdAction.outputString }
+    /// The tap action as a string (for UI display and backward compatibility).
+    public var tapActionString: String {
+        tapAction.outputString
+    }
+
+    /// The hold action as a string (for UI display and backward compatibility).
+    public var holdActionString: String {
+        holdAction.outputString
+    }
 }
 
 // MARK: - Tap Dance
@@ -186,11 +198,24 @@ public struct TapDanceBehavior: Codable, Equatable, Sendable {
     public var isValid: Bool {
         windowMs > 0 && steps.contains { !$0.action.isEmpty }
     }
+
+    /// Convenience init from string actions (for call sites migrating from string-based API).
+    public static func twoStep(singleTap: KeyAction, doubleTap: KeyAction, windowMs: Int = 200) -> TapDanceBehavior {
+        TapDanceBehavior(
+            windowMs: windowMs,
+            steps: [
+                TapDanceStep(label: "Single tap", action: singleTap),
+                TapDanceStep(label: "Double tap", action: doubleTap),
+            ]
+        )
+    }
 }
 
 /// A single step in a tap-dance sequence.
 public struct TapDanceStep: Codable, Equatable, Sendable {
     public var label: String
+
+    /// The action to perform (keystroke, hyper, raw kanata, etc.).
     public var action: KeyAction
 
     public init(label: String, action: KeyAction) {
@@ -198,7 +223,10 @@ public struct TapDanceStep: Codable, Equatable, Sendable {
         self.action = action
     }
 
-    public var actionString: String { action.outputString }
+    /// The action as a string (for UI display and backward compatibility).
+    public var actionString: String {
+        action.outputString
+    }
 }
 
 // MARK: - Macro Behavior
@@ -294,7 +322,8 @@ public extension DualRoleBehavior {
 }
 
 public extension TapDanceBehavior {
-    static func twoStep(singleTap: String, doubleTap: String, windowMs: Int = 200) -> TapDanceBehavior {
+    /// Create a simple two-step tap-dance from string actions (convenience).
+    static func twoStepFromStrings(singleTap: String, doubleTap: String, windowMs: Int = 200) -> TapDanceBehavior {
         TapDanceBehavior(
             windowMs: windowMs,
             steps: [
@@ -313,7 +342,12 @@ public extension TapDanceBehavior {
 /// Uses Kanata's `defchords` syntax for implementation.
 public struct ChordBehavior: Codable, Equatable, Sendable {
     public var keys: [String]
+
+    /// Action when chord is triggered (e.g., .keystroke(key: "esc"), .keystroke(key: "bspc")).
     public var output: KeyAction
+
+    /// Time window (ms) for chord detection. Default 200. Must be > 0.
+    /// Larger values make chords easier to trigger but may cause misfires.
     public var timeout: Int
     public var description: String?
 
@@ -333,8 +367,13 @@ public struct ChordBehavior: Codable, Equatable, Sendable {
         keys.count >= 2 && !output.isEmpty && timeout >= 50
     }
 
-    public var outputString: String { output.outputString }
+    /// The output as a string (for UI display and backward compatibility).
+    public var outputString: String {
+        output.outputString
+    }
 
+    /// A unique group name for this chord (used in Kanata defchords).
+    /// Generated from the sorted keys to ensure consistency.
     public var groupName: String {
         "kp-chord-" + keys.sorted().joined(separator: "-")
     }
@@ -343,10 +382,12 @@ public struct ChordBehavior: Codable, Equatable, Sendable {
 // MARK: - Chord Convenience Factories
 
 public extension ChordBehavior {
+    /// Create a simple two-key chord.
     static func twoKey(_ key1: String, _ key2: String, output: KeyAction, description: String? = nil) -> ChordBehavior {
         ChordBehavior(keys: [key1, key2], output: output, description: description)
     }
 
+    /// Create a three-key chord.
     static func threeKey(_ key1: String, _ key2: String, _ key3: String, output: KeyAction, description: String? = nil) -> ChordBehavior {
         ChordBehavior(keys: [key1, key2, key3], output: output, description: description)
     }

@@ -313,8 +313,11 @@ public extension KeyAction {
 // MARK: - Empty State
 
 public extension KeyAction {
+    /// Sentinel value representing "not configured" — used where a KeyAction field
+    /// has not been assigned yet. Equivalent to the old empty-string pattern.
     static let empty: KeyAction = .keystroke(key: "")
 
+    /// Whether this action represents an unconfigured/empty state.
     var isEmpty: Bool {
         if case let .keystroke(key) = self { return key.isEmpty }
         return false

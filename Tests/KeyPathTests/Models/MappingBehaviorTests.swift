@@ -71,7 +71,7 @@ struct MappingBehaviorTests {
 
     @Test("twoStep factory")
     func twoStepFactory() {
-        let td = TapDanceBehavior.twoStep(singleTap: "a", doubleTap: "b", windowMs: 150)
+        let td = TapDanceBehavior.twoStepFromStrings(singleTap: "a", doubleTap: "b", windowMs: 150)
 
         #expect(td.windowMs == 150)
         #expect(td.steps.count == 2)
@@ -130,7 +130,7 @@ struct MappingBehaviorTests {
     @Test("MappingBehavior tapDance case round-trips")
     func mappingBehaviorTapDance() throws {
         let behavior = MappingBehavior.tapOrTapDance(.tapDance(
-            TapDanceBehavior.twoStep(singleTap: "x", doubleTap: "y")
+            TapDanceBehavior.twoStepFromStrings(singleTap: "x", doubleTap: "y")
         ))
 
         let data = try JSONEncoder().encode(behavior)
@@ -304,21 +304,21 @@ struct MappingBehaviorTests {
 
     @Test("TapDanceBehavior.isValid returns true for valid config")
     func tapDanceValidation() {
-        let valid = TapDanceBehavior.twoStep(singleTap: "a", doubleTap: "b")
+        let valid = TapDanceBehavior.twoStepFromStrings(singleTap: "a", doubleTap: "b")
         #expect(valid.isValid == true)
     }
 
     @Test("TapDanceBehavior.isValid returns false for empty steps")
     func tapDanceEmptySteps() {
         // Create valid then mutate to avoid assert
-        var behavior = TapDanceBehavior.twoStep(singleTap: "a", doubleTap: "b")
+        var behavior = TapDanceBehavior.twoStepFromStrings(singleTap: "a", doubleTap: "b")
         behavior.steps = []
         #expect(behavior.isValid == false)
     }
 
     @Test("TapDanceBehavior.isValid returns false when all actions empty")
     func tapDanceEmptyActions() {
-        var behavior = TapDanceBehavior.twoStep(singleTap: "a", doubleTap: "b")
+        var behavior = TapDanceBehavior.twoStepFromStrings(singleTap: "a", doubleTap: "b")
         behavior.steps = [TapDanceStep(label: "Single", action: .empty)]
         #expect(behavior.isValid == false)
     }

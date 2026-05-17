@@ -209,7 +209,7 @@ struct KanataBehaviorRendererTests {
         let mapping = KeyMapping(
             input: "caps",
             action: .keystroke(key: "esc"),
-            behavior: .tapOrTapDance(.tapDance(TapDanceBehavior.twoStep(
+            behavior: .tapOrTapDance(.tapDance(TapDanceBehavior.twoStepFromStrings(
                 singleTap: "esc",
                 doubleTap: "caps"
             )))
@@ -322,7 +322,7 @@ struct KanataBehaviorRendererTests {
             title: "Caps Escape/CapsLock",
             input: "caps",
             action: .keystroke(key: "esc"),
-            behavior: .tapOrTapDance(.tapDance(TapDanceBehavior.twoStep(singleTap: "esc", doubleTap: "caps")))
+            behavior: .tapOrTapDance(.tapDance(TapDanceBehavior.twoStepFromStrings(singleTap: "esc", doubleTap: "caps")))
         )
 
         let mapping = rule.asKeyMapping()
