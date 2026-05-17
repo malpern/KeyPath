@@ -42,14 +42,7 @@ Hold F + press C = Copy. Hold A + press Tab = Shift+Tab. Your hands never move.
 
 Stop dragging windows around with your mouse. Snap any window to a half, quarter, or full screen with a keystroke:
 
-```
-  ┌───────────┬───────────┐     ┌─────┬─────┐
-  │           │           │     │ U   │  I  │  Four corners
-  │   Left    │   Right   │     ├─────┼─────┤  with a single
-  │   half    │   half    │     │ N   │  M  │  keystroke
-  │           │           │     └─────┴─────┘
-  └───────────┴───────────┘
-```
+![Window tiling — halves and quarters with one keystroke](diagram-window-tiling.png)
 
 **How to set it up:** Enable the "Window Snapping" pre-built rule, or create custom bindings. See the [Window Management guide](help:window-management).
 
@@ -76,14 +69,7 @@ No manual toggling — just switch apps and your keyboard adapts.
 
 Arrow keys are small, far away, and break your typing flow. Hold a modifier to turn your right hand into full-size navigation — without moving your hands:
 
-```
-  Right hand becomes:
-  ┌─────┬─────┬─────┬─────┐
-  │  ←  │  ↓  │  ↑  │  →  │   Full-size keys
-  ├─────┼─────┼─────┼─────┤   right on the
-  │Home │PgDn │PgUp │ End │   home row
-  └─────┴─────┴─────┴─────┘
-```
+![Navigation layer — arrows and page navigation on the home row](diagram-nav-layer.png)
 
 Especially helpful on a MacBook where the arrow keys are tiny.
 

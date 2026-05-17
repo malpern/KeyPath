@@ -10,29 +10,7 @@ Whether you type on a MacBook, a full-size desktop keyboard, or a 34-key split e
 
 Your keyboard's physical layout determines which keys exist, where they are, and how KeyPath's overlay and remapping rules map onto them. A rule configured for a full-size keyboard might reference keys that don't exist on a 40% board. KeyPath handles this by tailoring the overlay and rule display to your selected physical layout.
 
-```
-  Full-size (100%):
-  ┌───────────────────────────────────────────────────────────┐
-  │ Esc  F1 F2 F3 F4  F5 F6 F7 F8  F9 F10 F11 F12  │ Ins │
-  │                                                    │ Del │
-  │ `  1  2  3  4  5  6  7  8  9  0  -  =  Backspace │     │
-  │ Tab  Q  W  E  R  T  Y  U  I  O  P  [  ]  \       │     │
-  │ Caps  A  S  D  F  G  H  J  K  L  ;  '  Enter     │     │
-  │ Shift  Z  X  C  V  B  N  M  ,  .  /  Shift   ↑   │     │
-  │ Ctrl  Opt  Cmd    Space       Cmd  Opt  ←  ↓  →   │ Num │
-  └───────────────────────────────────────────────────────────┘
-
-  60%:                          40%:
-  ┌───────────────────────┐     ┌─────────────────┐
-  │ `  1  2  3  4  5  ... │     │ Q  W  E  R  T   │
-  │ Tab  Q  W  E  R  T  . │     │ A  S  D  F  G   │
-  │ Caps  A  S  D  F  G . │     │ Z  X  C  V  B   │
-  │ Shift  Z  X  C  V  .. │     └─────────────────┘
-  │ Ctrl  Opt  Cmd  Space  │     No number row,
-  └───────────────────────┘     no function keys —
-  No function row,              everything through
-  no arrow cluster              layers
-```
+![Keyboard sizes — 100%, 60%, and 40%](diagram-keyboard-sizes.png)
 
 ---
 
@@ -60,18 +38,7 @@ Traditional staggered-row keyboards in various sizes. These are what most people
 
 Split keyboards place each hand on its own half, allowing a natural shoulder-width typing position. Most use columnar (non-staggered) key columns, which align better with how fingers naturally move.
 
-```
-  Traditional staggered:         Columnar (split):
-  ┌───┬───┬───┬───┬───┐         ┌───┬───┬───┬───┬───┐
-  │ Q │ W │ E │ R │ T │         │ Q │ W │ E │ R │ T │
-  └─┬─┴─┬─┴─┬─┴─┬─┴─┬─┘       ├───┼───┼───┼───┼───┤
-    │ A │ S │ D │ F │ G │       │ A │ S │ D │ F │ G │
-    └─┬─┴─┬─┴─┬─┴─┬─┴─┬─┘     ├───┼───┼───┼───┼───┤
-      │ Z │ X │ C │ V │ B │     │ Z │ X │ C │ V │ B │
-      └───┴───┴───┴───┴───┘     └───┴───┴───┴───┴───┘
-   Keys offset diagonally        Keys in straight columns
-   (follows typewriter legacy)   (follows finger movement)
-```
+![Staggered vs columnar key arrangement](diagram-staggered-vs-columnar.png)
 
 | Layout | Keys | Description |
 |--------|------|-------------|
@@ -81,28 +48,7 @@ Split keyboards place each hand on its own half, allowing a natural shoulder-wid
 | **Sofle** | 58 | 4x6 split with encoder knobs and an extra row — more keys for easier transition |
 | **Kinesis Advantage 360** | 76 | Premium split ergonomic with sculpted keywells that cup your hands |
 
-```
-  Kinesis Advantage 360:
-
-      ┌───┬───┬───┬───┬───┬───┐          ┌───┬───┬───┬───┬───┬───┐
-      │ = │ 1 │ 2 │ 3 │ 4 │ 5 │          │ 6 │ 7 │ 8 │ 9 │ 0 │ - │
-      ├───┼───┼───┼───┼───┼───┤          ├───┼───┼───┼───┼───┼───┤
-      │Tab│ Q │ W │ E │ R │ T │          │ Y │ U │ I │ O │ P │ \ │
-      ├───┼───┼───┼───┼───┼───┤          ├───┼───┼───┼───┼───┼───┤
-      │Cap│ A │ S │ D │ F │ G │          │ H │ J │ K │ L │ ; │ ' │
-      ├───┼───┼───┼───┼───┼───┤          ├───┼───┼───┼───┼───┼───┤
-      │Sft│ Z │ X │ C │ V │ B │          │ N │ M │ , │ . │ / │Sft│
-      └───┴───┴───┼───┼───┼───┘          └───┼───┼───┼───┴───┴───┘
-                  │Del│Hom│                    │End│Bsp│
-              ┌───┼───┼───┤              ┌────┼───┼───┐
-              │Bsp│Del│End│              │PgUp│Ent│Spc│
-              │   │   ├───┤              ├────┤   │   │
-              │   │   │Hom│              │PgDn│   │   │
-              └───┴───┴───┘              └────┴───┴───┘
-
-    Sculpted keywells — keys are concave to match your fingers' natural arc.
-    Each hand gets a dedicated thumb cluster.
-```
+![Kinesis Advantage 360 — split ergonomic with sculpted keywells](diagram-kinesis-360.png)
 
 ---
 

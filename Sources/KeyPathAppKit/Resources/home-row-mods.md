@@ -6,13 +6,7 @@ Every keyboard shortcut on your Mac requires a modifier — Command, Shift, Cont
 
 Home row mods fix this by putting modifiers right under your fingertips:
 
-```
-  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐     ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐
-  │  A  │ │  S  │ │  D  │ │  F  │     │  J  │ │  K  │ │  L  │ │  ;  │
-  │ ⇧   │ │ ⌃   │ │ ⌥   │ │ ⌘   │     │ ⌘   │ │ ⌥   │ │ ⌃   │ │ ⇧   │
-  └─────┘ └─────┘ └─────┘ └─────┘     └─────┘ └─────┘ └─────┘ └─────┘
-              Tap for letters, hold for modifiers
-```
+![Home row mods — tap for letters, hold for modifiers](diagram-hrm-keycaps.png)
 
 Tap a key normally and you get the letter. Hold it briefly and it becomes a modifier. Your hands never move — every shortcut is one fluid motion from the home row.
 
@@ -118,19 +112,7 @@ KeyPath uses two powerful features to make home row mods virtually misfire-free:
 
 Hold actions (modifiers or layers) only activate when you press a key with the **other hand**. Same-hand typing always produces letters — no accidental modifiers during fast rolls.
 
-```
-  Left Hand                     Right Hand
-  ┌───┬───┬───┬───┬───┐       ┌───┬───┬───┬───┬───┐
-  │ Q │ W │ E │ R │ T │       │ Y │ U │ I │ O │ P │
-  ├───┼───┼───┼───┼───┤       ├───┼───┼───┼───┼───┤
-  │ A │ S │ D │ F │ G │       │ H │ J │ K │ L │ ; │
-  ├───┼───┼───┼───┼───┤       ├───┼───┼───┼───┼───┤
-  │ Z │ X │ C │ V │ B │       │ N │ M │ , │ . │ / │
-  └───┴───┴───┴───┴───┘       └───┴───┴───┴───┴───┘
-
-  Same hand   → tap (letter)      Example: F then D → "fd"
-  Cross hand  → hold (modifier)   Example: F then J → ⌘J
-```
+![Opposite-hand activation — same hand types letters, cross hand activates modifiers](diagram-opposite-hand.png)
 
 This uses Kanata's native `tap-hold-opposite-hand` with a global hand definition (`defhands`), replacing the older per-key workaround.
 
