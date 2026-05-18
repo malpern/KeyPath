@@ -26,6 +26,11 @@ jobs:
       COVERAGE_TOLERANCE_PERCENT: "0.01"
 
     steps:
+    - name: Clean stale git credentials
+      run: |
+        git config --global --unset-all http.https://github.com/.extraheader 2>/dev/null || true
+        git config --global --unset-all url.https://github.com/.insteadof 2>/dev/null || true
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:
@@ -159,6 +164,11 @@ jobs:
     timeout-minutes: 5
 
     steps:
+    - name: Clean stale git credentials
+      run: |
+        git config --global --unset-all http.https://github.com/.extraheader 2>/dev/null || true
+        git config --global --unset-all url.https://github.com/.insteadof 2>/dev/null || true
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:
