@@ -321,7 +321,7 @@ poltergeist start
 swift test                                        # All tests (~413 tests, <5s)
 swift test --filter LabelMetadataTests            # Single test class
 swift test --filter "testCapitalizedEscReturnsWordLabel"  # Single test method
-KEYPATH_USE_SUDO=1 swift test                     # With sudo (requires ./Scripts/dev-setup-sudoers.sh)
+KEYPATH_USE_SUDO=1 swift test                     # With sudo (requires NOPASSWD sudoers rules)
 ```
 
 **Test targets:** All unit tests live in `Tests/KeyPathTests/` (target: `KeyPathTests`). Files in `Tests/KeyPathAppKitTests/` are **not compiled** — they exist but are not part of any test target. Snapshot tests are in `Tests/KeyPathSnapshotTests/`.

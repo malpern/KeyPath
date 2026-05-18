@@ -18,7 +18,6 @@ export NSUnbufferedIO=YES
 
 # Optional: Enable sudo mode for fully autonomous privileged operations
 # Set KEYPATH_USE_SUDO=1 to use sudo instead of osascript admin prompts
-# Requires: sudo ./Scripts/dev-setup-sudoers.sh (one-time setup)
 # Auto-detect if sudoers are configured and enable automatically
 #
 # IMPORTANT: In CI we must keep tests hermetic and avoid privileged system modifications.
