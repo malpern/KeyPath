@@ -210,8 +210,8 @@ final class SystemActionInfoTests: XCTestCase {
     // MARK: - All Actions Coverage
 
     func testAllActions_containsExpectedCount() {
-        // 7 push-msg + 8 media keys + 8 editing shortcuts = 23 total
-        XCTAssertEqual(SystemActionInfo.allActions.count, 23)
+        // 7 push-msg + 11 media/HID keys + 22 editing shortcuts = 40 total
+        XCTAssertEqual(SystemActionInfo.allActions.count, 40)
     }
 
     func testAllActions_pushMsgActions() {
@@ -230,7 +230,7 @@ final class SystemActionInfoTests: XCTestCase {
 
     func testAllActions_mediaKeys() {
         let mediaKeys = SystemActionInfo.allActions.filter(\.isMediaKey)
-        XCTAssertEqual(mediaKeys.count, 8)
+        XCTAssertEqual(mediaKeys.count, 11)
 
         let ids = Set(mediaKeys.map(\.id))
         XCTAssertTrue(ids.contains("play-pause"))
@@ -245,7 +245,7 @@ final class SystemActionInfoTests: XCTestCase {
 
     func testAllActions_editingShortcuts() {
         let editing = SystemActionInfo.allActions.filter(\.isEditingShortcut)
-        XCTAssertEqual(editing.count, 8)
+        XCTAssertEqual(editing.count, 22)
 
         let ids = Set(editing.map(\.id))
         XCTAssertTrue(ids.contains("cut"))

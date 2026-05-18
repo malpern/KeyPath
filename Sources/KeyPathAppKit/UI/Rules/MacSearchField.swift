@@ -15,10 +15,14 @@ import SwiftUI
             searchField.placeholderString = nil
             searchField.sendsSearchStringImmediately = true
             searchField.sendsWholeSearchString = false
+            searchField.focusRingType = .none
             searchField.delegate = context.coordinator
             searchField.stringValue = text
             searchField.setAccessibilityIdentifier("rules-search-field")
             searchField.setAccessibilityLabel("Search rules")
+            DispatchQueue.main.async {
+                searchField.window?.makeFirstResponder(searchField)
+            }
             return searchField
         }
 

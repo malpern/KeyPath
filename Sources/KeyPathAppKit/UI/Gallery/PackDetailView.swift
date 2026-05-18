@@ -317,6 +317,15 @@ struct PackDetailView: View {
             .first { $0.id == collectionID }
     }
 
+    func liveCollection(for id: UUID) -> RuleCollection? {
+        let live = kanataManager.underlyingManager
+            .ruleCollectionsManager.ruleCollections
+            .first { $0.id == id }
+        if let live { return live }
+        return RuleCollectionCatalog().defaultCollections()
+            .first { $0.id == id }
+    }
+
     /// Collection with a `.singleKeyPicker` configuration — drives the
     /// SingleKeyPickerContent dispatch in Pack Detail.
     var associatedSingleKeyCollection: RuleCollection? {
