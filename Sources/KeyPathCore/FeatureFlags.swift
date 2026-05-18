@@ -27,16 +27,10 @@ public final class FeatureFlags {
         return stateQueue.sync { _startupModeActive }
     }
 
-    /// Activate startup mode, optionally auto-deactivating after a timeout.
-    public func activateStartupMode(timeoutSeconds: Double = 5.0) {
+    /// Activate startup mode. Deactivated explicitly by MainAppStateController
+    /// once services are ready — no auto-timeout.
+    public func activateStartupMode() {
         stateQueue.sync { _startupModeActive = true }
-        if timeoutSeconds > 0 {
-            Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .seconds(timeoutSeconds))
-                guard let self, startupModeActive else { return }
-                deactivateStartupMode()
-            }
-        }
     }
 
     /// Deactivate startup mode.
