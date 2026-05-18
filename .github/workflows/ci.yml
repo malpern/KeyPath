@@ -30,6 +30,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
+        persist-credentials: false
 
     - name: Add Homebrew and Cargo to PATH
       run: |
@@ -158,6 +159,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        persist-credentials: false
 
     - name: Add Homebrew to PATH
       run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
