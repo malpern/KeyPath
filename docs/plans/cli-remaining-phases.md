@@ -3,7 +3,7 @@
 **Parent issue:** #347 (CLI parity)  
 **Depends on:** Phase 0 (PR #356, merged 2026-05-17)  
 **PR:** #359 (squash-merged 2026-05-17)  
-**Status:** Only 2B (Karabiner Import) remains
+**Status:** All phases complete (1E/1F deferred)
 
 ### Progress
 
@@ -17,12 +17,12 @@
 | 1F. Simulate | ⏳ Deferred | — | Needs kanata-simulator binary |
 | 1G. Schemas | ✅ Shipped | 6 | rule + collection schemas with JSON examples |
 | 2A. Porcelain | ✅ Shipped | 8 | start/stop/restart/logs/unmap/list shortcuts |
-| 2B. Karabiner Import | 🔜 Next | — | Only remaining item |
+| 2B. Karabiner Import | ✅ Done | 13 | `import karabiner` with --collection, --profile, --dry-run; complex_mods file format |
 | 2C. Export/Import | ✅ Shipped | 14 | export/import collection round-trip |
 | 2D. Conflict merge | ✅ Done | 6 | --on-conflict=merge: simple+tap-hold merge, error on ambiguous |
 | 2E. Help examples | ✅ Done | 5 | `help-topics examples [noun]` with 6 topic areas |
 | 2F. Snapshot tests | ✅ Done | 14 | Inline snapshots for all CLI output types |
-| **Total passing** | | **~176** | All tests green |
+| **Total passing** | | **~189** | All tests green |
 
 ---
 
@@ -509,11 +509,11 @@ Snapshot-style tests that capture the exact JSON output of every CLI command and
 
 ### Phase 2 Acceptance Criteria
 
-- [ ] `keypath-cli import karabiner ~/.config/karabiner/karabiner.json --dry-run` parses and reports rules
-- [ ] `keypath-cli export collection "Home Row Mods" --output hrm.json` exports clean JSON
-- [ ] `keypath-cli import collection hrm.json` restores the collection
-- [ ] Snapshot tests lock down output format for all commands
-- [ ] Porcelain shortcuts work and are hidden from `--help`
+- [x] `keypath-cli import karabiner ~/.config/karabiner/karabiner.json --dry-run` parses and reports rules
+- [x] `keypath-cli export collection "Home Row Mods" --output hrm.json` exports clean JSON
+- [x] `keypath-cli import collection hrm.json` restores the collection
+- [x] Snapshot tests lock down output format for all commands
+- [x] Porcelain shortcuts work and are hidden from `--help`
 
 ---
 

@@ -359,6 +359,95 @@ public struct CLIFacade: Sendable {
         return CLIRuleCollection(from: collection)
     }
 
+    // MARK: - Karabiner Import
+
+    /// Parse a Karabiner-Elements configuration and return importable collections.
+    /// Handles both full karabiner.json and standalone complex_modifications rule files.
+    public func importFromKarabiner(data: Data, collectionName: String?, profileIndex: Int?) throws -> CLIKarabinerImportResult {
+        let service = KarabinerConverterService()
+
+        let result: KarabinerConversionResult
+        do {
+            result = try service.convert(data: data, profileIndex: profileIndex)
+        } catch {
+            if let complexResult = try? convertComplexModsFile(data: data, service: service) {
+                result = complexResult
+            } else {
+                throw error
+            }
+        }
+
+        let exportedCollections: [CLIExportedCollection]
+        if let name = collectionName {
+            let allMappings = result.collections.flatMap(\.mappings)
+            let merged = RuleCollection(
+                name: name,
+                summary: "Imported from Karabiner profile: \(result.profileName)",
+                category: .custom,
+                mappings: allMappings
+            )
+            exportedCollections = [CLIExportedCollection(from: merged)]
+        } else {
+            exportedCollections = result.collections.map { CLIExportedCollection(from: $0) }
+        }
+
+        var warnings = result.warnings
+
+        if !result.appKeymaps.isEmpty {
+            let count = result.appKeymaps.map(\.overrides.count).reduce(0, +)
+            warnings.append("\(count) app-specific override(s) found -- use the GUI to configure app keymaps")
+        }
+
+        if !result.launcherMappings.isEmpty {
+            warnings.append("\(result.launcherMappings.count) launcher mapping(s) found -- use the GUI to configure launcher shortcuts")
+        }
+
+        let skipped = result.skippedRules.map {
+            CLISkippedRule(description: $0.description, reason: $0.reason)
+        }
+
+        return CLIKarabinerImportResult(
+            profileName: result.profileName,
+            collections: exportedCollections,
+            skippedRules: skipped,
+            warnings: warnings
+        )
+    }
+
+    /// List profiles available in a Karabiner configuration file.
+    public func listKarabinerProfiles(data: Data) throws -> [CLIKarabinerProfile] {
+        let service = KarabinerConverterService()
+        let profiles = try service.getProfiles(from: data)
+        return profiles.map {
+            CLIKarabinerProfile(name: $0.name, index: $0.index, isSelected: $0.isSelected)
+        }
+    }
+
+    private func convertComplexModsFile(data: Data, service: KarabinerConverterService) throws -> KarabinerConversionResult {
+        struct ComplexModsFile: Decodable {
+            let title: String?
+            let rules: [KarabinerRule]
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              json["rules"] != nil
+        else {
+            throw KarabinerImportError.invalidJSON("Not a recognized Karabiner format")
+        }
+
+        let title = json["title"] as? String ?? "Imported Rules"
+        let wrapped: [String: Any] = [
+            "profiles": [[
+                "name": title,
+                "selected": true,
+                "complex_modifications": json,
+            ]],
+        ]
+
+        let wrappedData = try JSONSerialization.data(withJSONObject: wrapped)
+        return try service.convert(data: wrappedData, profileIndex: 0)
+    }
+
     // MARK: - Layer CRUD
 
     /// Get all layers defined by rule collections (unique targetLayer values).
@@ -1005,6 +1094,26 @@ public struct CLIMergeError: Error, CustomStringConvertible {
 public struct CLIConflictError: Error, CustomStringConvertible {
     public let input: String
     public var description: String { "Rule already exists for '\(input)'" }
+}
+
+// MARK: - Karabiner Import Types
+
+public struct CLIKarabinerImportResult: Codable, Sendable {
+    public let profileName: String
+    public let collections: [CLIExportedCollection]
+    public let skippedRules: [CLISkippedRule]
+    public let warnings: [String]
+}
+
+public struct CLISkippedRule: Codable, Sendable {
+    public let description: String
+    public let reason: String
+}
+
+public struct CLIKarabinerProfile: Codable, Sendable {
+    public let name: String
+    public let index: Int
+    public let isSelected: Bool
 }
 
 // MARK: - Export/Import Types

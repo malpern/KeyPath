@@ -4,7 +4,7 @@ import KeyPathAppKit
 
 struct ImportCollection: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "import",
+        commandName: "collection",
         abstract: "Import a collection from a JSON file"
     )
 
