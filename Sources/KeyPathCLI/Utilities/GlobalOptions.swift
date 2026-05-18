@@ -10,7 +10,7 @@ struct GlobalOptions: ParsableArguments {
     @Flag(name: .customLong("dry-run"), help: "Preview changes without applying")
     var dryRun: Bool = false
 
-    @Option(name: .customLong("on-conflict"), help: "Conflict resolution: fail|replace|skip")
+    @Option(name: .customLong("on-conflict"), help: "Conflict resolution: fail|replace|skip|merge")
     var onConflict: ConflictStrategy = .fail
 
     var outputContext: OutputContext {
@@ -22,4 +22,5 @@ enum ConflictStrategy: String, ExpressibleByArgument, Sendable {
     case fail
     case replace
     case skip
+    case merge
 }

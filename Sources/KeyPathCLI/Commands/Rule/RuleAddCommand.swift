@@ -107,6 +107,7 @@ struct RuleAdd: AsyncParsableCommand {
         case .fail: .fail
         case .replace: .replace
         case .skip: .skip
+        case .merge: .merge
         }
 
         if globals.dryRun {
@@ -146,14 +147,23 @@ struct RuleAdd: AsyncParsableCommand {
                     "Created rule: \(detail.input) → \(detail.action.displayName)"
                 case let .replaced(detail):
                     "Replaced rule: \(detail.input) → \(detail.action.displayName)"
+                case let .merged(detail):
+                    "Merged rule: \(detail.input) → \(detail.action.displayName)"
                 case .skipped:
                     "Skipped: rule already exists for '\(input)'"
                 }
             }
+        } catch let mergeErr as CLIMergeError {
+            let error = CLIError.conflict(
+                mergeErr.description,
+                hint: "Use --on-conflict=replace to overwrite instead"
+            )
+            CLIOutput.writeError(error, context: ctx)
+            throw CLIExitCode.conflict.exitCode
         } catch is CLIConflictError {
             let error = CLIError.conflict(
                 "Rule already exists for '\(input)'",
-                hint: "Use --on-conflict=replace to overwrite, or --on-conflict=skip to no-op"
+                hint: "Use --on-conflict=replace to overwrite, --on-conflict=skip to no-op, or --on-conflict=merge to combine"
             )
             CLIOutput.writeError(error, context: ctx)
             throw CLIExitCode.conflict.exitCode

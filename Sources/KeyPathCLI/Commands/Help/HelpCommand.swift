@@ -6,6 +6,7 @@ struct Help: AsyncParsableCommand {
         abstract: "Extended help and API discovery",
         subcommands: [
             HelpSchemas.self,
+            HelpExamples.self,
         ]
     )
 }
