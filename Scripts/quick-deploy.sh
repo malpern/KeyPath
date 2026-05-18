@@ -46,8 +46,7 @@ log_build_event() {
 }
 
 get_time_ms() {
-    # Cross-platform milliseconds (macOS doesn't have %N in date)
-    python3 -c 'import time; print(int(time.time() * 1000))' 2>/dev/null || date +%s000
+    perl -MTime::HiRes -e 'printf "%d\n", Time::HiRes::time()*1000' 2>/dev/null || echo "$(($(date +%s) * 1000))"
 }
 
 # --- Lock Management ---
@@ -139,8 +138,7 @@ fi
 # Build debug (fast - incremental)
 echo "🔨 Building..."
 BUILD_LOG=$(mktemp -t keypath-build.XXXXXX)
-# NOTE: `swift build --show-bin-path` does not reliably trigger a rebuild.
-# Always build first, then query the bin dir.
+if ! swift build "${MODULE_CACHE_FLAGS[@]}" >> "$BUILD_LOG" 2>&1; then
     BUILD_END_MS=$(get_time_ms)
     DURATION=$((BUILD_END_MS - BUILD_START_MS))
     echo "❌ Build failed"
@@ -237,10 +235,6 @@ if [[ -f "$KANATA_LAUNCHER_BIN" ]]; then
     chmod 755 "$KANATA_LAUNCHER_DST"
 fi
 
-fi
-
-fi
-
 # Rebuild the Rust host bridge so the installed app does not silently reuse a stale
 # dylib without the passthru runtime feature set required by the split-runtime host.
 ./Scripts/build-kanata-host-bridge.sh >/dev/null
@@ -301,7 +295,6 @@ if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
     fi
     if [[ -f "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher" ]]; then
         codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher" 2>/dev/null || true
-    fi
     fi
     if [[ -f "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" ]]; then
         codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" 2>/dev/null || true
