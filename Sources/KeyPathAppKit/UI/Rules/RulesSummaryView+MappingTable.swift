@@ -38,10 +38,10 @@ struct MappingTableContent: View {
                     .padding(.trailing, 24)
                 if hasDescriptions {
                     headerCell("Description")
-                        .frame(minWidth: 150, maxWidth: .infinity, alignment: .leading)
+                        .frame(minWidth: 150, maxWidth: .infinity, alignment: .center)
                 }
                 headerCell("Action")
-                    .frame(width: 90)
+                    .frame(width: 110)
                 if hasShiftVariants {
                     headerCell("+ Shift ⇧", color: .orange)
                         .frame(width: 100)
@@ -73,7 +73,7 @@ struct MappingTableContent: View {
                             .frame(minWidth: 150, maxWidth: .infinity)
                     }
                     actionCell(formatOutput(mapping.output))
-                        .frame(width: 90)
+                        .frame(width: 110)
                     if hasShiftVariants {
                         modifierCell(mapping.shiftedOutput.map { formatOutput($0) }, color: .orange)
                             .frame(width: 100)
@@ -111,13 +111,12 @@ struct MappingTableContent: View {
         Text(text ?? "")
             .font(.body)
             .foregroundColor(.primary.opacity(0.8))
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func actionCell(_ text: String) -> some View {
-        Text(text)
-            .font(.body.monospaced())
-            .foregroundColor(.secondary)
+        StandardKeyBadge(key: text, color: .secondary, uppercase: false)
+            .font(.system(size: 15, weight: .semibold, design: .monospaced))
             .fixedSize(horizontal: true, vertical: false)
             .frame(maxWidth: .infinity)
     }
@@ -290,7 +289,7 @@ struct MappingTableContent: View {
                 .replacingOccurrences(of: "del", with: "⌦")
                 .replacingOccurrences(of: "pgup", with: "Pg↑")
                 .replacingOccurrences(of: "pgdn", with: "Pg↓")
-                .replacingOccurrences(of: "esc", with: "⎋")
+                .replacingOccurrences(of: "esc", with: "esc")
         }.joined(separator: " ")
     }
 }

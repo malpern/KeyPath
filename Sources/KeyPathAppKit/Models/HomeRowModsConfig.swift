@@ -115,6 +115,16 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         "j": "rsft", "k": "rctl", "l": "ralt", ";": "rmet"
     ]
 
+    /// Vallack two-row split: OS modifiers on the top row, freeing the home row for layer toggles.
+    /// Pinkies get 300ms tap window (slower fingers), others 200ms.
+    public static let vallackTwoRowSplit: [String: String] = [
+        "q": "lctl", "w": "lalt", "e": "lmet",
+        "u": "rmet", "i": "ralt", "o": "rctl"
+    ]
+
+    /// Top row keys used by the Vallack two-row split
+    public static let vallackTopRowKeys = ["q", "w", "e", "u", "i", "o"]
+
     /// Default layer assignments (community standard mirror setup)
     public static let defaultLayerAssignments: [String: String] = [
         "a": "fun", "s": "num", "d": "sym", "f": "nav",

@@ -25,6 +25,7 @@ public enum PackRegistry {
         leaderKey,
         keyRepeatControl,
         chordGroups,
+        vallackSystem,
         kindaVim
     ]
 
@@ -545,6 +546,23 @@ public enum PackRegistry {
         quickSettings: [],
         bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.keyRepeatControl
+    )
+
+    // MARK: - Pack: Vallack System
+
+    public static let vallackSystem = Pack(
+        id: "com.keypath.pack.vallack-system",
+        version: "1.0.0",
+        name: "Ben Vallack Approach",
+        tagline: "Your fingers stay put, the keyboard changes",
+        shortDescription:
+            "Navigate, copy, paste, and switch tabs without your fingers leaving the home row. Inspired by [Ben Vallack](https://www.youtube.com/@BenVallacksKeyboards) — hold an index finger to transform your keyboard into a navigation surface, with modifiers on the top row so nothing competes for space.",
+        longDescription: "",
+        category: "Navigation",
+        iconSymbol: "rectangle.stack.badge.play",
+        quickSettings: [],
+        bindings: [],
+        associatedCollectionID: RuleCollectionIdentifier.vallackNavigation
     )
 
     // MARK: - Pack 16: KindaVim (visual-only companion)

@@ -161,6 +161,15 @@ extension PackDetailView {
                     }
                 )
             }
+        } else if pack.id == PackRegistry.vallackSystem.id {
+            embeddedEditor {
+                VallackSystemPackContent(
+                    navCollection: liveAssociatedCollection,
+                    modsCollection: liveCollection(for: RuleCollectionIdentifier.homeRowMods),
+                    togglesCollection: liveCollection(for: RuleCollectionIdentifier.homeRowLayerToggles),
+                    isInstalled: isInstalled
+                )
+            }
         } else if pack.bindings.isEmpty, let collection = liveAssociatedCollection,
                   !collection.mappings.isEmpty {
             // Collection-backed pack with no explicit bindings and a plain

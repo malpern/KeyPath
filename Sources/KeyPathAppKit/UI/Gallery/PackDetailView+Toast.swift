@@ -36,7 +36,10 @@ extension PackDetailView {
     }
 
     var installedToastMessage: String {
-        pack.bindings.count == 1
+        if pack.associatedCollectionID != nil, pack.bindings.isEmpty {
+            return "\(pack.name) turned on."
+        }
+        return pack.bindings.count == 1
             ? "\(pack.name) turned on."
             : "\(pack.name) turned on · \(pack.bindings.count) bindings added."
     }
