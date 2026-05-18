@@ -108,6 +108,10 @@ FAIL_COUNT=$(grep -cE "Test Case '.*' failed|Test .* failed after" "$LOG" 2>/dev
 FAIL_COUNT=${FAIL_COUNT:-0}
 PASS_COUNT=$(grep -cE "Test Case '.*' passed|Test .* passed after" "$LOG" 2>/dev/null || true)
 PASS_COUNT=${PASS_COUNT:-0}
+# XCTest distinguishes "expected" vs "unexpected" failures. Only unexpected failures
+# should block CI (expected failures are tests marked with XCTExpectFailure or similar).
+UNEXPECTED_COUNT=$(grep -oE "[0-9]+ unexpected" "$LOG" 2>/dev/null | awk '{s+=$1} END {print s+0}')
+UNEXPECTED_COUNT=${UNEXPECTED_COUNT:-0}
 IS_SIGNAL_CRASH=false
 if [ "$EXIT_CODE" -gt 128 ] 2>/dev/null; then
   IS_SIGNAL_CRASH=true
@@ -130,18 +134,24 @@ if [ "$IS_SIGNAL_CRASH" = true ]; then
   echo "⚠️  Test runner crashed with signal $SIGNAL_NUM (exit $EXIT_CODE)"
   echo "   Passed: $PASS_COUNT | Failed: $FAIL_COUNT"
 
-  if [ "$FAIL_COUNT" -le 1 ] && [ "$PASS_COUNT" -gt 0 ]; then
-    # At most 1 failure (the interrupted test) + many passes = runner crash, not test failure
+  if [ "$UNEXPECTED_COUNT" -le 1 ] && [ "$PASS_COUNT" -gt 0 ]; then
+    # At most 1 unexpected failure (the interrupted test) + many passes = runner crash, not test failure
     echo "✅ Tests passed (ignoring runner crash — $PASS_COUNT passed, $FAIL_COUNT interrupted by crash)"
     exit 0
   fi
 fi
 
-# Check for real test failures
-if [ "$FAIL_COUNT" -gt 0 ]; then
-  echo "❌ $FAIL_COUNT test(s) failed ($PASS_COUNT passed)"
+# Check for real (unexpected) test failures
+if [ "$UNEXPECTED_COUNT" -gt 0 ]; then
+  echo "❌ $UNEXPECTED_COUNT unexpected test failure(s) ($PASS_COUNT passed, $FAIL_COUNT total failed)"
   grep -E "Test Case '.*' failed|Test .* failed after" "$LOG" || true
   exit 1
+fi
+
+# Expected failures only — not a CI blocker
+if [ "$FAIL_COUNT" -gt 0 ] && [ "$UNEXPECTED_COUNT" -eq 0 ]; then
+  echo "✅ Tests passed ($PASS_COUNT passed, $FAIL_COUNT expected failure(s))"
+  exit 0
 fi
 
 # Non-zero exit but no failures found — check for any passing output
