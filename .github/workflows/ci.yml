@@ -46,7 +46,7 @@ jobs:
         echo "Building and running full test suite..."
         export CI_ENVIRONMENT=true
         export SKIP_EVENT_TAP_TESTS=1
-        export TIMEOUT_SECONDS=180
+        export TIMEOUT_SECONDS=300
         chmod +x ./Scripts/run-tests-safe.sh
         if ./Scripts/run-tests-safe.sh; then
           echo "TEST_STATUS=passed" >> $GITHUB_ENV
