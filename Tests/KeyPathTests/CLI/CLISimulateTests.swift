@@ -219,6 +219,19 @@ final class CLISimulateIntegrationTests: XCTestCase {
         return path
     }
 
+    private func runOrSkipOnVersionMismatch(
+        _ block: () async throws -> CLISimulationResult
+    ) async throws -> CLISimulationResult {
+        do {
+            return try await block()
+        } catch let error as SimulatorError {
+            if case let .processFailedWithCode(_, msg) = error, msg.contains("Unknown defcfg option") {
+                throw XCTSkip("kanata-simulator too old for current config format")
+            }
+            throw error
+        }
+    }
+
     func testRealSimulateSimpleRemap() async throws {
         let simulatorPath = try requireSimulatorPath()
 
@@ -229,11 +242,13 @@ final class CLISimulateIntegrationTests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: configPath) }
 
         let provider = RealSimulatorTestProvider(simulatorPath: simulatorPath)
-        let result = try await facade.simulate(
-            keys: [CLISimulatorKeyTap(key: "a")],
-            configPath: configPath,
-            simulatorProvider: provider
-        )
+        let result = try await runOrSkipOnVersionMismatch {
+            try await facade.simulate(
+                keys: [CLISimulatorKeyTap(key: "a")],
+                configPath: configPath,
+                simulatorProvider: provider
+            )
+        }
 
         let outputs = result.events.filter { $0.type == "output" }
         XCTAssertFalse(outputs.isEmpty, "Should have output events")
@@ -262,11 +277,13 @@ final class CLISimulateIntegrationTests: XCTestCase {
 
         let provider = RealSimulatorTestProvider(simulatorPath: simulatorPath)
 
-        let tapResult = try await facade.simulate(
-            keys: [CLISimulatorKeyTap(key: "caps", delayMs: 50)],
-            configPath: configPath,
-            simulatorProvider: provider
-        )
+        let tapResult = try await runOrSkipOnVersionMismatch {
+            try await facade.simulate(
+                keys: [CLISimulatorKeyTap(key: "caps", delayMs: 50)],
+                configPath: configPath,
+                simulatorProvider: provider
+            )
+        }
 
         XCTAssertFalse(tapResult.events.isEmpty, "Simulation should produce events")
         XCTAssertTrue(tapResult.events.contains { $0.type == "input" }, "Should have input events")
@@ -285,14 +302,16 @@ final class CLISimulateIntegrationTests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: configPath) }
 
         let provider = RealSimulatorTestProvider(simulatorPath: simulatorPath)
-        let result = try await facade.simulate(
-            keys: [
-                CLISimulatorKeyTap(key: "a"),
-                CLISimulatorKeyTap(key: "1"),
-            ],
-            configPath: configPath,
-            simulatorProvider: provider
-        )
+        let result = try await runOrSkipOnVersionMismatch {
+            try await facade.simulate(
+                keys: [
+                    CLISimulatorKeyTap(key: "a"),
+                    CLISimulatorKeyTap(key: "1"),
+                ],
+                configPath: configPath,
+                simulatorProvider: provider
+            )
+        }
 
         let outputs = result.events.filter { $0.type == "output" }
         XCTAssertTrue(outputs.contains { $0.key == "b" }, "Key 'a' should produce 'b'")
