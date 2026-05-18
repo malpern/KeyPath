@@ -26,14 +26,31 @@ jobs:
       COVERAGE_TOLERANCE_PERCENT: "0.01"
 
     steps:
+    - name: Clean stale git credentials
+      run: |
+        git config --global --unset-all http.https://github.com/.extraheader 2>/dev/null || true
+        git config --global --unset-all url.https://github.com/.insteadof 2>/dev/null || true
+
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: true
+        persist-credentials: false
 
-    - name: Add Homebrew to PATH
-      run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
+    - name: Add Homebrew and Cargo to PATH
+      run: |
+        echo "/opt/homebrew/bin" >> $GITHUB_PATH
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-    - name: Verify Kanata available
-      run: kanata --version
+    - name: Build and install kanata fork
+      run: |
+        cd External/kanata
+        cargo build --release --target aarch64-apple-darwin 2>&1 | tail -3
+        cp ./target/aarch64-apple-darwin/release/kanata /opt/homebrew/bin/kanata
+        kanata --version
+        cargo build --release --target aarch64-apple-darwin -p kanata-sim 2>&1 | tail -3
+        cp ./target/aarch64-apple-darwin/release/kanata_simulated_input /opt/homebrew/bin/kanata-simulator
+        kanata-simulator --version
 
     - name: Lint WizardAutoFixer for forbidden subprocess usage
       run: |
@@ -43,6 +60,7 @@ jobs:
     - name: Build and Run All Tests
       env:
         KP_SIGN_DRY_RUN: "1"
+        KEYPATH_BUNDLED_SIMULATOR_OVERRIDE: /opt/homebrew/bin/kanata-simulator
       run: |
         echo "Building and running full test suite..."
         export CI_ENVIRONMENT=true
@@ -146,10 +164,16 @@ jobs:
     timeout-minutes: 5
 
     steps:
+    - name: Clean stale git credentials
+      run: |
+        git config --global --unset-all http.https://github.com/.extraheader 2>/dev/null || true
+        git config --global --unset-all url.https://github.com/.insteadof 2>/dev/null || true
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        persist-credentials: false
 
     - name: Add Homebrew to PATH
       run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
