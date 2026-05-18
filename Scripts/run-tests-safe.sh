@@ -2,13 +2,13 @@
 set -euo pipefail
 
 # KeyPath Safe Test Runner
-# - Avoids SwiftPM runner crash on Swift 6.2 betas
+# - Runs both XCTest and Swift Testing tests via `swift test`
 # - Skips CGEvent taps in code under test to prevent hangs
 # - Adds a watchdog timeout so CI never freezes
 
 TIMEOUT_SECONDS=${TIMEOUT_SECONDS:-240}
 
-echo "🧪 Running tests via xctest with safety guards..."
+echo "🧪 Running tests via swift test with safety guards..."
 
 # 1) Environment for test-safe code paths
 export SWIFT_TEST=1
@@ -63,43 +63,16 @@ MODULE_CACHE_FLAGS=(-Xcc "-fmodules-cache-path=$MODULE_CACHE")
 echo "📦 Scratch: $SCRATCH_PATH | HOME=$HOME"
 echo "🗂️  Module cache: $MODULE_CACHE"
 
-# 1) Architecture safety lints
-# echo "🔎 Running safety lints..."
-# "$(dirname "$0")/archive/lint-architecture.sh"
-
-# 2) Build tests
-echo "🔨 Building tests..."
-swift build --build-tests --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}"
-
-BIN_DIR=$(swift build --build-tests --scratch-path "$SCRATCH_PATH" --show-bin-path "${MODULE_CACHE_FLAGS[@]}")
-
-# 3) Locate test bundle
-BUNDLE=""
-if [ -d "$BIN_DIR/KeyPathPackageTests.xctest" ]; then
-  BUNDLE="$BIN_DIR/KeyPathPackageTests.xctest"
-elif [ -d "$BIN_DIR/KeyPathTests.xctest" ]; then
-  BUNDLE="$BIN_DIR/KeyPathTests.xctest"
-else
-  BUNDLE=$(ls "$BIN_DIR"/*.xctest 2>/dev/null | head -n1 || true)
-fi
-
-if [ -z "${BUNDLE:-}" ] || [ ! -d "$BUNDLE" ]; then
-  echo "❌ Could not locate an XCTest bundle in $BIN_DIR"
-  exit 2
-fi
-
-echo "📦 Bundle: $BUNDLE"
-
-# 4) Run with watchdog
+# 1) Run with watchdog
 LOG=./test_output.safe.txt
 rm -f "$LOG"
 
-echo "🚀 Launching xctest..."
+echo "🚀 Launching swift test..."
 
 (
   set +e
-  set -o pipefail  # capture xctest exit code, not tee's
-  xcrun xctest "$BUNDLE" 2>&1 | tee "$LOG"
+  set -o pipefail
+  swift test --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}" 2>&1 | tee "$LOG"
   echo $? > .xctest.exit
 ) &
 
@@ -125,7 +98,7 @@ EXIT_CODE=$(cat .xctest.exit 2>/dev/null || echo 1)
 rm -f .xctest.exit
 kill $WATCHDOG_PID 2>/dev/null || true
 
-# 5) Summarize
+# 2) Summarize
 # Count actual test failures vs passes (both XCTest and Swift Testing formats)
 FAIL_COUNT=$(grep -cE "Test Case '.*' failed|Test .* failed after" "$LOG" 2>/dev/null || true)
 FAIL_COUNT=${FAIL_COUNT:-0}
