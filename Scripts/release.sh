@@ -223,7 +223,7 @@ if [ -f "$GHPAGES_WORKTREE/index.md" ]; then
         echo "   ℹ️  Download link already current"
     else
         git commit -m "chore: update download link to v${VERSION}"
-        git push origin gh-pages --no-verify
+        git push origin gh-pages
         echo "   ✅ gh-pages download link updated"
     fi
     cd "$REPO_ROOT"
