@@ -10,33 +10,6 @@ private struct SystemActionPopoverContentHeightKey: PreferenceKey {
 }
 
 extension OverlayMapperSection {
-    // MARK: - System Action Groups
-
-    /// System actions grouped for the popover
-    struct SystemActionGroup {
-        let title: String
-        let actions: [SystemActionInfo]
-    }
-
-    private var systemActionGroups: [SystemActionGroup] {
-        let all = SystemActionInfo.allActions
-        // Editing and System classifications come from the action's output type;
-        // media keys are still sub-grouped by domain (playback/volume/display)
-        // which doesn't correspond to a property on the model.
-        return [
-            SystemActionGroup(title: "Editing", actions: all.filter(\.isEditingShortcut)),
-            SystemActionGroup(title: "System", actions: all.filter(\.isSystemAction)),
-            SystemActionGroup(title: "Playback", actions: all.filter {
-                ["play-pause", "next-track", "prev-track"].contains($0.id)
-            }),
-            SystemActionGroup(title: "Volume", actions: all.filter {
-                ["mute", "volume-up", "volume-down"].contains($0.id)
-            }),
-            SystemActionGroup(title: "Display", actions: all.filter {
-                ["brightness-up", "brightness-down"].contains($0.id)
-            }),
-        ]
-    }
 
     /// Keep the picker compact by default, then grow it to a larger scrollable surface
     /// whenever any section expands. Using an explicit height lets the popover resize
@@ -144,11 +117,15 @@ extension OverlayMapperSection {
 
                 // Collapsible system actions grid
                 if isSystemActionsExpanded {
-                    VStack(spacing: 0) {
-                        ForEach(systemActionGroups, id: \.title) { group in
-                            systemActionGroupView(group)
+                    SystemActionGridView(
+                        groups: OutputActionGrouping.detailed,
+                        selectedActionID: viewModel.selectedSystemAction?.id,
+                        style: .iconTile,
+                        onSelect: { action in
+                            viewModel.selectSystemAction(action)
+                            isSystemActionPickerOpen = false
                         }
-                    }
+                    )
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 

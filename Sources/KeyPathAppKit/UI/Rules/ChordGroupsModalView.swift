@@ -576,18 +576,6 @@ struct ChordEditorDialog: View {
     private static let keycapText = Color(red: 0.88, green: 0.93, blue: 1.0)
     private static let keycapBg = Color(white: 0.12)
 
-    private let keystrokeOptions: [(key: String, label: String, icon: String)] = [
-        ("esc", "Esc", "escape"),
-        ("enter", "Return", "return"),
-        ("bspc", "Backspace", "delete.backward"),
-        ("del", "Delete", "delete.forward"),
-        ("tab", "Tab", "arrow.right.to.line"),
-        ("spc", "Space", "space"),
-        ("up", "↑", "arrow.up"),
-        ("down", "↓", "arrow.down"),
-        ("left", "←", "arrow.left"),
-        ("right", "→", "arrow.right"),
-    ]
 
     private var isValid: Bool {
         keys.filter({ !$0.isEmpty }).count >= 2
@@ -710,61 +698,18 @@ struct ChordEditorDialog: View {
     private var outputContent: some View {
         switch outputMode {
         case .keystroke:
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 72))], spacing: 4) {
-                ForEach(keystrokeOptions, id: \.key) { item in
-                    Button { selectedAction = .keystroke(key: item.key) } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: item.icon)
-                                .font(.system(size: 9))
-                            Text(item.label)
-                                .font(.system(size: 10))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                .fill(isSelected(item.key) ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.05))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                .strokeBorder(isSelected(item.key) ? Color.accentColor.opacity(0.4) : Color.clear, lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+            KeystrokePresetGridView(
+                selectedKey: { if case .keystroke(let k) = selectedAction { return k }; return nil }(),
+                onSelect: { selectedAction = .keystroke(key: $0) }
+            )
 
         case .systemAction:
-            let groups = systemActionGroups
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(groups, id: \.title) { group in
-                    Text(group.title)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 90))], spacing: 4) {
-                        ForEach(group.actions) { action in
-                            Button {
-                                selectedAction = .systemAction(id: action.id)
-                            } label: {
-                                HStack(spacing: 3) {
-                                    Image(systemName: action.sfSymbol)
-                                        .font(.system(size: 9))
-                                    Text(action.name)
-                                        .font(.system(size: 10))
-                                        .lineLimit(1)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                        .fill(isSystemActionSelected(action.id) ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.05))
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-            }
+            SystemActionGridView(
+                groups: OutputActionGrouping.compact,
+                selectedActionID: { if case .systemAction(let id) = selectedAction { return id }; return nil }(),
+                style: .labelPill(),
+                onSelect: { selectedAction = .systemAction(id: $0.id) }
+            )
 
         case .appLaunch:
             VStack(alignment: .leading, spacing: 6) {
@@ -799,31 +744,6 @@ struct ChordEditorDialog: View {
         }
     }
 
-    // MARK: - Helpers
-
-    private func isSelected(_ key: String) -> Bool {
-        if case .keystroke(let k) = selectedAction { return k == key }
-        return false
-    }
-
-    private func isSystemActionSelected(_ id: String) -> Bool {
-        if case .systemAction(let sid) = selectedAction { return sid == id }
-        return false
-    }
-
-    private struct ActionGroup {
-        let title: String
-        let actions: [SystemActionInfo]
-    }
-
-    private var systemActionGroups: [ActionGroup] {
-        let all = SystemActionInfo.allActions
-        return [
-            ActionGroup(title: "System", actions: all.filter(\.isSystemAction)),
-            ActionGroup(title: "Media", actions: all.filter(\.isMediaKey)),
-            ActionGroup(title: "Editing", actions: all.filter(\.isEditingShortcut)),
-        ]
-    }
 
     // MARK: - Keycap Preview
 

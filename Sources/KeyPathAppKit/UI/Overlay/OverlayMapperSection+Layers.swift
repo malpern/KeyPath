@@ -181,60 +181,6 @@ extension OverlayMapperSection {
         }
     }
 
-    @ViewBuilder
-    func systemActionGroupView(_ group: SystemActionGroup) -> some View {
-        // Section header
-        HStack {
-            Text(group.title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.top, 10)
-        .padding(.bottom, 4)
-
-        // 3-column grid
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
-            ForEach(group.actions) { action in
-                systemActionButton(action)
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.bottom, 4)
-    }
-
-    @ViewBuilder
-    func systemActionButton(_ action: SystemActionInfo) -> some View {
-        let isSelected = viewModel.selectedSystemAction?.id == action.id
-        Button {
-            // Use the proper method which handles auto-save
-            viewModel.selectSystemAction(action)
-            isSystemActionPickerOpen = false
-        } label: {
-            VStack(spacing: 4) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(isSelected ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.05))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: action.sfSymbol)
-                        .font(.title3)
-                        .foregroundStyle(isSelected ? Color.accentColor : .primary)
-                }
-                Text(action.name)
-                    .font(.caption2)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .focusable(false)
-        .accessibilityIdentifier("system-action-\(action.id)")
-    }
 
     var shouldShowHealthGate: Bool {
         if healthIndicatorState == .checking { return true }
