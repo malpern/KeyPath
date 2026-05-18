@@ -30,7 +30,7 @@ private struct SystemKeymapCard: View {
     }
 
     private var subtitle: String {
-        inputSourceName.isEmpty ? "Current Input Source" : inputSourceName
+        inputSourceName.isEmpty ? String(localized: "Current Input Source") : inputSourceName
     }
 
     var body: some View {

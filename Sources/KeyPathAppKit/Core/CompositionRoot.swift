@@ -41,10 +41,11 @@ enum CompositionRoot {
         // Verify running process signature matches installed bundle (catches failed restarts)
         SignatureHealthCheck.verifySignatureConsistency()
 
-        // Set startup mode to prevent blocking operations during app launch (in-memory flag)
-        FeatureFlags.shared.activateStartupMode(timeoutSeconds: 5.0)
+        // Set startup mode to prevent blocking operations during app launch (in-memory flag).
+        // Cleared explicitly by MainAppStateController once services are ready.
+        FeatureFlags.shared.activateStartupMode()
         AppLogger.shared.log(
-            "🔍 [App] Startup mode set (auto-clear in 5s) - IOHIDCheckAccess calls will be skipped"
+            "🔍 [App] Startup mode set - cleared when services are ready"
         )
 
         // Phase 4: MVVM - Initialize services and RuntimeCoordinator via composition root
