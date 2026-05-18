@@ -63,7 +63,11 @@ MODULE_CACHE_FLAGS=(-Xcc "-fmodules-cache-path=$MODULE_CACHE")
 echo "📦 Scratch: $SCRATCH_PATH | HOME=$HOME"
 echo "🗂️  Module cache: $MODULE_CACHE"
 
-# 1) Run with watchdog
+# 1) Build tests first (doesn't count against watchdog timeout)
+echo "🔨 Building tests..."
+swift build --build-tests --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}"
+
+# 2) Run with watchdog
 LOG=./test_output.safe.txt
 rm -f "$LOG"
 
@@ -72,7 +76,7 @@ echo "🚀 Launching swift test..."
 (
   set +e
   set -o pipefail
-  swift test --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}" 2>&1 | tee "$LOG"
+  swift test --skip-build --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}" 2>&1 | tee "$LOG"
   echo $? > .xctest.exit
 ) &
 
