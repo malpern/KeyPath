@@ -5,7 +5,8 @@ import KeyPathAppKit
 struct Simulate: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "simulate",
-        abstract: "Simulate a key sequence and show what Kanata would output"
+        abstract: "Simulate a key sequence and show what Kanata would output",
+        discussion: "Pass keys as space-separated arguments. Append ':hold' to simulate a long press."
     )
 
     @OptionGroup var globals: GlobalOptions
