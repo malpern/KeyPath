@@ -86,6 +86,52 @@ final class RuleCollectionStoreTests: XCTestCase {
         XCTAssertEqual(vim?.activationHint, "Hold Leader key to enter Navigation layer")
     }
 
+    func testSaveWritesVersionedFormat() async throws {
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("rule-collections-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let fileURL = tempDir.appendingPathComponent("collections.json")
+
+        let store = RuleCollectionStore.testStore(at: fileURL)
+        let sample = [
+            RuleCollection(
+                name: "Test",
+                summary: "Test",
+                category: .custom,
+                mappings: [],
+                isEnabled: true,
+                isSystemDefault: false,
+                icon: "star"
+            ),
+        ]
+
+        try await store.saveCollections(sample)
+
+        let data = try Data(contentsOf: fileURL)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        XCTAssertNotNil(json, "Saved file should be a JSON object, not an array")
+        XCTAssertEqual(json?["schemaVersion"] as? Int, 1)
+        XCTAssertNotNil(json?["collections"] as? [[String: Any]])
+    }
+
+    func testLoadReadsVersionedFormat() async throws {
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("rule-collections-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let fileURL = tempDir.appendingPathComponent("collections.json")
+
+        let store = RuleCollectionStore.testStore(at: fileURL)
+        let catalog = RuleCollectionCatalog()
+        let defaults = catalog.defaultCollections()
+
+        try await store.saveCollections(defaults)
+        let loaded = await store.loadCollections()
+
+        let loadedIDs = Set(loaded.map(\.id))
+        let defaultIDs = Set(defaults.map(\.id))
+        XCTAssertEqual(loadedIDs, defaultIDs, "Versioned round-trip should preserve all collections")
+    }
+
     func testLoadAddsMissingCatalogDefaultsWhenFileHasSubset() async throws {
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("rule-collections-\(UUID().uuidString)")
