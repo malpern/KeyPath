@@ -398,7 +398,7 @@ final class PreferencesService: @unchecked Sendable {
         #endif
         static let keyLabelStyle = KeyLabelStyle.symbols
         static let accessibilityTestMode = false
-        static let contextHUDDisplayMode = ContextHUDDisplayMode.both
+        static let contextHUDDisplayMode = ContextHUDDisplayMode.overlayOnly
         static let contextHUDTriggerMode = ContextHUDTriggerMode.holdToShow
         static let contextHUDTimeout: TimeInterval = 3.0
         static let contextHUDHoldDelayPreset = ContextHUDHoldDelayPreset.long

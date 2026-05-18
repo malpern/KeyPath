@@ -62,6 +62,7 @@ struct RuleCollectionCatalog {
             escapeRemap,
             deleteRemap,
             homeRowMods,
+            homeRowLayerToggles,
             chordGroups,
             sequences,
             numpadLayer,
@@ -69,6 +70,7 @@ struct RuleCollectionCatalog {
             funLayer,
             autoShiftSymbols,
             keyRepeatControl,
+            vallackNavigation,
             launcher
         ]
     }
@@ -965,6 +967,46 @@ struct RuleCollectionCatalog {
             icon: "hare",
             tags: ["fast", "navigation", "arrows", "repeat", "speed"],
             configuration: .keyRepeatControl(config)
+        )
+    }
+
+    // MARK: - Vallack Navigation
+
+    private var vallackNavigation: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.vallackNavigation,
+            name: "Ben Vallack Approach",
+            summary: "Hold F or J for arrows, clipboard, tab switching, and line navigation — fingers never leave the home row.",
+            category: .navigation,
+            mappings: [
+                // Right hand — navigation
+                KeyMapping(input: "h", action: .keystroke(key: "left"), description: "Left"),
+                KeyMapping(input: "j", action: .keystroke(key: "down"), description: "Down"),
+                KeyMapping(input: "k", action: .keystroke(key: "up"), description: "Up"),
+                KeyMapping(input: "l", action: .keystroke(key: "right"), description: "Right"),
+                KeyMapping(input: "u", action: .keystroke(key: "bspc"), description: "Backspace"),
+                KeyMapping(input: "i", action: .keystroke(key: "ret"), description: "Enter"),
+                KeyMapping(input: "y", action: .keystroke(key: "M-c"), description: "Copy"),
+                KeyMapping(input: ";", action: .keystroke(key: "M-v"), description: "Paste"),
+                // Left hand — switching and editing
+                KeyMapping(input: "q", action: .keystroke(key: "tab"), description: "Tab", sectionBreak: true),
+                KeyMapping(input: "w", action: .keystroke(key: "esc"), description: "Escape"),
+                KeyMapping(input: "e", action: .keystroke(key: "C-S-tab"), description: "Previous Tab"),
+                KeyMapping(input: "r", action: .keystroke(key: "C-tab"), description: "Next Tab"),
+                KeyMapping(input: "a", action: .keystroke(key: "M-tab"), description: "App Switcher"),
+                KeyMapping(input: "s", action: .keystroke(key: "home"), description: "Line Start"),
+                KeyMapping(input: "d", action: .keystroke(key: "end"), description: "Line End"),
+                KeyMapping(input: "g", action: .keystroke(key: "C-M-S-4"), description: "Screenshot"),
+                KeyMapping(input: "t", action: .keystroke(key: "M-["), description: "Browser Back"),
+                KeyMapping(input: "v", action: .keystroke(key: "M-]"), description: "Browser Forward")
+            ],
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "rectangle.stack.badge.play",
+            tags: ["vallack", "navigation", "arrows", "home row", "system"],
+            targetLayer: .custom("vallack-nav"),
+            activationHint: "Hold F or J to enter navigation layer",
+            configuration: .table
         )
     }
 
