@@ -89,6 +89,8 @@ public final class PackInstaller {
         }
 
         // System packs batch all collection changes into a single config regen.
+        // TODO: When a second system pack is added, replace ID matching with
+        // a Pack.systemConfig property that the installer dispatches on generically.
         if pack.id == PackRegistry.vallackSystem.id {
             try await applyVallackSystemConfigs(manager: manager)
             let record = InstalledPackRecord(
@@ -479,8 +481,6 @@ public final class PackInstaller {
             homeRowLayerTogglesConfig: togglesCollection?.configuration.homeRowLayerTogglesConfig,
             homeRowLayerTogglesEnabled: togglesCollection?.isEnabled ?? false
         )
-        let data = try JSONEncoder().encode(snapshot)
-        try data.write(to: vallackSnapshotURL, options: .atomic)
 
         let vallackMods = HomeRowModsConfig(
             enabledKeys: Set(HomeRowModsConfig.vallackTopRowKeys),
@@ -516,6 +516,9 @@ public final class PackInstaller {
             manager.ruleCollections[i].isEnabled = true
         }
 
+        let snapshotData = try JSONEncoder().encode(snapshot)
+        try snapshotData.write(to: vallackSnapshotURL, options: .atomic)
+
         await manager.regenerateConfigFromCollections()
         AppLogger.shared.log("📦 [PackInstaller] Applied Vallack system configs (two-row mods + nav toggles)")
     }
@@ -546,7 +549,6 @@ public final class PackInstaller {
             manager.ruleCollections[i].isEnabled = snapshot.homeRowLayerTogglesEnabled
         }
 
-        await manager.regenerateConfigFromCollections()
         try? FileManager.default.removeItem(at: vallackSnapshotURL)
         AppLogger.shared.log("📦 [PackInstaller] Reverted Vallack system configs from snapshot")
     }
