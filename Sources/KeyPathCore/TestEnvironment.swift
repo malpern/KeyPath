@@ -25,7 +25,7 @@ public enum TestEnvironment {
         // Check for test process names
         let processName = ProcessInfo.processInfo.processName
         if processName.contains("xctest") || processName.contains("KeyPathPackageTests")
-            || processName.contains("swift-test")
+            || processName.contains("swift-test") || processName.contains("swiftpm-testing")
         {
             return true
         }

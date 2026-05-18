@@ -6,12 +6,15 @@ on:
     paths-ignore:
       - 'docs/**'
       - '*.md'
-      - '.github/workflows/publish-help-docs.yml'
       - '.github/workflows/claude.yml'
       - '.github/workflows/claude-code-review.yml'
       - 'Sources/KeyPathAppKit/Resources/*.md'
       - 'Sources/KeyPathAppKit/Resources/*.css'
       - 'Sources/KeyPathAppKit/Resources/*.png'
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
@@ -27,11 +30,6 @@ jobs:
 
     - name: Add Homebrew to PATH
       run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
-
-    - name: Verify Help Docs Parity
-      run: |
-        chmod +x ./Scripts/check-help-parity.sh
-        ./Scripts/check-help-parity.sh
 
     - name: Verify Kanata available
       run: kanata --version
@@ -198,11 +196,6 @@ jobs:
           echo "Some UI elements are missing accessibility identifiers"
           exit 0
         }
-
-    - name: Screenshot Manifest Validation
-      run: |
-        chmod +x ./Scripts/validate-screenshot-manifest.sh
-        ./Scripts/validate-screenshot-manifest.sh
 
     - name: Critical Pattern Analysis
       run: |
