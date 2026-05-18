@@ -19,6 +19,7 @@ public struct KeyPathCLI: AsyncParsableCommand {
             System.self,
             Export.self,
             Import.self,
+            Simulate.self,
             Help.self,
             Completions.self,
             // Porcelain shortcuts (hidden from --help)

@@ -3,7 +3,7 @@
 **Parent issue:** #347 (CLI parity)  
 **Depends on:** Phase 0 (PR #356, merged 2026-05-17)  
 **PR:** #359 (squash-merged 2026-05-17)  
-**Status:** All phases complete (1E/1F deferred)
+**Status:** All phases complete (1E deferred)
 
 ### Progress
 
@@ -14,7 +14,7 @@
 | 1C. Layer CRUD | ✅ Shipped | 7 | create/delete/rename via targetLayer |
 | 1D. Service Lifecycle | ✅ Shipped | 3 | start/stop/restart/logs via launchctl |
 | 1E. Keyboard/Device | ⏳ Deferred | — | Needs HID device access; hard to unit test |
-| 1F. Simulate | ⏳ Deferred | — | Needs kanata-simulator binary |
+| 1F. Simulate | ✅ Done | 10 | `simulate` with mock provider seam + real integration tests |
 | 1G. Schemas | ✅ Shipped | 6 | rule + collection schemas with JSON examples |
 | 2A. Porcelain | ✅ Shipped | 8 | start/stop/restart/logs/unmap/list shortcuts |
 | 2B. Karabiner Import | ✅ Done | 13 | `import karabiner` with --collection, --profile, --dry-run; complex_mods file format |
@@ -22,7 +22,7 @@
 | 2D. Conflict merge | ✅ Done | 6 | --on-conflict=merge: simple+tap-hold merge, error on ambiguous |
 | 2E. Help examples | ✅ Done | 5 | `help-topics examples [noun]` with 6 topic areas |
 | 2F. Snapshot tests | ✅ Done | 14 | Inline snapshots for all CLI output types |
-| **Total passing** | | **~189** | All tests green |
+| **Total passing** | | **~196** | All tests green |
 
 ---
 
