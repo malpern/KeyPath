@@ -12,17 +12,7 @@ permalink: /guides/home-row-mods/
 
 Every keyboard shortcut on your Mac requires a modifier — Command, Shift, Control, Option. Those keys are tucked into the bottom corners of your keyboard, forcing your fingers off the home row dozens of times an hour. Over a full workday, that's thousands of small reaches that slow you down and strain your hands.
 
-Home row mods fix this by putting modifiers right under your fingertips:
-
-```
-  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐     ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐
-  │  A  │ │  S  │ │  D  │ │  F  │     │  J  │ │  K  │ │  L  │ │  ;  │
-  │ ⇧   │ │ ⌃   │ │ ⌥   │ │ ⌘   │     │ ⌘   │ │ ⌥   │ │ ⌃   │ │ ⇧   │
-  └─────┘ └─────┘ └─────┘ └─────┘     └─────┘ └─────┘ └─────┘ └─────┘
-              Tap for letters, hold for modifiers
-```
-
-Tap a key normally and you get the letter. Hold it briefly and it becomes a modifier. Your hands never move — every shortcut is one fluid motion from the home row.
+Home row mods fix this by putting modifiers right under your fingertips. Tap a key normally and you get the letter. Hold it briefly and it becomes a modifier. Your hands never move — every shortcut is one fluid motion from the home row.
 
 If you're new to keyboard customization, read [Keyboard Concepts]({{ '/guides/concepts/' | relative_url }}) first for background on dual-role keys and layers.
 
@@ -30,66 +20,81 @@ If you're new to keyboard customization, read [Keyboard Concepts]({{ '/guides/co
 
 ## What are home row mods?
 
-Every home row key gets a second job:
+Every home row key gets a second job — tap for the letter, hold for a modifier. The layout is mirrored so both hands get the same modifiers:
+
+**Left hand**
 
 | Key | Tap | Hold |
-|---|---|---|
-| A | a | Shift (⇧) |
-| S | s | Control (⌃) |
-| D | d | Option (⌥) |
-| F | f | Command (⌘) |
-| J | j | Command (⌘) |
-| K | k | Option (⌥) |
-| L | l | Control (⌃) |
-| ; | ; | Shift (⇧) |
+|-----|-----|------|
+| A | a | Shift ⇧ |
+| S | s | Control ⌃ |
+| D | d | Option ⌥ |
+| F | f | Command ⌘ |
 
-This is the **CAGS** layout (Command on index, Alt/Option on middle, Control on ring, Shift on pinky) — mirrored on both hands.
+**Right hand**
 
-The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (Copy). Hold A + press tab = ⇧Tab (Shift-Tab). No reaching, no contortion.
+| Key | Tap | Hold |
+|-----|-----|------|
+| J | j | Command ⌘ |
+| K | k | Option ⌥ |
+| L | l | Control ⌃ |
+| ; | ; | Shift ⇧ |
+
+The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (Copy). Hold A + press Tab = ⇧Tab (Shift-Tab). No reaching, no contortion.
 
 ---
 
-## Getting started with defaults
+## Getting started
 
 1. Open KeyPath and click the gear icon to open the inspector panel
 2. Go to the **Custom Rules** tab
 3. Enable the **Home Row Mods** pre-built rule
 4. Start typing normally
 
-The defaults use the CAGS layout shown above. Practice for a few days — occasional misfires during fast typing are normal at first and improve as you adjust.
+![Screenshot — Home Row Mods pack detail in KeyPath]({{ '/images/help/pack-detail-home-row-mods.png' | relative_url }})
 
-![Screenshot — Home Row Mods pack detail in KeyPath](pack-detail-home-row-mods.png)
+The defaults are tuned to feel natural right away. KeyPath automatically detects same-hand typing rolls (like "fd" or "jk") and treats them as letters, not modifiers. It also suppresses modifiers during fast typing bursts. These protections mean misfires are rare out of the box — most users don't need to change any settings.
 
 **Tip:** Start by using home row mods only for shortcuts you already know (⌘C, ⌘V, ⌘Z). Once those feel natural, expand to new shortcuts.
 
 ---
 
-## Tuning your setup
+## Advanced settings
 
-Once you've enabled home row mods, you can fine-tune how they feel. Open the rule's settings to access these controls.
+Once you're comfortable with the defaults, these settings let you fine-tune how home row mods feel. Open the Home Row Mods rule's settings to access these controls.
 
-### Typing Feel slider
+### Typing Feel
 
 KeyPath provides a slider to adjust the tap-hold threshold:
 
 
 ![Screenshot]({{ '/images/help/hrm-typing-feel-slider.png' | relative_url }})
-Screenshot — Typing Feel slider in rule settings:
-```
-  ┌─────────────────────────────────────────────────────┐
-  │  Typing Feel                                        │
-  │                                                     │
-  │  More Letters ────────●──────────── More Modifiers   │
-  │                       ↑                             │
-  │                     200 ms                          │
-  │                                                     │
-  │  Tap timeout:  [ 200 ms ]                           │
-  │  Hold timeout: [ 200 ms ]                           │
-  └─────────────────────────────────────────────────────┘
-```
 
 - Slide toward **"More Letters"** for a longer tap window (fewer accidental modifiers)
 - Slide toward **"More Modifiers"** for quicker modifier activation
+
+*Start with defaults, then adjust one parameter at a time.*
+
+### Opposite-hand activation
+
+Hold actions (modifiers or layers) only activate when you press a key with the **other hand**. Same-hand typing always produces letters — no accidental modifiers during fast rolls.
+
+![Opposite-hand activation — same hand types letters, cross hand activates modifiers]({{ '/images/help/diagram-opposite-hand.png' | relative_url }})
+
+This is enabled by default (**On Press**). The picker offers three modes:
+
+- **Off** — Any key press can trigger the hold action (classic tap-hold behavior)
+- **On Press** — Hold triggers when the other hand *presses* a key. Faster response, may misfire on fast same-hand rolls.
+- **On Release** — Hold triggers when the other-hand key is *released*. More forgiving for fast typists.
+
+### Fast typing protection
+
+When you're typing quickly, the last thing you want is for "fd" to become Ctrl+D. Fast typing protection solves this: keys pressed shortly after your last keystroke produce the letter immediately — no hold detection, no waiting state.
+
+
+![Screenshot]({{ '/images/help/hrm-fast-typing.png' | relative_url }})
+
+This is enabled by default at 150ms. Adjust the slider to match your typing speed — faster typists may want a lower value (strict), while slower typists can use a higher value (forgiving).
 
 ### Per-finger sensitivity
 
@@ -97,86 +102,18 @@ Pinkies are slower than index fingers. KeyPath lets you add extra tolerance for 
 
 
 ![Screenshot]({{ '/images/help/hrm-per-finger-sliders.png' | relative_url }})
-Screenshot — Per-finger sensitivity sliders:
-```
-  ┌─────────────────────────────────────────────────────┐
-  │  Per-Finger Tolerance                               │
-  │                                                     │
-  │  Pinky   ████████████████████░  +40 ms              │
-  │  Ring    █████████████░░░░░░░░  +25 ms              │
-  │  Middle  █████████░░░░░░░░░░░░  +15 ms              │
-  │  Index   ██████░░░░░░░░░░░░░░░  +0 ms               │
-  │                                                     │
-  │  Slower fingers get more time before                │
-  │  the hold activates.                                │
-  └─────────────────────────────────────────────────────┘
-```
 
 ### Quick tap
 
-When enabled, a quick tap-and-release always produces the letter, even if another key was pressed during the tap window. This is especially helpful for fast typists.
+When enabled, a quick tap-and-release always produces the letter, even if another key was pressed during the tap window. This is especially helpful for fast typists who sometimes roll keys.
 
-*Start with defaults, then adjust one parameter at a time.*
+### Raw values
 
----
-
-## How KeyPath makes home row mods reliable
-
-KeyPath uses two powerful features to make home row mods virtually misfire-free:
-
-### Opposite-hand activation
-
-Hold actions (modifiers or layers) only activate when you press a key with the **other hand**. Same-hand typing always produces letters — no accidental modifiers during fast rolls.
-
-```
-  Left Hand                     Right Hand
-  ┌───┬───┬───┬───┬───┐       ┌───┬───┬───┬───┬───┐
-  │ Q │ W │ E │ R │ T │       │ Y │ U │ I │ O │ P │
-  ├───┼───┼───┼───┼───┤       ├───┼───┼───┼───┼───┤
-  │ A │ S │ D │ F │ G │       │ H │ J │ K │ L │ ; │
-  ├───┼───┼───┼───┼───┤       ├───┼───┼───┼───┼───┤
-  │ Z │ X │ C │ V │ B │       │ N │ M │ , │ . │ / │
-  └───┴───┴───┴───┴───┘       └───┴───┴───┴───┴───┘
-
-  Same hand   → tap (letter)      Example: F then D → "fd"
-  Cross hand  → hold (modifier)   Example: F then J → ⌘J
-```
-
-This uses Kanata's native `tap-hold-opposite-hand` with a global hand definition (`defhands`), replacing the older per-key workaround.
-
-### Stop accidental modifiers during fast typing
-
-When you're typing quickly, the last thing you want is for "fd" to become Ctrl+D. Fast typing protection solves this: keys pressed shortly after your last keystroke produce the letter immediately — no hold detection, no waiting state.
-
-
-![Screenshot]({{ '/images/help/hrm-fast-typing.png' | relative_url }})
-Screenshot — Fast typing protection in rule settings:
-```
-  ┌─────────────────────────────────────────────────────┐
-  │  [x] Fast typing protection                        │
-  │                                                     │
-  │  Strict ──────────●──────────── Forgiving           │
-  │                    ↑                                │
-  │                  150 ms                             │
-  │                                                     │
-  │  Keys pressed within 150ms of your last keystroke   │
-  │  skip hold detection entirely.                      │
-  └─────────────────────────────────────────────────────┘
-```
-
-This is enabled by default at 150ms. Adjust the slider to match your typing speed — faster typists may want a lower value (strict), while slower typists can use a higher value (forgiving).
-
-### Per-finger timing
-
-Different fingers move at different speeds. KeyPath lets you give slower fingers (pinkies) more time before the hold activates, while keeping faster fingers (index) responsive. This eliminates most accidental modifier activations.
+Click **# Raw values** in the timing header to see and edit the exact millisecond values for tap window and hold delay. Useful for precise tuning or matching values from a community config.
 
 ---
 
-**Switching from Karabiner?** See the [From Karabiner-Elements guide]({{ '/migration/karabiner-users/' | relative_url }}) for a detailed comparison of how home row mods work in both tools.
-
----
-
-## Advanced techniques
+## Expert techniques
 
 These are techniques being explored in the mechanical keyboard community. Some are in KeyPath today, others are planned or available through custom Kanata config.
 
@@ -207,6 +144,10 @@ Kanata supports eager mode via `tap-hold-press` and `tap-hold-release` variants.
 ### Shift exemption
 
 Shift is the most frequently used modifier during normal typing (capital letters, punctuation). Advanced configurations exempt Shift from streak suppression and anti-cascade so capitalization works naturally during fast typing, while still suppressing accidental Control, Option, and Command.
+
+---
+
+**Switching from Karabiner?** See the [From Karabiner-Elements guide]({{ '/migration/karabiner-users/' | relative_url }}) for a detailed comparison of how home row mods work in both tools.
 
 ---
 
