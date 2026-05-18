@@ -1292,28 +1292,27 @@ class ConfigurationServiceTests: XCTestCase {
 
     /// Find the kanata binary, checking multiple locations
     private func findKanataBinary() throws -> String {
-        // Get project root from this test file's location
-        // #file = .../Tests/KeyPathTests/Services/ConfigurationServiceTests.swift
-        let testFile = URL(fileURLWithPath: #file)
-        let projectRoot = testFile
-            .deletingLastPathComponent() // Services/
-            .deletingLastPathComponent() // KeyPathTests/
-            .deletingLastPathComponent() // Tests/
-            .deletingLastPathComponent() // project root
+        // Use Process to find kanata in PATH (includes /opt/homebrew/bin where CI installs the fork)
+        let which = Process()
+        which.executableURL = URL(fileURLWithPath: "/usr/bin/which")
+        which.arguments = ["kanata"]
+        let pipe = Pipe()
+        which.standardOutput = pipe
+        try? which.run()
+        which.waitUntilExit()
+        if which.terminationStatus == 0 {
+            let path = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !path.isEmpty {
+                return path
+            }
+        }
 
-        // Candidate locations in priority order
+        // Fallback to well-known locations
         let candidates = [
-            // Local dev build (Kanata Engine.app bundle)
-            projectRoot.appendingPathComponent("dist/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata").path,
-            // Local dev build (backward-compat symlink)
-            projectRoot.appendingPathComponent("dist/KeyPath.app/Contents/Library/KeyPath/kanata").path,
-            // Installed app (Kanata Engine.app bundle)
+            "/opt/homebrew/bin/kanata",
             "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
-            // Installed app (backward-compat symlink)
             "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata",
-            // External kanata build (for CI or fresh clones)
-            projectRoot.appendingPathComponent("External/kanata/target/aarch64-apple-darwin/release/kanata").path,
-            projectRoot.appendingPathComponent("External/kanata/target/release/kanata").path
         ]
 
         for candidate in candidates {
@@ -1322,10 +1321,7 @@ class ConfigurationServiceTests: XCTestCase {
             }
         }
 
-        throw XCTSkip("""
-        Kanata binary not found - skipping real validation test.
-        Searched: \(candidates.joined(separator: ", "))
-        """)
+        throw XCTSkip("Kanata binary not found in PATH or known locations")
     }
 
     private func validateCatalogConfig(withBinary kanataBinary: String) async throws {

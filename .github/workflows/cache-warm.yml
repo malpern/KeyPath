@@ -15,9 +15,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
-      - name: Add Homebrew to PATH
-        run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
+      - name: Add Homebrew and Cargo to PATH
+        run: |
+          echo "/opt/homebrew/bin" >> $GITHUB_PATH
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-      - name: Build (warms .build cache for PR jobs)
+      - name: Build Swift (warms .build cache for PR jobs)
         run: swift build
+
+      - name: Build kanata fork (warms cargo cache)
+        run: |
+          cd External/kanata
+          cargo build --release --target aarch64-apple-darwin 2>&1 | tail -3

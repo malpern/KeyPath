@@ -197,13 +197,27 @@ final class CLISimulateIntegrationTests: XCTestCase {
     private let facade = CLIFacade()
 
     private func requireSimulatorPath() throws -> String {
+        let which = Process()
+        which.executableURL = URL(fileURLWithPath: "/usr/bin/which")
+        which.arguments = ["kanata-simulator"]
+        let pipe = Pipe()
+        which.standardOutput = pipe
+        try? which.run()
+        which.waitUntilExit()
+        if which.terminationStatus == 0 {
+            let path = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !path.isEmpty { return path }
+        }
+
         let candidates = [
+            "/opt/homebrew/bin/kanata-simulator",
             "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-simulator",
             URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent() // CLI/
-                .deletingLastPathComponent() // KeyPathTests/
-                .deletingLastPathComponent() // Tests/
-                .deletingLastPathComponent() // project root
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
                 .appendingPathComponent("build/kanata-simulator").path,
         ]
         if let path = candidates.first(where: { FileManager.default.fileExists(atPath: $0) }) {
