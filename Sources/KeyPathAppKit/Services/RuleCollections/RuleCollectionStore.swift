@@ -5,12 +5,18 @@ import KeyPathCore
 /// Stores user-defined collections alongside the Kanata config inside the ~/.config/keypath directory.
 actor RuleCollectionStore {
     static let shared = RuleCollectionStore()
+    static let currentSchemaVersion = 1
 
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private let fileURL: URL
     private let fileManager: FileManager
     private let catalog: RuleCollectionCatalog
+
+    private struct VersionedCollections: Codable {
+        var schemaVersion: Int
+        var collections: [RuleCollection]
+    }
 
     init(
         fileURL: URL? = nil,
@@ -37,13 +43,17 @@ actor RuleCollectionStore {
 
         do {
             let data = try Data(contentsOf: fileURL)
-            let collections = try decoder.decode([RuleCollection].self, from: data)
+            let collections: [RuleCollection]
+            if let versioned = try? decoder.decode(VersionedCollections.self, from: data) {
+                collections = versioned.collections
+            } else {
+                collections = try decoder.decode([RuleCollection].self, from: data)
+            }
+
             var upgraded = collections
                 .filter { $0.id != RuleCollectionIdentifier.typingSounds }
                 .map { catalog.upgradedCollection(from: $0) }
 
-            // Ensure any newly added catalog defaults are present even if the persisted
-            // file was written before they existed (or after a reset that wrote a subset).
             let defaults = catalog.defaultCollections()
             for collection in defaults where !upgraded.contains(where: { $0.id == collection.id }) {
                 upgraded.append(collection)
@@ -61,7 +71,11 @@ actor RuleCollectionStore {
     func saveCollections(_ collections: [RuleCollection]) throws {
         let directory = fileURL.deletingLastPathComponent()
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        let data = try encoder.encode(collections)
+        let versioned = VersionedCollections(
+            schemaVersion: Self.currentSchemaVersion,
+            collections: collections
+        )
+        let data = try encoder.encode(versioned)
         try data.write(to: fileURL, options: .atomic)
     }
 }
