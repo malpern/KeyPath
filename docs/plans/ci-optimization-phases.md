@@ -1,9 +1,10 @@
 # CI & Build Optimization — Phased Plan
 
-**Status:** Phases 1, 2, 5 complete. Phases 3, 4 skipped/deferred.
+**Status:** Done
 **Created:** 2026-05-17
+**Completed:** 2026-05-17
 **Prereq:** Self-hosted Mac Mini runner is live (PR #360, merged)
-**PR:** #361 (Phases 1+2)
+**PR:** #361 (merged) — Phases 1, 2, 5. Phases 3, 4 skipped/deferred.
 
 ## Phase 1: Quick Wins ✅
 
