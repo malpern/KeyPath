@@ -96,6 +96,11 @@ public struct HomeRowLayerTogglesConfig: Codable, Equatable, Sendable {
         "j": "nav", "k": "sym", "l": "num", ";": "fun"
     ]
 
+    /// Vallack system: index fingers hold for nav layer (mirrored)
+    public static let vallackLayerAssignments: [String: String] = [
+        "f": "vallack-nav", "j": "vallack-nav"
+    ]
+
     /// Left hand keys
     public static let leftHandKeys = ["a", "s", "d", "f"]
 

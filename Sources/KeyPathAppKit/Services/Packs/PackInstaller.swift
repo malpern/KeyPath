@@ -88,6 +88,22 @@ public final class PackInstaller {
             return record
         }
 
+        // System packs batch all collection changes into a single config regen.
+        if pack.id == PackRegistry.vallackSystem.id {
+            try await applyVallackSystemConfigs(manager: manager)
+            let record = InstalledPackRecord(
+                packID: pack.id,
+                version: pack.version,
+                installedAt: Date(),
+                quickSettingValues: resolvedSettings
+            )
+            try await InstalledPackTracker.shared.upsert(record)
+            AppLogger.shared.log(
+                "✅ [PackInstaller] Installed system pack '\(pack.name)'"
+            )
+            return record
+        }
+
         // Collection-backed packs (e.g. Home Row Mods) don't generate custom
         // rules — they just toggle the built-in RuleCollection on.
         if let collectionID = pack.associatedCollectionID {
@@ -95,6 +111,7 @@ public final class PackInstaller {
             if !ok {
                 throw InstallError.saveFailed("could not enable associated rule collection")
             }
+
             let record = InstalledPackRecord(
                 packID: pack.id,
                 version: pack.version,
@@ -164,6 +181,22 @@ public final class PackInstaller {
             return
         }
 
+        // System packs batch all collection changes into a single config regen.
+        if packID == PackRegistry.vallackSystem.id {
+            await revertVallackSystemConfigs(manager: manager)
+            if let collectionID = PackRegistry.vallackSystem.associatedCollectionID,
+               let i = manager.ruleCollections.firstIndex(where: { $0.id == collectionID })
+            {
+                manager.ruleCollections[i].isEnabled = false
+            }
+            await manager.regenerateConfigFromCollections()
+            try await InstalledPackTracker.shared.remove(packID: packID)
+            AppLogger.shared.log(
+                "✅ [PackInstaller] Uninstalled system pack '\(packID)'"
+            )
+            return
+        }
+
         // Collection-backed packs uninstall by disabling the associated
         // built-in collection; they don't have their own CustomRules to
         // remove.
@@ -172,9 +205,6 @@ public final class PackInstaller {
         {
             let ok = await manager.toggleCollection(id: collectionID, isEnabled: false)
             guard ok else {
-                // Leave the tracker record alone — the collection is still
-                // enabled, so the pack is still effectively installed. Surface
-                // the failure so the UI rolls its toggle back to "on".
                 throw InstallError.saveFailed("could not disable associated rule collection")
             }
             try await InstalledPackTracker.shared.remove(packID: packID)
@@ -419,6 +449,112 @@ public final class PackInstaller {
         switch kind {
         case let .slider(_, minValue, maxValue, _, _):
             return min(max(value, minValue), maxValue)
+        }
+    }
+
+    // MARK: - Vallack System Config
+
+    private struct VallackConfigSnapshot: Codable {
+        var homeRowModsConfig: HomeRowModsConfig?
+        var homeRowModsEnabled: Bool
+        var homeRowLayerTogglesConfig: HomeRowLayerTogglesConfig?
+        var homeRowLayerTogglesEnabled: Bool
+    }
+
+    private var vallackSnapshotURL: URL {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        return home
+            .appendingPathComponent(".config", isDirectory: true)
+            .appendingPathComponent("keypath", isDirectory: true)
+            .appendingPathComponent("vallack-system-snapshot.json")
+    }
+
+    private func applyVallackSystemConfigs(manager: RuleCollectionsManager) async throws {
+        let modsCollection = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.homeRowMods }
+        let togglesCollection = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.homeRowLayerToggles }
+
+        let snapshot = VallackConfigSnapshot(
+            homeRowModsConfig: modsCollection?.configuration.homeRowModsConfig,
+            homeRowModsEnabled: modsCollection?.isEnabled ?? false,
+            homeRowLayerTogglesConfig: togglesCollection?.configuration.homeRowLayerTogglesConfig,
+            homeRowLayerTogglesEnabled: togglesCollection?.isEnabled ?? false
+        )
+        let data = try JSONEncoder().encode(snapshot)
+        try data.write(to: vallackSnapshotURL, options: .atomic)
+
+        let vallackMods = HomeRowModsConfig(
+            enabledKeys: Set(HomeRowModsConfig.vallackTopRowKeys),
+            modifierAssignments: HomeRowModsConfig.vallackTwoRowSplit,
+            holdMode: .modifiers,
+            hasUserSelectedHoldMode: true,
+            timing: TimingConfig(tapWindow: 200, holdDelay: 150, tapOffsets: ["q": 100, "o": 100]),
+            keySelection: .custom,
+            oppositeHandMode: .press
+        )
+        let vallackToggles = HomeRowLayerTogglesConfig(
+            enabledKeys: Set(["f", "j"]),
+            layerAssignments: HomeRowLayerTogglesConfig.vallackLayerAssignments,
+            keySelection: .custom,
+            toggleMode: .whileHeld,
+            oppositeHandMode: .press
+        )
+
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        ensureCollectionExists(id: RuleCollectionIdentifier.vallackNavigation, catalog: catalog, manager: manager)
+        ensureCollectionExists(id: RuleCollectionIdentifier.homeRowMods, catalog: catalog, manager: manager)
+        ensureCollectionExists(id: RuleCollectionIdentifier.homeRowLayerToggles, catalog: catalog, manager: manager)
+
+        if let i = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.vallackNavigation }) {
+            manager.ruleCollections[i].isEnabled = true
+        }
+        if let i = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowMods }) {
+            manager.ruleCollections[i].configuration.updateHomeRowModsConfig(vallackMods)
+            manager.ruleCollections[i].isEnabled = true
+        }
+        if let i = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowLayerToggles }) {
+            manager.ruleCollections[i].configuration.updateHomeRowLayerTogglesConfig(vallackToggles)
+            manager.ruleCollections[i].isEnabled = true
+        }
+
+        await manager.regenerateConfigFromCollections()
+        AppLogger.shared.log("📦 [PackInstaller] Applied Vallack system configs (two-row mods + nav toggles)")
+    }
+
+    private func revertVallackSystemConfigs(manager: RuleCollectionsManager) async {
+        guard let data = try? Data(contentsOf: vallackSnapshotURL),
+              let snapshot = try? JSONDecoder().decode(VallackConfigSnapshot.self, from: data)
+        else {
+            AppLogger.shared.log("⚠️ [PackInstaller] No Vallack config snapshot found — skipping revert")
+            return
+        }
+
+        if let config = snapshot.homeRowModsConfig,
+           let i = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowMods })
+        {
+            manager.ruleCollections[i].configuration.updateHomeRowModsConfig(config)
+            manager.ruleCollections[i].isEnabled = snapshot.homeRowModsEnabled
+        } else if let i = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowMods }) {
+            manager.ruleCollections[i].isEnabled = snapshot.homeRowModsEnabled
+        }
+
+        if let config = snapshot.homeRowLayerTogglesConfig,
+           let i = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowLayerToggles })
+        {
+            manager.ruleCollections[i].configuration.updateHomeRowLayerTogglesConfig(config)
+            manager.ruleCollections[i].isEnabled = snapshot.homeRowLayerTogglesEnabled
+        } else if let i = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowLayerToggles }) {
+            manager.ruleCollections[i].isEnabled = snapshot.homeRowLayerTogglesEnabled
+        }
+
+        await manager.regenerateConfigFromCollections()
+        try? FileManager.default.removeItem(at: vallackSnapshotURL)
+        AppLogger.shared.log("📦 [PackInstaller] Reverted Vallack system configs from snapshot")
+    }
+
+    private func ensureCollectionExists(id: UUID, catalog: [RuleCollection], manager: RuleCollectionsManager) {
+        guard !manager.ruleCollections.contains(where: { $0.id == id }) else { return }
+        if let catalogCollection = catalog.first(where: { $0.id == id }) {
+            manager.ruleCollections.append(catalogCollection)
         }
     }
 

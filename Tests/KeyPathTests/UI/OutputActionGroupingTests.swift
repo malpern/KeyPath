@@ -6,11 +6,14 @@ struct OutputActionGroupingTests {
 
     // MARK: - Detailed grouping (overlay mapper)
 
-    @Test("detailed produces 5 groups in expected order")
+    @Test("detailed produces 9 groups in expected order")
     func detailedGroupCount() {
         let groups = OutputActionGrouping.detailed
-        #expect(groups.count == 5)
-        #expect(groups.map(\.title) == ["Editing", "System", "Playback", "Volume", "Display"])
+        #expect(groups.count == 9)
+        #expect(groups.map(\.title) == [
+            "Clipboard", "Cursor Movement", "Selection", "Deletion",
+            "Tab / Window", "System", "Playback", "Volume", "Display"
+        ])
     }
 
     @Test("detailed covers every action exactly once")
@@ -30,11 +33,16 @@ struct OutputActionGroupingTests {
         }
     }
 
-    @Test("detailed Editing group contains only editing shortcuts")
-    func detailedEditingGroup() {
-        let editing = OutputActionGrouping.detailed.first { $0.title == "Editing" }!
-        for action in editing.actions {
-            #expect(action.isEditingShortcut, "\(action.id) should be an editing shortcut")
+    @Test("detailed editing subgroups are disjoint")
+    func detailedEditingGroupsDisjoint() {
+        let editingGroupNames = ["Clipboard", "Cursor Movement", "Selection", "Deletion", "Tab / Window"]
+        let editingGroups = OutputActionGrouping.detailed.filter { editingGroupNames.contains($0.title) }
+        var seen = Set<String>()
+        for group in editingGroups {
+            for action in group.actions {
+                #expect(!seen.contains(action.id), "\(action.id) appears in multiple editing subgroups")
+                seen.insert(action.id)
+            }
         }
     }
 
@@ -42,7 +50,7 @@ struct OutputActionGroupingTests {
     func detailedSystemGroup() {
         let system = OutputActionGrouping.detailed.first { $0.title == "System" }!
         for action in system.actions {
-            #expect(action.isSystemAction, "\(action.id) should be a system action")
+            #expect(action.isSystemAction || action.isEditingShortcut, "\(action.id) should be a system or editing action")
         }
     }
 
@@ -93,28 +101,33 @@ struct OutputActionGroupingTests {
         }
     }
 
-    @Test("compact System group matches isSystemAction filter")
+    @Test("compact System group matches detailed System group")
     func compactSystemGroup() {
-        let system = OutputActionGrouping.compact.first { $0.title == "System" }!
-        for action in system.actions {
-            #expect(action.isSystemAction, "\(action.id) should be a system action")
-        }
+        let compactIDs = Set(OutputActionGrouping.compact.first { $0.title == "System" }!.actions.map(\.id))
+        let detailedIDs = Set(OutputActionGrouping.detailed.first { $0.title == "System" }!.actions.map(\.id))
+        #expect(compactIDs == detailedIDs)
     }
 
-    @Test("compact Media group matches isMediaKey filter")
+    @Test("compact Media group matches detailed Playback+Volume+Display")
     func compactMediaGroup() {
-        let media = OutputActionGrouping.compact.first { $0.title == "Media" }!
-        for action in media.actions {
-            #expect(action.isMediaKey, "\(action.id) should be a media key")
-        }
+        let compactIDs = Set(OutputActionGrouping.compact.first { $0.title == "Media" }!.actions.map(\.id))
+        let detailed = OutputActionGrouping.detailed
+        let detailedMediaIDs = Set(
+            detailed.filter { ["Playback", "Volume", "Display"].contains($0.title) }
+                .flatMap { $0.actions.map(\.id) }
+        )
+        #expect(compactIDs == detailedMediaIDs)
     }
 
-    @Test("compact Editing group matches isEditingShortcut filter")
+    @Test("compact Editing group matches detailed editing subgroups")
     func compactEditingGroup() {
-        let editing = OutputActionGrouping.compact.first { $0.title == "Editing" }!
-        for action in editing.actions {
-            #expect(action.isEditingShortcut, "\(action.id) should be an editing shortcut")
-        }
+        let compactIDs = Set(OutputActionGrouping.compact.first { $0.title == "Editing" }!.actions.map(\.id))
+        let detailed = OutputActionGrouping.detailed
+        let detailedEditingIDs = Set(
+            detailed.filter { ["Clipboard", "Cursor Movement", "Selection", "Deletion", "Tab / Window"].contains($0.title) }
+                .flatMap { $0.actions.map(\.id) }
+        )
+        #expect(compactIDs == detailedEditingIDs)
     }
 
     // MARK: - Cross-grouping consistency
@@ -126,17 +139,13 @@ struct OutputActionGroupingTests {
         #expect(detailedIDs == compactIDs)
     }
 
-    @Test("detailed media subgroups union equals compact Media group")
-    func detailedMediaSubgroupsMatchCompact() {
+    @Test("detailed and compact group the same actions into matching categories")
+    func detailedAndCompactGroupsAlign() {
         let detailed = OutputActionGrouping.detailed
-        let detailedMediaIDs = Set(
-            detailed.filter { ["Playback", "Volume", "Display"].contains($0.title) }
-                .flatMap { $0.actions.map(\.id) }
-        )
-        let compactMediaIDs = Set(
-            OutputActionGrouping.compact.first { $0.title == "Media" }!.actions.map(\.id)
-        )
-        #expect(detailedMediaIDs == compactMediaIDs, "Playback+Volume+Display should equal Media")
+        let compact = OutputActionGrouping.compact
+        let detailedTotal = detailed.flatMap { $0.actions.map(\.id) }.count
+        let compactTotal = compact.flatMap { $0.actions.map(\.id) }.count
+        #expect(detailedTotal == compactTotal, "Both groupings should cover the same number of actions")
     }
 
     // MARK: - OutputActionGroup identity

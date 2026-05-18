@@ -28,6 +28,7 @@ final class PackRegistryTests: XCTestCase {
         XCTAssertTrue(ids.contains("com.keypath.pack.quick-launcher"))
         XCTAssertTrue(ids.contains("com.keypath.pack.leader-key"))
         XCTAssertTrue(ids.contains("com.keypath.pack.kindavim"))
+        XCTAssertTrue(ids.contains("com.keypath.pack.vallack-system"))
     }
 
     func testKindaVimPackIsVisualOnlyAndUnbacked() {
