@@ -3,7 +3,7 @@
 # KeyPath Build, Sign, and Notarize Script
 # Run this to create a production-ready, signed, and notarized app
 
-set -e  # Exit on any error
+set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 source "$SCRIPT_DIR/lib/signing.sh"
@@ -162,16 +162,23 @@ EOF
     echo "   💿 DMG: ${SPARKLE_DIR}/${DMG_NAME}"
 }
 
-echo "🦀 Building bundled kanata..."
-# Build kanata from source (required for proper signing)
-./Scripts/build-kanata.sh
+echo "🦀 Building Rust artifacts in parallel (kanata, simulator, host bridge)..."
+./Scripts/build-kanata.sh &
+KANATA_PID=$!
+./Scripts/build-kanata-simulator.sh &
+SIM_PID=$!
+./Scripts/build-kanata-host-bridge.sh &
+BRIDGE_PID=$!
 
-echo "🔬 Building kanata simulator..."
-# Build simulator for dry-run simulation
-./Scripts/build-kanata-simulator.sh
-
-echo "🧩 Building kanata host bridge..."
-./Scripts/build-kanata-host-bridge.sh
+RUST_FAILED=0
+wait $KANATA_PID || RUST_FAILED=1
+wait $SIM_PID || RUST_FAILED=1
+wait $BRIDGE_PID || RUST_FAILED=1
+if [ $RUST_FAILED -ne 0 ]; then
+    echo "❌ One or more Rust builds failed" >&2
+    exit 1
+fi
+echo "✅ All Rust builds complete"
 
 echo "🔐 Building privileged helper..."
 # Build and sign the helper tool
@@ -187,11 +194,8 @@ else
 fi
 
 echo "🏗️  Building KeyPath and plugins..."
-# Build main app + insights plugin (KeyPathPluginKit is statically linked, no separate dylib needed)
-# Note: `swift build` accepts a single `--product`; passing it twice can skip the first one.
-swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
-swift build --configuration release --product KeyPathKanataLauncher -Xswiftc -no-whole-module-optimization
-swift build --configuration release --product KeyPathInsights -Xswiftc -no-whole-module-optimization
+# Build all products in a single SwiftPM invocation to share module compilation.
+swift build --configuration release -Xswiftc -no-whole-module-optimization
 
 echo "📦 Creating app bundle..."
 APP_NAME="KeyPath"

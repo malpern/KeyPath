@@ -121,25 +121,12 @@ cargo build \
     --features cmd,tcp_server \
     --target aarch64-apple-darwin
 
-# Skip x86_64 build for now due to Rust toolchain issues
-echo "⚠️ Skipping x86_64 build (ARM64 only for now)..."
-
 # Return to project root
 cd "$PROJECT_ROOT"
 
-# Create universal binary (fallback to ARM64 if lipo fails)
-echo "🔗 Creating universal binary..."
-if /usr/bin/lipo -create \
-    -output "$BUILD_DIR/kanata-universal" \
-    "$KANATA_SOURCE/target/aarch64-apple-darwin/release/kanata" \
-    "$KANATA_SOURCE/target/x86_64-apple-darwin/release/kanata" 2>/dev/null; then
-    
-    echo "✅ Universal binary created successfully"
-    /usr/bin/lipo -info "$BUILD_DIR/kanata-universal"
-else
-    echo "⚠️  lipo failed, using ARM64 binary (sufficient for Apple Silicon)"
-    cp "$KANATA_SOURCE/target/aarch64-apple-darwin/release/kanata" "$BUILD_DIR/kanata-universal"
-fi
+# Copy ARM64 binary (x86_64 cross-compilation is disabled)
+echo "📋 Copying ARM64 binary..."
+cp "$KANATA_SOURCE/target/aarch64-apple-darwin/release/kanata" "$BUILD_DIR/kanata-universal"
 
 # Verify the binary
 echo "✅ Verifying binary..."

@@ -166,7 +166,11 @@ echo ""
 # --- Automated release steps ---
 
 echo "🏷️  Creating git tag v${VERSION}..."
-git tag -f "v${VERSION}"
+if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+    echo "❌ Tag v${VERSION} already exists. Bump the version or delete the tag manually." >&2
+    exit 1
+fi
+git tag "v${VERSION}"
 
 echo "📤 Creating GitHub Release..."
 gh release create "v${VERSION}" \

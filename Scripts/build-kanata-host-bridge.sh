@@ -13,9 +13,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BRIDGE_ROOT="$PROJECT_ROOT/Rust/KeyPathKanataHostBridge"
 BUILD_DIR="$PROJECT_ROOT/build/kanata-host-bridge"
+CACHE_INFO="$BUILD_DIR/host-bridge-cache.info"
 BRIDGE_FEATURES="${KEYPATH_KANATA_HOST_BRIDGE_FEATURES:-passthru-output-spike}"
-# KeyPath currently packages Apple Silicon-only local builds, so the bridge intentionally targets
-# aarch64-apple-darwin here to match the shipped app/runtime artifacts.
 
 echo "🧩 Building KeyPath Kanata host bridge..."
 
@@ -30,6 +29,26 @@ if [ ! -f "$BRIDGE_ROOT/Cargo.toml" ]; then
 fi
 
 mkdir -p "$BUILD_DIR/include"
+
+calculate_source_hash() {
+    cd "$BRIDGE_ROOT"
+    find . \( -name "*.rs" -o -name "*.toml" -o -name "*.lock" \) \
+        -not -path "./target/*" \
+        -exec shasum -a 256 {} + 2>/dev/null | shasum -a 256 | cut -d' ' -f1
+}
+
+CURRENT_HASH=$(calculate_source_hash)
+CACHED_HASH=$(cat "$CACHE_INFO" 2>/dev/null || echo "")
+
+if [ "$CURRENT_HASH" = "$CACHED_HASH" ] && \
+   [ -f "$BUILD_DIR/libkeypath_kanata_host_bridge.dylib" ] && \
+   [ -f "$BUILD_DIR/libkeypath_kanata_host_bridge.a" ]; then
+    echo "🎯 Cache HIT: Host bridge source unchanged, using existing artifacts"
+    echo "✅ Host bridge ready"
+    exit 0
+fi
+
+echo "🔨 Cache miss, compiling host bridge..."
 
 if [ -n "$BRIDGE_FEATURES" ]; then
     cargo build \
@@ -50,6 +69,8 @@ cp "$BRIDGE_ROOT/target/aarch64-apple-darwin/release/libkeypath_kanata_host_brid
    "$BUILD_DIR/libkeypath_kanata_host_bridge.dylib"
 cp "$BRIDGE_ROOT/include/keypath_kanata_host_bridge.h" \
    "$BUILD_DIR/include/keypath_kanata_host_bridge.h"
+
+echo "$CURRENT_HASH" > "$CACHE_INFO"
 
 echo "✅ Host bridge built"
 if [ -n "$BRIDGE_FEATURES" ]; then
