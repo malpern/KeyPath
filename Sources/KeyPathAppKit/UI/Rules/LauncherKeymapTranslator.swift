@@ -31,8 +31,9 @@ struct LauncherKeymapTranslator {
         self.canonicalByDisplay = canonicalByDisplay
     }
 
+    @MainActor
     init(keymapId: String, includePunctuationStore: String) {
-        let resolvedKeymap = LogicalKeymap.find(id: keymapId) ?? .qwertyUS
+        let resolvedKeymap = LogicalKeymap.resolve(id: keymapId)
         let include = KeymapPreferences.includePunctuation(for: keymapId, store: includePunctuationStore)
         self.init(keymap: resolvedKeymap, includePunctuation: include)
     }
