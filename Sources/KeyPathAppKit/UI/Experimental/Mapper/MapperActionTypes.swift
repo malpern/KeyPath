@@ -173,6 +173,46 @@ public struct SystemActionInfo: Equatable, Hashable, Identifiable, Sendable {
         SystemActionInfo(id: "select-all", name: "Select All", sfSymbol: "selection.pin.in.out", output: .modifierCombo("C-a")),
         SystemActionInfo(id: "save", name: "Save", sfSymbol: "square.and.arrow.down", output: .modifierCombo("C-s")),
         SystemActionInfo(id: "find", name: "Find", sfSymbol: "magnifyingglass", output: .modifierCombo("C-f")),
+        // Cursor movement
+        SystemActionInfo(id: "word-left", name: "Word Left", sfSymbol: "arrow.left.to.line",
+                         output: .modifierCombo("A-left")),
+        SystemActionInfo(id: "word-right", name: "Word Right", sfSymbol: "arrow.right.to.line",
+                         output: .modifierCombo("A-right")),
+        SystemActionInfo(id: "line-start", name: "Line Start", sfSymbol: "arrow.backward.to.line",
+                         output: .hidKeycode("home", simulatorName: nil)),
+        SystemActionInfo(id: "line-end", name: "Line End", sfSymbol: "arrow.forward.to.line",
+                         output: .hidKeycode("end", simulatorName: nil)),
+        // Deletion
+        SystemActionInfo(id: "delete-word", name: "Delete Word", sfSymbol: "delete.backward",
+                         output: .modifierCombo("A-bspc")),
+        SystemActionInfo(id: "kill-line", name: "Kill Line", sfSymbol: "strikethrough",
+                         output: .modifierCombo("C-k")),
+        // Selection
+        SystemActionInfo(id: "select-word-left", name: "Select Word Left", sfSymbol: "text.badge.checkmark",
+                         output: .modifierCombo("S-A-left")),
+        SystemActionInfo(id: "select-word-right", name: "Select Word Right", sfSymbol: "text.badge.checkmark",
+                         output: .modifierCombo("S-A-right")),
+        SystemActionInfo(id: "select-to-line-start", name: "Select to Line Start", sfSymbol: "text.badge.checkmark",
+                         output: .modifierCombo("S-M-left")),
+        SystemActionInfo(id: "select-to-line-end", name: "Select to Line End", sfSymbol: "text.badge.checkmark",
+                         output: .modifierCombo("S-M-right")),
+        // Tab/Window management
+        SystemActionInfo(id: "prev-tab", name: "Previous Tab", sfSymbol: "arrow.left.square",
+                         output: .modifierCombo("C-S-tab")),
+        SystemActionInfo(id: "next-tab", name: "Next Tab", sfSymbol: "arrow.right.square",
+                         output: .modifierCombo("C-tab")),
+        SystemActionInfo(id: "app-switcher", name: "App Switcher", sfSymbol: "rectangle.stack",
+                         output: .modifierCombo("M-tab")),
+        SystemActionInfo(id: "window-switcher", name: "Window Switcher", sfSymbol: "macwindow.on.rectangle",
+                         output: .modifierCombo("M-grave")),
+        // System
+        SystemActionInfo(id: "screenshot", name: "Screenshot", sfSymbol: "camera.viewfinder",
+                         output: .modifierCombo("C-M-S-4")),
+        // Additional editing
+        SystemActionInfo(id: "forward-delete", name: "Forward Delete", sfSymbol: "delete.forward",
+                         output: .hidKeycode("del", simulatorName: nil)),
+        SystemActionInfo(id: "close-tab", name: "Close Tab", sfSymbol: "xmark.square",
+                         output: .modifierCombo("M-w")),
     ]
 
     /// Look up a SystemActionInfo by its kanata output (id, display name, keycode,
