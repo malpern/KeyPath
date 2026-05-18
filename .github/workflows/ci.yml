@@ -36,11 +36,12 @@ jobs:
         echo "/opt/homebrew/bin" >> $GITHUB_PATH
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-    - name: Build kanata fork
+    - name: Build and install kanata fork
       run: |
         cd External/kanata
         cargo build --release --target aarch64-apple-darwin 2>&1 | tail -3
-        ./target/aarch64-apple-darwin/release/kanata --version
+        cp ./target/aarch64-apple-darwin/release/kanata /opt/homebrew/bin/kanata
+        kanata --version
 
     - name: Lint WizardAutoFixer for forbidden subprocess usage
       run: |

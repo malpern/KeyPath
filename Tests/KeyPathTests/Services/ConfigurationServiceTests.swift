@@ -1312,7 +1312,9 @@ class ConfigurationServiceTests: XCTestCase {
         ]
 
         for candidate in candidates {
-            if FileManager.default.isExecutableFile(atPath: candidate) {
+            let exists = FileManager.default.isExecutableFile(atPath: candidate)
+            print("[findKanataBinary] \(exists ? "✅" : "❌") \(candidate)")
+            if exists {
                 return candidate
             }
         }
