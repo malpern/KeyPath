@@ -1301,19 +1301,14 @@ class ConfigurationServiceTests: XCTestCase {
             .deletingLastPathComponent() // Tests/
             .deletingLastPathComponent() // project root
 
-        // Candidate locations in priority order
+        // Candidate locations in priority order (fork build first — it has the latest syntax support)
         let candidates = [
-            // Local dev build (Kanata Engine.app bundle)
-            projectRoot.appendingPathComponent("dist/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata").path,
-            // Local dev build (backward-compat symlink)
-            projectRoot.appendingPathComponent("dist/KeyPath.app/Contents/Library/KeyPath/kanata").path,
-            // Installed app (Kanata Engine.app bundle)
-            "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
-            // Installed app (backward-compat symlink)
-            "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata",
-            // External kanata build (for CI or fresh clones)
             projectRoot.appendingPathComponent("External/kanata/target/aarch64-apple-darwin/release/kanata").path,
-            projectRoot.appendingPathComponent("External/kanata/target/release/kanata").path
+            projectRoot.appendingPathComponent("External/kanata/target/release/kanata").path,
+            projectRoot.appendingPathComponent("dist/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata").path,
+            projectRoot.appendingPathComponent("dist/KeyPath.app/Contents/Library/KeyPath/kanata").path,
+            "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
+            "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata",
         ]
 
         for candidate in candidates {
