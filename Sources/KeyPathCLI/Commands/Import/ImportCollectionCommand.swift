@@ -4,7 +4,7 @@ import KeyPathAppKit
 
 struct ImportCollection: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "import",
+        commandName: "collection",
         abstract: "Import a collection from a JSON file"
     )
 
@@ -45,7 +45,7 @@ struct ImportCollection: AsyncParsableCommand {
 
         let conflictStrategy: CLIConflictStrategy = switch globals.onConflict {
         case .fail: .fail
-        case .replace: .replace
+        case .replace, .merge: .replace
         case .skip: .skip
         }
 
