@@ -503,6 +503,7 @@ private struct ChordRowView: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("chord-edit-button-\(chord.id)")
+            .accessibilityLabel("Edit chord")
 
             Button(action: onDelete) {
                 Image(systemName: "trash")
@@ -511,6 +512,7 @@ private struct ChordRowView: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("chord-delete-button-\(chord.id)")
+            .accessibilityLabel("Delete chord")
         }
         .padding(8)
         .background(Color(nsColor: .controlBackgroundColor))

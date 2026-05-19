@@ -67,6 +67,7 @@ struct LauncherMappingRowView: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .controlSize(.mini)
+                .accessibilityLabel("Toggle \(mapping.action.displayName)")
             }
         }
         .padding(.horizontal, showToggle ? 8 : 10)

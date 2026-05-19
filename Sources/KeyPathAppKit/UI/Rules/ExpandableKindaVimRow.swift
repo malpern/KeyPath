@@ -83,6 +83,7 @@ struct ExpandableKindaVimRow: View {
             .tint(.blue)
             .labelsHidden()
             .accessibilityIdentifier("rules-kindavim-toggle")
+            .accessibilityLabel("Toggle KindaVim")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

@@ -225,6 +225,7 @@ private struct LauncherMappingCard: View {
                     .controlSize(.regular)
                     .frame(width: 44, height: 44)
                     .accessibilityIdentifier("launcher-card-toggle-\(mapping.key)")
+                    .accessibilityLabel("Toggle \(mapping.userDescription ?? mapping.action.displayName)")
                 } else {
                     iconView
                 }
