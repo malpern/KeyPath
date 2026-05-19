@@ -349,7 +349,7 @@ extension KeyboardVisualizationViewModel {
                     } else if let systemAction = SystemActionInfo.find(byOutput: outputKey) {
                         actionByInput[input] = .systemAction(
                             action: systemAction.id,
-                            description: systemAction.name,
+                            description: keyMapping.description ?? systemAction.name,
                             collectionId: collection.id
                         )
                     } else if let outputKeyCode = Self.kanataNameToKeyCode(outputKey) {
