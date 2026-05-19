@@ -9,7 +9,7 @@ final class CommandStructureTests: XCTestCase {
 
     func testRootHasExpectedSubcommands() {
         let names = subcommandNames(of: KeyPathCLI.self)
-        for expected in ["rule", "collection", "layer", "service", "config", "system", "export", "import", "help-topics", "completions"] {
+        for expected in ["rule", "collection", "layer", "pack", "service", "config", "system", "export", "import", "help-topics", "completions"] {
             XCTAssertTrue(names.contains(expected), "Missing subcommand: \(expected). Found: \(names)")
         }
     }
@@ -38,6 +38,11 @@ final class CommandStructureTests: XCTestCase {
     func testLayerHasExpectedVerbs() {
         let names = subcommandNames(of: Layer.self)
         XCTAssertEqual(Set(names), ["list", "create", "delete", "rename", "switch"])
+    }
+
+    func testPackHasExpectedVerbs() {
+        let names = subcommandNames(of: Pack.self)
+        XCTAssertEqual(Set(names), ["list", "show", "install", "uninstall"])
     }
 
     func testServiceHasExpectedVerbs() {
