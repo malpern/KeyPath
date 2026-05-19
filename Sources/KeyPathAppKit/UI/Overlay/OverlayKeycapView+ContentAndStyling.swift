@@ -172,6 +172,8 @@ extension OverlayKeycapView {
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier(keycapAccessibilityId)
         .accessibilityLabel(keycapAccessibilityLabel)
+        .accessibilityValue(keycapAccessibilityValue)
+        .accessibilityAddTraits(isInspectorVisible ? .isButton : [])
     }
 
     /// Accessibility identifier for this keycap
@@ -199,10 +201,57 @@ extension OverlayKeycapView {
             return "\(keyName), \(colorDescription) \(shape)"
         }
 
-        if let info = layerKeyInfo, !info.displayLabel.isEmpty, info.displayLabel != keyName {
+        guard let info = layerKeyInfo else { return keyName }
+
+        // Layer switch keys
+        if info.isLayerSwitch {
+            return "\(keyName), layer switch to \(info.displayLabel)"
+        }
+
+        // App launch keys (non-launcher mode)
+        if let appId = info.appLaunchIdentifier {
+            return "\(keyName), launches \(info.displayLabel.isEmpty ? appId : info.displayLabel)"
+        }
+
+        // System action keys
+        if let actionId = info.systemActionIdentifier {
+            return "\(keyName), \(info.displayLabel.isEmpty ? actionId : info.displayLabel)"
+        }
+
+        // URL keys
+        if let url = info.urlIdentifier {
+            return "\(keyName), opens \(info.displayLabel.isEmpty ? url : info.displayLabel)"
+        }
+
+        // Tap-hold keys: describe both actions when idle on base layer
+        if let idleLabel = tapHoldIdleLabel, !isLauncherMode,
+           currentLayerName.lowercased() == "base",
+           !info.displayLabel.isEmpty, info.displayLabel != idleLabel
+        {
+            return "\(keyName), tap \(idleLabel), hold \(info.displayLabel)"
+        }
+
+        // Standard mapping
+        if !info.displayLabel.isEmpty, info.displayLabel != keyName {
             return "\(keyName), mapped to \(info.displayLabel)"
         }
         return keyName
+    }
+
+    /// Accessibility value describing the key's current state
+    var keycapAccessibilityValue: String {
+        if isPressed, isHoldActive {
+            return "held"
+        } else if isPressed {
+            return "pressed"
+        } else if isOneShot {
+            return "one-shot active"
+        } else if isEmphasized {
+            return "highlighted"
+        } else if isSelected {
+            return "selected"
+        }
+        return ""
     }
 
     /// Human-readable color description for dots legend accessibility
