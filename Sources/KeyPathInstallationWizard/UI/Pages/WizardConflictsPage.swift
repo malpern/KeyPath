@@ -45,6 +45,7 @@ public struct WizardConflictsPage: View {
                     .buttonStyle(WizardDesign.Component.PrimaryButton())
                     .keyboardShortcut(.defaultAction)
                     .padding(.top, WizardDesign.Spacing.sectionGap)
+                    .accessibilityIdentifier("wizard-conflicts-next-button")
                 }
                 .heroSectionContainer()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -68,6 +69,7 @@ public struct WizardConflictsPage: View {
                     .disabled(isFixLoading || primaryFixAction == nil)
                     .frame(minHeight: 44)
                     .padding(.top, WizardDesign.Spacing.itemGap)
+                    .accessibilityIdentifier("wizard-conflicts-resolve-button")
                 }
                 .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
                 .heroSectionContainer()

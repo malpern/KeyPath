@@ -198,9 +198,11 @@ struct HelpBrowserView: View {
     private var footerLinks: some View {
         HStack(spacing: 12) {
             Link("KeyPath Website", destination: URL(string: "https://keypath-app.com")!)
+                .accessibilityIdentifier("help-website-link")
             Text("\u{00B7}")
                 .foregroundStyle(.secondary)
             Link("Report an Issue", destination: URL(string: "https://github.com/malpern/KeyPath/issues")!)
+                .accessibilityIdentifier("help-report-issue-link")
         }
         .font(.caption)
         .padding(.vertical, 8)
@@ -230,6 +232,7 @@ struct HelpBrowserView: View {
                     }
                     .buttonStyle(ToolbarButtonStyle())
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("help-back-button")
 
                     Spacer()
 
@@ -244,6 +247,7 @@ struct HelpBrowserView: View {
                     .foregroundStyle(.secondary)
                     .disabled(currentIndex == nil)
                     .keyboardShortcut(.leftArrow, modifiers: .command)
+                    .accessibilityIdentifier("help-navigate-back")
 
                     Button { navigateForward() } label: {
                         Image(systemName: "chevron.right")
@@ -255,6 +259,7 @@ struct HelpBrowserView: View {
                     .foregroundStyle(.secondary)
                     .disabled(currentIndex.map { $0 + 1 >= HelpTopic.allTopics.count } ?? false)
                     .keyboardShortcut(.rightArrow, modifiers: .command)
+                    .accessibilityIdentifier("help-navigate-forward")
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)

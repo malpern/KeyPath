@@ -73,6 +73,7 @@ public struct WizardFullDiskAccessPage: View {
                     .buttonStyle(.link)
                     .font(WizardDesign.Typography.caption)
                     .padding(.top, 4)
+                    .accessibilityIdentifier("wizard-fda-learn-more-button")
                 }
 
                 // Centered action buttons
@@ -83,6 +84,7 @@ public struct WizardFullDiskAccessPage: View {
                     .buttonStyle(WizardDesign.Component.PrimaryButton())
                     .keyboardShortcut(.defaultAction)
                     .disabled(!hasFullDiskAccess && isChecking)
+                    .accessibilityIdentifier("wizard-fda-primary-button")
 
                     if !hasFullDiskAccess {
                         Button("Skip") {
@@ -90,6 +92,7 @@ public struct WizardFullDiskAccessPage: View {
                         }
                         .buttonStyle(.link)
                         .font(.body)
+                        .accessibilityIdentifier("wizard-fda-skip-button")
                     }
                 }
                 .padding(.top, WizardDesign.Spacing.sectionGap)
@@ -299,6 +302,7 @@ private struct FullDiskAccessDetailsSheet: View {
                     dismiss()
                 }
                 .buttonStyle(WizardDesign.Component.SecondaryButton())
+                .accessibilityIdentifier("wizard-fda-details-done-button")
             }
 
             VStack(alignment: .leading, spacing: 16) {
