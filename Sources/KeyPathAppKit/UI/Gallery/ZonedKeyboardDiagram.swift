@@ -4,13 +4,6 @@ import SwiftUI
     import AppKit
 #endif
 
-enum KeyboardZone: Equatable {
-    case modifier
-    case activator
-    case navMapping
-    case dimmed
-}
-
 struct ZonedKeycap: View {
     let label: String
     let zone: KeyboardZone
@@ -22,24 +15,6 @@ struct ZonedKeycap: View {
         self.zone = zone
         self.subtitle = subtitle
         self.size = size
-    }
-
-    private var fillColor: Color {
-        switch zone {
-        case .modifier: Color.blue.opacity(0.45)
-        case .activator: Color.orange.opacity(0.5)
-        case .navMapping: Color.green.opacity(0.45)
-        case .dimmed: Color(NSColor.controlBackgroundColor).opacity(0.3)
-        }
-    }
-
-    private var borderColor: Color {
-        switch zone {
-        case .modifier: Color.blue.opacity(0.7)
-        case .activator: Color.orange.opacity(0.8)
-        case .navMapping: Color.green.opacity(0.7)
-        case .dimmed: Color.secondary.opacity(0.1)
-        }
     }
 
     private var textColor: Color {
@@ -71,11 +46,11 @@ struct ZonedKeycap: View {
         .frame(width: size, height: subtitle != nil ? size * 1.2 : size)
         .background(
             RoundedRectangle(cornerRadius: size * 0.18)
-                .fill(fillColor)
+                .fill(zone.color)
         )
         .overlay(
             RoundedRectangle(cornerRadius: size * 0.18)
-                .stroke(borderColor, lineWidth: 1)
+                .stroke(zone.borderColor, lineWidth: 1)
         )
     }
 }

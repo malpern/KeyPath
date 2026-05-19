@@ -41,6 +41,7 @@ struct LiveKeyboardOverlayView: View {
     /// Refreshed on `.installedPacksChanged` so the keyboard render path
     /// doesn't have to await the tracker actor.
     @State var kindaVimPackInstalled = false
+    @State var installedPackIDs: Set<String> = []
     @State private var inspectorSectionRaw: String = InspectorSection.mapper.rawValue
     @AppStorage("inspectorSettingsSection") private var settingsSectionRaw: String = InspectorSection.keyboard.rawValue
     var inspectorSection: InspectorSection {
@@ -231,6 +232,12 @@ struct LiveKeyboardOverlayView: View {
         await MainActor.run { kindaVimPackInstalled = installed }
     }
 
+    private func refreshInstalledPackIDs() async {
+        let records = await InstalledPackTracker.shared.allInstalled()
+        let ids = Set(records.map(\.packID))
+        await MainActor.run { installedPackIDs = ids }
+    }
+
     private func copyValidationErrorsToClipboard() {
         let text = validationFailureErrors.joined(separator: "\n")
         NSPasteboard.general.clearContents()
@@ -322,7 +329,10 @@ struct LiveKeyboardOverlayView: View {
                     viewModel.setLayout(activeLayout)
                 }
                 loadCustomRulesState()
-                Task { await refreshKindaVimPackInstalled() }
+                Task {
+                    await refreshKindaVimPackInstalled()
+                    await refreshInstalledPackIDs()
+                }
             },
             onDisappearAction: {
                 inputSourceDetector.stopMonitoring()
@@ -405,7 +415,10 @@ struct LiveKeyboardOverlayView: View {
             }
         ))
         .onReceive(NotificationCenter.default.publisher(for: .installedPacksChanged)) { _ in
-            Task { await refreshKindaVimPackInstalled() }
+            Task {
+                await refreshKindaVimPackInstalled()
+                await refreshInstalledPackIDs()
+            }
         }
         .windowAnchoredPopoverHost()
         .background(

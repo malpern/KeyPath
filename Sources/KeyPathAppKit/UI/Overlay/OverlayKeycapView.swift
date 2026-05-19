@@ -66,6 +66,8 @@ struct OverlayKeycapView: View {
     var launcherMapping: LauncherMapping?
     /// Whether we're in a keymap transition window (bypasses remap gating for animation)
     var isKeymapTransitioning: Bool = false
+    /// Zone color from active system pack (takes priority over collection colors)
+    var zoneColor: Color?
 
     /// Whether this key has a launcher mapping
     var hasLauncherMapping: Bool {

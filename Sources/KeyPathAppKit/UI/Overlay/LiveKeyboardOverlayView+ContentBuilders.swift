@@ -176,7 +176,11 @@ extension LiveKeyboardOverlayView {
                     vimHintsActive: kindaVimPackInstalled,
                     isLauncherMode: viewModel.isLauncherModeActive || (uiState.isInspectorOpen && inspectorSection == .launchers),
                     launcherMappings: viewModel.launcherMappings,
-                    isInspectorVisible: inspectorVisible
+                    isInspectorVisible: inspectorVisible,
+                    activeZoneColors: PackZoneResolver.activeZoneColors(
+                        installedPackIDs: installedPackIDs,
+                        layerName: viewModel.currentLayerName
+                    )
                 )
                 .environment(viewModel)
                 .frame(

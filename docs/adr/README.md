@@ -34,6 +34,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-036](adr-036-per-device-key-mappings.md) | Per-Device Key Mappings via Conditional Switch Wrapping | Accepted |
 | [ADR-037](adr-037-dynamic-os-key-labels.md) | Dynamic OS-Driven Key Labels (System Keymap) | Accepted |
 | [ADR-038](adr-038-extension-file-splitting.md) | Extension-File Splitting for Large Types | Accepted |
+| [ADR-039](adr-039-key-conflict-resolution-principles.md) | Key Conflict Detection and Resolution Principles | Accepted |
 
 ## Key Decisions Summary
 

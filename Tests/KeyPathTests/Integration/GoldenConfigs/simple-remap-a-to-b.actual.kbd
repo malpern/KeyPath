@@ -98,16 +98,13 @@ ALIAS DEFINITIONS (defalias)
       (one-shot-press 65000 (layer-while-held nav))))  ;; tap: spc  hold: Navigation layer
 
   ;; --- Tap-Hold Behaviors ---
-  beh_base_caps (tap-hold-press $tap-timeout $hold-timeout esc
+  beh_base_caps (tap-hold-press $tap-timeout $hold-timeout
   (multi
       lctl
       lmet
       lalt
       lsft
-      (layer-while-held launcher)
-      (on-press-fakekey kp-layer-launcher-enter tap)
-      (on-release-fakekey kp-layer-launcher-exit tap)
-    ))  ;; tap: esc  hold: hyper
+    )(multi lctl lmet lalt lsft (layer-while-held launcher) (on-press-fakekey kp-layer-launcher-enter tap) (on-release-fakekey kp-layer-launcher-exit tap)))  ;; tap: hyper  hold: hyper
 
   ;; --- Modifier Forks ---
   fork_nav_a (fork right (multi lmet right) (lsft rsft))
@@ -159,7 +156,7 @@ LAYER DEFINITIONS
   esc
   grv  1    2    3    4    5    6    7    8    9    0    min  eql  bspc
   tab q   w   e   r   t   y   u   i   o   p   [   ]   \  
-  a   s   d   f   g   h   j   k   l   ;   '   ret
+  b   s   d   f   g   h   j   k   l   ;   '   ret
   z x c v b n m , . /
   down  left  right up   
 
