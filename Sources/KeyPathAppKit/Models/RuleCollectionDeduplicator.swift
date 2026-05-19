@@ -85,8 +85,8 @@ enum RuleCollectionDeduplicator {
             let normalizedInput = KanataKeyConverter.convertToKanataKey(mapping.input)
             let inputKey = InputKey(input: normalizedInput, layer: collection.targetLayer)
 
-            // Skip if this input key was already claimed by a previous collection
             if seenInputKeys.contains(inputKey) {
+                AppLogger.shared.debug("🔀 [Dedup] Dropped mapping '\(mapping.input)' from '\(collection.name)' — key already claimed on \(collection.targetLayer.displayName) layer")
                 continue
             }
 

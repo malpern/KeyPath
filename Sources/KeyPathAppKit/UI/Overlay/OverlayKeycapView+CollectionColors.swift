@@ -17,6 +17,8 @@ extension OverlayKeycapView {
         static let launcher = Color.cyan
         /// Neovim Terminal collection keys
         static let neovimTerminal = Color(red: 0.3, green: 0.6, blue: 0.9)
+        /// Vallack Navigation collection keys (green to match zone color)
+        static let vallackNav = Color(red: 0.2, green: 0.7, blue: 0.4)
     }
 
     /// Determine key color based on collection ownership
@@ -41,6 +43,8 @@ extension OverlayKeycapView {
             return LayerColors.launcher
         case RuleCollectionIdentifier.neovimTerminal:
             return LayerColors.neovimTerminal
+        case RuleCollectionIdentifier.vallackNavigation:
+            return LayerColors.vallackNav
         default:
             // Unknown collection - default orange
             return LayerColors.defaultLayer

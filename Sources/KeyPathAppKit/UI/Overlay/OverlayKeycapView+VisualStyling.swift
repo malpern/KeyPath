@@ -138,6 +138,10 @@ extension OverlayKeycapView {
         } else if isEmphasized {
             Color.orange
         }
+        // System pack zone coloring (e.g., blue modifiers, orange activators, green nav)
+        else if let color = zoneColor {
+            color
+        }
         // Launcher mode: blue/teal background for mapped keys
         else if isLauncherMode, hasLauncherMapping {
             Color(red: 0.15, green: 0.35, blue: 0.45)

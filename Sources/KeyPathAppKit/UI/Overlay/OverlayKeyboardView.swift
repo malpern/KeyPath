@@ -59,6 +59,8 @@ struct OverlayKeyboardView: View {
     var launcherMappings: [String: LauncherMapping] = [:]
     /// Whether the inspector/drawer is visible (determines click vs drag behavior)
     var isInspectorVisible: Bool = false
+    /// Zone coloring from the active system pack (key code -> fill color)
+    var activeZoneColors: [UInt16: Color] = [:]
 
     // MARK: - Layer Mode (Vim/Nav)
 
@@ -481,7 +483,8 @@ struct OverlayKeyboardView: View {
             isLauncherMode: isLauncherMode,
             launcherMapping: launcherMapping,
             // Keymap transition flag (bypasses remap gating for animation)
-            isKeymapTransitioning: isKeymapTransitioning
+            isKeymapTransitioning: isKeymapTransitioning,
+            zoneColor: activeZoneColors[key.keyCode]
         )
         .frame(
             width: keyWidth(for: key, scale: scale),

@@ -340,6 +340,8 @@ final class ContextHUDViewModel {
             return .blue
         case RuleCollectionIdentifier.launcher:
             return .cyan
+        case RuleCollectionIdentifier.vallackNavigation:
+            return Color(red: 0.2, green: 0.7, blue: 0.4) // green — matches overlay zone
         default:
             return Color(red: 0.85, green: 0.45, blue: 0.15) // default orange
         }

@@ -512,10 +512,25 @@ extension KanataConfiguration {
                     for (layer, output) in entry.layerOutputs {
                         combinedLayerOutputs[layer] = output
                     }
-                    // Keep the base output from the first entry (earlier collection takes precedence)
+                    // When one entry is an identity passthrough (baseOutput == sourceKey)
+                    // and the other has a real behavior, prefer the behavior. This lets
+                    // tap-hold configs win over collections that claim the key in defsrc
+                    // only for their non-base layer mappings.
+                    let existingIsPassthrough = existing.baseOutput == existing.sourceKey
+                    let entryIsPassthrough = entry.baseOutput == entry.sourceKey
+                    let bestBase: String
+                    if existingIsPassthrough, !entryIsPassthrough {
+                        bestBase = entry.baseOutput
+                        AppLogger.shared.debug("🔀 [ConfigDedup] Key '\(entry.sourceKey)': behavior '\(entry.baseOutput)' wins over passthrough")
+                    } else if !existingIsPassthrough, !entryIsPassthrough, existing.baseOutput != entry.baseOutput {
+                        bestBase = existing.baseOutput
+                        AppLogger.shared.log("⚠️ [ConfigDedup] Key '\(entry.sourceKey)': competing behaviors — kept '\(existing.baseOutput)', dropped '\(entry.baseOutput)'")
+                    } else {
+                        bestBase = existing.baseOutput
+                    }
                     mergedEntries[entry.sourceKey] = LayerEntry(
                         sourceKey: existing.sourceKey,
-                        baseOutput: existing.baseOutput,
+                        baseOutput: bestBase,
                         layerOutputs: combinedLayerOutputs
                     )
                 } else {

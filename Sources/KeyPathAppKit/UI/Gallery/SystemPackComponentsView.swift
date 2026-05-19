@@ -4,45 +4,6 @@ import SwiftUI
     import AppKit
 #endif
 
-// MARK: - Vallack Zone Definitions
-
-enum VallackZones {
-    static let modifierKeyCodes: Set<UInt16> = [12, 13, 14, 32, 34, 31]
-    static let activatorKeyCodes: Set<UInt16> = [3, 38]
-
-    static let navMappingKeyCodes: Set<UInt16> = [
-        4, 38, 40, 37, 32, 34, 16, 41,
-        12, 13, 14, 15, 0, 1, 2, 5, 17, 9
-    ]
-
-    static let homeSubtitles: [UInt16: String] = [
-        12: "⌃", 13: "⌥", 14: "⌘",
-        32: "⌘", 34: "⌥", 31: "⌃",
-        3: "NAV", 38: "NAV"
-    ]
-
-    static let navSubtitles: [UInt16: String] = [
-        4: "←", 38: "↓", 40: "↑", 37: "→",
-        32: "⌫", 34: "↵", 16: "⌘C", 41: "⌘V",
-        12: "⇥", 13: "esc", 14: "◀Tab", 15: "Tab▶",
-        0: "⌘⇥", 1: "Home", 2: "End", 5: "camera",
-        17: "◀", 9: "▶"
-    ]
-
-    static func homeZones() -> [UInt16: KeyboardZone] {
-        var zones: [UInt16: KeyboardZone] = [:]
-        for code in modifierKeyCodes { zones[code] = .modifier }
-        for code in activatorKeyCodes { zones[code] = .activator }
-        return zones
-    }
-
-    static func navZones() -> [UInt16: KeyboardZone] {
-        var zones: [UInt16: KeyboardZone] = [:]
-        for code in navMappingKeyCodes { zones[code] = .navMapping }
-        return zones
-    }
-}
-
 // MARK: - Component Card
 
 struct SystemPackComponentCard: View {
@@ -129,8 +90,8 @@ struct VallackSystemPackContent: View {
 
                     if selectedLayer == "home" {
                         ZonedKeyboardDiagram(
-                            zones: VallackZones.homeZones(),
-                            subtitles: VallackZones.homeSubtitles,
+                            zones: VallackZoneMap.homeZones(),
+                            subtitles: VallackZoneMap.homeSubtitles,
                             keycapSize: 35
                         )
                         .frame(maxWidth: .infinity)
@@ -139,8 +100,8 @@ struct VallackSystemPackContent: View {
                         .padding(.horizontal, 12)
                     } else {
                         ZonedKeyboardDiagram(
-                            zones: VallackZones.navZones(),
-                            subtitles: VallackZones.navSubtitles,
+                            zones: VallackZoneMap.navZones(),
+                            subtitles: VallackZoneMap.navSubtitles,
                             keycapSize: 35
                         )
                         .frame(maxWidth: .infinity)
