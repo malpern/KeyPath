@@ -414,22 +414,37 @@ final class VallackOverlayZoneTests: XCTestCase {
 
     // MARK: - Vallack Nav Collection Labels
 
-    func testVallackNavEscLabelIsAbbreviated() {
-        let catalog = RuleCollectionCatalog().defaultCollections()
-        let collection = catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation }!
-        let wMapping = collection.mappings.first { $0.input == "w" }
-        let desc = wMapping?.description ?? ""
-        XCTAssertFalse(desc.contains("Escape"), "Should use 'Esc' not 'Escape'")
-        XCTAssertTrue(desc.contains("Esc") || desc.contains("esc"), "Should contain 'Esc'")
+    func testNavSubtitlesMatchDesign() {
+        let subs = VallackZoneMap.navSubtitles
+        XCTAssertEqual(subs[12], "tab")     // Q
+        XCTAssertEqual(subs[13], "esc")     // W
+        XCTAssertEqual(subs[14], "◀tab")    // E
+        XCTAssertEqual(subs[15], "tab▶")    // R
+        XCTAssertEqual(subs[17], "⌘[")      // T
+        XCTAssertEqual(subs[16], "⌘C")      // Y
+        XCTAssertEqual(subs[32], "⌫")       // U
+        XCTAssertEqual(subs[34], "↵")       // I
+        XCTAssertEqual(subs[0], "⌘tab")     // A
+        XCTAssertEqual(subs[1], "home")     // S
+        XCTAssertEqual(subs[2], "end")      // D
+        XCTAssertEqual(subs[41], "⌘V")      // ;
+        XCTAssertEqual(subs[9], "⌘]")       // V
+        XCTAssertEqual(subs[4], "←")        // H
+        XCTAssertEqual(subs[38], "↓")       // J
+        XCTAssertEqual(subs[40], "↑")       // K
+        XCTAssertEqual(subs[37], "→")       // L
     }
 
-    func testVallackNavBackspaceUsesSymbol() {
-        let catalog = RuleCollectionCatalog()
-        let builtIn = catalog.defaultCollections()
-        let collection = builtIn.first { $0.id == RuleCollectionIdentifier.vallackNavigation }!
-        let uMapping = collection.mappings.first { $0.input == "u" }
-        let desc = uMapping?.description ?? ""
-        XCTAssertFalse(desc.lowercased().contains("backspace"), "Should not spell out 'Backspace': got '\(desc)'")
+    func testVallackNavDescriptionsAvoidVerboseLabels() {
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let collection = catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation }!
+        for mapping in collection.mappings {
+            let desc = mapping.description ?? ""
+            XCTAssertFalse(desc.contains("Backspace"), "'\(mapping.input)' should not use verbose 'Backspace': got '\(desc)'")
+            XCTAssertFalse(desc.contains("Escape"), "'\(mapping.input)' should not use verbose 'Escape': got '\(desc)'")
+            XCTAssertFalse(desc.contains("Previous Tab"), "'\(mapping.input)' should use '◀tab' not 'Previous Tab': got '\(desc)'")
+            XCTAssertFalse(desc.contains("Browser"), "'\(mapping.input)' should use '⌘['/']' not 'Browser': got '\(desc)'")
+        }
     }
 
     func testVallackNavHasLeftHandFirst() {

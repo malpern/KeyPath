@@ -337,15 +337,23 @@ extension KeyboardVisualizationViewModel {
                     actionByInput[input] = info
                 } else {
                     let outputKey = keyMapping.action.outputString.lowercased()
-                    if let systemAction = SystemActionInfo.find(byOutput: outputKey) {
+                    if let description = keyMapping.description,
+                       let outputKeyCode = Self.kanataNameToKeyCode(outputKey)
+                    {
+                        actionByInput[input] = .mapped(
+                            displayLabel: description,
+                            outputKey: outputKey,
+                            outputKeyCode: outputKeyCode,
+                            collectionId: collection.id
+                        )
+                    } else if let systemAction = SystemActionInfo.find(byOutput: outputKey) {
                         actionByInput[input] = .systemAction(
                             action: systemAction.id,
-                            description: keyMapping.description ?? systemAction.name,
+                            description: systemAction.name,
                             collectionId: collection.id
                         )
                     } else if let outputKeyCode = Self.kanataNameToKeyCode(outputKey) {
-                        let displayLabel = keyMapping.description
-                            ?? (outputKey.count == 1 ? outputKey.uppercased() : outputKey.capitalized)
+                        let displayLabel = outputKey.count == 1 ? outputKey.uppercased() : outputKey.capitalized
                         actionByInput[input] = .mapped(
                             displayLabel: displayLabel,
                             outputKey: outputKey,

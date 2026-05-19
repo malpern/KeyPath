@@ -19,9 +19,9 @@ enum VallackZoneMap {
     static let navSubtitles: [UInt16: String] = [
         4: "←", 38: "↓", 40: "↑", 37: "→",
         32: "⌫", 34: "↵", 16: "⌘C", 41: "⌘V",
-        12: "⇥", 13: "esc", 14: "◀Tab", 15: "Tab▶",
-        0: "⌘⇥", 1: "Home", 2: "End", 5: "camera",
-        17: "◀", 9: "▶",
+        12: "tab", 13: "esc", 14: "◀tab", 15: "tab▶",
+        0: "⌘tab", 1: "home", 2: "end", 5: "camera",
+        17: "⌘[", 9: "⌘]",
     ]
 
     static func homeZones() -> [UInt16: KeyboardZone] {
