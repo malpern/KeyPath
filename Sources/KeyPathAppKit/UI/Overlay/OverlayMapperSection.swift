@@ -651,8 +651,11 @@ struct OverlayMapperSection: View {
         }
         .confirmationDialog("How many taps?", isPresented: $showTapCountPicker) {
             Button("Single Tap") { selectedTapCount = 1 }
+                .accessibilityIdentifier("overlay-mapper-single-tap")
             Button("Double Tap") { selectedTapCount = 2 }
+                .accessibilityIdentifier("overlay-mapper-double-tap")
             Button("Triple Tap") { selectedTapCount = 3 }
+                .accessibilityIdentifier("overlay-mapper-triple-tap")
             Button("Cancel", role: .cancel) {}
         }
     }

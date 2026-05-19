@@ -55,5 +55,6 @@ struct SettingsOptionCard: View {
             isHovered = hovering
             onHoverChanged?(hovering)
         }
+        .accessibilityIdentifier("settings-option-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
     }
 }

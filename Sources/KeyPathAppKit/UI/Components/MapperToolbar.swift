@@ -57,6 +57,7 @@ struct MapperToolbar: View {
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .foregroundStyle(isInspectorOpen ? Color.accentColor : .secondary)
             .help(isInspectorOpen ? "Hide Inspector" : "Show Inspector")
+            .accessibilityIdentifier("mapper-toggle-inspector")
         }
     }
 

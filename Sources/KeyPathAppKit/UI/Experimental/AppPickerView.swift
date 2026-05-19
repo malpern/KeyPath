@@ -51,6 +51,7 @@ struct AppPickerView: View {
                     .foregroundColor(.secondary)
                 TextField("Search apps...", text: $searchText)
                     .textFieldStyle(.plain)
+                    .accessibilityIdentifier("app-picker-search-field")
             }
             .padding(10)
             .background(Color(NSColor.controlBackgroundColor))
@@ -81,6 +82,7 @@ struct AppPickerView: View {
                         .buttonStyle(.plain)
                         .background(Color.clear)
                         .clipShape(.rect(cornerRadius: 6))
+                        .accessibilityIdentifier("app-picker-item-\(app.bundleIdentifier)")
                     }
                 }
                 .padding(8)

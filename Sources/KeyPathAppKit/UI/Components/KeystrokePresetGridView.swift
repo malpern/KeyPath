@@ -39,6 +39,7 @@ struct KeystrokePresetGridView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("keystroke-preset-\(item.key)")
             }
         }
     }
