@@ -183,7 +183,54 @@ final class ContextHUDViewModel {
         // visual-only pack); the .kindaVimLearning style is its own view and
         // doesn't read `groups[]`. Nothing to do for KindaVim in this pass.
 
-// Split Neovim Terminal entries into semantic sub-groups
+// Split Vallack Navigation entries into hand sub-groups using sectionBreak/sectionLabel
+        if let vallackGroup = groupMap[RuleCollectionIdentifier.vallackNavigation],
+           let vallackCollection = collectionLookup[RuleCollectionIdentifier.vallackNavigation]
+        {
+            groupMap.removeValue(forKey: RuleCollectionIdentifier.vallackNavigation)
+
+            // Walk the collection's mapping order to determine which section each input belongs to
+            var sectionForInput: [String: Int] = [:]
+            var sectionLabels: [Int: String] = [0: vallackCollection.name]
+            var currentSection = 0
+            for m in vallackCollection.mappings {
+                if m.sectionBreak { currentSection += 1 }
+                if let label = m.sectionLabel { sectionLabels[currentSection] = label }
+                sectionForInput[m.input.lowercased()] = currentSection
+            }
+
+            // Classify HUD entries into sections, override action with description
+            var sectionEntries: [Int: [HUDKeyEntry]] = [:]
+            var mappingsByInput: [String: KeyMapping] = [:]
+            for m in vallackCollection.mappings { mappingsByInput[m.input.lowercased()] = m }
+
+            for entry in vallackGroup.entries {
+                let kanataName = OverlayKeyboardView.keyCodeToKanataName(entry.keyCode).lowercased()
+                let inputKey = mappingsByInput[kanataName] != nil
+                    ? kanataName
+                    : Self.punctuationShortNames[kanataName] ?? kanataName
+                let mapping = mappingsByInput[inputKey]
+                let section = sectionForInput[inputKey] ?? 0
+
+                let action = mapping?.description ?? entry.action
+                let updated = HUDKeyEntry(
+                    keycap: entry.keycap, action: action, sfSymbol: entry.sfSymbol,
+                    appIdentifier: entry.appIdentifier, urlIdentifier: entry.urlIdentifier,
+                    holdAction: entry.holdAction, color: entry.color, keyCode: entry.keyCode
+                )
+                sectionEntries[section, default: []].append(updated)
+            }
+
+            for (index, entries) in sectionEntries.sorted(by: { $0.key < $1.key }) {
+                let label = sectionLabels[index] ?? vallackCollection.name
+                vimSubGroups.append(HUDKeyGroup(
+                    name: label, color: vallackGroup.color,
+                    entries: entries, sortOrder: index
+                ))
+            }
+        }
+
+        // Split Neovim Terminal entries into semantic sub-groups
         if let neovimGroup = groupMap[RuleCollectionIdentifier.neovimTerminal] {
             groupMap.removeValue(forKey: RuleCollectionIdentifier.neovimTerminal)
             var subGroupEntries: [String: (order: Int, entries: [HUDKeyEntry])] = [:]
@@ -228,6 +275,21 @@ final class ContextHUDViewModel {
     }
 
     // MARK: - Private Helpers
+
+    /// Kanata full names → short symbol names used in KeyMapping.input
+    private static let punctuationShortNames: [String: String] = [
+        "semicolon": ";",
+        "apostrophe": "'",
+        "comma": ",",
+        "dot": ".",
+        "slash": "/",
+        "backslash": "\\",
+        "leftbrace": "[",
+        "rightbrace": "]",
+        "equal": "=",
+        "minus": "-",
+        "grave": "`",
+    ]
 
     /// Punctuation key names → display symbols
     private static let keycapSymbols: [String: String] = [

@@ -381,6 +381,100 @@ final class ContextHUDViewModelTests: XCTestCase {
         XCTAssertTrue(names.contains("Other"))
     }
 
+    // MARK: - Vallack Sub-Group Tests
+
+    func testVallackEntriesSplitByHand() {
+        let vm = ContextHUDViewModel()
+        // Left hand: q(12), w(13) — Right hand: h(4), j(38), ;(41)
+        let keyMap: [UInt16: LayerKeyInfo] = [
+            12: .mapped(displayLabel: "Tab", outputKey: "tab", outputKeyCode: nil,
+                        collectionId: RuleCollectionIdentifier.vallackNavigation),
+            13: .mapped(displayLabel: "Esc", outputKey: "esc", outputKeyCode: nil,
+                        collectionId: RuleCollectionIdentifier.vallackNavigation),
+            4: .mapped(displayLabel: "←", outputKey: "left", outputKeyCode: nil,
+                       collectionId: RuleCollectionIdentifier.vallackNavigation),
+            38: .mapped(displayLabel: "↓", outputKey: "down", outputKeyCode: nil,
+                        collectionId: RuleCollectionIdentifier.vallackNavigation),
+            41: .mapped(displayLabel: "⌘V", outputKey: "M-v", outputKeyCode: nil,
+                        collectionId: RuleCollectionIdentifier.vallackNavigation),
+        ]
+
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.vallackNavigation,
+            name: "Ben Vallack Approach",
+            summary: "", category: .navigation,
+            mappings: [
+                KeyMapping(input: "q", action: .keystroke(key: "tab"), description: "tab", sectionLabel: "✋ Left hand"),
+                KeyMapping(input: "w", action: .keystroke(key: "esc"), description: "esc"),
+                KeyMapping(input: "h", action: .keystroke(key: "left"), description: "←", sectionBreak: true, sectionLabel: "🤚 Right hand"),
+                KeyMapping(input: "j", action: .keystroke(key: "down"), description: "↓"),
+                KeyMapping(input: ";", action: .keystroke(key: "M-v"), description: "⌘V"),
+            ],
+            targetLayer: .custom("vallack-nav")
+        )
+
+        vm.update(layerName: "vallack-nav", keyMap: keyMap, collections: [collection], style: .defaultList)
+
+        XCTAssertEqual(vm.groups.count, 2, "Should split into Left hand and Right hand")
+        XCTAssertEqual(vm.groups[0].name, "✋ Left hand")
+        XCTAssertEqual(vm.groups[1].name, "🤚 Right hand")
+        XCTAssertEqual(vm.groups[0].entries.count, 2)
+        XCTAssertEqual(vm.groups[1].entries.count, 3)
+    }
+
+    func testVallackUsesDescriptionLabels() {
+        let vm = ContextHUDViewModel()
+        let keyMap: [UInt16: LayerKeyInfo] = [
+            12: .mapped(displayLabel: "Tab", outputKey: "tab", outputKeyCode: nil,
+                        collectionId: RuleCollectionIdentifier.vallackNavigation),
+            4: .mapped(displayLabel: "←", outputKey: "left", outputKeyCode: nil,
+                       collectionId: RuleCollectionIdentifier.vallackNavigation),
+        ]
+
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.vallackNavigation,
+            name: "Ben Vallack Approach",
+            summary: "", category: .navigation,
+            mappings: [
+                KeyMapping(input: "q", action: .keystroke(key: "tab"), description: "tab", sectionLabel: "✋ Left hand"),
+                KeyMapping(input: "h", action: .keystroke(key: "left"), description: "←", sectionBreak: true, sectionLabel: "🤚 Right hand"),
+            ],
+            targetLayer: .custom("vallack-nav")
+        )
+
+        vm.update(layerName: "vallack-nav", keyMap: keyMap, collections: [collection], style: .defaultList)
+
+        let leftEntry = vm.groups[0].entries.first
+        XCTAssertEqual(leftEntry?.action, "tab", "Should use KeyMapping.description, not displayLabel")
+        let rightEntry = vm.groups[1].entries.first
+        XCTAssertEqual(rightEntry?.action, "←")
+    }
+
+    func testVallackSemicolonMatchesPunctuationInput() {
+        let vm = ContextHUDViewModel()
+        // keyCode 41 → kanata "semicolon", but collection uses ";" as input
+        let keyMap: [UInt16: LayerKeyInfo] = [
+            41: .mapped(displayLabel: "⌘V", outputKey: "M-v", outputKeyCode: nil,
+                        collectionId: RuleCollectionIdentifier.vallackNavigation),
+        ]
+
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.vallackNavigation,
+            name: "Ben Vallack Approach",
+            summary: "", category: .navigation,
+            mappings: [
+                KeyMapping(input: ";", action: .keystroke(key: "M-v"), description: "⌘V", sectionLabel: "🤚 Right hand"),
+            ],
+            targetLayer: .custom("vallack-nav")
+        )
+
+        vm.update(layerName: "vallack-nav", keyMap: keyMap, collections: [collection], style: .defaultList)
+
+        XCTAssertEqual(vm.groups.count, 1)
+        XCTAssertEqual(vm.groups.first?.entries.first?.action, "⌘V",
+                       "Semicolon key should match ';' input via punctuation alias")
+    }
+
     // MARK: - Hold Label Tests
 
     func testUpdateWithHoldLabels() {
