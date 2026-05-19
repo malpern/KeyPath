@@ -653,6 +653,7 @@ struct RuleCollectionCatalog {
             mappings: [], // Generated from homeRowLayerTogglesConfig
             isEnabled: false,
             isSystemDefault: false,
+            owningPackID: PackRegistry.vallackSystem.id,
             icon: "square.3.layers.3d",
             tags: ["home row", "layers", "productivity", "ergonomics"],
             configuration: .homeRowLayerToggles(HomeRowLayerTogglesConfig())
@@ -995,7 +996,7 @@ struct RuleCollectionCatalog {
                 KeyMapping(input: "j", action: .keystroke(key: "down"), description: "Down"),
                 KeyMapping(input: "k", action: .keystroke(key: "up"), description: "Up"),
                 KeyMapping(input: "l", action: .keystroke(key: "right"), description: "Right"),
-                KeyMapping(input: "u", action: .keystroke(key: "bspc"), description: "Backspace"),
+                KeyMapping(input: "u", action: .keystroke(key: "bspc"), description: "⌫"),
                 KeyMapping(input: "i", action: .keystroke(key: "ret"), description: "Enter"),
                 KeyMapping(input: "y", action: .keystroke(key: "M-c"), description: "Copy"),
                 KeyMapping(input: ";", action: .keystroke(key: "M-v"), description: "Paste")

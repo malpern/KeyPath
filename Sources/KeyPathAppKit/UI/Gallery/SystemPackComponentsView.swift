@@ -89,27 +89,25 @@ struct VallackSystemPackContent: View {
                         .padding(.top, 16)
                         .padding(.horizontal, 12)
 
-                    if selectedLayer == "home" {
+                    ZStack {
                         ZonedKeyboardDiagram(
                             zones: VallackZoneMap.homeZones(),
                             subtitles: VallackZoneMap.homeSubtitles,
                             keycapSize: 35
                         )
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 14)
-                        .padding(.bottom, 20)
-                        .padding(.horizontal, 12)
-                    } else {
+                        .opacity(selectedLayer == "home" ? 1 : 0)
+
                         ZonedKeyboardDiagram(
                             zones: VallackZoneMap.navZones(),
                             subtitles: VallackZoneMap.navSubtitles,
                             keycapSize: 35
                         )
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 14)
-                        .padding(.bottom, 20)
-                        .padding(.horizontal, 12)
+                        .opacity(selectedLayer == "home" ? 0 : 1)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 14)
+                    .padding(.bottom, 20)
+                    .padding(.horizontal, 12)
                 }
                 .gesture(
                     DragGesture(minimumDistance: 0)

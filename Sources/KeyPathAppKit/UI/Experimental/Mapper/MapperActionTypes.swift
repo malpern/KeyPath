@@ -206,7 +206,7 @@ public struct SystemActionInfo: Equatable, Hashable, Identifiable, Sendable {
         SystemActionInfo(id: "window-switcher", name: "Window Switcher", sfSymbol: "macwindow.on.rectangle",
                          output: .modifierCombo("M-grave")),
         // System
-        SystemActionInfo(id: "screenshot", name: "Screenshot", sfSymbol: "camera.viewfinder",
+        SystemActionInfo(id: "screenshot", name: "Screenshot", sfSymbol: "camera",
                          output: .modifierCombo("C-M-S-4")),
         // Additional editing
         SystemActionInfo(id: "forward-delete", name: "Forward Delete", sfSymbol: "delete.forward",

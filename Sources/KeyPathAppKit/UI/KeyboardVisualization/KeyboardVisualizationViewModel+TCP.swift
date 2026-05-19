@@ -314,9 +314,17 @@ extension KeyboardVisualizationViewModel {
             let layerName = String(message.dropFirst(6)).trimmingCharacters(in: .whitespaces)
             AppLogger.shared.info("🗂️ [KeyboardViz] Layer push message: '\(layerName)'")
             if isShowingLayerPreview {
-                isShowingLayerPreview = false
-                layerPreviewTask?.cancel()
-                layerPreviewTask = nil
+                prePreviewLayerName = layerName
+                if layerName.lowercased() != layerPreviewTarget.lowercased() {
+                    isShowingLayerPreview = false
+                    layerPreviewTask?.cancel()
+                    layerPreviewTask = nil
+                    AppLogger.shared.debug("🗂️ [KeyboardViz] Preview ended — kanata switched to '\(layerName)'")
+                    updateLayer(layerName)
+                } else {
+                    AppLogger.shared.debug("🗂️ [KeyboardViz] Preview active — kanata confirmed '\(layerName)'")
+                }
+                return
             }
             updateLayer(layerName)
             return
@@ -636,7 +644,7 @@ extension KeyboardVisualizationViewModel {
 
         layerPreviewTask?.cancel()
         layerPreviewTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(200))
+            try? await Task.sleep(for: .milliseconds(100))
             guard let self, !Task.isCancelled else { return }
             guard self.pressedKeyCodes.contains(keyCode) else { return }
             self.prePreviewLayerName = self.currentLayerName

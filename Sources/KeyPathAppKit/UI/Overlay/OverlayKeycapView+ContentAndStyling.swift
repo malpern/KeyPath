@@ -59,6 +59,18 @@ extension OverlayKeycapView {
             // Crisp content layer
             keyContent
 
+            // Zone subtitle overlay (e.g., ⌃ under Q for hold modifier)
+            if let subtitle = zoneSubtitle, !isLayerMode, !isLauncherMode {
+                VStack(spacing: 0) {
+                    Spacer()
+                    Text(subtitle)
+                        .font(.system(size: 7 * scale, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.45))
+                        .padding(.bottom, 1 * scale)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+
             // Custom icon overlay (from push-msg, takes precedence over other content)
             if let iconName = customIcon {
                 Image(systemName: iconName)

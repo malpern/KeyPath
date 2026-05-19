@@ -61,6 +61,8 @@ struct OverlayKeyboardView: View {
     var isInspectorVisible: Bool = false
     /// Zone coloring from the active system pack (key code -> fill color)
     var activeZoneColors: [UInt16: Color] = [:]
+    /// Subtitles from the active system pack (key code -> subtitle string, e.g., "⌃")
+    var activeZoneSubtitles: [UInt16: String] = [:]
 
     // MARK: - Layer Mode (Vim/Nav)
 
@@ -484,7 +486,8 @@ struct OverlayKeyboardView: View {
             launcherMapping: launcherMapping,
             // Keymap transition flag (bypasses remap gating for animation)
             isKeymapTransitioning: isKeymapTransitioning,
-            zoneColor: activeZoneColors[key.keyCode]
+            zoneColor: activeZoneColors[key.keyCode],
+            zoneSubtitle: activeZoneSubtitles[key.keyCode]
         )
         .frame(
             width: keyWidth(for: key, scale: scale),

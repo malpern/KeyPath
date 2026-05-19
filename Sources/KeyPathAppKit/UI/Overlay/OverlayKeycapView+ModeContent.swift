@@ -169,13 +169,15 @@ extension OverlayKeycapView {
                 }
             }
         } else {
-            // Unmapped key in layer mode: small label in top-left (skip for arrows and bottom row modifiers)
+            // Unmapped key in layer mode: preserve base-layer rendering for special keys
             if isArrowKey {
-                // Arrow keys: just show centered arrow
                 arrowContent
             } else if key.layoutRole == .narrowModifier {
-                // Bottom row modifiers (fn, ctrl, opt, cmd): render same as base layer
                 narrowModifierContent
+            } else if key.layoutRole == .bottomAligned {
+                bottomAlignedContent
+            } else if key.layoutRole == .escKey {
+                escKeyContent
             } else {
                 // In Nav layer, convert symbols to text labels (except modifier keys)
                 let displayLabel: String = {

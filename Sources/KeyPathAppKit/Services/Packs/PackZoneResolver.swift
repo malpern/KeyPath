@@ -29,6 +29,32 @@ enum PackZoneResolver {
         return nil
     }
 
+    static func activeZoneSubtitles(
+        installedPackIDs: Set<String>,
+        layerName: String
+    ) -> [UInt16: String] {
+        for packID in installedPackIDs {
+            if let subs = zoneSubtitles(for: packID, layerName: layerName) {
+                return subs
+            }
+        }
+        return [:]
+    }
+
+    private static func zoneSubtitles(
+        for packID: String,
+        layerName: String
+    ) -> [UInt16: String]? {
+        switch packID {
+        case PackRegistry.vallackSystem.id:
+            let lower = layerName.lowercased()
+            if lower.contains("vallack-nav") { return nil }
+            return VallackZoneMap.homeSubtitles
+        default:
+            return nil
+        }
+    }
+
     private static func zoneColors(
         for packID: String,
         layerName: String

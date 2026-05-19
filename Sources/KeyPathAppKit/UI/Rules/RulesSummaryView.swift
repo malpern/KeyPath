@@ -57,12 +57,17 @@ struct RulesTabView: View {
         return "custom-rules-\(rulesHash)-\(appsHash)"
     }
 
-    /// Show all catalog collections, merging with existing state
+    /// Show all catalog collections, merging with existing state.
+    /// Excludes pack-internal collections (managed entirely by their owning pack).
     var allCollections: [RuleCollection] {
         let catalog = RuleCollectionCatalog()
-        return catalog.defaultCollections().map { catalogCollection in
+        return catalog.defaultCollections().compactMap { catalogCollection in
+            // Hide pack-internal collections from the Rules tab
+            if catalogCollection.owningPackID != nil { return nil }
             // Find matching collection from kanataManager to preserve enabled state
             if var existing = kanataManager.ruleCollections.first(where: { $0.id == catalogCollection.id }) {
+                // Also hide if the persisted copy gained an owningPackID
+                if existing.owningPackID != nil { return nil }
                 // Always use catalog category (user data may have stale values)
                 existing.category = catalogCollection.category
                 return existing

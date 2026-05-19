@@ -5,6 +5,7 @@
 // PackInstaller is the only place pack state changes; the Gallery/Pack Detail
 // UI calls these methods and does not mutate CustomRules or config directly.
 
+import AppKit
 import Foundation
 import KeyPathCore
 
@@ -499,6 +500,11 @@ public final class PackInstaller {
             oppositeHandMode: .press
         )
 
+        // Check if user has customized Home Row Mods from default
+        let useVallackMods = await shouldApplyVallackMods(
+            existingCollection: modsCollection
+        )
+
         let catalog = RuleCollectionCatalog().defaultCollections()
         ensureCollectionExists(id: RuleCollectionIdentifier.vallackNavigation, catalog: catalog, manager: manager)
         ensureCollectionExists(id: RuleCollectionIdentifier.homeRowMods, catalog: catalog, manager: manager)
@@ -508,7 +514,9 @@ public final class PackInstaller {
             manager.ruleCollections[i].isEnabled = true
         }
         if let i = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowMods }) {
-            manager.ruleCollections[i].configuration.updateHomeRowModsConfig(vallackMods)
+            if useVallackMods {
+                manager.ruleCollections[i].configuration.updateHomeRowModsConfig(vallackMods)
+            }
             manager.ruleCollections[i].isEnabled = true
         }
         if let i = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowLayerToggles }) {
@@ -520,7 +528,39 @@ public final class PackInstaller {
         try snapshotData.write(to: vallackSnapshotURL, options: .atomic)
 
         await manager.regenerateConfigFromCollections()
-        AppLogger.shared.log("📦 [PackInstaller] Applied Vallack system configs (two-row mods + nav toggles)")
+        let modsNote = useVallackMods ? "Ben's mod config" : "user's existing mod config"
+        AppLogger.shared.log("📦 [PackInstaller] Applied Vallack system configs (\(modsNote) + nav toggles)")
+    }
+
+    private func shouldApplyVallackMods(
+        existingCollection: RuleCollection?
+    ) async -> Bool {
+        guard let collection = existingCollection,
+              collection.isEnabled,
+              let existingConfig = collection.configuration.homeRowModsConfig
+        else {
+            return true
+        }
+
+        let defaultConfig = HomeRowModsConfig()
+        if existingConfig == defaultConfig {
+            return true
+        }
+
+        if TestEnvironment.isRunningTests {
+            return true
+        }
+
+        return await withCheckedContinuation { continuation in
+            let alert = NSAlert()
+            alert.messageText = "Home Row Mods Already Configured"
+            alert.informativeText = "You've customized your modifier settings. Ben Vallack's system includes its own mod configuration."
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "Keep Mine")
+            alert.addButton(withTitle: "Use Ben's")
+            let response = alert.runModal()
+            continuation.resume(returning: response == .alertSecondButtonReturn)
+        }
     }
 
     private func revertVallackSystemConfigs(manager: RuleCollectionsManager) async {

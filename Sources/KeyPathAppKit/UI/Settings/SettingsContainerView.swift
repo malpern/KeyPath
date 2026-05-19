@@ -62,6 +62,7 @@ struct SettingsContainerView: View {
                 .tabItem { Label("Repair/Remove", systemImage: "wrench.and.screwdriver") }
                 .tag(SettingsTab.advanced)
         }
+        .background(tabShortcutHandlers)
         .frame(
             minWidth: 680,
             idealWidth: 680,
@@ -100,6 +101,22 @@ struct SettingsContainerView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsAdvanced)) { _ in
             selection = .advanced
         }
+    }
+
+    private var tabShortcutHandlers: some View {
+        VStack {
+            Button("") { selection = .status }
+                .keyboardShortcut("1", modifiers: .command)
+            Button("") { selection = canManageRules ? .rules : selection }
+                .keyboardShortcut("2", modifiers: .command)
+            Button("") { selection = .general }
+                .keyboardShortcut("3", modifiers: .command)
+            Button("") { selection = .advanced }
+                .keyboardShortcut("4", modifiers: .command)
+        }
+        .frame(width: 0, height: 0)
+        .opacity(0)
+        .allowsHitTesting(false)
     }
 
     private func refreshCanManageRules() async {

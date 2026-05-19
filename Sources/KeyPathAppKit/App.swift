@@ -285,6 +285,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "🔍 [AppDelegate] applicationShouldHandleReopen (hasVisibleWindows=\(flag))"
         )
 
+        if NSApp.isHidden {
+            NSApp.unhide(nil)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+
+        // If the app is already fully running, just activate — don't re-show the splash
+        if initialMainWindowShown, LiveKeyboardOverlayController.shared.isVisible {
+            AppLogger.shared.debug("🪟 [AppDelegate] Reopen while running - activating without splash")
+            return true
+        }
+
         if mainWindowController == nil {
             if NSApplication.shared.activationPolicy() != .regular {
                 NSApplication.shared.setActivationPolicy(.regular)
@@ -306,10 +317,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         suppressLaunchSplashAutoHide = true
         pendingReopenShow = false
-        if NSApp.isHidden {
-            NSApp.unhide(nil)
-        }
-        NSApp.activate(ignoringOtherApps: true)
         mainWindowController?.show(focus: true)
         initialMainWindowShown = true
         AppLogger.shared.debug("🪟 [AppDelegate] User-initiated reopen - showing main window immediately")

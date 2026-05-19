@@ -19,6 +19,8 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
 
     public var isEnabled: Bool
     public var isSystemDefault: Bool
+    /// When non-nil, this collection is internal to a pack and hidden from the Rules tab.
+    public var owningPackID: String?
 
     // MARK: - Core Behavior
 
@@ -74,6 +76,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         mappings: [KeyMapping],
         isEnabled: Bool = true,
         isSystemDefault: Bool = false,
+        owningPackID: String? = nil,
         icon: String? = nil,
         tags: [String] = [],
         targetLayer: RuleCollectionLayer = .base,
@@ -90,6 +93,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         self.mappings = mappings
         self.isEnabled = isEnabled
         self.isSystemDefault = isSystemDefault
+        self.owningPackID = owningPackID
         self.icon = icon
         self.tags = tags
         self.targetLayer = targetLayer
@@ -103,7 +107,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case id, name, summary, category, mappings, isEnabled, isSystemDefault
+        case id, name, summary, category, mappings, isEnabled, isSystemDefault, owningPackID
         case icon, tags, targetLayer, momentaryActivator, activationHint
         case configuration, windowKeyConvention, functionKeyMode
         // Legacy keys for migration
@@ -123,6 +127,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         mappings = try container.decode([KeyMapping].self, forKey: .mappings)
         isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
         isSystemDefault = try container.decode(Bool.self, forKey: .isSystemDefault)
+        owningPackID = try container.decodeIfPresent(String.self, forKey: .owningPackID)
         icon = try container.decodeIfPresent(String.self, forKey: .icon)
         tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
         targetLayer = try container.decodeIfPresent(RuleCollectionLayer.self, forKey: .targetLayer) ?? .base
@@ -205,6 +210,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         try container.encode(mappings, forKey: .mappings)
         try container.encode(isEnabled, forKey: .isEnabled)
         try container.encode(isSystemDefault, forKey: .isSystemDefault)
+        try container.encodeIfPresent(owningPackID, forKey: .owningPackID)
         try container.encodeIfPresent(icon, forKey: .icon)
         try container.encode(tags, forKey: .tags)
         try container.encode(targetLayer, forKey: .targetLayer)
