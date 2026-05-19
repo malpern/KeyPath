@@ -42,6 +42,7 @@ struct SimulatorKeycapView: View {
             }
             .scaleEffect(showAsPressed ? 0.95 : (isHovered ? 1.02 : 1.0))
             .animation(.easeInOut(duration: 0.08), value: showAsPressed)
+            .accessibilityIdentifier("simulator-key-\(key.label.lowercased())")
             .onTapGesture {
                 onTap()
             }

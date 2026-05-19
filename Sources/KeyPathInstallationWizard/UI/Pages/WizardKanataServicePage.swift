@@ -89,6 +89,7 @@ public struct WizardKanataServicePage: View {
                     .disabled(cta.disabled)
                     .frame(minHeight: 44)
                     .padding(.top, WizardDesign.Spacing.itemGap)
+                    .accessibilityIdentifier("wizard-service-action-button")
             }
 
             if shouldShowNextStepButton {
@@ -98,6 +99,7 @@ public struct WizardKanataServicePage: View {
                 .buttonStyle(WizardDesign.Component.PrimaryButton())
                 .keyboardShortcut(.defaultAction)
                 .padding(.top, WizardDesign.Spacing.sectionGap)
+                .accessibilityIdentifier("wizard-service-next-button")
             }
         }
         .animation(WizardDesign.Animation.statusTransition, value: actionStatus)

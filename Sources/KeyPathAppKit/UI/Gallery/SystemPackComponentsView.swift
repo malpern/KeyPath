@@ -43,6 +43,7 @@ struct SystemPackComponentCard: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("system-pack-card-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
 
             if isExpanded {
                 Divider()
@@ -252,6 +253,7 @@ struct VallackSystemPackContent: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("system-pack-layer-tab-\(id)")
     }
 
     // MARK: - Card Content

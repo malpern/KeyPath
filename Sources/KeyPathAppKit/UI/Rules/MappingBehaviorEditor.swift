@@ -130,6 +130,7 @@ struct MappingBehaviorEditor: View {
                             .foregroundColor(.secondary)
                         TextField("e.g. a, esc", text: $tapAction)
                             .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("mapping-behavior-tap-action-field")
                             .onChange(of: tapAction) { _, _ in syncBehaviorFromState() }
                     }
                     HStack {
@@ -138,6 +139,7 @@ struct MappingBehaviorEditor: View {
                             .foregroundColor(.secondary)
                         TextField("e.g. lctl, lmet", text: $holdAction)
                             .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("mapping-behavior-hold-action-field")
                             .onChange(of: holdAction) { _, _ in syncBehaviorFromState() }
                     }
                 }
@@ -157,6 +159,7 @@ struct MappingBehaviorEditor: View {
                             in: 50 ... 500,
                             step: 10
                         )
+                        .accessibilityIdentifier("mapping-behavior-tap-timeout-stepper")
                         .onChange(of: tapTimeout) { _, _ in syncBehaviorFromState() }
                     }
 
@@ -174,6 +177,7 @@ struct MappingBehaviorEditor: View {
                                     step: 10
                                 )
                                 .controlSize(.small)
+                                .accessibilityIdentifier("mapping-behavior-hold-timeout-stepper")
                                 .onChange(of: holdTimeout) { _, _ in syncBehaviorFromState() }
                             }
                         }
@@ -234,6 +238,7 @@ struct MappingBehaviorEditor: View {
                         in: 100 ... 500,
                         step: 10
                     )
+                    .accessibilityIdentifier("mapping-behavior-tap-dance-window-stepper")
                     .onChange(of: tapDanceWindow) { _, _ in syncBehaviorFromState() }
                 }
                 .padding(.vertical, 4)
@@ -265,6 +270,7 @@ struct MappingBehaviorEditor: View {
                                         .foregroundColor(.red)
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityIdentifier("mapping-behavior-remove-step-\(index)")
                             }
                         }
                     }
@@ -279,6 +285,7 @@ struct MappingBehaviorEditor: View {
                                 .font(.caption)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("mapping-behavior-add-step-button")
                     }
                 }
                 .padding(.vertical, 4)

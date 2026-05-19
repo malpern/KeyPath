@@ -198,6 +198,7 @@ public struct WizardInputMonitoringPage: View {
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                                     .scaleEffect(0.8)
+                                    .accessibilityIdentifier("wizard-input-monitoring-kanata-add-settings")
                                 }
                             }
                             .help(kanataInputMonitoringIssues.asTooltipText())

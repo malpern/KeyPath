@@ -78,6 +78,7 @@ public struct WizardButtonBar: View {
                 .buttonStyle(WizardDesign.Component.SecondaryButton())
                 .keyboardShortcut(.cancelAction) // Escape key
                 .disabled(!cancelButton.isEnabled)
+                .accessibilityIdentifier("wizard-cancel-button")
             }
 
             // Secondary button (middle)
@@ -87,6 +88,7 @@ public struct WizardButtonBar: View {
                 }
                 .buttonStyle(WizardDesign.Component.SecondaryButton())
                 .disabled(!secondaryButton.isEnabled)
+                .accessibilityIdentifier("wizard-secondary-button")
             }
 
             Spacer()
@@ -100,6 +102,7 @@ public struct WizardButtonBar: View {
                     .buttonStyle(WizardDesign.Component.DestructiveButton(isLoading: primaryButton.isLoading))
                     .keyboardShortcut(.defaultAction) // Return key
                     .disabled(!primaryButton.isEnabled || primaryButton.isLoading)
+                    .accessibilityIdentifier("wizard-primary-button")
                 } else {
                     Button(primaryButton.title) {
                         primaryButton.action()
@@ -107,6 +110,7 @@ public struct WizardButtonBar: View {
                     .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: primaryButton.isLoading))
                     .keyboardShortcut(.defaultAction) // Return key
                     .disabled(!primaryButton.isEnabled || primaryButton.isLoading)
+                    .accessibilityIdentifier("wizard-primary-button")
                 }
             }
         }

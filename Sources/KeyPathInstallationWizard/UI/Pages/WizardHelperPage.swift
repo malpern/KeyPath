@@ -250,6 +250,7 @@ public struct WizardHelperPage: View {
                 }
                 .buttonStyle(WizardDesign.Component.SecondaryButton())
                 .disabled(isWorking)
+                .accessibilityIdentifier("wizard-helper-update-button")
             }
 
             Button(nextStepButtonTitle) {
@@ -258,6 +259,7 @@ public struct WizardHelperPage: View {
             .buttonStyle(WizardDesign.Component.PrimaryButton())
             .keyboardShortcut(.defaultAction)
             .padding(.top, WizardDesign.Spacing.sectionGap)
+            .accessibilityIdentifier("wizard-helper-next-button")
         }
         .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
         .heroSectionContainer()
@@ -355,6 +357,7 @@ public struct WizardHelperPage: View {
                 }
                 .buttonStyle(WizardDesign.Component.PrimaryButton())
                 .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("wizard-helper-open-login-items-button")
             } else {
                 // Single idempotent action: install or repair (performs cleanup + install)
                 Button(isInstalled ? "Fix" : "Install Helper") {
@@ -363,6 +366,7 @@ public struct WizardHelperPage: View {
                 .buttonStyle(WizardDesign.Component.PrimaryButton())
                 .keyboardShortcut(.defaultAction)
                 .disabled(isWorking || isFixing)
+                .accessibilityIdentifier("wizard-helper-install-button")
             }
 
             if duplicateCopies.count > 1 {
@@ -373,6 +377,7 @@ public struct WizardHelperPage: View {
                     }
                 }
                 .buttonStyle(WizardDesign.Component.SecondaryButton())
+                .accessibilityIdentifier("wizard-helper-reveal-copies-button")
             }
 
             // If approval is required, offer a quick link to System Settings
@@ -383,6 +388,7 @@ public struct WizardHelperPage: View {
                     openLoginItemsSettings()
                 }
                 .buttonStyle(WizardDesign.Component.SecondaryButton())
+                .accessibilityIdentifier("wizard-helper-open-system-settings-button")
             }
         }
         .animation(WizardDesign.Animation.statusTransition, value: actionStatus)

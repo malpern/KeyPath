@@ -318,6 +318,7 @@ struct AdvancedSettingsTabView: View {
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.small)
+                            .accessibilityIdentifier("settings-restore-backup-\(index)")
                         }
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)

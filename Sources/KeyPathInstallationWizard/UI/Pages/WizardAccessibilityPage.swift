@@ -180,6 +180,7 @@ public struct WizardAccessibilityPage: View {
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                                     .scaleEffect(0.8)
+                                    .accessibilityIdentifier("wizard-accessibility-keypath-turn-on")
                                 }
                             }
                             .help(keyPathAccessibilityIssues.asTooltipText())
@@ -214,6 +215,7 @@ public struct WizardAccessibilityPage: View {
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                                     .scaleEffect(0.8)
+                                    .accessibilityIdentifier("wizard-accessibility-kanata-add-settings")
                                 }
                             }
                             .help(kanataAccessibilityIssues.asTooltipText())

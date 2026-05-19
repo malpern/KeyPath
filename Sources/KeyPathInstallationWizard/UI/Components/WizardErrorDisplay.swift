@@ -69,12 +69,14 @@ public struct WizardErrorDisplay: View {
                     WizardButton("Dismiss", style: .secondary) {
                         onDismiss()
                     }
+                    .accessibilityIdentifier("wizard-error-dismiss-button")
                 }
 
                 if let onRetry {
                     WizardButton("Try Again", style: .primary) {
                         onRetry()
                     }
+                    .accessibilityIdentifier("wizard-error-retry-button")
                 }
             }
         }
@@ -120,6 +122,7 @@ public struct WizardErrorToast: View {
                     .foregroundColor(.secondary)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("wizard-error-toast-dismiss")
         }
         .padding(WizardDesign.Spacing.cardPadding)
         .background(.regularMaterial)
@@ -163,6 +166,7 @@ public struct WizardErrorBanner: View {
                     onRetry()
                 }
                 .buttonStyle(WizardDesign.Component.SecondaryButton())
+                .accessibilityIdentifier("wizard-error-banner-retry")
             }
         }
         .padding(WizardDesign.Spacing.cardPadding)
