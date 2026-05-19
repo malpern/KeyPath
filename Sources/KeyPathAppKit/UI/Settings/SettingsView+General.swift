@@ -240,6 +240,7 @@ struct LayerIndicatorToggle: View {
             Toggle("", isOn: Binding(get: { !disabled }, set: { disabled = !$0 }))
                 .labelsHidden()
                 .toggleStyle(.switch)
+                .accessibilityLabel("Layer change notification")
         }
         .accessibilityIdentifier("settings-layer-indicator-toggle")
     }

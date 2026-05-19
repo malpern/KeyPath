@@ -164,6 +164,7 @@ struct KindaVimStatusBlock: View {
                 .toggleStyle(.switch)
                 .controlSize(.small)
                 .labelsHidden()
+                .accessibilityLabel(title)
         }
         .accessibilityIdentifier(id)
     }

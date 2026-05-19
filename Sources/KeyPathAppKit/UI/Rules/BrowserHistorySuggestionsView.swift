@@ -561,6 +561,7 @@ private struct SiteRow: View {
                 .labelsHidden()
                 .disabled(isAlreadyAdded)
                 .accessibilityIdentifier("browser-history-toggle-\(site.domain)")
+                .accessibilityLabel("Select \(site.domain)")
 
                 // Favicon
                 Group {

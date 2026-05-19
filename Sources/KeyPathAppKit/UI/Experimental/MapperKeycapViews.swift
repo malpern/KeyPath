@@ -140,6 +140,7 @@ struct BehaviorSlotKeycap: View {
                         .buttonStyle(.plain)
                         .padding(6)
                         .accessibilityIdentifier("behavior-slot-clear-\(slotIdentifier)")
+                        .accessibilityLabel("Clear \(slotIdentifier) action")
                     }
                     Spacer()
                 }

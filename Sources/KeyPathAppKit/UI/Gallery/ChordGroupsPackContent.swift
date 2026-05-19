@@ -241,6 +241,7 @@ private struct ChordRuleRow: View {
                                 .background(Circle().fill(Color.accentColor))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Edit chord")
 
                         Button(action: onDelete) {
                             Image(systemName: "trash")
@@ -250,6 +251,7 @@ private struct ChordRuleRow: View {
                                 .background(Circle().fill(Color.red.opacity(0.85)))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Delete chord")
                     }
                     .padding(.trailing, 4)
                     .transition(.opacity.combined(with: .scale(scale: 0.8)))

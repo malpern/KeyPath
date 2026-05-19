@@ -117,6 +117,7 @@ struct SettingsContainerView: View {
         .frame(width: 0, height: 0)
         .opacity(0)
         .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private func refreshCanManageRules() async {

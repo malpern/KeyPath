@@ -330,6 +330,7 @@ private struct LauncherMappingRow: View {
                             .controlSize(.small)
                             .frame(width: 16, height: 16)
                             .accessibilityIdentifier("overlay-launcher-toggle-\(mapping.key)")
+                            .accessibilityLabel("Toggle \(mapping.userDescription ?? mapping.action.displayName)")
                     } else if let icon {
                         Image(nsImage: icon)
                             .resizable()

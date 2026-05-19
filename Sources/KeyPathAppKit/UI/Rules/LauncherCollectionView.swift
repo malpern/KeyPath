@@ -105,6 +105,7 @@ struct LauncherCollectionView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .accessibilityIdentifier("launcher-activation-mode-picker")
+            .accessibilityLabel("Launcher activation mode")
 
             // Hyper trigger mode segmented picker (only shown when Hyper mode is selected)
             if config.activationMode == .holdHyper {
@@ -123,6 +124,7 @@ struct LauncherCollectionView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 .accessibilityIdentifier("launcher-hyper-trigger-picker")
+                .accessibilityLabel("Hyper trigger mode")
                 .onAppear {
                     localHyperTriggerMode = config.hyperTriggerMode
                 }
