@@ -50,9 +50,9 @@ struct SystemPackComponentCard: View {
                 content
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+        .clipped()
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
@@ -74,6 +74,7 @@ struct VallackSystemPackContent: View {
 
     @State private var expandedComponent: String?
     @State private var selectedLayer: String = "home"
+    @State private var preHoldLayer: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -88,28 +89,45 @@ struct VallackSystemPackContent: View {
                         .padding(.top, 16)
                         .padding(.horizontal, 12)
 
-                    if selectedLayer == "home" {
+                    ZStack {
                         ZonedKeyboardDiagram(
                             zones: VallackZoneMap.homeZones(),
                             subtitles: VallackZoneMap.homeSubtitles,
                             keycapSize: 35
                         )
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 14)
-                        .padding(.bottom, 20)
-                        .padding(.horizontal, 12)
-                    } else {
+                        .opacity(selectedLayer == "home" ? 1 : 0)
+
                         ZonedKeyboardDiagram(
                             zones: VallackZoneMap.navZones(),
                             subtitles: VallackZoneMap.navSubtitles,
                             keycapSize: 35
                         )
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 14)
-                        .padding(.bottom, 20)
-                        .padding(.horizontal, 12)
+                        .opacity(selectedLayer == "home" ? 0 : 1)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 14)
+                    .padding(.bottom, 20)
+                    .padding(.horizontal, 12)
                 }
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in
+                            if preHoldLayer == nil {
+                                preHoldLayer = selectedLayer
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    selectedLayer = "nav"
+                                }
+                            }
+                        }
+                        .onEnded { _ in
+                            if let restore = preHoldLayer {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    selectedLayer = restore
+                                }
+                                preHoldLayer = nil
+                            }
+                        }
+                )
                 .frame(maxWidth: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -246,12 +264,12 @@ struct VallackSystemPackContent: View {
                 .foregroundStyle(.secondary)
             MappingTableContent(
                 mappings: [
-                    ("q", "⌃", nil, nil, "Control", false, true, UUID(uuidString: "00000000-0000-0000-0000-000000000101")!, nil),
-                    ("w", "⌥", nil, nil, "Option", false, true, UUID(uuidString: "00000000-0000-0000-0000-000000000102")!, nil),
-                    ("e", "⌘", nil, nil, "Command", false, true, UUID(uuidString: "00000000-0000-0000-0000-000000000103")!, nil),
-                    ("u", "⌘", nil, nil, "Command", true, true, UUID(uuidString: "00000000-0000-0000-0000-000000000104")!, nil),
-                    ("i", "⌥", nil, nil, "Option", false, true, UUID(uuidString: "00000000-0000-0000-0000-000000000105")!, nil),
-                    ("o", "⌃", nil, nil, "Control", false, true, UUID(uuidString: "00000000-0000-0000-0000-000000000106")!, nil),
+                    ("q", "⌃", nil, nil, "Control", false, "✋ Left hand", true, UUID(uuidString: "00000000-0000-0000-0000-000000000101")!, nil),
+                    ("w", "⌥", nil, nil, "Option", false, nil, true, UUID(uuidString: "00000000-0000-0000-0000-000000000102")!, nil),
+                    ("e", "⌘", nil, nil, "Command", false, nil, true, UUID(uuidString: "00000000-0000-0000-0000-000000000103")!, nil),
+                    ("u", "⌘", nil, nil, "Command", true, "🤚 Right hand", true, UUID(uuidString: "00000000-0000-0000-0000-000000000104")!, nil),
+                    ("i", "⌥", nil, nil, "Option", false, nil, true, UUID(uuidString: "00000000-0000-0000-0000-000000000105")!, nil),
+                    ("o", "⌃", nil, nil, "Control", false, nil, true, UUID(uuidString: "00000000-0000-0000-0000-000000000106")!, nil)
                 ]
             )
         }
@@ -289,7 +307,7 @@ struct VallackSystemPackContent: View {
                 MappingTableContent(
                     mappings: collection.mappings.map {
                         ($0.input, $0.action.displayName, $0.shiftedOutput, $0.ctrlOutput,
-                         $0.description, $0.sectionBreak, isInstalled, $0.id, nil)
+                         $0.description, $0.sectionBreak, $0.sectionLabel, isInstalled, $0.id, nil)
                     }
                 )
             }

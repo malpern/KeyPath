@@ -235,7 +235,16 @@ struct LiveKeyboardOverlayView: View {
     private func refreshInstalledPackIDs() async {
         let records = await InstalledPackTracker.shared.allInstalled()
         let ids = Set(records.map(\.packID))
-        await MainActor.run { installedPackIDs = ids }
+        await MainActor.run {
+            installedPackIDs = ids
+            if let preview = PackZoneResolver.layerPreviewConfig(installedPackIDs: ids) {
+                viewModel.layerPreviewActivators = preview.activatorKeyCodes
+                viewModel.layerPreviewTarget = preview.targetLayer
+            } else {
+                viewModel.layerPreviewActivators = []
+                viewModel.layerPreviewTarget = ""
+            }
+        }
     }
 
     private func copyValidationErrorsToClipboard() {

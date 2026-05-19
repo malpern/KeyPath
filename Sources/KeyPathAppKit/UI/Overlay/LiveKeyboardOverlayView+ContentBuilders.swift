@@ -180,6 +180,10 @@ extension LiveKeyboardOverlayView {
                     activeZoneColors: PackZoneResolver.activeZoneColors(
                         installedPackIDs: installedPackIDs,
                         layerName: viewModel.currentLayerName
+                    ),
+                    activeZoneSubtitles: PackZoneResolver.activeZoneSubtitles(
+                        installedPackIDs: installedPackIDs,
+                        layerName: viewModel.currentLayerName
                     )
                 )
                 .environment(viewModel)

@@ -14,7 +14,6 @@ enum VallackZoneMap {
     static let homeSubtitles: [UInt16: String] = [
         12: "⌃", 13: "⌥", 14: "⌘",
         32: "⌘", 34: "⌥", 31: "⌃",
-        3: "NAV", 38: "NAV",
     ]
 
     static let navSubtitles: [UInt16: String] = [

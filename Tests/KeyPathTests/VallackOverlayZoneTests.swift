@@ -247,4 +247,199 @@ final class VallackOverlayZoneTests: XCTestCase {
     func testActivatorKeyCodesAreFAndJ() {
         XCTAssertEqual(VallackZoneMap.activatorKeyCodes, Set<UInt16>([3, 38]))
     }
+
+    // MARK: - Zone Subtitles
+
+    func testHomeSubtitlesContainModifierSymbols() {
+        let subs = VallackZoneMap.homeSubtitles
+        XCTAssertEqual(subs[12], "⌃", "Q should have Control subtitle")
+        XCTAssertEqual(subs[13], "⌥", "W should have Option subtitle")
+        XCTAssertEqual(subs[14], "⌘", "E should have Command subtitle")
+        XCTAssertEqual(subs[32], "⌘", "U should have Command subtitle")
+        XCTAssertEqual(subs[34], "⌥", "I should have Option subtitle")
+        XCTAssertEqual(subs[31], "⌃", "O should have Control subtitle")
+    }
+
+    func testHomeSubtitlesDoNotContainFJNav() {
+        let subs = VallackZoneMap.homeSubtitles
+        XCTAssertNil(subs[3], "F should not have a subtitle (color is sufficient)")
+        XCTAssertNil(subs[38], "J should not have a subtitle (color is sufficient)")
+    }
+
+    func testResolverReturnsSubtitlesOnBaseLayer() {
+        let subs = PackZoneResolver.activeZoneSubtitles(
+            installedPackIDs: [PackRegistry.vallackSystem.id],
+            layerName: "base"
+        )
+        XCTAssertEqual(subs[12], "⌃")
+        XCTAssertEqual(subs[14], "⌘")
+        XCTAssertEqual(subs.count, 6)
+    }
+
+    func testResolverReturnsNoSubtitlesOnNavLayer() {
+        let subs = PackZoneResolver.activeZoneSubtitles(
+            installedPackIDs: [PackRegistry.vallackSystem.id],
+            layerName: "vallack-nav"
+        )
+        XCTAssertTrue(subs.isEmpty, "Nav layer should not have subtitles")
+    }
+
+    func testResolverReturnsNoSubtitlesWithoutPack() {
+        let subs = PackZoneResolver.activeZoneSubtitles(
+            installedPackIDs: [],
+            layerName: "base"
+        )
+        XCTAssertTrue(subs.isEmpty)
+    }
+
+    // MARK: - Layer Preview Config
+
+    func testLayerPreviewConfigReturnsActivatorsWhenVallackInstalled() {
+        let config = PackZoneResolver.layerPreviewConfig(
+            installedPackIDs: [PackRegistry.vallackSystem.id]
+        )
+        XCTAssertNotNil(config)
+        XCTAssertEqual(config?.activatorKeyCodes, Set<UInt16>([3, 38]))
+        XCTAssertEqual(config?.targetLayer, "vallack-nav")
+    }
+
+    func testLayerPreviewConfigReturnsNilWithoutPack() {
+        let config = PackZoneResolver.layerPreviewConfig(installedPackIDs: [])
+        XCTAssertNil(config)
+    }
+
+    // MARK: - owningPackID (Pack-Internal Collections)
+
+    func testVallackNavCollectionIsNotPackOwned() {
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let collection = catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation }
+        XCTAssertNil(collection?.owningPackID, "Vallack Nav is the pack's identity row — visible in Rules tab")
+    }
+
+    func testHomeRowLayerTogglesIsPackOwned() {
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let collection = catalog.first { $0.id == RuleCollectionIdentifier.homeRowLayerToggles }
+        XCTAssertEqual(collection?.owningPackID, PackRegistry.vallackSystem.id)
+    }
+
+    func testHomeRowModsIsNotPackOwned() {
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let collection = catalog.first { $0.id == RuleCollectionIdentifier.homeRowMods }
+        XCTAssertNil(collection?.owningPackID, "Home Row Mods is shared, not pack-internal")
+    }
+
+    func testOnlyInternalSubcomponentsAreHiddenFromRulesTab() {
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let visible = catalog.filter { $0.owningPackID == nil }
+        let hidden = catalog.filter { $0.owningPackID != nil }
+
+        XCTAssertTrue(visible.contains { $0.id == RuleCollectionIdentifier.vallackNavigation },
+                       "Vallack pack row should be visible")
+        XCTAssertFalse(visible.contains { $0.id == RuleCollectionIdentifier.homeRowLayerToggles },
+                        "Layer Toggles should be hidden")
+        XCTAssertTrue(hidden.contains { $0.id == RuleCollectionIdentifier.homeRowLayerToggles })
+    }
+
+    // MARK: - KeyMapping sectionLabel Codable
+
+    func testSectionLabelRoundTrips() throws {
+        let mapping = KeyMapping(
+            input: "h",
+            action: .keystroke(key: "left"),
+            description: "Left",
+            sectionBreak: true,
+            sectionLabel: "🤚 Right hand"
+        )
+        let data = try JSONEncoder().encode(mapping)
+        let decoded = try JSONDecoder().decode(KeyMapping.self, from: data)
+        XCTAssertEqual(decoded.sectionLabel, "🤚 Right hand")
+        XCTAssertTrue(decoded.sectionBreak)
+    }
+
+    func testSectionLabelNilByDefault() throws {
+        let mapping = KeyMapping(input: "a", action: .keystroke(key: "b"))
+        let data = try JSONEncoder().encode(mapping)
+        let decoded = try JSONDecoder().decode(KeyMapping.self, from: data)
+        XCTAssertNil(decoded.sectionLabel)
+    }
+
+    func testSectionLabelBackwardCompatible() throws {
+        let mapping = KeyMapping(input: "q", action: .keystroke(key: "tab"), description: "Tab", sectionBreak: true)
+        let data = try JSONEncoder().encode(mapping)
+        var json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        json.removeValue(forKey: "sectionLabel")
+        let strippedData = try JSONSerialization.data(withJSONObject: json)
+        let decoded = try JSONDecoder().decode(KeyMapping.self, from: strippedData)
+        XCTAssertNil(decoded.sectionLabel, "Legacy JSON without sectionLabel should decode as nil")
+        XCTAssertTrue(decoded.sectionBreak)
+    }
+
+    // MARK: - owningPackID Codable
+
+    func testOwningPackIDRoundTrips() throws {
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let collection = catalog.first { $0.id == RuleCollectionIdentifier.homeRowLayerToggles }!
+
+        let data = try JSONEncoder().encode(collection)
+        let decoded = try JSONDecoder().decode(RuleCollection.self, from: data)
+        XCTAssertEqual(decoded.owningPackID, PackRegistry.vallackSystem.id)
+    }
+
+    func testOwningPackIDNilBackwardCompatible() throws {
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let collection = catalog.first { $0.id == RuleCollectionIdentifier.homeRowMods }!
+
+        let data = try JSONEncoder().encode(collection)
+        let json = String(data: data, encoding: .utf8)!
+        XCTAssertFalse(json.contains("owningPackID"), "Nil owningPackID should not appear in JSON")
+
+        let decoded = try JSONDecoder().decode(RuleCollection.self, from: data)
+        XCTAssertNil(decoded.owningPackID)
+    }
+
+    // MARK: - Home Row Mods Customization Detection
+
+    func testDefaultHomeRowModsConfigMatchesDefault() {
+        let config = HomeRowModsConfig()
+        let defaultConfig = HomeRowModsConfig()
+        XCTAssertEqual(config, defaultConfig, "Fresh config should equal default")
+    }
+
+    func testCustomizedHomeRowModsConfigDiffersFromDefault() {
+        var config = HomeRowModsConfig()
+        config.timing = TimingConfig(tapWindow: 300, holdDelay: 200)
+        let defaultConfig = HomeRowModsConfig()
+        XCTAssertNotEqual(config, defaultConfig, "Modified timing should differ from default")
+    }
+
+    // MARK: - Vallack Nav Collection Labels
+
+    func testVallackNavEscLabelIsAbbreviated() {
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let collection = catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation }!
+        let wMapping = collection.mappings.first { $0.input == "w" }
+        let desc = wMapping?.description ?? ""
+        XCTAssertFalse(desc.contains("Escape"), "Should use 'Esc' not 'Escape'")
+        XCTAssertTrue(desc.contains("Esc") || desc.contains("esc"), "Should contain 'Esc'")
+    }
+
+    func testVallackNavBackspaceUsesSymbol() {
+        let catalog = RuleCollectionCatalog()
+        let builtIn = catalog.defaultCollections()
+        let collection = builtIn.first { $0.id == RuleCollectionIdentifier.vallackNavigation }!
+        let uMapping = collection.mappings.first { $0.input == "u" }
+        let desc = uMapping?.description ?? ""
+        XCTAssertFalse(desc.lowercased().contains("backspace"), "Should not spell out 'Backspace': got '\(desc)'")
+    }
+
+    func testVallackNavHasLeftHandFirst() {
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let collection = catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation }!
+        let firstMapping = collection.mappings.first!
+        XCTAssertEqual(firstMapping.sectionLabel, "✋ Left hand", "First section should be left hand")
+        let rightHandMapping = collection.mappings.first { $0.sectionLabel == "🤚 Right hand" }
+        XCTAssertNotNil(rightHandMapping, "Should have right hand section")
+        let rightIndex = collection.mappings.firstIndex { $0.sectionLabel == "🤚 Right hand" }!
+        XCTAssertGreaterThan(rightIndex, 0, "Right hand should come after left hand")
+    }
 }

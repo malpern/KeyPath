@@ -8,7 +8,7 @@ import SwiftUI
 // MARK: - Mapping Table Content
 
 struct MappingTableContent: View {
-    let mappings: [(input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, enabled: Bool, id: UUID, behavior: MappingBehavior?)]
+    let mappings: [(input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, sectionLabel: String?, enabled: Bool, id: UUID, behavior: MappingBehavior?)]
 
     private var hasShiftVariants: Bool {
         mappings.contains { $0.shiftedOutput != nil }
@@ -57,10 +57,16 @@ struct MappingTableContent: View {
 
             // Data rows
             ForEach(mappings, id: \.id) { mapping in
-                // Section break separator (extra whitespace)
-                if mapping.sectionBreak {
+                if let label = mapping.sectionLabel {
+                    Text(label)
+                        .font(.body.weight(.medium))
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 16)
+                        .padding(.top, mapping.sectionBreak ? 20 : 6)
+                        .padding(.bottom, 2)
+                } else if mapping.sectionBreak {
                     Spacer()
-                        .frame(height: 12)
+                        .frame(height: 20)
                 }
 
                 HStack(spacing: 0) {

@@ -68,6 +68,8 @@ struct OverlayKeycapView: View {
     var isKeymapTransitioning: Bool = false
     /// Zone color from active system pack (takes priority over collection colors)
     var zoneColor: Color?
+    /// Subtitle from active system pack (e.g., "⌃" under Q for hold modifier)
+    var zoneSubtitle: String?
 
     /// Whether this key has a launcher mapping
     var hasLauncherMapping: Bool {

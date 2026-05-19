@@ -13,7 +13,7 @@ struct ExpandableCollectionRow: View {
     let icon: String
     let count: Int
     let isEnabled: Bool
-    let mappings: [(input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, enabled: Bool, id: UUID, behavior: MappingBehavior?)]
+    let mappings: [(input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, sectionLabel: String?, enabled: Bool, id: UUID, behavior: MappingBehavior?)]
     var appKeymaps: [AppKeymap] = []
     let onToggle: (Bool) -> Void
     let onEditMapping: ((UUID) -> Void)?
@@ -123,6 +123,7 @@ private var fallbackKeyMappings: [KeyMapping] {
                 ctrlOutput: mapping.ctrlOutput,
                 description: mapping.description,
                 sectionBreak: mapping.sectionBreak,
+                sectionLabel: mapping.sectionLabel,
                 behavior: mapping.behavior
             )
         }
@@ -149,6 +150,7 @@ private var fallbackKeyMappings: [KeyMapping] {
             headerButtonView
             expandedContentView
         }
+        .clipped()
         .background(
             RoundedRectangle(cornerRadius: 10)
                 .fill(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color(NSColor.windowBackgroundColor))

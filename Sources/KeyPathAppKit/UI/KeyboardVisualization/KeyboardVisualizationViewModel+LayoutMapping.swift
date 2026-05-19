@@ -333,18 +333,24 @@ extension KeyboardVisualizationViewModel {
 
             for keyMapping in collection.mappings {
                 let input = keyMapping.input.lowercased()
-                // First try push-msg pattern (apps, system actions, URLs)
                 if let info = Self.extractPushMsgInfo(from: keyMapping.action.kanataOutput, description: keyMapping.description) {
                     actionByInput[input] = info
                 } else {
-                    // Simple key remap
                     let outputKey = keyMapping.action.outputString.lowercased()
-                    if let outputKeyCode = Self.kanataNameToKeyCode(outputKey) {
-                        let displayLabel = outputKey.count == 1 ? outputKey.uppercased() : outputKey.capitalized
+                    if let systemAction = SystemActionInfo.find(byOutput: outputKey) {
+                        actionByInput[input] = .systemAction(
+                            action: systemAction.id,
+                            description: keyMapping.description ?? systemAction.name,
+                            collectionId: collection.id
+                        )
+                    } else if let outputKeyCode = Self.kanataNameToKeyCode(outputKey) {
+                        let displayLabel = keyMapping.description
+                            ?? (outputKey.count == 1 ? outputKey.uppercased() : outputKey.capitalized)
                         actionByInput[input] = .mapped(
                             displayLabel: displayLabel,
                             outputKey: outputKey,
-                            outputKeyCode: outputKeyCode
+                            outputKeyCode: outputKeyCode,
+                            collectionId: collection.id
                         )
                     }
                 }
