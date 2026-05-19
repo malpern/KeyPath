@@ -979,18 +979,9 @@ struct RuleCollectionCatalog {
             summary: "Hold F or J for arrows, clipboard, tab switching, and line navigation — fingers never leave the home row.",
             category: .navigation,
             mappings: [
-                // Right hand — navigation
-                KeyMapping(input: "h", action: .keystroke(key: "left"), description: "Left"),
-                KeyMapping(input: "j", action: .keystroke(key: "down"), description: "Down"),
-                KeyMapping(input: "k", action: .keystroke(key: "up"), description: "Up"),
-                KeyMapping(input: "l", action: .keystroke(key: "right"), description: "Right"),
-                KeyMapping(input: "u", action: .keystroke(key: "bspc"), description: "Backspace"),
-                KeyMapping(input: "i", action: .keystroke(key: "ret"), description: "Enter"),
-                KeyMapping(input: "y", action: .keystroke(key: "M-c"), description: "Copy"),
-                KeyMapping(input: ";", action: .keystroke(key: "M-v"), description: "Paste"),
                 // Left hand — switching and editing
-                KeyMapping(input: "q", action: .keystroke(key: "tab"), description: "Tab", sectionBreak: true),
-                KeyMapping(input: "w", action: .keystroke(key: "esc"), description: "Escape"),
+                KeyMapping(input: "q", action: .keystroke(key: "tab"), description: "Tab", sectionLabel: "✋ Left hand"),
+                KeyMapping(input: "w", action: .keystroke(key: "esc"), description: "Esc"),
                 KeyMapping(input: "e", action: .keystroke(key: "C-S-tab"), description: "Previous Tab"),
                 KeyMapping(input: "r", action: .keystroke(key: "C-tab"), description: "Next Tab"),
                 KeyMapping(input: "a", action: .keystroke(key: "M-tab"), description: "App Switcher"),
@@ -998,7 +989,16 @@ struct RuleCollectionCatalog {
                 KeyMapping(input: "d", action: .keystroke(key: "end"), description: "Line End"),
                 KeyMapping(input: "g", action: .keystroke(key: "C-M-S-4"), description: "Screenshot"),
                 KeyMapping(input: "t", action: .keystroke(key: "M-["), description: "Browser Back"),
-                KeyMapping(input: "v", action: .keystroke(key: "M-]"), description: "Browser Forward")
+                KeyMapping(input: "v", action: .keystroke(key: "M-]"), description: "Browser Forward"),
+                // Right hand — navigation
+                KeyMapping(input: "h", action: .keystroke(key: "left"), description: "Left", sectionBreak: true, sectionLabel: "🤚 Right hand"),
+                KeyMapping(input: "j", action: .keystroke(key: "down"), description: "Down"),
+                KeyMapping(input: "k", action: .keystroke(key: "up"), description: "Up"),
+                KeyMapping(input: "l", action: .keystroke(key: "right"), description: "Right"),
+                KeyMapping(input: "u", action: .keystroke(key: "bspc"), description: "Backspace"),
+                KeyMapping(input: "i", action: .keystroke(key: "ret"), description: "Enter"),
+                KeyMapping(input: "y", action: .keystroke(key: "M-c"), description: "Copy"),
+                KeyMapping(input: ";", action: .keystroke(key: "M-v"), description: "Paste")
             ],
             isEnabled: false,
             isSystemDefault: false,

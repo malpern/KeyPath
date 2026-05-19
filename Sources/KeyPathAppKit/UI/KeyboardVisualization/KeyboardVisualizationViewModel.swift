@@ -58,6 +58,19 @@ class KeyboardVisualizationViewModel {
     /// Example: (push-msg "emphasis:h,j,k,l") sets HJKL as emphasized
     var customEmphasisKeyCodes: Set<UInt16> = []
 
+    // MARK: - Layer Preview (System Pack Activators)
+
+    /// Key codes that trigger a layer preview on hold (e.g., F/J for Vallack nav)
+    var layerPreviewActivators: Set<UInt16> = []
+    /// Layer name to preview when an activator is held
+    var layerPreviewTarget: String = ""
+    /// Delayed task for activating the layer preview
+    @ObservationIgnored var layerPreviewTask: Task<Void, Never>?
+    /// Whether we're currently showing a layer preview (not a real kanata layer change)
+    @ObservationIgnored var isShowingLayerPreview: Bool = false
+    /// The real layer name before the preview override
+    @ObservationIgnored var prePreviewLayerName: String = "base"
+
     // MARK: - Launcher Mode State
 
     /// Launcher mappings for overlay display (key -> LauncherMapping)

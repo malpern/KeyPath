@@ -37,6 +37,9 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     /// If true, a visual separator row should appear before this mapping in table display
     public let sectionBreak: Bool
 
+    /// Optional label shown as a section header before this mapping (e.g., "✋ Left hand")
+    public let sectionLabel: String?
+
     /// Advanced behavior (dual-role, tap-dance, macro). Nil means simple remap using `action`.
     public let behavior: MappingBehavior?
 
@@ -52,6 +55,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         ctrlOutput: String? = nil,
         description: String? = nil,
         sectionBreak: Bool = false,
+        sectionLabel: String? = nil,
         behavior: MappingBehavior? = nil,
         deviceOverrides: [DeviceKeyOverride]? = nil
     ) {
@@ -62,6 +66,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         self.ctrlOutput = ctrlOutput
         self.description = description
         self.sectionBreak = sectionBreak
+        self.sectionLabel = sectionLabel
         self.behavior = behavior
         self.deviceOverrides = deviceOverrides
     }
@@ -72,7 +77,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, input, action, shiftedOutput, ctrlOutput, description, sectionBreak, behavior, deviceOverrides
+        case id, input, action, shiftedOutput, ctrlOutput, description, sectionBreak, sectionLabel, behavior, deviceOverrides
     }
 
     public init(from decoder: Decoder) throws {
@@ -84,6 +89,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         ctrlOutput = try container.decodeIfPresent(String.self, forKey: .ctrlOutput)
         description = try container.decodeIfPresent(String.self, forKey: .description)
         sectionBreak = (try? container.decode(Bool.self, forKey: .sectionBreak)) ?? false
+        sectionLabel = try container.decodeIfPresent(String.self, forKey: .sectionLabel)
         behavior = try container.decodeIfPresent(MappingBehavior.self, forKey: .behavior)
         deviceOverrides = try container.decodeIfPresent([DeviceKeyOverride].self, forKey: .deviceOverrides)
     }
@@ -99,6 +105,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         if sectionBreak {
             try container.encode(sectionBreak, forKey: .sectionBreak)
         }
+        try container.encodeIfPresent(sectionLabel, forKey: .sectionLabel)
         try container.encodeIfPresent(behavior, forKey: .behavior)
         try container.encodeIfPresent(deviceOverrides, forKey: .deviceOverrides)
     }

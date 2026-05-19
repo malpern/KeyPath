@@ -222,7 +222,7 @@ struct RulesTabView: View {
                 (style == .layerPresetPicker ? (collection.configuration.layerPresetPickerConfig?.selectedMappings.count ?? 0) : collection.mappings.count),
             isEnabled: pendingToggles[collection.id] ?? collection.isEnabled,
             mappings: collection.mappings.map {
-                ($0.input, $0.action.outputString, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id, nil)
+                ($0.input, $0.action.outputString, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, $0.sectionLabel, collection.isEnabled, $0.id, nil)
             },
             onToggle: { isOn in
                 handleCollectionToggle(collection: collection, isOn: isOn)
@@ -392,9 +392,30 @@ struct RulesTabView: View {
             pendingSelections.removeValue(forKey: collection.id)
         }
         Task {
-            await kanataManager.toggleRuleCollection(collection.id, enabled: isOn)
+            if let pack {
+                await toggleViaPack(pack, isOn: isOn)
+            } else {
+                await kanataManager.toggleRuleCollection(collection.id, enabled: isOn)
+            }
             pendingToggles.removeValue(forKey: collection.id)
             refreshUnmetDependencies()
+        }
+    }
+
+    private func toggleViaPack(_ pack: Pack, isOn: Bool) async {
+        let manager = kanataManager.underlyingManager.ruleCollectionsManager
+        do {
+            if isOn {
+                _ = try await PackInstaller.shared.install(pack, manager: manager)
+            } else {
+                try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager)
+            }
+        } catch {
+            AppLogger.shared.log("⚠️ [Rules] Pack toggle failed for '\(pack.name)': \(error.localizedDescription)")
+            await kanataManager.toggleRuleCollection(
+                pack.associatedCollectionID ?? UUID(),
+                enabled: isOn
+            )
         }
     }
 
@@ -493,7 +514,7 @@ struct RulesTabView: View {
                                 count: isSearching ? (filteredCustomRules.count + filteredAppKeymaps.flatMap(\.overrides).count) : totalCustomRulesCount,
                                 isEnabled: filteredCustomRules.isEmpty
                                     || filteredCustomRules.allSatisfy(\.isEnabled),
-                                mappings: filteredCustomRules.map { ($0.input, $0.action.outputString, $0.shiftedOutput, nil, $0.title.isEmpty ? nil : $0.title, false, $0.isEnabled, $0.id, $0.behavior) },
+                                mappings: filteredCustomRules.map { ($0.input, $0.action.outputString, $0.shiftedOutput, nil, $0.title.isEmpty ? nil : $0.title, false, nil as String?, $0.isEnabled, $0.id, $0.behavior) },
                                 appKeymaps: filteredAppKeymaps,
                                 onToggle: { isOn in
                                     Task {

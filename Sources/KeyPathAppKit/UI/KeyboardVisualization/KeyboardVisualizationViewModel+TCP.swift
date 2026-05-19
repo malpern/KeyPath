@@ -313,7 +313,11 @@ extension KeyboardVisualizationViewModel {
         if message.hasPrefix("layer:") {
             let layerName = String(message.dropFirst(6)).trimmingCharacters(in: .whitespaces)
             AppLogger.shared.info("🗂️ [KeyboardViz] Layer push message: '\(layerName)'")
-            // Update the layer and rebuild mappings
+            if isShowingLayerPreview {
+                isShowingLayerPreview = false
+                layerPreviewTask?.cancel()
+                layerPreviewTask = nil
+            }
             updateLayer(layerName)
             return
         }
@@ -538,6 +542,7 @@ extension KeyboardVisualizationViewModel {
             pressedKeyCodes.insert(keyCode)
             // Track most recently pressed key for icon association
             lastPressedKeyCode = keyCode
+            startLayerPreviewIfActivator(keyCode)
             // If a hold is already active for this key, keep it active and cancel any pending clear.
             if holdActiveKeyCodes.contains(keyCode) {
                 holdClearWorkItems[keyCode]?.cancel()
@@ -592,6 +597,7 @@ extension KeyboardVisualizationViewModel {
                 holdReleaseFadeKeyCodes.insert(keyCode)
             }
             pressedKeyCodes.remove(keyCode)
+            cancelLayerPreviewIfActivator(keyCode)
             startKeyFadeOut(keyCode) // Start fade-out animation
             // Defer clearing hold state briefly to tolerate tap-hold-press sequences that emit rapid releases.
             let work = DispatchWorkItem { [weak self] in
@@ -616,6 +622,38 @@ extension KeyboardVisualizationViewModel {
             AppLogger.shared.debug(
                 "🧪 [KeyboardViz] caps state: tcpPressed=\(pressedKeyCodes.contains(57)) holdActive=\(holdActiveKeyCodes.contains(57)) holdLabel=\(holdLabels[57] ?? "nil")"
             )
+        }
+    }
+
+    // MARK: - Layer Preview for System Pack Activators
+
+    private func startLayerPreviewIfActivator(_ keyCode: UInt16) {
+        guard layerPreviewActivators.contains(keyCode),
+              !layerPreviewTarget.isEmpty,
+              !isShowingLayerPreview,
+              layerPreviewTask == nil
+        else { return }
+
+        layerPreviewTask?.cancel()
+        layerPreviewTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(200))
+            guard let self, !Task.isCancelled else { return }
+            guard self.pressedKeyCodes.contains(keyCode) else { return }
+            self.prePreviewLayerName = self.currentLayerName
+            self.isShowingLayerPreview = true
+            self.updateLayer(self.layerPreviewTarget)
+        }
+    }
+
+    private func cancelLayerPreviewIfActivator(_ keyCode: UInt16) {
+        guard layerPreviewActivators.contains(keyCode) else { return }
+
+        layerPreviewTask?.cancel()
+        layerPreviewTask = nil
+
+        if isShowingLayerPreview {
+            isShowingLayerPreview = false
+            updateLayer(prePreviewLayerName)
         }
     }
 }

@@ -13,6 +13,22 @@ enum PackZoneResolver {
         return [:]
     }
 
+    struct LayerPreviewConfig {
+        let activatorKeyCodes: Set<UInt16>
+        let targetLayer: String
+    }
+
+    static func layerPreviewConfig(
+        installedPackIDs: Set<String>
+    ) -> LayerPreviewConfig? {
+        for packID in installedPackIDs {
+            if let config = previewConfig(for: packID) {
+                return config
+            }
+        }
+        return nil
+    }
+
     private static func zoneColors(
         for packID: String,
         layerName: String
@@ -20,6 +36,18 @@ enum PackZoneResolver {
         switch packID {
         case PackRegistry.vallackSystem.id:
             return VallackZoneMap.zones(forLayer: layerName)?.mapValues(\.color)
+        default:
+            return nil
+        }
+    }
+
+    private static func previewConfig(for packID: String) -> LayerPreviewConfig? {
+        switch packID {
+        case PackRegistry.vallackSystem.id:
+            return LayerPreviewConfig(
+                activatorKeyCodes: VallackZoneMap.activatorKeyCodes,
+                targetLayer: "vallack-nav"
+            )
         default:
             return nil
         }
