@@ -14,6 +14,7 @@ public struct KeyPathCLI: AsyncParsableCommand {
             Rule.self,
             Collection.self,
             Layer.self,
+            Pack.self,
             Service.self,
             Config.self,
             System.self,
