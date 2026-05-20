@@ -34,14 +34,28 @@ extension CLIExitCode {
     }
 }
 
+// MARK: - Documentation URLs
+
+public enum CLIDocsURL {
+    static let faq = "https://github.com/malpern/KeyPath/blob/master/docs/FAQ.md"
+    static let debugging = "https://github.com/malpern/KeyPath/blob/master/docs/DEBUGGING_KANATA.md"
+    static let actionURI = "https://github.com/malpern/KeyPath/blob/master/docs/ACTION_URI_SYSTEM.md"
+    static let ruleCollections = "https://github.com/malpern/KeyPath/blob/master/docs/architecture/rules-architecture.html"
+    static let permissions = "https://github.com/malpern/KeyPath/blob/master/docs/architecture/permissions-architecture.html"
+}
+
 // MARK: - Factory Methods
 
 public extension CLIError {
-    static func notFound(_ entity: String, query: String, listCommand: String) -> CLIError {
-        CLIError(
+    static func notFound(_ entity: String, query: String, listCommand: String, suggestions: [String] = []) -> CLIError {
+        var hint = "Run '\(listCommand)' to see available \(entity.lowercased())s"
+        if !suggestions.isEmpty {
+            hint = "Did you mean: \(suggestions.joined(separator: ", "))?\n" + hint
+        }
+        return CLIError(
             code: .notFound,
             message: "\(entity) not found: '\(query)'",
-            hint: "Run '\(listCommand)' to see available \(entity.lowercased())s",
+            hint: hint,
             details: ["query: '\(query)'"],
             docsUrl: nil
         )
@@ -53,7 +67,7 @@ public extension CLIError {
             message: "Could not connect to Kanata TCP server",
             hint: hint,
             details: nil,
-            docsUrl: nil
+            docsUrl: CLIDocsURL.debugging
         )
     }
 
@@ -83,7 +97,7 @@ public extension CLIError {
             message: "Invalid \(label) key: '\(key)'",
             hint: "Use canonical Kanata key names (e.g., caps, lalt, esc, lctl, spc, ret)",
             details: nil,
-            docsUrl: nil
+            docsUrl: CLIDocsURL.faq
         )
     }
 
@@ -103,7 +117,7 @@ public extension CLIError {
             message: "Configuration validation failed",
             hint: "Fix the errors above and run 'keypath config check' again",
             details: errors,
-            docsUrl: nil
+            docsUrl: CLIDocsURL.debugging
         )
     }
 }

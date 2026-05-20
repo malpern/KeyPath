@@ -12,10 +12,14 @@ struct SystemInstall: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        CLIOutput.progress("Starting installation...", context: ctx)
+        let spinner = CLISpinner(context: ctx)
+        spinner.start("Installing...")
 
         let facade = CLIFacade()
         let report = await facade.runInstall()
+
+        if report.success { spinner.succeed("Installation complete") }
+        else { spinner.fail("Installation failed") }
 
         CLIOutput.write(report, context: ctx) {
             formatInstallerReport(report, title: "Installation")

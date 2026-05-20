@@ -22,17 +22,18 @@ struct RuleList: AsyncParsableCommand {
             if rules.isEmpty {
                 return enabledOnly ? "No enabled rules." : "No custom rules."
             }
-            var lines = ["Custom Rules:", String(repeating: "-", count: 50)]
+            let nc = ctx.noColor
+            var lines = [ANSIColor.bold("Custom Rules:", noColor: nc), String(repeating: "-", count: 50)]
             for rule in rules {
                 var desc = "  \(rule.input) → \(rule.action.displayName)"
                 if let behavior = rule.behavior {
                     desc += " (\(behavior.cliSchemaName))"
                 }
                 if !rule.isEnabled {
-                    desc += " [disabled]"
+                    desc += " \(ANSIColor.dim("[disabled]", noColor: nc))"
                 }
                 if rule.targetLayer != "base" {
-                    desc += " [layer: \(rule.targetLayer)]"
+                    desc += " \(ANSIColor.dim("[layer: \(rule.targetLayer)]", noColor: nc))"
                 }
                 lines.append(desc)
             }

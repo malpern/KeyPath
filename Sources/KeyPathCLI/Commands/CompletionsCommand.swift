@@ -1,5 +1,6 @@
 import ArgumentParser
 import Foundation
+import KeyPathAppKit
 
 struct Completions: ParsableCommand {
     static let configuration = CommandConfiguration(
@@ -11,6 +12,7 @@ struct Completions: ParsableCommand {
             Fish.self,
             Install.self,
             InstallMan.self,
+            CompletionValues.self,
         ]
     )
 
@@ -22,7 +24,35 @@ struct Completions: ParsableCommand {
         mutating func run() throws {
             let script = KeyPathCLI.completionScript(for: .zsh)
             print(script)
+            print(Self.dynamicCompletionWrapper)
         }
+
+        private static let dynamicCompletionWrapper = """
+
+        # Dynamic completions for keypath argument values
+        _keypath_dynamic_values() {
+            local noun=$1
+            local values
+            values=(${(f)"$(keypath completions values "$noun" 2>/dev/null)"})
+            compadd -a values
+        }
+
+        # Override specific subcommand completers for dynamic argument values
+        _keypath_pack_show() { _keypath_dynamic_values pack }
+        _keypath_pack_install() { _keypath_dynamic_values pack }
+        _keypath_pack_uninstall() { _keypath_dynamic_values pack }
+        _keypath_pack_configure() { _keypath_dynamic_values pack }
+        _keypath_collection_enable() { _keypath_dynamic_values collection }
+        _keypath_collection_disable() { _keypath_dynamic_values collection }
+        _keypath_collection_show() { _keypath_dynamic_values collection }
+        _keypath_rule_enable() { _keypath_dynamic_values rule }
+        _keypath_rule_disable() { _keypath_dynamic_values rule }
+        _keypath_rule_show() { _keypath_dynamic_values rule }
+        _keypath_rule_remove() { _keypath_dynamic_values rule }
+        _keypath_layer_switch() { _keypath_dynamic_values layer }
+        _keypath_layer_delete() { _keypath_dynamic_values layer }
+        _keypath_layer_rename() { _keypath_dynamic_values layer }
+        """
     }
 
     struct Bash: ParsableCommand {
@@ -170,6 +200,47 @@ struct Completions: ParsableCommand {
                 throw ValidationError("Unsupported shell '\(basename)' from $SHELL. Use --shell zsh, bash, or fish.")
             }
             return basename
+        }
+    }
+
+    struct CompletionValues: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "values",
+            abstract: "Output completable values for a noun (used by shell completion functions)",
+            shouldDisplay: false
+        )
+
+        @Argument(help: "Noun to complete: pack, collection, layer, rule")
+        var noun: String
+
+        mutating func run() async throws {
+            let facade = await MainActor.run { CLIFacade() }
+
+            switch noun.lowercased() {
+            case "pack":
+                let packs = await facade.listPacks()
+                for pack in packs {
+                    let slug = pack.id.replacingOccurrences(of: "com.keypath.pack.", with: "")
+                    print(slug)
+                }
+            case "collection":
+                let collections = await facade.loadRuleCollections()
+                for c in collections {
+                    print(c.name)
+                }
+            case "layer":
+                let layers = await facade.listDefinedLayers()
+                for layer in layers {
+                    print(layer)
+                }
+            case "rule":
+                let rules = await facade.listRules()
+                for rule in rules {
+                    print(rule.input)
+                }
+            default:
+                throw ValidationError("Unknown noun: '\(noun)'. Use pack, collection, layer, or rule.")
+            }
         }
     }
 }

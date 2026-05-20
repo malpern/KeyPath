@@ -116,6 +116,22 @@ public struct Pack: Identifiable, Equatable, Sendable {
         Array(Set(bindings.map(\.input)))
     }
 
+    /// All rule collection UUIDs this pack manages when installed.
+    /// Most packs manage their single `associatedCollectionID`.
+    /// The Vallack system pack manages three collections atomically.
+    /// Visual-only packs manage none.
+    public var managedCollectionIDs: [UUID] {
+        if visualOnly { return [] }
+        if id == "com.keypath.pack.vallack-system" {
+            return [
+                RuleCollectionIdentifier.vallackNavigation,
+                RuleCollectionIdentifier.homeRowMods,
+                RuleCollectionIdentifier.homeRowLayerToggles,
+            ]
+        }
+        return [associatedCollectionID].compactMap { $0 }
+    }
+
     /// Preferred width for Pack Detail presentation (window or sheet).
     public var preferredDetailWidth: CGFloat {
         let widePacks: Set<String> = [

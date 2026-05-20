@@ -29,6 +29,7 @@ struct ExpandableCollectionRow: View {
     var leaderKeyDisplay: String = "␣ Space"
     /// Optional activation hint from collection (overrides default formatting)
     var activationHint: String?
+    var managingPackName: String? = nil
     var defaultExpanded: Bool = false
     var displayStyle: RuleCollectionDisplayStyle = .list
     /// For singleKeyPicker style: the full collection with presets
@@ -249,6 +250,14 @@ private var fallbackKeyMappings: [KeyMapping] {
                                     .fontWeight(.regular)
                                     .foregroundColor(.secondary)
                             }
+                            if let packName = managingPackName {
+                                Text("Managed by \(packName)")
+                                    .font(.caption2)
+                                    .foregroundColor(.white.opacity(0.85))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(Color.accentColor.opacity(0.7)))
+                            }
                         }
 
                         if let desc = description {
@@ -305,6 +314,7 @@ private var fallbackKeyMappings: [KeyMapping] {
             .labelsHidden()
             .toggleStyle(.switch)
             .tint(.blue)
+            .disabled(managingPackName != nil)
             .accessibilityIdentifier("rules-summary-toggle-\(collectionId)")
             .accessibilityLabel("Toggle \(name)")
         }

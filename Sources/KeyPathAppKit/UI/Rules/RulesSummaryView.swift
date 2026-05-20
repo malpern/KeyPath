@@ -36,6 +36,8 @@ struct RulesTabView: View {
     @State private var pendingDisableDependents: [Pack] = []
     /// Tracks packs with unmet dependencies (for warning badges)
     @State private var unmetDependencyMap: [String: [UnmetDependency]] = [:]
+    /// Maps collection IDs to managing pack names (for installed packs only)
+    @State private var collectionOwnershipMap: [UUID: String] = [:]
     private let catalog = RuleCollectionCatalog()
 
     /// Total count of custom rules (everywhere + app-specific)
@@ -241,6 +243,7 @@ struct RulesTabView: View {
             layerActivator: collection.momentaryActivator,
             leaderKeyDisplay: currentLeaderKeyDisplay,
             activationHint: dynamicActivationHint(for: collection),
+            managingPackName: collectionOwnershipMap[collection.id],
             defaultExpanded: recommendationFocusCollectionId == collection.id,
             displayStyle: style,
             collection: needsCollection ? collection : nil,
@@ -335,6 +338,14 @@ struct RulesTabView: View {
     // MARK: - Dependency-Aware Toggle
 
     private func handleCollectionToggle(collection: RuleCollection, isOn: Bool) {
+        if let packName = collectionOwnershipMap[collection.id] {
+            settingsToastManager.showError(
+                "Managed by \(packName) — uninstall the pack to change this"
+            )
+            pendingToggles.removeValue(forKey: collection.id)
+            return
+        }
+
         let pack = packForCollection(collection)
 
         if isOn, let pack {
@@ -422,6 +433,16 @@ struct RulesTabView: View {
                 enabled: isOn
             )
         }
+    }
+
+    private func refreshCollectionOwnership() async {
+        var map: [UUID: String] = [:]
+        for collection in allCollections {
+            if let owner = await InstalledPackTracker.shared.packManagingCollection(collection.id) {
+                map[collection.id] = owner.packName
+            }
+        }
+        collectionOwnershipMap = map
     }
 
     private func refreshUnmetDependencies() {
@@ -660,15 +681,19 @@ struct RulesTabView: View {
             }
             // Load app-specific keymaps
             loadAppKeymaps()
-            // Check KindaVim pack install state
+            // Check KindaVim pack install state + collection ownership
             Task {
                 isKindaVimInstalled = await InstalledPackTracker.shared.isInstalled(
                     packID: PackRegistry.kindaVim.id
                 )
+                await refreshCollectionOwnership()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .appKeymapsDidChange)) { _ in
             loadAppKeymaps()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .installedPacksChanged)) { _ in
+            Task { await refreshCollectionOwnership() }
         }
         .sheet(item: $homeRowModsEditState) { editState in
             HomeRowModsModalView(
