@@ -49,6 +49,10 @@ struct HelpSchemas: AsyncParsableCommand {
                     return lines.joined(separator: "\n")
                 }
             case "rule":
+                if ctx.shouldOutputJSON {
+                    CLIOutput.writeJSON(CLISchemas.ruleAdd)
+                    return
+                }
                 let schema = RuleSchema.description
                 CLIOutput.write(schema, context: ctx) {
                     var lines = ["Rule Add Schema:"]
@@ -76,6 +80,10 @@ struct HelpSchemas: AsyncParsableCommand {
                     return lines.joined(separator: "\n")
                 }
             case "collection":
+                if ctx.shouldOutputJSON {
+                    CLIOutput.writeJSON(CLISchemas.collectionToggle)
+                    return
+                }
                 let schema = CollectionSchema.description
                 CLIOutput.write(schema, context: ctx) {
                     var lines = ["Collection Schema:"]
@@ -139,4 +147,73 @@ private struct CollectionSchema: Codable {
     )
     let commands: [String]
     let categories: [String]
+}
+
+// MARK: - JSON Schema Types (for agent consumption)
+
+struct JSONSchemaProperty: Codable {
+    let type: String
+    let description: String
+    let `enum`: [String]?
+    let `default`: String?
+
+    init(type: String, description: String, enum: [String]? = nil, default: String? = nil) {
+        self.type = type
+        self.description = description
+        self.enum = `enum`
+        self.default = `default`
+    }
+}
+
+struct JSONSchema: Codable {
+    let name: String
+    let description: String
+    let properties: [String: JSONSchemaProperty]
+    let required: [String]
+}
+
+enum CLISchemas {
+    static let ruleAdd = JSONSchema(
+        name: "rule.add",
+        description: "Add or update a custom key remapping",
+        properties: [
+            "input": JSONSchemaProperty(type: "string", description: "Input key (kanata name, e.g., caps, a, lalt, spc)"),
+            "output": JSONSchemaProperty(type: "string", description: "Output key for simple remap"),
+            "action": JSONSchemaProperty(type: "object", description: "Full KeyAction JSON (alternative to output)"),
+            "behavior": JSONSchemaProperty(type: "object", description: "Full MappingBehavior JSON"),
+            "tap": JSONSchemaProperty(type: "string", description: "Tap output for tap-hold shorthand"),
+            "hold": JSONSchemaProperty(type: "string", description: "Hold output for tap-hold shorthand"),
+            "timeout": JSONSchemaProperty(type: "integer", description: "Tap-hold timeout in ms", default: "200"),
+            "shifted": JSONSchemaProperty(type: "string", description: "Alternate output when shift held"),
+            "layer": JSONSchemaProperty(type: "string", description: "Target layer", default: "base"),
+            "title": JSONSchemaProperty(type: "string", description: "Human-readable title"),
+            "notes": JSONSchemaProperty(type: "string", description: "Description/notes"),
+            "on-conflict": JSONSchemaProperty(type: "string", description: "Conflict resolution strategy", enum: ["fail", "replace", "skip", "merge"], default: "fail"),
+            "dry-run": JSONSchemaProperty(type: "boolean", description: "Preview without saving", default: "false"),
+            "apply": JSONSchemaProperty(type: "boolean", description: "Regenerate config after saving", default: "false"),
+        ],
+        required: ["input"]
+    )
+
+    static let packInstall = JSONSchema(
+        name: "pack.install",
+        description: "Install a keyboard pack",
+        properties: [
+            "name-or-id": JSONSchemaProperty(type: "string", description: "Pack name, slug, or full ID"),
+            "setting": JSONSchemaProperty(type: "string", description: "Quick setting as key=value (repeatable)"),
+            "apply": JSONSchemaProperty(type: "boolean", description: "Reload Kanata after installing", default: "false"),
+            "dry-run": JSONSchemaProperty(type: "boolean", description: "Preview without installing", default: "false"),
+        ],
+        required: ["name-or-id"]
+    )
+
+    static let collectionToggle = JSONSchema(
+        name: "collection.enable",
+        description: "Enable or disable a rule collection",
+        properties: [
+            "name-or-id": JSONSchemaProperty(type: "string", description: "Collection name or UUID"),
+            "apply": JSONSchemaProperty(type: "boolean", description: "Reload Kanata after toggling", default: "false"),
+        ],
+        required: ["name-or-id"]
+    )
 }

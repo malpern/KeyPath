@@ -6,22 +6,25 @@ public struct OutputContext: Sendable {
     public let forceJSON: Bool
     public let forceHuman: Bool
     public let noColor: Bool
+    public let quiet: Bool
 
     public var shouldOutputJSON: Bool { forceJSON || (!forceHuman && !isInteractive) }
 
-    public init(isInteractive: Bool, forceJSON: Bool, forceHuman: Bool, noColor: Bool) {
+    public init(isInteractive: Bool, forceJSON: Bool, forceHuman: Bool, noColor: Bool, quiet: Bool = false) {
         self.isInteractive = isInteractive
         self.forceJSON = forceJSON
         self.forceHuman = forceHuman
         self.noColor = noColor
+        self.quiet = quiet
     }
 
-    public static func detect(forceJSON: Bool = false, forceHuman: Bool = false) -> OutputContext {
+    public static func detect(forceJSON: Bool = false, forceHuman: Bool = false, quiet: Bool = false) -> OutputContext {
         OutputContext(
             isInteractive: isatty(STDOUT_FILENO) != 0,
             forceJSON: forceJSON,
             forceHuman: forceHuman,
-            noColor: ProcessInfo.processInfo.environment["NO_COLOR"] != nil
+            noColor: ProcessInfo.processInfo.environment["NO_COLOR"] != nil,
+            quiet: quiet
         )
     }
 }
@@ -36,11 +39,17 @@ enum CLIOutput {
         }
     }
 
+    private struct APIEnvelope<T: Encodable>: Encodable {
+        let apiVersion: Int = 1
+        let data: T
+    }
+
     static func writeJSON<T: Encodable>(_ value: T) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        guard let data = try? encoder.encode(value), let json = String(data: data, encoding: .utf8) else {
+        let envelope = APIEnvelope(data: value)
+        guard let data = try? encoder.encode(envelope), let json = String(data: data, encoding: .utf8) else {
             return
         }
         print(json)
@@ -71,7 +80,7 @@ enum CLIOutput {
     }
 
     static func progress(_ message: String, context: OutputContext) {
-        guard context.isInteractive else { return }
+        guard context.isInteractive, !context.quiet else { return }
         printErr(ANSIColor.yellow(message, noColor: context.noColor))
     }
 }

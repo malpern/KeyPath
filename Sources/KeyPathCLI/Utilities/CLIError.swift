@@ -61,7 +61,7 @@ public extension CLIError {
         )
     }
 
-    static func serviceUnreachable(hint: String = "Is Kanata running? Check with 'keypath service status'") -> CLIError {
+    static func serviceUnreachable(hint: String = "Run 'keypath service status --json' to check if Kanata is running") -> CLIError {
         CLIError(
             code: .serviceUnreachable,
             message: "Could not connect to Kanata TCP server",
@@ -95,7 +95,7 @@ public extension CLIError {
         CLIError(
             code: .validation,
             message: "Invalid \(label) key: '\(key)'",
-            hint: "Use canonical Kanata key names (e.g., caps, lalt, esc, lctl, spc, ret)",
+            hint: "Run 'keypath help-topics schemas rule' for valid key names (e.g., caps, lalt, esc, lctl, spc, ret)",
             details: nil,
             docsUrl: CLIDocsURL.faq
         )
@@ -115,7 +115,7 @@ public extension CLIError {
         CLIError(
             code: .kanataInvalid,
             message: "Configuration validation failed",
-            hint: "Fix the errors above and run 'keypath config check' again",
+            hint: "Fix the errors above, then run 'keypath config check --json'",
             details: errors,
             docsUrl: CLIDocsURL.debugging
         )

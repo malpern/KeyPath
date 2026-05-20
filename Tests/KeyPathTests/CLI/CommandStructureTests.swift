@@ -27,7 +27,7 @@ final class CommandStructureTests: XCTestCase {
 
     func testRuleHasExpectedVerbs() {
         let names = subcommandNames(of: Rule.self)
-        XCTAssertEqual(Set(names), ["list", "add", "remove", "show", "enable", "disable"])
+        XCTAssertEqual(Set(names), ["list", "add", "remove", "show", "enable", "disable", "ensure"])
     }
 
     func testCollectionHasExpectedVerbs() {

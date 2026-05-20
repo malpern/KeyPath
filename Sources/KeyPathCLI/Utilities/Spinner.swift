@@ -12,7 +12,7 @@ final class CLISpinner: @unchecked Sendable {
 
     init(context: OutputContext) {
         self.noColor = context.noColor
-        self.isInteractive = context.isInteractive
+        self.isInteractive = context.isInteractive && !context.quiet
         self.message = ""
     }
 
