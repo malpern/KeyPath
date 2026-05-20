@@ -180,70 +180,12 @@ extension InstallationWizardView {
 
         AppLogger.shared.log("🔧 [Wizard] Single-action fix completed - success: \(success)")
 
-        // Refresh system state after auto-fix
-        Task {
-            // Shorter delay - we have warm-up window to handle startup
-            _ = await WizardSleep.seconds(1) // allow services to start
-            refreshSystemState()
-
-            // Notify StartupValidator to refresh main screen status
-            NotificationCenter.default.post(name: .wizardStartupRevalidate, object: nil)
-            AppLogger.shared.log(
-                "🔄 [Wizard] Triggered StartupValidator refresh after successful auto-fix"
-            )
-
-            // Schedule a follow-up health check; if still red, show a diagnostic error toast
-            Task {
-                _ = await WizardSleep.seconds(2) // allow additional settle time
-                let latestResult = await stateMachine.detectCurrentState()
-                let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
-                await MainActor.run {
-                    stateMachine.wizardState = latestResult.state
-                    stateMachine.wizardIssues = filteredIssues
-                }
-                let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
-                    systemState: latestResult.state,
-                    issues: filteredIssues
-                )
-                AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
-                if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon ||
-                    action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices
-                {
-                    let smStatePost = await WizardDependencies.daemonManager?.refreshManagementState()
-                    // IMPORTANT: Run off MainActor to avoid blocking UI - detectConnectionHealth spawns pgrep subprocesses
-                    let vhidHealthy = await Task.detached {
-                        await VHIDDeviceManager().detectConnectionHealth()
-                    }.value
-
-                    if karabinerStatus == .completed || vhidHealthy {
-                        if successToastPending, !suppressToast {
-                            await MainActor.run {
-                                toastManager.showSuccess(
-                                    "\(actionDescription) completed successfully", duration: 5.0
-                                )
-                            }
-                        }
-                    } else if !suppressToast {
-                        let detail = await kanataManager?.getVirtualHIDBreakageSummary() ?? ""
-                        AppLogger.shared.log(
-                            "❌ [Wizard] Post-fix health check failed; will show diagnostic toast"
-                        )
-                        await MainActor.run {
-                            if smStatePost == .smappservicePending {
-                                toastManager.showError(
-                                    "KeyPath background service needs approval in System Settings → Login Items. Enable 'KeyPath' and click Fix again.",
-                                    duration: 7.0
-                                )
-                            } else {
-                                toastManager.showError(
-                                    "Karabiner driver is still not healthy.\n\n\(detail)", duration: 7.0
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        performPostFixHealthCheck(
+            action: action,
+            actionDescription: actionDescription,
+            successToastPending: successToastPending,
+            suppressToast: suppressToast
+        )
 
         return success
     }
@@ -259,5 +201,76 @@ extension InstallationWizardView {
         let description = AutoFixActionDescriptions.describe(action)
         AppLogger.shared.log("🔍 [ActionDescription] Returning description: \(description)")
         return description
+    }
+
+    // MARK: - Post-Fix Health Check
+
+    private func performPostFixHealthCheck(
+        action: AutoFixAction,
+        actionDescription: String,
+        successToastPending: Bool,
+        suppressToast: Bool
+    ) {
+        Task {
+            _ = await WizardSleep.seconds(1)
+            refreshSystemState()
+
+            NotificationCenter.default.post(name: .wizardStartupRevalidate, object: nil)
+            AppLogger.shared.log(
+                "🔄 [Wizard] Triggered StartupValidator refresh after successful auto-fix"
+            )
+
+            _ = await WizardSleep.seconds(2)
+            let latestResult = await stateMachine.detectCurrentState()
+            let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
+            await MainActor.run {
+                stateMachine.wizardState = latestResult.state
+                stateMachine.wizardIssues = filteredIssues
+            }
+
+            let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
+                systemState: latestResult.state,
+                issues: filteredIssues
+            )
+            AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
+
+            let vhidActions: Set<AutoFixAction> = [
+                .restartVirtualHIDDaemon, .startKarabinerDaemon,
+                .installCorrectVHIDDriver, .repairVHIDDaemonServices,
+            ]
+            guard vhidActions.contains(action) else { return }
+
+            let smStatePost = await WizardDependencies.daemonManager?.refreshManagementState()
+            let vhidHealthy = await Task.detached {
+                await VHIDDeviceManager().detectConnectionHealth()
+            }.value
+
+            if karabinerStatus == .completed || vhidHealthy {
+                if successToastPending, !suppressToast {
+                    await MainActor.run {
+                        toastManager.showSuccess(
+                            "\(actionDescription) completed successfully", duration: 5.0
+                        )
+                    }
+                }
+            } else if !suppressToast {
+                let detail = await kanataManager?.getVirtualHIDBreakageSummary() ?? ""
+                AppLogger.shared.log(
+                    "❌ [Wizard] Post-fix health check failed; will show diagnostic toast"
+                )
+                await MainActor.run {
+                    if smStatePost == .smappservicePending {
+                        toastManager.showError(
+                            "KeyPath background service needs approval in System Settings → Login Items. Enable 'KeyPath' and click Fix again.",
+                            duration: 7.0
+                        )
+                    } else {
+                        toastManager.showError(
+                            "Karabiner driver is still not healthy.\n\n\(detail)", duration: 7.0
+                        )
+                    }
+                }
+            }
+        }
     }
 }
