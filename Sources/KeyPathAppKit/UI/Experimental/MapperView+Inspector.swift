@@ -62,9 +62,6 @@ struct MapperInspectorPanel: View {
 
     // MARK: - Pack Suggestions
 
-    /// Pack selected by the user to open in Pack Detail (sheet presentation).
-    @State private var packForDetail: Pack?
-
     /// Packs from the Starter Kit whose bindings target the currently
     /// selected input key. Empty ⇒ the section doesn't render.
     private var packSuggestions: [Pack] {
@@ -85,10 +82,6 @@ struct MapperInspectorPanel: View {
                 packSuggestionRow(pack)
             }
         }
-        .sheet(item: $packForDetail) { pack in
-            PackDetailView(pack: pack)
-                .environment(kanataManagerForGallery())
-        }
     }
 
     private func isPackEnabled(_ pack: Pack) -> Bool {
@@ -98,7 +91,9 @@ struct MapperInspectorPanel: View {
 
     private func packSuggestionRow(_ pack: Pack) -> some View {
         let enabled = isPackEnabled(pack)
-        return Button(action: { packForDetail = pack }) {
+        return Button(action: {
+            PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: kanataManager, fromOverlay: true)
+        }) {
             HStack(spacing: 6) {
                 if enabled {
                     PackActiveLED()
@@ -142,10 +137,6 @@ struct MapperInspectorPanel: View {
                     .symbolRenderingMode(.hierarchical)
             }
         }
-    }
-
-    private func kanataManagerForGallery() -> KanataViewModel {
-        kanataManager
     }
 
     /// Display-friendly label for the current input (⇪, D, ⌘, etc.).

@@ -727,8 +727,6 @@ struct OverlayMapperSection: View {
 
     // MARK: - Pack Suggestions for Selected Key
 
-    @State private var packForDetail: Pack?
-
     private var packsForSelectedKey: [Pack] {
         guard let keyCode = viewModel.inputKeyCode else { return [] }
         let kanataKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
@@ -764,7 +762,9 @@ struct OverlayMapperSection: View {
                 ForEach(packs) { pack in
                     let enabled = isPackEnabled(pack)
                     Button {
-                        packForDetail = pack
+                        if let vm = kanataViewModel {
+                            PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: vm, fromOverlay: true)
+                        }
                     } label: {
                         HStack(spacing: 8) {
                             if enabled {
@@ -798,12 +798,6 @@ struct OverlayMapperSection: View {
             .padding(.horizontal, 8)
             .padding(.top, 3)
             .padding(.bottom, 4)
-            .sheet(item: $packForDetail) { pack in
-                if let vm = kanataViewModel {
-                    PackDetailView(pack: pack)
-                        .environment(vm)
-                }
-            }
         }
     }
 }
