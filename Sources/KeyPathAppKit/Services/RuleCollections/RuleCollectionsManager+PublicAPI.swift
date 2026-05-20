@@ -675,8 +675,7 @@ extension RuleCollectionsManager {
     private func applyLeaderKeyToMomentaryActivators(_ newKey: String) {
         // Update all collections that have a momentary activator
         for index in ruleCollections.indices {
-            if ruleCollections[index].momentaryActivator != nil {
-                let oldActivator = ruleCollections[index].momentaryActivator!
+            if let oldActivator = ruleCollections[index].momentaryActivator {
                 ruleCollections[index].momentaryActivator = MomentaryActivator(
                     input: newKey,
                     targetLayer: oldActivator.targetLayer

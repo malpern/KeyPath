@@ -238,7 +238,7 @@ struct QMKKeyboardSearchView: View {
                 isLoading = false
                 if query != searchText {
                     selectedIndex = nil
-                } else if selectedIndex != nil, selectedIndex! >= results.count {
+                } else if let idx = selectedIndex, idx >= results.count {
                     selectedIndex = results.isEmpty ? nil : 0
                 }
             }

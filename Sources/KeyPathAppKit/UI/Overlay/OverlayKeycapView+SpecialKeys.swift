@@ -153,8 +153,8 @@ extension OverlayKeycapView {
         let hasSystemRemapping = sfSymbolResult != nil
         let isRemappedToRegularKey = remappedLabel != nil && !hasSystemRemapping && remappedLabel != key.label
 
-        if isRemappedToRegularKey {
-            Text(remappedLabel!.uppercased())
+        if isRemappedToRegularKey, let label = remappedLabel {
+            Text(label.uppercased())
                 .font(.system(size: 10 * scale, weight: .medium))
                 .foregroundStyle(foregroundColor)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
