@@ -263,9 +263,9 @@ public final class AppLogger {
             // Append to existing file
             do {
                 let fileHandle = try FileHandle(forWritingTo: URL(fileURLWithPath: logPath))
-                fileHandle.seekToEndOfFile()
-                fileHandle.write(data)
-                fileHandle.closeFile()
+                try fileHandle.seekToEnd()
+                try fileHandle.write(contentsOf: data)
+                try fileHandle.close()
             } catch {
                 // Fallback: try to create new file
                 try? data.write(to: URL(fileURLWithPath: logPath))
@@ -289,9 +289,9 @@ public final class AppLogger {
             // Append to existing file
             do {
                 let fileHandle = try FileHandle(forWritingTo: URL(fileURLWithPath: logPath))
-                fileHandle.seekToEndOfFile()
-                fileHandle.write(data)
-                fileHandle.closeFile()
+                try fileHandle.seekToEnd()
+                try fileHandle.write(contentsOf: data)
+                try fileHandle.close()
             } catch {
                 // Fallback: try to create new file
                 try? data.write(to: URL(fileURLWithPath: logPath))
