@@ -6,7 +6,6 @@ import SwiftUI
 extension PackDetailView {
     func handleToggle(to newValue: Bool) {
         guard newValue != isInstalled else { return }
-        // Optimistic: update UI immediately so the switch feels instant
         isInstalled = newValue
         toggleTask?.cancel()
         toggleTask = Task { newValue ? await install() : await uninstall() }
@@ -35,6 +34,7 @@ extension PackDetailView {
                 }
             }
         } catch let error as PackInstaller.InstallError {
+            await refreshInstallState()
             if case let .mutuallyExclusive(conflicts) = error {
                 packConflict = PackConflictState(
                     packToInstall: pack,
@@ -44,6 +44,7 @@ extension PackDetailView {
                 showTemporaryError(error.localizedDescription)
             }
         } catch {
+            await refreshInstallState()
             showTemporaryError(error.localizedDescription)
         }
         isWorking = false
@@ -66,6 +67,7 @@ extension PackDetailView {
                 }
             }
         } catch {
+            await refreshInstallState()
             withAnimation { errorMessage = error.localizedDescription }
         }
         isWorking = false
