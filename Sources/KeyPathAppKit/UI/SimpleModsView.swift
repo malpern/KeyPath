@@ -26,145 +26,15 @@ struct SimpleModsView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Tab selector
-                HStack(spacing: 0) {
-                    TabButton(
-                        title: "Installed",
-                        badge: service.installedMappings.count,
-                        isSelected: selectedTab == .installed
-                    ) {
-                        selectedTab = .installed
-                    }
-
-                    TabButton(
-                        title: "Available",
-                        badge: service.availablePresets.count,
-                        isSelected: selectedTab == .available
-                    ) {
-                        selectedTab = .available
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.top, 8)
-
-                // Search bar
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
-                    TextField("Search mappings...", text: $searchText)
-                        .textFieldStyle(.plain)
-                }
-                .padding()
-                .background(Color(NSColor.controlBackgroundColor))
-
-                // Category filter (only for Available tab)
-                if selectedTab == .available {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            CategoryButton(
-                                title: "All",
-                                isSelected: selectedCategory == nil
-                            ) {
-                                selectedCategory = nil
-                            }
-
-                            ForEach(Array(service.getPresetsByCategory().keys.sorted()), id: \.self) { category in
-                                CategoryButton(
-                                    title: category,
-                                    isSelected: selectedCategory == category
-                                ) {
-                                    selectedCategory = category
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                    .padding(.vertical, 8)
-                }
-
+                tabSelector
+                searchBar
+                categoryFilter
                 Divider()
-
-                // Content
-                if service.isApplying {
-                    HStack {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text("Applying changes...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding()
-                }
-
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
-                        if selectedTab == .installed {
-                            if filteredInstalledMappings.isEmpty {
-                                VStack(spacing: 12) {
-                                    EmptyStateView(
-                                        icon: "keyboard",
-                                        title: "No mappings installed",
-                                        message: "Add mappings from the Available tab to get started."
-                                    )
-
-                                    Button(
-                                        action: { selectedTab = .available },
-                                        label: {
-                                            HStack(spacing: 6) {
-                                                Image(systemName: "arrow.right.circle")
-                                                Text("Browse available presets")
-                                            }
-                                        }
-                                    )
-                                    .buttonStyle(.bordered)
-                                    .accessibilityIdentifier("simple-mods-browse-presets-button")
-                                    .accessibilityLabel("Browse available presets")
-                                    .controlSize(.small)
-                                }
-                            } else {
-                                ForEach(filteredInstalledMappings) { mapping in
-                                    InstalledMappingRow(
-                                        mapping: mapping,
-                                        service: service
-                                    )
-                                }
-                            }
-                        } else {
-                            if filteredAvailablePresets.isEmpty {
-                                EmptyStateView(
-                                    icon: "checkmark.circle",
-                                    title: "All presets installed",
-                                    message: "All available mappings are already in your config."
-                                )
-                            } else {
-                                ForEach(filteredAvailablePresets) { preset in
-                                    AvailablePresetRow(
-                                        preset: preset,
-                                        service: service
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    .padding()
-                }
+                applyingIndicator
+                mappingsList
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                // Toast notification area (similar to ContentView)
-                Group {
-                    if showErrorMessage || showSuccessMessage {
-                        StatusMessageView(message: statusMessage, isVisible: true)
-                            .padding(.horizontal)
-                            .padding(.bottom, 12)
-                            .transition(.opacity)
-                    } else {
-                        Color.clear
-                            .frame(height: 0)
-                    }
-                }
-                .frame(height: (showErrorMessage || showSuccessMessage) ? 80 : 0)
-                .animation(.easeInOut(duration: 0.25), value: showErrorMessage)
-                .animation(.easeInOut(duration: 0.25), value: showSuccessMessage)
+                toastOverlay
             }
             .navigationTitle("Simple Key Mappings")
             .toolbar {
@@ -176,79 +46,11 @@ struct SimpleModsView: View {
                     .accessibilityLabel("Done")
                 }
             }
-            .onAppear {
-                // Set dependencies
-                let viewModel = findViewModel()
-                service.setDependencies(
-                    kanataManager: viewModel.underlyingManager
-                )
-
-                // Load mappings
-                do {
-                    try service.load()
-                    previousMappingCount = service.installedMappings.count
-                } catch {
-                    uiError = "Failed to load mappings: \(error.localizedDescription)"
-                }
-            }
-            // Show toast notifications for errors and success
-            .onChange(of: service.lastError) { _, newValue in
-                if let error = newValue {
-                    // Check if this is a rollback scenario
-                    if let rollbackReason = service.lastRollbackReason {
-                        let details = service.lastRollbackDetails ?? ""
-                        let fullMessage = "❌ Configuration Error\n\(rollbackReason)\n\nDetails:\n\(details)"
-                        showToast(fullMessage, isError: true)
-                    } else {
-                        showToast("❌ \(error)", isError: true)
-                    }
-                    uiError = error
-                } else {
-                    // Success - clear errors
-                    uiError = nil
-                    showErrorMessage = false
-                }
-            }
-            .onChange(of: service.installedMappings.count) { oldCount, newCount in
-                // Track previous count
-                previousMappingCount = oldCount
-
-                // Only show success toast if NOT a rollback (no error state)
-                if service.lastError == nil, service.lastRollbackReason == nil {
-                    // Switch to installed tab when a mapping is added
-                    if newCount > oldCount, selectedTab == .available {
-                        selectedTab = .installed
-                        // Fetch last reload duration from TCP status for richer success message
-                        Task {
-                            let client = KanataTCPClient(port: 37001)
-                            let status = try? await client.getStatus()
-
-                            // FIX #1: Explicitly close connection to prevent file descriptor leak
-                            await client.cancelInflightAndCloseConnection()
-
-                            if let dur = status?.last_reload?.duration_ms {
-                                showToast("✅ Mapping added (reload \(dur) ms)", isError: false)
-                            } else {
-                                showToast("✅ Mapping added successfully", isError: false)
-                            }
-                        }
-                    } else if newCount < oldCount {
-                        // Only show success if user-initiated (not rollback)
-                        showToast("✅ Mapping removed successfully", isError: false)
-                    }
-                }
-            }
-            .onChange(of: service.lastRollbackReason) { _, rollbackReason in
-                if let reason = rollbackReason {
-                    // This is a rollback - show error toast with details
-                    let details = service.lastRollbackDetails ?? "No additional details available"
-                    let fullMessage =
-                        "❌ Configuration Error\n\(reason)\n\nChanges have been rolled back.\n\n\(details)"
-                    showToast(fullMessage, isError: true)
-                }
-            }
+            .onAppear(perform: loadMappings)
+            .onChange(of: service.lastError, handleErrorChange)
+            .onChange(of: service.installedMappings.count, handleMappingCountChange)
+            .onChange(of: service.lastRollbackReason, handleRollbackChange)
             .onChange(of: service.isApplying) { _, isApplying in
-                // When applying starts, clear any existing messages
                 if isApplying {
                     showErrorMessage = false
                     showSuccessMessage = false
@@ -256,6 +58,228 @@ struct SimpleModsView: View {
             }
         }
         .frame(width: 600, height: 500)
+    }
+
+    // MARK: - Body Sections
+
+    private var tabSelector: some View {
+        HStack(spacing: 0) {
+            TabButton(
+                title: "Installed",
+                badge: service.installedMappings.count,
+                isSelected: selectedTab == .installed
+            ) {
+                selectedTab = .installed
+            }
+
+            TabButton(
+                title: "Available",
+                badge: service.availablePresets.count,
+                isSelected: selectedTab == .available
+            ) {
+                selectedTab = .available
+            }
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    private var searchBar: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+            TextField("Search mappings...", text: $searchText)
+                .textFieldStyle(.plain)
+        }
+        .padding()
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+
+    @ViewBuilder
+    private var categoryFilter: some View {
+        if selectedTab == .available {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    CategoryButton(
+                        title: "All",
+                        isSelected: selectedCategory == nil
+                    ) {
+                        selectedCategory = nil
+                    }
+
+                    ForEach(Array(service.getPresetsByCategory().keys.sorted()), id: \.self) { category in
+                        CategoryButton(
+                            title: category,
+                            isSelected: selectedCategory == category
+                        ) {
+                            selectedCategory = category
+                        }
+                    }
+                }
+                .padding(.horizontal)
+            }
+            .padding(.vertical, 8)
+        }
+    }
+
+    @ViewBuilder
+    private var applyingIndicator: some View {
+        if service.isApplying {
+            HStack {
+                ProgressView()
+                    .scaleEffect(0.8)
+                Text("Applying changes...")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+        }
+    }
+
+    private var mappingsList: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                if selectedTab == .installed {
+                    installedContent
+                } else {
+                    availableContent
+                }
+            }
+            .padding()
+        }
+    }
+
+    @ViewBuilder
+    private var installedContent: some View {
+        if filteredInstalledMappings.isEmpty {
+            VStack(spacing: 12) {
+                EmptyStateView(
+                    icon: "keyboard",
+                    title: "No mappings installed",
+                    message: "Add mappings from the Available tab to get started."
+                )
+
+                Button(
+                    action: { selectedTab = .available },
+                    label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.right.circle")
+                            Text("Browse available presets")
+                        }
+                    }
+                )
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("simple-mods-browse-presets-button")
+                .accessibilityLabel("Browse available presets")
+                .controlSize(.small)
+            }
+        } else {
+            ForEach(filteredInstalledMappings) { mapping in
+                InstalledMappingRow(
+                    mapping: mapping,
+                    service: service
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var availableContent: some View {
+        if filteredAvailablePresets.isEmpty {
+            EmptyStateView(
+                icon: "checkmark.circle",
+                title: "All presets installed",
+                message: "All available mappings are already in your config."
+            )
+        } else {
+            ForEach(filteredAvailablePresets) { preset in
+                AvailablePresetRow(
+                    preset: preset,
+                    service: service
+                )
+            }
+        }
+    }
+
+    private var toastOverlay: some View {
+        Group {
+            if showErrorMessage || showSuccessMessage {
+                StatusMessageView(message: statusMessage, isVisible: true)
+                    .padding(.horizontal)
+                    .padding(.bottom, 12)
+                    .transition(.opacity)
+            } else {
+                Color.clear
+                    .frame(height: 0)
+            }
+        }
+        .frame(height: (showErrorMessage || showSuccessMessage) ? 80 : 0)
+        .animation(.easeInOut(duration: 0.25), value: showErrorMessage)
+        .animation(.easeInOut(duration: 0.25), value: showSuccessMessage)
+    }
+
+    // MARK: - Event Handlers
+
+    private func loadMappings() {
+        let viewModel = findViewModel()
+        service.setDependencies(
+            kanataManager: viewModel.underlyingManager
+        )
+
+        do {
+            try service.load()
+            previousMappingCount = service.installedMappings.count
+        } catch {
+            uiError = "Failed to load mappings: \(error.localizedDescription)"
+        }
+    }
+
+    private func handleErrorChange(_: String?, _ newValue: String?) {
+        if let error = newValue {
+            if let rollbackReason = service.lastRollbackReason {
+                let details = service.lastRollbackDetails ?? ""
+                let fullMessage = "❌ Configuration Error\n\(rollbackReason)\n\nDetails:\n\(details)"
+                showToast(fullMessage, isError: true)
+            } else {
+                showToast("❌ \(error)", isError: true)
+            }
+            uiError = error
+        } else {
+            uiError = nil
+            showErrorMessage = false
+        }
+    }
+
+    private func handleMappingCountChange(_ oldCount: Int, _ newCount: Int) {
+        previousMappingCount = oldCount
+
+        if service.lastError == nil, service.lastRollbackReason == nil {
+            if newCount > oldCount, selectedTab == .available {
+                selectedTab = .installed
+                Task {
+                    let client = KanataTCPClient(port: 37001)
+                    let status = try? await client.getStatus()
+                    await client.cancelInflightAndCloseConnection()
+
+                    if let dur = status?.last_reload?.duration_ms {
+                        showToast("✅ Mapping added (reload \(dur) ms)", isError: false)
+                    } else {
+                        showToast("✅ Mapping added successfully", isError: false)
+                    }
+                }
+            } else if newCount < oldCount {
+                showToast("✅ Mapping removed successfully", isError: false)
+            }
+        }
+    }
+
+    private func handleRollbackChange(_: String?, _ rollbackReason: String?) {
+        if let reason = rollbackReason {
+            let details = service.lastRollbackDetails ?? "No additional details available"
+            let fullMessage =
+                "❌ Configuration Error\n\(reason)\n\nChanges have been rolled back.\n\n\(details)"
+            showToast(fullMessage, isError: true)
+        }
     }
 
     private var filteredInstalledMappings: [SimpleMapping] {
