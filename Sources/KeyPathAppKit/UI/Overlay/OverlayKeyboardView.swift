@@ -232,6 +232,10 @@ struct OverlayKeyboardView: View {
         return mappedLabel != normalizedLabel
     }
 
+    var keyboardAccessibilityLabel: String {
+        "Keyboard overlay, \(layout.name), layer \(currentLayerName)"
+    }
+
     var body: some View {
         GeometryReader { geometry in
             let scale = calculateScale(for: geometry.size)
@@ -312,6 +316,8 @@ struct OverlayKeyboardView: View {
             .animation(nil, value: isLauncherMode)
         }
         .aspectRatio(layout.totalWidth / layout.totalHeight, contentMode: .fit)
+        .accessibilityIdentifier("overlay-keyboard")
+        .accessibilityLabel(keyboardAccessibilityLabel)
         // Also disable at container level for any inherited animations
         .animation(nil, value: isLauncherMode)
         .onChange(of: effectivePressedKeyCodes) { _, _ in
