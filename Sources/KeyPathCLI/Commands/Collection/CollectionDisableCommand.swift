@@ -47,6 +47,6 @@ struct CollectionDisable: AsyncParsableCommand {
             throw error.code.exitCode
         }
 
-        try await applyConfigurationOrHint(facade: facade, apply: apply, context: ctx)
+        try await applyConfigurationOrHint(apply: apply, context: ctx)
     }
 }

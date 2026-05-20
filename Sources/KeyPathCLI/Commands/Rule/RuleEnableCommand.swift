@@ -18,7 +18,7 @@ struct RuleEnable: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = RulesFacade()
 
         guard let title = try await facade.enableRule(input: input) else {
             let error = CLIError.notFound("Rule", query: input, listCommand: "keypath rule list")
@@ -30,6 +30,6 @@ struct RuleEnable: AsyncParsableCommand {
             "Enabled '\(title)' (\(input))"
         }
 
-        try await applyConfigurationOrHint(facade: facade, apply: apply, context: ctx)
+        try await applyConfigurationOrHint(apply: apply, context: ctx)
     }
 }

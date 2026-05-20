@@ -15,7 +15,7 @@ struct RuleShow: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = RulesFacade()
 
         guard let rule = await facade.showRule(input: input) else {
             let error = CLIError.notFound("Rule", query: input, listCommand: "keypath rule list")

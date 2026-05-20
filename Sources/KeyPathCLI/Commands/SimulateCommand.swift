@@ -22,7 +22,7 @@ struct Simulate: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = SimulatorFacade()
 
         let taps = keys.map { key -> CLISimulatorKeyTap in
             let parts = key.split(separator: ":", maxSplits: 1)

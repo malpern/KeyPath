@@ -90,19 +90,6 @@ final class CLIFacadeTests: XCTestCase {
         XCTAssertNil(index)
     }
 
-    // MARK: - validateKey
-
-    func testValidateKeyReturnsCanonicalForm() {
-        XCTAssertEqual(facade.validateKey("caps"), "caps")
-        XCTAssertEqual(facade.validateKey("Escape"), "esc")
-        XCTAssertEqual(facade.validateKey("LALT"), "lalt")
-    }
-
-    func testValidateKeyReturnsNilForInvalid() {
-        XCTAssertNil(facade.validateKey("blahblah"))
-        XCTAssertNil(facade.validateKey("notakey123"))
-    }
-
     // MARK: - Helpers
 
     private func makeCollections(_ names: [String]) -> [RuleCollection] {

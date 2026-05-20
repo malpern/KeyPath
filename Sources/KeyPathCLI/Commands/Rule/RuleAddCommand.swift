@@ -61,9 +61,10 @@ struct RuleAdd: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let validator = SimulatorFacade()
+        let rules = RulesFacade()
 
-        guard facade.validateKey(input) != nil else {
+        guard validator.validateKey(input) != nil else {
             let error = CLIError.invalidKey(input, label: "input")
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode
@@ -76,7 +77,7 @@ struct RuleAdd: AsyncParsableCommand {
             resolvedAction = try decodeAction(actionJSON, context: ctx)
         } else if let tap, let hold {
             for (key, label) in [(tap, "tap"), (hold, "hold")] {
-                guard facade.validateKey(key) != nil else {
+                guard validator.validateKey(key) != nil else {
                     let error = CLIError.invalidKey(key, label: label)
                     CLIOutput.writeError(error, context: ctx)
                     throw error.code.exitCode
@@ -89,7 +90,7 @@ struct RuleAdd: AsyncParsableCommand {
                 tapTimeout: tapTimeout
             ))
         } else if let output {
-            guard facade.validateKey(output) != nil else {
+            guard validator.validateKey(output) != nil else {
                 let error = CLIError.invalidKey(output, label: "output")
                 CLIOutput.writeError(error, context: ctx)
                 throw error.code.exitCode
@@ -130,7 +131,7 @@ struct RuleAdd: AsyncParsableCommand {
         let finalAction = resolvedAction.isEmpty ? .keystroke(key: input) : resolvedAction
 
         do {
-            let result = try await facade.addRule(
+            let result = try await rules.addRule(
                 input: input,
                 action: finalAction,
                 behavior: resolvedBehavior,
@@ -169,7 +170,7 @@ struct RuleAdd: AsyncParsableCommand {
             throw CLIExitCode.conflict.exitCode
         }
 
-        try await applyConfigurationOrHint(facade: facade, apply: apply, context: ctx)
+        try await applyConfigurationOrHint(apply: apply, context: ctx)
     }
 
     private func decodeAction(_ json: String, context: OutputContext) throws -> KeyAction {

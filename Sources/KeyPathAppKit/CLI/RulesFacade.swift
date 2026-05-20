@@ -1,9 +1,9 @@
 import Foundation
 import KeyPathCore
 
-// MARK: - Custom Rules
+public struct RulesFacade: Sendable {
+    public init() {}
 
-extension CLIFacade {
     public func loadCustomRules() async -> [CLICustomRule] {
         let rules = await CustomRulesStore.shared.loadRules()
         return rules.map { CLICustomRule(input: $0.input, output: $0.action.outputString, behavior: $0.behavior.map(Self.describeBehavior)) }
@@ -208,4 +208,161 @@ extension CLIFacade {
             reason: "incompatible behavior types cannot be merged"
         )
     }
+}
+
+// MARK: - Rule Types
+
+public struct CLICustomRule: Codable, Sendable {
+    public let input: String
+    public let output: String
+    public let behavior: String?
+}
+
+public struct CLIRuleDetail: Codable, Sendable {
+    public let input: String
+    public let action: KeyAction
+    public let behavior: MappingBehavior?
+    public let shiftedOutput: String?
+    public let title: String?
+    public let notes: String?
+    public let targetLayer: String
+    public let deviceOverrides: [CLIDeviceOverride]?
+    public let isEnabled: Bool
+    public let createdAt: Date
+
+    public init(from rule: CustomRule) {
+        input = rule.input
+        action = rule.action
+        behavior = rule.behavior
+        shiftedOutput = rule.shiftedOutput
+        title = rule.title.isEmpty ? nil : rule.title
+        notes = rule.notes
+        targetLayer = rule.targetLayer.kanataName
+        deviceOverrides = rule.deviceOverrides?.map { CLIDeviceOverride(from: $0) }
+        isEnabled = rule.isEnabled
+        createdAt = rule.createdAt
+    }
+
+    public static func dryRunPreview(
+        input: String,
+        action: KeyAction?,
+        behavior: MappingBehavior?,
+        shiftedOutput: String?,
+        title: String?,
+        notes: String?,
+        targetLayer: String?
+    ) -> CLIRuleDetail {
+        CLIRuleDetail(
+            input: input,
+            action: action ?? .empty,
+            behavior: behavior,
+            shiftedOutput: shiftedOutput,
+            title: title,
+            notes: notes,
+            targetLayer: targetLayer ?? "base",
+            deviceOverrides: nil,
+            isEnabled: true,
+            createdAt: Date()
+        )
+    }
+
+    public init(
+        input: String,
+        action: KeyAction,
+        behavior: MappingBehavior?,
+        shiftedOutput: String?,
+        title: String?,
+        notes: String?,
+        targetLayer: String,
+        deviceOverrides: [CLIDeviceOverride]?,
+        isEnabled: Bool,
+        createdAt: Date
+    ) {
+        self.input = input
+        self.action = action
+        self.behavior = behavior
+        self.shiftedOutput = shiftedOutput
+        self.title = title
+        self.notes = notes
+        self.targetLayer = targetLayer
+        self.deviceOverrides = deviceOverrides
+        self.isEnabled = isEnabled
+        self.createdAt = createdAt
+    }
+}
+
+public struct CLIDeviceOverride: Codable, Sendable {
+    public let deviceHash: String
+    public let action: KeyAction
+    public let behavior: MappingBehavior?
+
+    public init(from override: DeviceKeyOverride) {
+        deviceHash = override.deviceHash
+        action = override.output
+        behavior = override.behavior
+    }
+}
+
+public enum RuleAddResult: Codable, Sendable {
+    case created(CLIRuleDetail)
+    case replaced(CLIRuleDetail)
+    case merged(CLIRuleDetail)
+    case skipped
+
+    private enum CodingKeys: String, CodingKey {
+        case status
+        case rule
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let status = try container.decode(String.self, forKey: .status)
+        switch status {
+        case "created":
+            self = .created(try container.decode(CLIRuleDetail.self, forKey: .rule))
+        case "replaced":
+            self = .replaced(try container.decode(CLIRuleDetail.self, forKey: .rule))
+        case "merged":
+            self = .merged(try container.decode(CLIRuleDetail.self, forKey: .rule))
+        case "skipped":
+            self = .skipped
+        default:
+            throw DecodingError.dataCorruptedError(forKey: .status, in: container, debugDescription: "Unknown status: \(status)")
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .created(rule):
+            try container.encode("created", forKey: .status)
+            try container.encode(rule, forKey: .rule)
+        case let .replaced(rule):
+            try container.encode("replaced", forKey: .status)
+            try container.encode(rule, forKey: .rule)
+        case let .merged(rule):
+            try container.encode("merged", forKey: .status)
+            try container.encode(rule, forKey: .rule)
+        case .skipped:
+            try container.encode("skipped", forKey: .status)
+        }
+    }
+}
+
+public enum CLIConflictStrategy: String, Sendable {
+    case fail
+    case replace
+    case skip
+    case merge
+}
+
+public struct CLIMergeError: Error, CustomStringConvertible {
+    public let input: String
+    public let reason: String
+    public var description: String { "Cannot merge rules for '\(input)': \(reason)" }
+}
+
+public struct CLIConflictError: Error, CustomStringConvertible {
+    public let input: String
+    public var description: String { "Rule already exists for '\(input)'" }
 }

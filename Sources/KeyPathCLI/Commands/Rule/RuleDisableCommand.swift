@@ -18,7 +18,7 @@ struct RuleDisable: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = RulesFacade()
 
         guard let title = try await facade.disableRule(input: input) else {
             let error = CLIError.notFound("Rule", query: input, listCommand: "keypath rule list")
@@ -30,6 +30,6 @@ struct RuleDisable: AsyncParsableCommand {
             "Disabled '\(title)' (\(input))"
         }
 
-        try await applyConfigurationOrHint(facade: facade, apply: apply, context: ctx)
+        try await applyConfigurationOrHint(apply: apply, context: ctx)
     }
 }

@@ -21,7 +21,7 @@ final class MockSimulatorProvider: CLISimulatorProvider, @unchecked Sendable {
 
 @MainActor
 final class CLISimulateTests: XCTestCase {
-    private let facade = CLIFacade()
+    private let facade = SimulatorFacade()
 
     // MARK: - Basic Simulation
 
@@ -194,7 +194,7 @@ final class CLISimulateTests: XCTestCase {
 /// Skipped automatically if the binary isn't found (e.g., CI without a built app).
 @MainActor
 final class CLISimulateIntegrationTests: XCTestCase {
-    private let facade = CLIFacade()
+    private let facade = SimulatorFacade()
 
     private func requireSimulatorPath() throws -> String {
         let which = Process()

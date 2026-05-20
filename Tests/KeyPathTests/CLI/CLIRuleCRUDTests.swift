@@ -3,7 +3,7 @@
 
 @MainActor
 final class CLIRuleCRUDTests: XCTestCase {
-    private let facade = CLIFacade()
+    private let facade = RulesFacade()
 
     override func setUp() async throws {
         try await super.setUp()

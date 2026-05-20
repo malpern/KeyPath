@@ -15,7 +15,7 @@ struct RuleList: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = RulesFacade()
         let rules = await facade.listRules(enabledOnly: enabledOnly)
 
         CLIOutput.write(rules, context: ctx) {

@@ -2,8 +2,9 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-func applyConfigurationOrHint(facade: CLIFacade, apply: Bool, context: OutputContext) async throws {
+func applyConfigurationOrHint(apply: Bool, context: OutputContext) async throws {
     if apply {
+        let facade = await MainActor.run { CLIFacade() }
         let result = try await facade.applyConfiguration()
         if result.reloadSuccess {
             CLIOutput.write(["applied": true], context: context) {
