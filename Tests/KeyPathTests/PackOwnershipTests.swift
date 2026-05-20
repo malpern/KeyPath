@@ -95,6 +95,52 @@ final class PackOwnershipTests: XCTestCase {
         XCTAssertEqual(togglesOwner?.packName, "Ben Vallack Approach")
     }
 
+    // MARK: - Self-managed badge filtering
+
+    func testSelfManagedPackShouldNotShowBadge() async throws {
+        let packID = "com.keypath.pack.key-repeat-control"
+        let record = InstalledPackRecord(packID: packID, version: "1.0.0")
+        try await InstalledPackTracker.shared.upsert(record)
+
+        let collectionID = RuleCollectionIdentifier.keyRepeatControl
+        let owner = await InstalledPackTracker.shared.packManagingCollection(collectionID)
+        XCTAssertNotNil(owner, "Pack should report owning its collection")
+
+        let pack = PackRegistry.pack(id: owner!.packID)
+        XCTAssertEqual(
+            pack?.associatedCollectionID, collectionID,
+            "Fast Navigation's associatedCollectionID should match its own collection — badge must be hidden"
+        )
+    }
+
+    func testVallackExternallyManagedCollectionShouldShowBadge() async throws {
+        let record = InstalledPackRecord(
+            packID: "com.keypath.pack.vallack-system",
+            version: "1.0.0"
+        )
+        try await InstalledPackTracker.shared.upsert(record)
+
+        let owner = await InstalledPackTracker.shared.packManagingCollection(
+            RuleCollectionIdentifier.homeRowMods
+        )
+        XCTAssertNotNil(owner)
+
+        let pack = PackRegistry.pack(id: owner!.packID)!
+        XCTAssertNotEqual(
+            pack.associatedCollectionID, RuleCollectionIdentifier.homeRowMods,
+            "Vallack's associatedCollectionID is vallackNavigation, not homeRowMods — badge should show"
+        )
+    }
+
+    func testAllPacksWithAssociatedCollectionAreSelfManaged() {
+        for pack in PackRegistry.starterKit where pack.associatedCollectionID != nil {
+            XCTAssertTrue(
+                pack.managedCollectionIDs.contains(pack.associatedCollectionID!),
+                "\(pack.name) manages collections \(pack.managedCollectionIDs) but its associatedCollectionID \(pack.associatedCollectionID!) is missing"
+            )
+        }
+    }
+
     func testOwnershipClearsOnUninstall() async throws {
         let record = InstalledPackRecord(
             packID: "com.keypath.pack.chord-groups",
