@@ -255,22 +255,28 @@ actor LayerKeyMapper {
         configHash = ""
     }
 
-    /// Pre-build mappings for all layers at once
-    /// This should be called at startup to ensure instant layer switching
+    /// Pre-build mappings for all layers at once, populating both neovim-scope cache partitions.
+    /// Call after layer names and rule collections are available to ensure instant layer switching.
     /// - Parameters:
-    ///   - layerNames: List of all layer names (from TCP RequestLayerNames)
+    ///   - layerNames: List of all layer names (e.g. from rule collections or TCP RequestLayerNames)
     ///   - configPath: Path to the kanata config file
     ///   - layout: The physical keyboard layout to use for mapping
-    ///   - collections: All rule collections (for tracking collection ownership)
-    func prebuildAllLayers(_ layerNames: [String], configPath: String, layout: PhysicalLayout, collections: [RuleCollection] = []) async {
-        // Normalize layer names to lowercase
+    ///   - allEnabledCollections: All enabled rule collections
+    func prebuildAllLayers(
+        _ layerNames: [String],
+        configPath: String,
+        layout: PhysicalLayout,
+        allEnabledCollections: [RuleCollection] = []
+    ) async {
         let normalizedLayers = layerNames.map { $0.lowercased() }
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Pre-building mappings for \(normalizedLayers.count) layers: \(normalizedLayers.joined(separator: ", "))")
 
         if !FeatureFlags.simulatorAndVirtualKeysEnabled {
             let mapping = buildFallbackMapping(layout: layout)
             for layer in normalizedLayers {
-                cache[layer] = mapping
+                cache["\(layer)|default"] = mapping
+                cache["\(layer)|neovim-scope-approved"] = mapping
+                cache["\(layer)|neovim-scope-fallback"] = mapping
             }
             AppLogger.shared.info("🗺️ [LayerKeyMapper] Simulator disabled; cached fallback mapping for \(normalizedLayers.count) layers")
             return
@@ -284,15 +290,19 @@ actor LayerKeyMapper {
             }
         }
 
-        // Build mappings for all layers in parallel
-        await withTaskGroup(of: (String, [UInt16: LayerKeyInfo]?).self) { group in
+        let collectionsWithoutNeovim = allEnabledCollections.filter { $0.id != RuleCollectionIdentifier.neovimTerminal }
+        let hasNeovimCollection = allEnabledCollections.contains { $0.id == RuleCollectionIdentifier.neovimTerminal }
+
+        // Build both neovim scope variants for each layer in parallel.
+        // Each task returns (layer, suffix, mapping) so we store with the correct composite key.
+        await withTaskGroup(of: (String, String, [UInt16: LayerKeyInfo]?).self) { group in
             for layer in normalizedLayers {
+                // Fallback variant (no neovim collection)
                 group.addTask {
                     do {
-                        // Build key→collection map for this layer
-                        let keyToCollection = self.buildKeyCollectionMap(for: layer, collections: collections)
-                        let activatorKeys = self.buildActivatorKeySet(for: layer, collections: collections)
-                        let keyToVimLabel = self.buildKeyVimLabelMap(for: layer, collections: collections)
+                        let keyToCollection = self.buildKeyCollectionMap(for: layer, collections: collectionsWithoutNeovim)
+                        let activatorKeys = self.buildActivatorKeySet(for: layer, collections: collectionsWithoutNeovim)
+                        let keyToVimLabel = self.buildKeyVimLabelMap(for: layer, collections: collectionsWithoutNeovim)
                         let mapping = try await self.buildMappingWithSimulator(
                             for: layer,
                             configPath: configPath,
@@ -301,22 +311,45 @@ actor LayerKeyMapper {
                             activatorKeys: activatorKeys,
                             keyToVimLabel: keyToVimLabel
                         )
-                        return (layer, mapping)
+                        return (layer, "neovim-scope-fallback", mapping)
                     } catch {
-                        AppLogger.shared.error("🗺️ [LayerKeyMapper] Failed to build mapping for '\(layer)': \(error)")
-                        return (layer, nil)
+                        AppLogger.shared.error("🗺️ [LayerKeyMapper] Failed to build fallback mapping for '\(layer)': \(error)")
+                        return (layer, "neovim-scope-fallback", nil)
+                    }
+                }
+
+                // Approved variant (with neovim collection) — only if the collection exists
+                if hasNeovimCollection {
+                    group.addTask {
+                        do {
+                            let keyToCollection = self.buildKeyCollectionMap(for: layer, collections: allEnabledCollections)
+                            let activatorKeys = self.buildActivatorKeySet(for: layer, collections: allEnabledCollections)
+                            let keyToVimLabel = self.buildKeyVimLabelMap(for: layer, collections: allEnabledCollections)
+                            let mapping = try await self.buildMappingWithSimulator(
+                                for: layer,
+                                configPath: configPath,
+                                layout: layout,
+                                keyToCollection: keyToCollection,
+                                activatorKeys: activatorKeys,
+                                keyToVimLabel: keyToVimLabel
+                            )
+                            return (layer, "neovim-scope-approved", mapping)
+                        } catch {
+                            AppLogger.shared.error("🗺️ [LayerKeyMapper] Failed to build approved mapping for '\(layer)': \(error)")
+                            return (layer, "neovim-scope-approved", nil)
+                        }
                     }
                 }
             }
 
-            for await (layer, mapping) in group {
+            for await (layer, suffix, mapping) in group {
                 if let mapping {
-                    cache[layer] = mapping
-                    AppLogger.shared.debug("🗺️ [LayerKeyMapper] Cached mapping for '\(layer)' (\(mapping.count) keys)")
+                    cache["\(layer)|\(suffix)"] = mapping
+                    AppLogger.shared.debug("🗺️ [LayerKeyMapper] Cached mapping for '\(layer)|\(suffix)' (\(mapping.count) keys)")
                 }
             }
         }
 
-        AppLogger.shared.info("🗺️ [LayerKeyMapper] Pre-build complete: \(cache.count) layers cached")
+        AppLogger.shared.info("🗺️ [LayerKeyMapper] Pre-build complete: \(cache.count) cache entries")
     }
 }

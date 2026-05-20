@@ -30,6 +30,7 @@ extension KeyboardVisualizationViewModel {
         rebuildLayerMapping() // Build initial layer mapping
         loadFeatureCollectionStates() // Load optional feature collection states
         preloadAllIcons() // Pre-cache launcher and layer icons
+        prebuildLayerMappingsInBackground() // Warm cache for all layers
 
         AppLogger.shared.info("✅ [KeyboardViz] TCP-based key capture started")
     }
