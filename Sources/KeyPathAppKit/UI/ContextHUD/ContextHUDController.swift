@@ -12,7 +12,7 @@ final class ContextHUDController {
     private var window: ContextHUDWindow?
     private var hostingView: NSHostingView<ContextHUDView>?
     private let viewModel = ContextHUDViewModel()
-    private let layerKeyMapper = LayerKeyMapper()
+    private let layerKeyMapper = LayerKeyMapper.shared
     private let kindaVimStateAdapter = KindaVimStateAdapter.shared
     private var hasStartedKindaVimStateMonitoring = false
 

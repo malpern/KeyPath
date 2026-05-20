@@ -164,7 +164,7 @@ class KeyboardVisualizationViewModel {
     // MARK: - Layer Mapping
 
     /// Service for building layer key mappings
-    @ObservationIgnored let layerKeyMapper = LayerKeyMapper()
+    @ObservationIgnored let layerKeyMapper = LayerKeyMapper.shared
     /// Task for building layer mapping
     @ObservationIgnored var layerMapTask: Task<Void, Never>?
 
