@@ -568,6 +568,8 @@ struct PackDetailView: View {
                     in: Double(lo) ... Double(hi),
                     step: Double(step)
                 )
+                .accessibilityLabel(setting.label)
+                .accessibilityValue("\(quickSettingValues[setting.id] ?? 0)\(suffix)")
                 Text("\(quickSettingValues[setting.id] ?? 0)\(suffix)")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(.secondary)

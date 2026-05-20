@@ -187,6 +187,8 @@ private struct SoundProfileDescriptionBar: View {
 
                     Slider(value: $volume, in: 0 ... 1)
                         .controlSize(.small)
+                        .accessibilityLabel("Typing sound volume")
+                        .accessibilityValue("\(Int(volume * 100))%")
 
                     Image(systemName: "speaker.wave.3.fill")
                         .font(.caption2)

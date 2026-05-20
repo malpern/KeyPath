@@ -378,7 +378,11 @@ struct KeyRepeatControlView: View {
     // MARK: - Clean Slider
 
     private func cleanSlider(label: String, value: Binding<Int>, range: ClosedRange<Int>, snap: Int, id: String = "") -> some View {
-        HStack(spacing: 8) {
+        let unit = label == "Delay" ? "ms" : "keys/sec"
+        let displayValue = label == "Speed"
+            ? KeyRepeatControlConfig.keysPerSecond(fromIntervalMs: value.wrappedValue)
+            : "\(value.wrappedValue) \(unit)"
+        return HStack(spacing: 8) {
             Text(label)
                 .font(.system(size: 10))
                 .foregroundStyle(.tertiary)
@@ -389,6 +393,7 @@ struct KeyRepeatControlView: View {
             ), in: Double(range.lowerBound)...Double(range.upperBound))
             .controlSize(.small)
             .accessibilityIdentifier(id.isEmpty ? "key-repeat-slider-\(label.lowercased())" : "key-repeat-slider-\(id)")
+            .accessibilityValue(displayValue)
         }
     }
 

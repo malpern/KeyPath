@@ -187,6 +187,7 @@ struct HomeRowTimingSection: View {
                         )
                         .accessibilityIdentifier("home-row-mods-feel-slider")
                         .accessibilityLabel("Typing feel")
+                        .accessibilityValue("\(TypingFeelMapping.helperText(forSliderPosition: effectiveSliderPosition)), tap \(config.timing.tapWindow)ms, hold \(config.timing.holdDelay)ms")
 
                         Text("More Modifiers")
                             .font(.caption2)
@@ -260,6 +261,7 @@ struct HomeRowTimingSection: View {
                     ), in: 50 ... 300, step: 10)
                         .accessibilityIdentifier("home-row-mods-prior-idle-slider")
                         .accessibilityLabel("Fast typing protection threshold")
+                        .accessibilityValue("\(config.timing.requirePriorIdleMs) ms")
 
                     Text("Forgiving")
                         .font(.caption2)
@@ -302,6 +304,7 @@ struct HomeRowTimingSection: View {
                     ), in: 0 ... 80, step: 5)
                         .accessibilityIdentifier("home-row-mods-quick-tap-term-slider")
                         .accessibilityLabel("Quick tap extra time")
+                        .accessibilityValue("\(config.timing.quickTapTermMs) ms")
 
                     Text("Forgiving")
                         .font(.caption2)
@@ -390,6 +393,7 @@ struct HomeRowTimingSection: View {
             )
             .accessibilityIdentifier("home-row-mods-finger-\(finger.rawValue)-slider")
             .accessibilityLabel("\(finger.displayName) finger sensitivity")
+            .accessibilityValue("\(displayValue) ms")
 
             if isCustom {
                 Text("Mixed")

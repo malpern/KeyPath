@@ -50,6 +50,7 @@ struct MappingBehaviorEditor: View {
             .pickerStyle(.segmented)
             .accessibilityIdentifier("mapping-behavior-mode-picker")
             .accessibilityLabel("Mapping mode")
+            .accessibilityValue(mode.rawValue)
             .onChange(of: mode) { _, newMode in
                 if newMode == .simple {
                     // Clear behavior when switching to simple
@@ -104,6 +105,7 @@ struct MappingBehaviorEditor: View {
             .pickerStyle(.segmented)
             .accessibilityIdentifier("mapping-behavior-type-picker")
             .accessibilityLabel("Behavior type")
+            .accessibilityValue(behaviorType.rawValue)
             .onChange(of: behaviorType) { _, _ in
                 syncBehaviorFromState()
             }
@@ -160,6 +162,7 @@ struct MappingBehaviorEditor: View {
                             step: 10
                         )
                         .accessibilityIdentifier("mapping-behavior-tap-timeout-stepper")
+                        .accessibilityValue("\(tapTimeout) ms")
                         .onChange(of: tapTimeout) { _, _ in syncBehaviorFromState() }
                     }
 
@@ -178,6 +181,7 @@ struct MappingBehaviorEditor: View {
                                 )
                                 .controlSize(.small)
                                 .accessibilityIdentifier("mapping-behavior-hold-timeout-stepper")
+                                .accessibilityValue("\(holdTimeout) ms")
                                 .onChange(of: holdTimeout) { _, _ in syncBehaviorFromState() }
                             }
                         }
@@ -239,6 +243,7 @@ struct MappingBehaviorEditor: View {
                         step: 10
                     )
                     .accessibilityIdentifier("mapping-behavior-tap-dance-window-stepper")
+                    .accessibilityValue("\(tapDanceWindow) ms")
                     .onChange(of: tapDanceWindow) { _, _ in syncBehaviorFromState() }
                 }
                 .padding(.vertical, 4)
