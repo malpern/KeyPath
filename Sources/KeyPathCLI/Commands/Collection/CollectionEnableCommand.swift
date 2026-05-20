@@ -29,6 +29,13 @@ struct CollectionEnable: AsyncParsableCommand {
             CLIOutput.write(["enabled": name], context: ctx) {
                 "Enabled '\(name)'"
             }
+        } catch let managed as PackManagedCollectionError {
+            let error = CLIError.conflict(
+                managed.description,
+                hint: "Run 'keypath pack uninstall \(managed.packName.lowercased().replacingOccurrences(of: " ", with: "-"))' to release this collection"
+            )
+            CLIOutput.writeError(error, context: ctx)
+            throw error.code.exitCode
         } catch let ambiguous as AmbiguousCollectionMatch {
             let error = CLIError.ambiguous(
                 ambiguous.description,

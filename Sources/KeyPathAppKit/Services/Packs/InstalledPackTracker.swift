@@ -72,6 +72,18 @@ public actor InstalledPackTracker {
         return records[packID]
     }
 
+    /// Returns the installed pack that manages a given collection, or nil.
+    public func packManagingCollection(_ collectionID: UUID) async -> (packID: String, packName: String)? {
+        await ensureLoaded()
+        for (packID, _) in records {
+            guard let pack = PackRegistry.pack(id: packID) else { continue }
+            if pack.managedCollectionIDs.contains(collectionID) {
+                return (packID: packID, packName: pack.name)
+            }
+        }
+        return nil
+    }
+
     /// Mark a pack as installed (or update an existing record). Persists.
     public func upsert(_ record: InstalledPackRecord) async throws {
         await ensureLoaded()

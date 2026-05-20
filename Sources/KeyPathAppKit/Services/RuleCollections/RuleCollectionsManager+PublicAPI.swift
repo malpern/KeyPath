@@ -21,8 +21,18 @@ extension RuleCollectionsManager {
     /// Toggle a rule collection on/off
     /// - Returns: `true` if the toggle was applied successfully, `false` if validation failed and state was rolled back
     @discardableResult
-    func toggleCollection(id: UUID, isEnabled: Bool, autoResolveConflicts: Bool = false) async -> Bool {
+    func toggleCollection(id: UUID, isEnabled: Bool, autoResolveConflicts: Bool = false, bypassOwnershipCheck: Bool = false) async -> Bool {
         AppLogger.shared.log("🔀 [RuleCollections] toggleCollection called: id=\(id), isEnabled=\(isEnabled)")
+
+        if !bypassOwnershipCheck {
+            if let owner = await InstalledPackTracker.shared.packManagingCollection(id) {
+                AppLogger.shared.log(
+                    "🔒 [RuleCollections] Toggle blocked: collection \(id) is managed by pack '\(owner.packName)'"
+                )
+                return false
+            }
+        }
+
         let snapshot = snapshotRuleState()
 
         let catalogMatch = RuleCollectionCatalog().defaultCollections().first { $0.id == id }

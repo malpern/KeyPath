@@ -239,6 +239,13 @@ public struct CLIFacade: Sendable {
         guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
             return nil
         }
+        if let owner = await InstalledPackTracker.shared.packManagingCollection(collections[index].id) {
+            throw PackManagedCollectionError(
+                collectionName: collections[index].name,
+                packName: owner.packName,
+                packID: owner.packID
+            )
+        }
         collections[index].isEnabled = true
         try await RuleCollectionStore.shared.saveCollections(collections)
         return collections[index].name
@@ -249,6 +256,13 @@ public struct CLIFacade: Sendable {
         var collections = await RuleCollectionStore.shared.loadCollections()
         guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
             return nil
+        }
+        if let owner = await InstalledPackTracker.shared.packManagingCollection(collections[index].id) {
+            throw PackManagedCollectionError(
+                collectionName: collections[index].name,
+                packName: owner.packName,
+                packID: owner.packID
+            )
         }
         collections[index].isEnabled = false
         try await RuleCollectionStore.shared.saveCollections(collections)
@@ -1711,6 +1725,16 @@ public struct CLIPackSettingError: Error, CustomStringConvertible {
             return "Pack '\(packName)' has no quick settings, but --setting \(settingKey) was provided"
         }
         return "Unknown setting '\(settingKey)' for pack '\(packName)'. Valid keys: \(validKeys.joined(separator: ", "))"
+    }
+}
+
+public struct PackManagedCollectionError: Error, CustomStringConvertible {
+    public let collectionName: String
+    public let packName: String
+    public let packID: String
+    public var description: String {
+        let slug = packName.lowercased().replacingOccurrences(of: " ", with: "-")
+        return "'\(collectionName)' is managed by pack '\(packName)'. Run 'keypath pack uninstall \(slug)' to release it."
     }
 }
 
