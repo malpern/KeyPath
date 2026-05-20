@@ -927,16 +927,22 @@ struct RulesTabView: View {
                 onToggle: { newValue in
                     isKindaVimInstalled = newValue
                     Task {
-                        if newValue {
-                            let record = InstalledPackRecord(
-                                packID: pack.id,
-                                version: pack.version,
-                                installedAt: Date(),
-                                quickSettingValues: [:]
-                            )
-                            try? await InstalledPackTracker.shared.upsert(record)
-                        } else {
-                            try? await InstalledPackTracker.shared.remove(packID: pack.id)
+                        do {
+                            if newValue {
+                                let record = InstalledPackRecord(
+                                    packID: pack.id,
+                                    version: pack.version,
+                                    installedAt: Date(),
+                                    quickSettingValues: [:]
+                                )
+                                try await InstalledPackTracker.shared.upsert(record)
+                            } else {
+                                try await InstalledPackTracker.shared.remove(packID: pack.id)
+                            }
+                        } catch {
+                            AppLogger.shared.log("⚠️ [Rules] KindaVim toggle failed: \(error.localizedDescription)")
+                            isKindaVimInstalled = !newValue
+                            settingsToastManager.showError("Failed to \(newValue ? "enable" : "disable") KindaVim")
                         }
                     }
                 },
@@ -975,6 +981,7 @@ struct RulesTabView: View {
                 _ = await kanataManager.underlyingManager.restartKanata(reason: "App rule deleted from Settings")
             } catch {
                 AppLogger.shared.log("⚠️ [RulesTabView] Failed to delete app rule: \(error)")
+                settingsToastManager.showError("Failed to delete rule: \(error.localizedDescription)")
             }
         }
     }
