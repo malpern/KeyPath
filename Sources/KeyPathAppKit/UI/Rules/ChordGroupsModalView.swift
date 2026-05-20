@@ -233,6 +233,8 @@ struct ChordGroupsModalView: View {
                         in: 100 ... 800,
                         step: 50
                     )
+                    .accessibilityLabel("Chord timeout")
+                    .accessibilityValue("\(group.timeout) ms, \(ChordSpeed.nearest(to: group.timeout).rawValue)")
 
                     // Speed preset buttons
                     HStack(spacing: 8) {

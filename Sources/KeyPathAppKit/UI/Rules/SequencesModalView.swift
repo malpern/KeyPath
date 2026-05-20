@@ -384,7 +384,8 @@ struct SequencesModalView: View {
                         set: { localConfig.globalTimeout = Int($0) }
                     ), in: 300 ... 1000, step: 50)
                         .accessibilityIdentifier("sequences-modal-timeout-slider")
-                        .accessibilityLabel("Global timeout: \(localConfig.globalTimeout) milliseconds")
+                        .accessibilityLabel("Global timeout")
+                        .accessibilityValue("\(localConfig.globalTimeout) ms")
 
                     Text("\(localConfig.globalTimeout)ms")
                         .font(.system(.body, design: .monospaced))

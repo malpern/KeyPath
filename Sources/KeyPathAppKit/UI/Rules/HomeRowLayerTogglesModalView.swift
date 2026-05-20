@@ -205,6 +205,8 @@ struct HomeRowLayerTogglesModalView: View {
                                 get: { Double(localConfig.timing.quickTapTermMs) },
                                 set: { localConfig.timing.quickTapTermMs = Int($0) }
                             ), in: 0 ... 80, step: 5)
+                            .accessibilityLabel("Quick tap term")
+                            .accessibilityValue("\(localConfig.timing.quickTapTermMs) ms")
                             Text(String(localized: "\(localConfig.timing.quickTapTermMs) ms"))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
