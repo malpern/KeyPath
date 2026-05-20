@@ -587,6 +587,34 @@ extension KeyboardVisualizationViewModel {
         return String(output[range]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Fire-and-forget prebuild of all layer mappings so first layer switches hit cache.
+    func prebuildLayerMappingsInBackground() {
+        Task {
+            let allCollections = await RuleCollectionStore.shared.loadCollections()
+            let enabledCollections = allCollections.filter(\.isEnabled)
+
+            var layerNames = Set<String>(["base"])
+            for collection in enabledCollections {
+                layerNames.insert(collection.targetLayer.kanataName.lowercased())
+                if let activator = collection.momentaryActivator {
+                    layerNames.insert(activator.targetLayer.kanataName.lowercased())
+                }
+            }
+
+            let configPath = WizardSystemPaths.userConfigPath
+            AppLogger.shared.info("🗺️ [KeyboardViz] Starting background prebuild for \(layerNames.count) layers")
+
+            await layerKeyMapper.prebuildAllLayers(
+                Array(layerNames),
+                configPath: configPath,
+                layout: layout,
+                allEnabledCollections: enabledCollections
+            )
+
+            AppLogger.shared.info("🗺️ [KeyboardViz] Background prebuild complete")
+        }
+    }
+
     /// Invalidate cached mappings (call when config changes)
     func invalidateLayerMappings() {
         AppLogger.shared.info("🔔 [KeyboardViz] invalidateLayerMappings called - will rebuild layer mapping for '\(currentLayerName)'")
@@ -596,6 +624,7 @@ extension KeyboardVisualizationViewModel {
             AppLogger.shared.info("🔔 [KeyboardViz] Cache invalidated, now calling rebuildLayerMapping()")
 
             rebuildLayerMapping()
+            prebuildLayerMappingsInBackground()
         }
     }
 }
