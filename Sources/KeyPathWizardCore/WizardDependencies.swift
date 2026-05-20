@@ -106,7 +106,9 @@ public enum WizardDependencies {
     // MARK: - Test Support
 
     /// Reset all dependencies to nil/false for test teardown.
-    /// Call from KeyPathTestCase.tearDown() to prevent state leaking between tests.
+    /// Call from KeyPathTestCase.tearDown() within `MainActor.assumeIsolated` or `MainActor.run`.
+    /// The nonisolated(unsafe) properties are safe to clear here because XCTest runs tests
+    /// serially and wizard views are not active during teardown.
     public static func reset() {
         runtimeCoordinator = nil
         helperManager = nil
