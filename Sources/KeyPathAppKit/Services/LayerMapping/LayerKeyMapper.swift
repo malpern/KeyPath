@@ -173,6 +173,8 @@ struct LayerKeyInfo: Equatable, Sendable {
 /// Service that builds key mappings for each layer using the kanata-simulator.
 /// Maps physical key codes to what they output in each layer.
 actor LayerKeyMapper {
+    static let shared = LayerKeyMapper()
+
     let simulatorService: SimulatorService
     var cache: [String: [UInt16: LayerKeyInfo]] = [:]
     var configHash: String = ""
