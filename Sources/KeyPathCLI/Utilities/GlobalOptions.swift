@@ -13,6 +13,9 @@ struct GlobalOptions: ParsableArguments {
     @Flag(name: .customLong("quiet"), help: "Suppress stderr decoration (spinners, progress, hints)")
     var quiet: Bool = false
 
+    @Option(name: .customLong("timeout"), help: "Timeout in seconds for IPC and network operations (default: 30)")
+    var timeout: Int = 30
+
     @Option(name: .customLong("on-conflict"), help: "Conflict resolution: fail|replace|skip|merge")
     var onConflict: ConflictStrategy = .fail
 
