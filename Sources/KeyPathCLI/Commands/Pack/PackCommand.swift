@@ -9,6 +9,7 @@ struct Pack: AsyncParsableCommand {
             PackShow.self,
             PackInstall.self,
             PackUninstall.self,
+            PackConfigure.self,
         ]
     )
 }

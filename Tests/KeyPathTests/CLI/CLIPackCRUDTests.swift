@@ -205,4 +205,60 @@ final class CLIPackCRUDTests: XCTestCase {
         XCTAssertEqual(result.action, "installed")
         XCTAssertEqual(result.quickSettingValues["holdTimeout"], 200)
     }
+
+    // MARK: - configurePack
+
+    func testConfigurePackUpdatesSettings() async throws {
+        try await ensureUninstalled("com.keypath.pack.home-row-mods")
+        _ = try await facade.installPack(nameOrId: "home-row-mods", settingValues: ["holdTimeout": 200])
+
+        let result = try await facade.configurePack(
+            nameOrId: "home-row-mods",
+            settingValues: ["holdTimeout": 250]
+        )
+        XCTAssertEqual(result.action, "configured")
+        XCTAssertEqual(result.quickSettingValues["holdTimeout"], 250)
+    }
+
+    func testConfigurePackDryRun() async throws {
+        try await ensureUninstalled("com.keypath.pack.home-row-mods")
+        _ = try await facade.installPack(nameOrId: "home-row-mods", settingValues: ["holdTimeout": 200])
+
+        let result = try await facade.configurePack(
+            nameOrId: "home-row-mods",
+            settingValues: ["holdTimeout": 300],
+            dryRun: true
+        )
+        XCTAssertEqual(result.action, "would-configure")
+        XCTAssertEqual(result.quickSettingValues["holdTimeout"], 300)
+
+        // Verify actual value unchanged
+        let current = await InstalledPackTracker.shared.record(for: "com.keypath.pack.home-row-mods")
+        XCTAssertEqual(current?.quickSettingValues["holdTimeout"], 200)
+    }
+
+    func testConfigurePackNotInstalledReturnsNotInstalled() async throws {
+        try await ensureUninstalled("com.keypath.pack.home-row-mods")
+
+        let result = try await facade.configurePack(
+            nameOrId: "home-row-mods",
+            settingValues: ["holdTimeout": 250]
+        )
+        XCTAssertEqual(result.action, "not-installed")
+    }
+
+    func testConfigurePackInvalidSettingThrows() async throws {
+        try await ensureUninstalled("com.keypath.pack.home-row-mods")
+        _ = try await facade.installPack(nameOrId: "home-row-mods", settingValues: ["holdTimeout": 200])
+
+        do {
+            _ = try await facade.configurePack(
+                nameOrId: "home-row-mods",
+                settingValues: ["bogus": 123]
+            )
+            XCTFail("Should throw CLIPackSettingError")
+        } catch is CLIPackSettingError {
+            // expected
+        }
+    }
 }
