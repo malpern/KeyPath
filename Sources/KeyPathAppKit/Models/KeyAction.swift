@@ -66,7 +66,7 @@ public extension KeyAction {
         case .meh:
             return "(multi lctl lalt lsft)"
         case let .launchApp(name, bundleId):
-            let identifier = bundleId?.isEmpty == false ? bundleId! : name
+            let identifier = (bundleId?.isEmpty == false) ? (bundleId ?? name) : name
             return "(push-msg \"launch:\(identifier)\")"
         case let .openURL(urlString):
             let encoded = URLMappingFormatter.encodeForPushMessage(urlString)

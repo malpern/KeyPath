@@ -556,17 +556,16 @@ public class KeyboardCapture {
 
         guard isKeyDown else { return } // Only capture key down events
 
-        let keyName = mediaKeyCodeToString(Int(mediaKeyCode))
-        guard keyName != nil else { return } // Unknown media key
+        guard let keyName = mediaKeyCodeToString(Int(mediaKeyCode)) else { return }
 
         let now = Date()
-        AppLogger.shared.log("🎹 [KeyboardCapture] mediaKey: \(keyName!) code=\(mediaKeyCode)")
+        AppLogger.shared.log("🎹 [KeyboardCapture] mediaKey: \(keyName) code=\(mediaKeyCode)")
         anyEventSeen = true
         noKeyBreadcrumbTimer?.invalidate()
         noKeyBreadcrumbTimer = nil
 
         let keyPress = KeyPress(
-            baseKey: keyName!,
+            baseKey: keyName,
             modifiers: [],
             timestamp: now,
             keyCode: Int64(mediaKeyCode) + 1000 // Offset to avoid collision with regular keyCodes
@@ -577,7 +576,7 @@ public class KeyboardCapture {
             if last.baseKey == keyPress.baseKey,
                now.timeIntervalSince(lastAt) <= dedupWindow
             {
-                AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate mediaKey: \(keyName!)")
+                AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate mediaKey: \(keyName)")
                 return
             }
         }
@@ -585,7 +584,7 @@ public class KeyboardCapture {
         lastCaptureAt = now
 
         if sequenceCallback == nil, let legacyCallback = captureCallback {
-            legacyCallback(keyName!)
+            legacyCallback(keyName)
             if !isContinuous {
                 stopCapture()
             } else {

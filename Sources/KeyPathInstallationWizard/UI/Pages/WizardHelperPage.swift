@@ -207,7 +207,7 @@ public struct WizardHelperPage: View {
                 .multilineTextAlignment(.center)
 
             // Description
-            Text(helperVersion != nil ? "Version \(helperVersion!) — system operations available" : "System operations available without password prompts.")
+            Text(helperVersion.map { "Version \($0) — system operations available" } ?? "System operations available without password prompts.")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

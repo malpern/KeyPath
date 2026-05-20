@@ -32,7 +32,7 @@ enum LayoutAnalysisRunner {
             throw NSError(
                 domain: "KeyPathLayoutTracer.Analysis",
                 code: Int(process.terminationStatus),
-                userInfo: [NSLocalizedDescriptionKey: errorText?.isEmpty == false ? errorText! : "Keyboard analysis failed."]
+                userInfo: [NSLocalizedDescriptionKey: (errorText?.isEmpty == false) ? (errorText ?? "Keyboard analysis failed.") : "Keyboard analysis failed."]
             )
         }
 
