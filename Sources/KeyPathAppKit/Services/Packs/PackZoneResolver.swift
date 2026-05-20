@@ -14,19 +14,22 @@ enum PackZoneResolver {
     }
 
     struct LayerPreviewConfig {
-        let activatorKeyCodes: Set<UInt16>
-        let targetLayer: String
+        /// Per-key target layers: keyCode -> layer name to preview when that key is held
+        let targets: [UInt16: String]
+
+        var activatorKeyCodes: Set<UInt16> { Set(targets.keys) }
     }
 
     static func layerPreviewConfig(
         installedPackIDs: Set<String>
     ) -> LayerPreviewConfig? {
+        var merged: [UInt16: String] = [:]
         for packID in installedPackIDs {
             if let config = previewConfig(for: packID) {
-                return config
+                merged.merge(config.targets) { _, new in new }
             }
         }
-        return nil
+        return merged.isEmpty ? nil : LayerPreviewConfig(targets: merged)
     }
 
     static func activeZoneSubtitles(
@@ -70,10 +73,10 @@ enum PackZoneResolver {
     private static func previewConfig(for packID: String) -> LayerPreviewConfig? {
         switch packID {
         case PackRegistry.vallackSystem.id:
-            return LayerPreviewConfig(
-                activatorKeyCodes: VallackZoneMap.activatorKeyCodes,
-                targetLayer: "vallack-nav"
+            let targets = Dictionary(
+                uniqueKeysWithValues: VallackZoneMap.activatorKeyCodes.map { ($0, "vallack-nav") }
             )
+            return LayerPreviewConfig(targets: targets)
         default:
             return nil
         }

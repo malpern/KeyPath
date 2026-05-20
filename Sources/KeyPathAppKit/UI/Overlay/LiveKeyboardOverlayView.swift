@@ -235,16 +235,44 @@ struct LiveKeyboardOverlayView: View {
     private func refreshInstalledPackIDs() async {
         let records = await InstalledPackTracker.shared.allInstalled()
         let ids = Set(records.map(\.packID))
+        await MainActor.run { installedPackIDs = ids }
+        await refreshLayerPreviewConfig(installedPackIDs: ids)
+    }
+
+    private func refreshLayerPreviewConfig(installedPackIDs ids: Set<String>? = nil) async {
+        let packIDs = ids ?? installedPackIDs
+        let packConfig = PackZoneResolver.layerPreviewConfig(installedPackIDs: packIDs)
+        let capsConfig = await Self.capsLockLayerPreviewTargets()
+
         await MainActor.run {
-            installedPackIDs = ids
-            if let preview = PackZoneResolver.layerPreviewConfig(installedPackIDs: ids) {
-                viewModel.layerPreviewActivators = preview.activatorKeyCodes
-                viewModel.layerPreviewTarget = preview.targetLayer
-            } else {
-                viewModel.layerPreviewActivators = []
-                viewModel.layerPreviewTarget = ""
-            }
+            var merged = packConfig?.targets ?? [:]
+            merged.merge(capsConfig) { existing, _ in existing }
+            viewModel.layerPreviewTargets = merged
+            viewModel.layerPreviewActivators = Set(merged.keys)
         }
+    }
+
+    /// Detect whether Caps Lock holds Hyper and there's a hyper-linked layer to preview.
+    /// Returns keyCode 57 (caps) → target layer name, or empty dict.
+    private static func capsLockLayerPreviewTargets() async -> [UInt16: String] {
+        let collections = await RuleCollectionStore.shared.loadCollections()
+
+        let capsHoldsHyper = collections.contains { collection in
+            guard collection.isEnabled, collection.id == RuleCollectionIdentifier.capsLockRemap else { return false }
+            guard let config = collection.configuration.tapHoldPickerConfig else { return false }
+            return config.selectedHoldOutput?.lowercased() == "hyper"
+        }
+        guard capsHoldsHyper else { return [:] }
+
+        // Find the first enabled hyper-linked layer (momentaryActivator.input == "hyper")
+        guard let targetLayer = collections.first(where: { collection in
+            guard collection.isEnabled, let activator = collection.momentaryActivator else { return false }
+            return activator.input.lowercased() == "hyper"
+        })?.momentaryActivator?.targetLayer.kanataName else {
+            return [:]
+        }
+
+        return [57: targetLayer]
     }
 
     private func copyValidationErrorsToClipboard() {
@@ -427,6 +455,11 @@ struct LiveKeyboardOverlayView: View {
             Task {
                 await refreshKindaVimPackInstalled()
                 await refreshInstalledPackIDs()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ruleCollectionsChanged)) { _ in
+            Task {
+                await refreshLayerPreviewConfig()
             }
         }
         .windowAnchoredPopoverHost()
