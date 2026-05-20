@@ -300,7 +300,8 @@ final class VallackOverlayZoneTests: XCTestCase {
         )
         XCTAssertNotNil(config)
         XCTAssertEqual(config?.activatorKeyCodes, Set<UInt16>([3, 38]))
-        XCTAssertEqual(config?.targetLayer, "vallack-nav")
+        XCTAssertEqual(config?.targets[3], "vallack-nav")
+        XCTAssertEqual(config?.targets[38], "vallack-nav")
     }
 
     func testLayerPreviewConfigReturnsNilWithoutPack() {

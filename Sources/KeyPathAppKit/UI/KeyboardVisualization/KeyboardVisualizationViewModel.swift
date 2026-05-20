@@ -60,14 +60,16 @@ class KeyboardVisualizationViewModel {
 
     // MARK: - Layer Preview (System Pack Activators)
 
-    /// Key codes that trigger a layer preview on hold (e.g., F/J for Vallack nav)
+    /// Key codes that trigger a layer preview on hold (e.g., F/J for Vallack nav, Caps Lock for hyper layer)
     var layerPreviewActivators: Set<UInt16> = []
-    /// Layer name to preview when an activator is held
-    var layerPreviewTarget: String = ""
+    /// Per-key target layers: keyCode -> layer name to preview when that key is held
+    var layerPreviewTargets: [UInt16: String] = [:]
     /// Delayed task for activating the layer preview
     @ObservationIgnored var layerPreviewTask: Task<Void, Never>?
     /// Whether we're currently showing a layer preview (not a real kanata layer change)
     @ObservationIgnored var isShowingLayerPreview: Bool = false
+    /// The target layer of the currently active preview (for confirmation matching)
+    @ObservationIgnored var currentPreviewTargetLayer: String = ""
     /// The real layer name before the preview override
     @ObservationIgnored var prePreviewLayerName: String = "base"
 

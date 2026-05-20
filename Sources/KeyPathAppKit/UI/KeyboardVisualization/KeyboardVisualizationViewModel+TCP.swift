@@ -315,8 +315,9 @@ extension KeyboardVisualizationViewModel {
             AppLogger.shared.info("🗂️ [KeyboardViz] Layer push message: '\(layerName)'")
             if isShowingLayerPreview {
                 prePreviewLayerName = layerName
-                if layerName.lowercased() != layerPreviewTarget.lowercased() {
+                if layerName.lowercased() != currentPreviewTargetLayer.lowercased() {
                     isShowingLayerPreview = false
+                    currentPreviewTargetLayer = ""
                     layerPreviewTask?.cancel()
                     layerPreviewTask = nil
                     AppLogger.shared.debug("🗂️ [KeyboardViz] Preview ended — kanata switched to '\(layerName)'")
@@ -637,7 +638,8 @@ extension KeyboardVisualizationViewModel {
 
     private func startLayerPreviewIfActivator(_ keyCode: UInt16) {
         guard layerPreviewActivators.contains(keyCode),
-              !layerPreviewTarget.isEmpty,
+              let targetLayer = layerPreviewTargets[keyCode],
+              !targetLayer.isEmpty,
               !isShowingLayerPreview,
               layerPreviewTask == nil
         else { return }
@@ -649,7 +651,8 @@ extension KeyboardVisualizationViewModel {
             guard self.pressedKeyCodes.contains(keyCode) else { return }
             self.prePreviewLayerName = self.currentLayerName
             self.isShowingLayerPreview = true
-            self.updateLayer(self.layerPreviewTarget)
+            self.currentPreviewTargetLayer = targetLayer
+            self.updateLayer(targetLayer)
         }
     }
 
@@ -661,6 +664,7 @@ extension KeyboardVisualizationViewModel {
 
         if isShowingLayerPreview {
             isShowingLayerPreview = false
+            currentPreviewTargetLayer = ""
             updateLayer(prePreviewLayerName)
         }
     }
