@@ -439,7 +439,11 @@ struct RulesTabView: View {
         var map: [UUID: String] = [:]
         for collection in allCollections {
             if let owner = await InstalledPackTracker.shared.packManagingCollection(collection.id) {
-                map[collection.id] = owner.packName
+                let pack = PackRegistry.pack(id: owner.packID)
+                let isSelfManaged = pack?.associatedCollectionID == collection.id
+                if !isSelfManaged {
+                    map[collection.id] = owner.packName
+                }
             }
         }
         collectionOwnershipMap = map
