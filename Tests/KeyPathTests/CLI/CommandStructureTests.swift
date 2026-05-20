@@ -67,7 +67,7 @@ final class CommandStructureTests: XCTestCase {
 
     func testCompletionsHasShells() {
         let names = subcommandNames(of: Completions.self)
-        XCTAssertEqual(Set(names), ["zsh", "bash", "fish", "install"])
+        XCTAssertEqual(Set(names), ["zsh", "bash", "fish", "install", "install-man"])
     }
 
     // MARK: - Helpers
