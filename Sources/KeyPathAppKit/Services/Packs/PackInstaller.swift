@@ -331,6 +331,66 @@ public final class PackInstaller {
         return rec?.quickSettingValues ?? [:]
     }
 
+    /// Update quick settings on an already-installed pack. Re-applies the
+    /// settings to the underlying config/rules and persists the new values.
+    ///
+    /// For **rule-based packs**: removes old CustomRules and re-renders with new settings.
+    /// For **collection-backed packs**: updates the collection's timing config directly.
+    func updateQuickSettings(
+        packID: String,
+        newValues: [String: Int],
+        manager: RuleCollectionsManager
+    ) async throws {
+        guard let pack = PackRegistry.pack(id: packID) else {
+            throw InstallError.saveFailed("pack not found in registry: \(packID)")
+        }
+        guard var record = await InstalledPackTracker.shared.record(for: packID) else {
+            throw InstallError.saveFailed("pack is not installed: \(packID)")
+        }
+
+        // Merge new values into existing settings
+        var mergedSettings = record.quickSettingValues
+        for (key, value) in newValues {
+            mergedSettings[key] = value
+        }
+
+        // Clamp to valid ranges
+        let resolved = resolveQuickSettings(pack: pack, overrides: mergedSettings)
+
+        if let collectionID = pack.associatedCollectionID {
+            // Collection-backed pack: update timing config
+            if let holdTimeout = resolved["holdTimeout"],
+               let index = manager.ruleCollections.firstIndex(where: { $0.id == collectionID })
+            {
+                if case .homeRowMods(var config) = manager.ruleCollections[index].configuration {
+                    config.timing.tapWindow = holdTimeout
+                    config.timing.holdDelay = holdTimeout
+                    manager.ruleCollections[index].configuration = .homeRowMods(config)
+                    await manager.regenerateConfigFromCollections()
+                }
+            }
+        } else if !pack.bindings.isEmpty {
+            // Rule-based pack: re-render bindings with new settings
+            let oldRules = await manager.snapshotCurrentRules().filter { $0.packSource == packID }
+            for rule in oldRules {
+                await manager.removeCustomRule(id: rule.id)
+            }
+            let newRules = renderBindings(for: pack, quickSettings: resolved)
+            for (index, rule) in newRules.enumerated() {
+                let isLast = (index == newRules.count - 1)
+                _ = await manager.saveCustomRule(rule, skipReload: !isLast)
+            }
+        }
+
+        // Persist updated record
+        record.quickSettingValues = resolved
+        try await InstalledPackTracker.shared.upsert(record)
+
+        AppLogger.shared.log(
+            "✅ [PackInstaller] Updated quick settings for '\(pack.name)': \(resolved)"
+        )
+    }
+
     // MARK: - Rendering
 
     /// Convert a pack's binding templates into concrete CustomRules tagged

@@ -1403,6 +1403,77 @@ extension CLIFacade {
         )
     }
 
+    /// Update quick settings on an installed pack.
+    @MainActor
+    public func configurePack(
+        nameOrId: String,
+        settingValues: [String: Int],
+        dryRun: Bool = false
+    ) async throws -> CLIPackInstallResult {
+        guard let pack = try resolvePack(nameOrId: nameOrId) else {
+            throw CLIPackNotFound(query: nameOrId)
+        }
+
+        let isInstalled = await InstalledPackTracker.shared.isInstalled(packID: pack.id)
+        guard isInstalled else {
+            return CLIPackInstallResult(
+                packID: pack.id,
+                packName: pack.name,
+                action: "not-installed",
+                warnings: ["Pack must be installed before configuring settings."],
+                quickSettingValues: [:]
+            )
+        }
+
+        guard !pack.quickSettings.isEmpty else {
+            throw CLIPackSettingError(
+                packName: pack.name,
+                settingKey: settingValues.keys.first ?? "",
+                validKeys: []
+            )
+        }
+
+        for key in settingValues.keys {
+            guard pack.quickSettings.contains(where: { $0.id == key }) else {
+                throw CLIPackSettingError(
+                    packName: pack.name,
+                    settingKey: key,
+                    validKeys: pack.quickSettings.map(\.id)
+                )
+            }
+        }
+
+        if dryRun {
+            let current = await PackInstaller.shared.quickSettings(for: pack.id)
+            var merged = current
+            for (k, v) in settingValues { merged[k] = v }
+            return CLIPackInstallResult(
+                packID: pack.id,
+                packName: pack.name,
+                action: "would-configure",
+                warnings: [],
+                quickSettingValues: merged
+            )
+        }
+
+        let manager = await makePackManager()
+        try await PackInstaller.shared.updateQuickSettings(
+            packID: pack.id,
+            newValues: settingValues,
+            manager: manager
+        )
+
+        let updatedSettings = await PackInstaller.shared.quickSettings(for: pack.id)
+
+        return CLIPackInstallResult(
+            packID: pack.id,
+            packName: pack.name,
+            action: "configured",
+            warnings: [],
+            quickSettingValues: updatedSettings
+        )
+    }
+
     // MARK: - Pack Name Resolution
 
     /// Resolve a pack by ID, slug, name, or substring. Returns nil if not found.

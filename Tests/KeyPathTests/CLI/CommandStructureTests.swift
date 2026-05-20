@@ -42,7 +42,7 @@ final class CommandStructureTests: XCTestCase {
 
     func testPackHasExpectedVerbs() {
         let names = subcommandNames(of: Pack.self)
-        XCTAssertEqual(Set(names), ["list", "show", "install", "uninstall"])
+        XCTAssertEqual(Set(names), ["list", "show", "install", "uninstall", "configure"])
     }
 
     func testServiceHasExpectedVerbs() {
@@ -67,7 +67,7 @@ final class CommandStructureTests: XCTestCase {
 
     func testCompletionsHasShells() {
         let names = subcommandNames(of: Completions.self)
-        XCTAssertEqual(Set(names), ["zsh", "bash", "fish"])
+        XCTAssertEqual(Set(names), ["zsh", "bash", "fish", "install"])
     }
 
     // MARK: - Helpers
