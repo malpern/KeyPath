@@ -19,6 +19,7 @@ struct AIKeyRequiredDialog: View {
     @State private var isValidating: Bool = false
     @State private var validationError: String?
     @State private var dontShowAgain: Bool = false
+    @FocusState private var isKeyFieldFocused: Bool
 
     /// UserDefaults key to track if user dismissed dialog
     static let dismissedKey = "KeyPath.AI.KeyDialogDismissed"
@@ -42,6 +43,7 @@ struct AIKeyRequiredDialog: View {
         }
         .frame(width: 480, height: 520)
         .background(Color(NSColor.windowBackgroundColor))
+        .onAppear { isKeyFieldFocused = true }
         .overlay(alignment: .topTrailing) {
             Button(action: handleDismiss) {
                 Image(systemName: "xmark.circle.fill")
@@ -171,6 +173,7 @@ struct AIKeyRequiredDialog: View {
                 SecureField("sk-ant-...", text: $apiKeyInput)
                     .textFieldStyle(.roundedBorder)
                     .disabled(isValidating)
+                    .focused($isKeyFieldFocused)
                     .accessibilityIdentifier("ai-key-dialog-api-key-field")
 
                 if isValidating {
@@ -244,6 +247,7 @@ struct AIKeyRequiredDialog: View {
                     handleDismiss()
                 }
                 .buttonStyle(.bordered)
+                .keyboardShortcut(.cancelAction)
                 .accessibilityIdentifier("ai-key-dialog-cancel-button")
 
                 Button("Save & Continue") {
@@ -252,6 +256,7 @@ struct AIKeyRequiredDialog: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
                 .disabled(apiKeyInput.isEmpty || isValidating)
                 .accessibilityIdentifier("ai-key-dialog-save-button")
             }

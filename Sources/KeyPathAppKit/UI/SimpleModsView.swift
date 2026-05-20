@@ -614,10 +614,12 @@ private struct ConflictMappingDialog: View {
             HStack(spacing: 12) {
                 Button("Replace with New", role: .destructive) { onReplace() }
                     .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
                     .accessibilityIdentifier("simple-mods-conflict-replace-button")
                     .accessibilityLabel("Replace with New")
                 Button("Keep Existing") { onKeep() }
                     .buttonStyle(.bordered)
+                    .keyboardShortcut(.cancelAction)
                     .accessibilityIdentifier("simple-mods-conflict-keep-button")
                     .accessibilityLabel("Keep Existing")
             }

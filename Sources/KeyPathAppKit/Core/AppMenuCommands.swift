@@ -194,6 +194,24 @@ struct AppMenuCommands: Commands {
             .hidden() // Hide from menu but keep keyboard shortcut active
         }
 
+        // View menu — exposes global hotkeys for discoverability
+        CommandMenu("View") {
+            Button("Toggle Overlay") {
+                LiveKeyboardOverlayController.shared.toggle()
+            }
+            .keyboardShortcut("k", modifiers: [.option, .command])
+
+            Button("Center Overlay") {
+                NotificationCenter.default.post(name: NSNotification.Name("ResetOverlayPosition"), object: nil)
+            }
+            .keyboardShortcut("l", modifiers: [.option, .command])
+
+            Button("Toggle Inspector") {
+                NotificationCenter.default.post(name: NSNotification.Name("ToggleInspectorDrawer"), object: nil)
+            }
+            .keyboardShortcut("d", modifiers: [.option, .command])
+        }
+
         // Help menu -- single entry opens navigable help browser
         CommandGroup(replacing: .help) {
             Button("KeyPath Help") {
