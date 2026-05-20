@@ -141,6 +141,28 @@ public struct CLIFacade: Sendable {
         return true
     }
 
+    /// Enable a rule by input key. Returns the rule's display title, or nil if not found.
+    public func enableRule(input: String) async throws -> String? {
+        var rules = await CustomRulesStore.shared.loadRules()
+        guard let index = rules.firstIndex(where: { $0.input.caseInsensitiveCompare(input) == .orderedSame }) else {
+            return nil
+        }
+        rules[index].isEnabled = true
+        try await CustomRulesStore.shared.saveRules(rules)
+        return rules[index].displayTitle
+    }
+
+    /// Disable a rule by input key. Returns the rule's display title, or nil if not found.
+    public func disableRule(input: String) async throws -> String? {
+        var rules = await CustomRulesStore.shared.loadRules()
+        guard let index = rules.firstIndex(where: { $0.input.caseInsensitiveCompare(input) == .orderedSame }) else {
+            return nil
+        }
+        rules[index].isEnabled = false
+        try await CustomRulesStore.shared.saveRules(rules)
+        return rules[index].displayTitle
+    }
+
     private static func parseLayer(_ name: String) -> RuleCollectionLayer {
         switch name.lowercased() {
         case "base": .base

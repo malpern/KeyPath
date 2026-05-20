@@ -10,6 +10,7 @@ struct Completions: ParsableCommand {
             Bash.self,
             Fish.self,
             Install.self,
+            InstallMan.self,
         ]
     )
 
@@ -43,6 +44,67 @@ struct Completions: ParsableCommand {
         mutating func run() throws {
             let script = KeyPathCLI.completionScript(for: .fish)
             print(script)
+        }
+    }
+
+    struct InstallMan: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "install-man",
+            abstract: "Install man pages for keypath"
+        )
+
+        mutating func run() throws {
+            let manDir = NSString("~/.local/share/man/man1").expandingTildeInPath
+
+            // Find man pages source: check app bundle, then common install locations
+            let candidates = [
+                "/Applications/KeyPath.app/Contents/Resources/man",
+                NSString("~/Applications/KeyPath.app/Contents/Resources/man").expandingTildeInPath,
+                // Development: relative to binary
+                Bundle.main.bundlePath + "/../share/man/man1",
+            ]
+
+            var sourceDir: String?
+            for candidate in candidates {
+                let mainPage = (candidate as NSString).appendingPathComponent("keypath.1")
+                if FileManager.default.fileExists(atPath: mainPage) {
+                    sourceDir = candidate
+                    break
+                }
+            }
+
+            guard let source = sourceDir else {
+                print("Man pages not found. They ship with KeyPath.app.")
+                print("")
+                print("If you installed from source, generate them with:")
+                print("  swift package plugin --allow-writing-to-directory docs/man generate-manual --multi-page --output-directory docs/man")
+                print("")
+                print("Then copy to your man path:")
+                print("  mkdir -p \(manDir)")
+                print("  cp docs/man/*.1 \(manDir)/")
+                return
+            }
+
+            try FileManager.default.createDirectory(
+                atPath: manDir,
+                withIntermediateDirectories: true
+            )
+
+            let fm = FileManager.default
+            let pages = try fm.contentsOfDirectory(atPath: source)
+                .filter { $0.hasSuffix(".1") }
+
+            for page in pages {
+                let src = (source as NSString).appendingPathComponent(page)
+                let dst = (manDir as NSString).appendingPathComponent(page)
+                if fm.fileExists(atPath: dst) {
+                    try fm.removeItem(atPath: dst)
+                }
+                try fm.copyItem(atPath: src, toPath: dst)
+            }
+
+            print("Installed \(pages.count) man page(s) to \(manDir)")
+            print("Try: man keypath")
         }
     }
 
@@ -83,12 +145,10 @@ struct Completions: ParsableCommand {
             print("Installed \(shellName) completions to \(path)")
 
             if shellName == "zsh" {
-                let completionsDir = NSString("~/.zsh/completions").expandingTildeInPath
                 print("")
                 print("If completions don't work, ensure this is in your ~/.zshrc:")
                 print("  fpath=(~/.zsh/completions $fpath)")
                 print("  autoload -Uz compinit && compinit")
-                let _ = completionsDir
             }
         }
 

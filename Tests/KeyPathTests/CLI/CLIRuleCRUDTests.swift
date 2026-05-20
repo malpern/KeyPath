@@ -236,4 +236,67 @@ final class CLIRuleCRUDTests: XCTestCase {
         let removed = try await facade.removeRemap(input: "nonexistent")
         XCTAssertFalse(removed)
     }
+
+    // MARK: - enableRule / disableRule
+
+    func testEnableRule() async throws {
+        _ = try await facade.addRule(input: "caps", action: .keystroke(key: "esc"))
+        // Disable first
+        let disabledTitle = try await facade.disableRule(input: "caps")
+        XCTAssertNotNil(disabledTitle)
+
+        let rule = await facade.showRule(input: "caps")
+        XCTAssertFalse(rule!.isEnabled)
+
+        // Re-enable
+        let enabledTitle = try await facade.enableRule(input: "caps")
+        XCTAssertNotNil(enabledTitle)
+
+        let reEnabled = await facade.showRule(input: "caps")
+        XCTAssertTrue(reEnabled!.isEnabled)
+    }
+
+    func testDisableRule() async throws {
+        _ = try await facade.addRule(input: "a", action: .keystroke(key: "b"))
+        let title = try await facade.disableRule(input: "a")
+        XCTAssertNotNil(title)
+
+        let rule = await facade.showRule(input: "a")
+        XCTAssertFalse(rule!.isEnabled)
+    }
+
+    func testEnableRuleNotFoundReturnsNil() async throws {
+        let result = try await facade.enableRule(input: "nonexistent")
+        XCTAssertNil(result)
+    }
+
+    func testDisableRuleNotFoundReturnsNil() async throws {
+        let result = try await facade.disableRule(input: "nonexistent")
+        XCTAssertNil(result)
+    }
+
+    func testDisableRuleExcludedFromEnabledOnlyList() async throws {
+        _ = try await facade.addRule(input: "a", action: .keystroke(key: "b"))
+        _ = try await facade.addRule(input: "s", action: .keystroke(key: "d"))
+        _ = try await facade.disableRule(input: "a")
+
+        let all = await facade.listRules()
+        XCTAssertEqual(all.count, 2)
+
+        let enabled = await facade.listRules(enabledOnly: true)
+        XCTAssertEqual(enabled.count, 1)
+        XCTAssertEqual(enabled.first?.input, "s")
+    }
+
+    // MARK: - loadCustomRules
+
+    func testLoadCustomRules() async throws {
+        _ = try await facade.addRule(input: "caps", action: .keystroke(key: "esc"))
+        _ = try await facade.addRule(input: "a", action: .keystroke(key: "b"))
+
+        let rules = await facade.loadCustomRules()
+        XCTAssertEqual(rules.count, 2)
+        XCTAssertTrue(rules.contains(where: { $0.input == "caps" && $0.output == "esc" }))
+        XCTAssertTrue(rules.contains(where: { $0.input == "a" && $0.output == "b" }))
+    }
 }
