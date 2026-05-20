@@ -12,10 +12,17 @@ struct ConfigApply: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        CLIOutput.progress("Applying configuration...", context: ctx)
+        let spinner = CLISpinner(context: ctx)
+        spinner.start("Applying configuration...")
 
         let facade = await MainActor.run { CLIFacade() }
         let result = try await facade.applyConfiguration()
+
+        if result.reloadSuccess {
+            spinner.succeed("Configuration applied")
+        } else {
+            spinner.fail("Config written but Kanata reload failed")
+        }
 
         CLIOutput.write(result, context: ctx) {
             var lines = [

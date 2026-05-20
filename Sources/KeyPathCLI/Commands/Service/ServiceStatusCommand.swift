@@ -37,6 +37,17 @@ struct ServiceStatus: AsyncParsableCommand {
             formatHumanReadable(status, noColor: ctx.noColor)
         }
 
+        if ctx.isInteractive, !ctx.shouldOutputJSON {
+            if let newVersion = await UpdateChecker.checkOnce() {
+                let nudge = ANSIColor.yellow(
+                    "Update available: v\(newVersion) — brew upgrade keypath",
+                    noColor: ctx.noColor
+                )
+                printErr("")
+                printErr(nudge)
+            }
+        }
+
         if !status.isOperational {
             throw ExitCode.failure
         }
