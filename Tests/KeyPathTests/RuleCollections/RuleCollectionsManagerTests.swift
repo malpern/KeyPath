@@ -754,4 +754,71 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertEqual(manager.ruleCollections.count, 1)
         XCTAssertTrue(manager.ruleCollections.contains { $0.name == "Vim" })
     }
+
+    // MARK: - Pack Reconciliation Tests
+
+    @MainActor
+    func testBootstrapReconcilesPacks_ReEnablesDisabledCollections() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let (manager, tempDir) = try await createTestManager()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        // Simulate: caps-lock-to-escape pack is installed (it manages capsLockRemap collection)
+        let record = InstalledPackRecord(
+            packID: "com.keypath.pack.caps-lock-to-escape",
+            version: "1.0.0"
+        )
+        try await InstalledPackTracker.shared.upsert(record)
+        defer { Task { try? await InstalledPackTracker.shared.remove(packID: record.packID) } }
+
+        // Save all collections with everything disabled (simulates post-reset state)
+        var allDisabled = RuleCollectionCatalog().defaultCollections()
+        for i in allDisabled.indices {
+            allDisabled[i].isEnabled = false
+        }
+        try await manager.ruleCollectionStore.saveCollections(allDisabled)
+
+        // Bootstrap should reconcile: re-enable capsLockRemap because the pack is installed
+        await manager.bootstrap()
+
+        let capsCollection = manager.ruleCollections.first {
+            $0.id == RuleCollectionIdentifier.capsLockRemap
+        }
+        XCTAssertNotNil(capsCollection)
+        XCTAssertTrue(
+            capsCollection?.isEnabled == true,
+            "Caps Lock Remap should be re-enabled by reconciliation because its pack is installed"
+        )
+    }
+
+    @MainActor
+    func testBootstrapReconciliation_DoesNotEnableUninstalledPacks() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let (manager, tempDir) = try await createTestManager()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        // Ensure no packs are installed for this collection
+        try? await InstalledPackTracker.shared.remove(packID: "com.keypath.pack.vim-navigation")
+
+        // Save all collections disabled
+        var allDisabled = RuleCollectionCatalog().defaultCollections()
+        for i in allDisabled.indices {
+            allDisabled[i].isEnabled = false
+        }
+        try await manager.ruleCollectionStore.saveCollections(allDisabled)
+
+        await manager.bootstrap()
+
+        let vimCollection = manager.ruleCollections.first {
+            $0.id == RuleCollectionIdentifier.vimNavigation
+        }
+        XCTAssertFalse(
+            vimCollection?.isEnabled == true,
+            "Vim Navigation should remain disabled when its pack is not installed"
+        )
+    }
 }

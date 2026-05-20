@@ -139,7 +139,7 @@ class ConfigFileWatcher: @unchecked Sendable {
             queue: queue
         )
 
-        let source = fileMonitorSource!
+        guard let source = fileMonitorSource else { return }
         source.setEventHandler { [weak self] in
             let flags = DispatchSource.FileSystemEvent(rawValue: source.data)
             AppLogger.shared.log("📁 [FileWatcher] File system event received - flags: \(flags)")
