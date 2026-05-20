@@ -9,6 +9,8 @@ struct Rule: AsyncParsableCommand {
             RuleAdd.self,
             RuleRemove.self,
             RuleShow.self,
+            RuleEnable.self,
+            RuleDisable.self,
         ]
     )
 }

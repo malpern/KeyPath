@@ -286,6 +286,107 @@ final class CLIOutputSnapshotTests: XCTestCase {
         XCTAssertEqual(dict["title"] as? String, "Caps to Escape")
     }
 
+    // MARK: - CLIPack
+
+    func testPackSnapshot() throws {
+        let value = CLIPack(
+            id: "com.keypath.pack.vim-navigation",
+            name: "Vim Navigation",
+            version: "1.0.0",
+            category: "Navigation",
+            tagline: "Hold Space for hjkl arrows",
+            isInstalled: true,
+            installedAt: fixedDate
+        )
+        try assertSnapshot(value, expected: """
+        {
+          "category" : "Navigation",
+          "id" : "com.keypath.pack.vim-navigation",
+          "installedAt" : "2026-01-01T00:00:00Z",
+          "isInstalled" : true,
+          "name" : "Vim Navigation",
+          "tagline" : "Hold Space for hjkl arrows",
+          "version" : "1.0.0"
+        }
+        """)
+    }
+
+    func testPackInstallResultSnapshot() throws {
+        let value = CLIPackInstallResult(
+            packID: "com.keypath.pack.home-row-mods",
+            packName: "Home Row Mods",
+            action: "installed",
+            warnings: ["Enhanced by 'Vim Navigation' — install it for best results"],
+            quickSettingValues: ["holdTimeout": 200]
+        )
+        try assertSnapshot(value, expected: """
+        {
+          "action" : "installed",
+          "packID" : "com.keypath.pack.home-row-mods",
+          "packName" : "Home Row Mods",
+          "quickSettingValues" : {
+            "holdTimeout" : 200
+          },
+          "warnings" : [
+            "Enhanced by 'Vim Navigation' — install it for best results"
+          ]
+        }
+        """)
+    }
+
+    func testPackBindingSnapshot() throws {
+        let value = CLIPackBinding(
+            input: "a",
+            output: "a",
+            holdOutput: "lctl"
+        )
+        try assertSnapshot(value, expected: """
+        {
+          "holdOutput" : "lctl",
+          "input" : "a",
+          "output" : "a"
+        }
+        """)
+    }
+
+    func testPackQuickSettingSnapshot() throws {
+        let value = CLIPackQuickSetting(
+            from: PackQuickSetting(
+                id: "holdTimeout",
+                label: "Hold timing",
+                kind: .slider(defaultValue: 180, min: 120, max: 300, step: 20, unitSuffix: " ms")
+            )
+        )
+        try assertSnapshot(value, expected: """
+        {
+          "defaultValue" : 180,
+          "id" : "holdTimeout",
+          "label" : "Hold timing",
+          "max" : 300,
+          "min" : 120,
+          "step" : 20,
+          "unitSuffix" : " ms"
+        }
+        """)
+    }
+
+    func testPackDepSnapshot() throws {
+        let value = CLIPackDep(
+            from: PackDependency(
+                packID: "com.keypath.pack.vim-navigation",
+                kind: .requires,
+                description: "Requires Vim Navigation for arrow keys"
+            )
+        )
+        try assertSnapshot(value, expected: """
+        {
+          "description" : "Requires Vim Navigation for arrow keys",
+          "kind" : "requires",
+          "packID" : "com.keypath.pack.vim-navigation"
+        }
+        """)
+    }
+
     // MARK: - Helpers
 
     private func encode<T: Encodable>(_ value: T) throws -> String {
