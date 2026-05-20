@@ -21,10 +21,13 @@ extension KeyboardVisualizationViewModel {
     /// Update the current layer and rebuild key mapping
     func updateLayer(_ layerName: String) {
         let wasLauncherMode = isLauncherModeActive
-
-        // IMPORTANT: Don't update currentLayerName yet - wait until mapping is ready
-        // This prevents UI flash where old mapping shows with new layer name
         let targetLayerName = layerName
+
+        // Set layer name immediately so computed properties (isLauncherModeActive,
+        // layer indicators) update without waiting for the async mapping rebuild.
+        // The key map refreshes in the background — a brief stale-label window is
+        // far less noticeable than a 500ms+ frozen overlay.
+        currentLayerName = targetLayerName
 
         // Clear tap-hold sources on layer change to prevent stale suppressions
         // (e.g., user switches layers while holding a tap-hold key)
@@ -57,7 +60,7 @@ extension KeyboardVisualizationViewModel {
         noteInteraction()
         noteTcpEventReceived()
 
-        // Build mapping first, then update layer name atomically when ready
+        // Rebuild the detailed key map in the background
         rebuildLayerMappingForLayer(targetLayerName)
     }
 
@@ -218,8 +221,8 @@ extension KeyboardVisualizationViewModel {
                 // Enrich mapping with custom shift labels from custom rules
                 mapping = enrichWithCustomShiftLabels(mapping: mapping, customRules: customRules)
 
-                // Update layer name and mapping atomically to prevent UI flash
-                // This ensures the UI never shows mismatched layer name + old mapping
+                // Update mapping (layer name was already set eagerly in updateLayer;
+                // re-assign here for the rebuildLayerMapping() path from setLayout)
                 await MainActor.run {
                     self.currentLayerName = targetLayerName
                     self.layerKeyMap = mapping
