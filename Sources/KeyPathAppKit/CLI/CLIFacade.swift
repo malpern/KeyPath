@@ -626,11 +626,29 @@ public struct CLIFacade: Sendable {
     public func validateConfig() async -> CLIValidationResult {
         let service = ConfigurationService()
         let config = await service.current()
+        let path = service.configurationPath
+        let collections = await RuleCollectionStore.shared.loadCollections()
+        let customRules = await CustomRulesStore.shared.loadRules()
+
         if config.content.isEmpty {
-            return CLIValidationResult(isValid: false, errors: ["No configuration generated yet. Run 'keypath apply' first."])
+            return CLIValidationResult(
+                isValid: false,
+                errors: ["No configuration generated yet. Run 'keypath config apply' first."],
+                configPath: path,
+                configBytes: 0,
+                collectionsCount: collections.count,
+                customRulesCount: customRules.count
+            )
         }
         let result = await service.validateConfiguration(config.content)
-        return CLIValidationResult(isValid: result.isValid, errors: result.errors)
+        return CLIValidationResult(
+            isValid: result.isValid,
+            errors: result.errors,
+            configPath: path,
+            configBytes: config.content.utf8.count,
+            collectionsCount: collections.count,
+            customRulesCount: customRules.count
+        )
     }
 
     // MARK: - Apply Pipeline
@@ -655,11 +673,18 @@ public struct CLIFacade: Sendable {
             false
         }
 
+        let changeset = CLIApplyChangeset(
+            enabledCollections: collections.filter(\.isEnabled).map(\.name),
+            disabledCollections: collections.filter { !$0.isEnabled }.map(\.name),
+            customRules: customRules.filter(\.isEnabled).map { "\($0.input) → \($0.action.outputString)" }
+        )
+
         return CLIApplyResult(
             collectionsCount: collections.count,
             enabledCount: enabledCount,
             customRulesCount: customRules.count,
-            reloadSuccess: reloadSuccess
+            reloadSuccess: reloadSuccess,
+            changeset: changeset
         )
     }
 
@@ -927,6 +952,13 @@ public struct CLIApplyResult: Codable, Sendable {
     public let enabledCount: Int
     public let customRulesCount: Int
     public let reloadSuccess: Bool
+    public let changeset: CLIApplyChangeset?
+}
+
+public struct CLIApplyChangeset: Codable, Sendable {
+    public let enabledCollections: [String]
+    public let disabledCollections: [String]
+    public let customRules: [String]
 }
 
 public struct CLIHrmStats: Codable, Sendable {
@@ -959,6 +991,19 @@ public struct CLIStatusResult: Codable, Sendable {
 public struct CLIValidationResult: Codable, Sendable {
     public let isValid: Bool
     public let errors: [String]
+    public let configPath: String?
+    public let configBytes: Int?
+    public let collectionsCount: Int?
+    public let customRulesCount: Int?
+
+    public init(isValid: Bool, errors: [String], configPath: String? = nil, configBytes: Int? = nil, collectionsCount: Int? = nil, customRulesCount: Int? = nil) {
+        self.isValid = isValid
+        self.errors = errors
+        self.configPath = configPath
+        self.configBytes = configBytes
+        self.collectionsCount = collectionsCount
+        self.customRulesCount = customRulesCount
+    }
 }
 
 public struct CLIInstallerReport: Codable, Sendable {

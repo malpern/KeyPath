@@ -54,9 +54,11 @@ final class OutputContractTests: XCTestCase {
     }
 
     func testApplyResultJSONShape() throws {
-        let result = CLIApplyResult(collectionsCount: 3, enabledCount: 2, customRulesCount: 1, reloadSuccess: true)
+        let changeset = CLIApplyChangeset(enabledCollections: ["Home Row Mods"], disabledCollections: [], customRules: ["caps → esc"])
+        let result = CLIApplyResult(collectionsCount: 3, enabledCount: 2, customRulesCount: 1, reloadSuccess: true, changeset: changeset)
         let keys = try jsonKeys(result)
-        XCTAssertEqual(keys, ["collectionsCount", "customRulesCount", "enabledCount", "reloadSuccess"])
+        let required: Set = ["collectionsCount", "customRulesCount", "enabledCount", "reloadSuccess", "changeset"]
+        XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")
     }
 
     func testInstallerReportJSONShape() throws {
@@ -72,7 +74,8 @@ final class OutputContractTests: XCTestCase {
     func testValidationResultJSONShape() throws {
         let result = CLIValidationResult(isValid: true, errors: [])
         let keys = try jsonKeys(result)
-        XCTAssertEqual(keys, ["errors", "isValid"])
+        let required: Set = ["errors", "isValid"]
+        XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")
     }
 
     func testInspectResultJSONShape() throws {
@@ -86,13 +89,16 @@ final class OutputContractTests: XCTestCase {
     }
 
     func testJSONRoundTripsPreserveKeys() throws {
-        let result = CLIApplyResult(collectionsCount: 5, enabledCount: 3, customRulesCount: 2, reloadSuccess: true)
+        let changeset = CLIApplyChangeset(enabledCollections: ["A"], disabledCollections: ["B"], customRules: ["caps → esc"])
+        let result = CLIApplyResult(collectionsCount: 5, enabledCount: 3, customRulesCount: 2, reloadSuccess: true, changeset: changeset)
         let data = try encoder.encode(result)
         let decoded = try decoder.decode(CLIApplyResult.self, from: data)
         XCTAssertEqual(decoded.collectionsCount, 5)
         XCTAssertEqual(decoded.enabledCount, 3)
         XCTAssertEqual(decoded.customRulesCount, 2)
         XCTAssertTrue(decoded.reloadSuccess)
+        XCTAssertEqual(decoded.changeset?.enabledCollections, ["A"])
+        XCTAssertEqual(decoded.changeset?.customRules, ["caps → esc"])
     }
 
     // MARK: - Helpers

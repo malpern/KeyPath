@@ -42,13 +42,30 @@ keypath rule remove <input> --apply # Remove and reload
 keypath rule enable <input> --apply # Enable a disabled rule
 keypath rule disable <input>        # Disable without removing
 keypath rule show <input> --json    # Show rule details
+keypath rule ensure <input> <output> [--hold <hold>] --apply  # Idempotent: create or no-op
+keypath rule ensure --from-file rules.json --apply  # Batch: ensure multiple rules atomically
 ```
+
+### Batch Ensure (Preferred for Agents)
+Create a JSON file with an array of rule specs, then apply all at once:
+```json
+[
+  {"input": "caps", "output": "esc"},
+  {"input": "a", "output": "a", "hold": "lctl", "timeout": 200},
+  {"input": "s", "output": "s", "hold": "lalt", "timeout": 200}
+]
+```
+```bash
+keypath rule ensure --from-file rules.json --apply --json
+```
+Returns `{created, updated, unchanged}` counts plus per-rule actions. Only one config
+regeneration at the end (not N times).
 
 ### Rule Mutations — Canonical Workflow
 After any rule change, apply and verify:
 ```bash
 keypath rule add caps --action key=esc --on-conflict replace
-keypath config apply --json         # Regenerate config + reload Kanata
+keypath config apply --json         # Returns changeset with all active rules/collections
 keypath service status --json       # Verify system is operational
 ```
 
@@ -84,8 +101,8 @@ keypath layer delete <name>
 ```bash
 keypath config show                 # Show current config file
 keypath config path                 # Print config file path
-keypath config check --json         # Validate config
-keypath config apply --json         # Regenerate + reload
+keypath config check --json         # Validate config (returns configPath, configBytes, error details)
+keypath config apply --json         # Regenerate + reload (returns changeset with active rules/collections)
 ```
 
 ### System Management
