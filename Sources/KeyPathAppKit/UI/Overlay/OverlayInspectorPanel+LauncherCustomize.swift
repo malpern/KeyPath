@@ -151,14 +151,18 @@ extension OverlayInspectorPanel {
         updatedConfig.hasSeenWelcome = true
 
         Task {
-            let collections = await services.ruleCollectionStore.loadCollections()
-            if var launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }) {
-                launcherCollection.configuration = .launcherGrid(updatedConfig)
-                var allCollections = collections
-                if let index = allCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
-                    allCollections[index] = launcherCollection
-                    try? await services.ruleCollectionStore.saveCollections(allCollections)
+            do {
+                let collections = await services.ruleCollectionStore.loadCollections()
+                if var launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }) {
+                    launcherCollection.configuration = .launcherGrid(updatedConfig)
+                    var allCollections = collections
+                    if let index = allCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
+                        allCollections[index] = launcherCollection
+                        try await services.ruleCollectionStore.saveCollections(allCollections)
+                    }
                 }
+            } catch {
+                AppLogger.shared.log("⚠️ [Launcher] Failed to save welcome config: \(error.localizedDescription)")
             }
         }
     }
@@ -210,21 +214,24 @@ extension OverlayInspectorPanel {
     /// Save launcher config to store
     private func saveLauncherConfig() {
         Task {
-            var collections = await services.ruleCollectionStore.loadCollections()
-            if let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
-                var collection = collections[index]
-                if var config = collection.configuration.launcherGridConfig {
-                    config.activationMode = launcherActivationMode
-                    config.hyperTriggerMode = launcherHyperTriggerMode
-                    collection.configuration = .launcherGrid(config)
-                    collections[index] = collection
-                    try? await services.ruleCollectionStore.saveCollections(collections)
-                    // Notify that rules changed so config regenerates
-                    Foundation.NotificationCenter.default.post(
-                        name: Foundation.Notification.Name.ruleCollectionsChanged,
-                        object: nil
-                    )
+            do {
+                var collections = await services.ruleCollectionStore.loadCollections()
+                if let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
+                    var collection = collections[index]
+                    if var config = collection.configuration.launcherGridConfig {
+                        config.activationMode = launcherActivationMode
+                        config.hyperTriggerMode = launcherHyperTriggerMode
+                        collection.configuration = .launcherGrid(config)
+                        collections[index] = collection
+                        try await services.ruleCollectionStore.saveCollections(collections)
+                        Foundation.NotificationCenter.default.post(
+                            name: Foundation.Notification.Name.ruleCollectionsChanged,
+                            object: nil
+                        )
+                    }
                 }
+            } catch {
+                AppLogger.shared.log("⚠️ [Launcher] Failed to save launcher config: \(error.localizedDescription)")
             }
         }
     }
@@ -232,45 +239,47 @@ extension OverlayInspectorPanel {
     /// Add suggested sites from browser history to launcher
     private func addSuggestedSitesToLauncher(_ sites: [BrowserHistoryScanner.VisitedSite]) {
         Task {
-            var collections = await services.ruleCollectionStore.loadCollections()
-            if let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
-                var collection = collections[index]
-                if var config = collection.configuration.launcherGridConfig {
-                    // Get existing keys
-                    var existingKeys = Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) })
-                    let existingDomains = Set(config.mappings.compactMap { mapping in
-                        if case let .openURL(domain) = mapping.action {
-                            return normalizeDomain(domain)
-                        }
-                        return nil
-                    })
+            do {
+                var collections = await services.ruleCollectionStore.loadCollections()
+                if let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
+                    var collection = collections[index]
+                    if var config = collection.configuration.launcherGridConfig {
+                        var existingKeys = Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) })
+                        let existingDomains = Set(config.mappings.compactMap { mapping in
+                            if case let .openURL(domain) = mapping.action {
+                                return normalizeDomain(domain)
+                            }
+                            return nil
+                        })
 
-                    // Add new mappings for each suggested site
-                    for site in sites {
-                        if existingDomains.contains(normalizeDomain(site.domain)) {
-                            continue
-                        }
-                        guard let key = LauncherGridConfig.suggestionKeyOrder.first(where: { !existingKeys.contains($0) }) else {
-                            continue
+                        for site in sites {
+                            if existingDomains.contains(normalizeDomain(site.domain)) {
+                                continue
+                            }
+                            guard let key = LauncherGridConfig.suggestionKeyOrder.first(where: { !existingKeys.contains($0) }) else {
+                                continue
+                            }
+
+                            existingKeys.insert(key)
+
+                            let mapping = LauncherMapping(
+                                key: key,
+                                action: .openURL(site.domain)
+                            )
+                            config.mappings.append(mapping)
                         }
 
-                        existingKeys.insert(key)
-
-                        let mapping = LauncherMapping(
-                            key: key,
-                            action: .openURL(site.domain)
+                        collection.configuration = .launcherGrid(config)
+                        collections[index] = collection
+                        try await services.ruleCollectionStore.saveCollections(collections)
+                        Foundation.NotificationCenter.default.post(
+                            name: Foundation.Notification.Name.ruleCollectionsChanged,
+                            object: nil
                         )
-                        config.mappings.append(mapping)
                     }
-
-                    collection.configuration = .launcherGrid(config)
-                    collections[index] = collection
-                    try? await services.ruleCollectionStore.saveCollections(collections)
-                    Foundation.NotificationCenter.default.post(
-                        name: Foundation.Notification.Name.ruleCollectionsChanged,
-                        object: nil
-                    )
                 }
+            } catch {
+                AppLogger.shared.log("⚠️ [Launcher] Failed to save suggested sites: \(error.localizedDescription)")
             }
         }
     }
