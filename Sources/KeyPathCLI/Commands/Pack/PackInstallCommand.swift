@@ -37,13 +37,27 @@ struct PackInstall: AsyncParsableCommand {
         }
 
         let facade = await MainActor.run { CLIFacade() }
+        let spinner = CLISpinner(context: ctx)
 
         do {
+            if !globals.dryRun {
+                spinner.start("Installing '\(nameOrId)'...")
+            }
+
             let result = try await facade.installPack(
                 nameOrId: nameOrId,
                 settingValues: settingValues,
                 dryRun: globals.dryRun
             )
+
+            switch result.action {
+            case "already-installed":
+                spinner.stop()
+            case "would-install":
+                break
+            default:
+                spinner.succeed("Installed '\(result.packName)'")
+            }
 
             CLIOutput.write(result, context: ctx) {
                 switch result.action {
@@ -60,7 +74,7 @@ struct PackInstall: AsyncParsableCommand {
                     }
                     return lines.joined(separator: "\n")
                 default:
-                    var lines = ["Installed '\(result.packName)'"]
+                    var lines: [String] = []
                     if !result.quickSettingValues.isEmpty {
                         let pairs = result.quickSettingValues.map { "\($0.key)=\($0.value)" }
                         lines.append("  Settings: \(pairs.joined(separator: ", "))")
@@ -68,7 +82,7 @@ struct PackInstall: AsyncParsableCommand {
                     for warning in result.warnings {
                         lines.append("  \(warning)")
                     }
-                    return lines.joined(separator: "\n")
+                    return lines.isEmpty ? "" : lines.joined(separator: "\n")
                 }
             }
 
@@ -76,6 +90,7 @@ struct PackInstall: AsyncParsableCommand {
                 try await applyConfigurationOrHint(facade: facade, apply: apply, context: ctx)
             }
         } catch let notFound as CLIPackNotFound {
+            spinner.fail("Pack not found: '\(notFound.query)'")
             let allPacks = await facade.listPacks()
             let candidates = allPacks.flatMap { [$0.name, $0.id.replacingOccurrences(of: "com.keypath.pack.", with: "")] }
             let suggestions = FuzzyMatch.suggestions(for: notFound.query, from: candidates)
@@ -83,6 +98,7 @@ struct PackInstall: AsyncParsableCommand {
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode
         } catch let ambiguous as AmbiguousPackMatch {
+            spinner.fail("Ambiguous pack name")
             let error = CLIError.ambiguous(
                 ambiguous.description,
                 matches: ambiguous.matches.map { "\($0.name) (id: \($0.id))" }
@@ -90,10 +106,12 @@ struct PackInstall: AsyncParsableCommand {
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode
         } catch let settingErr as CLIPackSettingError {
+            spinner.fail("Invalid setting")
             let error = CLIError.validation(settingErr.description)
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode
         } catch let installErr as PackInstaller.InstallError {
+            spinner.fail("Install failed")
             let error: CLIError
             switch installErr {
             case .mutuallyExclusive:

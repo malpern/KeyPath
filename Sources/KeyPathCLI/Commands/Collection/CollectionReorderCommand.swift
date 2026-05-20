@@ -23,7 +23,9 @@ struct CollectionReorder: AsyncParsableCommand {
         do {
             let moved = try await facade.reorderCollection(nameOrId: nameOrId, position: position)
             if !moved {
-                let error = CLIError.notFound("Collection", query: nameOrId, listCommand: "keypath collection list")
+                let candidates = await facade.loadRuleCollections().map(\.name)
+                let suggestions = FuzzyMatch.suggestions(for: nameOrId, from: candidates)
+                let error = CLIError.notFound("Collection", query: nameOrId, listCommand: "keypath collection list", suggestions: suggestions)
                 CLIOutput.writeError(error, context: ctx)
                 throw error.code.exitCode
             }
