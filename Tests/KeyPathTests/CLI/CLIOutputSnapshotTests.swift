@@ -40,14 +40,31 @@ final class CLIOutputSnapshotTests: XCTestCase {
     // MARK: - CLIApplyResult
 
     func testApplyResultSnapshot() throws {
+        let changeset = CLIApplyChangeset(
+            enabledCollections: ["Home Row Mods"],
+            disabledCollections: ["Vim Navigation"],
+            customRules: ["caps → esc"]
+        )
         let value = CLIApplyResult(
             collectionsCount: 5,
             enabledCount: 3,
             customRulesCount: 2,
-            reloadSuccess: true
+            reloadSuccess: true,
+            changeset: changeset
         )
         try assertSnapshot(value, expected: """
         {
+          "changeset" : {
+            "customRules" : [
+              "caps → esc"
+            ],
+            "disabledCollections" : [
+              "Vim Navigation"
+            ],
+            "enabledCollections" : [
+              "Home Row Mods"
+            ]
+          },
           "collectionsCount" : 5,
           "customRulesCount" : 2,
           "enabledCount" : 3,

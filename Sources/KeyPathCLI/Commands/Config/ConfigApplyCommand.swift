@@ -25,14 +25,23 @@ struct ConfigApply: AsyncParsableCommand {
         }
 
         CLIOutput.write(result, context: ctx) {
+            let nc = ctx.noColor
             var lines = [
                 "Collections: \(result.collectionsCount) (\(result.enabledCount) enabled)",
                 "Custom rules: \(result.customRulesCount)",
             ]
+            if let changeset = result.changeset {
+                if !changeset.enabledCollections.isEmpty {
+                    lines.append(ANSIColor.dim("  Enabled: \(changeset.enabledCollections.joined(separator: ", "))", noColor: nc))
+                }
+                if !changeset.customRules.isEmpty {
+                    lines.append(ANSIColor.dim("  Rules: \(changeset.customRules.joined(separator: ", "))", noColor: nc))
+                }
+            }
             if result.reloadSuccess {
-                lines.append("Kanata reloaded successfully.")
+                lines.append(ANSIColor.green("Kanata reloaded successfully.", noColor: nc))
             } else {
-                lines.append("Config was written but Kanata reload failed.")
+                lines.append(ANSIColor.red("Config was written but Kanata reload failed.", noColor: nc))
                 lines.append("Run 'keypath service reload' once Kanata is running.")
             }
             return lines.joined(separator: "\n")
