@@ -15,7 +15,7 @@ struct ServiceStatus: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = CLIFacade()
+        let facade = await MainActor.run { CLIFacade() }
         let status: CLIStatusResult
         do {
             status = try await withThrowingTimeout(seconds: timeout) {
