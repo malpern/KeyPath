@@ -156,7 +156,7 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
         let result = try await AdminCommandExecutorHolder.shared.execute(batch: batch)
         return (exitCode: result.exitCode, output: result.output)
     }
-    WizardDependencies.resourceBundle = Bundle.module
+    WizardDependencies.resourceBundle = KeyPathAppKitResources.bundle
 
     // ExternalKanataService static methods
     WizardDependencies.getExternalKanataInfo = {
