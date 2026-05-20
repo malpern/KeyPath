@@ -83,11 +83,18 @@ extension CLIFacade {
             false
         }
 
+        let changeset = CLIApplyChangeset(
+            enabledCollections: collections.filter(\.isEnabled).map(\.name),
+            disabledCollections: collections.filter { !$0.isEnabled }.map(\.name),
+            customRules: customRules.filter(\.isEnabled).map { "\($0.input) → \($0.action.outputString)" }
+        )
+
         return CLIApplyResult(
             collectionsCount: collections.count,
             enabledCount: enabledCount,
             customRulesCount: customRules.count,
-            reloadSuccess: reloadSuccess
+            reloadSuccess: reloadSuccess,
+            changeset: changeset
         )
     }
 

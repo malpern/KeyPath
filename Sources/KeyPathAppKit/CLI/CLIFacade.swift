@@ -340,6 +340,13 @@ public struct CLIApplyResult: Codable, Sendable {
     public let enabledCount: Int
     public let customRulesCount: Int
     public let reloadSuccess: Bool
+    public let changeset: CLIApplyChangeset?
+}
+
+public struct CLIApplyChangeset: Codable, Sendable {
+    public let enabledCollections: [String]
+    public let disabledCollections: [String]
+    public let customRules: [String]
 }
 
 public struct CLIHrmStats: Codable, Sendable {
@@ -372,6 +379,19 @@ public struct CLIStatusResult: Codable, Sendable {
 public struct CLIValidationResult: Codable, Sendable {
     public let isValid: Bool
     public let errors: [String]
+    public let configPath: String?
+    public let configBytes: Int?
+    public let collectionsCount: Int?
+    public let customRulesCount: Int?
+
+    public init(isValid: Bool, errors: [String], configPath: String? = nil, configBytes: Int? = nil, collectionsCount: Int? = nil, customRulesCount: Int? = nil) {
+        self.isValid = isValid
+        self.errors = errors
+        self.configPath = configPath
+        self.configBytes = configBytes
+        self.collectionsCount = collectionsCount
+        self.customRulesCount = customRulesCount
+    }
 }
 
 public struct CLIInstallerReport: Codable, Sendable {
