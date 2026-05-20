@@ -11,6 +11,7 @@ struct Rule: AsyncParsableCommand {
             RuleShow.self,
             RuleEnable.self,
             RuleDisable.self,
+            RuleEnsure.self,
         ]
     )
 }
