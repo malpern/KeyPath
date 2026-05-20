@@ -79,6 +79,10 @@ enum CLIOutput {
         }
     }
 
+    static func writeRaw(_ text: String) {
+        Swift.print(text)
+    }
+
     static func progress(_ message: String, context: OutputContext) {
         guard context.isInteractive, !context.quiet else { return }
         printErr(ANSIColor.yellow(message, noColor: context.noColor))

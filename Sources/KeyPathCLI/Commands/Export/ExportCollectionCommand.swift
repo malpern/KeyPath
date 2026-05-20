@@ -40,7 +40,7 @@ struct ExportCollection: AsyncParsableCommand {
                     "Exported '\(exported.name)' to \(url.path)"
                 }
             } else {
-                print(json)
+                CLIOutput.writeRaw(json)
             }
         } catch let error as AmbiguousCollectionMatch {
             let cliError = CLIError.ambiguous(error.description, matches: error.matches.map { "\($0.name) (\($0.id))" })

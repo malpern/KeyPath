@@ -8,8 +8,14 @@ struct ConfigPath: AsyncParsableCommand {
         abstract: "Print the configuration file path"
     )
 
+    @OptionGroup var globals: GlobalOptions
+
     mutating func run() async throws {
+        let ctx = globals.outputContext
         let path = await MainActor.run { CLIFacade().configPath() }
-        print(path)
+
+        CLIOutput.write(["path": path], context: ctx) {
+            path
+        }
     }
 }
