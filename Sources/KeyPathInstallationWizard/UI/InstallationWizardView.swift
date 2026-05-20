@@ -80,98 +80,16 @@ public struct InstallationWizardView: View {
 
     public var body: some View {
         ZStack {
-            if let banner = statusBannerMessage {
-                VStack(spacing: 0) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "info.circle")
-                        Text(banner)
-                            .font(.callout)
-                            .multilineTextAlignment(.leading)
-                        Spacer()
-                    }
-                    .padding(10)
-                    .background(.thinMaterial)
-                    .overlay(
-                        Rectangle()
-                            .frame(height: 1)
-                            .foregroundColor(Color.gray.opacity(0.15)),
-                        alignment: .bottom
-                    )
-                    Spacer()
-                }
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .zIndex(2)
-            }
-
-            // Dark mode-aware background for cross-fade effect
+            statusBanner
             WizardDesign.Colors.wizardBackground
                 .ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                // Always show page content - no preflight view
-                pageContent()
-                    .id(stateMachine.currentPage) // Force view recreation on page change
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(GeometryReader { geo in
-                        Color.clear.preference(key: WizardContentHeightKey.self, value: geo.size.height)
-                    })
-                    .onPreferenceChange(WizardContentHeightKey.self) { _ in
-                        NotificationCenter.default.post(name: .wizardContentSizeChanged, object: nil)
-                    }
-                    .onPreferenceChange(WizardInlineProgressVisiblePreferenceKey.self) { newValue in
-                        hasInlineProgressIndicator = newValue
-                    }
-                    .overlay {
-                        // Don't show overlay during validation - summary page has its own validating indicator
-                        // Also suppress overlay when the page already shows an inline progress bar,
-                        // to avoid two simultaneous indeterminate bars.
-                        if isOperationRunning, !isValidating, !hasInlineProgressIndicator {
-                            operationProgressOverlay()
-                                .allowsHitTesting(false) // Don't block X button interaction
-                        }
-                    }
-            }
-            .frame(width: WizardDesign.Layout.pageWidth)
-            .frame(minHeight: 480, maxHeight: .infinity) // Consistent min height prevents size jumps between pages
-            .fixedSize(horizontal: true, vertical: false) // Allow vertical growth; keep width fixed
-            .animation(.easeInOut(duration: 0.25), value: isValidating)
-            // Prevent vertical position animation during page transitions
-            .animation(nil, value: stateMachine.currentPage)
-            // Remove animation on frame changes to prevent window movement
-            .background(WizardDesign.Colors.wizardBackground) // Simple solid background, no visual effect
+            pageContainer
         }
         .withToasts(toastManager)
         .environment(stateMachine)
-        .focused($hasKeyboardFocus) // Enable focus for reliable ESC key handling
-        // Aggressively disable focus rings during validation
-        .onChange(of: isValidating) { _, newValue in
-            if newValue {
-                // Clear focus when validation starts (deferred to next run loop for AppKit interop)
-                Task { @MainActor in
-                    NSApp.keyWindow?.makeFirstResponder(nil)
-                    if let window = NSApp.keyWindow, let contentView = window.contentView {
-                        disableFocusRings(in: contentView)
-                    }
-                }
-            } else {
-                // Validation finished; set navigation sequence based on current filter
-                stateMachine.customSequence = showAllSummaryItems ? nil : navSequence
-            }
-        }
-        // Global navigation + close button overlay for all detail pages
-        .overlay(alignment: .top) {
-            if stateMachine.currentPage != .summary {
-                HStack {
-                    WizardNavigationControl()
-                    Spacer()
-                    CloseButton()
-                }
-                .environment(stateMachine)
-                .padding(.top, 12)
-                .padding(.horizontal, 12)
-                .animation(nil, value: stateMachine.currentPage)
-            }
-        }
+        .focused($hasKeyboardFocus)
+        .onChange(of: isValidating, handleValidationChange)
+        .overlay(alignment: .top) { navigationOverlay }
         .onAppear {
             hasKeyboardFocus = true
             Task { await setupWizard() }
@@ -182,12 +100,8 @@ public struct InstallationWizardView: View {
             }
         }
         .onChange(of: isOperationRunning) { _, newValue in
-            // When overlays disappear, reclaim focus for ESC key
-            if !newValue {
-                hasKeyboardFocus = true
-            }
+            if !newValue { hasKeyboardFocus = true }
         }
-        // Keep navigation sequence in sync with summary filter state
         .onChange(of: showAllSummaryItems) { _, showAll in
             stateMachine.customSequence = showAll ? nil : navSequence
         }
@@ -195,14 +109,11 @@ public struct InstallationWizardView: View {
             handlePageChange(from: oldPage, to: newPage)
         }
         .onChange(of: navSequence) { _, newSeq in
-            if !showAllSummaryItems {
-                stateMachine.customSequence = newSeq
-            }
+            if !showAllSummaryItems { stateMachine.customSequence = newSeq }
         }
         .onChange(of: showingCloseConfirmation) { _, newValue in
             if !newValue { hasKeyboardFocus = true }
         }
-        // Add keyboard navigation support for left/right arrow keys and ESC (macOS 14.0+)
         .modifier(
             KeyboardNavigationModifier(
                 onLeftArrow: navigateToPreviousPage,
@@ -210,54 +121,145 @@ public struct InstallationWizardView: View {
                 onEscape: forciblyCloseWizard
             )
         )
-        // Ensure ESC always closes the wizard, even if key focus isn't on our view
-        .onExitCommand {
-            forciblyCloseWizard()
-        }
-        .task {
-            // Monitor state changes
-            await monitorSystemState()
-        }
+        .onExitCommand { forciblyCloseWizard() }
+        .task { await monitorSystemState() }
         .onReceive(NotificationCenter.default.publisher(for: .wizardSmAppServiceApprovalRequired)) { _ in
             showingBackgroundApprovalPrompt = true
         }
         .alert("Close Setup Wizard?", isPresented: $showingCloseConfirmation) {
-            Button("Cancel", role: .cancel) {
-                showingCloseConfirmation = false
-            }
-            Button("Close Anyway", role: .destructive) {
-                forceInstantClose()
-                performBackgroundCleanup()
-            }
-            .keyboardShortcut(.defaultAction) // Return key for destructive action
+            closeConfirmationButtons
         } message: {
-            let criticalCount = stateMachine.wizardIssues.filter { $0.severity == .critical }.count
-            Text(
-                "There \(criticalCount == 1 ? "is" : "are") \(criticalCount) critical \(criticalCount == 1 ? "issue" : "issues") "
-                    + "that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?"
-            )
+            closeConfirmationMessage
         }
         .alert("Enable KeyPath in Login Items", isPresented: $showingBackgroundApprovalPrompt) {
-            Button("OK") {
-                showingBackgroundApprovalPrompt = false
-                openLoginItemsSettings()
-            }
-            .keyboardShortcut(.defaultAction)
-            Button("Later", role: .cancel) {
-                showingBackgroundApprovalPrompt = false
-                stopLoginItemsApprovalPolling()
-            }
+            loginItemsApprovalButtons
         } message: {
-            Text(
-                "Login Items will open. Find KeyPath under Background Items and flip the switch to enable it."
-            )
+            Text("Login Items will open. Find KeyPath under Background Items and flip the switch to enable it.")
         }
         .onChange(of: showingBackgroundApprovalPrompt) { _, isShowing in
-            if isShowing {
-                // Start polling immediately when dialog appears, so approval is detected
-                // even if user enables KeyPath before clicking OK
-                startLoginItemsApprovalPolling()
+            if isShowing { startLoginItemsApprovalPolling() }
+        }
+    }
+
+    // MARK: - Body Sections
+
+    @ViewBuilder
+    private var statusBanner: some View {
+        if let banner = statusBannerMessage {
+            VStack(spacing: 0) {
+                HStack(spacing: 8) {
+                    Image(systemName: "info.circle")
+                    Text(banner)
+                        .font(.callout)
+                        .multilineTextAlignment(.leading)
+                    Spacer()
+                }
+                .padding(10)
+                .background(.thinMaterial)
+                .overlay(
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundColor(Color.gray.opacity(0.15)),
+                    alignment: .bottom
+                )
+                Spacer()
             }
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .zIndex(2)
+        }
+    }
+
+    private var pageContainer: some View {
+        VStack(spacing: 0) {
+            pageContent()
+                .id(stateMachine.currentPage)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(GeometryReader { geo in
+                    Color.clear.preference(key: WizardContentHeightKey.self, value: geo.size.height)
+                })
+                .onPreferenceChange(WizardContentHeightKey.self) { _ in
+                    NotificationCenter.default.post(name: .wizardContentSizeChanged, object: nil)
+                }
+                .onPreferenceChange(WizardInlineProgressVisiblePreferenceKey.self) { newValue in
+                    hasInlineProgressIndicator = newValue
+                }
+                .overlay {
+                    if isOperationRunning, !isValidating, !hasInlineProgressIndicator {
+                        operationProgressOverlay()
+                            .allowsHitTesting(false)
+                    }
+                }
+        }
+        .frame(width: WizardDesign.Layout.pageWidth)
+        .frame(minHeight: 480, maxHeight: .infinity)
+        .fixedSize(horizontal: true, vertical: false)
+        .animation(.easeInOut(duration: 0.25), value: isValidating)
+        .animation(nil, value: stateMachine.currentPage)
+        .background(WizardDesign.Colors.wizardBackground)
+    }
+
+    @ViewBuilder
+    private var navigationOverlay: some View {
+        if stateMachine.currentPage != .summary {
+            HStack {
+                WizardNavigationControl()
+                Spacer()
+                CloseButton()
+            }
+            .environment(stateMachine)
+            .padding(.top, 12)
+            .padding(.horizontal, 12)
+            .animation(nil, value: stateMachine.currentPage)
+        }
+    }
+
+    // MARK: - Alert Content
+
+    @ViewBuilder
+    private var closeConfirmationButtons: some View {
+        Button("Cancel", role: .cancel) {
+            showingCloseConfirmation = false
+        }
+        Button("Close Anyway", role: .destructive) {
+            forceInstantClose()
+            performBackgroundCleanup()
+        }
+        .keyboardShortcut(.defaultAction)
+    }
+
+    private var closeConfirmationMessage: some View {
+        let criticalCount = stateMachine.wizardIssues.filter { $0.severity == .critical }.count
+        return Text(
+            "There \(criticalCount == 1 ? "is" : "are") \(criticalCount) critical \(criticalCount == 1 ? "issue" : "issues") "
+                + "that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?"
+        )
+    }
+
+    @ViewBuilder
+    private var loginItemsApprovalButtons: some View {
+        Button("OK") {
+            showingBackgroundApprovalPrompt = false
+            openLoginItemsSettings()
+        }
+        .keyboardShortcut(.defaultAction)
+        Button("Later", role: .cancel) {
+            showingBackgroundApprovalPrompt = false
+            stopLoginItemsApprovalPolling()
+        }
+    }
+
+    // MARK: - Event Handlers
+
+    private func handleValidationChange(_: Bool, _ newValue: Bool) {
+        if newValue {
+            Task { @MainActor in
+                NSApp.keyWindow?.makeFirstResponder(nil)
+                if let window = NSApp.keyWindow, let contentView = window.contentView {
+                    disableFocusRings(in: contentView)
+                }
+            }
+        } else {
+            stateMachine.customSequence = showAllSummaryItems ? nil : navSequence
         }
     }
 }
