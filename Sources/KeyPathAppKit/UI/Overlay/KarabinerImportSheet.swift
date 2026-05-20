@@ -74,6 +74,7 @@ struct KarabinerImportSheet: View {
                 .fontWeight(.semibold)
             Spacer()
             Button("Cancel") { dismiss() }
+                .keyboardShortcut(.cancelAction)
                 .accessibilityIdentifier("karabiner-import-cancel")
         }
         .padding()
