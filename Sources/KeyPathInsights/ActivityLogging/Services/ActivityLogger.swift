@@ -31,8 +31,7 @@ public final class ActivityLogger {
     // MARK: - Initialization
 
     private init() {
-        // Load initial state
-        Task {
+        Task { @MainActor in
             eventCount = await storage.totalEventCount()
         }
     }
@@ -164,7 +163,7 @@ public final class ActivityLogger {
         let activateToken = center.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
-            queue: nil
+            queue: .main
         ) { [weak self] notification in
             guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else {
                 return
@@ -181,7 +180,7 @@ public final class ActivityLogger {
         let launchToken = center.addObserver(
             forName: NSWorkspace.didLaunchApplicationNotification,
             object: nil,
-            queue: nil
+            queue: .main
         ) { [weak self] notification in
             guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else {
                 return
