@@ -21,8 +21,18 @@ struct SystemUninstall: AsyncParsableCommand {
             CLIOutput.progress("Starting uninstall (configuration will be preserved)...", context: ctx)
         }
 
-        let facade = CLIFacade()
-        let report = await facade.runUninstall(deleteConfig: deleteConfig)
+        let facade = await MainActor.run { CLIFacade() }
+        let shouldDeleteConfig = deleteConfig
+        let timeoutSeconds = globals.timeout
+        let report: CLIInstallerReport
+        do {
+            report = try await withThrowingTimeout(seconds: timeoutSeconds) {
+                await facade.runUninstall(deleteConfig: shouldDeleteConfig)
+            }
+        } catch is TimeoutError {
+            CLIOutput.progress("Uninstall timed out after \(timeoutSeconds)s", context: ctx)
+            throw ExitCode.failure
+        }
 
         CLIOutput.write(report, context: ctx) {
             formatInstallerReport(report, title: "Uninstall")

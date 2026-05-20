@@ -10,12 +10,10 @@ struct ServiceStatus: AsyncParsableCommand {
 
     @OptionGroup var globals: GlobalOptions
 
-    @Option(help: "Timeout in seconds (default: 30)")
-    var timeout: Int = 30
-
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = CLIFacade()
+        let timeout = globals.timeout
+        let facade = await MainActor.run { CLIFacade() }
         let status: CLIStatusResult
         do {
             status = try await withThrowingTimeout(seconds: timeout) {

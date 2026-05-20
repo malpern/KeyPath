@@ -28,8 +28,8 @@ struct RuleAdd: AsyncParsableCommand {
     @Option(help: "Key to emit on hold (for tap-hold)")
     var hold: String?
 
-    @Option(help: "Tap-hold timeout in milliseconds (default: 200)")
-    var timeout: Int = 200
+    @Option(name: .customLong("tap-timeout"), help: "Tap-hold timeout in milliseconds (default: 200)")
+    var tapTimeout: Int = 200
 
     @Option(help: "Alternate output when shift is held")
     var shifted: String?
@@ -86,7 +86,7 @@ struct RuleAdd: AsyncParsableCommand {
             resolvedBehavior = .dualRole(DualRoleBehavior(
                 tapAction: .keystroke(key: tap),
                 holdAction: .keystroke(key: hold),
-                tapTimeout: timeout
+                tapTimeout: tapTimeout
             ))
         } else if let output {
             guard facade.validateKey(output) != nil else {

@@ -11,13 +11,9 @@ struct StatusShortcut: AsyncParsableCommand {
 
     @OptionGroup var globals: GlobalOptions
 
-    @Option(help: "Timeout in seconds (default: 30)")
-    var timeout: Int = 30
-
     mutating func run() async throws {
         var cmd = ServiceStatus()
         cmd.globals = globals
-        cmd.timeout = timeout
         try await cmd.run()
     }
 }

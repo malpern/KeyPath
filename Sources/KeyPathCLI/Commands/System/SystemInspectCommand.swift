@@ -12,8 +12,17 @@ struct SystemInspect: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = CLIFacade()
-        let result = await facade.runInspect()
+        let facade = await MainActor.run { CLIFacade() }
+        let result: CLIInspectResult
+        do {
+            result = try await withThrowingTimeout(seconds: globals.timeout) {
+                await facade.runInspect()
+            }
+        } catch is TimeoutError {
+            let error = CLIError.serviceUnreachable(hint: "System inspection timed out. Try --timeout \(globals.timeout * 2)")
+            CLIOutput.writeError(error, context: ctx)
+            throw error.code.exitCode
+        }
 
         CLIOutput.write(result, context: ctx) {
             var lines = [

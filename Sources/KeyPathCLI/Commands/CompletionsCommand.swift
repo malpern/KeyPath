@@ -23,8 +23,8 @@ struct Completions: ParsableCommand {
 
         mutating func run() throws {
             let script = KeyPathCLI.completionScript(for: .zsh)
-            print(script)
-            print(Self.dynamicCompletionWrapper)
+            CLIOutput.writeRaw(script)
+            CLIOutput.writeRaw(Self.dynamicCompletionWrapper)
         }
 
         private static let dynamicCompletionWrapper = """
@@ -62,7 +62,7 @@ struct Completions: ParsableCommand {
 
         mutating func run() throws {
             let script = KeyPathCLI.completionScript(for: .bash)
-            print(script)
+            CLIOutput.writeRaw(script)
         }
     }
 
@@ -73,7 +73,7 @@ struct Completions: ParsableCommand {
 
         mutating func run() throws {
             let script = KeyPathCLI.completionScript(for: .fish)
-            print(script)
+            CLIOutput.writeRaw(script)
         }
     }
 
@@ -104,14 +104,14 @@ struct Completions: ParsableCommand {
             }
 
             guard let source = sourceDir else {
-                print("Man pages not found. They ship with KeyPath.app.")
-                print("")
-                print("If you installed from source, generate them with:")
-                print("  swift package plugin --allow-writing-to-directory docs/man generate-manual --multi-page --output-directory docs/man")
-                print("")
-                print("Then copy to your man path:")
-                print("  mkdir -p \(manDir)")
-                print("  cp docs/man/*.1 \(manDir)/")
+                printErr("Man pages not found. They ship with KeyPath.app.")
+                printErr("")
+                printErr("If you installed from source, generate them with:")
+                printErr("  swift package plugin --allow-writing-to-directory docs/man generate-manual --multi-page --output-directory docs/man")
+                printErr("")
+                printErr("Then copy to your man path:")
+                printErr("  mkdir -p \(manDir)")
+                printErr("  cp docs/man/*.1 \(manDir)/")
                 return
             }
 
@@ -133,8 +133,8 @@ struct Completions: ParsableCommand {
                 try fm.copyItem(atPath: src, toPath: dst)
             }
 
-            print("Installed \(pages.count) man page(s) to \(manDir)")
-            print("Try: man keypath")
+            printErr("Installed \(pages.count) man page(s) to \(manDir)")
+            printErr("Try: man keypath")
         }
     }
 
@@ -172,13 +172,13 @@ struct Completions: ParsableCommand {
             )
             try script.write(toFile: path, atomically: true, encoding: .utf8)
 
-            print("Installed \(shellName) completions to \(path)")
+            printErr("Installed \(shellName) completions to \(path)")
 
             if shellName == "zsh" {
-                print("")
-                print("If completions don't work, ensure this is in your ~/.zshrc:")
-                print("  fpath=(~/.zsh/completions $fpath)")
-                print("  autoload -Uz compinit && compinit")
+                printErr("")
+                printErr("If completions don't work, ensure this is in your ~/.zshrc:")
+                printErr("  fpath=(~/.zsh/completions $fpath)")
+                printErr("  autoload -Uz compinit && compinit")
             }
         }
 
@@ -221,22 +221,22 @@ struct Completions: ParsableCommand {
                 let packs = await facade.listPacks()
                 for pack in packs {
                     let slug = pack.id.replacingOccurrences(of: "com.keypath.pack.", with: "")
-                    print(slug)
+                    CLIOutput.writeRaw(slug)
                 }
             case "collection":
                 let collections = await facade.loadRuleCollections()
                 for c in collections {
-                    print(c.name)
+                    CLIOutput.writeRaw(c.name)
                 }
             case "layer":
                 let layers = await facade.listDefinedLayers()
                 for layer in layers {
-                    print(layer)
+                    CLIOutput.writeRaw(layer)
                 }
             case "rule":
                 let rules = await facade.listRules()
                 for rule in rules {
-                    print(rule.input)
+                    CLIOutput.writeRaw(rule.input)
                 }
             default:
                 throw ValidationError("Unknown noun: '\(noun)'. Use pack, collection, layer, or rule.")

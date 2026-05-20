@@ -15,8 +15,16 @@ struct SystemInstall: AsyncParsableCommand {
         let spinner = CLISpinner(context: ctx)
         spinner.start("Installing...")
 
-        let facade = CLIFacade()
-        let report = await facade.runInstall()
+        let facade = await MainActor.run { CLIFacade() }
+        let report: CLIInstallerReport
+        do {
+            report = try await withThrowingTimeout(seconds: globals.timeout) {
+                await facade.runInstall()
+            }
+        } catch is TimeoutError {
+            spinner.fail("Installation timed out after \(globals.timeout)s")
+            throw ExitCode.failure
+        }
 
         if report.success { spinner.succeed("Installation complete") }
         else { spinner.fail("Installation failed") }

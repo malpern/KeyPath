@@ -55,11 +55,17 @@ enum CLIOutput {
         print(json)
     }
 
+    private struct APIErrorEnvelope: Encodable {
+        let apiVersion: Int = 1
+        let error: CLIError
+    }
+
     static func writeError(_ error: CLIError, context: OutputContext) {
         if context.shouldOutputJSON {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            if let data = try? encoder.encode(error), let json = String(data: data, encoding: .utf8) {
+            let envelope = APIErrorEnvelope(error: error)
+            if let data = try? encoder.encode(envelope), let json = String(data: data, encoding: .utf8) {
                 printErr(json)
             }
         } else {
@@ -77,6 +83,10 @@ enum CLIOutput {
                 printErr(ANSIColor.dim("Docs: \(docsUrl)", noColor: nc))
             }
         }
+    }
+
+    static func writeRaw(_ text: String) {
+        Swift.print(text)
     }
 
     static func progress(_ message: String, context: OutputContext) {

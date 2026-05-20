@@ -32,7 +32,7 @@ struct ExportAll: AsyncParsableCommand {
                 "Exported \(exported.count) collection\(exported.count == 1 ? "" : "s") to \(url.path)"
             }
         } else {
-            print(json)
+            CLIOutput.writeRaw(json)
         }
     }
 }
