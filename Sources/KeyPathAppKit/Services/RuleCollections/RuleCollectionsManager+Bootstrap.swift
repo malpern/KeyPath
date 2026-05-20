@@ -22,6 +22,10 @@ extension RuleCollectionsManager {
 
         ensureDefaultCollectionsIfNeeded()
 
+        // Re-enable collections that installed packs expect to be active.
+        // Handles drift when RuleCollections.json is reset independently of installed-packs.json.
+        await reconcilePackCollectionState()
+
         // Restore keymap collection if a non-identity layout was active
         if activeKeymapId != LogicalKeymap.qwertyUSId, activeKeymapId != LogicalKeymap.systemId {
             if let keymapCollection = KeymapMappingGenerator.generateCollection(
@@ -40,5 +44,37 @@ extension RuleCollectionsManager {
         refreshLayerIndicatorState()
 
         await regenerateConfigFromCollections()
+    }
+
+    // MARK: - Pack Reconciliation
+
+    /// Cross-reference installed packs against loaded collections and re-enable
+    /// any collection that an installed pack manages but that was loaded as disabled.
+    private func reconcilePackCollectionState() async {
+        let installedRecords = await InstalledPackTracker.shared.allInstalled()
+        guard !installedRecords.isEmpty else { return }
+
+        var fixedCount = 0
+
+        for record in installedRecords {
+            guard let pack = PackRegistry.pack(id: record.packID) else { continue }
+
+            for collectionID in pack.managedCollectionIDs {
+                guard let index = ruleCollections.firstIndex(where: { $0.id == collectionID }) else {
+                    continue
+                }
+                if !ruleCollections[index].isEnabled {
+                    ruleCollections[index].isEnabled = true
+                    fixedCount += 1
+                    AppLogger.shared.log(
+                        "🔧 [Bootstrap] Reconciled: re-enabled '\(ruleCollections[index].name)' for installed pack '\(pack.name)'"
+                    )
+                }
+            }
+        }
+
+        if fixedCount > 0 {
+            AppLogger.shared.log("🔧 [Bootstrap] Pack reconciliation fixed \(fixedCount) collection(s)")
+        }
     }
 }
