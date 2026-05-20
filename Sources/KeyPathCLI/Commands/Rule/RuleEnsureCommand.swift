@@ -30,7 +30,7 @@ struct RuleEnsure: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = RulesFacade()
 
         if let fromFile {
             try await runBatch(file: fromFile, facade: facade, ctx: ctx)
@@ -64,12 +64,12 @@ struct RuleEnsure: AsyncParsableCommand {
             }
 
             if result.action == "created" || result.action == "updated" {
-                try await applyConfigurationOrHint(facade: facade, apply: apply, context: ctx)
+                try await applyConfigurationOrHint(apply: apply, context: ctx)
             }
         }
     }
 
-    private func runBatch(file: String, facade: CLIFacade, ctx: OutputContext) async throws {
+    private func runBatch(file: String, facade: RulesFacade, ctx: OutputContext) async throws {
         let path = (file as NSString).expandingTildeInPath
         guard let data = FileManager.default.contents(atPath: path) else {
             let error = CLIError.validation("Cannot read file: '\(file)'")
@@ -121,11 +121,11 @@ struct RuleEnsure: AsyncParsableCommand {
 
         let hadChanges = results.contains { $0.action == "created" || $0.action == "updated" }
         if hadChanges {
-            try await applyConfigurationOrHint(facade: facade, apply: apply, context: ctx)
+            try await applyConfigurationOrHint(apply: apply, context: ctx)
         }
     }
 
-    private func ensureOne(spec: EnsureSpec, facade: CLIFacade, dryRun: Bool) async throws -> CLIEnsureResult {
+    private func ensureOne(spec: EnsureSpec, facade: RulesFacade, dryRun: Bool) async throws -> CLIEnsureResult {
         let existing = await facade.showRule(input: spec.input)
 
         let matchesDesired: Bool

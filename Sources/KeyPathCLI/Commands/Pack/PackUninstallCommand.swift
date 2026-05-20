@@ -53,7 +53,7 @@ struct PackUninstall: AsyncParsableCommand {
             }
 
             if result.action == "uninstalled" {
-                try await applyConfigurationOrHint(facade: facade, apply: apply, context: ctx)
+                try await applyConfigurationOrHint(apply: apply, context: ctx)
             }
         } catch let notFound as CLIPackNotFound {
             spinner.fail("Pack not found: '\(notFound.query)'")

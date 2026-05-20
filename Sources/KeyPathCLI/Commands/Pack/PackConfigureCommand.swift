@@ -68,7 +68,7 @@ struct PackConfigure: AsyncParsableCommand {
             }
 
             if result.action == "configured" {
-                try await applyConfigurationOrHint(facade: facade, apply: apply, context: ctx)
+                try await applyConfigurationOrHint(apply: apply, context: ctx)
             }
         } catch let notFound as CLIPackNotFound {
             let allPacks = await facade.listPacks()

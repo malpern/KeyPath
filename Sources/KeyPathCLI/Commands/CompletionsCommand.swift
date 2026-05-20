@@ -234,7 +234,8 @@ struct Completions: ParsableCommand {
                     CLIOutput.writeRaw(layer)
                 }
             case "rule":
-                let rules = await facade.listRules()
+                let rulesFacade = RulesFacade()
+                let rules = await rulesFacade.listRules()
                 for rule in rules {
                     CLIOutput.writeRaw(rule.input)
                 }

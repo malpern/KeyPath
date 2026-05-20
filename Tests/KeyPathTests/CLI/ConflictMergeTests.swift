@@ -7,7 +7,7 @@ final class ConflictMergeTests: XCTestCase {
     func testMergeTwoSimpleRemapsThrows() {
         let existing = makeRule(input: "caps", action: .keystroke(key: "esc"))
         XCTAssertThrowsError(
-            try CLIFacade.mergeRules(existing: existing, newAction: .keystroke(key: "lctl"), newBehavior: nil)
+            try RulesFacade.mergeRules(existing: existing, newAction: .keystroke(key: "lctl"), newBehavior: nil)
         ) { error in
             guard let mergeErr = error as? CLIMergeError else {
                 XCTFail("Expected CLIMergeError, got \(error)")
@@ -27,7 +27,7 @@ final class ConflictMergeTests: XCTestCase {
             tapTimeout: 300
         ))
 
-        let merged = try CLIFacade.mergeRules(
+        let merged = try RulesFacade.mergeRules(
             existing: existing,
             newAction: .keystroke(key: "x"),
             newBehavior: newBehavior
@@ -54,7 +54,7 @@ final class ConflictMergeTests: XCTestCase {
             ))
         )
 
-        let merged = try CLIFacade.mergeRules(
+        let merged = try RulesFacade.mergeRules(
             existing: existing,
             newAction: .keystroke(key: "esc"),
             newBehavior: nil
@@ -87,7 +87,7 @@ final class ConflictMergeTests: XCTestCase {
             tapTimeout: 300
         )
 
-        let merged = try CLIFacade.mergeRules(
+        let merged = try RulesFacade.mergeRules(
             existing: existing,
             newAction: .keystroke(key: "esc"),
             newBehavior: .dualRole(newDual)
@@ -116,7 +116,7 @@ final class ConflictMergeTests: XCTestCase {
         ))
 
         XCTAssertThrowsError(
-            try CLIFacade.mergeRules(existing: existing, newAction: .keystroke(key: "a"), newBehavior: newBehavior)
+            try RulesFacade.mergeRules(existing: existing, newAction: .keystroke(key: "a"), newBehavior: newBehavior)
         ) { error in
             guard let mergeErr = error as? CLIMergeError else {
                 XCTFail("Expected CLIMergeError, got \(error)")
@@ -137,7 +137,7 @@ final class ConflictMergeTests: XCTestCase {
             holdAction: .keystroke(key: "lctl")
         ))
 
-        let merged = try CLIFacade.mergeRules(
+        let merged = try RulesFacade.mergeRules(
             existing: existing,
             newAction: .keystroke(key: "x"),
             newBehavior: newBehavior

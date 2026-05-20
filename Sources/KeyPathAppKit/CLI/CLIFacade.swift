@@ -7,13 +7,22 @@ import KeyPathWizardCore
 /// Public facade exposing KeyPathAppKit internals for the CLI binary.
 /// This is the stable API boundary between the CLI and the app library.
 ///
-/// Method groups live in extension files:
-/// - CLIFacade+Rules.swift — Custom rules CRUD
+/// Method groups live in extension files and standalone facades:
+/// - RulesFacade.swift — Custom rules CRUD (standalone)
+/// - SimulatorFacade.swift — Key simulation and validation (standalone)
 /// - CLIFacade+Collections.swift — Rule collections CRUD
 /// - CLIFacade+Service.swift — Service lifecycle, config, TCP, status, installer
 /// - CLIFacade+Packs.swift — Pack management
 public struct CLIFacade: Sendable {
     public init() {}
+
+    static func parseLayer(_ name: String) -> RuleCollectionLayer {
+        switch name.lowercased() {
+        case "base": .base
+        case "nav", "navigation": .navigation
+        default: .custom(name)
+        }
+    }
 
     // MARK: - Export / Import
 
@@ -141,24 +150,6 @@ public struct CLIFacade: Sendable {
         return try service.convert(data: wrappedData, profileIndex: 0)
     }
 
-    // MARK: - Simulate
-
-    public func simulate(
-        keys: [CLISimulatorKeyTap],
-        configPath: String?,
-        simulatorProvider: CLISimulatorProvider? = nil
-    ) async throws -> CLISimulationResult {
-        let config: String
-        if let configPath {
-            config = configPath
-        } else {
-            config = await MainActor.run { ConfigurationService().configurationPath }
-        }
-
-        let provider = simulatorProvider ?? RealSimulatorProvider()
-        return try await provider.simulate(taps: keys, configPath: config)
-    }
-
     // MARK: - Layer CRUD
 
     public func listDefinedLayers() async -> [String] {
@@ -217,13 +208,6 @@ public struct CLIFacade: Sendable {
             try await RuleCollectionStore.shared.saveCollections(collections)
         }
         return updated
-    }
-
-    // MARK: - Key Validation
-
-    public func validateKey(_ key: String) -> String? {
-        guard CustomRuleValidator.isValidKey(key) else { return nil }
-        return CustomRuleValidator.normalizeKey(key)
     }
 
     // MARK: - Helpers
@@ -312,12 +296,6 @@ public enum CLIVersion {
 }
 
 // MARK: - Public CLI Types
-
-public struct CLICustomRule: Codable, Sendable {
-    public let input: String
-    public let output: String
-    public let behavior: String?
-}
 
 public struct CLIRuleCollection: Codable, Sendable {
     public let id: String
@@ -431,160 +409,6 @@ public struct CLIInspectResult: Codable, Sendable {
     public let plannedRecipes: [String]
 }
 
-// MARK: - Rule Detail Types
-
-public struct CLIRuleDetail: Codable, Sendable {
-    public let input: String
-    public let action: KeyAction
-    public let behavior: MappingBehavior?
-    public let shiftedOutput: String?
-    public let title: String?
-    public let notes: String?
-    public let targetLayer: String
-    public let deviceOverrides: [CLIDeviceOverride]?
-    public let isEnabled: Bool
-    public let createdAt: Date
-
-    public init(from rule: CustomRule) {
-        input = rule.input
-        action = rule.action
-        behavior = rule.behavior
-        shiftedOutput = rule.shiftedOutput
-        title = rule.title.isEmpty ? nil : rule.title
-        notes = rule.notes
-        targetLayer = rule.targetLayer.kanataName
-        deviceOverrides = rule.deviceOverrides?.map { CLIDeviceOverride(from: $0) }
-        isEnabled = rule.isEnabled
-        createdAt = rule.createdAt
-    }
-
-    public static func dryRunPreview(
-        input: String,
-        action: KeyAction?,
-        behavior: MappingBehavior?,
-        shiftedOutput: String?,
-        title: String?,
-        notes: String?,
-        targetLayer: String?
-    ) -> CLIRuleDetail {
-        CLIRuleDetail(
-            input: input,
-            action: action ?? .empty,
-            behavior: behavior,
-            shiftedOutput: shiftedOutput,
-            title: title,
-            notes: notes,
-            targetLayer: targetLayer ?? "base",
-            deviceOverrides: nil,
-            isEnabled: true,
-            createdAt: Date()
-        )
-    }
-
-    public init(
-        input: String,
-        action: KeyAction,
-        behavior: MappingBehavior?,
-        shiftedOutput: String?,
-        title: String?,
-        notes: String?,
-        targetLayer: String,
-        deviceOverrides: [CLIDeviceOverride]?,
-        isEnabled: Bool,
-        createdAt: Date
-    ) {
-        self.input = input
-        self.action = action
-        self.behavior = behavior
-        self.shiftedOutput = shiftedOutput
-        self.title = title
-        self.notes = notes
-        self.targetLayer = targetLayer
-        self.deviceOverrides = deviceOverrides
-        self.isEnabled = isEnabled
-        self.createdAt = createdAt
-    }
-}
-
-public struct CLIDeviceOverride: Codable, Sendable {
-    public let deviceHash: String
-    public let action: KeyAction
-    public let behavior: MappingBehavior?
-
-    public init(from override: DeviceKeyOverride) {
-        deviceHash = override.deviceHash
-        action = override.output
-        behavior = override.behavior
-    }
-}
-
-public enum RuleAddResult: Codable, Sendable {
-    case created(CLIRuleDetail)
-    case replaced(CLIRuleDetail)
-    case merged(CLIRuleDetail)
-    case skipped
-
-    private enum CodingKeys: String, CodingKey {
-        case status
-        case rule
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let status = try container.decode(String.self, forKey: .status)
-        switch status {
-        case "created":
-            let rule = try container.decode(CLIRuleDetail.self, forKey: .rule)
-            self = .created(rule)
-        case "replaced":
-            let rule = try container.decode(CLIRuleDetail.self, forKey: .rule)
-            self = .replaced(rule)
-        case "merged":
-            let rule = try container.decode(CLIRuleDetail.self, forKey: .rule)
-            self = .merged(rule)
-        case "skipped":
-            self = .skipped
-        default:
-            throw DecodingError.dataCorruptedError(forKey: .status, in: container, debugDescription: "Unknown status: \(status)")
-        }
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        switch self {
-        case let .created(rule):
-            try container.encode("created", forKey: .status)
-            try container.encode(rule, forKey: .rule)
-        case let .replaced(rule):
-            try container.encode("replaced", forKey: .status)
-            try container.encode(rule, forKey: .rule)
-        case let .merged(rule):
-            try container.encode("merged", forKey: .status)
-            try container.encode(rule, forKey: .rule)
-        case .skipped:
-            try container.encode("skipped", forKey: .status)
-        }
-    }
-}
-
-public enum CLIConflictStrategy: String, Sendable {
-    case fail
-    case replace
-    case skip
-    case merge
-}
-
-public struct CLIMergeError: Error, CustomStringConvertible {
-    public let input: String
-    public let reason: String
-    public var description: String { "Cannot merge rules for '\(input)': \(reason)" }
-}
-
-public struct CLIConflictError: Error, CustomStringConvertible {
-    public let input: String
-    public var description: String { "Rule already exists for '\(input)'" }
-}
-
 // MARK: - Karabiner Import Types
 
 public struct CLIKarabinerImportResult: Codable, Sendable {
@@ -657,69 +481,6 @@ public struct CLIExportedMapping: Codable, Sendable {
 
     public func toKeyMapping() -> KeyMapping {
         KeyMapping(input: input, action: action, shiftedOutput: shiftedOutput, behavior: behavior)
-    }
-}
-
-// MARK: - Simulator Types
-
-public struct CLISimulatorKeyTap: Sendable {
-    public let key: String
-    public let delayMs: UInt64
-    public let isHold: Bool
-
-    public init(key: String, delayMs: UInt64 = 200, isHold: Bool = false) {
-        self.key = key
-        self.delayMs = delayMs
-        self.isHold = isHold
-    }
-}
-
-public struct CLISimulationResult: Codable, Sendable {
-    public let events: [CLISimEvent]
-    public let finalLayer: String
-    public let durationMs: UInt64
-}
-
-public struct CLISimEvent: Codable, Sendable {
-    public let type: String
-    public let timeMs: UInt64
-    public let action: String?
-    public let key: String?
-
-    public init(type: String, timeMs: UInt64, action: String? = nil, key: String? = nil) {
-        self.type = type
-        self.timeMs = timeMs
-        self.action = action
-        self.key = key
-    }
-}
-
-public protocol CLISimulatorProvider: Sendable {
-    func simulate(taps: [CLISimulatorKeyTap], configPath: String) async throws -> CLISimulationResult
-}
-
-struct RealSimulatorProvider: CLISimulatorProvider {
-    func simulate(taps: [CLISimulatorKeyTap], configPath: String) async throws -> CLISimulationResult {
-        let service = SimulatorService()
-        let internalTaps = taps.map {
-            SimulatorKeyTap(kanataKey: $0.key, displayLabel: $0.key, delayAfterMs: $0.delayMs, isHold: $0.isHold)
-        }
-        let result = try await service.simulate(taps: internalTaps, configPath: configPath)
-        let events = result.events.map { event -> CLISimEvent in
-            switch event {
-            case let .input(t, action, key):
-                CLISimEvent(type: "input", timeMs: t, action: action.rawValue, key: key)
-            case let .output(t, action, key):
-                CLISimEvent(type: "output", timeMs: t, action: action.rawValue, key: key)
-            case let .layer(t, from, to):
-                CLISimEvent(type: "layer", timeMs: t, key: "\(from) -> \(to)")
-            case let .unicode(t, char):
-                CLISimEvent(type: "unicode", timeMs: t, key: char)
-            case let .mouse(t, action, data):
-                CLISimEvent(type: "mouse", timeMs: t, action: action.rawValue, key: data)
-            }
-        }
-        return CLISimulationResult(events: events, finalLayer: result.finalLayer ?? "base", durationMs: result.durationMs)
     }
 }
 
