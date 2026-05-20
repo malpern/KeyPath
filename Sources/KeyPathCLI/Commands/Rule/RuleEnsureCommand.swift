@@ -43,7 +43,7 @@ struct RuleEnsure: AsyncParsableCommand {
                 CLIOutput.writeError(error, context: ctx)
                 throw error.code.exitCode
             }
-            let spec = EnsureSpec(input: input, output: output, hold: hold, timeout: timeout)
+            let spec = EnsureSpec(input: input, output: output, hold: hold, timeout: tapTimeout)
             let result = try await ensureOne(spec: spec, facade: facade, dryRun: globals.dryRun)
 
             CLIOutput.write(result, context: ctx) {
