@@ -21,7 +21,7 @@ struct SystemUninstall: AsyncParsableCommand {
             CLIOutput.progress("Starting uninstall (configuration will be preserved)...", context: ctx)
         }
 
-        let facade = CLIFacade()
+        let facade = await MainActor.run { CLIFacade() }
         let report = await facade.runUninstall(deleteConfig: deleteConfig)
 
         CLIOutput.write(report, context: ctx) {

@@ -8,9 +8,15 @@ struct ConfigShow: AsyncParsableCommand {
         abstract: "Print current generated .kbd configuration"
     )
 
+    @OptionGroup var globals: GlobalOptions
+
     mutating func run() async throws {
+        let ctx = globals.outputContext
         let facade = await MainActor.run { CLIFacade() }
         let config = await facade.currentConfig()
-        print(config)
+
+        CLIOutput.write(["content": config], context: ctx) {
+            config
+        }
     }
 }

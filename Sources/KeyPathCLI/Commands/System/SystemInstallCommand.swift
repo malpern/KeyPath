@@ -15,7 +15,7 @@ struct SystemInstall: AsyncParsableCommand {
         let spinner = CLISpinner(context: ctx)
         spinner.start("Installing...")
 
-        let facade = CLIFacade()
+        let facade = await MainActor.run { CLIFacade() }
         let report = await facade.runInstall()
 
         if report.success { spinner.succeed("Installation complete") }
