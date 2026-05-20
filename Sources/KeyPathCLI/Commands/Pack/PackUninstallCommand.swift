@@ -41,7 +41,10 @@ struct PackUninstall: AsyncParsableCommand {
                 try await applyConfigurationOrHint(facade: facade, apply: apply, context: ctx)
             }
         } catch let notFound as CLIPackNotFound {
-            let error = CLIError.notFound("Pack", query: notFound.query, listCommand: "keypath pack list")
+            let allPacks = await facade.listPacks()
+            let candidates = allPacks.flatMap { [$0.name, $0.id.replacingOccurrences(of: "com.keypath.pack.", with: "")] }
+            let suggestions = FuzzyMatch.suggestions(for: notFound.query, from: candidates)
+            let error = CLIError.notFound("Pack", query: notFound.query, listCommand: "keypath pack list", suggestions: suggestions)
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode
         } catch let ambiguous as AmbiguousPackMatch {

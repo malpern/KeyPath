@@ -20,7 +20,10 @@ struct PackShow: AsyncParsableCommand {
         let detail: CLIPackDetail
         do {
             guard let found = try await facade.showPack(nameOrId: nameOrId) else {
-                let error = CLIError.notFound("Pack", query: nameOrId, listCommand: "keypath pack list")
+                let allPacks = await facade.listPacks()
+                let candidates = allPacks.flatMap { [$0.name, $0.id.replacingOccurrences(of: "com.keypath.pack.", with: "")] }
+                let suggestions = FuzzyMatch.suggestions(for: nameOrId, from: candidates)
+                let error = CLIError.notFound("Pack", query: nameOrId, listCommand: "keypath pack list", suggestions: suggestions)
                 CLIOutput.writeError(error, context: ctx)
                 throw error.code.exitCode
             }
