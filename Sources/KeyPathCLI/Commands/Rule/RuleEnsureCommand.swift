@@ -19,8 +19,8 @@ struct RuleEnsure: AsyncParsableCommand {
     @Option(help: "Hold output for tap-hold")
     var hold: String?
 
-    @Option(help: "Tap-hold timeout in ms (default: 200)")
-    var timeout: Int = 200
+    @Option(name: .customLong("tap-timeout"), help: "Tap-hold timeout in ms (default: 200)")
+    var tapTimeout: Int = 200
 
     @Flag(help: "Regenerate config and reload Kanata after saving")
     var apply: Bool = false
@@ -37,7 +37,7 @@ struct RuleEnsure: AsyncParsableCommand {
                 if case let .dualRole(dr) = existing.behavior {
                     matchesDesired = existing.action.outputString == output
                         && dr.holdActionString == hold
-                        && dr.tapTimeout == timeout
+                        && dr.tapTimeout == tapTimeout
                 } else {
                     matchesDesired = false
                 }
@@ -68,7 +68,7 @@ struct RuleEnsure: AsyncParsableCommand {
         }
 
         if let hold {
-            _ = try await facade.addTapHoldRemap(input: input, tap: output, hold: hold, timeout: timeout)
+            _ = try await facade.addTapHoldRemap(input: input, tap: output, hold: hold, timeout: tapTimeout)
         } else {
             _ = try await facade.addSimpleRemap(input: input, output: output)
         }

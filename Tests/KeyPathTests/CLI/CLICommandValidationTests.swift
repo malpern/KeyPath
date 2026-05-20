@@ -54,11 +54,11 @@ final class CLICommandValidationTests: XCTestCase {
     }
 
     func testRuleAddAcceptsTapHold() throws {
-        let cmd = try RuleAdd.parse(["a", "--tap", "a", "--hold", "lctl", "--timeout", "250"])
+        let cmd = try RuleAdd.parse(["a", "--tap", "a", "--hold", "lctl", "--tap-timeout", "250"])
         XCTAssertEqual(cmd.input, "a")
         XCTAssertEqual(cmd.tap, "a")
         XCTAssertEqual(cmd.hold, "lctl")
-        XCTAssertEqual(cmd.timeout, 250)
+        XCTAssertEqual(cmd.tapTimeout, 250)
     }
 
     func testRuleAddAcceptsBehaviorOnly() throws {

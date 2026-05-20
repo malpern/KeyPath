@@ -23,8 +23,8 @@ struct RemapShortcut: AsyncParsableCommand {
     @Option(help: "Key to emit on hold (for tap-hold)")
     var hold: String?
 
-    @Option(help: "Tap-hold timeout in milliseconds (default: 200)")
-    var timeout: Int = 200
+    @Option(name: .customLong("tap-timeout"), help: "Tap-hold timeout in milliseconds (default: 200)")
+    var tapTimeout: Int = 200
 
     @Flag(help: "Regenerate config and reload Kanata after saving")
     var apply: Bool = false
@@ -42,7 +42,7 @@ struct RemapShortcut: AsyncParsableCommand {
         cmd.output = output
         cmd.tap = tap
         cmd.hold = hold
-        cmd.timeout = timeout
+        cmd.tapTimeout = tapTimeout
         cmd.apply = apply
         try await cmd.run()
     }
