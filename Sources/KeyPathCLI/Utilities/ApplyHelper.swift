@@ -19,23 +19,28 @@ func applyConfigurationOrHint(facade: CLIFacade, apply: Bool, context: OutputCon
     }
 }
 
-func formatInstallerReport(_ report: CLIInstallerReport, title: String) -> String {
+func formatInstallerReport(_ report: CLIInstallerReport, title: String, noColor: Bool = false) -> String {
     var lines: [String] = []
-    lines.append("=== \(title) Report ===")
-    lines.append("Success: \(report.success ? "Yes" : "No")")
+    lines.append(ANSIColor.bold("=== \(title) Report ===", noColor: noColor))
+    let successText = report.success
+        ? ANSIColor.green("Yes", noColor: noColor)
+        : ANSIColor.red("No", noColor: noColor)
+    lines.append("Success: \(successText)")
 
     if let reason = report.failureReason {
-        lines.append("Failure Reason: \(reason)")
+        lines.append(ANSIColor.red("Failure Reason: \(reason)", noColor: noColor))
     }
 
     if !report.steps.isEmpty {
         lines.append("")
         lines.append("Steps:")
         for step in report.steps {
-            let status = step.success ? "OK" : "FAIL"
-            lines.append("  [\(status)] \(step.name)")
+            let marker = step.success
+                ? ANSIColor.green("✓", noColor: noColor)
+                : ANSIColor.red("✗", noColor: noColor)
+            lines.append("  \(marker) \(step.name)")
             if let error = step.error {
-                lines.append("         \(error)")
+                lines.append(ANSIColor.dim("         \(error)", noColor: noColor))
             }
         }
     }

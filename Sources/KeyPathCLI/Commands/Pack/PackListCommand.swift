@@ -20,9 +20,10 @@ struct PackList: AsyncParsableCommand {
                 return "No packs available."
             }
 
+            let nc = ctx.noColor
             let installedCount = packs.filter(\.isInstalled).count
             var lines = [
-                "Packs (\(packs.count) available, \(installedCount) installed):",
+                ANSIColor.bold("Packs (\(packs.count) available, \(installedCount) installed):", noColor: nc),
                 String(repeating: "\u{2500}", count: 60),
             ]
 
@@ -32,11 +33,13 @@ struct PackList: AsyncParsableCommand {
             for category in categoryOrder {
                 guard let categoryPacks = grouped[category] else { continue }
                 lines.append("")
-                lines.append("  \(category)")
+                lines.append("  \(ANSIColor.bold(category, noColor: nc))")
                 for pack in categoryPacks {
-                    let status = pack.isInstalled ? "+" : " "
+                    let marker = pack.isInstalled
+                        ? ANSIColor.green("+", noColor: nc)
+                        : " "
                     let name = pack.name.padding(toLength: 28, withPad: " ", startingAt: 0)
-                    lines.append("    [\(status)] \(name) \(pack.tagline)")
+                    lines.append("    [\(marker)] \(name) \(ANSIColor.dim(pack.tagline, noColor: nc))")
                 }
             }
 

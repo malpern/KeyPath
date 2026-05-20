@@ -44,13 +44,13 @@ struct ServiceStatus: AsyncParsableCommand {
 }
 
 private func formatHumanReadable(_ status: CLIStatusResult, noColor: Bool) -> String {
-    let ok = noColor ? "[ok]" : "ok"
-    let fail = noColor ? "[FAIL]" : "FAIL"
+    let ok = ANSIColor.green("✓", noColor: noColor)
+    let fail = ANSIColor.red("✗", noColor: noColor)
 
     func check(_ value: Bool) -> String { value ? ok : fail }
 
     var lines: [String] = []
-    lines.append("=== System Status ===")
+    lines.append(ANSIColor.bold("=== System Status ===", noColor: noColor))
     lines.append("System Ready: \(check(status.isOperational))")
     lines.append("")
     lines.append("--- Helper ---")
@@ -80,15 +80,15 @@ private func formatHumanReadable(_ status: CLIStatusResult, noColor: Bool) -> St
 
     if status.hasConflicts {
         lines.append("")
-        lines.append("Conflicts detected")
+        lines.append(ANSIColor.yellow("Conflicts detected", noColor: noColor))
     }
 
     lines.append("")
-    lines.append("=== Summary ===")
+    lines.append(ANSIColor.bold("=== Summary ===", noColor: noColor))
     if status.isOperational {
-        lines.append("System is ready and operational")
+        lines.append(ANSIColor.green("System is ready and operational", noColor: noColor))
     } else {
-        lines.append("System has blocking issue(s)")
+        lines.append(ANSIColor.red("System has blocking issue(s)", noColor: noColor))
         lines.append("   Open KeyPath.app and use the Installation Wizard to fix")
     }
 

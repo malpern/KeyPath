@@ -54,20 +54,24 @@ enum CLIOutput {
                 printErr(json)
             }
         } else {
-            printErr("Error: \(error.message)")
+            let nc = context.noColor
+            printErr(ANSIColor.red("Error: \(error.message)", noColor: nc))
             if let hint = error.hint {
-                printErr("Hint: \(hint)")
+                printErr(ANSIColor.dim("Hint: \(hint)", noColor: nc))
             }
             if let details = error.details {
                 for detail in details {
-                    printErr("  \(detail)")
+                    printErr(ANSIColor.dim("  \(detail)", noColor: nc))
                 }
+            }
+            if let docsUrl = error.docsUrl {
+                printErr(ANSIColor.dim("Docs: \(docsUrl)", noColor: nc))
             }
         }
     }
 
     static func progress(_ message: String, context: OutputContext) {
         guard context.isInteractive else { return }
-        printErr(message)
+        printErr(ANSIColor.yellow(message, noColor: context.noColor))
     }
 }
