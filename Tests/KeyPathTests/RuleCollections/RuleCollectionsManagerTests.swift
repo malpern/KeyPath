@@ -197,10 +197,10 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertFalse(FunctionKeyMode.function.preferMediaKeys)
     }
 
-    func testCatalogDoesNotExposeSeparateHomeRowLayerTogglesRule() {
+    func testCatalogExposesHomeRowModsAndLayerToggles() {
         let ids = Set(RuleCollectionCatalog().defaultCollections().map(\.id))
         XCTAssertTrue(ids.contains(RuleCollectionIdentifier.homeRowMods))
-        XCTAssertFalse(ids.contains(RuleCollectionIdentifier.homeRowLayerToggles))
+        XCTAssertTrue(ids.contains(RuleCollectionIdentifier.homeRowLayerToggles))
     }
 
     // MARK: - Conflict Detection Tests
@@ -566,7 +566,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertFalse(beforeInputs.isEmpty)
         XCTAssertTrue(beforeInputs.allSatisfy { $0 == "tab" })
 
-        await manager.toggleCollection(id: RuleCollectionIdentifier.leaderKey, isEnabled: false)
+        await manager.toggleCollection(id: RuleCollectionIdentifier.leaderKey, isEnabled: false, bypassOwnershipCheck: true)
 
         let afterInputs = manager.ruleCollections.compactMap(\.momentaryActivator?.input)
         XCTAssertFalse(afterInputs.isEmpty)
