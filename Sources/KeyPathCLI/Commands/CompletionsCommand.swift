@@ -77,15 +77,13 @@ struct Completions: ParsableCommand {
 
         static let dynamicCompletionWrapper = """
 
-        # Dynamic completions for keypath argument values
+        # Dynamic completions for keypath argument values (Bash 3.2 compatible)
         _keypath_dynamic_values() {
             local noun=$1 cur="${COMP_WORDS[COMP_CWORD]}"
-            local -a vals
-            mapfile -t vals < <(keypath completions values "$noun" 2>/dev/null)
-            local v
-            for v in "${vals[@]}"; do
-                [[ "$v" == "$cur"* ]] && COMPREPLY+=("$v")
-            done
+            local line
+            while IFS= read -r line; do
+                [[ "$line" == "$cur"* ]] && COMPREPLY+=("$line")
+            done < <(keypath completions values "$noun" 2>/dev/null)
         }
 
         _keypath_dynamic_complete() {
@@ -103,7 +101,7 @@ struct Completions: ParsableCommand {
         }
 
         if type -t _keypath_bash_complete >/dev/null 2>&1; then
-            _keypath_orig_bash_complete=$(declare -f _keypath_bash_complete | tail -n +3 | head -n -1)
+            _keypath_orig_bash_complete=$(declare -f _keypath_bash_complete | sed '1d;$d')
             _keypath_bash_complete() {
                 eval "$_keypath_orig_bash_complete"
                 _keypath_dynamic_complete
