@@ -12,7 +12,7 @@ struct ServiceStop: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = SystemFacade()
 
         let success = await facade.stopService()
         if success {

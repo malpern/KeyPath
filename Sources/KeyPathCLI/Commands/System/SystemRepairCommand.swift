@@ -15,7 +15,7 @@ struct SystemRepair: AsyncParsableCommand {
         let spinner = CLISpinner(context: ctx)
         spinner.start("Repairing...")
 
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = SystemFacade()
         let report: CLIInstallerReport
         do {
             report = try await withThrowingTimeout(seconds: globals.timeout) {

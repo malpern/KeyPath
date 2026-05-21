@@ -14,7 +14,7 @@ struct ServiceReload: AsyncParsableCommand {
         let ctx = globals.outputContext
         CLIOutput.progress("Reloading Kanata configuration...", context: ctx)
 
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = ConfigFacade()
         let success = await facade.tcpReload()
 
         if success {

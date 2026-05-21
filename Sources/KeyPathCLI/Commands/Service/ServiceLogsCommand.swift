@@ -15,7 +15,7 @@ struct ServiceLogs: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = SystemFacade()
 
         let logLines = facade.serviceLogs(lines: lines)
         if logLines.isEmpty {

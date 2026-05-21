@@ -15,7 +15,7 @@ struct LayerSwitch: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = ConfigFacade()
         let success = await facade.tcpChangeLayer(name)
         if success {
             CLIOutput.write(["layer": name], context: ctx) {

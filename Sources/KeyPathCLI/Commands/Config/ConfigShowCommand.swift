@@ -12,7 +12,7 @@ struct ConfigShow: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = ConfigFacade()
         let config = await facade.currentConfig()
 
         CLIOutput.write(["config": config], context: ctx) {

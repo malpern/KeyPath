@@ -4,9 +4,11 @@ import KeyPathDaemonLifecycle
 import KeyPathInstallationWizard
 import KeyPathWizardCore
 
-// MARK: - Service Lifecycle, Config, TCP, Status, Installer
+public struct SystemFacade: Sendable {
+    public init() {}
 
-extension CLIFacade {
+    // MARK: - Service Lifecycle
+
     public func startService() async -> Bool {
         do {
             try await SubprocessRunner.shared.launchctl("kickstart", ["system/com.keypath.kanata"])
@@ -40,107 +42,7 @@ extension CLIFacade {
         return Array(allLines.suffix(lines))
     }
 
-    @MainActor
-    public func currentConfig() async -> String {
-        let service = ConfigurationService()
-        let config = await service.current()
-        return config.content
-    }
-
-    @MainActor
-    public func configPath() -> String {
-        ConfigurationService().configurationPath
-    }
-
-    @MainActor
-    public func validateConfig() async -> CLIValidationResult {
-        let service = ConfigurationService()
-        let config = await service.current()
-        if config.content.isEmpty {
-            return CLIValidationResult(isValid: false, errors: ["No configuration generated yet. Run 'keypath apply' first."])
-        }
-        let result = await service.validateConfiguration(config.content)
-        return CLIValidationResult(isValid: result.isValid, errors: result.errors)
-    }
-
-    public func applyConfiguration() async throws -> CLIApplyResult {
-        let collections = await RuleCollectionStore.shared.loadCollections()
-        let customRules = await CustomRulesStore.shared.loadRules()
-        let enabledCount = collections.filter(\.isEnabled).count
-
-        let service = await MainActor.run { ConfigurationService() }
-        try await service.saveConfiguration(
-            ruleCollections: collections,
-            customRules: customRules
-        )
-
-        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
-        let client = KanataTCPClient(port: port)
-        let result = await client.reloadConfig()
-        let reloadSuccess = if case .success = result {
-            true
-        } else {
-            false
-        }
-
-        let changeset = CLIApplyChangeset(
-            enabledCollections: collections.filter(\.isEnabled).map(\.name),
-            disabledCollections: collections.filter { !$0.isEnabled }.map(\.name),
-            customRules: customRules.filter(\.isEnabled).map { "\($0.input) → \($0.action.outputString)" }
-        )
-
-        return CLIApplyResult(
-            collectionsCount: collections.count,
-            enabledCount: enabledCount,
-            customRulesCount: customRules.count,
-            reloadSuccess: reloadSuccess,
-            changeset: changeset
-        )
-    }
-
-    func tcpClient() async -> KanataTCPClient {
-        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
-        return KanataTCPClient(port: port)
-    }
-
-    public func tcpCheckHealth() async -> Bool {
-        let client = await tcpClient()
-        return await client.checkServerStatus()
-    }
-
-    public func tcpGetLayers() async throws -> [String] {
-        let client = await tcpClient()
-        return try await client.requestLayerNames()
-    }
-
-    public func tcpReload() async -> Bool {
-        let client = await tcpClient()
-        let result = await client.reloadConfig()
-        if case .success = result { return true }
-        return false
-    }
-
-    public func tcpGetHrmStats() async throws -> CLIHrmStats {
-        let client = await tcpClient()
-        let stats = try await client.requestHrmStats()
-        return CLIHrmStats(
-            totalDecisions: stats.decisionsTotal,
-            tapCount: stats.tapCount,
-            holdCount: stats.holdCount
-        )
-    }
-
-    public func tcpResetHrmStats() async throws {
-        let client = await tcpClient()
-        try await client.resetHrmStats()
-    }
-
-    public func tcpChangeLayer(_ layerName: String) async -> Bool {
-        let client = await tcpClient()
-        let result = await client.changeLayer(layerName)
-        if case .success = result { return true }
-        return false
-    }
+    // MARK: - Status
 
     @MainActor
     public func runStatus() async -> CLIStatusResult {
@@ -172,6 +74,8 @@ extension CLIFacade {
             timestamp: context.timestamp
         )
     }
+
+    // MARK: - Installer
 
     @MainActor
     public func runInstall() async -> CLIInstallerReport {
@@ -221,4 +125,64 @@ extension CLIFacade {
             plannedRecipes: plan.recipes.map { "\($0.id) (\($0.type))" }
         )
     }
+}
+
+// MARK: - System Types
+
+public struct CLIStatusResult: Codable, Sendable {
+    public let isOperational: Bool
+    public let helperInstalled: Bool
+    public let helperWorking: Bool
+    public let helperVersion: String?
+    public let keyPathAccessibility: Bool
+    public let keyPathInputMonitoring: Bool
+    public let kanataAccessibility: Bool
+    public let kanataInputMonitoring: Bool
+    public let kanataBinaryInstalled: Bool
+    public let karabinerDriverInstalled: Bool
+    public let vhidDeviceHealthy: Bool
+    public let kanataRunning: Bool
+    public let karabinerDaemonRunning: Bool
+    public let vhidHealthy: Bool
+    public let activeRuntimePathTitle: String?
+    public let activeRuntimePathDetail: String?
+    public let hasConflicts: Bool
+    public let timestamp: Date
+}
+
+public struct CLIInstallerReport: Codable, Sendable {
+    public let success: Bool
+    public let failureReason: String?
+    public let steps: [CLIInstallerStep]
+    public let fastRepair: Bool
+
+    init(from report: InstallerReport) {
+        success = report.success
+        failureReason = report.failureReason
+        steps = report.executedRecipes.map {
+            CLIInstallerStep(name: $0.recipeID, success: $0.success, error: $0.error)
+        }
+        fastRepair = false
+    }
+
+    init(success: Bool, failureReason: String?, steps: [CLIInstallerStep], fastRepair: Bool) {
+        self.success = success
+        self.failureReason = failureReason
+        self.steps = steps
+        self.fastRepair = fastRepair
+    }
+}
+
+public struct CLIInstallerStep: Codable, Sendable {
+    public let name: String
+    public let success: Bool
+    public let error: String?
+}
+
+public struct CLIInspectResult: Codable, Sendable {
+    public let macOSVersion: String
+    public let driverCompatible: Bool
+    public let planStatus: String
+    public let blockedBy: String?
+    public let plannedRecipes: [String]
 }
