@@ -101,10 +101,10 @@ struct AppMenuCommands: Commands {
 
             Button(
                 action: {
-                    LiveKeyboardOverlayController.shared.toggle()
+                    CommandPaletteWindowController.shared.toggle()
                 },
                 label: {
-                    Label("Live Keyboard Overlay", systemImage: "keyboard.badge.eye")
+                    Label("Command Palette", systemImage: "command")
                 }
             )
             .keyboardShortcut("k", modifiers: .command)
