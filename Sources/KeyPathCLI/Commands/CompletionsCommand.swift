@@ -34,6 +34,7 @@ struct Completions: ParsableCommand {
         # for positional arguments while preserving flag completions.
         _keypath_wrap_with_dynamic() {
             local func_name=$1 noun=$2
+            (( ${+functions[$func_name]} )) || return
             eval "$(functions -- $func_name | sed '1s/.*/___orig_&/')"
             eval "${func_name}() {
                 ___orig_${func_name}
@@ -108,6 +109,7 @@ struct Completions: ParsableCommand {
                 _keypath_dynamic_complete
             }
         else
+            echo "keypath: warning: _keypath_bash_complete not found, flag completions unavailable" >&2
             complete -F _keypath_dynamic_complete keypath
         fi
         """
