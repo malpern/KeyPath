@@ -12,6 +12,17 @@ struct CommandPaletteView: View {
         items.filter { $0.matches(searchText) }
     }
 
+    private var groupedFiltered: [CommandPaletteGroup] {
+        let ordered = filtered
+        var seen: [String] = []
+        var groups: [String: [CommandPaletteItem]] = [:]
+        for item in ordered {
+            if groups[item.group] == nil { seen.append(item.group) }
+            groups[item.group, default: []].append(item)
+        }
+        return seen.map { CommandPaletteGroup(id: $0, items: groups[$0]!) }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             searchField
@@ -24,7 +35,7 @@ struct CommandPaletteView: View {
             Divider()
             hintBar
         }
-        .frame(width: 440, height: 340)
+        .frame(width: 440, height: 360)
         .background(VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.3), radius: 20, y: 8)
@@ -86,7 +97,7 @@ struct CommandPaletteView: View {
                     searchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
             }
@@ -100,27 +111,47 @@ struct CommandPaletteView: View {
     private var resultsList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(filtered.enumerated()), id: \.element.id) { index, item in
-                        CommandPaletteRow(
-                            item: item,
-                            isSelected: index == selectedIndex
-                        ) {
-                            onDismiss()
-                            item.action()
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    let flatItems = filtered
+                    var runningIndex = 0
+
+                    ForEach(groupedFiltered) { group in
+                        let groupStart = runningIndex
+
+                        Section {
+                            ForEach(Array(group.items.enumerated()), id: \.element.id) { offset, item in
+                                let globalIndex = groupStart + offset
+                                CommandPaletteRow(
+                                    item: item,
+                                    isSelected: globalIndex == selectedIndex
+                                ) {
+                                    onDismiss()
+                                    item.action()
+                                }
+                                .id(item.id)
+                                .onHover { hovering in
+                                    if hovering { selectedIndex = globalIndex }
+                                }
+                            }
+                        } header: {
+                            Text(group.id)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 16)
+                                .padding(.top, groupStart == 0 ? 6 : 12)
+                                .padding(.bottom, 4)
                         }
-                        .id(item.id)
-                        .onHover { hovering in
-                            if hovering { selectedIndex = index }
-                        }
+
+                        let _ = (runningIndex = groupStart + group.items.count)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.bottom, 4)
             }
             .onChange(of: selectedIndex) { _, newIndex in
-                if newIndex < filtered.count {
+                let flatItems = filtered
+                if newIndex < flatItems.count {
                     withAnimation(.easeOut(duration: 0.1)) {
-                        proxy.scrollTo(filtered[newIndex].id, anchor: .center)
+                        proxy.scrollTo(flatItems[newIndex].id, anchor: .center)
                     }
                 }
             }
@@ -147,7 +178,7 @@ struct CommandPaletteView: View {
             Label("dismiss", systemImage: "escape")
         }
         .font(.caption2)
-        .foregroundStyle(.tertiary)
+        .foregroundStyle(.secondary.opacity(0.5))
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
     }
