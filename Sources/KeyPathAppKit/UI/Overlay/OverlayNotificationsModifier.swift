@@ -14,6 +14,7 @@ struct OverlayNotificationsModifier: ViewModifier {
     let onSwitchToAppRulesTab: () -> Void
     let onSwitchToMapperTab: (Notification) -> Void
     let onMapperKeySelected: (Notification) -> Void
+    let onSelectInspectorSection: (Notification) -> Void
 
     func body(content: Content) -> some View {
         content
@@ -52,6 +53,9 @@ struct OverlayNotificationsModifier: ViewModifier {
             // Switch to Mapper tab when a key is clicked while in Rules tab
             .onReceive(NotificationCenter.default.publisher(for: .mapperDrawerKeySelected)) { notification in
                 onMapperKeySelected(notification)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .commandPaletteSelectInspectorSection)) { notification in
+                onSelectInspectorSection(notification)
             }
     }
 }

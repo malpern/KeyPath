@@ -81,4 +81,8 @@ extension Notification.Name {
     static let hidKeyboardConnected = Notification.Name("KeyPath.HID.KeyboardConnected")
     /// HID keyboard disconnected (posted by HIDDeviceMonitor). object = HIDKeyboardEvent
     static let hidKeyboardDisconnected = Notification.Name("KeyPath.HID.KeyboardDisconnected")
+
+    /// Command palette requests a specific overlay inspector section.
+    /// userInfo["section"] = InspectorSection.rawValue (String)
+    static let commandPaletteSelectInspectorSection = Notification.Name("KeyPath.CommandPalette.SelectInspectorSection")
 }

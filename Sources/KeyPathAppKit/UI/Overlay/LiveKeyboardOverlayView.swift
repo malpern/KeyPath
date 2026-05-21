@@ -449,6 +449,13 @@ struct LiveKeyboardOverlayView: View {
                         }
                     }
                 }
+            },
+            onSelectInspectorSection: { notification in
+                if let rawValue = notification.userInfo?["section"] as? String,
+                   let section = InspectorSection(rawValue: rawValue)
+                {
+                    selectInspectorSection(section)
+                }
             }
         ))
         .onReceive(NotificationCenter.default.publisher(for: .installedPacksChanged)) { _ in

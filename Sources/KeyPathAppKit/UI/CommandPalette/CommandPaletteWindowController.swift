@@ -6,8 +6,45 @@ final class CommandPaletteWindowController {
     static let shared = CommandPaletteWindowController()
 
     private var panel: NSPanel?
+    private let recencyKey = "CommandPalette.Recency"
 
     private init() {}
+
+    // MARK: - Recency Tracking
+
+    func recordUsage(_ itemID: String) {
+        var recency = UserDefaults.standard.dictionary(forKey: recencyKey) as? [String: Double] ?? [:]
+        recency[itemID] = Date().timeIntervalSinceReferenceDate
+        UserDefaults.standard.set(recency, forKey: recencyKey)
+    }
+
+    private func recencyScore(_ itemID: String) -> Double {
+        let recency = UserDefaults.standard.dictionary(forKey: recencyKey) as? [String: Double] ?? [:]
+        return recency[itemID] ?? 0
+    }
+
+    private func sortByRecency(_ items: [CommandPaletteItem]) -> [CommandPaletteItem] {
+        let pinned = items.filter { $0.id == "toggle-app" }
+        let recentIDs = (UserDefaults.standard.dictionary(forKey: recencyKey) as? [String: Double] ?? [:])
+            .sorted { $0.value > $1.value }
+            .prefix(5)
+            .map(\.key)
+        let recentSet = Set(recentIDs)
+
+        let recentItems = recentIDs.compactMap { id in
+            items.first(where: { $0.id == id && $0.id != "toggle-app" })
+        }.map { item in
+            CommandPaletteItem(
+                id: item.id, title: item.title, subtitle: item.subtitle,
+                icon: item.icon, shortcut: item.shortcut, group: "Recent",
+                action: item.action
+            )
+        }
+
+        let rest = items.filter { $0.id != "toggle-app" && !recentSet.contains($0.id) }
+
+        return pinned + recentItems + rest
+    }
 
     var isVisible: Bool {
         panel?.isVisible ?? false
@@ -32,7 +69,7 @@ final class CommandPaletteWindowController {
         let hosting = NSHostingController(rootView: view)
         let panel = NSPanel(
             contentRect: .zero,
-            styleMask: [.nonactivatingPanel, .fullSizeContentView],
+            styleMask: [.titled, .fullSizeContentView],
             backing: .buffered,
             defer: true
         )
@@ -50,7 +87,7 @@ final class CommandPaletteWindowController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.animationBehavior = .utilityWindow
 
-        panel.setContentSize(NSSize(width: 440, height: 360))
+        panel.setContentSize(NSSize(width: 440, height: 420))
         positionPanel(panel)
 
         self.panel = panel
@@ -63,22 +100,71 @@ final class CommandPaletteWindowController {
         panel = nil
     }
 
+    func allItemIDs() -> Set<String> {
+        var items: [CommandPaletteItem] = []
+        items.append(contentsOf: navigationItems())
+        items.append(contentsOf: collectionItems())
+        items.append(contentsOf: packItems())
+        items.append(contentsOf: overlayTabItems())
+        items.append(contentsOf: settingsItems())
+        return Set(items.map(\.id))
+    }
+
     // MARK: - Positioning
 
     private func positionPanel(_ panel: NSPanel) {
         guard let screen = NSScreen.main else { return }
         let screenFrame = screen.visibleFrame
         let panelSize = panel.frame.size
-        let x = screenFrame.midX - panelSize.width / 2
-        let y = screenFrame.midY + screenFrame.height * 0.15
-        panel.setFrameOrigin(NSPoint(x: x, y: y))
+
+        if let overlayFrame = LiveKeyboardOverlayController.shared.window?.frame,
+           LiveKeyboardOverlayController.shared.window?.isVisible == true
+        {
+            let x = overlayFrame.midX - panelSize.width / 2
+            let y = overlayFrame.maxY - panelSize.height - 24
+            let clamped = NSPoint(
+                x: min(max(x, screenFrame.minX), screenFrame.maxX - panelSize.width),
+                y: max(y, screenFrame.minY)
+            )
+            panel.setFrameOrigin(clamped)
+        } else {
+            let x = screenFrame.midX - panelSize.width / 2
+            let y = screenFrame.midY + screenFrame.height * 0.15
+            panel.setFrameOrigin(NSPoint(x: x, y: y))
+        }
     }
 
     // MARK: - Command Items
 
     private func buildItems() -> [CommandPaletteItem] {
+        var items: [CommandPaletteItem] = []
+
+        items.append(contentsOf: navigationItems())
+        items.append(contentsOf: collectionItems())
+        items.append(contentsOf: packItems())
+        items.append(contentsOf: overlayTabItems())
+        items.append(contentsOf: settingsItems())
+
+        return sortByRecency(items.map { item in
+            let originalAction = item.action
+            return CommandPaletteItem(
+                id: item.id,
+                title: item.title,
+                subtitle: item.subtitle,
+                icon: item.icon,
+                shortcut: item.shortcut,
+                group: item.group
+            ) { [weak self] in
+                self?.recordUsage(item.id)
+                originalAction()
+            }
+        })
+    }
+
+    // MARK: - Navigation
+
+    private func navigationItems() -> [CommandPaletteItem] {
         [
-            // Navigation
             CommandPaletteItem(
                 id: "toggle-app",
                 title: "Hide / Show KeyPath",
@@ -120,39 +206,13 @@ final class CommandPaletteWindowController {
                     NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
                 }
             },
-
-            // Rules
-            CommandPaletteItem(
-                id: "rules",
-                title: "Rules",
-                subtitle: "Manage rule collections",
-                icon: "list.bullet",
-                shortcut: "\u{2318}R",
-                group: "Rules"
-            ) {
-                DispatchQueue.main.async {
-                    openPreferencesTab(.openSettingsRules)
-                }
-            },
-            CommandPaletteItem(
-                id: "packs",
-                title: "Packs",
-                subtitle: "Browse and install keyboard packs",
-                icon: "shippingbox",
-                shortcut: nil,
-                group: "Rules"
-            ) {
-                DispatchQueue.main.async {
-                    openPreferencesTab(.openSettingsRules)
-                }
-            },
             CommandPaletteItem(
                 id: "edit-config",
                 title: "Edit Config",
                 subtitle: "Open keypath.kbd in your editor",
                 icon: "chevron.left.forwardslash.chevron.right",
                 shortcut: "\u{2318}O",
-                group: "Rules"
+                group: "Navigation"
             ) {
                 DispatchQueue.main.async {
                     if let vm = (NSApp.delegate as? AppDelegate)?.viewModel {
@@ -160,10 +220,109 @@ final class CommandPaletteWindowController {
                     }
                 }
             },
-
-            // Settings
             CommandPaletteItem(
-                id: "status",
+                id: "help",
+                title: "Help",
+                subtitle: "Open the KeyPath help browser",
+                icon: "questionmark.circle",
+                shortcut: "\u{2318}?",
+                group: "Navigation"
+            ) {
+                DispatchQueue.main.async {
+                    HelpWindowController.shared.showBrowser()
+                }
+            },
+        ]
+    }
+
+    // MARK: - Rule Collections
+
+    private func collectionItems() -> [CommandPaletteItem] {
+        let catalog = RuleCollectionCatalog()
+        return catalog.defaultCollections().map { collection in
+            CommandPaletteItem(
+                id: "collection-\(collection.id.uuidString)",
+                title: collection.name,
+                subtitle: collection.summary,
+                icon: collection.icon ?? "list.bullet",
+                shortcut: nil,
+                group: "Collections"
+            ) {
+                DispatchQueue.main.async {
+                    openPreferencesTab(.openSettingsRules)
+                }
+            }
+        }
+    }
+
+    // MARK: - Packs
+
+    private func packItems() -> [CommandPaletteItem] {
+        PackRegistry.starterKit.map { pack in
+            CommandPaletteItem(
+                id: "pack-\(pack.id)",
+                title: pack.name,
+                subtitle: pack.tagline,
+                icon: pack.iconSymbol,
+                shortcut: nil,
+                group: "Packs"
+            ) {
+                DispatchQueue.main.async {
+                    if let vm = (NSApp.delegate as? AppDelegate)?.viewModel {
+                        PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: vm)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Overlay Inspector Tabs
+
+    private func overlayTabItems() -> [CommandPaletteItem] {
+        let tabs: [(section: InspectorSection, title: String, subtitle: String, icon: String)] = [
+            (.mapper, "Mapper", "Key mapper and conflict detection", "arrow.left.arrow.right"),
+            (.customRules, "Custom Rules", "Global and app-specific rules", "text.badge.star"),
+            (.keyboard, "Keymap", "Logical key labels", "character.textbox"),
+            (.layout, "Layout", "Physical keyboard layout", "rectangle.split.3x3"),
+            (.keycaps, "Keycaps", "Keycap appearance and colors", "paintpalette"),
+            (.sounds, "Sounds", "Typing sounds", "speaker.wave.2"),
+            (.launchers, "Launchers", "App and website launchers", "arrow.up.forward.app"),
+            (.devices, "Devices", "Keyboard device selection", "desktopcomputer"),
+        ]
+
+        return tabs.map { tab in
+            CommandPaletteItem(
+                id: "inspector-\(tab.section.rawValue)",
+                title: tab.title,
+                subtitle: tab.subtitle,
+                icon: tab.icon,
+                shortcut: nil,
+                group: "Overlay"
+            ) {
+                DispatchQueue.main.async {
+                    let controller = LiveKeyboardOverlayController.shared
+                    if controller.window == nil || controller.window?.isVisible != true {
+                        controller.showResetCentered()
+                    }
+                    controller.openInspector(animated: true)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        NotificationCenter.default.post(
+                            name: .commandPaletteSelectInspectorSection,
+                            object: nil,
+                            userInfo: ["section": tab.section.rawValue]
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Settings Tabs
+
+    private func settingsItems() -> [CommandPaletteItem] {
+        [
+            CommandPaletteItem(
+                id: "settings-status",
                 title: "System Status",
                 subtitle: "Check service health and permissions",
                 icon: "gauge.with.dots.needle.67percent",
@@ -175,7 +334,43 @@ final class CommandPaletteWindowController {
                 }
             },
             CommandPaletteItem(
-                id: "logs",
+                id: "settings-rules",
+                title: "Rules Tab",
+                subtitle: "Manage rule collections",
+                icon: "list.bullet",
+                shortcut: "\u{2318}R",
+                group: "Settings"
+            ) {
+                DispatchQueue.main.async {
+                    openPreferencesTab(.openSettingsRules)
+                }
+            },
+            CommandPaletteItem(
+                id: "settings-general",
+                title: "General",
+                subtitle: "App preferences and startup options",
+                icon: "gearshape",
+                shortcut: nil,
+                group: "Settings"
+            ) {
+                DispatchQueue.main.async {
+                    openPreferencesTab(.openSettingsGeneral)
+                }
+            },
+            CommandPaletteItem(
+                id: "settings-advanced",
+                title: "Repair / Remove",
+                subtitle: "Reinstall components or uninstall",
+                icon: "wrench.and.screwdriver",
+                shortcut: nil,
+                group: "Settings"
+            ) {
+                DispatchQueue.main.async {
+                    openPreferencesTab(.openSettingsAdvanced)
+                }
+            },
+            CommandPaletteItem(
+                id: "settings-logs",
                 title: "Logs",
                 subtitle: "View debug and runtime logs",
                 icon: "doc.text.magnifyingglass",
@@ -187,7 +382,7 @@ final class CommandPaletteWindowController {
                 }
             },
             CommandPaletteItem(
-                id: "wizard",
+                id: "settings-wizard",
                 title: "Installation Wizard",
                 subtitle: "Run the setup wizard",
                 icon: "wand.and.stars",
@@ -196,18 +391,6 @@ final class CommandPaletteWindowController {
             ) {
                 DispatchQueue.main.async {
                     NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
-                }
-            },
-            CommandPaletteItem(
-                id: "help",
-                title: "Help",
-                subtitle: "Open the KeyPath help browser",
-                icon: "questionmark.circle",
-                shortcut: "\u{2318}?",
-                group: "Settings"
-            ) {
-                DispatchQueue.main.async {
-                    HelpWindowController.shared.showBrowser()
                 }
             },
         ]
