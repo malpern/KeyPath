@@ -403,6 +403,21 @@ extension KanataConfiguration {
             blocks.append(CollectionBlock(metadata: metadata, entries: [entry]))
         }
 
+        // Scan alias definitions for layer references (layer-while-held, layer-switch)
+        // that aren't already in additionalLayers. This catches cases where a collection
+        // (e.g., Home Row Layer Toggles) generates hold actions referencing layers whose
+        // source collection isn't enabled — without a matching deflayer, kanata rejects the config.
+        let layerRefPattern = #/\((?:layer-while-held|layer-switch)\s+([\w-]+)\)/#
+        for alias in aliasDefinitions {
+            for match in alias.definition.matches(of: layerRefPattern) {
+                let layerName = String(match.1)
+                let layer = RuleCollectionLayer(kanataName: layerName)
+                guard layer != .base, !seenLayers.contains(layer) else { continue }
+                seenLayers.insert(layer)
+                additionalLayers.append(layer)
+            }
+        }
+
         return (activatorBlocks + blocks, aliasDefinitions, additionalLayers, chordMappings)
     }
 
