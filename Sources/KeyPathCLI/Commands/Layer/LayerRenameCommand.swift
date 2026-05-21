@@ -18,7 +18,7 @@ struct LayerRename: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = CollectionsFacade()
 
         let updated = try await facade.renameLayer(oldName: name, newName: newName)
         if updated == 0 {

@@ -21,7 +21,7 @@ struct CollectionCreate: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = CollectionsFacade()
 
         if globals.dryRun {
             let preview = ["name": name, "category": category ?? "custom", "summary": summary ?? ""]

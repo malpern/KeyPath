@@ -2,8 +2,8 @@
 @preconcurrency import XCTest
 
 @MainActor
-final class CLIFacadeTests: XCTestCase {
-    private let facade = CLIFacade()
+final class CollectionsFacadeTests: XCTestCase {
+    private let facade = CollectionsFacade()
 
     // MARK: - resolveCollectionIndex
 
@@ -50,7 +50,6 @@ final class CLIFacadeTests: XCTestCase {
 
     func testResolveThrowsOnDuplicateExactNames() throws {
         let collections = makeCollections(["Vim Layer", "Vim Layer"])
-        // Ensure different UUIDs (makeCollections already does this)
         XCTAssertNotEqual(collections[0].id, collections[1].id)
 
         XCTAssertThrowsError(
@@ -69,7 +68,6 @@ final class CLIFacadeTests: XCTestCase {
     }
 
     func testResolveExactNameTakesPriorityOverSubstring() throws {
-        // "Vim" matches "Vim" exactly and is a substring of "Vim Extended"
         let collections = makeCollections(["Vim", "Vim Extended"])
         let index = try facade.resolveCollectionIndex(nameOrId: "Vim", in: collections)
         XCTAssertEqual(index, 0)
@@ -77,7 +75,6 @@ final class CLIFacadeTests: XCTestCase {
 
     func testResolveUUIDTakesPriorityOverNameMatch() throws {
         let collections = makeCollections(["Home Row Mods", "Vim Layer"])
-        // Use UUID of first collection as the search — should find index 0
         let index = try facade.resolveCollectionIndex(
             nameOrId: collections[0].id.uuidString,
             in: collections

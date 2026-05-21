@@ -15,7 +15,7 @@ struct ImportCollection: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = CollectionsFacade()
 
         let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
         let data: Data

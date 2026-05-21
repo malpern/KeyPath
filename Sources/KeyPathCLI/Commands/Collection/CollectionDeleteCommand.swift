@@ -18,7 +18,7 @@ struct CollectionDelete: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = CollectionsFacade()
 
         do {
             let deleted = try await facade.deleteCollection(nameOrId: nameOrId)

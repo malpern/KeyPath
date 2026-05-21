@@ -163,14 +163,14 @@ final class PackOwnershipTests: XCTestCase {
 
     // MARK: - CLI facade blocks managed collections
 
-    func testCLIFacadeBlocksEnableOnManagedCollection() async throws {
+    func testCollectionsFacadeBlocksEnableOnManagedCollection() async throws {
         let record = InstalledPackRecord(
             packID: "com.keypath.pack.chord-groups",
             version: "1.0.0"
         )
         try await InstalledPackTracker.shared.upsert(record)
 
-        let facade = CLIFacade()
+        let facade = CollectionsFacade()
         do {
             _ = try await facade.enableCollection(nameOrId: "Chord Groups")
             XCTFail("Should throw PackManagedCollectionError")
@@ -179,14 +179,14 @@ final class PackOwnershipTests: XCTestCase {
         }
     }
 
-    func testCLIFacadeBlocksDisableOnManagedCollection() async throws {
+    func testCollectionsFacadeBlocksDisableOnManagedCollection() async throws {
         let record = InstalledPackRecord(
             packID: "com.keypath.pack.chord-groups",
             version: "1.0.0"
         )
         try await InstalledPackTracker.shared.upsert(record)
 
-        let facade = CLIFacade()
+        let facade = CollectionsFacade()
         do {
             _ = try await facade.disableCollection(nameOrId: "Chord Groups")
             XCTFail("Should throw PackManagedCollectionError")

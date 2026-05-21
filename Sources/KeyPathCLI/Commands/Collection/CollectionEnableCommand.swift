@@ -18,7 +18,7 @@ struct CollectionEnable: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = CollectionsFacade()
 
         do {
             guard let name = try await facade.enableCollection(nameOrId: nameOrId) else {

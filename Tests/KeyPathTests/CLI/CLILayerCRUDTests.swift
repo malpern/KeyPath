@@ -3,7 +3,7 @@
 
 @MainActor
 final class CLILayerCRUDTests: XCTestCase {
-    private let facade = CLIFacade()
+    private let facade = CollectionsFacade()
     private var originalCollections: [RuleCollection] = []
 
     override func setUp() async throws {

@@ -214,28 +214,29 @@ struct Completions: ParsableCommand {
         var noun: String
 
         mutating func run() async throws {
-            let facade = await MainActor.run { CLIFacade() }
-
             switch noun.lowercased() {
             case "pack":
+                let facade = await MainActor.run { CLIFacade() }
                 let packs = await facade.listPacks()
                 for pack in packs {
                     let slug = pack.id.replacingOccurrences(of: "com.keypath.pack.", with: "")
                     CLIOutput.writeRaw(slug)
                 }
             case "collection":
+                let facade = CollectionsFacade()
                 let collections = await facade.loadRuleCollections()
                 for c in collections {
                     CLIOutput.writeRaw(c.name)
                 }
             case "layer":
+                let facade = CollectionsFacade()
                 let layers = await facade.listDefinedLayers()
                 for layer in layers {
                     CLIOutput.writeRaw(layer)
                 }
             case "rule":
-                let rulesFacade = RulesFacade()
-                let rules = await rulesFacade.listRules()
+                let facade = RulesFacade()
+                let rules = await facade.listRules()
                 for rule in rules {
                     CLIOutput.writeRaw(rule.input)
                 }
