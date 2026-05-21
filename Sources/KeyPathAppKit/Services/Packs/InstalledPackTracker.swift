@@ -75,13 +75,22 @@ public actor InstalledPackTracker {
     /// Returns the installed pack that manages a given collection, or nil.
     public func packManagingCollection(_ collectionID: UUID) async -> (packID: String, packName: String)? {
         await ensureLoaded()
+        // Prefer a pack that manages this collection WITHOUT it being the
+        // pack's own associated collection (i.e. a parent pack like Vallack
+        // managing Home Row Mods). Fall back to self-managing pack only if
+        // no parent is found.
+        var selfManaged: (packID: String, packName: String)?
         for (packID, _) in records {
             guard let pack = PackRegistry.pack(id: packID) else { continue }
             if pack.managedCollectionIDs.contains(collectionID) {
-                return (packID: packID, packName: pack.name)
+                if pack.associatedCollectionID == collectionID {
+                    selfManaged = (packID: packID, packName: pack.name)
+                } else {
+                    return (packID: packID, packName: pack.name)
+                }
             }
         }
-        return nil
+        return selfManaged
     }
 
     /// Mark a pack as installed (or update an existing record). Persists.

@@ -36,8 +36,10 @@ struct RulesTabView: View {
     @State private var pendingDisableDependents: [Pack] = []
     /// Tracks packs with unmet dependencies (for warning badges)
     @State private var unmetDependencyMap: [String: [UnmetDependency]] = [:]
-    /// Maps collection IDs to managing pack names (for installed packs only)
-    @State private var collectionOwnershipMap: [UUID: String] = [:]
+    /// Maps collection IDs to managing pack info (for installed packs only)
+    @State private var collectionOwnershipMap: [UUID: (packID: String, packName: String)] = [:]
+    /// Alert: collection whose toggle was tapped while managed by a pack
+    @State private var managedToggleCollection: RuleCollection?
     private let catalog = RuleCollectionCatalog()
 
     /// Total count of custom rules (everywhere + app-specific)
@@ -243,7 +245,10 @@ struct RulesTabView: View {
             layerActivator: collection.momentaryActivator,
             leaderKeyDisplay: currentLeaderKeyDisplay,
             activationHint: dynamicActivationHint(for: collection),
-            managingPackName: collectionOwnershipMap[collection.id],
+            managingPackName: collectionOwnershipMap[collection.id]?.packName,
+            onManagedToggleTapped: collectionOwnershipMap[collection.id] != nil ? {
+                managedToggleCollection = collection
+            } : nil,
             defaultExpanded: recommendationFocusCollectionId == collection.id,
             displayStyle: style,
             collection: needsCollection ? collection : nil,
@@ -338,9 +343,10 @@ struct RulesTabView: View {
     // MARK: - Dependency-Aware Toggle
 
     private func handleCollectionToggle(collection: RuleCollection, isOn: Bool) {
-        if let packName = collectionOwnershipMap[collection.id] {
+        AppLogger.shared.log("🎚️ [Rules] handleCollectionToggle: '\(collection.name)' isOn=\(isOn) pack=\(packForCollection(collection)?.name ?? "nil") collectionID=\(collection.id)")
+        if let owner = collectionOwnershipMap[collection.id] {
             settingsToastManager.showError(
-                "Managed by \(packName) — uninstall the pack to change this"
+                "Part of \(owner.packName) — turn off the pack to change this"
             )
             pendingToggles.removeValue(forKey: collection.id)
             return
@@ -409,8 +415,10 @@ struct RulesTabView: View {
         }
         Task {
             if let pack {
+                AppLogger.shared.log("🎚️ [Rules] toggleViaPack path for '\(pack.name)' (collectionID=\(collection.id), packAssoc=\(pack.associatedCollectionID?.uuidString ?? "nil"))")
                 await toggleViaPack(pack, isOn: isOn)
             } else {
+                AppLogger.shared.log("🎚️ [Rules] direct toggleRuleCollection for '\(collection.name)' (id=\(collection.id))")
                 await kanataManager.toggleRuleCollection(collection.id, enabled: isOn)
             }
             pendingToggles.removeValue(forKey: collection.id)
@@ -426,6 +434,12 @@ struct RulesTabView: View {
             } else {
                 try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager)
             }
+            // System packs (e.g. Vallack) directly mutate collection isEnabled
+            // state and call regenerateConfigFromCollections(), which doesn't
+            // trigger RuntimeCoordinator's state publisher. Push the updated
+            // collection state to the ViewModel so toggles and previews reflect
+            // the new enabled state.
+            kanataManager.underlyingManager.notifyStateChanged()
         } catch {
             AppLogger.shared.log("⚠️ [Rules] Pack toggle failed for '\(pack.name)': \(error.localizedDescription)")
             await kanataManager.toggleRuleCollection(
@@ -436,13 +450,13 @@ struct RulesTabView: View {
     }
 
     private func refreshCollectionOwnership() async {
-        var map: [UUID: String] = [:]
+        var map: [UUID: (packID: String, packName: String)] = [:]
         for collection in allCollections {
             if let owner = await InstalledPackTracker.shared.packManagingCollection(collection.id) {
                 let pack = PackRegistry.pack(id: owner.packID)
                 let isSelfManaged = pack?.associatedCollectionID == collection.id
                 if !isSelfManaged {
-                    map[collection.id] = owner.packName
+                    map[collection.id] = (packID: owner.packID, packName: owner.packName)
                 }
             }
         }
@@ -863,6 +877,33 @@ struct RulesTabView: View {
         } message: {
             let names = pendingDisableDependents.map(\.name).joined(separator: ", ")
             Text("Disabling \(pendingDisablePack?.name ?? "") will affect: \(names)")
+        }
+        .alert("Part of a Pack", isPresented: Binding(
+            get: { managedToggleCollection != nil },
+            set: { if !$0 { managedToggleCollection = nil } }
+        )) {
+            if let collection = managedToggleCollection,
+               let owner = collectionOwnershipMap[collection.id]
+            {
+                Button("Turn Off \(owner.packName)", role: .destructive) {
+                    Task {
+                        let manager = kanataManager.underlyingManager.ruleCollectionsManager
+                        try? await PackInstaller.shared.uninstall(packID: owner.packID, manager: manager)
+                        kanataManager.underlyingManager.notifyStateChanged()
+                        await refreshCollectionOwnership()
+                    }
+                    managedToggleCollection = nil
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                managedToggleCollection = nil
+            }
+        } message: {
+            if let collection = managedToggleCollection,
+               let owner = collectionOwnershipMap[collection.id]
+            {
+                Text("\(collection.name) is part of the \(owner.packName) pack. To change it independently, turn off the pack first.")
+            }
         }
         .onAppear {
             refreshUnmetDependencies()

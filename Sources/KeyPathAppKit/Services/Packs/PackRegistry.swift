@@ -553,7 +553,7 @@ public enum PackRegistry {
     public static let vallackSystem = Pack(
         id: "com.keypath.pack.vallack-system",
         version: "1.0.0",
-        name: "Ben Vallack Approach",
+        name: "Ben Vallack Nav",
         tagline: "Your fingers stay put, the keyboard changes",
         shortDescription:
             "Navigate, copy, paste, and switch tabs without your fingers leaving the home row. Inspired by [Ben Vallack](https://www.youtube.com/@BenVallacksKeyboards) — hold an index finger to transform your keyboard into a navigation surface, with modifiers on the top row so nothing competes for space.",

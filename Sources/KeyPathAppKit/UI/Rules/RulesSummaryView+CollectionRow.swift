@@ -30,6 +30,7 @@ struct ExpandableCollectionRow: View {
     /// Optional activation hint from collection (overrides default formatting)
     var activationHint: String?
     var managingPackName: String? = nil
+    var onManagedToggleTapped: (() -> Void)?
     var defaultExpanded: Bool = false
     var displayStyle: RuleCollectionDisplayStyle = .list
     /// For singleKeyPicker style: the full collection with presets
@@ -307,6 +308,13 @@ private var fallbackKeyMappings: [KeyMapping] {
             .toggleStyle(.switch)
             .tint(.blue)
             .disabled(managingPackName != nil)
+            .overlay {
+                if managingPackName != nil {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { onManagedToggleTapped?() }
+                }
+            }
             .accessibilityIdentifier("rules-summary-toggle-\(collectionId)")
             .accessibilityLabel("Toggle \(name)")
         }

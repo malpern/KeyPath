@@ -22,6 +22,7 @@ extension PackDetailView {
                 manager: manager,
                 skipFinalReload: skipFinalReload
             )
+            kanataManager.underlyingManager.notifyStateChanged()
             lastUndoSnapshot = .init(quickSettingValues: quickSettingValues)
             await refreshInstallState()
             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
@@ -56,6 +57,7 @@ extension PackDetailView {
         do {
             let manager = kanataManager.underlyingManager.ruleCollectionsManager
             try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager)
+            kanataManager.underlyingManager.notifyStateChanged()
             await refreshInstallState()
             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                 justUninstalled = true

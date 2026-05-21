@@ -124,6 +124,20 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
 
     /// Top row keys used by the Vallack two-row split
     public static let vallackTopRowKeys = ["q", "w", "e", "u", "i", "o"]
+    public static let vallackLeftHandKeys = ["q", "w", "e"]
+    public static let vallackRightHandKeys = ["u", "i", "o"]
+
+    /// Canonical Vallack config — single source of truth used by
+    /// PackInstaller (apply) and HomeRowModsCollectionView (reset/baseline).
+    public static let vallackDefault = HomeRowModsConfig(
+        enabledKeys: Set(vallackTopRowKeys),
+        modifierAssignments: vallackTwoRowSplit,
+        holdMode: .modifiers,
+        hasUserSelectedHoldMode: true,
+        timing: TimingConfig(tapWindow: 200, holdDelay: 150, tapOffsets: ["q": 100, "o": 100]),
+        keySelection: .custom,
+        oppositeHandMode: .press
+    )
 
     /// Default layer assignments (community standard mirror setup)
     public static let defaultLayerAssignments: [String: String] = [

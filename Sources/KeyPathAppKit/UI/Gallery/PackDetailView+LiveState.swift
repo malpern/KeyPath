@@ -4,8 +4,22 @@ import SwiftUI
 
 extension PackDetailView {
     func refreshInstallState() async {
-        let installed = await PackInstaller.shared.isInstalled(packID: pack.id)
+        var installed = await PackInstaller.shared.isInstalled(packID: pack.id)
         let saved = await PackInstaller.shared.quickSettings(for: pack.id)
+
+        // Check if this pack's collection is managed by a different installed
+        // pack (e.g. Home Row Mods managed by Vallack). If so, lock the
+        // toggle and show the "Part of" tag.
+        var managedBy: (packID: String, packName: String)?
+        if let collectionID = pack.associatedCollectionID {
+            if let owner = await InstalledPackTracker.shared.packManagingCollection(collectionID),
+               owner.packID != pack.id
+            {
+                managedBy = owner
+                installed = true
+            }
+        }
+
         // Pick up whatever tap/hold the installed rule currently has — the
         // user might have edited it from the Rules tab since the last time
         // this sheet opened. Reading it here keeps the embedded picker and
@@ -15,6 +29,8 @@ extension PackDetailView {
         let liveHomeRow = await liveHomeRowModsConfig()
         await MainActor.run {
             isInstalled = installed
+            managingPackName = managedBy?.packName
+            managingPackID = managedBy?.packID
             if installed, !saved.isEmpty {
                 quickSettingValues = saved
             }

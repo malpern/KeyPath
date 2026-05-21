@@ -44,7 +44,13 @@ extension PackDetailView {
                     },
                     onEnableLayerCollections: { collectionIds in
                         await kanataManager.batchEnableCollections(collectionIds)
-                    }
+                    },
+                    holdTimingBinding: holdTimingQuickSetting != nil ? sliderBinding(for: "holdTimeout") : nil,
+                    holdTimingValue: quickSettingValues["holdTimeout"] ?? holdTimingDefaultValue,
+                    holdTimingDefault: holdTimingDefaultValue,
+                    holdTimingRange: holdTimingQuickSettingRange,
+                    holdTimingStep: holdTimingQuickSettingStep,
+                    onResetHoldTiming: { quickSettingValues["holdTimeout"] = holdTimingDefaultValue }
                 )
             }
         } else if let singleKeyCollection = associatedSingleKeyCollection {

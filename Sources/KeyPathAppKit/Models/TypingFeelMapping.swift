@@ -79,20 +79,33 @@ public enum TypingFeelMapping {
 
     // MARK: - Per-Finger Sensitivity
 
-    /// Finger groups that pair left/right home-row keys.
+    /// Finger groups that pair left/right keys.
     public enum FingerGroup: String, CaseIterable, Sendable {
         case pinky
         case ring
         case middle
         case index
 
-        /// The two canonical keys for this finger group.
+        /// The two canonical home-row keys for this finger group.
         public var keys: (left: String, right: String) {
+            keys(topRow: false)
+        }
+
+        /// Keys for this finger, switching between home row and Vallack top row.
+        public func keys(topRow: Bool) -> (left: String, right: String) {
+            if topRow {
+                switch self {
+                case .pinky: return ("q", "o")
+                case .ring: return ("w", "i")
+                case .middle: return ("e", "u")
+                case .index: return ("f", "j")
+                }
+            }
             switch self {
-            case .pinky: ("a", ";")
-            case .ring: ("s", "l")
-            case .middle: ("d", "k")
-            case .index: ("f", "j")
+            case .pinky: return ("a", ";")
+            case .ring: return ("s", "l")
+            case .middle: return ("d", "k")
+            case .index: return ("f", "j")
             }
         }
 
@@ -101,17 +114,21 @@ public enum TypingFeelMapping {
         }
     }
 
+    /// Whether the config uses Vallack top-row keys.
+    public static func usesTopRow(_ enabledKeys: Set<String>) -> Bool {
+        enabledKeys.contains(where: { HomeRowModsConfig.vallackTopRowKeys.contains($0) })
+    }
+
     /// Read the current sensitivity offset for a finger group.
     /// Returns `nil` if the finger's keys have inconsistent tap vs hold offsets
     /// (i.e., left tap != left hold, or left != right).
-    public static func fingerSensitivity(for finger: FingerGroup, in timing: TimingConfig) -> Int? {
-        let (left, right) = finger.keys
+    public static func fingerSensitivity(for finger: FingerGroup, in timing: TimingConfig, topRow: Bool = false) -> Int? {
+        let (left, right) = finger.keys(topRow: topRow)
         let leftTap = timing.tapOffsets[left] ?? 0
         let leftHold = timing.holdOffsets[left] ?? 0
         let rightTap = timing.tapOffsets[right] ?? 0
         let rightHold = timing.holdOffsets[right] ?? 0
 
-        // All four values must match for a clean reading
         guard leftTap == leftHold, leftTap == rightTap, leftTap == rightHold else {
             return nil
         }
@@ -120,9 +137,9 @@ public enum TypingFeelMapping {
 
     /// Apply a uniform sensitivity offset to both keys in a finger group.
     /// Sets the same value for tap and hold offsets. Range: 0–80ms.
-    public static func applyFingerSensitivity(_ ms: Int, for finger: FingerGroup, to timing: inout TimingConfig) {
+    public static func applyFingerSensitivity(_ ms: Int, for finger: FingerGroup, to timing: inout TimingConfig, topRow: Bool = false) {
         let clamped = min(max(ms, 0), 80)
-        let (left, right) = finger.keys
+        let (left, right) = finger.keys(topRow: topRow)
 
         if clamped == 0 {
             timing.tapOffsets.removeValue(forKey: left)
