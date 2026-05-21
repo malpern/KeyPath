@@ -319,7 +319,7 @@ struct HomeRowKeyChip: View {
             .offset(y: previewOffsetY)
             .animation(.easeInOut(duration: 0.15), value: isHovered)
             .animation(.easeInOut(duration: 0.1), value: isPressed)
-            .animation(.spring(response: 0.25, dampingFraction: 0.6).delay(staggerDelay), value: timingPreviewPhase)
+            .animation(.spring(response: 0.18, dampingFraction: 0.75).delay(staggerDelay), value: timingPreviewPhase)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("home-row-key-chip-\(key)")
@@ -420,7 +420,7 @@ struct HomeRowKeyChip: View {
         return 0
     }
 
-    private static let staggerOrder: [Double] = [0.05, 0.28, 0.0, 0.18, 0.35, 0.08, 0.24, 0.14]
+    private static let staggerOrder: [Double] = [0.02, 0.10, 0.0, 0.07, 0.12, 0.03, 0.09, 0.05]
 
     private var staggerDelay: Double {
         Self.staggerOrder[timingPreviewIndex % Self.staggerOrder.count]

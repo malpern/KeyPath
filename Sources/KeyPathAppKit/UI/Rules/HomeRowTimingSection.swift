@@ -14,6 +14,7 @@ struct HomeRowTimingSection: View {
     @Binding var config: HomeRowModsConfig
     let showsHrmInsights: Bool
     let onConfigChanged: (HomeRowModsConfig) -> Void
+    var hideTypingFeelSlider: Bool = false
 
     @Environment(\.services) private var services
     @State private var sliderDebounceTask: Task<Void, Never>?
@@ -23,11 +24,13 @@ struct HomeRowTimingSection: View {
     init(
         config: Binding<HomeRowModsConfig>,
         showsHrmInsights: Bool = false,
-        onConfigChanged: @escaping (HomeRowModsConfig) -> Void
+        onConfigChanged: @escaping (HomeRowModsConfig) -> Void,
+        hideTypingFeelSlider: Bool = false
     ) {
         _config = config
         self.showsHrmInsights = showsHrmInsights
         self.onConfigChanged = onConfigChanged
+        self.hideTypingFeelSlider = hideTypingFeelSlider
         let timing = config.wrappedValue.timing
         _showPerFinger = State(initialValue: !timing.tapOffsets.isEmpty || !timing.holdOffsets.isEmpty)
     }
@@ -110,6 +113,7 @@ struct HomeRowTimingSection: View {
 
             // MARK: - Typing Feel (slider or raw fields)
 
+            if !hideTypingFeelSlider {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Typing Feel")
                     .font(.subheadline)
@@ -201,6 +205,7 @@ struct HomeRowTimingSection: View {
                         .padding(.leading, 88)
                 }
             }
+            } // hideTypingFeelSlider
 
             // MARK: - Opposite-Hand Activation
 

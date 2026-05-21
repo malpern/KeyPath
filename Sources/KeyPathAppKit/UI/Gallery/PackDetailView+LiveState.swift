@@ -8,10 +8,10 @@ extension PackDetailView {
         let saved = await PackInstaller.shared.quickSettings(for: pack.id)
 
         // Check if this pack's collection is managed by a different installed
-        // pack (e.g. Home Row Mods managed by Vallack). If so, treat as
-        // effectively installed with a locked toggle.
+        // pack (e.g. Home Row Mods managed by Vallack). If so, lock the
+        // toggle and show the "Part of" tag.
         var managedBy: (packID: String, packName: String)?
-        if !installed, let collectionID = pack.associatedCollectionID {
+        if let collectionID = pack.associatedCollectionID {
             if let owner = await InstalledPackTracker.shared.packManagingCollection(collectionID),
                owner.packID != pack.id
             {

@@ -632,8 +632,7 @@ public final class PackInstaller {
     private func shouldRestorePreVallackSettings(manager: RuleCollectionsManager) async -> Bool {
         guard FileManager.default.fileExists(atPath: vallackSnapshotURL.path),
               let data = try? Data(contentsOf: vallackSnapshotURL),
-              let snapshot = try? JSONDecoder().decode(VallackConfigSnapshot.self, from: data),
-              snapshot.homeRowModsConfig != nil
+              let snapshot = try? JSONDecoder().decode(VallackConfigSnapshot.self, from: data)
         else {
             return false
         }

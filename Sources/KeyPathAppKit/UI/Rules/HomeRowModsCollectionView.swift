@@ -278,7 +278,8 @@ struct HomeRowModsCollectionView: View {
             HomeRowTimingSection(
                 config: $config,
                 showsHrmInsights: true,
-                onConfigChanged: onConfigChanged
+                onConfigChanged: onConfigChanged,
+                hideTypingFeelSlider: holdTimingBinding != nil
             )
             .frame(maxWidth: 500)
         }
@@ -601,17 +602,28 @@ struct HomeRowModsCollectionView: View {
     private func startTimingPreview() {
         timingPreviewTask?.cancel()
         timingPreviewTask = Task { @MainActor in
-            withAnimation(.easeIn(duration: 0.1)) { timingPreviewPhase = .pressing }
+            let raw = Double(holdTimingValue)
+            let lo = holdTimingRange.lowerBound
+            let hi = holdTimingRange.upperBound
+            let fraction = (raw - lo) / (hi - lo)
 
-            try? await Task.sleep(nanoseconds: UInt64(holdTimingValue) * 1_000_000)
+            // Exaggerate: "prefer letters" holds letters for 1.2s,
+            // "prefer modifiers" holds letters for only 0.15s
+            let letterHoldMs = Int(150 + fraction * 1050)
+            // Inverse for modifier flash
+            let modifierShowMs = Int(200 + (1.0 - fraction) * 600)
+
+            withAnimation(.easeIn(duration: 0.08)) { timingPreviewPhase = .pressing }
+
+            try? await Task.sleep(nanoseconds: UInt64(letterHoldMs) * 1_000_000)
             guard !Task.isCancelled else { return }
 
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { timingPreviewPhase = .modifier }
+            withAnimation(.spring(response: 0.15, dampingFraction: 0.85)) { timingPreviewPhase = .modifier }
 
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            try? await Task.sleep(nanoseconds: UInt64(modifierShowMs) * 1_000_000)
             guard !Task.isCancelled else { return }
 
-            withAnimation(.easeOut(duration: 0.3)) { timingPreviewPhase = .idle }
+            withAnimation(.easeOut(duration: 0.2)) { timingPreviewPhase = .idle }
         }
     }
 

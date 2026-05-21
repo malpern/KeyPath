@@ -343,6 +343,7 @@ struct RulesTabView: View {
     // MARK: - Dependency-Aware Toggle
 
     private func handleCollectionToggle(collection: RuleCollection, isOn: Bool) {
+        AppLogger.shared.log("🎚️ [Rules] handleCollectionToggle: '\(collection.name)' isOn=\(isOn) pack=\(packForCollection(collection)?.name ?? "nil") collectionID=\(collection.id)")
         if let owner = collectionOwnershipMap[collection.id] {
             settingsToastManager.showError(
                 "Part of \(owner.packName) — turn off the pack to change this"
@@ -414,8 +415,10 @@ struct RulesTabView: View {
         }
         Task {
             if let pack {
+                AppLogger.shared.log("🎚️ [Rules] toggleViaPack path for '\(pack.name)' (collectionID=\(collection.id), packAssoc=\(pack.associatedCollectionID?.uuidString ?? "nil"))")
                 await toggleViaPack(pack, isOn: isOn)
             } else {
+                AppLogger.shared.log("🎚️ [Rules] direct toggleRuleCollection for '\(collection.name)' (id=\(collection.id))")
                 await kanataManager.toggleRuleCollection(collection.id, enabled: isOn)
             }
             pendingToggles.removeValue(forKey: collection.id)

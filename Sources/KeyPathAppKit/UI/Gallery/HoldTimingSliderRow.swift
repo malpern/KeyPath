@@ -14,6 +14,14 @@ struct HoldTimingSliderRow: View {
 
     @State private var isEditing = false
 
+    // Invert so dragging right = lower ms = prefer modifiers
+    private var invertedBinding: Binding<Double> {
+        Binding(
+            get: { range.upperBound + range.lowerBound - value },
+            set: { value = range.upperBound + range.lowerBound - $0 }
+        )
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             Label("Prefer letters", systemImage: "character.cursor.ibeam")
@@ -21,19 +29,21 @@ struct HoldTimingSliderRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
 
-            Slider(value: $value, in: range, step: step) { editing in
+            Slider(value: invertedBinding, in: range, step: step) { editing in
                 isEditing = editing
                 if !editing {
                     onSliderReleased?()
                 }
             }
             .frame(maxWidth: 200)
+            .accessibilityIdentifier("pack-detail-hold-timing-slider")
             .accessibilityLabel("Hold timing")
             .accessibilityValue("\(currentValue)\(suffix)")
             .overlay(alignment: .top) {
                 if isEditing {
                     GeometryReader { geo in
-                        let fraction = (value - range.lowerBound) / (range.upperBound - range.lowerBound)
+                        // Inverted: high value = left, low value = right
+                        let fraction = (range.upperBound + range.lowerBound - value - range.lowerBound) / (range.upperBound - range.lowerBound)
                         let trackInset: CGFloat = 10
                         let trackWidth = geo.size.width - trackInset * 2
                         let thumbX = trackInset + trackWidth * fraction
