@@ -36,7 +36,7 @@ struct PackInstall: AsyncParsableCommand {
             settingValues[String(parts[0])] = value
         }
 
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = PacksFacade()
         let spinner = CLISpinner(context: ctx)
 
         do {

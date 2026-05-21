@@ -12,7 +12,7 @@ struct PackList: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = PacksFacade()
         let packs = await facade.listPacks()
 
         CLIOutput.write(packs, context: ctx) {
