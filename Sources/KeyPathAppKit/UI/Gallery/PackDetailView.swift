@@ -71,16 +71,24 @@ struct PackDetailView: View {
     /// `?` button that opens the HRM markdown help).
     @State var showingHomeRowModsHelp = false
 
+    /// Non-nil when this pack's associated collection is managed by a
+    /// different installed pack (e.g. Home Row Mods managed by Vallack).
+    /// Locks the toggle and treats the collection as effectively installed.
+    @State var managingPackName: String?
+    @State var managingPackID: String?
+    @State var showManagedAlert = false
+    @State var refreshTask: Task<Void, Never>?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     descriptionBlock
-                    if !pack.quickSettings.isEmpty {
+                    bindingsBlock
+                    if !nonTimingQuickSettings.isEmpty {
                         quickSettingsBlock
                     }
-                    bindingsBlock
                     dependencySection
                 }
                 .padding(.horizontal, 24)
@@ -99,6 +107,12 @@ struct PackDetailView: View {
             await refreshInstallState()
             loadDefaultQuickSettings()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .installedPacksChanged)) { _ in
+            debouncedRefresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ruleCollectionsChanged)) { _ in
+            debouncedRefresh()
+        }
         .overlay(toastOverlay, alignment: .bottom)
         .sheet(isPresented: $showingHomeRowModsHelp) {
             MarkdownHelpSheet(resource: "home-row-mods", title: "Home Row Mods")
@@ -114,6 +128,23 @@ struct PackDetailView: View {
                 },
                 onCancel: { packConflict = nil }
             )
+        }
+        .alert("Part of a Pack", isPresented: $showManagedAlert) {
+            if let managingPackName, let managingPackID {
+                Button("Turn Off \(managingPackName)", role: .destructive) {
+                    Task {
+                        let manager = kanataManager.underlyingManager.ruleCollectionsManager
+                        try? await PackInstaller.shared.uninstall(packID: managingPackID, manager: manager)
+                        kanataManager.underlyingManager.notifyStateChanged()
+                        await refreshInstallState()
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            if let managingPackName {
+                Text("\(displayName) is part of the \(managingPackName) pack. To change it independently, turn off the pack first.")
+            }
         }
     }
 
@@ -166,11 +197,8 @@ struct PackDetailView: View {
                 heroIcon
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(pack.name)
+                        Text(displayName)
                             .font(.system(size: 20, weight: .semibold))
-                        // Help button — mirrors the `?` on the Rules tab's
-                        // Home Row Mods row. Only present for packs that
-                        // have curated help markdown.
                         if helpResourceName != nil {
                             Button {
                                 if helpResourceName != nil {
@@ -183,9 +211,17 @@ struct PackDetailView: View {
                             }
                             .buttonStyle(.plain)
                             .focusable(false)
-                            .accessibilityLabel("\(pack.name) help")
+                            .accessibilityLabel("\(displayName) help")
                             .accessibilityIdentifier("pack-detail-help")
                         }
+                    }
+                    if let managingPackName {
+                        Text("Part of \(managingPackName)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(Color.accentColor))
                     }
                     Text(pack.tagline)
                         .font(.system(size: 13))
@@ -207,7 +243,14 @@ struct PackDetailView: View {
                 .toggleStyle(.switch)
                 .tint(.accentColor)
                 .scaleEffect(0.91, anchor: .trailing)
-                .disabled(isWorking)
+                .disabled(isWorking || managingPackName != nil)
+                .overlay {
+                    if managingPackName != nil {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture { showManagedAlert = true }
+                    }
+                }
                 .accessibilityLabel(isInstalled ? "Turn off pack" : "Turn on pack")
                 .accessibilityIdentifier("pack-detail-toggle")
             }
@@ -294,9 +337,16 @@ struct PackDetailView: View {
         }
     }
 
-    /// Help markdown resource name for packs that have curated help content.
-    /// Returns nil for packs without — matches the Rules tab, where only
-    /// Home Row Mods surfaces a `?` button today.
+    var displayName: String {
+        if managingPackName != nil,
+           pack.associatedCollectionID == RuleCollectionIdentifier.homeRowMods,
+           TypingFeelMapping.usesTopRow(homeRowModsConfig.enabledKeys)
+        {
+            return "Top Row Mods"
+        }
+        return pack.name
+    }
+
     var helpResourceName: String? {
         switch pack.associatedCollectionID {
         case RuleCollectionIdentifier.homeRowMods: "home-row-mods"
@@ -543,37 +593,58 @@ struct PackDetailView: View {
 
     // MARK: - Quick settings
 
+    private var nonTimingQuickSettings: [PackQuickSetting] {
+        pack.quickSettings.filter { $0.id != "holdTimeout" || !isHomeRowModsPack }
+    }
+
     var quickSettingsBlock: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Divider()
-            Text("Quick settings")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-            ForEach(pack.quickSettings) { setting in
+            ForEach(nonTimingQuickSettings) { setting in
                 quickSettingRow(setting)
             }
         }
+    }
+
+    private func settingRange(_ s: PackQuickSetting) -> ClosedRange<Double> {
+        if case let .slider(_, min: lo, max: hi, step: _, unitSuffix: _) = s.kind {
+            return Double(lo)...Double(hi)
+        }
+        return 0...100
+    }
+
+    private func settingStep(_ s: PackQuickSetting) -> Double {
+        if case let .slider(_, min: _, max: _, step: step, unitSuffix: _) = s.kind {
+            return Double(step)
+        }
+        return 1
+    }
+
+    private func settingSuffix(_ s: PackQuickSetting) -> String {
+        if case let .slider(_, min: _, max: _, step: _, unitSuffix: suffix) = s.kind {
+            return suffix
+        }
+        return ""
     }
 
     @ViewBuilder
     func quickSettingRow(_ setting: PackQuickSetting) -> some View {
         switch setting.kind {
         case let .slider(_, min: lo, max: hi, step: step, unitSuffix: suffix):
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Text(setting.label)
                     .font(.system(size: 12))
-                    .frame(width: 110, alignment: .leading)
                 Slider(
                     value: sliderBinding(for: setting.id),
                     in: Double(lo) ... Double(hi),
                     step: Double(step)
                 )
+                .frame(maxWidth: 200)
                 .accessibilityLabel(setting.label)
                 .accessibilityValue("\(quickSettingValues[setting.id] ?? 0)\(suffix)")
                 Text("\(quickSettingValues[setting.id] ?? 0)\(suffix)")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(.secondary)
-                    .frame(width: 60, alignment: .trailing)
+                    .frame(width: 50, alignment: .trailing)
             }
         }
     }

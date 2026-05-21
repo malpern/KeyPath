@@ -3,6 +3,15 @@ import SwiftUI
 // MARK: - Helpers
 
 extension PackDetailView {
+    func debouncedRefresh() {
+        refreshTask?.cancel()
+        refreshTask = Task {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            guard !Task.isCancelled else { return }
+            await refreshInstallState()
+        }
+    }
+
     func displayLabel(for kanataKey: String) -> String {
         switch kanataKey.lowercased() {
         case "caps": "\u{21EA}"
@@ -42,6 +51,28 @@ extension PackDetailView {
             get: { Double(quickSettingValues[id] ?? 0) },
             set: { quickSettingValues[id] = Int($0) }
         )
+    }
+
+    var holdTimingDefaultValue: Int {
+        holdTimingQuickSetting?.defaultSliderValue ?? 180
+    }
+
+    var holdTimingQuickSetting: PackQuickSetting? {
+        pack.quickSettings.first { $0.id == "holdTimeout" }
+    }
+
+    var holdTimingQuickSettingRange: ClosedRange<Double> {
+        if case let .slider(_, min: lo, max: hi, step: _, unitSuffix: _) = holdTimingQuickSetting?.kind {
+            return Double(lo)...Double(hi)
+        }
+        return 120...300
+    }
+
+    var holdTimingQuickSettingStep: Double {
+        if case let .slider(_, min: _, max: _, step: step, unitSuffix: _) = holdTimingQuickSetting?.kind {
+            return Double(step)
+        }
+        return 20
     }
 
     func copyValidationErrorsToClipboard() {

@@ -15,11 +15,12 @@ struct HomeRowKeyboardView<PopoverContent: View>: View {
     let onPopoverDismiss: (() -> Void)?
     let onKeySelected: (String) -> Void
     let keyChipSize: CGFloat
+    var timingPreviewPhase: HomeRowModsCollectionView.TimingPreviewPhase = .idle
 
     @State private var hoveredKey: String?
 
-    private let leftHandKeys = ["a", "s", "d", "f"]
-    private let rightHandKeys = ["j", "k", "l", ";"]
+    let leftHandKeys: [String]
+    let rightHandKeys: [String]
     private var keySpacing: CGFloat {
         max(4, keyChipSize * 0.1)
     }
@@ -56,6 +57,9 @@ struct HomeRowKeyboardView<PopoverContent: View>: View {
         keyDisplayLabels: [String: String] = [:],
         helperText: String = "Tap for letter, hold for modifier",
         keyChipSize: CGFloat = 78,
+        timingPreviewPhase: HomeRowModsCollectionView.TimingPreviewPhase = .idle,
+        leftHandKeys: [String] = HomeRowModsConfig.leftHandKeys,
+        rightHandKeys: [String] = HomeRowModsConfig.rightHandKeys,
         keyPopoverContent: ((String) -> PopoverContent)? = nil,
         onPopoverDismiss: (() -> Void)? = nil,
         onKeySelected: @escaping (String) -> Void
@@ -67,6 +71,9 @@ struct HomeRowKeyboardView<PopoverContent: View>: View {
         self.keyDisplayLabels = keyDisplayLabels
         self.helperText = helperText
         self.keyChipSize = keyChipSize
+        self.timingPreviewPhase = timingPreviewPhase
+        self.leftHandKeys = leftHandKeys
+        self.rightHandKeys = rightHandKeys
         self.keyPopoverContent = keyPopoverContent
         self.onPopoverDismiss = onPopoverDismiss
         self.onKeySelected = onKeySelected
@@ -80,7 +87,7 @@ struct HomeRowKeyboardView<PopoverContent: View>: View {
                 VStack(alignment: .leading, spacing: keySpacing) {
                     handHeader(emoji: "\u{1FAF2}", title: "Left", isActive: hasEnabledKey(in: leftHandKeys))
                     HStack(spacing: keySpacing) {
-                        ForEach(leftHandKeys, id: \.self) { key in
+                        ForEach(Array(leftHandKeys.enumerated()), id: \.element) { idx, key in
                             HomeRowKeyChip(
                                 key: key,
                                 keyDisplayLabel: keyDisplayLabel(for: key),
@@ -95,7 +102,9 @@ struct HomeRowKeyboardView<PopoverContent: View>: View {
                                     withAnimation(.easeInOut(duration: 0.15)) {
                                         hoveredKey = hovering ? key : nil
                                     }
-                                }
+                                },
+                                timingPreviewPhase: timingPreviewPhase,
+                                timingPreviewIndex: idx
                             )
                             .popover(isPresented: popoverBinding(for: key), arrowEdge: .top) {
                                 if let keyPopoverContent {
@@ -117,7 +126,7 @@ struct HomeRowKeyboardView<PopoverContent: View>: View {
                 VStack(alignment: .leading, spacing: keySpacing) {
                     handHeader(emoji: "\u{1FAF1}", title: "Right", isActive: hasEnabledKey(in: rightHandKeys))
                     HStack(spacing: keySpacing) {
-                        ForEach(rightHandKeys, id: \.self) { key in
+                        ForEach(Array(rightHandKeys.enumerated()), id: \.element) { idx, key in
                             HomeRowKeyChip(
                                 key: key,
                                 keyDisplayLabel: keyDisplayLabel(for: key),
@@ -132,7 +141,9 @@ struct HomeRowKeyboardView<PopoverContent: View>: View {
                                     withAnimation(.easeInOut(duration: 0.15)) {
                                         hoveredKey = hovering ? key : nil
                                     }
-                                }
+                                },
+                                timingPreviewPhase: timingPreviewPhase,
+                                timingPreviewIndex: leftHandKeys.count + idx
                             )
                             .popover(isPresented: popoverBinding(for: key), arrowEdge: .top) {
                                 if let keyPopoverContent {
@@ -202,6 +213,9 @@ extension HomeRowKeyboardView where PopoverContent == EmptyView {
         keyDisplayLabels: [String: String] = [:],
         helperText: String = "Tap for letter, hold for modifier",
         keyChipSize: CGFloat = 78,
+        timingPreviewPhase: HomeRowModsCollectionView.TimingPreviewPhase = .idle,
+        leftHandKeys: [String] = HomeRowModsConfig.leftHandKeys,
+        rightHandKeys: [String] = HomeRowModsConfig.rightHandKeys,
         onPopoverDismiss: (() -> Void)? = nil,
         onKeySelected: @escaping (String) -> Void
     ) {
@@ -212,6 +226,9 @@ extension HomeRowKeyboardView where PopoverContent == EmptyView {
         self.keyDisplayLabels = keyDisplayLabels
         self.helperText = helperText
         self.keyChipSize = keyChipSize
+        self.timingPreviewPhase = timingPreviewPhase
+        self.leftHandKeys = leftHandKeys
+        self.rightHandKeys = rightHandKeys
         self.keyPopoverContent = nil
         self.onPopoverDismiss = onPopoverDismiss
         self.onKeySelected = onKeySelected
@@ -230,6 +247,8 @@ struct HomeRowKeyChip: View {
     let isHovered: Bool
     let onTap: () -> Void
     let onHover: (Bool) -> Void
+    var timingPreviewPhase: HomeRowModsCollectionView.TimingPreviewPhase = .idle
+    var timingPreviewIndex: Int = 0
 
     @State private var isPressed = false
     private var letterFontSize: CGFloat {
@@ -263,38 +282,44 @@ struct HomeRowKeyChip: View {
             }
         }) {
             VStack(spacing: 4) {
-                // Key label
-                Text(keyDisplayLabel)
-                    .font(.system(size: letterFontSize, weight: .semibold))
-                    .foregroundColor(textColor)
+                if isEnabled, timingPreviewPhase == .modifier, let holdAssignment {
+                    Text(modifierDisplay(for: holdAssignment))
+                        .font(.system(size: letterFontSize, weight: .bold))
+                        .foregroundColor(.white)
+                } else {
+                    Text(keyDisplayLabel)
+                        .font(.system(size: letterFontSize, weight: .semibold))
+                        .foregroundColor(previewTextColor)
 
-                // Hold assignment
-                if let holdAssignment, isEnabled {
-                    if holdMode == .layers {
-                        HomeRowLayerTargetChip(layerName: holdAssignment)
-                    } else {
-                        Text(modifierDisplay(for: holdAssignment))
-                            .font(.system(size: assignmentFontSize, weight: .medium))
-                            .foregroundColor(textColor.opacity(0.8))
+                    if let holdAssignment, isEnabled, timingPreviewPhase == .idle {
+                        if holdMode == .layers {
+                            HomeRowLayerTargetChip(layerName: holdAssignment)
+                        } else {
+                            Text(modifierDisplay(for: holdAssignment))
+                                .font(.system(size: assignmentFontSize, weight: .medium))
+                                .foregroundColor(previewTextColor.opacity(0.8))
+                        }
+                    } else if !isEnabled {
+                        Text("—")
+                            .font(.system(size: max(11, size * 0.2)))
+                            .foregroundColor(.secondary.opacity(0.5))
                     }
-                } else if !isEnabled {
-                    Text("—")
-                        .font(.system(size: max(11, size * 0.2)))
-                        .foregroundColor(.secondary.opacity(0.5))
                 }
             }
             .frame(width: size, height: size)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(backgroundColor)
+                    .fill(previewBackgroundColor)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(borderColor, lineWidth: borderWidth)
+                    .stroke(previewBorderColor, lineWidth: borderWidth)
             )
-            .scaleEffect(isPressed ? 0.95 : (isHovered ? 1.05 : 1.0))
+            .scaleEffect(x: previewScaleX, y: previewScaleY, anchor: .bottom)
+            .offset(y: previewOffsetY)
             .animation(.easeInOut(duration: 0.15), value: isHovered)
             .animation(.easeInOut(duration: 0.1), value: isPressed)
+            .animation(.spring(response: 0.25, dampingFraction: 0.6).delay(staggerDelay), value: timingPreviewPhase)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("home-row-key-chip-\(key)")
@@ -345,6 +370,60 @@ struct HomeRowKeyChip: View {
 
     private var borderWidth: CGFloat {
         isSelected ? 2 : 1
+    }
+
+    private var isPreviewActive: Bool {
+        isEnabled && timingPreviewPhase != .idle
+    }
+
+    private var previewBackgroundColor: Color {
+        guard isPreviewActive else { return backgroundColor }
+        switch timingPreviewPhase {
+        case .idle: return backgroundColor
+        case .pressing: return Color.accentColor.opacity(0.15)
+        case .modifier: return Color.accentColor
+        }
+    }
+
+    private var previewTextColor: Color {
+        guard isPreviewActive else { return textColor }
+        switch timingPreviewPhase {
+        case .idle: return textColor
+        case .pressing: return .primary
+        case .modifier: return .white
+        }
+    }
+
+    private var previewBorderColor: Color {
+        guard isPreviewActive else { return borderColor }
+        return Color.accentColor
+    }
+
+    private var previewScaleX: CGFloat {
+        if isPreviewActive, timingPreviewPhase == .pressing {
+            return 1.03
+        }
+        return isPressed ? 0.97 : (isHovered ? 1.05 : 1.0)
+    }
+
+    private var previewScaleY: CGFloat {
+        if isPreviewActive, timingPreviewPhase == .pressing {
+            return 0.82
+        }
+        return isPressed ? 0.97 : (isHovered ? 1.05 : 1.0)
+    }
+
+    private var previewOffsetY: CGFloat {
+        if isPreviewActive, timingPreviewPhase == .pressing {
+            return 4
+        }
+        return 0
+    }
+
+    private static let staggerOrder: [Double] = [0.05, 0.28, 0.0, 0.18, 0.35, 0.08, 0.24, 0.14]
+
+    private var staggerDelay: Double {
+        Self.staggerOrder[timingPreviewIndex % Self.staggerOrder.count]
     }
 }
 

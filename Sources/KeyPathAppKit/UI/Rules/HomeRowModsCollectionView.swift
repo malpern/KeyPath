@@ -10,6 +10,12 @@ struct HomeRowModsCollectionView: View {
     let onConfigChanged: (HomeRowModsConfig) -> Void
     let onEnsureLayersExist: ([String]) async -> Void
     let onEnableLayerCollections: (([UUID]) async -> Void)?
+    var holdTimingBinding: Binding<Double>?
+    var holdTimingValue: Int = 180
+    var holdTimingDefault: Int = 180
+    var holdTimingRange: ClosedRange<Double> = 120...300
+    var holdTimingStep: Double = 20
+    var onResetHoldTiming: (() -> Void)?
 
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @State private var showingCustomizeWindow = false
@@ -19,6 +25,14 @@ struct HomeRowModsCollectionView: View {
     @State private var locallyCreatedLayers: Set<String> = []
     @State private var hoveredHoldBehavior: HomeRowHoldMode?
     @State private var hoveredLayerToggleMode: LayerToggleMode?
+    @State private var timingPreviewPhase: TimingPreviewPhase = .idle
+    @State private var timingPreviewTask: Task<Void, Never>?
+
+    enum TimingPreviewPhase: Equatable {
+        case idle
+        case pressing
+        case modifier
+    }
     @State private var showingHelp = false
 
     private var activeKeymap: LogicalKeymap {
@@ -26,7 +40,8 @@ struct HomeRowModsCollectionView: View {
     }
 
     private var homeRowDisplayLabels: [String: String] {
-        Dictionary(uniqueKeysWithValues: HomeRowModsConfig.allKeys.map { key in
+        let allRelevantKeys = Set(HomeRowModsConfig.allKeys + HomeRowModsConfig.vallackTopRowKeys)
+        return Dictionary(uniqueKeysWithValues: allRelevantKeys.map { key in
             (key, displayLabel(forCanonicalKey: key))
         })
     }
@@ -45,30 +60,42 @@ struct HomeRowModsCollectionView: View {
             }
             .padding(.bottom, 8)
 
-            if hasCustomAssignments {
-                Button {
-                    resetAssignmentsToDefaults()
-                } label: {
-                    Label("Reset to defaults", systemImage: "arrow.counterclockwise")
-                        .font(.caption)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("home-row-mods-reset-defaults")
-                .padding(.bottom, 8)
+            if let holdTimingBinding {
+                HoldTimingSliderRow(
+                    value: holdTimingBinding,
+                    range: holdTimingRange,
+                    step: holdTimingStep,
+                    suffix: " ms",
+                    currentValue: holdTimingValue,
+                    onSliderReleased: { startTimingPreview() }
+                )
+                .padding(.horizontal, 10)
+                .padding(.bottom, 16)
             }
 
             HStack {
                 Spacer()
 
+                if hasCustomizations {
+                    Button {
+                        resetToDefaults()
+                    } label: {
+                        Label("Reset", systemImage: "arrow.counterclockwise")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("home-row-mods-reset-defaults")
+                }
+
                 Button("Settings...") {
                     showingCustomizeWindow = true
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.small)
                 .accessibilityIdentifier("home-row-mods-customize-button")
                 .accessibilityLabel("Home row mods settings")
             }
-            .padding(.trailing, 10)
+            .padding(.horizontal, 10)
         }
         .animation(.easeInOut(duration: 0.2), value: selectedKey)
         .onAppear {
@@ -125,6 +152,10 @@ struct HomeRowModsCollectionView: View {
         }
     }
 
+    private var usesTopRowKeys: Bool {
+        config.enabledKeys.contains(where: { HomeRowModsConfig.vallackTopRowKeys.contains($0) })
+    }
+
     private func homeRowKeyboard(size: CGFloat) -> some View {
         HomeRowKeyboardView(
             enabledKeys: config.enabledKeys,
@@ -134,6 +165,9 @@ struct HomeRowModsCollectionView: View {
             keyDisplayLabels: homeRowDisplayLabels,
             helperText: config.holdMode == .modifiers ? "Tap for letter, hold for modifier" : "Tap for letter, hold for layer",
             keyChipSize: size,
+            timingPreviewPhase: timingPreviewPhase,
+            leftHandKeys: usesTopRowKeys ? HomeRowModsConfig.vallackLeftHandKeys : HomeRowModsConfig.leftHandKeys,
+            rightHandKeys: usesTopRowKeys ? HomeRowModsConfig.vallackRightHandKeys : HomeRowModsConfig.rightHandKeys,
             keyPopoverContent: { key in
                 Group {
                     if !config.enabledKeys.contains(key) {
@@ -158,7 +192,9 @@ struct HomeRowModsCollectionView: View {
 
     private var customizeSection: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("These settings control what your home-row keys do when you hold them. Tap still types letters.")
+            Text(usesTopRowKeys
+                ? "These settings control what your top-row keys do when you hold them. Tap still types letters."
+                : "These settings control what your home-row keys do when you hold them. Tap still types letters.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -547,23 +583,47 @@ struct HomeRowModsCollectionView: View {
     }
 
     /// Whether the current assignments differ from defaults (for either mode)
-    private var hasCustomAssignments: Bool {
-        let hasDisabledKeys = config.enabledKeys != Set(HomeRowModsConfig.allKeys)
-        if config.holdMode == .modifiers {
-            return hasDisabledKeys || modifierPresetSelection(from: config.modifierAssignments) == .custom
-        } else {
-            return hasDisabledKeys || layerPresetSelection(from: config.layerAssignments) == .custom
-        }
+    private var baselineConfig: HomeRowModsConfig {
+        usesTopRowKeys ? .vallackDefault : HomeRowModsConfig()
+    }
+
+    private var hasCustomizations: Bool {
+        let baseline = baselineConfig
+        if config.enabledKeys != baseline.enabledKeys { return true }
+        if config.timing != baseline.timing { return true }
+        if config.oppositeHandMode != baseline.oppositeHandMode { return true }
+        if config.modifierAssignments != baseline.modifierAssignments { return true }
+        if holdTimingBinding != nil, holdTimingValue != holdTimingDefault { return true }
+        return false
     }
 
     /// Reset assignments to the default for the current hold mode
-    private func resetAssignmentsToDefaults() {
-        if config.holdMode == .modifiers {
-            config.modifierAssignments = HomeRowModsConfig.cagsMacDefault
-        } else {
-            config.layerAssignments = recommendedLayerAssignments
+    private func startTimingPreview() {
+        timingPreviewTask?.cancel()
+        timingPreviewTask = Task { @MainActor in
+            withAnimation(.easeIn(duration: 0.1)) { timingPreviewPhase = .pressing }
+
+            try? await Task.sleep(nanoseconds: UInt64(holdTimingValue) * 1_000_000)
+            guard !Task.isCancelled else { return }
+
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { timingPreviewPhase = .modifier }
+
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled else { return }
+
+            withAnimation(.easeOut(duration: 0.3)) { timingPreviewPhase = .idle }
         }
-        config.enabledKeys = Set(HomeRowModsConfig.allKeys)
+    }
+
+    private func resetToDefaults() {
+        let baseline = baselineConfig
+        config.modifierAssignments = baseline.modifierAssignments
+        config.layerAssignments = baseline.layerAssignments
+        config.enabledKeys = baseline.enabledKeys
+        config.timing = baseline.timing
+        config.oppositeHandMode = baseline.oppositeHandMode
+        config.holdMode = baseline.holdMode
+        onResetHoldTiming?()
         updateConfig()
     }
 
@@ -638,11 +698,12 @@ struct HomeRowModsCollectionView: View {
     }
 
     private var holdBehaviorExplanationText: String {
+        let keyDesc = usesTopRowKeys ? "a top-row key" : "a home-row key"
         switch hoveredHoldBehavior ?? config.holdMode {
         case .modifiers:
-            "Best for shortcuts and general app use. Hold a home-row key to get Cmd/Opt/Ctrl/Shift."
+            return "Best for shortcuts and general app use. Hold \(keyDesc) to get Cmd/Opt/Ctrl/Shift."
         case .layers:
-            "Best for advanced layouts. Hold a home-row key to temporarily access another key layer."
+            return "Best for advanced layouts. Hold \(keyDesc) to temporarily access another key layer."
         }
     }
 

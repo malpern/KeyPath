@@ -93,7 +93,10 @@ public final class PackInstaller {
         // TODO: When a second system pack is added, replace ID matching with
         // a Pack.systemConfig property that the installer dispatches on generically.
         if pack.id == PackRegistry.vallackSystem.id {
-            try await applyVallackSystemConfigs(manager: manager)
+            // Record the install BEFORE applying configs so that when
+            // regenerateConfigFromCollections posts .ruleCollectionsChanged,
+            // any listener querying packManagingCollection already finds
+            // the ownership record.
             let record = InstalledPackRecord(
                 packID: pack.id,
                 version: pack.version,
@@ -101,6 +104,12 @@ public final class PackInstaller {
                 quickSettingValues: resolvedSettings
             )
             try await InstalledPackTracker.shared.upsert(record)
+            do {
+                try await applyVallackSystemConfigs(manager: manager)
+            } catch {
+                try? await InstalledPackTracker.shared.remove(packID: pack.id)
+                throw error
+            }
             AppLogger.shared.log(
                 "✅ [PackInstaller] Installed system pack '\(pack.name)'"
             )
@@ -186,7 +195,12 @@ public final class PackInstaller {
 
         // System packs batch all collection changes into a single config regen.
         if packID == PackRegistry.vallackSystem.id {
-            await revertVallackSystemConfigs(manager: manager)
+            let shouldRestore = await shouldRestorePreVallackSettings(manager: manager)
+            if shouldRestore {
+                await revertVallackSystemConfigs(manager: manager)
+            } else {
+                try? FileManager.default.removeItem(at: vallackSnapshotURL)
+            }
             if let collectionID = PackRegistry.vallackSystem.associatedCollectionID,
                let i = manager.ruleCollections.firstIndex(where: { $0.id == collectionID })
             {
@@ -195,7 +209,7 @@ public final class PackInstaller {
             await manager.regenerateConfigFromCollections()
             try await InstalledPackTracker.shared.remove(packID: packID)
             AppLogger.shared.log(
-                "✅ [PackInstaller] Uninstalled system pack '\(packID)'"
+                "✅ [PackInstaller] Uninstalled system pack '\(packID)' (restored=\(shouldRestore))"
             )
             return
         }
@@ -543,15 +557,7 @@ public final class PackInstaller {
             homeRowLayerTogglesEnabled: togglesCollection?.isEnabled ?? false
         )
 
-        let vallackMods = HomeRowModsConfig(
-            enabledKeys: Set(HomeRowModsConfig.vallackTopRowKeys),
-            modifierAssignments: HomeRowModsConfig.vallackTwoRowSplit,
-            holdMode: .modifiers,
-            hasUserSelectedHoldMode: true,
-            timing: TimingConfig(tapWindow: 200, holdDelay: 150, tapOffsets: ["q": 100, "o": 100]),
-            keySelection: .custom,
-            oppositeHandMode: .press
-        )
+        let vallackMods = HomeRowModsConfig.vallackDefault
         let vallackToggles = HomeRowLayerTogglesConfig(
             enabledKeys: Set(["f", "j"]),
             layerAssignments: HomeRowLayerTogglesConfig.vallackLayerAssignments,
@@ -613,13 +619,46 @@ public final class PackInstaller {
 
         return await withCheckedContinuation { continuation in
             let alert = NSAlert()
-            alert.messageText = "Home Row Mods Already Configured"
-            alert.informativeText = "You've customized your modifier settings. Ben Vallack's system includes its own mod configuration."
+            alert.messageText = "Switch to Ben's Modifiers?"
+            alert.informativeText = "This pack uses top-row mods instead of home row. Your current settings will be restored if you turn the pack off."
             alert.alertStyle = .informational
-            alert.addButton(withTitle: "Keep Mine")
-            alert.addButton(withTitle: "Use Ben's")
+            alert.addButton(withTitle: "Use Ben's Settings")
+            alert.addButton(withTitle: "Keep My Settings")
             let response = alert.runModal()
-            continuation.resume(returning: response == .alertSecondButtonReturn)
+            continuation.resume(returning: response == .alertFirstButtonReturn)
+        }
+    }
+
+    private func shouldRestorePreVallackSettings(manager: RuleCollectionsManager) async -> Bool {
+        guard FileManager.default.fileExists(atPath: vallackSnapshotURL.path),
+              let data = try? Data(contentsOf: vallackSnapshotURL),
+              let snapshot = try? JSONDecoder().decode(VallackConfigSnapshot.self, from: data),
+              snapshot.homeRowModsConfig != nil
+        else {
+            return false
+        }
+
+        let currentConfig = manager.ruleCollections
+            .first(where: { $0.id == RuleCollectionIdentifier.homeRowMods })?
+            .configuration.homeRowModsConfig
+
+        if currentConfig == snapshot.homeRowModsConfig {
+            return true
+        }
+
+        if TestEnvironment.isRunningTests {
+            return true
+        }
+
+        return await withCheckedContinuation { continuation in
+            let alert = NSAlert()
+            alert.messageText = "Restore Previous Settings?"
+            alert.informativeText = "You had home row mod settings before this pack. Restore them, or keep the current configuration?"
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "Restore Previous")
+            alert.addButton(withTitle: "Keep Current")
+            let response = alert.runModal()
+            continuation.resume(returning: response == .alertFirstButtonReturn)
         }
     }
 

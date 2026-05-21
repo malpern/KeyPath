@@ -103,6 +103,12 @@ extension RulesTabView {
 
     /// Generate a dynamic name for picker-style collections
     func dynamicCollectionName(for collection: RuleCollection) -> String {
+        if collection.id == RuleCollectionIdentifier.homeRowMods,
+           TypingFeelMapping.usesTopRow(collection.configuration.homeRowModsConfig?.enabledKeys ?? [])
+        {
+            return "Top Row Mods"
+        }
+
         guard case let .singleKeyPicker(config) = collection.configuration else {
             return collection.name
         }

@@ -7,26 +7,49 @@ enum RuleCollectionDeduplicator {
     /// Detects mapping conflicts BEFORE deduplication.
     /// Returns conflicts where multiple collections map the same key in the same layer.
     /// Call this before `dedupe()` to catch conflicts that would otherwise be silently resolved.
+    ///
+    /// Uses `effectiveMappings(for:)` to include config-generated mappings (Home Row Mods,
+    /// Layer Toggles, etc.) — not just the raw `.mappings` array.
     static func detectConflicts(in collections: [RuleCollection]) -> [KeyPathError.MappingConflictInfo] {
-        // Track which collections claim each (input, layer) pair
-        var claimedKeys: [InputKey: [String]] = [:]
+        struct ClaimInfo {
+            let collectionName: String
+            let holdDescription: String?
+        }
+
+        var claimedKeys: [InputKey: [ClaimInfo]] = [:]
 
         for collection in collections where collection.isEnabled {
-            for mapping in collection.mappings {
+            let mappings = KanataConfiguration.effectiveMappings(for: collection)
+            for mapping in mappings {
                 let normalizedInput = KanataKeyConverter.convertToKanataKey(mapping.input)
                 let inputKey = InputKey(input: normalizedInput, layer: collection.targetLayer)
 
-                claimedKeys[inputKey, default: []].append(collection.name)
+                let holdDesc = mapping.behavior.flatMap { behavior -> String? in
+                    if case let .dualRole(dr) = behavior {
+                        return dr.holdActionString
+                    }
+                    return nil
+                }
+
+                claimedKeys[inputKey, default: []].append(
+                    ClaimInfo(collectionName: collection.name, holdDescription: holdDesc)
+                )
             }
         }
 
-        // Find keys claimed by more than one collection
         var conflicts: [KeyPathError.MappingConflictInfo] = []
-        for (inputKey, collectionNames) in claimedKeys where collectionNames.count > 1 {
+        for (inputKey, claims) in claimedKeys where claims.count > 1 {
+            let collectionNames = claims.map(\.collectionName)
+            let holdDescriptions = claims.compactMap { claim -> String? in
+                guard let hold = claim.holdDescription else { return nil }
+                return "\(claim.collectionName): hold → \(hold)"
+            }
+
             conflicts.append(KeyPathError.MappingConflictInfo(
                 inputKey: inputKey.input,
                 layer: inputKey.layer.displayName,
-                conflictingCollections: collectionNames
+                conflictingCollections: collectionNames,
+                holdDescriptions: holdDescriptions
             ))
         }
 

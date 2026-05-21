@@ -369,8 +369,12 @@ struct HomeRowTimingSection: View {
         .index: "\u{261D}\u{FE0F}" // index pointing up
     ]
 
+    private var isTopRow: Bool {
+        TypingFeelMapping.usesTopRow(config.enabledKeys)
+    }
+
     private func fingerSliderRow(finger: TypingFeelMapping.FingerGroup) -> some View {
-        let sensitivity = TypingFeelMapping.fingerSensitivity(for: finger, in: config.timing)
+        let sensitivity = TypingFeelMapping.fingerSensitivity(for: finger, in: config.timing, topRow: isTopRow)
         let isCustom = sensitivity == nil
         let displayValue = sensitivity ?? 0
         let emoji = Self.fingerEmoji[finger] ?? ""
@@ -384,7 +388,7 @@ struct HomeRowTimingSection: View {
                 value: Binding(
                     get: { Double(displayValue) },
                     set: { newValue in
-                        TypingFeelMapping.applyFingerSensitivity(Int(newValue), for: finger, to: &config.timing)
+                        TypingFeelMapping.applyFingerSensitivity(Int(newValue), for: finger, to: &config.timing, topRow: isTopRow)
                         debouncedUpdateConfig()
                     }
                 ),

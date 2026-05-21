@@ -52,16 +52,40 @@ public enum KeyPathError: Error, LocalizedError {
         public let inputKey: String
         public let layer: String
         public let conflictingCollections: [String]
+        /// Per-collection descriptions of what each does with the key on hold.
+        /// e.g., ["Home Row Mods: hold → rsft", "Home Row Layer Toggles: hold → (layer-while-held fun)"]
+        public let holdDescriptions: [String]
 
-        public init(inputKey: String, layer: String, conflictingCollections: [String]) {
+        public init(
+            inputKey: String,
+            layer: String,
+            conflictingCollections: [String],
+            holdDescriptions: [String] = []
+        ) {
             self.inputKey = inputKey
             self.layer = layer
             self.conflictingCollections = conflictingCollections
+            self.holdDescriptions = holdDescriptions
         }
 
         public var description: String {
             let collections = conflictingCollections.joined(separator: "\" and \"")
             return "Key '\(inputKey)' is mapped in both \"\(collections)\" (layer: \(layer))"
+        }
+
+        /// User-friendly explanation of the conflict and resolution options
+        public var userExplanation: String {
+            let collections = conflictingCollections.joined(separator: " and ")
+            var explanation = "\(collections) both configure the \"\(inputKey)\" key with different hold behaviors."
+
+            if !holdDescriptions.isEmpty {
+                explanation += " " + holdDescriptions.joined(separator: "; ") + "."
+            }
+
+            explanation += " A key can only have one hold action."
+            explanation += " Either disable one of these collections, or change their key assignments so they don't overlap."
+
+            return explanation
         }
     }
 
@@ -286,7 +310,7 @@ public enum KeyPathError: Error, LocalizedError {
         case let .repairFailed(reason):
             "Failed to repair configuration: \(reason)"
         case let .mappingConflicts(conflicts):
-            "Mapping conflicts detected: \(conflicts.map(\.description).joined(separator: "; "))"
+            conflicts.map(\.userExplanation).joined(separator: "\n\n")
         }
     }
 

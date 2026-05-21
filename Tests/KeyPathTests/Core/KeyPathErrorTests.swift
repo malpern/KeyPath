@@ -276,8 +276,10 @@ struct KeyPathErrorTests {
         ]
 
         let mappingConflict = KeyPathError.configuration(.mappingConflicts(conflicts: conflicts))
-        #expect(mappingConflict.errorDescription?.contains("Key 'a'") == true)
+        #expect(mappingConflict.errorDescription?.contains("\"a\" key") == true)
         #expect(mappingConflict.errorDescription?.contains("One") == true)
+        #expect(mappingConflict.errorDescription?.contains("Two") == true)
+        #expect(mappingConflict.errorDescription?.contains("disable one") == true)
 
         let parseWithoutLine = KeyPathError.configuration(.parseError(line: nil, message: "boom"))
         #expect(parseWithoutLine.errorDescription == "Parse error: boom")

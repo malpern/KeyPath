@@ -976,7 +976,7 @@ struct RuleCollectionCatalog {
     private var vallackNavigation: RuleCollection {
         RuleCollection(
             id: RuleCollectionIdentifier.vallackNavigation,
-            name: "Ben Vallack Approach",
+            name: "Ben Vallack Nav",
             summary: "Hold F or J for arrows, clipboard, tab switching, and line navigation — fingers never leave the home row.",
             category: .navigation,
             mappings: [
