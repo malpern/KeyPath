@@ -12,7 +12,7 @@ struct ConfigPath: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let path = await MainActor.run { CLIFacade().configPath() }
+        let path = await MainActor.run { ConfigFacade().configPath() }
 
         CLIOutput.write(["path": path], context: ctx) {
             path

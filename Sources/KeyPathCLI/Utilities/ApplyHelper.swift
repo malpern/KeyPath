@@ -4,7 +4,7 @@ import KeyPathAppKit
 
 func applyConfigurationOrHint(apply: Bool, context: OutputContext) async throws {
     if apply {
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = ConfigFacade()
         let result = try await facade.applyConfiguration()
         if result.reloadSuccess {
             CLIOutput.write(["applied": true], context: context) {

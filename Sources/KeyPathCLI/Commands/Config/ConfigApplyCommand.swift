@@ -15,7 +15,7 @@ struct ConfigApply: AsyncParsableCommand {
         let spinner = CLISpinner(context: ctx)
         spinner.start("Applying configuration...")
 
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = ConfigFacade()
         let result = try await facade.applyConfiguration()
 
         if result.reloadSuccess {

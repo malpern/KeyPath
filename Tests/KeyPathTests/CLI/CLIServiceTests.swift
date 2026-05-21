@@ -3,7 +3,7 @@
 
 @MainActor
 final class CLIServiceTests: XCTestCase {
-    private let facade = CLIFacade()
+    private let facade = SystemFacade()
 
     // MARK: - serviceLogs
 

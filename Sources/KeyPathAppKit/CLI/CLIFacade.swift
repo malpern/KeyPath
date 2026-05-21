@@ -1,18 +1,17 @@
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
-import KeyPathInstallationWizard
-import KeyPathWizardCore
 
 /// Public facade exposing KeyPathAppKit internals for the CLI binary.
 /// This is the stable API boundary between the CLI and the app library.
 ///
-/// Method groups live in extension files and standalone facades:
-/// - RulesFacade.swift — Custom rules CRUD (standalone)
-/// - SimulatorFacade.swift — Key simulation and validation (standalone)
-/// - CollectionsFacade.swift — Collections, export/import, layers (standalone)
-/// - CLIFacade+Service.swift — Service lifecycle, config, TCP, status, installer
-/// - CLIFacade+Packs.swift — Pack management
+/// Standalone facades:
+/// - RulesFacade.swift — Custom rules CRUD
+/// - SimulatorFacade.swift — Key simulation and validation
+/// - CollectionsFacade.swift — Collections, export/import, layers
+/// - SystemFacade.swift — Service lifecycle, status, installer
+/// - ConfigFacade.swift — Config, apply, TCP
+/// - CLIFacade+Packs.swift — Pack management (extension on CLIFacade)
 public struct CLIFacade: Sendable {
     public init() {}
 }
@@ -34,104 +33,6 @@ public enum CLIVersion {
         }
         return "1.0.0"
     }()
-}
-
-// MARK: - Service & Config Types
-
-public struct CLIApplyResult: Codable, Sendable {
-    public let collectionsCount: Int
-    public let enabledCount: Int
-    public let customRulesCount: Int
-    public let reloadSuccess: Bool
-    public let changeset: CLIApplyChangeset?
-}
-
-public struct CLIApplyChangeset: Codable, Sendable {
-    public let enabledCollections: [String]
-    public let disabledCollections: [String]
-    public let customRules: [String]
-}
-
-public struct CLIHrmStats: Codable, Sendable {
-    public let totalDecisions: Int
-    public let tapCount: Int
-    public let holdCount: Int
-}
-
-public struct CLIStatusResult: Codable, Sendable {
-    public let isOperational: Bool
-    public let helperInstalled: Bool
-    public let helperWorking: Bool
-    public let helperVersion: String?
-    public let keyPathAccessibility: Bool
-    public let keyPathInputMonitoring: Bool
-    public let kanataAccessibility: Bool
-    public let kanataInputMonitoring: Bool
-    public let kanataBinaryInstalled: Bool
-    public let karabinerDriverInstalled: Bool
-    public let vhidDeviceHealthy: Bool
-    public let kanataRunning: Bool
-    public let karabinerDaemonRunning: Bool
-    public let vhidHealthy: Bool
-    public let activeRuntimePathTitle: String?
-    public let activeRuntimePathDetail: String?
-    public let hasConflicts: Bool
-    public let timestamp: Date
-}
-
-public struct CLIValidationResult: Codable, Sendable {
-    public let isValid: Bool
-    public let errors: [String]
-    public let configPath: String?
-    public let configBytes: Int?
-    public let collectionsCount: Int?
-    public let customRulesCount: Int?
-
-    public init(isValid: Bool, errors: [String], configPath: String? = nil, configBytes: Int? = nil, collectionsCount: Int? = nil, customRulesCount: Int? = nil) {
-        self.isValid = isValid
-        self.errors = errors
-        self.configPath = configPath
-        self.configBytes = configBytes
-        self.collectionsCount = collectionsCount
-        self.customRulesCount = customRulesCount
-    }
-}
-
-public struct CLIInstallerReport: Codable, Sendable {
-    public let success: Bool
-    public let failureReason: String?
-    public let steps: [CLIInstallerStep]
-    public let fastRepair: Bool
-
-    init(from report: InstallerReport) {
-        success = report.success
-        failureReason = report.failureReason
-        steps = report.executedRecipes.map {
-            CLIInstallerStep(name: $0.recipeID, success: $0.success, error: $0.error)
-        }
-        fastRepair = false
-    }
-
-    init(success: Bool, failureReason: String?, steps: [CLIInstallerStep], fastRepair: Bool) {
-        self.success = success
-        self.failureReason = failureReason
-        self.steps = steps
-        self.fastRepair = fastRepair
-    }
-}
-
-public struct CLIInstallerStep: Codable, Sendable {
-    public let name: String
-    public let success: Bool
-    public let error: String?
-}
-
-public struct CLIInspectResult: Codable, Sendable {
-    public let macOSVersion: String
-    public let driverCompatible: Bool
-    public let planStatus: String
-    public let blockedBy: String?
-    public let plannedRecipes: [String]
 }
 
 // MARK: - Pack CLI Types

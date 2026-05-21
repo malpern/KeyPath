@@ -12,7 +12,7 @@ struct ConfigCheck: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = ConfigFacade()
         let result = await facade.validateConfig()
 
         CLIOutput.write(result, context: ctx) {
