@@ -300,6 +300,29 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
         XCTAssertFalse(config.contains("require-prior-idle"), "Should not contain require-prior-idle when 0")
     }
 
+    // MARK: - Layer Reference Completeness
+
+    func testHomeRowLayerToggles_GeneratesDeflayerForReferencedLayers() throws {
+        let collection = try makeCollection(
+            id: XCTUnwrap(UUID(uuidString: "33333333-3333-3333-3333-333333333333")),
+            name: "Home Row Layer Toggles",
+            summary: "Hold for layers",
+            category: .productivity,
+            mappings: [],
+            targetLayer: .base,
+            momentaryActivator: nil,
+            configuration: .homeRowLayerToggles(HomeRowLayerTogglesConfig(
+                enabledKeys: [";", "a"],
+                layerAssignments: [";": "fun", "a": "fun"]
+            ))
+        )
+
+        let config = KanataConfiguration.generateFromCollections([collection])
+
+        assertContains(config, "layer-while-held fun")
+        assertContains(config, "(deflayer fun")
+    }
+
     private func assertContains(
         _ config: String,
         _ snippet: String,
