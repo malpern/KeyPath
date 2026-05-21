@@ -510,17 +510,20 @@ extension KanataConfiguration {
         }
     }
 
-    /// Deduplicate alias definitions by name. When multiple collections generate
-    /// aliases with the same name (e.g., Home Row Mods and Home Row Layer Toggles
-    /// both emit `beh_base_;`), the last definition wins. Kanata rejects configs
-    /// with duplicate alias names, so this is required for correctness.
+    /// Safety net: detect duplicate alias names and keep only the last definition
+    /// so kanata doesn't reject the config outright.
+    ///
+    /// The primary defense is `RuleCollectionDeduplicator.detectConflicts()` which
+    /// blocks config writes when collections overlap. This function catches edge
+    /// cases that slip past (e.g., aliases generated from non-mapping paths).
+    /// It logs warnings so the root cause is visible in diagnostics.
     static func deduplicateAliases(_ aliases: [AliasDefinition]) -> [AliasDefinition] {
         var seen: [String: Int] = [:]
         var result: [AliasDefinition] = []
 
         for alias in aliases {
             if let existingIndex = seen[alias.aliasName] {
-                AppLogger.shared.log("⚠️ [ConfigDedup] Duplicate alias '\(alias.aliasName)': replacing '\(result[existingIndex].definition.prefix(60))…' with '\(alias.definition.prefix(60))…'")
+                AppLogger.shared.error("🚨 [ConfigGen] Duplicate alias '\(alias.aliasName)' — this should have been caught by conflict detection. Keeping last definition as safety fallback. First: '\(result[existingIndex].definition.prefix(80))' → Replaced by: '\(alias.definition.prefix(80))'")
                 result[existingIndex] = alias
             } else {
                 seen[alias.aliasName] = result.count
@@ -529,7 +532,7 @@ extension KanataConfiguration {
         }
 
         if result.count < aliases.count {
-            AppLogger.shared.log("📋 [ConfigDedup] Deduplicated \(aliases.count - result.count) alias(es) (\(aliases.count) → \(result.count))")
+            AppLogger.shared.error("🚨 [ConfigGen] Had to deduplicate \(aliases.count - result.count) alias(es) — investigate why conflict detection missed this")
         }
 
         return result
