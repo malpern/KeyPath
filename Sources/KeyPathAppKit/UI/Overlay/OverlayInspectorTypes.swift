@@ -11,7 +11,7 @@ enum DrawerPanel {
     }
 }
 
-enum InspectorSection: String {
+enum InspectorSection: String, CaseIterable {
     case mapper
     case customRules // Only shown when custom rules exist
     case keyboard

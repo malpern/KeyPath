@@ -108,41 +108,49 @@ struct CommandPaletteView: View {
 
     // MARK: - Results
 
+    private var indexedGroups: [(group: String, items: [(globalIndex: Int, item: CommandPaletteItem)])] {
+        var result: [(group: String, items: [(globalIndex: Int, item: CommandPaletteItem)])] = []
+        var globalIndex = 0
+        for group in groupedFiltered {
+            var indexedItems: [(globalIndex: Int, item: CommandPaletteItem)] = []
+            for item in group.items {
+                indexedItems.append((globalIndex: globalIndex, item: item))
+                globalIndex += 1
+            }
+            result.append((group: group.id, items: indexedItems))
+        }
+        return result
+    }
+
     private var resultsList: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    let flatItems = filtered
-                    var runningIndex = 0
+                    let groups = indexedGroups
 
-                    ForEach(groupedFiltered) { group in
-                        let groupStart = runningIndex
-
+                    ForEach(Array(groups.enumerated()), id: \.element.group) { groupIdx, group in
                         Section {
-                            ForEach(Array(group.items.enumerated()), id: \.element.id) { offset, item in
-                                let globalIndex = groupStart + offset
+                            ForEach(group.items, id: \.item.id) { entry in
                                 CommandPaletteRow(
-                                    item: item,
-                                    isSelected: globalIndex == selectedIndex
+                                    item: entry.item,
+                                    isSelected: entry.globalIndex == selectedIndex
                                 ) {
                                     onDismiss()
-                                    item.action()
+                                    entry.item.action()
                                 }
-                                .id(item.id)
+                                .id(entry.item.id)
                                 .onHover { hovering in
-                                    if hovering { selectedIndex = globalIndex }
+                                    if hovering { selectedIndex = entry.globalIndex }
                                 }
                             }
                         } header: {
-                            Text(group.id)
+                            Text(group.group)
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 16)
-                                .padding(.top, groupStart == 0 ? 6 : 12)
+                                .padding(.top, groupIdx == 0 ? 6 : 12)
                                 .padding(.bottom, 4)
                         }
-
-                        let _ = (runningIndex = groupStart + group.items.count)
                     }
                 }
                 .padding(.bottom, 4)
