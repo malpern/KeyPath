@@ -20,8 +20,12 @@ enum RuleCollectionDeduplicator {
 
         for collection in collections where collection.isEnabled {
             let mappings = KanataConfiguration.effectiveMappings(for: collection)
+            var seenKeysInCollection = Set<String>()
             for mapping in mappings {
                 let normalizedInput = KanataKeyConverter.convertToKanataKey(mapping.input)
+                // Skip duplicate keys within the same collection (e.g., chord groups
+                // sharing keys). Within-collection conflicts are detected separately.
+                guard seenKeysInCollection.insert(normalizedInput).inserted else { continue }
                 let inputKey = InputKey(input: normalizedInput, layer: collection.targetLayer)
 
                 let holdDesc = mapping.behavior.flatMap { behavior -> String? in
@@ -51,6 +55,30 @@ enum RuleCollectionDeduplicator {
                 conflictingCollections: collectionNames,
                 holdDescriptions: holdDescriptions
             ))
+        }
+
+        // Within-collection chord group conflicts: two chord groups sharing keys
+        // produces duplicate aliases that kanata rejects.
+        for collection in collections where collection.isEnabled {
+            if case let .chordGroups(config) = collection.configuration {
+                let chordConflicts = config.detectCrossGroupConflicts()
+                for conflict in chordConflicts {
+                    let groupNames = conflict.groups.map(\.name)
+                    let chordDescriptions = conflict.groups.map { group -> String in
+                        let chordOutputs = group.chords
+                            .filter { $0.keys.contains(conflict.key) }
+                            .map { "(\($0.keys.joined(separator: "+")) → \($0.action.displayName))" }
+                            .joined(separator: ", ")
+                        return "\(group.name): \(chordOutputs)"
+                    }
+                    conflicts.append(KeyPathError.MappingConflictInfo(
+                        inputKey: conflict.key,
+                        layer: collection.targetLayer.displayName,
+                        conflictingCollections: groupNames,
+                        holdDescriptions: chordDescriptions
+                    ))
+                }
+            }
         }
 
         return conflicts.sorted { $0.inputKey < $1.inputKey }

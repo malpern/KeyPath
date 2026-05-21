@@ -76,14 +76,14 @@ public enum KeyPathError: Error, LocalizedError {
         /// User-friendly explanation of the conflict and resolution options
         public var userExplanation: String {
             let collections = conflictingCollections.joined(separator: " and ")
-            var explanation = "\(collections) both configure the \"\(inputKey)\" key with different hold behaviors."
+            var explanation = "\(collections) both configure the \"\(inputKey)\" key with different behaviors."
 
             if !holdDescriptions.isEmpty {
                 explanation += " " + holdDescriptions.joined(separator: "; ") + "."
             }
 
-            explanation += " A key can only have one hold action."
-            explanation += " Either disable one of these collections, or change their key assignments so they don't overlap."
+            explanation += " A key can only have one action assigned."
+            explanation += " Either change the key assignments so they don't overlap, or disable one."
 
             return explanation
         }

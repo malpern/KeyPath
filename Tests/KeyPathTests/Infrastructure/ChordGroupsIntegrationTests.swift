@@ -409,10 +409,9 @@ final class ChordGroupsIntegrationTests: XCTestCase {
         XCTAssertFalse(output.contains("(defchords  )")) // No empty defchords
     }
 
-    // MARK: - Cross-Group Conflict Resolution
+    // MARK: - Cross-Group Conflict Detection
 
-    func testCrossGroupConflictGeneration() {
-        // Verify first group wins behavior in generated config
+    func testCrossGroupConflictIsDetected() {
         let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))
         let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "bspc"))
 
@@ -430,19 +429,44 @@ final class ChordGroupsIntegrationTests: XCTestCase {
             configuration: .chordGroups(config)
         )
 
-        let output = KanataConfiguration.generateFromCollections([collection])
+        // Conflict detection should catch shared keys between chord groups
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
 
-        // First group (Navigation) should win for 's' and 'd' keys
-        // Check that Navigation group's chord mappings appear
-        XCTAssertTrue(output.contains("(chord Navigation s)") || output.contains("chord Navigation s"))
-        XCTAssertTrue(output.contains("(chord Navigation d)") || output.contains("chord Navigation d"))
+        XCTAssertFalse(conflicts.isEmpty, "Should detect conflicts when chord groups share keys")
+        XCTAssertEqual(conflicts.count, 2, "Should detect 2 conflicting keys (s and d)")
 
-        // Both groups should still be defined (just deduplicated in deflayer)
-        XCTAssertTrue(output.contains("(defchords Navigation 250"))
-        XCTAssertTrue(output.contains("(defchords Editing 300"))
+        let sConflict = conflicts.first { $0.inputKey == "s" }
+        XCTAssertNotNil(sConflict)
+        XCTAssertTrue(sConflict?.conflictingCollections.contains("Navigation") ?? false)
+        XCTAssertTrue(sConflict?.conflictingCollections.contains("Editing") ?? false)
 
-        // Both chords should exist in their respective defchords blocks
-        XCTAssertTrue(output.contains("(s d) esc"))
-        XCTAssertTrue(output.contains("(s d) bspc"))
+        // User explanation should mention both groups and suggest resolution
+        if let explanation = sConflict?.userExplanation {
+            XCTAssertTrue(explanation.contains("Navigation"), "Should mention Navigation group")
+            XCTAssertTrue(explanation.contains("Editing"), "Should mention Editing group")
+            XCTAssertTrue(explanation.contains("\"s\""), "Should mention the conflicting key")
+        }
+    }
+
+    func testNoConflictWhenChordGroupsUseDistinctKeys() {
+        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))
+        let chord2 = ChordDefinition(id: UUID(), keys: ["j", "k"], action: .keystroke(key: "bspc"))
+
+        let group1 = ChordGroup(id: UUID(), name: "Navigation", timeout: 250, chords: [chord1])
+        let group2 = ChordGroup(id: UUID(), name: "Editing", timeout: 300, chords: [chord2])
+
+        let config = ChordGroupsConfig(groups: [group1, group2])
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.chordGroups,
+            name: "Chord Groups",
+            summary: "Test",
+            category: .productivity,
+            mappings: [],
+            isEnabled: true,
+            configuration: .chordGroups(config)
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+        XCTAssertTrue(conflicts.isEmpty, "No conflicts when chord groups use distinct keys")
     }
 }
