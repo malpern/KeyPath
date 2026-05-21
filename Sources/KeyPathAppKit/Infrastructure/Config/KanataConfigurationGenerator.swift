@@ -87,8 +87,8 @@ public struct KanataConfiguration: Sendable {
             navHoldDelayMs: navHoldDelayMs,
             globalRequirePriorIdleMs: requirePriorIdleMs
         )
-        let mergedAliasDefinitions = aliasDefinitions
-        AppLogger.shared.log("📚 [KanataConfig] Total alias definitions: \(mergedAliasDefinitions.count), first 5: \(mergedAliasDefinitions.prefix(5).map(\.aliasName).joined(separator: ", "))")
+        let mergedAliasDefinitions = deduplicateAliases(aliasDefinitions)
+        AppLogger.shared.log("📚 [KanataConfig] Total alias definitions: \(mergedAliasDefinitions.count) (before dedup: \(aliasDefinitions.count)), first 5: \(mergedAliasDefinitions.prefix(5).map(\.aliasName).joined(separator: ", "))")
         let blocks = deduplicateBlocks(rawBlocks)
         let enabledNames = enabledCollections.map(\.name).joined(separator: ", ")
 
