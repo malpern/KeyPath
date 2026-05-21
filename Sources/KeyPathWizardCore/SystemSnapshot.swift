@@ -387,7 +387,7 @@ public enum Issue: Equatable {
         case .conflict:
             true // Can terminate conflicting processes
         case .configParseError:
-            true // Can reset to default config
+            false // Requires user decision — reset is destructive
         }
     }
 
@@ -405,8 +405,8 @@ public enum Issue: Equatable {
             "Start service"
         case .conflict:
             "Terminate conflicting process"
-        case let .configParseError(detail):
-            "Config error: \(detail). Reset to default config to restore remapping."
+        case .configParseError:
+            "Reset to default config"
         }
     }
 }

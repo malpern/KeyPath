@@ -712,9 +712,13 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         for line in lines.reversed() {
             if line.contains("[ERROR]") {
                 if let range = line.range(of: "[ERROR]") {
-                    let msg = String(line[range.upperBound...])
+                    let raw = String(line[range.upperBound...])
                         .trimmingCharacters(in: .whitespaces)
-                        .trimmingCharacters(in: CharacterSet(charactersIn: "\u{1B}[0m"))
+                    let msg = raw.replacingOccurrences(
+                        of: "\u{1B}\\[[0-9;]*[A-Za-z]",
+                        with: "",
+                        options: .regularExpression
+                    ).trimmingCharacters(in: .whitespaces)
                     if !msg.isEmpty { return msg }
                 }
             }

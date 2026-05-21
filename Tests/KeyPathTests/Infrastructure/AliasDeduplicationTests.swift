@@ -209,6 +209,10 @@ final class AliasDeduplicationTests: XCTestCase {
         let error = ServiceHealthChecker.extractConfigParseError(from: log)
 
         XCTAssertNotNil(error)
+        XCTAssertTrue(
+            error?.contains("failed to parse file") == true || error?.contains("Error in configuration") == true,
+            "Should extract a meaningful error, got: \(error ?? "nil")"
+        )
     }
 
     func testNoConfigErrorWhenLogIsClean() {
@@ -228,9 +232,8 @@ final class AliasDeduplicationTests: XCTestCase {
         let issue = Issue.configParseError(detail: "Duplicate alias: beh_base_;")
 
         XCTAssertEqual(issue.title, "Configuration error prevents remapping")
-        XCTAssertTrue(issue.canAutoFix)
-        XCTAssertTrue(issue.action.contains("Duplicate alias: beh_base_;"))
-        XCTAssertTrue(issue.action.contains("Reset to default config"))
+        XCTAssertFalse(issue.canAutoFix, "Destructive reset should not be auto-fixable")
+        XCTAssertEqual(issue.action, "Reset to default config")
     }
 
     // MARK: - Helpers
