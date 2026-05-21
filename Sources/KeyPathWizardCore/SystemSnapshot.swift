@@ -123,7 +123,9 @@ public struct SystemSnapshot: Sendable {
 
         // Health issues
         if !health.isHealthy {
-            if !health.kanataRunning, health.kanataPermissionRejected {
+            if !health.kanataRunning, let configError = health.configParseError {
+                issues.append(.configParseError(detail: configError))
+            } else if !health.kanataRunning, health.kanataPermissionRejected {
                 issues.append(
                     .permissionMissing(
                         app: "Kanata",
@@ -260,6 +262,10 @@ public struct HealthStatus: Sendable {
     /// at runtime despite the TCC database reporting permissions as granted
     /// (stale grant after a rebuild/move/upgrade).
     public let kanataPermissionRejected: Bool
+    /// Non-nil when kanata's stderr contains a configuration parse error
+    /// (e.g., duplicate alias, syntax error). This causes kanata to exit
+    /// immediately and crash-loop. The string is a user-facing error message.
+    public let configParseError: String?
 
     public init(
         kanataRunning: Bool,
@@ -269,7 +275,8 @@ public struct HealthStatus: Sendable {
         kanataInputCaptureIssue: String? = nil,
         activeRuntimePathTitle: String? = nil,
         activeRuntimePathDetail: String? = nil,
-        kanataPermissionRejected: Bool = false
+        kanataPermissionRejected: Bool = false,
+        configParseError: String? = nil
     ) {
         self.kanataRunning = kanataRunning
         self.karabinerDaemonRunning = karabinerDaemonRunning
@@ -279,6 +286,7 @@ public struct HealthStatus: Sendable {
         self.activeRuntimePathTitle = activeRuntimePathTitle
         self.activeRuntimePathDetail = activeRuntimePathDetail
         self.kanataPermissionRejected = kanataPermissionRejected
+        self.configParseError = configParseError
     }
 
     /// Overall health (includes Kanata runtime)
@@ -333,6 +341,9 @@ public enum Issue: Equatable {
     case componentVersionMismatch(name: String, autoFix: Bool)
     case serviceNotRunning(name: String, autoFix: Bool)
     case conflict(SystemConflict)
+    /// Kanata refuses to start because the generated config has errors.
+    /// `detail` is the user-facing error message (e.g., "Duplicate alias: beh_base_;").
+    case configParseError(detail: String)
 
     public var title: String {
         switch self {
@@ -359,6 +370,8 @@ public enum Issue: Equatable {
             case let .exclusiveDeviceAccess(device):
                 "Device \(device) in use"
             }
+        case .configParseError:
+            "Configuration error prevents remapping"
         }
     }
 
@@ -373,6 +386,8 @@ public enum Issue: Equatable {
             autoFix
         case .conflict:
             true // Can terminate conflicting processes
+        case .configParseError:
+            true // Can reset to default config
         }
     }
 
@@ -390,6 +405,8 @@ public enum Issue: Equatable {
             "Start service"
         case .conflict:
             "Terminate conflicting process"
+        case let .configParseError(detail):
+            "Config error: \(detail). Reset to default config to restore remapping."
         }
     }
 }

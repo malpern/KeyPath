@@ -510,6 +510,31 @@ extension KanataConfiguration {
         }
     }
 
+    /// Deduplicate alias definitions by name. When multiple collections generate
+    /// aliases with the same name (e.g., Home Row Mods and Home Row Layer Toggles
+    /// both emit `beh_base_;`), the last definition wins. Kanata rejects configs
+    /// with duplicate alias names, so this is required for correctness.
+    static func deduplicateAliases(_ aliases: [AliasDefinition]) -> [AliasDefinition] {
+        var seen: [String: Int] = [:]
+        var result: [AliasDefinition] = []
+
+        for alias in aliases {
+            if let existingIndex = seen[alias.aliasName] {
+                AppLogger.shared.log("⚠️ [ConfigDedup] Duplicate alias '\(alias.aliasName)': replacing '\(result[existingIndex].definition.prefix(60))…' with '\(alias.definition.prefix(60))…'")
+                result[existingIndex] = alias
+            } else {
+                seen[alias.aliasName] = result.count
+                result.append(alias)
+            }
+        }
+
+        if result.count < aliases.count {
+            AppLogger.shared.log("📋 [ConfigDedup] Deduplicated \(aliases.count - result.count) alias(es) (\(aliases.count) → \(result.count))")
+        }
+
+        return result
+    }
+
     static func deduplicateBlocks(_ blocks: [CollectionBlock]) -> [CollectionBlock] {
         // Merge entries with the same source key instead of just keeping the first one.
         // This ensures layer-specific mappings (like launcher in launcher layer) aren't lost

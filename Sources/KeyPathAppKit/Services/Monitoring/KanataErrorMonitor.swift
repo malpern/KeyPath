@@ -160,6 +160,17 @@ final class KanataErrorMonitor {
             toastThreshold: 1
         ),
 
+        // Configuration parse errors - CRITICAL
+        // Kanata refuses to start when the config has syntax errors or duplicates.
+        // This causes a crash loop and must be surfaced immediately.
+        ErrorPattern(
+            pattern: "Error in configuration|failed to parse file|Duplicate alias",
+            severity: .critical,
+            userMessage: "Configuration error is preventing keyboard remapping. Open Settings to see details or reset to default config.",
+            patternName: "config_parse_error",
+            toastThreshold: 1
+        ),
+
         // VirtualHID driver issues - CRITICAL
         ErrorPattern(
             pattern: "VirtualHID.*failed|driver.*not found|kext.*error",

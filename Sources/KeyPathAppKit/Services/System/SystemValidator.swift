@@ -536,13 +536,18 @@ public class SystemValidator {
             "🔍 [SystemValidator] checkHealth() EXIT - Health: kanata=\(kanataRunning), daemon=\(karabinerDaemonRunning) (launchctl), vhid=\(vhidHealthy), permRejected=\(stderrDiagnosis.permissionRejected) (total: \(String(format: "%.3f", totalDuration))s)"
         )
 
+        if let configError = stderrDiagnosis.configParseError {
+            AppLogger.shared.error("🔍 [SystemValidator] checkHealth() - Config parse error detected: \(configError)")
+        }
+
         return HealthStatus(
             kanataRunning: kanataRunning,
             karabinerDaemonRunning: karabinerDaemonRunning,
             vhidHealthy: vhidHealthy,
             kanataInputCaptureReady: stderrDiagnosis.inputCapture.isReady,
             kanataInputCaptureIssue: stderrDiagnosis.inputCapture.issue,
-            kanataPermissionRejected: stderrDiagnosis.permissionRejected
+            kanataPermissionRejected: stderrDiagnosis.permissionRejected,
+            configParseError: stderrDiagnosis.configParseError
         )
     }
 

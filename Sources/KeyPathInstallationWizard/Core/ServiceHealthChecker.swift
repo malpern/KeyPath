@@ -94,6 +94,19 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         public let permissionRejected: Bool
         /// Input capture status (keyboard open failure)
         public let inputCapture: KanataInputCaptureStatus
+        /// Non-nil when stderr shows a kanata config parse error (e.g., duplicate alias, syntax error).
+        /// Contains the user-facing error message extracted from kanata's output.
+        public let configParseError: String?
+
+        public init(
+            permissionRejected: Bool,
+            inputCapture: KanataInputCaptureStatus,
+            configParseError: String? = nil
+        ) {
+            self.permissionRejected = permissionRejected
+            self.inputCapture = inputCapture
+            self.configParseError = configParseError
+        }
 
         public static let clear = KanataDaemonDiagnosis(
             permissionRejected: false,
@@ -663,10 +676,51 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             }
         }
 
+        // Check for configuration parse errors (e.g., duplicate aliases, syntax errors).
+        // These cause kanata to exit immediately and crash-loop via launchd.
+        let configParseError = Self.extractConfigParseError(from: logChunk)
+
         return KanataDaemonDiagnosis(
             permissionRejected: permissionRejected,
-            inputCapture: inputCaptureIssue
+            inputCapture: inputCaptureIssue,
+            configParseError: configParseError
         )
+    }
+
+    /// Extract a user-facing config parse error from kanata stderr output.
+    /// Looks for "help:" lines (most specific), falls back to "Error in configuration" / "failed to parse".
+    static func extractConfigParseError(from logChunk: String) -> String? {
+        let hasParseFailure = logChunk.contains("failed to parse file")
+            || logChunk.contains("Error in configuration")
+            || logChunk.contains("Host bridge config validation failed")
+        guard hasParseFailure else { return nil }
+
+        // Extract the "help:" line — kanata puts the most actionable info there
+        // e.g., "help: Duplicate alias: beh_base_;"
+        let lines = logChunk.components(separatedBy: .newlines)
+        for line in lines.reversed() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("help:") {
+                let detail = String(trimmed.dropFirst(5)).trimmingCharacters(in: .whitespaces)
+                if !detail.isEmpty {
+                    return detail
+                }
+            }
+        }
+
+        // Fallback: use the [ERROR] line
+        for line in lines.reversed() {
+            if line.contains("[ERROR]") {
+                if let range = line.range(of: "[ERROR]") {
+                    let msg = String(line[range.upperBound...])
+                        .trimmingCharacters(in: .whitespaces)
+                        .trimmingCharacters(in: CharacterSet(charactersIn: "\u{1B}[0m"))
+                    if !msg.isEmpty { return msg }
+                }
+            }
+        }
+
+        return "Configuration has errors that prevent Kanata from starting"
     }
 
     // MARK: - Configuration Checks
