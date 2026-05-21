@@ -127,7 +127,7 @@ final class AliasDeduplicationTests: XCTestCase {
         XCTAssertTrue(explanation.contains("\";\"\u{20}key"), "Should mention the conflicting key")
         XCTAssertTrue(explanation.contains("hold → rsft"), "Should describe what first collection does")
         XCTAssertTrue(explanation.contains("hold → (layer-while-held fun)"), "Should describe what second collection does")
-        XCTAssertTrue(explanation.contains("disable one"), "Should suggest disabling one collection")
+        XCTAssertTrue(explanation.contains("disable one"), "Should suggest disabling one")
         XCTAssertTrue(explanation.contains("key assignments"), "Should suggest changing key assignments")
     }
 
@@ -142,7 +142,7 @@ final class AliasDeduplicationTests: XCTestCase {
 
         XCTAssertTrue(explanation.contains("Custom Rules"))
         XCTAssertTrue(explanation.contains("Home Row Mods"))
-        XCTAssertTrue(explanation.contains("only have one hold action"))
+        XCTAssertTrue(explanation.contains("only have one action assigned"))
     }
 
     // MARK: - Integration: config gen safety net still works
