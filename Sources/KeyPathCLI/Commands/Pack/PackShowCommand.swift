@@ -15,7 +15,7 @@ struct PackShow: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = PacksFacade()
 
         let detail: CLIPackDetail
         do {

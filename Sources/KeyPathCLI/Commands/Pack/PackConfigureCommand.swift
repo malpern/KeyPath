@@ -45,7 +45,7 @@ struct PackConfigure: AsyncParsableCommand {
             settingValues[String(parts[0])] = value
         }
 
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = PacksFacade()
 
         do {
             let result = try await facade.configurePack(

@@ -3,7 +3,7 @@
 
 @MainActor
 final class CLIPackCRUDTests: XCTestCase {
-    private let facade = CLIFacade()
+    private let facade = PacksFacade()
     private var originalInstalledPacks: [InstalledPackRecord] = []
 
     // Use a pack that's unlikely to be installed in the user's environment
