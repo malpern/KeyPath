@@ -27,31 +27,39 @@ struct Completions: ParsableCommand {
             CLIOutput.writeRaw(Self.dynamicCompletionWrapper)
         }
 
-        private static let dynamicCompletionWrapper = """
+        static let dynamicCompletionWrapper = """
 
         # Dynamic completions for keypath argument values
-        _keypath_dynamic_values() {
-            local noun=$1
-            local values
-            values=(${(f)"$(keypath completions values "$noun" 2>/dev/null)"})
-            compadd -a values
+        # Wraps ArgumentParser-generated functions to add dynamic values
+        # for positional arguments while preserving flag completions.
+        _keypath_wrap_with_dynamic() {
+            local func_name=$1 noun=$2
+            eval "$(functions -- $func_name | sed '1s/.*/___orig_&/')"
+            eval "${func_name}() {
+                ___orig_${func_name}
+                local values
+                values=(\\${(f)\\"\\$(keypath completions values ${noun} 2>/dev/null)\\"})
+                compadd -a values
+            }"
         }
 
-        # Override specific subcommand completers for dynamic argument values
-        _keypath_pack_show() { _keypath_dynamic_values pack }
-        _keypath_pack_install() { _keypath_dynamic_values pack }
-        _keypath_pack_uninstall() { _keypath_dynamic_values pack }
-        _keypath_pack_configure() { _keypath_dynamic_values pack }
-        _keypath_collection_enable() { _keypath_dynamic_values collection }
-        _keypath_collection_disable() { _keypath_dynamic_values collection }
-        _keypath_collection_show() { _keypath_dynamic_values collection }
-        _keypath_rule_enable() { _keypath_dynamic_values rule }
-        _keypath_rule_disable() { _keypath_dynamic_values rule }
-        _keypath_rule_show() { _keypath_dynamic_values rule }
-        _keypath_rule_remove() { _keypath_dynamic_values rule }
-        _keypath_layer_switch() { _keypath_dynamic_values layer }
-        _keypath_layer_delete() { _keypath_dynamic_values layer }
-        _keypath_layer_rename() { _keypath_dynamic_values layer }
+        _keypath_wrap_with_dynamic _keypath_pack_show pack
+        _keypath_wrap_with_dynamic _keypath_pack_install pack
+        _keypath_wrap_with_dynamic _keypath_pack_uninstall pack
+        _keypath_wrap_with_dynamic _keypath_pack_configure pack
+        _keypath_wrap_with_dynamic _keypath_collection_enable collection
+        _keypath_wrap_with_dynamic _keypath_collection_disable collection
+        _keypath_wrap_with_dynamic _keypath_collection_show collection
+        _keypath_wrap_with_dynamic _keypath_collection_delete collection
+        _keypath_wrap_with_dynamic _keypath_collection_rename collection
+        _keypath_wrap_with_dynamic _keypath_collection_duplicate collection
+        _keypath_wrap_with_dynamic _keypath_rule_enable rule
+        _keypath_wrap_with_dynamic _keypath_rule_disable rule
+        _keypath_wrap_with_dynamic _keypath_rule_show rule
+        _keypath_wrap_with_dynamic _keypath_rule_remove rule
+        _keypath_wrap_with_dynamic _keypath_layer_switch layer
+        _keypath_wrap_with_dynamic _keypath_layer_delete layer
+        _keypath_wrap_with_dynamic _keypath_layer_rename layer
         """
     }
 
@@ -63,7 +71,46 @@ struct Completions: ParsableCommand {
         mutating func run() throws {
             let script = KeyPathCLI.completionScript(for: .bash)
             CLIOutput.writeRaw(script)
+            CLIOutput.writeRaw(Self.dynamicCompletionWrapper)
         }
+
+        static let dynamicCompletionWrapper = """
+
+        # Dynamic completions for keypath argument values
+        _keypath_dynamic_values() {
+            local noun=$1 cur="${COMP_WORDS[COMP_CWORD]}"
+            local -a vals
+            mapfile -t vals < <(keypath completions values "$noun" 2>/dev/null)
+            local v
+            for v in "${vals[@]}"; do
+                [[ "$v" == "$cur"* ]] && COMPREPLY+=("$v")
+            done
+        }
+
+        _keypath_dynamic_complete() {
+            local cmd="${COMP_WORDS[1]:-}" sub="${COMP_WORDS[2]:-}"
+            case "$cmd:$sub" in
+                pack:show|pack:install|pack:uninstall|pack:configure)
+                    _keypath_dynamic_values pack ;;
+                collection:enable|collection:disable|collection:show|collection:delete|collection:rename|collection:duplicate)
+                    _keypath_dynamic_values collection ;;
+                rule:enable|rule:disable|rule:show|rule:remove)
+                    _keypath_dynamic_values rule ;;
+                layer:switch|layer:delete|layer:rename)
+                    _keypath_dynamic_values layer ;;
+            esac
+        }
+
+        if type -t _keypath_bash_complete >/dev/null 2>&1; then
+            _keypath_orig_bash_complete=$(declare -f _keypath_bash_complete | tail -n +3 | head -n -1)
+            _keypath_bash_complete() {
+                eval "$_keypath_orig_bash_complete"
+                _keypath_dynamic_complete
+            }
+        else
+            complete -F _keypath_dynamic_complete keypath
+        fi
+        """
     }
 
     struct Fish: ParsableCommand {
@@ -74,7 +121,17 @@ struct Completions: ParsableCommand {
         mutating func run() throws {
             let script = KeyPathCLI.completionScript(for: .fish)
             CLIOutput.writeRaw(script)
+            CLIOutput.writeRaw(Self.dynamicCompletionWrapper)
         }
+
+        static let dynamicCompletionWrapper = """
+
+        # Dynamic completions for keypath argument values
+        complete -c keypath -n '__fish_seen_subcommand_from pack; and __fish_seen_subcommand_from show install uninstall configure' -xa '(keypath completions values pack 2>/dev/null)'
+        complete -c keypath -n '__fish_seen_subcommand_from collection; and __fish_seen_subcommand_from enable disable show delete rename duplicate' -xa '(keypath completions values collection 2>/dev/null)'
+        complete -c keypath -n '__fish_seen_subcommand_from rule; and __fish_seen_subcommand_from enable disable show remove' -xa '(keypath completions values rule 2>/dev/null)'
+        complete -c keypath -n '__fish_seen_subcommand_from layer; and __fish_seen_subcommand_from switch delete rename' -xa '(keypath completions values layer 2>/dev/null)'
+        """
     }
 
     struct InstallMan: ParsableCommand {
@@ -153,13 +210,13 @@ struct Completions: ParsableCommand {
 
             switch shellName {
             case "zsh":
-                script = KeyPathCLI.completionScript(for: .zsh)
+                script = KeyPathCLI.completionScript(for: .zsh) + Zsh.dynamicCompletionWrapper
                 path = NSString("~/.zsh/completions/_keypath").expandingTildeInPath
             case "bash":
-                script = KeyPathCLI.completionScript(for: .bash)
+                script = KeyPathCLI.completionScript(for: .bash) + Bash.dynamicCompletionWrapper
                 path = NSString("~/.bash_completion.d/keypath").expandingTildeInPath
             case "fish":
-                script = KeyPathCLI.completionScript(for: .fish)
+                script = KeyPathCLI.completionScript(for: .fish) + Fish.dynamicCompletionWrapper
                 path = NSString("~/.config/fish/completions/keypath.fish").expandingTildeInPath
             default:
                 throw ValidationError("Unsupported shell: '\(shellName)'. Use zsh, bash, or fish.")
