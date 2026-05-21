@@ -250,14 +250,6 @@ private var fallbackKeyMappings: [KeyMapping] {
                                     .fontWeight(.regular)
                                     .foregroundColor(.secondary)
                             }
-                            if let packName = managingPackName {
-                                Text("Managed by \(packName)")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.85))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.accentColor.opacity(0.7)))
-                            }
                         }
 
                         if let desc = description {
