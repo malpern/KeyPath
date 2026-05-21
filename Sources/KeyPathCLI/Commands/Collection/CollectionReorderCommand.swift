@@ -18,7 +18,7 @@ struct CollectionReorder: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = CollectionsFacade()
 
         do {
             let moved = try await facade.reorderCollection(nameOrId: nameOrId, position: position)

@@ -18,7 +18,7 @@ struct CollectionDuplicate: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = CollectionsFacade()
 
         do {
             guard let collection = try await facade.duplicateCollection(nameOrId: nameOrId, newName: name) else {

@@ -12,7 +12,7 @@ struct CollectionList: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = CollectionsFacade()
         let collections = await facade.loadRuleCollections()
 
         CLIOutput.write(collections, context: ctx) {

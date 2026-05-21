@@ -15,7 +15,7 @@ struct LayerDelete: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
-        let facade = await MainActor.run { CLIFacade() }
+        let facade = CollectionsFacade()
 
         let removed = try await facade.deleteLayer(name: name)
         if removed == 0 {
