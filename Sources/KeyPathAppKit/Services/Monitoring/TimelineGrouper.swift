@@ -50,7 +50,7 @@ enum EventCardKind {
     case oneShot(OneShotPayload)
     case chord(ChordPayload)
     case tapDance(TapDancePayload)
-    case nonPrintableKey(key: String, count: Int)
+    case nonPrintableKeys(keys: [(key: String, count: Int)])
 }
 
 struct TapHoldCardData {
@@ -150,6 +150,30 @@ enum TimelineGrouper {
             currentTextRun = []
         }
 
+        func appendNonPrintable(key: String, id: UUID, timestamp: Date) {
+            if let last = segments.last,
+               case let .eventCard(card) = last,
+               case var .nonPrintableKeys(keys) = card.cardKind
+            {
+                if let lastIdx = keys.indices.last, keys[lastIdx].key == key {
+                    keys[lastIdx].count += 1
+                } else {
+                    keys.append((key: key, count: 1))
+                }
+                segments[segments.count - 1] = .eventCard(EventCardSegment(
+                    id: card.id,
+                    timestamp: card.timestamp,
+                    cardKind: .nonPrintableKeys(keys: keys)
+                ))
+            } else {
+                segments.append(.eventCard(EventCardSegment(
+                    id: id,
+                    timestamp: timestamp,
+                    cardKind: .nonPrintableKeys(keys: [(key: key, count: 1)])
+                )))
+            }
+        }
+
         for event in events {
             switch event.kind {
             case let .keyInput(payload):
@@ -170,23 +194,7 @@ enum TimelineGrouper {
                     ))
                 } else {
                     flushTextRun()
-                    if let last = segments.last,
-                       case let .eventCard(card) = last,
-                       case let .nonPrintableKey(lastKey, lastCount) = card.cardKind,
-                       lastKey == payload.key
-                    {
-                        segments[segments.count - 1] = .eventCard(EventCardSegment(
-                            id: card.id,
-                            timestamp: card.timestamp,
-                            cardKind: .nonPrintableKey(key: payload.key, count: lastCount + 1)
-                        ))
-                    } else {
-                        segments.append(.eventCard(EventCardSegment(
-                            id: event.id,
-                            timestamp: event.timestamp,
-                            cardKind: .nonPrintableKey(key: payload.key, count: 1)
-                        )))
-                    }
+                    appendNonPrintable(key: payload.key, id: event.id, timestamp: event.timestamp)
                 }
 
             case let .layerChanged(payload):
@@ -197,17 +205,28 @@ enum TimelineGrouper {
                 )))
 
             case let .tapActivated(payload):
-                flushTextRun()
-                segments.append(.eventCard(EventCardSegment(
-                    id: event.id,
-                    timestamp: event.timestamp,
-                    cardKind: .tapHold(TapHoldCardData(
-                        key: payload.key,
-                        outputAction: payload.outputAction,
-                        reason: payload.reason,
-                        isHold: false
+                if let displayChar = printableKeys[payload.outputAction.lowercased()] {
+                    currentTextRun.append(TextRunCharacter(
+                        id: event.id,
+                        displayChar: displayChar,
+                        rawKey: payload.key,
+                        timestamp: event.timestamp,
+                        layer: nil,
+                        kanataTimestamp: payload.kanataTimestamp
                     ))
-                )))
+                } else {
+                    flushTextRun()
+                    segments.append(.eventCard(EventCardSegment(
+                        id: event.id,
+                        timestamp: event.timestamp,
+                        cardKind: .tapHold(TapHoldCardData(
+                            key: payload.key,
+                            outputAction: payload.outputAction,
+                            reason: payload.reason,
+                            isHold: false
+                        ))
+                    )))
+                }
 
             case let .holdActivated(payload):
                 flushTextRun()
