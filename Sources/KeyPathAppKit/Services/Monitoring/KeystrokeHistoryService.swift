@@ -13,6 +13,7 @@ final class KeystrokeHistoryService {
 
     private(set) var segments: [TimelineSegment] = []
     private(set) var currentLayer: String = "base"
+    private(set) var eventCount: Int = 0
     var isRecording: Bool = true
 
     @ObservationIgnored private var rawEvents: [KeystrokeTimelineEvent] = []
@@ -275,6 +276,7 @@ final class KeystrokeHistoryService {
             rawEvents.removeFirst(rawEvents.count - maxEvents)
         }
 
+        eventCount = rawEvents.count
         rebuildSegments()
     }
 
@@ -305,10 +307,7 @@ final class KeystrokeHistoryService {
         pendingEvents.removeAll()
         batchTimer?.invalidate()
         batchTimer = nil
+        eventCount = 0
         segments = []
-    }
-
-    var eventCount: Int {
-        rawEvents.count
     }
 }

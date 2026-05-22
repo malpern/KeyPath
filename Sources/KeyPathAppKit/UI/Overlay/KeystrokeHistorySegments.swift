@@ -68,8 +68,8 @@ struct EventCardView: View {
                 chordCard(data)
             case let .tapDance(data):
                 tapDanceCard(data)
-            case let .nonPrintableKey(key, _):
-                nonPrintableCard(key: key)
+            case let .nonPrintableKey(key, count):
+                nonPrintableCard(key: key, count: count)
             }
         }
         .padding(.vertical, 2)
@@ -239,18 +239,26 @@ struct EventCardView: View {
 
     // MARK: - Non-Printable Key Card
 
-    private func nonPrintableCard(key: String) -> some View {
-        Text(key)
-            .font(.system(size: 10, weight: .medium, design: .monospaced))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
-            .background(
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(isDark
-                        ? Color.white.opacity(0.06)
-                        : Color.black.opacity(0.04))
-            )
+    private func nonPrintableCard(key: String, count: Int) -> some View {
+        let displayName = TimelineGrouper.nonPrintableDisplayNames[key.lowercased()] ?? key
+        return HStack(spacing: 2) {
+            Text(displayName)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(.secondary)
+            if count > 1 {
+                Text("\u{00D7}\(count)")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .background(
+            RoundedRectangle(cornerRadius: 3)
+                .fill(isDark
+                    ? Color.white.opacity(0.06)
+                    : Color.black.opacity(0.04))
+        )
     }
 
     // MARK: - Shared Components

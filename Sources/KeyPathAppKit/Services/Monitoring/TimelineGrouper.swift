@@ -50,7 +50,7 @@ enum EventCardKind {
     case oneShot(OneShotPayload)
     case chord(ChordPayload)
     case tapDance(TapDancePayload)
-    case nonPrintableKey(key: String, action: KanataKeyAction)
+    case nonPrintableKey(key: String, count: Int)
 }
 
 struct TapHoldCardData {
@@ -79,6 +79,30 @@ struct LayerDividerSegment: Identifiable {
 // MARK: - Grouper
 
 enum TimelineGrouper {
+    static let nonPrintableDisplayNames: [String: String] = [
+        "bspc": "⌫",
+        "backspace": "⌫",
+        "del": "⌦",
+        "delete": "⌦",
+        "esc": "⎋",
+        "escape": "⎋",
+        "ret": "↩",
+        "enter": "↩",
+        "return": "↩",
+        "left": "←",
+        "right": "→",
+        "up": "↑",
+        "down": "↓",
+        "home": "⇱",
+        "end": "⇲",
+        "pgup": "⇞",
+        "pgdn": "⇟",
+        "caps": "⇪",
+        "f1": "F1", "f2": "F2", "f3": "F3", "f4": "F4",
+        "f5": "F5", "f6": "F6", "f7": "F7", "f8": "F8",
+        "f9": "F9", "f10": "F10", "f11": "F11", "f12": "F12",
+    ]
+
     private static let printableKeys: [String: String] = {
         var map: [String: String] = [:]
         for c in "abcdefghijklmnopqrstuvwxyz" {
@@ -146,11 +170,23 @@ enum TimelineGrouper {
                     ))
                 } else {
                     flushTextRun()
-                    segments.append(.eventCard(EventCardSegment(
-                        id: event.id,
-                        timestamp: event.timestamp,
-                        cardKind: .nonPrintableKey(key: payload.key, action: payload.action)
-                    )))
+                    if let last = segments.last,
+                       case let .eventCard(card) = last,
+                       case let .nonPrintableKey(lastKey, lastCount) = card.cardKind,
+                       lastKey == payload.key
+                    {
+                        segments[segments.count - 1] = .eventCard(EventCardSegment(
+                            id: card.id,
+                            timestamp: card.timestamp,
+                            cardKind: .nonPrintableKey(key: payload.key, count: lastCount + 1)
+                        ))
+                    } else {
+                        segments.append(.eventCard(EventCardSegment(
+                            id: event.id,
+                            timestamp: event.timestamp,
+                            cardKind: .nonPrintableKey(key: payload.key, count: 1)
+                        )))
+                    }
                 }
 
             case let .layerChanged(payload):
