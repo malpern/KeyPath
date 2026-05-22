@@ -32,7 +32,7 @@ final class RemapEndToEndTests: XCTestCase {
         // 4. Run through simulator and get key mapping
         let simulatorService = SimulatorService.forTesting(simulatorPath: simulatorPath)
         let mapper = LayerKeyMapper(simulatorService: simulatorService)
-        let layerMapping = try await mapper.getMapping(
+        let (layerMapping, _) = try await mapper.getMapping(
             for: "base",
             configPath: configPath,
             layout: .macBookUS
@@ -65,7 +65,7 @@ final class RemapEndToEndTests: XCTestCase {
 
         let simulatorService = SimulatorService.forTesting(simulatorPath: simulatorPath)
         let mapper = LayerKeyMapper(simulatorService: simulatorService)
-        let layerMapping = try await mapper.getMapping(
+        let (layerMapping, _) = try await mapper.getMapping(
             for: "base",
             configPath: configPath,
             layout: .macBookUS

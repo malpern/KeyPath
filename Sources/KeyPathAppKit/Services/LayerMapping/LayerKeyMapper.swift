@@ -170,6 +170,40 @@ struct LayerKeyInfo: Equatable, Sendable {
     }
 }
 
+struct SimulationReport: Sendable {
+    let layerName: String
+    let totalKeys: Int
+    let failedKeys: [FailedSimKey]
+    let configPath: String
+
+    struct FailedSimKey: Sendable {
+        let keyCode: UInt16
+        let kanataName: String
+    }
+
+    var failureCount: Int { failedKeys.count }
+    var hasSignificantFailures: Bool { failedKeys.count > 5 }
+
+    func copyableText() -> String {
+        var lines: [String] = []
+        lines.append("## Kanata Simulator Failure Report")
+        lines.append("Layer: \(layerName)")
+        lines.append("Config: \(configPath)")
+        lines.append("Result: \(failedKeys.count)/\(totalKeys) keys failed simulation")
+        lines.append("")
+        lines.append("### Failed keys")
+        for key in failedKeys {
+            lines.append("- keyCode \(key.keyCode) (\(key.kanataName))")
+        }
+        lines.append("")
+        lines.append("### What this means")
+        lines.append("The kanata-simulator could not resolve what these keys output on the '\(layerName)' layer.")
+        lines.append("Overlay icons for these keys will fall back to zone subtitles or base-layer labels.")
+        lines.append("The sim command format is: `ls:\(layerName) d:<key> t:50 u:<key> t:250`")
+        return lines.joined(separator: "\n")
+    }
+}
+
 /// Service that builds key mappings for each layer using the kanata-simulator.
 /// Maps physical key codes to what they output in each layer.
 actor LayerKeyMapper {
@@ -199,7 +233,7 @@ actor LayerKeyMapper {
         layout: PhysicalLayout,
         collections: [RuleCollection] = [],
         cacheKeySuffix: String = "default"
-    ) async throws -> [UInt16: LayerKeyInfo] {
+    ) async throws -> (mapping: [UInt16: LayerKeyInfo], report: SimulationReport?) {
         // Normalize layer name to lowercase for consistent cache keys
         let normalizedLayer = layer.lowercased()
         let cacheKey = "\(normalizedLayer)|\(cacheKeySuffix)"
@@ -210,7 +244,7 @@ actor LayerKeyMapper {
             AppLogger.shared.info("🗺️ [LayerKeyMapper] Simulator disabled; using fallback mapping")
             let mapping = buildFallbackMapping(layout: layout)
             cache[cacheKey] = mapping
-            return mapping
+            return (mapping, nil)
         }
 
         // Check if config changed (invalidate cache)
@@ -221,10 +255,9 @@ actor LayerKeyMapper {
             configHash = currentHash
         }
 
-        // Return cached if available (use normalized key)
         if let cached = cache[cacheKey] {
             AppLogger.shared.debug("🗺️ [LayerKeyMapper] Returning cached mapping (\(cached.count) keys)")
-            return cached
+            return (cached, nil)
         }
 
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Building new mapping for '\(normalizedLayer)'...")
@@ -235,9 +268,7 @@ actor LayerKeyMapper {
         let keyToVimLabel = buildKeyVimLabelMap(for: normalizedLayer, collections: collections)
         AppLogger.shared.debug("🗺️ [LayerKeyMapper] Built key→collection map: \(keyToCollection.count) keys")
 
-        // Use batch simulation for accurate key mapping
-        // This handles aliases, tap-hold, forks, macros, etc.
-        let mapping = try await buildMappingWithSimulator(
+        let (mapping, report) = try await buildMappingWithSimulator(
             for: normalizedLayer,
             configPath: configPath,
             layout: layout,
@@ -248,7 +279,7 @@ actor LayerKeyMapper {
 
         cache[cacheKey] = mapping
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Built mapping: \(mapping.count) keys")
-        return mapping
+        return (mapping, report)
     }
 
     /// Invalidate all cached mappings (call when config changes)
@@ -305,7 +336,7 @@ actor LayerKeyMapper {
                         let keyToCollection = self.buildKeyCollectionMap(for: layer, collections: collectionsWithoutNeovim)
                         let activatorKeys = self.buildActivatorKeySet(for: layer, collections: collectionsWithoutNeovim)
                         let keyToVimLabel = self.buildKeyVimLabelMap(for: layer, collections: collectionsWithoutNeovim)
-                        let mapping = try await self.buildMappingWithSimulator(
+                        let (mapping, _) = try await self.buildMappingWithSimulator(
                             for: layer,
                             configPath: configPath,
                             layout: layout,
@@ -327,7 +358,7 @@ actor LayerKeyMapper {
                             let keyToCollection = self.buildKeyCollectionMap(for: layer, collections: allEnabledCollections)
                             let activatorKeys = self.buildActivatorKeySet(for: layer, collections: allEnabledCollections)
                             let keyToVimLabel = self.buildKeyVimLabelMap(for: layer, collections: allEnabledCollections)
-                            let mapping = try await self.buildMappingWithSimulator(
+                            let (mapping, _) = try await self.buildMappingWithSimulator(
                                 for: layer,
                                 configPath: configPath,
                                 layout: layout,
