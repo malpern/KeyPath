@@ -57,20 +57,20 @@ struct ExpandableKeystrokeHistoryRow: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(PackRegistry.keystrokeHistory.name)
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.body.weight(.medium))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
 
                         Text(PackRegistry.keystrokeHistory.tagline)
-                            .font(.system(size: 12))
+                            .font(.callout)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
 
                         HStack(spacing: 4) {
                             Image(systemName: "lock.shield")
-                                .font(.system(size: 9))
+                                .font(.caption2)
                             Text("Memory only")
-                                .font(.system(size: 10))
+                                .font(.caption)
                         }
                         .foregroundStyle(.tertiary)
                         .padding(.top, 1)

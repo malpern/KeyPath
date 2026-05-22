@@ -19,21 +19,21 @@ struct SystemPackComponentCard: View {
             Button(action: onToggle) {
                 HStack(spacing: 10) {
                     Image(systemName: icon)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.body.weight(.medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 20)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title)
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.body.weight(.semibold))
                             .foregroundStyle(.primary)
                         Text(summary)
-                            .font(.system(size: 11))
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .lineLimit(isExpanded ? nil : 1)
                     }
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.tertiary)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                         .animation(.easeInOut(duration: 0.2), value: isExpanded)
@@ -151,7 +151,7 @@ struct VallackSystemPackContent: View {
             // How it works
             VStack(alignment: .leading, spacing: 6) {
                 Text("How it works")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.tertiary)
                     .padding(.leading, 4)
 
@@ -192,21 +192,21 @@ struct VallackSystemPackContent: View {
         if selectedLayer == "nav" {
             HStack(spacing: 6) {
                 Text("Hold")
-                    .font(.system(size: 11))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                 ZonedKeycap(label: "F", zone: .activator, size: 20)
                 Text("or")
-                    .font(.system(size: 11))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                 ZonedKeycap(label: "J", zone: .activator, size: 20)
                 Text("to enter  ·  release to exit")
-                    .font(.system(size: 11))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
         } else {
             HStack(spacing: 6) {
                 Text("Normal typing with dual-role keys")
-                    .font(.system(size: 11))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
         }
@@ -221,9 +221,9 @@ struct VallackSystemPackContent: View {
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: icon)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                 Text(label)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.callout.weight(.semibold))
             }
             .foregroundStyle(isSelected ? .primary : .secondary)
             .padding(.horizontal, 14)
@@ -262,7 +262,7 @@ struct VallackSystemPackContent: View {
     private var modsCardContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Modifiers move to the top row so the home row is free for layer toggles. Tap for the letter, hold for the modifier.")
-                .font(.system(size: 11))
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
             MappingTableContent(
                 mappings: [
@@ -281,19 +281,19 @@ struct VallackSystemPackContent: View {
     private var activatorCardContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Hold either index finger to activate the navigation layer. Release to return to normal typing. Both activate the same layer — use whichever hand is free.")
-                .font(.system(size: 11))
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
             HStack(spacing: 8) {
                 Text("Hold")
-                    .font(.system(size: 12))
+                    .font(.callout)
                     .foregroundStyle(.secondary)
                 StandardKeyBadge(key: "F", color: .orange)
                 Text("or")
-                    .font(.system(size: 12))
+                    .font(.callout)
                     .foregroundStyle(.secondary)
                 StandardKeyBadge(key: "J", color: .orange)
                 Text("→ navigation layer")
-                    .font(.system(size: 12))
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             }
         }
@@ -304,7 +304,7 @@ struct VallackSystemPackContent: View {
         if let collection = navCollection {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Right hand navigates (HJKL arrows, backspace, enter). Left hand switches and edits (tabs, clipboard, escape).")
-                    .font(.system(size: 11))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                 MappingTableContent(
                     mappings: collection.mappings.map {

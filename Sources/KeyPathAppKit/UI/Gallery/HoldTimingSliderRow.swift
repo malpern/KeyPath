@@ -29,7 +29,7 @@ struct HoldTimingSliderRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Label("Prefer letters", systemImage: "character.cursor.ibeam")
-                .font(.system(size: 11))
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
 
@@ -52,7 +52,7 @@ struct HoldTimingSliderRow: View {
                         let thumbX = trackInset + trackWidth * fraction
 
                         Text("\(currentValue) ms")
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .font(.caption.weight(.semibold).width(.condensed))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -66,7 +66,7 @@ struct HoldTimingSliderRow: View {
             }
 
             Label("Prefer modifiers", systemImage: "command")
-                .font(.system(size: 11))
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }

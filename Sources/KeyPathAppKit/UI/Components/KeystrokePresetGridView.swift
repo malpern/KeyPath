@@ -23,9 +23,9 @@ struct KeystrokePresetGridView: View {
                 Button { onSelect(item.key) } label: {
                     HStack(spacing: 3) {
                         Image(systemName: item.icon)
-                            .font(.system(size: 9))
+                            .font(.caption2)
                         Text(item.label)
-                            .font(.system(size: 10))
+                            .font(.caption)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 4)

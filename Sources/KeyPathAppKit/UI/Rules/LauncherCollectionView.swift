@@ -525,7 +525,7 @@ struct LauncherMappingEditor: View {
                     .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
             } else {
                 Image(systemName: targetType.iconName)
-                    .font(.system(size: 24))
+                    .font(.title)
                     .foregroundColor(.secondary)
                     .frame(width: 56, height: 56)
                     .background(
@@ -536,7 +536,7 @@ struct LauncherMappingEditor: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(currentDisplayName.isEmpty ? "New Launcher" : currentDisplayName)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.title3.weight(.medium))
                     .lineLimit(1)
                     .foregroundColor(currentDisplayName.isEmpty ? .secondary : .primary)
                 Text(targetType.rawValue)
@@ -548,7 +548,7 @@ struct LauncherMappingEditor: View {
 
             if !normalizedKey.isEmpty {
                 Text(displayKey.uppercased())
-                    .font(.system(size: 20, weight: .bold, design: .monospaced))
+                    .font(.title2.bold().monospaced())
                     .foregroundColor(.white)
                     .frame(minWidth: 40)
                     .padding(.horizontal, 12)
@@ -642,7 +642,7 @@ struct LauncherMappingEditor: View {
                 formRow("") {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(coloredScriptPreview(preview))
-                            .font(.system(size: 10, design: .monospaced))
+                            .font(.caption.monospaced())
                             .lineLimit(10)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(8)
@@ -727,7 +727,7 @@ struct LauncherMappingEditor: View {
     private func formRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(label)
-                .font(.system(size: 12))
+                .font(.callout)
                 .foregroundColor(.secondary)
                 .frame(width: 72, alignment: .trailing)
             content()

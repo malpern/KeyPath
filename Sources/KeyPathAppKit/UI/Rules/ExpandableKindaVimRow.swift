@@ -139,10 +139,10 @@ struct ExpandableKindaVimRow: View {
     private func staticModeBadge(_ label: String, tint: Color) -> some View {
         HStack(spacing: 4) {
             Text("VIM")
-                .font(.system(size: 9, weight: .heavy))
+                .font(.caption2.weight(.heavy))
                 .foregroundStyle(.secondary)
             Text(label)
-                .font(.system(size: 9, weight: .heavy))
+                .font(.caption2.weight(.heavy))
                 .foregroundStyle(tint)
         }
         .padding(.horizontal, 6)

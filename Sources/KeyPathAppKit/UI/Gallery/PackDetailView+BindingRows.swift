@@ -187,7 +187,7 @@ extension PackDetailView {
                 VStack(alignment: .leading, spacing: 8) {
                     if let hint = collection.activationHint, !hint.isEmpty {
                         Text(hint)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.callout.weight(.medium))
                             .foregroundStyle(.secondary)
                     }
                     MappingTableContent(
@@ -204,7 +204,7 @@ extension PackDetailView {
             VStack(alignment: .leading, spacing: 8) {
                 Divider()
                 Text("What this will change")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.callout.weight(.semibold))
                     .foregroundStyle(.secondary)
                 ForEach(Array(pack.bindings.enumerated()), id: \.offset) { _, template in
                     bindingRow(template)

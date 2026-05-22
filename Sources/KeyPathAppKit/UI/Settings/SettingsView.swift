@@ -324,7 +324,7 @@ struct StatusSettingsTabView: View {
                     // Hero: icon + name + status
                     HStack(spacing: 14) {
                         Image(systemName: "keyboard.fill")
-                            .font(.system(size: 28))
+                            .font(.largeTitle)
                             .foregroundStyle(.secondary)
                             .frame(width: 44, height: 44)
                             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -414,7 +414,7 @@ struct StatusSettingsTabView: View {
             } else {
                 HStack(spacing: 14) {
                     Image(systemName: "keyboard")
-                        .font(.system(size: 28))
+                        .font(.largeTitle)
                         .foregroundStyle(.tertiary)
                         .frame(width: 44, height: 44)
 

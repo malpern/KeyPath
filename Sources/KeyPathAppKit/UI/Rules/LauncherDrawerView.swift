@@ -233,14 +233,14 @@ private struct LauncherMappingCard: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(mapping.userDescription ?? mapping.action.displayName)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.body.weight(.medium))
                     .lineLimit(1)
                     .foregroundColor(mapping.isEnabled ? .primary : .secondary)
                     .strikethrough(!mapping.isEnabled, color: .secondary)
 
                 HStack(spacing: 4) {
                     Image(systemName: typeIconName)
-                        .font(.system(size: 9))
+                        .font(.caption2)
                     Text(typeLabel)
                         .font(.caption2)
                     if !mapping.isEnabled {
@@ -254,7 +254,7 @@ private struct LauncherMappingCard: View {
             Spacer(minLength: 4)
 
             Text(displayKey.uppercased())
-                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                .font(.body.bold().monospaced())
                 .foregroundColor(.white)
                 .frame(minWidth: 28)
                 .padding(.horizontal, 8)
@@ -307,7 +307,7 @@ private struct LauncherMappingCard: View {
                 .saturation(mapping.isEnabled ? 1.0 : 0.3)
         } else {
             Image(systemName: typeIconName)
-                .font(.system(size: 20))
+                .font(.title2)
                 .foregroundColor(.secondary)
                 .frame(width: 44, height: 44)
                 .background(

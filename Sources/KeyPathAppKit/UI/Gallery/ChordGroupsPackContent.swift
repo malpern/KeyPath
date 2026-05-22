@@ -51,14 +51,14 @@ struct ChordGroupsPackContent: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: group.category.icon)
-                    .font(.system(size: 10))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(group.name)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
                 Text("\(group.timeout)ms")
-                    .font(.system(size: 10, design: .monospaced))
+                    .font(.caption.monospaced())
                     .foregroundStyle(.tertiary)
             }
 
@@ -93,9 +93,9 @@ struct ChordGroupsPackContent: View {
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "plus")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.caption2.weight(.semibold))
                     Text("Add chord")
-                        .font(.system(size: 11))
+                        .font(.subheadline)
                 }
                 .foregroundStyle(Color.accentColor)
             }
@@ -121,9 +121,9 @@ struct ChordGroupsPackContent: View {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "plus")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.caption2.weight(.semibold))
                 Text("Add group")
-                    .font(.system(size: 11))
+                    .font(.subheadline)
             }
             .foregroundStyle(Color.accentColor)
         }
@@ -187,7 +187,7 @@ private struct ChordRuleRow: View {
             // Checkbox — separate button to avoid gesture conflict
             Button(action: onToggle) {
                 Image(systemName: chord.isEnabled ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 14))
+                    .font(.body)
                     .foregroundStyle(chord.isEnabled ? Color.accentColor : Color.secondary.opacity(0.4))
                     .frame(width: 30, height: 30)
                     .contentShape(Rectangle())
@@ -284,7 +284,7 @@ private struct ChordRuleRow: View {
         HStack(spacing: 4) {
             if let info = action.commonDisplayInfo, let icon = info.icon {
                 Image(systemName: icon)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.callout.weight(.semibold))
             }
             Text(action.commonDisplayInfo?.label ?? action.displayName)
                 .font(.body.weight(.semibold))

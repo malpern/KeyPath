@@ -433,9 +433,9 @@ private struct HomeRowLayerTargetChip: View {
     var body: some View {
         HStack(spacing: 3) {
             Image(systemName: LayerInfo.iconName(for: layerName))
-                .font(.system(size: 9, weight: .semibold))
+                .font(.caption2.weight(.semibold))
             Text(LayerInfo.displayName(for: layerName))
-                .font(.system(size: 9, weight: .semibold))
+                .font(.caption2.weight(.semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }
