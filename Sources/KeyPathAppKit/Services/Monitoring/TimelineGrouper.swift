@@ -6,12 +6,14 @@ enum TimelineSegment: Identifiable {
     case textRun(TextRunSegment)
     case eventCard(EventCardSegment)
     case layerDivider(LayerDividerSegment)
+    case appChanged(AppChangedSegment)
 
     var id: UUID {
         switch self {
         case let .textRun(s): s.id
         case let .eventCard(s): s.id
         case let .layerDivider(s): s.id
+        case let .appChanged(s): s.id
         }
     }
 
@@ -20,6 +22,7 @@ enum TimelineSegment: Identifiable {
         case let .textRun(s): s.characters.first?.timestamp ?? Date()
         case let .eventCard(s): s.timestamp
         case let .layerDivider(s): s.timestamp
+        case let .appChanged(s): s.timestamp
         }
     }
 }
@@ -74,6 +77,13 @@ struct LayerDividerSegment: Identifiable {
     let id = UUID()
     let timestamp: Date
     let layerName: String
+}
+
+struct AppChangedSegment: Identifiable {
+    let id = UUID()
+    let timestamp: Date
+    let appName: String
+    let bundleIdentifier: String
 }
 
 // MARK: - Grouper
@@ -292,6 +302,14 @@ enum TimelineGrouper {
                     id: event.id,
                     timestamp: event.timestamp,
                     cardKind: .tapDance(payload)
+                )))
+
+            case let .appChanged(payload):
+                flushTextRun()
+                segments.append(.appChanged(AppChangedSegment(
+                    timestamp: event.timestamp,
+                    appName: payload.appName,
+                    bundleIdentifier: payload.bundleIdentifier
                 )))
             }
         }

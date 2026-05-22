@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // MARK: - Text Run View
@@ -240,7 +241,7 @@ struct EventCardView: View {
     // MARK: - Non-Printable Key Card
 
     private func nonPrintableCard(keys: [(key: String, count: Int)]) -> some View {
-        HStack(spacing: 4) {
+        FlowLayout(spacing: 3) {
             ForEach(Array(keys.enumerated()), id: \.offset) { _, entry in
                 HStack(spacing: 1) {
                     Text(TimelineGrouper.nonPrintableDisplayNames[entry.key.lowercased()] ?? entry.key)
@@ -322,5 +323,34 @@ struct LayerDividerView: View {
         Rectangle()
             .fill(Color.secondary.opacity(0.2))
             .frame(height: 0.5)
+    }
+}
+
+// MARK: - App Changed View
+
+struct AppChangedView: View {
+    let segment: AppChangedSegment
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let icon = appIcon {
+                Image(nsImage: icon)
+                    .resizable()
+                    .frame(width: 14, height: 14)
+            }
+            Text(segment.appName)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.vertical, 3)
+        .padding(.horizontal, 2)
+    }
+
+    private var appIcon: NSImage? {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: segment.bundleIdentifier) else {
+            return nil
+        }
+        return NSWorkspace.shared.icon(forFile: url.path)
     }
 }
