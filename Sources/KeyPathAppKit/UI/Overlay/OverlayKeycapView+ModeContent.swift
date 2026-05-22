@@ -127,6 +127,20 @@ extension OverlayKeycapView {
             // Special case: fn key should always show globe + "fn" even when mapped
             if key.label == "fn" {
                 fnKeyContent
+            } else if let subtitle = zoneSubtitle, !hasLayerMapping {
+                // Zone subtitle as primary icon (nav icons from pack zone maps)
+                // Used when the simulator doesn't have a real mapping for this key
+                ZStack(alignment: .topLeading) {
+                    if !isArrowKey {
+                        Text(layerKeyLabel.uppercased())
+                            .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
+                            .foregroundStyle(Color.white.opacity(0.25))
+                            .padding(3 * scale)
+                    }
+
+                    zoneSubtitleIcon(subtitle)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             } else {
                 // For Window layer, prefer SF symbols over text labels
                 let useWindowSymbol = currentLayerName.lowercased().contains("window")
@@ -290,6 +304,24 @@ extension OverlayKeycapView {
                         .help(info.displayLabel) // Tooltip on hover
                 }
             }
+        }
+    }
+
+    /// Render a zone subtitle as centered icon content (arrows large, text dynamic-sized)
+    @ViewBuilder
+    func zoneSubtitleIcon(_ subtitle: String) -> some View {
+        let arrowLabels: Set<String> = ["←", "→", "↑", "↓"]
+        if arrowLabels.contains(subtitle) {
+            Text(subtitle)
+                .font(.system(size: 16 * scale, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.9))
+        } else if let actionSymbol = sfSymbolForAction(subtitle) {
+            Image(systemName: actionSymbol)
+                .font(.system(size: 14 * scale, weight: .semibold))
+                .foregroundStyle(Color.white)
+                .shadow(color: .black.opacity(0.3), radius: 1, y: 0.5)
+        } else {
+            dynamicTextLabel(subtitle)
         }
     }
 
