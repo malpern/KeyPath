@@ -140,6 +140,14 @@ enum TimelineGrouper {
         "lshift", "rshift",
     ]
 
+    private static func removeTrailingKeyInput(_ key: String, from textRun: inout [TextRunCharacter]) {
+        if let lastIdx = textRun.indices.last,
+           textRun[lastIdx].rawKey.lowercased() == key.lowercased()
+        {
+            textRun.remove(at: lastIdx)
+        }
+    }
+
     static func group(_ events: [KeystrokeTimelineEvent], currentLayer _: String) -> [TimelineSegment] {
         var segments: [TimelineSegment] = []
         var currentTextRun: [TextRunCharacter] = []
@@ -207,6 +215,7 @@ enum TimelineGrouper {
             case let .tapActivated(payload):
                 let tapOutput = payload.outputAction.isEmpty ? payload.key : payload.outputAction
                 if let displayChar = printableKeys[tapOutput.lowercased()] {
+                    removeTrailingKeyInput(payload.key, from: &currentTextRun)
                     currentTextRun.append(TextRunCharacter(
                         id: event.id,
                         displayChar: displayChar,
@@ -216,6 +225,7 @@ enum TimelineGrouper {
                         kanataTimestamp: payload.kanataTimestamp
                     ))
                 } else {
+                    removeTrailingKeyInput(payload.key, from: &currentTextRun)
                     flushTextRun()
                     segments.append(.eventCard(EventCardSegment(
                         id: event.id,
@@ -230,6 +240,7 @@ enum TimelineGrouper {
                 }
 
             case let .holdActivated(payload):
+                removeTrailingKeyInput(payload.key, from: &currentTextRun)
                 flushTextRun()
                 segments.append(.eventCard(EventCardSegment(
                     id: event.id,
@@ -243,6 +254,7 @@ enum TimelineGrouper {
                 )))
 
             case let .hrmDecision(payload):
+                removeTrailingKeyInput(payload.key, from: &currentTextRun)
                 flushTextRun()
                 segments.append(.eventCard(EventCardSegment(
                     id: event.id,
