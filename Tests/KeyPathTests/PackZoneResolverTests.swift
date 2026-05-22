@@ -52,12 +52,12 @@ final class PackZoneResolverTests: XCTestCase {
         XCTAssertFalse(subs.isEmpty, "Vallack system should provide home subtitles on base layer")
     }
 
-    func testActiveZoneSubtitles_VallackPack_NavLayer_ReturnsNil() {
+    func testActiveZoneSubtitles_VallackPack_NavLayer_ReturnsNavSubtitles() {
         let subs = PackZoneResolver.activeZoneSubtitles(
             installedPackIDs: [PackRegistry.vallackSystem.id],
             layerName: "vallack-nav"
         )
-        XCTAssertTrue(subs.isEmpty, "Vallack nav layer should not have home subtitles")
+        XCTAssertFalse(subs.isEmpty, "Vallack nav layer should have nav subtitles")
     }
 
     // MARK: - layerPreviewConfig
