@@ -54,6 +54,7 @@ enum EventCardKind {
     case chord(ChordPayload)
     case tapDance(TapDancePayload)
     case nonPrintableKeys(keys: [(key: String, count: Int)])
+    case actionDispatched(ActionDispatchedPayload)
 }
 
 struct TapHoldCardData {
@@ -310,6 +311,14 @@ enum TimelineGrouper {
                     timestamp: event.timestamp,
                     appName: payload.appName,
                     bundleIdentifier: payload.bundleIdentifier
+                )))
+
+            case let .actionDispatched(payload):
+                flushTextRun()
+                segments.append(.eventCard(EventCardSegment(
+                    id: event.id,
+                    timestamp: event.timestamp,
+                    cardKind: .actionDispatched(payload)
                 )))
             }
         }

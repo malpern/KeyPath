@@ -207,6 +207,8 @@ extension Notification.Name {
     static let kanataHrmTrace = Notification.Name("KeyPath.KanataHrmTrace")
     /// Posted when latest HRM aggregate stats have been refreshed.
     static let kanataHrmStatsUpdated = Notification.Name("KeyPath.KanataHrmStatsUpdated")
+    /// Posted when a keypath:// action URI is dispatched (userInfo["action"], ["target"], ["uri"])
+    static let kanataActionDispatched = Notification.Name("KeyPath.KanataActionDispatched")
     /// Posted when HelloOk capability list changes.
     static let kanataCapabilitiesUpdated = Notification.Name("KeyPath.KanataCapabilitiesUpdated")
 }

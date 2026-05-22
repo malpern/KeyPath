@@ -15,6 +15,7 @@ struct KeystrokeTimelineEvent: Identifiable {
         case chordResolved(ChordPayload)
         case tapDanceResolved(TapDancePayload)
         case appChanged(AppChangedPayload)
+        case actionDispatched(ActionDispatchedPayload)
     }
 }
 
@@ -68,4 +69,10 @@ struct TapDancePayload {
 struct AppChangedPayload {
     let appName: String
     let bundleIdentifier: String
+}
+
+struct ActionDispatchedPayload {
+    let action: String
+    let target: String?
+    let uri: String
 }

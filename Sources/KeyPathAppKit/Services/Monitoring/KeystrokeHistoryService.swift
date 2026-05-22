@@ -238,6 +238,38 @@ final class KeystrokeHistoryService {
                 self?.ingest(event)
             }
         }
+
+        observers.observe(.kanataActionDispatched, center: notificationCenter) { [weak self] notification in
+            guard let self else { return }
+            let userInfo = notification.userInfo
+            guard let action = userInfo?["action"] as? String,
+                  let uri = userInfo?["uri"] as? String
+            else { return }
+            let target = userInfo?["target"] as? String
+            let event = KeystrokeTimelineEvent(
+                id: UUID(),
+                timestamp: Date(),
+                kind: .actionDispatched(ActionDispatchedPayload(
+                    action: action,
+                    target: target,
+                    uri: uri
+                ))
+            )
+            Task { @MainActor [weak self] in
+                self?.ingest(event)
+            }
+        }
+
+        observers.observe(.installedPacksChanged, center: notificationCenter) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let installed = await InstalledPackTracker.shared.isInstalled(
+                    packID: PackRegistry.keystrokeHistory.id
+                )
+                isRecording = installed
+            }
+        }
     }
 
     // MARK: - Event Ingestion
@@ -274,7 +306,7 @@ final class KeystrokeHistoryService {
 
     private func isKeystrokeEvent(_ event: KeystrokeTimelineEvent) -> Bool {
         switch event.kind {
-        case .keyInput, .tapActivated, .holdActivated, .chordResolved, .tapDanceResolved:
+        case .keyInput, .tapActivated, .holdActivated, .chordResolved, .tapDanceResolved, .actionDispatched:
             true
         case .layerChanged, .hrmDecision, .oneShotActivated, .appChanged:
             false

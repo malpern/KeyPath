@@ -197,6 +197,19 @@ extension RuleCollectionsManager {
         // Dispatch to ActionDispatcher
         ActionDispatcher.shared.dispatch(actionURI)
 
+        // Post to keystroke history (skip layer: URIs — already shown as layer dividers)
+        if actionURI.action != "layer" {
+            NotificationCenter.default.post(
+                name: .kanataActionDispatched,
+                object: nil,
+                userInfo: [
+                    "action": actionURI.action,
+                    "target": actionURI.target ?? "",
+                    "uri": actionURI.url.absoluteString,
+                ]
+            )
+        }
+
         // Also notify any external observers
         onActionURI?(actionURI)
     }
