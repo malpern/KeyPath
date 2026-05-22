@@ -52,6 +52,10 @@ final class RuleCollectionsManager {
     /// Whether to include punctuation in keymap remapping
     var keymapIncludesPunctuation: Bool = false
 
+    // MARK: - Active Tasks
+
+    var eventMonitoringTask: Task<Void, Never>?
+
     // MARK: - Dependencies
 
     let ruleCollectionStore: RuleCollectionStore
@@ -99,6 +103,7 @@ final class RuleCollectionsManager {
     }
 
     deinit {
+        eventMonitoringTask?.cancel()
         let listener = eventListener
         Task.detached(priority: .background) {
             await listener.stop()
