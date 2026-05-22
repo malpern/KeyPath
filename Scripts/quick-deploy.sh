@@ -127,12 +127,21 @@ if pgrep -x "$APP_NAME" > /dev/null; then
     WAS_RUNNING=1
     echo "🛑 Stopping running $APP_NAME before deploy..."
     pkill -x "$APP_NAME" 2>/dev/null || true
+    # Wait up to 6s for graceful shutdown
     for _ in {1..120}; do
         if ! pgrep -x "$APP_NAME" >/dev/null; then
             break
         fi
         sleep 0.05
     done
+    # Force-kill if still alive — proceeding with the process running causes
+    # SIGKILL (Code Signature Invalid) when the replaced binary invalidates
+    # mapped pages in the old process.
+    if pgrep -x "$APP_NAME" >/dev/null; then
+        echo "⚠️  $APP_NAME did not exit in time, sending SIGKILL..."
+        pkill -9 -x "$APP_NAME" 2>/dev/null || true
+        sleep 0.2
+    fi
 fi
 
 # Build debug (fast - incremental)
@@ -299,10 +308,19 @@ if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
     if [[ -f "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" ]]; then
         codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" 2>/dev/null || true
     fi
-    codesign --force --options=runtime --sign "$SIGNING_IDENTITY" --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE" 2>/dev/null
+    codesign --force --options=runtime --sign "$SIGNING_IDENTITY" --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE"
 else
     echo "⚠️  Developer ID identity not found; using ad-hoc signing (helper may reject this build)."
-    codesign --force --sign - --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE" 2>/dev/null
+    codesign --force --sign - --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE"
+fi
+
+# Verify signature is valid before restarting — catch any silent corruption.
+if ! codesign --verify --strict "$APP_BUNDLE" 2>/dev/null; then
+    echo "❌ Code signature verification failed after signing!"
+    echo "   The app may crash with 'Code Signature Invalid' if launched."
+    echo "   Try a full build: ./build.sh"
+    log_build_event "SIGN_VERIFY_FAILED"
+    exit 1
 fi
 
 # Restart the app only if it was running when deploy began.
