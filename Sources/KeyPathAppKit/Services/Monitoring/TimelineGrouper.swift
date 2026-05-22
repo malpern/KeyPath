@@ -205,7 +205,8 @@ enum TimelineGrouper {
                 )))
 
             case let .tapActivated(payload):
-                if let displayChar = printableKeys[payload.outputAction.lowercased()] {
+                let tapOutput = payload.outputAction.isEmpty ? payload.key : payload.outputAction
+                if let displayChar = printableKeys[tapOutput.lowercased()] {
                     currentTextRun.append(TextRunCharacter(
                         id: event.id,
                         displayChar: displayChar,
