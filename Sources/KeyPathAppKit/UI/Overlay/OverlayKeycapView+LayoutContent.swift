@@ -42,7 +42,7 @@ extension OverlayKeycapView {
                 Text(isNumpadKey ? displayText : displayText.uppercased())
                     .font(.system(size: isNumpadKey ? 14 * scale : 12 * scale, weight: .medium))
                     .foregroundStyle(foregroundColor)
-                    .offset(y: hasSubtitle ? -2.5 * scale : 0)
+                    .offset(y: hasSubtitle ? -2 * scale : 0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -97,7 +97,7 @@ extension OverlayKeycapView {
                 .offset(y: mainAdj.verticalOffset * scale)
                 .foregroundStyle(foregroundColor)
         }
-        .offset(y: hasSubtitle ? -2.5 * scale : 0)
+        .offset(y: hasSubtitle ? -2 * scale : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
