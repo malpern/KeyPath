@@ -37,6 +37,7 @@ struct InspectorPanelToolbar: View {
     @State private var isHoveringSounds = false
     @State private var isHoveringDevices = false
     @State private var isHoveringLaunchers = false
+    @State private var isHoveringHistory = false
     @State private var isHoveringSettings = false
     @State private var showMainTabs = true
     @State private var showSettingsTabs = false
@@ -230,6 +231,18 @@ struct InspectorPanelToolbar: View {
                 .accessibilityLabel("Quick Launcher")
                 .help("Quick Launcher")
             }
+
+            // Keystroke History
+            toolbarButton(
+                systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90",
+                isSelected: selectedSection == .history,
+                isHovering: isHoveringHistory,
+                onHover: { isHoveringHistory = $0 },
+                action: { onSelectSection(.history) }
+            )
+            .accessibilityIdentifier("inspector-tab-history")
+            .accessibilityLabel("Keystroke History")
+            .help("Keystroke History")
         }
     }
 
