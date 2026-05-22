@@ -10,15 +10,19 @@ extension RuleCollectionsManager {
         // Restore keymap state first (before loading collections)
         restoreKeymapState()
 
-        async let storedCollectionsTask = ruleCollectionStore.loadCollections()
+        async let storedCollectionsTask = ruleCollectionStore.loadCollectionsDetailed()
         async let storedCustomRulesTask = customRulesStore.loadRules()
 
-        let storedCollections = await storedCollectionsTask
+        let loadResult = await storedCollectionsTask
         let storedCustomRules = await storedCustomRulesTask
 
-        ruleCollections = RuleCollectionDeduplicator.dedupe(storedCollections)
+        ruleCollections = RuleCollectionDeduplicator.dedupe(loadResult.collections)
         customRules = storedCustomRules
         AppLogger.shared.log("📊 [RuleCollectionsManager] bootstrap: loaded \(customRules.count) custom rules from store")
+
+        if !loadResult.failedCollectionNames.isEmpty || loadResult.wasFullReset {
+            notifyConfigRecovery(loadResult)
+        }
 
         ensureDefaultCollectionsIfNeeded()
 
@@ -75,6 +79,38 @@ extension RuleCollectionsManager {
 
         if fixedCount > 0 {
             AppLogger.shared.log("🔧 [Bootstrap] Pack reconciliation fixed \(fixedCount) collection(s)")
+        }
+    }
+
+    // MARK: - Config Recovery Notification
+
+    private func notifyConfigRecovery(_ result: RuleCollectionStore.LoadResult) {
+        let backupNote = result.backupPath != nil ? " Your previous config was backed up." : ""
+
+        if result.wasFullReset {
+            let body = "All rule configurations were reset to defaults.\(backupNote)"
+            AppLogger.shared.log("⚠️ [Bootstrap] Full config reset. Backup: \(result.backupPath ?? "none")")
+            Task { @MainActor in
+                UserNotificationService.shared.notifyConfigEvent(
+                    "Configuration Reset",
+                    body: body,
+                    key: "config.reset.full"
+                )
+            }
+        } else {
+            let names = result.failedCollectionNames
+            let summary = names.count <= 3
+                ? names.joined(separator: ", ")
+                : "\(names.prefix(3).joined(separator: ", ")) and \(names.count - 3) more"
+            let body = "\(summary) reset to defaults after an update.\(backupNote)"
+            AppLogger.shared.log("⚠️ [Bootstrap] Partial config recovery: \(names.joined(separator: ", "))")
+            Task { @MainActor in
+                UserNotificationService.shared.notifyConfigEvent(
+                    "\(names.count) Rule\(names.count == 1 ? "" : "s") Reset",
+                    body: body,
+                    key: "config.reset.partial"
+                )
+            }
         }
     }
 }

@@ -132,6 +132,154 @@ final class RuleCollectionStoreTests: XCTestCase {
         XCTAssertEqual(loadedIDs, defaultIDs, "Versioned round-trip should preserve all collections")
     }
 
+    // MARK: - Resilient Decode Tests
+
+    func testLoadRecoversSurvivingCollectionsWhenOneIsBroken() async throws {
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("rule-collections-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let fileURL = tempDir.appendingPathComponent("collections.json")
+
+        // Build a versioned JSON with one valid collection and one broken one
+        let catalog = RuleCollectionCatalog()
+        let validCollection = try XCTUnwrap(catalog.defaultCollections().first { $0.id == RuleCollectionIdentifier.macFunctionKeys })
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let validData = try encoder.encode(validCollection)
+        let validJSON = try XCTUnwrap(try JSONSerialization.jsonObject(with: validData) as? [String: Any])
+
+        // Broken collection: category is an int (should be string), causing decode failure
+        let brokenCollection: [String: Any] = [
+            "id": RuleCollectionIdentifier.homeRowMods.uuidString,
+            "name": "Home Row Mods",
+            "summary": "Test",
+            "category": 999,
+            "mappings": [],
+            "isEnabled": true,
+            "isSystemDefault": false
+        ]
+
+        let versioned: [String: Any] = [
+            "schemaVersion": 1,
+            "collections": [validJSON, brokenCollection]
+        ]
+        let data = try JSONSerialization.data(withJSONObject: versioned)
+        try data.write(to: fileURL)
+
+        let store = RuleCollectionStore.testStore(at: fileURL)
+        let result = await store.loadCollectionsDetailed()
+
+        // The valid collection should survive
+        XCTAssertTrue(
+            result.collections.contains { $0.id == RuleCollectionIdentifier.macFunctionKeys },
+            "Valid collection should be preserved"
+        )
+        // The broken one should be reported
+        XCTAssertEqual(result.failedCollectionNames, ["Home Row Mods"])
+        XCTAssertFalse(result.wasFullReset)
+    }
+
+    func testLoadCreatesBackupWhenDecodePartiallyFails() async throws {
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("rule-collections-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let fileURL = tempDir.appendingPathComponent("collections.json")
+
+        // Write versioned JSON with a broken collection (category is wrong type)
+        let brokenCollection: [String: Any] = [
+            "id": UUID().uuidString,
+            "name": "Broken Rule",
+            "summary": "Will fail",
+            "category": 999,
+            "mappings": [],
+            "isEnabled": true,
+            "isSystemDefault": false
+        ]
+        let versioned: [String: Any] = [
+            "schemaVersion": 1,
+            "collections": [brokenCollection]
+        ]
+        let data = try JSONSerialization.data(withJSONObject: versioned)
+        try data.write(to: fileURL)
+
+        let store = RuleCollectionStore.testStore(at: fileURL)
+        let result = await store.loadCollectionsDetailed()
+
+        XCTAssertNotNil(result.backupPath, "Backup should be created when decode fails")
+        if let path = result.backupPath {
+            XCTAssertTrue(FileManager.default.fileExists(atPath: path), "Backup file should exist on disk")
+        }
+    }
+
+    func testLoadReturnsDefaultsForCompletelyCorruptFile() async throws {
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("rule-collections-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let fileURL = tempDir.appendingPathComponent("collections.json")
+
+        // Write garbage data
+        try try XCTUnwrap("this is not json at all".data(using: .utf8)?.write(to: fileURL))
+
+        let store = RuleCollectionStore.testStore(at: fileURL)
+        let result = await store.loadCollectionsDetailed()
+
+        XCTAssertFalse(result.collections.isEmpty, "Should fall back to catalog defaults")
+        XCTAssertTrue(result.wasFullReset, "Should report full reset for unreadable file")
+        XCTAssertNotNil(result.backupPath, "Should backup even on full reset")
+    }
+
+    func testLoadPreservesEnabledStateWhenSiblingCollectionFails() async throws {
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("rule-collections-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let fileURL = tempDir.appendingPathComponent("collections.json")
+
+        let catalog = RuleCollectionCatalog()
+        // Take a normally-disabled collection and enable it
+        var capsLock = try XCTUnwrap(catalog.defaultCollections().first { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        capsLock = RuleCollection(
+            id: capsLock.id,
+            name: capsLock.name,
+            summary: capsLock.summary,
+            category: capsLock.category,
+            mappings: capsLock.mappings,
+            isEnabled: true,
+            isSystemDefault: capsLock.isSystemDefault,
+            icon: capsLock.icon,
+            configuration: capsLock.configuration
+        )
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let validJSON = try XCTUnwrap(try JSONSerialization.jsonObject(
+            with: encoder.encode(capsLock)
+        ) as? [String: Any])
+
+        let brokenJSON: [String: Any] = [
+            "id": UUID().uuidString,
+            "name": "Broken",
+            "summary": "x",
+            "category": 999,
+            "mappings": [],
+            "isEnabled": true,
+            "isSystemDefault": false
+        ]
+
+        let versioned: [String: Any] = [
+            "schemaVersion": 1,
+            "collections": [validJSON, brokenJSON]
+        ]
+        try JSONSerialization.data(withJSONObject: versioned).write(to: fileURL)
+
+        let store = RuleCollectionStore.testStore(at: fileURL)
+        let result = await store.loadCollectionsDetailed()
+
+        let capsResult = result.collections.first { $0.id == RuleCollectionIdentifier.capsLockRemap }
+        XCTAssertNotNil(capsResult)
+        XCTAssertTrue(capsResult?.isEnabled == true, "Enabled state should survive sibling decode failure")
+    }
+
     func testLoadAddsMissingCatalogDefaultsWhenFileHasSubset() async throws {
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("rule-collections-\(UUID().uuidString)")
