@@ -148,6 +148,9 @@ struct VallackSystemPackContent: View {
                 )
             }
 
+            // Quick start guide
+            vallackQuickStart
+
             // How it works
             VStack(alignment: .leading, spacing: 6) {
                 Text("How it works")
@@ -209,6 +212,47 @@ struct VallackSystemPackContent: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    // MARK: - Quick Start
+
+    private var vallackQuickStart: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Quick start")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .padding(.leading, 4)
+
+            VStack(alignment: .leading, spacing: 8) {
+                quickStartRow("🤜🤛", "One hand holds, the other operates. Hold **F** to use right-hand shortcuts, or hold **J** for left-hand ones.")
+                quickStartRow("⬆️⬇️", "**Arrow keys live under your right hand** — hold F, then use H J K L to navigate. Think Vim.")
+                quickStartRow("🔀", "**Hold J for left-hand tools** — Esc, tab switching, Home/End, and app switcher are all under your left fingers.")
+                quickStartRow("📋", "**Copy and paste without ⌘** — hold F, then Y to copy and ; to paste. Backspace is U, Return is I.")
+                quickStartRow("⌨️", "**Top-row keys double as modifiers** — tap Q for q, hold Q for Control. Same idea for ⌥ and ⌘.")
+                quickStartRow("💡", "**Tap F or J normally** to type those letters — the layer only activates when you hold.")
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color(NSColor.controlBackgroundColor).opacity(0.3))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
+                    )
+            )
+        }
+    }
+
+    private func quickStartRow(_ emoji: String, _ markdown: LocalizedStringKey) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text(emoji)
+                .font(.body)
+                .frame(width: 24)
+            Text(markdown)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
