@@ -153,17 +153,17 @@ struct VimHintLayer: View {
 
 private func groupColor(for group: VimHint.Group) -> Color {
     switch group {
-    case .movement: Color(red: 0.4, green: 0.75, blue: 0.45)   // sage green
-    case .wordMotion: Color(red: 0.35, green: 0.65, blue: 0.85) // sky blue
-    case .lineMotion: Color(red: 0.65, green: 0.5, blue: 0.82)  // soft purple
-    case .enterInsert: Color(red: 0.9, green: 0.55, blue: 0.4)  // coral
-    case .edit: Color(red: 0.9, green: 0.7, blue: 0.3)          // warm gold
-    case .operators: Color(red: 0.85, green: 0.4, blue: 0.4)    // muted red
-    case .findChar: Color(red: 0.4, green: 0.72, blue: 0.7)     // teal
-    case .doc: Color(red: 0.65, green: 0.5, blue: 0.82)         // soft purple (same as line)
-    case .page: Color(red: 0.55, green: 0.6, blue: 0.75)        // slate blue
-    case .match: Color(red: 0.7, green: 0.6, blue: 0.5)         // warm gray
-    case .search: Color(red: 0.75, green: 0.6, blue: 0.35)      // amber
+    case .movement: KeyPathColors.VimHint.movement
+    case .wordMotion: KeyPathColors.VimHint.wordMotion
+    case .lineMotion: KeyPathColors.VimHint.lineMotion
+    case .enterInsert: KeyPathColors.VimHint.enterInsert
+    case .edit: KeyPathColors.VimHint.edit
+    case .operators: KeyPathColors.VimHint.operators
+    case .findChar: KeyPathColors.VimHint.findChar
+    case .doc: KeyPathColors.VimHint.lineMotion
+    case .page: KeyPathColors.VimHint.page
+    case .match: KeyPathColors.VimHint.match
+    case .search: KeyPathColors.VimHint.search
     }
 }
 

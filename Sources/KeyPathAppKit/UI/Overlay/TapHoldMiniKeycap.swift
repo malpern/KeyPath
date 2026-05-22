@@ -71,7 +71,7 @@ struct TapHoldMiniKeycap: View {
 
     private var foregroundColor: Color {
         isDark
-            ? Color(red: 0.88, green: 0.93, blue: 1.0).opacity(isPressed ? 1.0 : 0.88)
+            ? KeyPathColors.keycapText.opacity(isPressed ? 1.0 : 0.88)
             : Color.primary.opacity(isPressed ? 1.0 : 0.88)
     }
 

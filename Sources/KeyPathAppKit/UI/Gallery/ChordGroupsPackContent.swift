@@ -179,7 +179,7 @@ private struct ChordRuleRow: View {
 
     @State private var isHovered = false
 
-    private static let keycapTextColor = Color(red: 0.88, green: 0.93, blue: 1.0)
+    private static let keycapTextColor = KeyPathColors.keycapText
     private static let keycapBgColor = Color(white: 0.12)
 
     var body: some View {

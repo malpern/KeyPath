@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import KeyPathCore
 import Observation
@@ -14,25 +15,36 @@ final class KeystrokeHistoryService {
     private(set) var segments: [TimelineSegment] = []
     private(set) var currentLayer: String = "base"
     private(set) var eventCount: Int = 0
-    var isRecording: Bool = true
+    var isRecording: Bool = false
 
     @ObservationIgnored private var rawEvents: [KeystrokeTimelineEvent] = []
     @ObservationIgnored private var pendingEvents: [KeystrokeTimelineEvent] = []
     @ObservationIgnored private var batchTimer: Timer?
     @ObservationIgnored private let observers = NotificationObserverManager()
+    @ObservationIgnored private let workspaceObservers = NotificationObserverManager()
+    @ObservationIgnored private var currentAppBundleId: String?
+    @ObservationIgnored private var currentAppName: String?
+    @ObservationIgnored private var lastTypedAppBundleId: String?
     @ObservationIgnored private let notificationCenter: NotificationCenter
     @ObservationIgnored var thresholdLookup: (() -> (baseMs: Int, offsets: [String: Int]))?
 
     private init(notificationCenter: NotificationCenter = .default) {
         self.notificationCenter = notificationCenter
         setupObservers()
+        Task { @MainActor in
+            self.isRecording = await InstalledPackTracker.shared.isInstalled(
+                packID: PackRegistry.keystrokeHistory.id
+            )
+        }
     }
 
     #if DEBUG
         static func makeTestInstance(
             notificationCenter: NotificationCenter = NotificationCenter()
         ) -> KeystrokeHistoryService {
-            KeystrokeHistoryService(notificationCenter: notificationCenter)
+            let instance = KeystrokeHistoryService(notificationCenter: notificationCenter)
+            instance.isRecording = true
+            return instance
         }
     #endif
 
@@ -194,6 +206,22 @@ final class KeystrokeHistoryService {
             }
         }
 
+        workspaceObservers.observe(
+            NSWorkspace.didActivateApplicationNotification,
+            center: NSWorkspace.shared.notificationCenter
+        ) { [weak self] notification in
+            guard let self else { return }
+            guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  let bundleId = app.bundleIdentifier
+            else { return }
+            let appName = app.localizedName ?? bundleId
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                currentAppBundleId = bundleId
+                currentAppName = appName
+            }
+        }
+
         observers.observe(.kanataTapDanceResolved, center: notificationCenter) { [weak self] notification in
             guard let self else { return }
             let userInfo = notification.userInfo
@@ -223,8 +251,34 @@ final class KeystrokeHistoryService {
             }
         }
 
+        // Insert app context divider when first keystroke arrives in a different app
+        if isKeystrokeEvent(event),
+           let appId = currentAppBundleId,
+           appId != lastTypedAppBundleId
+        {
+            lastTypedAppBundleId = appId
+            let appEvent = KeystrokeTimelineEvent(
+                id: UUID(),
+                timestamp: event.timestamp,
+                kind: .appChanged(AppChangedPayload(
+                    appName: currentAppName ?? appId,
+                    bundleIdentifier: appId
+                ))
+            )
+            pendingEvents.append(appEvent)
+        }
+
         pendingEvents.append(event)
         scheduleBatchFlush()
+    }
+
+    private func isKeystrokeEvent(_ event: KeystrokeTimelineEvent) -> Bool {
+        switch event.kind {
+        case .keyInput, .tapActivated, .holdActivated, .chordResolved, .tapDanceResolved:
+            true
+        case .layerChanged, .hrmDecision, .oneShotActivated, .appChanged:
+            false
+        }
     }
 
     private func isDuplicate(key: String, action: KanataKeyAction, timestamp: Date) -> Bool {

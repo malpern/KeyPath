@@ -103,14 +103,10 @@ struct ModifierKeyChip: View {
     var isPressed: Bool = false
 
     /// Normal bright blue color
-    private static let normalTextColor = Color(red: 0.4, green: 0.8, blue: 1.0)
-    /// Normal dark blue background
-    private static let normalBackgroundColor = Color(red: 0.1, green: 0.28, blue: 0.45)
-
-    /// Pressed/active bright color (more vibrant)
-    private static let pressedTextColor = Color(red: 0.6, green: 0.95, blue: 1.0)
-    /// Pressed/active background (brighter)
-    private static let pressedBackgroundColor = Color(red: 0.15, green: 0.45, blue: 0.7)
+    private static let normalTextColor = KeyPathColors.hintText
+    private static let normalBackgroundColor = KeyPathColors.hintBackground
+    private static let pressedTextColor = KeyPathColors.hintTextPressed
+    private static let pressedBackgroundColor = KeyPathColors.hintBackgroundPressed
 
     private var textColor: Color {
         isPressed ? Self.pressedTextColor : Self.normalTextColor

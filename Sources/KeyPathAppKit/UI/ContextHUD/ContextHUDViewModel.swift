@@ -386,16 +386,16 @@ final class ContextHUDViewModel {
     /// Get collection color matching the overlay's color scheme
     private func collectionColor(for collectionId: UUID?) -> Color {
         guard let id = collectionId else {
-            return Color(red: 0.85, green: 0.45, blue: 0.15) // default orange
+            return KeyPathColors.layerOrange
         }
 
         switch id {
         case RuleCollectionIdentifier.vimNavigation:
-            return Color(red: 0.85, green: 0.45, blue: 0.15) // orange
+            return KeyPathColors.layerOrange
         case RuleCollectionIdentifier.kindaVim:
-            return Color(red: 0.2, green: 0.7, blue: 0.4) // green
+            return KeyPathColors.layerGreen
         case RuleCollectionIdentifier.neovimTerminal:
-            return Color(red: 0.3, green: 0.6, blue: 0.9) // steel blue
+            return KeyPathColors.layerBlue
         case RuleCollectionIdentifier.windowSnapping:
             return .purple
         case RuleCollectionIdentifier.symbolLayer:
@@ -403,9 +403,9 @@ final class ContextHUDViewModel {
         case RuleCollectionIdentifier.launcher:
             return .cyan
         case RuleCollectionIdentifier.vallackNavigation:
-            return Color(red: 0.2, green: 0.7, blue: 0.4) // green — matches overlay zone
+            return KeyPathColors.layerGreen
         default:
-            return Color(red: 0.85, green: 0.45, blue: 0.15) // default orange
+            return KeyPathColors.layerOrange
         }
     }
 }

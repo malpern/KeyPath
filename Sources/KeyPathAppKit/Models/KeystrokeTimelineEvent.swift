@@ -14,6 +14,7 @@ struct KeystrokeTimelineEvent: Identifiable {
         case oneShotActivated(OneShotPayload)
         case chordResolved(ChordPayload)
         case tapDanceResolved(TapDancePayload)
+        case appChanged(AppChangedPayload)
     }
 }
 
@@ -62,4 +63,9 @@ struct TapDancePayload {
     let key: String
     let tapCount: UInt8
     let action: String
+}
+
+struct AppChangedPayload {
+    let appName: String
+    let bundleIdentifier: String
 }

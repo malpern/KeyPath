@@ -484,7 +484,13 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
         }
 
         // Check process conflicts
-        let conflicts = await processLifecycle.detectConflicts()
+        let conflicts: ProcessLifecycleManager.ConflictResolution
+        do {
+            conflicts = try await processLifecycle.detectConflicts()
+        } catch {
+            AppLogger.shared.log("❌ [HealthMonitor] Process conflict detection failed: \(error)")
+            return .simpleRestart
+        }
         if conflicts.hasConflicts {
             AppLogger.shared.warn(
                 "[HealthMonitor] Process conflicts detected - recommend kill and restart"

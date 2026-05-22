@@ -8,7 +8,7 @@ import SwiftUI
 /// View modifier that applies overlay-style keycap appearance
 struct KeycapStyle: ViewModifier {
     /// Text color matching overlay keycaps (light blue-white)
-    static let textColor = Color(red: 0.88, green: 0.93, blue: 1.0)
+    static let textColor = KeyPathColors.keycapText
 
     /// Background color matching overlay keycaps (dark gray)
     static let backgroundColor = Color(white: 0.12)

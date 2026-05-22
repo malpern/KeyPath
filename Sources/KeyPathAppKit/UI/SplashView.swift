@@ -82,8 +82,8 @@ struct SplashView: View {
             // Match the poster background so the window doesn't read as a grey "missing image" panel.
             LinearGradient(
                 colors: [
-                    Color(red: 0x48 / 255.0, green: 0x4C / 255.0, blue: 0x54 / 255.0),
-                    Color(red: 0x1D / 255.0, green: 0x1D / 255.0, blue: 0x21 / 255.0)
+                    KeyPathColors.splashGradientTop,
+                    KeyPathColors.splashGradientBottom
                 ],
                 startPoint: .top,
                 endPoint: .bottom
